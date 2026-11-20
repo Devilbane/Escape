@@ -65,8 +65,9 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Say something | Enter (Enter sends; Esc or an empty line goes back) | click the line under the event log; whoever stands near answers |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
 | Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |
-| Set up furniture (blueprint button, “Furnish”) | R turns it, Esc closes | left click puts it down, right click turns it |
+| Set up furniture (blueprint button, “Furnish”) | R turns it, Esc closes | left click puts it down, hold and drag moves a placed piece, right click turns it |
 | Zoom | + and − | mouse wheel (up close the camera tilts and you see the face) |
+| Zoom and move the map (map window) | + and −, 0 shows the whole map | mouse wheel, the buttons in the map's top right corner; drag to move it |
 
 A jump from a run keeps its momentum: the faster you are, the farther you fly.
 Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.

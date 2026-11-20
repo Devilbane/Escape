@@ -1,0 +1,1 @@
+- Items, chests and furniture can no longer be picked up or used through a solid wall.

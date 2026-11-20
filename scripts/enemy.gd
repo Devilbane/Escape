@@ -32,6 +32,8 @@ const SIGHT := 26.0
 ## close, a skeleton always notices.
 const SIGHT_CONE := deg_to_rad(60.0)
 const HEARING := 10.0
+## How far a footstep carries through the wall of a built house (see _notices).
+const MUFFLED_HEARING := 2.5
 const TOUCH := 2.2
 ## Seconds a hunting skeleton searches after losing the hero before it gives up.
 const GIVE_UP := 5.0
@@ -2241,7 +2243,8 @@ func _physics_process(delta: float) -> void:
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_shoot(player)
-		elif not ranged and dist < _stats.reach and (through_walls or not level.door_between(global_position, player.global_position)):
+		elif not ranged and dist < _stats.reach and (through_walls or not level.door_between(global_position, player.global_position)) \
+				and not level.built_between(global_position + Vector3(0, Level.BLOW_HEIGHT, 0), player.global_position + Vector3(0, Level.BLOW_HEIGHT, 0), true):
 			_face(to_player)
 			if _cooldown <= 0.0:
 				_strike(player)
@@ -2676,15 +2679,25 @@ func is_hunting() -> bool:
 ## Whether the skeleton sees or hears the hero right now.
 func _notices(player: Player, to_player: Vector3, dist: float, sees: bool) -> bool:
 	var in_view := ahead_angle(to_player) <= SIGHT_CONE
+	# Inside a built house with the door shut, the walls hide the hero and
+	# muffle their steps: only right behind the wall is a footstep heard.
+	var walled := dist < HEARING and _walled_off(player)
 	# Right up close it notices, unless the hero sneaks up from behind.
-	if dist < TOUCH and (in_view or not player.sneaking or _awake):
+	if dist < TOUCH and not walled and (in_view or not player.sneaking or _awake):
 		return true
-	if dist < HEARING and player.is_noisy():
+	if dist < (MUFFLED_HEARING if walled else HEARING) and player.is_noisy():
 		return true
 	if not sees or not player.is_lit():
 		return false
 	# Once hunting, a skeleton keeps its eyes on the hero all around.
 	return _awake or in_view
+
+
+## Whether a built house's wall, window, shut door, floor or roof stands between
+## the monster and the hero (see Level.built_between).
+func _walled_off(player: Player) -> bool:
+	var eye := Vector3(0, Level.EYE_HEIGHT, 0)
+	return level.built_between(global_position + eye, player.global_position + eye, true)
 
 
 func ahead_angle(to: Vector3) -> float:
@@ -2809,7 +2822,8 @@ func _strike(target: Node3D) -> void:
 		return
 	var player := target as Player
 	if player != null and d.length() < float(_stats.reach) + 0.6 and not level.stacked(self, player) \
-			and (is_ghost() or not level.door_between(global_position, player.global_position)):
+			and (is_ghost() or not level.door_between(global_position, player.global_position)) \
+			and not level.built_between(global_position + Vector3(0, Level.BLOW_HEIGHT, 0), player.global_position + Vector3(0, Level.BLOW_HEIGHT, 0), true):
 		var before := player.hp
 		player.take_damage(_stats.damage, global_position, self)
 		if SlimeCoat.is_slime(self) and player.hp < before:

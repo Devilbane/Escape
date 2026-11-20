@@ -46,7 +46,9 @@ const TOOL_STAIRS := "stairs"
 const TOOL_COVER := "cover"
 const TOOL_FENCE := "fence"
 const TOOL_BALLISTA := "ballista"
-const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_BALLISTA, TOOL_ERASE]
+## A ladder: on the level shown, up to a slab, or in the cellar up the pit wall (see HouseSketch.LADDER).
+const TOOL_LADDER := "ladder"
+const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_BALLISTA, TOOL_LADDER, TOOL_ERASE]
 ## Tools that drag a straight run of edges.
 const RUN_TOOLS := [TOOL_WALL, TOOL_FENCE]
 ## The cellar's tools (their own row in the tool bar).
@@ -115,6 +117,9 @@ var game: Node
 var active := false
 var tool := TOOL_WALL
 var plan: HouseSketch
+## Where the hero's own house keeps the weather out (see HouseGround.shelter): inside it, the
+## blessing of its household goddess holds (see HouseholdGods.active).
+var own_shelter := {}
 ## The node where a wall drag started, or (-1, -1).
 var drag_from := Vector2i(-1, -1)
 var _plot := Rect2i()
@@ -455,6 +460,17 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 	if tool in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW] and storey < 0:
 		_say(Lang.t("Im Keller graben und verkleiden die Keller-Werkzeuge: Stelle die Ebene um."))
 		return
+	if tool == TOOL_LADDER:
+		if pressed:
+			var c := plan.cell_at(point)
+			var choice := _ladder_choice(point)
+			if choice[1] == "":
+				_say(reason(choice[2]))
+			else:
+				plan.sketch_ladder(c.x, c.y, choice[1], choice[0])
+				_changed()
+				_say(Lang.t("Leiter vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
+		return
 	if tool == TOOL_BALLISTA:
 		if pressed:
 			var c := plan.cell_at(point)
@@ -557,6 +573,8 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		var why_not := plan.erase_cell(c.x, c.y) if storey < 0 else plan.erase_above(c.x, c.y, storey)
 		if why_not == "needed":
 			_say(Lang.t("Die Treppe führt hierher: Nimm zuerst die Treppe zurück."))
+		elif why_not == "ladder needed":
+			_say(reason(why_not))
 		elif why_not == "ballista":
 			_say(reason("ballista"))
 		elif why_not == "" and was_built:
@@ -585,6 +603,24 @@ func hover(point: Vector3) -> void:
 	if not active or plan == null:
 		return
 	var key := ""
+	if tool == TOOL_LADDER:
+		var c := plan.cell_at(point)
+		var choice := _ladder_choice(point)
+		key = "l:%s:%s:%d" % [c, choice[1], storey]
+		if key == _hover_key:
+			return
+		_hover_key = key
+		_clear(_ghost)
+		var high := maxf(0.0, choice[0]) * HouseSketch.STOREY_HEIGHT + 0.08
+		if choice[1] == "":
+			_cell_quad(_ghost, c, BAD_COLOR, high)
+			_say(reason(choice[2]))
+		else:
+			_cell_quad(_ghost, c, OK_COLOR, high)
+			_cell_quad(_ghost, HouseSketch.ladder_top(c.x, c.y, HouseSketch.LADDER_ORIENTS[choice[1]]), OK_COLOR,
+					(choice[0] + 1) * HouseSketch.STOREY_HEIGHT + 0.08 if choice[0] >= 0 else 0.08)
+			_say("")
+		return
 	if tool == TOOL_BALLISTA:
 		var c := plan.cell_at(point)
 		key = "b:%s" % c
@@ -694,9 +730,13 @@ func _eraser_key(c: Vector2i) -> String:
 	if storey < 0:
 		if plan.pieces.has(cover) and plan.pieces[cover].state != HouseSketch.DEMOLISH:
 			return cover
+		if plan.ladder_key(c.x, c.y, storey) != "":
+			return plan.ladder_key(c.x, c.y, storey)
 		return plan.hole_key(c.x, c.y)
 	if not plan.ballista_at(c.x, c.y, storey).is_empty():
 		return HouseSketch.key_of(c.x, c.y, HouseSketch.BALLISTA_ORIENT, storey)
+	if plan.ladder_key(c.x, c.y, storey) != "":
+		return plan.ladder_key(c.x, c.y, storey)
 	if plan.roof_key(c.x, c.y, storey) != "":
 		return plan.roof_key(c.x, c.y, storey)
 	if storey == 0 and plan.up_key(c.x, c.y) != "":
@@ -746,6 +786,20 @@ static func reason(why: String) -> String:
 			return Lang.t("Mehr als %d Ballisten passen nicht auf ein Grundstück.") % HouseSketch.MAX_BALLISTAE
 		"ballista":
 			return Lang.t("Auf dem Dach steht eine Balliste: Nimm sie zuerst zurück (Ebene: Obergeschoss).")
+		"ladder":
+			return Lang.t("Über einer Leiter im Keller bleibt der Boden offen.")
+		"ladder needed":
+			return Lang.t("Eine Leiter lehnt hier oder steht darauf: Nimm zuerst die Leiter zurück.")
+		"ladder no slab":
+			return Lang.t("Eine Leiter lehnt an einer Decke oder einem Flachdach: Klicke ein Feld daneben an, nahe an ihrem Rand.")
+		"ladder no cellar":
+			return Lang.t("Im Keller steht eine Leiter in einem gegrabenen Feld an der Grubenwand.")
+		"ladder covered":
+			return Lang.t("Über diesem Kellerfeld liegt ein Boden: Dort kommt keine Leiter hinauf.")
+		"ladder no roof":
+			return Lang.t("Auf dem Obergeschoss steht eine Leiter auf einem Flachdach.")
+		"no ledge":
+			return Lang.t("Oben an der Leiter muss fester Boden sein, keine Grube oder Treppe.")
 	return ""
 
 
@@ -790,10 +844,10 @@ func _build_bar() -> void:
 	_bar.add_child(box)
 	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
 	var tools := _row(box)
-	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_BALLISTA: "Balliste", TOOL_ERASE: "Radierer"}
+	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_BALLISTA: "Balliste", TOOL_LADDER: "Leiter", TOOL_ERASE: "Radierer"}
 	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_STAIRS: "Treppe hinauf"}
 	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_COVER: "Boden"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_STAIRS, TOOL_DIG, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_STAIRS, TOOL_LADDER, TOOL_DIG, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
@@ -1056,7 +1110,34 @@ func _hint() -> String:
 			return Lang.t("Satteldach: Ziehe ein Rechteck. Der First läuft entlang der langen Seite.")
 		TOOL_BALLISTA:
 			return Lang.t("Balliste: Klicke ein Feld im Garten oder auf einem Flachdach an. Sie kostet 6 Bauholz und 2 Steinblöcke.")
+		TOOL_LADDER:
+			return Lang.t("Leiter: Klicke ein Feld neben einer Decke an, nahe am Rand, oder im Keller an der Grubenwand. 1 Bauholz. Begleiter nehmen die Treppe.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
+
+
+## Which ladder a click at `point` puts, as [storey, direction, why not]: on
+## the level shown (the cellar's when it fits only there, from the ground floor),
+## leaning on the cell edge nearest the click that takes it. The direction is ""
+## when none fits, with the reason for the nearest edge.
+func _ladder_choice(point: Vector3) -> Array:
+	var c := plan.cell_at(point)
+	var mid := plan.cell_world(c.x, c.y)
+	var prefer := Vector2(point.x - mid.x, point.z - mid.z)
+	var storeys := [storey]
+	if storey == 0:
+		storeys.append(HouseSketch.CELLAR_STOREY)
+	elif storey == HouseSketch.CELLAR_STOREY:
+		storeys.append(0)
+	for s in storeys:
+		var dir := plan.ladder_dir(c.x, c.y, s, prefer)
+		if dir != "":
+			return [s, dir, ""]
+	var nearest := "e"
+	for dir in HouseSketch.DOWN:
+		if prefer.dot(Vector2(HouseSketch.DOWN[dir])) > prefer.dot(Vector2(HouseSketch.DOWN[nearest])):
+			nearest = dir
+	var why := plan.problem_ladder(c.x, c.y, nearest, storey)
+	return [storey, "", "ladder " + why if why in ["no slab", "no cellar", "covered", "no roof"] else why]
 
 
 ## Which stairs a click on cell c puts, as [up, direction] (direction "" when
@@ -1120,11 +1201,16 @@ func _redraw() -> void:
 		child.queue_free()
 	if game == null or not game.level is Outdoor:
 		return
+	game.level.reach_walls.clear()
+	game.level.built_windows.clear()
+	game.level.built_floors.clear()
 	# Everyone's built pieces stand on the map for all to see.
 	var holes := []
 	var floored := []
 	var ceilinged := []
 	var built_ground := []
+	var shelters := {}
+	own_shelter = {}
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
@@ -1145,6 +1231,11 @@ func _redraw() -> void:
 		_solid_above(house)
 		_solid_ballistae(house)
 		built_ground.append_array(HouseGround.rects(house))
+		var shelter := HouseGround.shelter(house)
+		shelters.merge(shelter, true)
+		if house == plan:
+			own_shelter = shelter
+	(game.level as Outdoor).shelters = shelters
 	game.level.set_floor_holes(holes, ceilinged)
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
 	if (game.level as Outdoor).surface_life != null:
@@ -1170,6 +1261,9 @@ func _redraw() -> void:
 					_cell_quad(_built, c, STAIRS_COLOR)
 			elif kind == HouseSketch.SLAB or kind == HouseSketch.SADDLE:
 				_cell_quad(_built, Vector2i(p[1], p[2]), SLAB_COLOR if kind == HouseSketch.SLAB else ROOF_COLOR, up)
+			elif kind == HouseSketch.LADDER:
+				_cell_quad(_built, Vector2i(p[1], p[2]), STAIRS_COLOR, maxf(0.0, p[0]) * HouseSketch.STOREY_HEIGHT + 0.06)
+				_ladder(plan, p, _built, _material(STAIRS_COLOR))
 			elif kind == HouseSketch.BALLISTA:
 				var foot := plan.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
 				_cell_quad(_built, Vector2i(p[1], p[2]), BALLISTA_COLOR, p[0] * HouseSketch.STOREY_HEIGHT)
@@ -1297,6 +1391,7 @@ func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> v
 	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
 	mesh.set_meta("ymin", 0.0)
 	_cover(house, x, y, HouseSketch.CELLAR_STOREY)
+	_hide_under(house, x, y, -thick * 0.5)
 
 
 ## A floor on plain ground: the pen's planks or the square's flagstones laid on
@@ -1326,11 +1421,62 @@ func _solid_above(house: HouseSketch) -> void:
 				_floor_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab, "wood", demolish)
 				_collide(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab)
 				_cover(house, p[1], p[2], p[0])
+				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK * 0.5)
 			HouseSketch.SADDLE:
 				_saddle(mid, base + HouseSketch.SLAB_THICK, p[3] == "rx", demolish)
 				_cover(house, p[1], p[2], p[0])
+				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK + HouseSketch.ROOF_RISE * 0.5)
 			HouseSketch.UPSTAIRS:
 				_ramp(house, p[1], p[2], p[3], demolish, HouseSketch.STOREY_HEIGHT)
+			HouseSketch.LADDER:
+				var wood: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood()
+				_ladder(house, p, _solid, wood).add_to_group(Player.LADDER_GROUP)
+
+
+## Where a ladder (key parts `p`, see HouseSketch.LADDER) stands: the foot and top
+## heights, the point on the edge it leans on and the flat direction up it.
+static func ladder_frame(house: HouseSketch, p: Array) -> Dictionary:
+	var foot_cell := Vector2i(p[1], p[2])
+	var top_cell := HouseSketch.ladder_top(p[1], p[2], p[3])
+	var a := house.cell_world(foot_cell.x, foot_cell.y)
+	var b := house.cell_world(top_cell.x, top_cell.y)
+	var push := Vector3(b.x - a.x, 0, b.z - a.z).normalized()
+	var edge := Vector3((a.x + b.x) * 0.5, 0, (a.z + b.z) * 0.5)
+	var low: float = -HouseSketch.DEPTH if p[0] == HouseSketch.CELLAR_STOREY else p[0] * HouseSketch.STOREY_HEIGHT
+	var high: float = 0.0 if p[0] == HouseSketch.CELLAR_STOREY else (p[0] + 1) * HouseSketch.STOREY_HEIGHT
+	return {"push": push, "edge": edge, "low": low, "high": high}
+
+
+## A ladder: two rails against the edge, a rung every 30 cm, the rails standing
+## a metre over the top to hold on to. Returns the node that tells the hero
+## where to climb it (see Player.LADDER_GROUP), under `parent`.
+func _ladder(house: HouseSketch, p: Array, parent: Node3D, mat: Material) -> Node3D:
+	var f := ladder_frame(house, p)
+	var push: Vector3 = f.push
+	var side := Vector3(-push.z, 0, push.x)
+	var line: Vector3 = f.edge - push * (THICK * 0.5 + 0.08)
+	var low: float = f.low
+	var tall: float = f.high - low + 1.0
+	for sign_ in [-1.0, 1.0]:
+		_box(parent, line + side * sign_ * 0.3 + Vector3(0, low + tall * 0.5, 0), (side * 0.07 + push * 0.07).abs() + Vector3(0, tall, 0), mat)
+	var y := low + 0.3
+	while y < f.high + 0.75:
+		_box(parent, line + Vector3(0, y, 0), (side * 0.6 + push * 0.05).abs() + Vector3(0, 0.05, 0), mat)
+		y += 0.3
+	var spot := Node3D.new()
+	spot.set_meta("push", push)
+	spot.set_meta("edge", f.edge)
+	spot.set_meta("foot", f.edge - push * 0.65 + Vector3(0, low, 0))
+	spot.set_meta("top", f.edge + push * 0.7 + Vector3(0, f.high, 0))
+	parent.add_child(spot)
+	return spot
+
+
+## Tells the map that a floor or roof `height` high covers a cell of `house`, so
+## no monster sees, strikes or shoots through it (see Level.built_between).
+func _hide_under(house: HouseSketch, x: int, y: int, height: float) -> void:
+	var corner := house.node_world(x, y)
+	game.level.built_floors.append({"rect": Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL), "y": corner.y + height})
 
 
 ## One cell of pitched roof: two boards up to the ridge and a triangle at each end.
@@ -1539,6 +1685,15 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
 		_:
 			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+	if kind == HouseSketch.WALL or kind == HouseSketch.DOOR:
+		# Nothing is picked up or used through it (see Level.can_reach); a window is reached through.
+		var b := a + (mid - a) * 2.0
+		game.level.reach_walls.append({"a": Vector2(a.x, a.z), "b": Vector2(b.x, b.z), "y": a.y + _lift,
+				"door": _new_door if kind == HouseSketch.DOOR else null})
+	elif kind == HouseSketch.WINDOW:
+		# Seen through, but no blow or shot goes through the pane (see Level.built_between).
+		var b := a + (mid - a) * 2.0
+		game.level.built_windows.append({"a": Vector2(a.x, a.z), "b": Vector2(b.x, b.z), "y": a.y + _lift})
 
 
 ## A doorway in a house wall: stone jambs of the temple's blocks from the

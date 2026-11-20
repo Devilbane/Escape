@@ -22,9 +22,10 @@ extends Node3D
 ## The short names on the tool bar's buttons, in the order of HouseFurniture.KINDS.
 const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen",
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
-	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache"}
-## The tool bar's second row: light and the walls. Everything else is on the first.
-const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]
+	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
+	"schrein_maija": "Schrein: Maija"}
+## The tool bar's second row: light, the walls and the shrines. Everything else is on the first.
+const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
 const LIGHT_RANGE := 9.0
@@ -75,6 +76,15 @@ var _status: Label
 var _hint := ""
 var _frame_pending := false
 var _hover_cell := Vector2i(-1, -1)
+## A placed piece held with the left mouse button and moved to another spot (see grab and drop):
+## where it stood, the tool chosen before, and where on the screen it was grabbed.
+var _held := {}
+var _held_tool := ""
+var _held_from := Vector2.ZERO
+## The floor point under the mouse, for R over a placed piece (null when there is none).
+var _mouse_point = null
+## How far the mouse must move (pixels) before holding a piece counts as dragging, not a click.
+const DRAG_START := 8.0
 
 
 func _ready() -> void:
@@ -99,6 +109,10 @@ func _process(_delta: float) -> void:
 	if _frame_pending and game.house_sketcher != null:
 		_frame_pending = false
 		game.house_sketcher.solve_frame(_bar)
+	# The button let go anywhere (over the bar too, which keeps the release from the game).
+	if dragging() and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		var at := game.get_viewport().get_mouse_position()
+		drop(floor_point(at) if not game.menus.is_open() else null, at)
 	if game.state == game.State.PLAYING and not game.menus.is_open():
 		var spot = floor_point(game.get_viewport().get_mouse_position())
 		if spot != null:
@@ -262,6 +276,9 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			_add_light(holder, Vector3(0, 1.0, 0.8))
 		"bild_berge", "bild_see", "bild_drache":
 			_build_painting(root, int(info.painting))
+		_:
+			if info.has("goddess"):
+				solids.append_array(HouseholdGods.build_shrine(root, info.goddess))
 	root.set_meta("solids", solids)
 	return station
 
@@ -450,7 +467,7 @@ func enter() -> void:
 		tool = _first_waiting()
 	game.house_sketcher.view_storey = storey
 	_bar.visible = true
-	_hint = Lang.t("Einrichten: Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen.") if furniture.waiting() > 0 \
+	_hint = Lang.t("Einrichten: Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Aufgestellte Möbel mit gedrückter Maustaste verschieben.") if furniture.waiting() > 0 \
 			else Lang.t("Keine Möbel zum Aufstellen. Raumausstatterin Ilse am Dorfplatz verkauft welche.")
 	game.show_message(_hint, 4.0)
 	_update_bar()
@@ -462,6 +479,7 @@ func leave() -> void:
 	active = false
 	game.frame_pull = 0.0
 	_bar.visible = false
+	cancel_drag()
 	_clear_ghost()
 	if game.house_sketcher != null:
 		game.house_sketcher.view_storey = HouseSketcher.NO_VIEW
@@ -493,6 +511,12 @@ func select(next: String) -> void:
 
 
 func turn() -> void:
+	# R over a placed piece turns that piece where it stands (not while one is held).
+	if not dragging() and _mouse_point != null and plan() != null:
+		var i := _piece_under(_mouse_point)
+		if i >= 0:
+			turn_placed(i)
+			return
 	rot = (rot + 1) % 4
 	var cell := _hover_cell
 	_clear_ghost()
@@ -525,10 +549,150 @@ func handle_input(event: InputEvent) -> bool:
 			return true
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			var spot = floor_point(event.position)
-			if spot != null:
+			if spot != null and (_hangs_here() or not grab(spot, event.position)):
 				click(spot)
 			return true
 	return false
+
+
+## Turns a placed piece a quarter (or as far as it must) to the next way it fits where it
+## stands. Returns whether it turned.
+func turn_placed(i: int) -> bool:
+	var house := plan()
+	if house == null or i < 0 or i >= furniture.placed.size():
+		return false
+	var p: Dictionary = furniture.placed[i].duplicate()
+	var name := Lang.t(HouseFurniture.KINDS[p.kind].name)
+	furniture.pick_up(i)
+	var why := ""
+	for step in range(1, 4):
+		var r: int = (p.rot + step) % 4
+		var problem := furniture.problem(house, p.kind, p.storey, p.x, p.y, r)
+		if problem == "":
+			furniture.place(house, p.kind, p.storey, p.x, p.y, r)
+			furniture.save(game.hero_name)
+			Sfx.play(game, "gear_soft_0", -4.0)
+			_say(Lang.t("%s gedreht.") % name)
+			_clear_ghost()
+			refresh()
+			return true
+		if why == "":
+			why = problem
+	_put_back(house, p)
+	furniture.save(game.hero_name)
+	_say(HouseFurniture.reason(why) + " " + Lang.t("%s lässt sich hier nicht drehen.") % name)
+	return false
+
+
+## The placed piece under a point of the shown floor, or -1: a torch or a painting when the point
+## is close to the wall it hangs on, otherwise the floor piece of the cell.
+func _piece_under(point: Vector3) -> int:
+	var house := plan()
+	if house == null:
+		return -1
+	var c := house.cell_at(point)
+	var mid := house.cell_world(c.x, c.y)
+	for i in furniture.placed.size():
+		var p: Dictionary = furniture.placed[i]
+		if p.storey != storey or not HouseFurniture.on_wall(p.kind) or Vector2i(p.x, p.y) != c:
+			continue
+		var back := Vector3(-sin(HouseFurniture.angle(p.rot)), 0, -cos(HouseFurniture.angle(p.rot)))
+		if (Vector3(point.x, 0, point.z) - Vector3(mid.x, 0, mid.z)).dot(back) > HouseSketch.CELL * 0.25:
+			return i
+	return furniture.piece_at(storey, c)
+
+
+## Whether a torch or a painting in stock is chosen: it hangs on walls over the floor pieces, so
+## the mouse over a bed shows where it would hang instead of taking hold of the bed.
+func _hangs_here() -> bool:
+	return tool != PICK_UP and tool != "" and HouseFurniture.on_wall(tool) and furniture.count(tool) > 0
+
+
+## Whether a placed piece is held to be dragged.
+func dragging() -> bool:
+	return not _held.is_empty()
+
+
+## A left press on the floor: a placed piece under it is lifted and follows the mouse until the
+## button is let go (see drop). Returns whether a piece was taken.
+func grab(point: Vector3, screen := Vector2.ZERO) -> bool:
+	var house := plan()
+	if house == null or dragging():
+		return false
+	var i := _piece_under(point)
+	if i < 0:
+		return false
+	_held = furniture.placed[i].duplicate()
+	_held_tool = tool
+	_held_from = screen
+	furniture.pick_up(i)
+	furniture.save(game.hero_name)
+	tool = _held.kind
+	rot = _held.rot
+	refresh()
+	_clear_ghost()
+	_hover_cell = Vector2i(_held.x, _held.y)
+	_show_ghost()
+	_update_bar()
+	_say(Lang.t("%s: mit gedrückter Maustaste an einen anderen Platz ziehen, R dreht.") % Lang.t(HouseFurniture.KINDS[tool].name))
+	return true
+
+
+## The left button let go while a piece is held: it is put down where the mouse is, or back where
+## it stood when it does not fit there. A press and let go without moving is a plain click: with
+## "pick up" chosen, the piece goes back into the store.
+func drop(point, screen := Vector2.INF) -> void:
+	if not dragging():
+		return
+	var house := plan()
+	var held := _held
+	_held = {}
+	var moved := screen == Vector2.INF or screen.distance_to(_held_from) >= DRAG_START
+	var name := Lang.t(HouseFurniture.KINDS[held.kind].name)
+	if not moved and _held_tool == PICK_UP:
+		furniture.save(game.hero_name)
+		Sfx.play(game, "gear_soft_0", -4.0)
+		_say(Lang.t("%s aufgehoben: Es steht wieder zum Aufstellen bereit.") % name)
+		_end_drag(held.kind)
+		return
+	var why := "same"
+	if moved and point != null and house != null:
+		hover(point)
+		why = furniture.place(house, held.kind, storey, _hover_cell.x, _hover_cell.y, rot)
+	if why == "":
+		Sfx.play(game, "gear_soft_0", -2.0)
+		_say(Lang.t("%s steht jetzt hier.") % name)
+	else:
+		_put_back(house, held)
+		_say(Lang.t("Gedrückt halten und ziehen, um %s zu verschieben.") % name if why == "same" \
+				else HouseFurniture.reason(why) + " " + Lang.t("%s bleibt, wo es war.") % name)
+	furniture.save(game.hero_name)
+	_end_drag(_held_tool)
+
+
+## Lets go of a held piece without moving it (the tool closes, a window opens).
+func cancel_drag() -> void:
+	if not dragging():
+		return
+	var held := _held
+	_held = {}
+	_put_back(plan(), held)
+	furniture.save(game.hero_name)
+	_end_drag(_held_tool)
+
+
+func _put_back(house: HouseSketch, held: Dictionary) -> void:
+	if house != null:
+		furniture.place(house, held.kind, held.storey, held.x, held.y, held.rot)
+
+
+func _end_drag(next_tool: String) -> void:
+	tool = next_tool
+	if tool != PICK_UP and furniture.count(tool) == 0:
+		tool = _first_waiting()
+	_clear_ghost()
+	refresh()
+	_update_bar()
 
 
 ## The point on the shown storey's floor under a point of the screen, or null.
@@ -553,20 +717,42 @@ func _anchor(point: Vector3) -> Vector2i:
 
 
 func hover(point: Vector3) -> void:
+	_mouse_point = point
 	var house := plan()
 	if house == null:
 		return
-	if tool == PICK_UP:
+	# Over a placed piece with nothing held: it can be dragged or turned.
+	if tool != PICK_UP and not dragging() and not _hangs_here():
+		var under := _piece_under(point)
+		if under >= 0:
+			var p: Dictionary = furniture.placed[under]
+			var key := "over:%s:%d:%d:%d" % [p.kind, p.x, p.y, p.rot]
+			if key != _ghost_key:
+				_clear_ghost()
+				_ghost_key = key
+				_footprint_marker(house, p.kind, p.x, p.y, p.rot, Color(ON_COLOR, 0.45))
+				_say(Lang.t("%s: gedrückt ziehen verschiebt, R dreht.") % Lang.t(HouseFurniture.KINDS[p.kind].name))
+			return
+		if _ghost_key.begins_with("over:"):
+			_clear_ghost()
+	if tool == PICK_UP and not dragging():
 		var c := house.cell_at(point)
-		var i := furniture.piece_at(storey, c)
-		_hover_cell = c
+		var i := _piece_under(point)
+		var key := "pick:-1"
+		if i >= 0:
+			var q: Dictionary = furniture.placed[i]
+			key = "pick:%s:%d:%d:%d" % [q.kind, q.x, q.y, q.rot]
+		if key == _ghost_key:
+			return
 		_clear_ghost()
+		_ghost_key = key
+		_hover_cell = c
 		if i >= 0:
 			var p: Dictionary = furniture.placed[i]
 			_footprint_marker(house, p.kind, p.x, p.y, p.rot, BAD_COLOR)
-			_say(Lang.t("Klicken, um %s aufzuheben.") % Lang.t(HouseFurniture.KINDS[p.kind].name))
+			_say(Lang.t("Klicken, um %s aufzuheben. Gedrückt ziehen verschiebt, R dreht.") % Lang.t(HouseFurniture.KINDS[p.kind].name))
 		else:
-			_say(Lang.t("Klicke ein Möbelstück an, um es aufzuheben."))
+			_say(Lang.t("Klicke ein Möbelstück an, um es aufzuheben, oder zieh es an einen anderen Platz."))
 		return
 	if tool == "":
 		return
@@ -599,7 +785,7 @@ func _show_ghost() -> void:
 	if house == null or tool == "" or tool == PICK_UP:
 		return
 	var why := furniture.problem(house, tool, storey, _hover_cell.x, _hover_cell.y, rot)
-	if furniture.count(tool) <= 0:
+	if furniture.count(tool) <= 0 and not dragging():
 		why = "none"
 	var key := "%s:%d:%s" % [tool, rot, why == ""]
 	if key != _ghost_key:
@@ -620,6 +806,9 @@ func _show_ghost() -> void:
 			_ghost.remove_child(child)
 			child.queue_free()
 	_footprint_marker(house, tool, _hover_cell.x, _hover_cell.y, rot, OK_COLOR if why == "" else BAD_COLOR)
+	if dragging():
+		_say(Lang.t("Loslassen: %s hier abstellen. R dreht.") % Lang.t(HouseFurniture.KINDS[tool].name) if why == "" else HouseFurniture.reason(why))
+		return
 	_say(Lang.t("Linksklick: %s abstellen. R oder Rechtsklick: drehen.") % Lang.t(HouseFurniture.KINDS[tool].name) if why == "" else HouseFurniture.reason(why))
 
 
@@ -669,7 +858,7 @@ func click(point: Vector3) -> void:
 	if house == null:
 		return
 	if tool == PICK_UP:
-		var i := furniture.piece_at(storey, house.cell_at(point))
+		var i := _piece_under(point)
 		if i < 0:
 			return
 		var kind := furniture.pick_up(i)
@@ -681,6 +870,9 @@ func click(point: Vector3) -> void:
 		_update_bar()
 		return
 	if tool == "":
+		return
+	if _piece_under(point) >= 0 and not _hangs_here():
+		_say(HouseFurniture.reason("taken"))
 		return
 	hover(point)
 	var why := furniture.place(house, tool, storey, _hover_cell.x, _hover_cell.y, rot)
@@ -781,7 +973,7 @@ func _update_bar() -> void:
 		_mark(b, kind == tool)
 	_mark(_pick_button, tool == PICK_UP)
 	_pick_button.disabled = furniture.placed.is_empty()
-	_turn_button.disabled = tool == PICK_UP
+	_turn_button.disabled = false
 	_level_button.text = Lang.t("Ebene: %s") % Lang.t(LEVEL_NAMES[storey])
 	_status.text = _hint
 

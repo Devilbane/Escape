@@ -146,6 +146,7 @@ nest_chicks.gd | 120 | fixed | pass | Eggs and chicks in the village nests (begg
 bird_feeding.gd | 180 | fixed | pass | Villagers feed the birds (seed scattered, birds peck and perch on the feeder)
 frozen_fritz.gd | 240 | fixed | pass | Fritz freezes on the market square in the snow (no singing, birds perch on him, thaws)
 journal.gd | 120 | free | pass | Map and journal test
+map_zoom.gd | 120 | free | passfail | Map zoom (wheel, keys, buttons, drag) and houses on the map
 player_houses.gd | 120 | fixed | pass | Town houses for many heroes test
 home_run.gd | 300 | fixed | passfail | Run home test (the home button and the way home)
 crafting.gd | 120 | free | pass | Recipes and ingredient pouch test
@@ -261,6 +262,7 @@ garden_wall_shots.gd | 120 | fixed | passfail | Garden walls: stone wall, wooden
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books
 house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
 house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
+house_ladder.gd | 120 | fixed | passfail | House ladder: one cell against a slab or pit wall, built after it, the hero climbs up and down it
 bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
 house_looks_shots.gd | 120 | fixed | passfail | House looks: stone in the temple's blocks, flagstone and plank floors, stair-board walls
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
@@ -272,3 +274,5 @@ built_doors.gd | 180 | fixed | passfail | Built doors and gates: tall doorway, l
 house_ballista.gd | 120 | fixed | passfail | House ballista: planned on the ground or a flat roof, built after its roof, shoots slimes in reach and winds up again
 wall_clearance.gd | 180 | fixed | passfail | The hero's head, hat, cape, belly and gear stay out of walls, and doorways stay open
 house_furniture.gd | 120 | free | passfail | House furniture: the furnisher sells it, the tool puts it down indoors (floor, roof, walls, doors), placed pieces are stations, torches light, roof gone sends them back
+reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a wall solid from floor to ceiling
+house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them

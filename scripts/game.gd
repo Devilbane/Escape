@@ -106,6 +106,16 @@ var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
 ## of lightning as it fades (1 to 0).
 var _weather_look := Weather.look(Weather.CLEAR)
+## How far the view is inside a self-built house, 0 out in the open to 1 indoors (see
+## HouseGround.shelter): no rain, snow, fog, mist or storm dark is drawn in there.
+var _shelter := 0.0
+## How long the view takes to move in or out of the weather (real seconds).
+const SHELTER_FADE := 0.3
+## The household goddess whose blessing the hero has now, inside their own house with her
+## shrine ("" elsewhere, see HouseholdGods), and how often that is looked at (seconds).
+var house_goddess := ""
+var _house_blessing_clock := 0.0
+const HOUSE_BLESSING_CHECK := 0.25
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -2835,6 +2845,10 @@ func _clock_text() -> String:
 func _tick_clock(delta: float) -> void:
 	if level == null:
 		return
+	_house_blessing_clock -= delta
+	if _house_blessing_clock <= 0.0:
+		_house_blessing_clock = HOUSE_BLESSING_CHECK
+		_update_house_blessing()
 	_soundscape.tick(self, delta)
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
@@ -2854,10 +2868,11 @@ func _tick_clock(delta: float) -> void:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
 		_weather_look = Weather.blend(_weather_look, Weather.look(weather), 1.0 - exp(-delta / Weather.FADE))
+		_shelter = move_toward(_shelter, 1.0 if _under_roof() else 0.0, delta / SHELTER_FADE)
 		_flash = maxf(0.0, _flash - delta * 3.0)
 		# A stroke of lightning flickers: bright, a dip, bright again.
-		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
-		Weather.apply(_env, _moon, _weather_look, flicker)
+		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
+		Weather.apply(_env, _moon, _seen_look(), flicker)
 		if level is Outdoor:
 			level.day = day
 			# The winter clothes change in the night, with the village asleep: from dusk on it is
@@ -3091,10 +3106,28 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
+## Whether the view is inside a self-built house: the hero stands in one, or the furnisher looks
+## into one (see HouseSketcher.view_storey). There is no weather in there.
+func _under_roof() -> bool:
+	if not level is Outdoor or player == null:
+		return false
+	if house_sketcher != null and house_sketcher.view_storey != HouseSketcher.NO_VIEW:
+		return true
+	return (level as Outdoor).is_sheltered(player.global_position)
+
+
+## The weather as it is seen: out in the open the weather's own look, inside a built house
+## (see _shelter) a clear sky, so nothing of rain, fog or storm reaches the view in there.
+func _seen_look() -> Dictionary:
+	if _shelter <= 0.001:
+		return _weather_look
+	return Weather.blend(_weather_look, Weather.look(Weather.CLEAR), _shelter)
+
+
 ## Rain and mist fall and drift around the hero in the open air only, and
-## the rain patters as hard as it falls.
+## the rain patters as hard as it falls. Inside a built house none of it shows.
 func _show_weather() -> void:
-	var outside: bool = level != null and level.outdoor and player != null
+	var outside: bool = level != null and level.outdoor and player != null and _shelter < 0.999
 	if not outside:
 		_rain.emitting = false
 		_rain.visible = false
@@ -3106,24 +3139,26 @@ func _show_weather() -> void:
 		Weather.cold = false
 		_clouds.set_look(0.0, Weather.HAZE, 0.0)
 		return
-	Weather.cold = snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3
+	Weather.cold = _shelter < 0.5 and (snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3)
+	var seen := _seen_look()
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
 	_leaves.anchor = player.global_position
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	var dusty := _weather_look.duplicate()
-	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
-	var winter_fog := Weather.is_winter(day)
-	var haze := Weather.fog_haze(_env.fog_light_color, float(_weather_look.mist), winter_fog)
+	var dusty := seen.duplicate()
+	# Not even the night's dust drifts inside a built house.
+	dusty.mist = Weather.dusty_mist(seen, day_hour) * (1.0 - _shelter)
+	var winter_fog := Weather.is_winter(day) and _shelter < 0.5
+	var haze := Weather.fog_haze(_env.fog_light_color, float(seen.mist), winter_fog)
 	# One even haze at night and over the winter snow; patchy clouds only by day.
-	var even := float(_weather_look.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
-	_clouds.set_look(dusty.mist, haze, even)
+	var even := float(seen.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
+	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
-	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(_weather_look.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day))
-	Weather.show_leaves(_leaves, Weather.leaf_strength(_weather_look, day_hour), light)
+	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(seen.mist)) * 0.6)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day) and _shelter < 0.5)
+	Weather.show_leaves(_leaves, Weather.leaf_strength(seen, day_hour) * (1.0 - _shelter), light)
 	Breath.set_light(light)
 
 
@@ -4463,6 +4498,8 @@ func rest_till_morning() -> void:
 	if state != State.PLAYING:
 		return
 	state = State.TRANSITION
+	# Lying down in the hero's own house, under a household goddess's blessing.
+	var goddess := HouseholdGods.active(self)
 	player.frozen = true
 	player.path.clear()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
@@ -4477,7 +4514,7 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
-		_rest_injury()
+		_rest_injury(goddess)
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
@@ -4618,10 +4655,11 @@ func stay_awake() -> void:
 	menus.open("laden")
 
 
-## A night of rest mends what a rescue left (see Injury).
-func _rest_injury() -> void:
+## A night of rest mends what a rescue left (see Injury); in a bed of the hero's own house under
+## a household goddess who mends (see HouseholdGods), the night counts for more.
+func _rest_injury(goddess := "") -> void:
 	var had := player.injury
-	if had != "" and Injury.rest(player):
+	if had != "" and Injury.rest(player, HouseholdGods.rest_nights(goddess)):
 		Events.tell(Lang.t("Deine Verletzung ist verheilt."), Color(0.55, 1.0, 0.6))
 		_update_hud()
 	elif had != "":
@@ -4633,8 +4671,13 @@ func _rest_injury() -> void:
 ## logs out.
 func sleep(at_camp_now := false) -> void:
 	at_camp_now = at_camp_now and has_camp()
-	# A night in the bed: the hero wakes up the next morning.
-	_rest_injury()
+	# A night in the bed: the hero wakes up the next morning. In their own house a household
+	# goddess may bless the night (see HouseholdGods): wounds mend faster, and with her life per
+	# second the hero wakes up with full life.
+	var goddess := "" if at_camp_now else HouseholdGods.active(self)
+	_rest_injury(goddess)
+	if HouseholdGods.perk(goddess, "regen") > 0.0:
+		player.hp = player.max_hp
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
@@ -5573,7 +5616,25 @@ func hero_boons() -> Array:
 		out.append([VillageRun.KIND, VillageRun.countdown(player.ailments[VillageRun.KIND])])
 	if player.hardening > 0 or player.armour_value > 0:
 		out.append(["hardening", str(player.hardening)])
+	if house_goddess != "":
+		out.append([HouseholdGods.KIND, ""])
 	return out
+
+
+## The blessing of the household goddess (see HouseholdGods): on while the hero is inside their
+## own house with her shrine, off as soon as they leave it. Her life per second goes onto the
+## hero's own recovery (see Player.bonus_regen), and her icon shows among the boons.
+func _update_house_blessing() -> void:
+	if player == null:
+		return
+	var goddess := HouseholdGods.active(self)
+	player.bonus_regen = HouseholdGods.perk(goddess, "regen")
+	if goddess == house_goddess:
+		return
+	house_goddess = goddess
+	if goddess != "":
+		Events.teach(HouseholdGods.LEARN)
+	_update_hud()
 
 
 ## Faster than normal from gifts, level or Tempo (leaving out the curse's and
@@ -5608,6 +5669,7 @@ func icon_text(kind: String, number: String) -> String:
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		VillageRun.KIND: return Lang.t("Protected: nothing can hurt you for %s more. Run to the village and follow the way!") % VillageRun.long_countdown(player.ailments.get(VillageRun.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
+		HouseholdGods.KIND: return HouseholdGods.blessing_text(house_goddess)
 		"fast":
 			var text := Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 			if player.base_speed_capped:
@@ -6599,6 +6661,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		Sfx.play(self, "swing", -6.0)
 		return
 	var station := level.station_at(point)
+	if not station.is_empty() and not level.can_reach(player.global_position, station.pos):
+		station = {} # Run into a wall with it on the other side.
 	if station.get("kind", "") == Seats.KIND and (player.is_seated() or player.still_getting_up()):
 		return
 	if not station.is_empty():
@@ -6607,7 +6671,7 @@ func _on_player_bumped(point: Vector3) -> void:
 		_use_station(station)
 		return
 	var obj := level.unsearched_at(point)
-	if not obj.is_empty():
+	if not obj.is_empty() and level.can_reach(player.global_position, obj.pos):
 		_search(obj)
 
 
@@ -7447,7 +7511,7 @@ func _process(delta: float) -> void:
 		pack_camp()
 	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
 		player.path.clear()
-		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
+		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3 and _within_reach(_pending_station.pos):
 			_use_station(_pending_station)
 		_pending_station = {}
 	if _pending_crate != null and player.can_act():
@@ -7456,22 +7520,23 @@ func _process(delta: float) -> void:
 		elif _arrived(_pending_crate.global_position) or _reach(_pending_crate.global_position) <= Level.CRATE_REACH:
 			var crate_pos := _pending_crate.global_position
 			_pending_crate = null
-			if _reach(crate_pos) <= Level.CRATE_REACH:
+			if _reach(crate_pos) <= Level.CRATE_REACH and _within_reach(crate_pos):
 				var why := pick_up_crate(crate_pos)
 				if why != "":
 					show_message(why, 1.6)
 	if not _pending_search.is_empty() and player.can_act() and _arrived(_pending_search.pos):
 		player.path.clear()
-		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3:
+		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3 and _within_reach(_pending_search.pos):
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
 	_hints_now.clear()
 	var station := level.nearest_station(player.global_position)
-	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein")
+	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein") \
+			and level.can_reach(player.global_position, station.pos)
 	# Only the first levels explain how to search; after that players know.
 	_prompt.text = ""
-	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
+	if not at_station and level_index < 2 and not near.is_empty() and not near.searched and level.can_reach(player.global_position, near.pos):
 		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
 	if player.is_seated():
 		# Sitting: how to get up again, not how to sit down.
@@ -7597,6 +7662,15 @@ func _count_hints() -> void:
 
 func _reach(pos: Vector3) -> float:
 	return Vector2(player.global_position.x - pos.x, player.global_position.z - pos.z).length()
+
+
+## Whether the hero can put a hand on a clicked thing they walked up to: no wall
+## solid from floor to ceiling between them (see Level.can_reach). Says why not.
+func _within_reach(pos: Vector3) -> bool:
+	if level.can_reach(player.global_position, pos):
+		return true
+	show_message(Lang.t("Eine Wand ist im Weg."), 1.6)
+	return false
 
 
 ## The hero has walked up to a clicked thing: at the end of the path, or close

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Hide a hero inside a built house from monsters | Shipped this week: House blueprint: a ladder up to a flat roof or out of the cellar; Show player-built houses on the map and let the map zoom (+48 more)
+Escape! dev status | Shipped this week: Hide a hero inside a built house from monsters; House blueprint: a ladder up to a flat roof or out of the cellar (+48 more)

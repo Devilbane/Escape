@@ -77,4 +77,6 @@ const EN := {
 	"im Keller": "in the cellar",
 	"im Erdgeschoss": "on the ground floor",
 	"im Obergeschoss": "on the upper floor",
+	"%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.": "%d squares planned. Order the build: your hero then builds it.",
+	"Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann.": "Stairs planned. Order the build: your hero then builds them.",
 }

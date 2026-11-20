@@ -86,7 +86,7 @@ static func tile_color(ch: String, outdoor: bool) -> Color:
 		match ch:
 			"#": return Color(0.13, 0.25, 0.14)
 			",", "P", "a": return Color(0.7, 0.58, 0.38)
-			":", "F", "x", "l": return Color(0.6, 0.58, 0.55)
+			":", "F", "x", "l", "π": return Color(0.6, 0.58, 0.55)
 			"~", ";": return Color(0.25, 0.45, 0.72)
 			"q": return Color(0.45, 0.6, 0.75)
 			"z": return Color(0.3, 0.27, 0.25)

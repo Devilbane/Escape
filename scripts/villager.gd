@@ -381,7 +381,7 @@ func _ready() -> void:
 	# Their own skin tone, hat colour and glasses (see TownsfolkLook).
 	TownsfolkLook.apply(_model, _info, _look)
 	_anim = _model.find_child("AnimationPlayer", true, false)
-	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle"]:
+	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle", "Sit_Chair_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	_bubble = SpeechBubble.new()
 	_bubble.position.y = 3.0 * _info.get("scale", 1.0) + 0.15
@@ -1540,7 +1540,8 @@ func _play_spot() -> Vector3:
 
 ## Somewhere in the village worth a visit: the well, the square, a house.
 func _errand() -> Vector3:
-	var places: Array = level.spots.well + level.spots.square
+	# Not the dining tables on the square (see TownMeals).
+	var places: Array = (level.spots.well + level.spots.square).filter(func(p: Vector3): return level.cell_char(level.world_to_cell(p)) != TownMeals.LETTER)
 	if places.is_empty() or level.world_to_cell(places[0]).distance_to(home) > 18:
 		return _nearby(5)
 	return places[_rng.randi() % places.size()]
@@ -1606,7 +1607,8 @@ func _mixing_with(o: Villager) -> bool:
 ## other or touching. A little each tick (EASE_SPEED), never a jump. One who keeps their own
 ## spot never steps aside. Asleep at home, nobody is in the way.
 func _keep_apart(delta: float) -> void:
-	if at_home or keeps_spot():
+	# A diner at the table keeps their seat, however close the neighbours sit (see TownMeals).
+	if at_home or keeps_spot() or _task == "dine":
 		_crowded = 0.0
 		return
 	var push := Vector3.ZERO
@@ -1777,7 +1779,8 @@ func _physics_process(delta: float) -> void:
 		# Frozen stiff: he neither turns to whoever talks to him nor moves a finger.
 		_freeze()
 		return
-	if _bubble_time > 0.0 and _look_at != Vector3.INF:
+	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to.
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine":
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -1807,6 +1810,9 @@ func _physics_process(delta: float) -> void:
 			play("Idle")
 		"feed":
 			_feed(delta)
+		"dine":
+			_dine(delta)
+			return
 		"play":
 			_play(delta)
 		"chat":
@@ -2310,7 +2316,7 @@ func _hide_inside(inside: bool, at_the_door := false) -> void:
 ## Who drops their work to hear the herald: not the shopkeeper at her
 ## stall, the elder or the woodcutter out in the woods.
 func comes_to_listen() -> bool:
-	return not night and _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen"
+	return not night and _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not dines()
 
 
 func gather_at(spot: Vector3, speaker: Vector3) -> void:
@@ -2703,3 +2709,132 @@ func leave_chat() -> void:
 		_path.clear()
 		_start("sit" if _chat_sitting else "idle", _rng.randf_range(1.0, 2.5))
 	_chat_sitting = false
+
+# --- Shared meals on the square (see TownMeals) -----------------------------------
+
+## The seat this villager walks to or sits on for a meal, {} when none.
+var meal_seat: Dictionary = {}
+## Where in the meal we are: "going" to the seat, "sitting" down, "seated" and
+## eating, "rising" to leave.
+var _meal_step := ""
+var _meal_clock := 0.0
+## A meal never holds anyone longer than this (seconds): TownMeals sends them
+## off well before, this is only in case nobody does.
+const MEAL_LIMIT := 150.0
+
+
+## The day plan of the role (see ROLES): who keeps a stall stays at it.
+func meal_plan() -> String:
+	return _info.plan
+
+
+## Whether we can go and eat now: awake, out in the village, free (not
+## fighting, mending, listening, in a chat, saying something or on the way
+## to anything of that kind).
+func can_go_to_meal() -> bool:
+	if at_home or not visible or night or singing or chat_partner != null or not meal_seat.is_empty():
+		return false
+	if threat != null or eaten or shaken or defends() or mend_brick != null or is_feeding() or _task == "frozen":
+		return false
+	if _listen_to != Vector3.INF or _bubble_time > 0.0 or (_kid != null and _kid.active):
+		return false
+	if _task == "walk":
+		return not get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide", "dine", "play"]
+	return _task in ["work", "idle", "sit"]
+
+
+## Walks to `seat` (handed out by TownMeals) to sit down and eat.
+func go_to_meal(seat: Dictionary) -> void:
+	meal_seat = seat
+	_meal_step = "going"
+	_meal_clock = 0.0
+	_walk_to(seat.stand, WALK_SPEED, "dine")
+
+
+## Whether we are at a meal or on the way to one.
+func dines() -> bool:
+	if meal_seat.is_empty():
+		return false
+	return _task == "dine" or (_task == "walk" and get_meta("then", "") == "dine")
+
+
+## Whether we sit at the table and eat (not still on the way, nor getting up).
+func seated_at_meal() -> bool:
+	return _task == "dine" and _meal_step == "seated"
+
+
+## The meal is over for us: up from the bench and back to the day's plan.
+## One still on the way turns back at once.
+func leave_meal() -> void:
+	if _task == "dine" and _meal_step in ["sitting", "seated"]:
+		_meal_step = "rising"
+		_meal_clock = 0.0
+		hush()
+		_current_anim = "Sit_Chair_StandUp"
+		_anim.play("Sit_Chair_StandUp", 0.2)
+	elif dines():
+		forget_meal()
+		_path.clear()
+		_start("idle", _rng.randf_range(0.5, 1.5))
+	else:
+		forget_meal()
+
+
+## Lets go of the seat without getting up (called away: see TownMeals._check_seats).
+func forget_meal() -> void:
+	meal_seat = {}
+	_meal_step = ""
+
+
+## The steps of a meal: the last few paces to the seat, sitting down over the
+## bench, eating, and getting up again on the same spot behind the bench.
+## Every move is made here, in the physics ticks (see SmoothMotion).
+func _dine(delta: float) -> void:
+	if meal_seat.is_empty():
+		_meal_step = ""
+		_start("idle", 0.5)
+		return
+	var stand: Vector3 = meal_seat.stand
+	var sit: Vector3 = meal_seat.sit
+	var front: Vector3 = meal_seat.front
+	var y := global_position.y
+	match _meal_step:
+		"going":
+			var to := stand - global_position
+			to.y = 0.0
+			var step := _stride("Walking_A", WALK_SPEED) * delta
+			_meal_clock += delta
+			if to.length() <= step or _meal_clock > 6.0:
+				global_position = Vector3(stand.x, y, stand.z)
+				_meal_step = "sitting"
+				_meal_clock = 0.0
+				_current_anim = "Sit_Chair_Down"
+				_anim.play("Sit_Chair_Down", 0.2)
+			else:
+				global_position += to.normalized() * step
+				_turn_to(to, delta)
+		"sitting":
+			_meal_clock += delta
+			var t := minf(1.0, _meal_clock / TownMeals.SIT_TIME)
+			var at := stand.lerp(sit, smoothstep(0.0, 1.0, t))
+			global_position = Vector3(at.x, y, at.z)
+			WalkRules.turn(self, front, delta, WalkRules.TURN_RATE * 2.0)
+			if t >= 1.0:
+				_meal_step = "seated"
+				_task_time = MEAL_LIMIT
+				play("Sit_Chair_Idle", 0.2)
+		"seated":
+			_turn_to(front, delta)
+			play("Sit_Chair_Idle")
+			_task_time -= delta
+			if _task_time <= 0.0:
+				leave_meal()
+		"rising":
+			_meal_clock += delta
+			var t := minf(1.0, _meal_clock / TownMeals.SIT_TIME)
+			var at := sit.lerp(stand, smoothstep(0.0, 1.0, t))
+			global_position = Vector3(at.x, y, at.z)
+			if t >= 1.0:
+				forget_meal()
+				_start("idle", _rng.randf_range(0.5, 1.5))
+				_next_task()

@@ -2924,7 +2924,7 @@ func crate_in_reach(hero: Node3D, near := Vector3.INF) -> Crate:
 		if crate.global_position.y > feet + 2.0 or crate.top() < feet - 1.2:
 			continue
 		var d := _flat_distance(hero.global_position, crate.global_position)
-		if d > CRATE_REACH:
+		if d > CRATE_REACH or not can_reach(hero.global_position, crate.global_position):
 			continue
 		if near != Vector3.INF:
 			d = _flat_distance(near, crate.global_position) - crate.global_position.y * 0.01
@@ -3866,7 +3866,8 @@ func _check_pickups() -> void:
 	for p in _pickups.duplicate():
 		var n: Node3D = p.node
 		var d := Vector2(player.global_position.x - n.global_position.x, player.global_position.z - n.global_position.z)
-		if d.length() > p.radius:
+		if d.length() > p.radius or not can_reach(player.global_position, n.global_position):
+			# Out of reach, or on the far side of a wall (see can_reach).
 			p.erase("warned")
 			p.erase("wait")
 			continue
@@ -5065,7 +5066,7 @@ func pack_in_reach(hero: Node3D) -> FloorPack:
 		if not is_instance_valid(pack):
 			continue
 		var d := _flat_distance(hero.global_position, pack.global_position)
-		if d <= FloorPack.REACH and d < best_d:
+		if d <= FloorPack.REACH and d < best_d and can_reach(hero.global_position, pack.global_position):
 			best = pack
 			best_d = d
 	return best
@@ -6139,6 +6140,58 @@ func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 		if is_opaque(c):
 			return false
 	return true
+
+
+## The walls the hero's own and their neighbours' houses are built of (see
+## HouseSketcher): one entry per built wall or doorway, {"a": Vector2, "b": Vector2}
+## from end to end on the floor, "y" the floor it stands on and "door" the
+## BuiltDoor in a doorway (null for a plain wall). A plain wall always stops a
+## reaching hand; a doorway only while its door is shut. Windows, garden walls
+## and railings are not listed: one reaches through or over them.
+var reach_walls: Array = []
+## How high a wall must rise over the hero's feet to keep a hand from reaching
+## over it: a house wall or a dungeon wall, not a garden wall two blocks high.
+const REACH_WALL_HEIGHT := 2.0
+
+
+## True when the hero standing at `a` can reach the thing at `b`: no wall that
+## is solid from the floor to above their head stands between them. Dungeon
+## walls, the village's buildings, closed doors, built house walls and stone
+## stacks too high to shoot over all stop it; low walls, garden walls,
+## railings, windows and open doorways do not. Picking up, searching, opening
+## and using anything goes through here, so nothing is taken through a wall.
+func can_reach(a: Vector3, b: Vector3) -> bool:
+	if door_between(a, b) or tall_stone_between(a, b):
+		return false
+	var from := Vector2(a.x, a.z)
+	var to := Vector2(b.x, b.z)
+	for w in reach_walls:
+		if a.y < float(w.y) - 1.0 or a.y > float(w.y) + REACH_WALL_HEIGHT:
+			continue # On another storey: this wall is not in the way.
+		var door = w.get("door")
+		if door != null and (not is_instance_valid(door) or door.is_open()):
+			continue
+		if Geometry2D.segment_intersects_segment(from, to, w.a, w.b) != null:
+			return false
+	var origin := Vector2i(roundi(from.x / TILE), roundi(from.y / TILE))
+	var target := Vector2i(roundi(to.x / TILE), roundi(to.y / TILE))
+	var steps := int(from.distance_to(to) / TILE * 4.0) + 1
+	for i in range(1, steps):
+		var c := Vector2i((from.lerp(to, float(i) / steps) / TILE).round())
+		if c == target:
+			break
+		if c != origin and _blocks_reach(c):
+			return false
+	return true
+
+
+## Whether a map tile is a wall from floor to ceiling: rock or a closed door
+## in a dungeon, the forest or a building's block on the open-air map.
+func _blocks_reach(c: Vector2i) -> bool:
+	var ch := cell_char(c)
+	if outdoor:
+		return ch == "#" or Outdoor.BLOCK_CHARS.contains(ch)
+	return is_opaque(c)
 
 
 ## Whether a closed door stands between two points: the straight line from

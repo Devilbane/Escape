@@ -85,7 +85,10 @@ const SKILLS := {
 	"ruestung": {"name": "Rüstung tragen", "attributes": ["staerke"]},
 	"schleichen": {"name": "Schleichen", "attributes": ["geschick", "intelligenz"]},
 	"erkunden": {"name": "Erkunden", "attributes": ["intelligenz"]},
+	"klettern": {"name": "Klettern", "attributes": ["staerke", "geschick"]},
 }
+## Training for Klettern: uses for each metre climbed (see Climbing).
+const CLIMB_PER_METRE := 2.0
 ## What a level of Erkunden is worth, in percent (see SKILLS).
 const EXPLORE_SECRET := 3
 const EXPLORE_TORCH := 4

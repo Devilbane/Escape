@@ -399,6 +399,7 @@ const ATTRIBUTE_GROWTH := {
 ## What a skill does, for skills whose use is not plain from their name.
 const SKILL_EFFECTS := {
 	"erkunden": "Je Stufe: +3 % Geheimräume, +3 % Fallen, +4 % Fackeln, +8 % Inschriften. Wächst mit jeder ganz erkundeten Karte.",
+	"klettern": "Je Stufe klettert der Held schneller und höher. Wächst mit jedem Meter, den du dich hochziehst: etwa aus einer Grube ohne Treppe.",
 }
 ## The entry for the hit and block chances beside the wheel (see
 ## Menus._build_character): against a person of the hero's own level.

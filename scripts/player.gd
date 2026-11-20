@@ -362,11 +362,10 @@ const GRAB_REACH := 0.7
 const CLIMB_TIME := 0.35
 var _climb_time := CLIMB_TIME
 ## A hero in a dug pit (see HouseSketch) with no stairs scrambles out: pushing
-## against the pit wall for PIT_PUSH_TIME seconds starts a PIT_CLIMB_TIME climb
-## onto the ground beyond it.
+## against the pit wall for PIT_PUSH_TIME seconds starts a climb onto the ground
+## beyond it, as long as the Klettern skill (see Climbing) allows.
 const PIT_DEPTH := 1.2
 const PIT_PUSH_TIME := 0.5
-const PIT_CLIMB_TIME := 1.1
 var _pit_push := 0.0
 var _pit_hinted := false
 var _climb := -1.0
@@ -2820,12 +2819,12 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 		return false
 	var target := Vector3(global_position.x, 0.02, global_position.z) + push * (radius + 0.6)
 	var ground := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target + Vector3(0, 1.0, 0), target - Vector3(0, 0.3, 0), 0xFFFFFFFF, [get_rid()]))
-	if ground.is_empty() or not _room_at(target):
+	if ground.is_empty() or not _room_at(target) or not Climbing.can_climb(-global_position.y, skill("klettern")):
 		return false
 	_pit_push = 0.0
 	_climb_from = global_position
 	_climb_to = target
-	_climb_time = PIT_CLIMB_TIME
+	_climb_time = Climbing.seconds(-global_position.y, skill("klettern"))
 	_climb = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -2833,6 +2832,7 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 	_current_anim = ""
 	play("Jump_Idle", 0.1)
 	train("geschick", 0.5)
+	train("klettern", Training.CLIMB_PER_METRE * (-_climb_from.y))
 	return true
 
 

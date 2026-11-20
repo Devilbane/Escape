@@ -33,6 +33,7 @@ const EN := {
 	"Schlachtenbrecher": "Line breaker",
 	"Schildwall": "Shield wall",
 	"Akrobatik": "Acrobatics",
+	"Klettern": "Climbing",
 	"Fingerfertigkeit": "Sleight of hand",
 	"Bogenschießen": "Archery",
 	"Meucheln": "Backstab",
@@ -87,4 +88,5 @@ const EN := {
 	"Rüstungsschmied": "Armoursmith",
 	"Meisterschmied": "Master smith",
 	"Runenschmied": "Rune smith",
+	"Je Stufe klettert der Held schneller und höher. Wächst mit jedem Meter, den du dich hochziehst: etwa aus einer Grube ohne Treppe.": "Each level makes the hero climb faster and higher. Grows with every metre you pull yourself up, such as out of a pit with no stairs.",
 }

@@ -2106,7 +2106,9 @@ func _physics_process(delta: float) -> void:
 	var dist := to_player.length()
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
 	# Under the open sky there is no fog of war: everything shows.
-	visible = level.fog == null or level.fog.is_cell_visible(level.world_to_cell(global_position))
+	# From inside a house the hero sees out only through windows and open doors (see Level.hero_sees).
+	visible = (level.fog == null or level.fog.is_cell_visible(level.world_to_cell(global_position))) \
+			and level.hero_sees(global_position)
 	if is_ghost():
 		_haunt(delta)
 	if _trail == null and not _trail_made:

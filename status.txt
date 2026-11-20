@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Blow the alarm horn at its mouthpiece, in time with each blast | Shipped this week: From inside a house, see out only through windows and open doors; Add household goddess shrines, starting with Maija (+48 more)
+Escape! dev status | Working on: Open house building from a blueprint button on the HUD; Blow the alarm horn at its mouthpiece, in time with each blast | Shipped this week: From inside a house, see out only through windows and open doors; Add household goddess shrines, starting with Maija (+48 more)

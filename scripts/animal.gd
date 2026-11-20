@@ -61,6 +61,11 @@ var _current_anim := ""
 var _repath := 0.0
 var _waiting := 0.0
 var _trail: SnowTrail
+## Notices a walk that gets nowhere (see StuckWatch); while `_hold` runs the animal
+## stands still, then strolls on to `_retry` (or simply carries on, for a run or the hero's food).
+var _stuck_watch := StuckWatch.new()
+var _hold := 0.0
+var _retry := Vector3.INF
 
 
 func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
@@ -136,6 +141,7 @@ func _begin(new_state: String, time: float) -> void:
 	_timer = time
 	_heading = Vector3.ZERO
 	_anim.speed_scale = 1.0
+	_stuck_watch.reset()
 	match state:
 		"graze":
 			play("Eating")
@@ -154,6 +160,14 @@ func _physics_process(delta: float) -> void:
 		_timer -= delta
 		if _timer <= 0.0:
 			_begin("idle", 1.5)
+		return
+	if _hold > 0.0:
+		# Got stuck on its way: stands still a while, then tries again.
+		_hold -= delta
+		play("Idle")
+		_anim.speed_scale = 1.0
+		if _hold <= 0.0:
+			_try_again()
 		return
 	var curious := is_curious()
 	if curious and away.length() < CURIOUS_RANGE:
@@ -175,6 +189,9 @@ func _physics_process(delta: float) -> void:
 				_next()
 		"stroll", "flee":
 			_walk(delta)
+			if not _path.is_empty() and _stuck_watch.tick(_path.back(), StuckWatch.remaining(global_position, _path), delta):
+				_stand_stuck(_path.back() if state == "stroll" else Vector3.INF)
+				return
 			if _path.is_empty():
 				if state == "flee" and away.length() < shy_distance() * CALM_FACTOR:
 					# Still too close for comfort: on it runs.
@@ -195,6 +212,7 @@ func _come_for_food(hero: Node3D, delta: float) -> void:
 		_timer = EAT_TIME
 		_anim.speed_scale = 1.0
 		play("Eating")
+		_stuck_watch.reset()
 		level.emit_signal("animal_fed", self)
 		return
 	if state != "approach":
@@ -218,6 +236,29 @@ func _come_for_food(hero: Node3D, delta: float) -> void:
 		_turn_to(to, delta)
 	else:
 		_walk(delta)
+	if _stuck_watch.tick(hero.global_position, StuckWatch.remaining(global_position, _path, hero.global_position), delta):
+		_stand_stuck(Vector3.INF)
+
+
+## Stuck on its way (see StuckWatch): stands still for StuckWatch.REST seconds, then tries
+## again, to `retry` for a stroll.
+func _stand_stuck(retry: Vector3) -> void:
+	_path.clear()
+	_begin("idle", StuckWatch.REST)
+	_hold = StuckWatch.REST
+	_retry = retry
+
+
+## After standing still: on to where it was strolling, or back to its day (a hero still
+## near makes it bolt again, food on the hero draws it over again).
+func _try_again() -> void:
+	var goal := _retry
+	_retry = Vector3.INF
+	if goal != Vector3.INF and _set_path(goal):
+		state = "stroll"
+		_speed = _stats.walk
+	else:
+		_begin("idle", 0.5)
 
 
 ## Calm again: graze a while, look around, or stroll to another spot.
@@ -238,6 +279,7 @@ func _next() -> void:
 
 ## Bolts from something that attacked it (a slime, see SlimeGrowth.bite).
 func bolt_from(danger: Vector3) -> void:
+	_hold = 0.0
 	_flee_from(danger)
 
 

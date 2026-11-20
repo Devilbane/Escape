@@ -1,0 +1,1 @@
+- Animals and villagers that get stuck walking on the spot now stand still and try again 10 seconds later.

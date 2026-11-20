@@ -158,6 +158,10 @@ var _head: Node3D
 var _wings: Array[Node3D] = []
 var _model_name := ""
 var _trail: SnowTrail
+## Notices a walk that gets nowhere (see StuckWatch); while `_hold` runs the animal stands
+## still, then picks its way again.
+var _stuck_watch := StuckWatch.new()
+var _hold := 0.0
 var _anim: AnimationPlayer
 var _playing := ""
 
@@ -215,6 +219,7 @@ func shy_distance() -> float:
 
 ## Bolts from `danger` (a startled flock mate, a slime).
 func bolt_from(danger: Vector3) -> void:
+	_hold = 0.0
 	if state != "flee":
 		_flee_from(danger)
 
@@ -240,6 +245,7 @@ func _begin(new_state: String, time: float) -> void:
 	_to_roof = false
 	_timer = time
 	_heading = Vector3.ZERO
+	_stuck_watch.reset()
 
 
 func _physics_process(delta: float) -> void:
@@ -263,6 +269,12 @@ func _physics_process(delta: float) -> void:
 	# A walk or a trot sets the swing to 1 again every tick. A model's legs stop at once
 	# (no gliding on a walk cycle); the primitive bodies let theirs settle.
 	_swing = 0.0 if _anim != null else move_toward(_swing, 0.0, delta * 6.0)
+	if _hold > 0.0:
+		# Got stuck on its way: stands still a while, then tries again.
+		_hold -= delta
+		if _hold <= 0.0:
+			_next()
+		return
 	var alive: bool = not hero.get("dead")
 	var shy := shy_distance()
 	var near: bool = alive and shy > 0.0 and away.length() < shy
@@ -301,6 +313,12 @@ func _physics_process(delta: float) -> void:
 				_next()
 		"stroll", "flee":
 			_walk(delta)
+			if not _path.is_empty() and _stuck_watch.tick(_path.back(), StuckWatch.remaining(global_position, _path), delta):
+				# Walking on the spot or round in circles (see StuckWatch): it stands, then tries again.
+				_path.clear()
+				_begin("idle", StuckWatch.REST)
+				_hold = StuckWatch.REST
+				return
 			if _path.is_empty():
 				if state == "flee" and shy > 0.0 and away.length() < shy * CALM_FACTOR:
 					_flee_from(hero.global_position)

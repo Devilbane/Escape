@@ -1833,8 +1833,14 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == WarHorn.KIND:
-		player.face(s.pos - player.global_position)
-		show_message(WarHorn.hero_blow(level as Outdoor), 3.0)
+		# The hero walks round to the mouthpiece and blows (see HornBlow); the
+		# villagers gather at the first blast.
+		var why := WarHorn.hero_cannot()
+		if why != "":
+			player.face(s.pos - player.global_position)
+			show_message(why, 3.0)
+		else:
+			player.blow_horn(WarHorn.hero_blow(level as Outdoor, player.global_position, func(text: String): show_message(text, 3.0)))
 	elif s.kind == "brunnen":
 		# Pushing on against the fountain drinks one sip at a time.
 		if not belly_sips.still_drinking(_clock_now()):

@@ -817,17 +817,9 @@ func _watch(delta: float) -> void:
 	if gate != null:
 		_turn_to(gate.global_position - global_position, delta)
 	if _horn_wait and global_position.distance_to(GuardWatch.post(level)) < HORN_ARRIVED:
-		_horn_wait = false
-		_horn_left = WarHorn.LENGTH
-		WarHorn.sound(level)
-	if _horn_left > 0.0:
-		# Blowing the alarm horn: arms up, facing the way the horn points.
-		_horn_left -= delta
-		_task_time = maxf(_task_time, 1.0)
-		_turn_to(_horn_at - global_position, delta)
-		play("Cheer")
-	else:
-		play("Idle")
+		_begin_horn()
+		return
+	play("Idle")
 	if slime != null and _watch_pause <= 0.0:
 		_watch_pause = GuardWatch.CALL_PAUSE
 		say(Lang.t(GuardWatch.CALL))
@@ -836,12 +828,18 @@ func _watch(delta: float) -> void:
 		_task_time = maxf(_task_time, GuardWatch.STAND_MIN)
 
 
-## Seconds the guard still blows the alarm horn, and where it stands (see WarHorn).
-var _horn_left := 0.0
-## Whether he is on his way to the horn to blow it, and how close counts as there (metres).
+## The guard's blowing of the alarm horn while it lasts (see HornBlow), and
+## the rig's standing pose it is posed over.
+var _blow: HornBlow
+var _blow_base := {}
+var _blow_posed := false
+## Whether he is on his way to the horn to blow it, and how close to his post counts as there (metres).
 var _horn_wait := false
 const HORN_ARRIVED := 2.5
 var _horn_at := Vector3.INF
+## The guard hurries from his post to the horn's mouthpiece: his run, and how fast (m/s).
+const HORN_RUN := "Running_B"
+const HORN_RUN_SPEED := 3.0
 
 
 ## Whether the guard can run to the alarm horn and blow it now: at his round or
@@ -857,17 +855,81 @@ func can_blow_horn(at: Vector3) -> bool:
 func sound_alarm(at: Vector3) -> void:
 	_horn_at = at
 	_horn_wait = true
-	_horn_left = 0.0
 	if _task == "watch" and global_position.distance_to(GuardWatch.post(level)) < HORN_ARRIVED:
-		# Already at his post: he blows it now.
-		_horn_wait = false
-		_horn_left = WarHorn.LENGTH
-		_task_time = maxf(_task_time, WarHorn.LENGTH)
-		WarHorn.sound(level)
+		# Already at his post: he goes to the horn now.
+		_begin_horn()
 		return
 	say(Lang.t("Ins Horn! Alarm, Alarm!"))
 	_walk_to(GuardWatch.post(level), WALK_SPEED * 1.6, "watch")
-	_task_time = maxf(_task_time, WarHorn.LENGTH)
+	_task_time = maxf(_task_time, HornBlow.LENGTH)
+
+
+## Whether the guard is at the alarm horn (or hurrying to its mouthpiece) blowing it.
+func blowing_horn() -> bool:
+	return _blow != null
+
+
+## At his post: he hurries round to the horn's mouthpiece and blows it (see HornBlow).
+func _begin_horn() -> void:
+	_horn_wait = false
+	_task = "watch"
+	_blow = HornBlow.begin(level, global_position)
+	var seconds := _blow.seconds_left(_horn_run_speed())
+	WarHorn.sound(level, seconds)
+	_task_time = maxf(_task_time, seconds + 1.0)
+
+
+func _horn_run_speed() -> float:
+	return minf(HORN_RUN_SPEED, Stride.top_speed("kaykit", HORN_RUN, _model.scale.x))
+
+
+## One tick of blowing the horn: the run to the mouthpiece, then the body
+## posed for each blast and each breath between them. True while it goes on.
+func _blow_step(delta: float) -> bool:
+	var speed := _horn_run_speed()
+	var state := _blow.step(delta, speed)
+	var pos: Vector3 = state.pos
+	global_position = Vector3(pos.x, global_position.y, pos.z)
+	velocity = Vector3.ZERO
+	if state.walking:
+		_turn_to(state.face, delta)
+		play(HORN_RUN)
+		_anim.speed_scale = Stride.playback("kaykit", HORN_RUN, _model.scale.x, speed)
+	else:
+		var sk := _bones()
+		if not _blow_posed and sk != null:
+			_blow_posed = true
+			_anim.speed_scale = 1.0
+			_anim.play("Idle")
+			_anim.seek(0.0, true)
+			if _blow_base.is_empty():
+				_blow_base = ClimbPose.base_of(sk)
+			_anim.pause()
+			_current_anim = ""
+		WalkRules.turn(self, state.face, delta, WalkRules.TURN_RATE * 2.0)
+		_model.position.y = 0.0
+		if _blow_posed:
+			ClimbPose.apply(sk, _blow_base, state.pose)
+	_task_time = maxf(_task_time, 1.0)
+	if _blow.done:
+		_end_horn()
+		return false
+	return true
+
+
+## Done with the horn, or called away from it half way (the blast dies away).
+func _end_horn() -> void:
+	if _blow == null:
+		return
+	_blow.stop()
+	_blow = null
+	if _blow_posed:
+		_blow_posed = false
+		var sk := _bones()
+		if sk != null:
+			ClimbPose.apply(sk, _blow_base, {})
+		_current_anim = ""
+		play("Idle", 0.2)
 
 
 # --- Defending the wall -------------------------------------------------------
@@ -1786,6 +1848,11 @@ func _physics_process(delta: float) -> void:
 		# Frozen stiff: he neither turns to whoever talks to him nor moves a finger.
 		_freeze()
 		return
+	# At the alarm horn he blows on until it is done, unless called away (see HornBlow).
+	if _blow != null:
+		if _task == "watch" and not eaten and visible and threat == null and _blow_step(delta):
+			return
+		_end_horn()
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to.
 	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine":
 		_turn_to(_look_at - global_position, delta)

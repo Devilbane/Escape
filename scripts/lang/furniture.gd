@@ -36,7 +36,7 @@ const EN := {
 	"Öffnet deine Lagertruhe: dieselben Sachen wie in der Truhe deines alten Hauses und am Handwerkerplatz.": "Opens your storage chest: the same things as in the chest of your old house and at the crafting square.",
 	"Stell deine Bücher hinein oder nimm sie heraus. Auf den Brettern steht ein Buch für jedes, das du aufbewahrst.": "Put your books in or take them out. A book stands on the shelves for every one you keep.",
 	"Ein Kamin aus Feldsteinen mit Rauchfang. Das Feuer knistert und wärmt den Raum mit seinem Licht.": "A fieldstone fireplace with a chimney breast. The fire crackles and warms the room with its light.",
-	"Ein Ständer für die Trophäen mächtiger Gegner. Jede Trophäe darauf gibt +1 Leben, wie die Trophäenwand.": "A stand for the trophies of mighty foes. Each trophy on it gives +1 life, like the trophy wall.",
+	"Eine Regalwand aus Holz mit kleinen Fächern für die Trophäen mächtiger Gegner. Jede Trophäe darauf gibt +1 Leben, wie die Trophäenwand.": "A wooden shelf wall with small cubbies for the trophies of mighty foes. Each trophy on it gives +1 life, like the trophy wall.",
 	"Eisenbarren werden zu Wurfmessern, abgenutzte Ausrüstung wird geflickt, und Handwerk während du weg bist geht schneller.": "Iron bars become throwing knives, worn gear is mended, and crafting while you are away goes faster.",
 	"Dieselbe Werkbank wie auf dem Handwerkerplatz: Ringe, Ketten und feiner Draht.": "The same bench as on the crafting square: rings, chains and fine wire.",
 	"Dasselbe Schleifrad wie auf dem Handwerkerplatz: rohe Edelsteine schleifen.": "The same wheel as on the crafting square: cut rough gems.",

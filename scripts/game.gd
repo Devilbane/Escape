@@ -1917,6 +1917,9 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == GardenDecor.GRILL:
 		player.face(s.pos - player.global_position)
 		GardenDecor.grill(self)
+	elif s.kind == AppleTree.STATION:
+		player.face(s.pos - player.global_position)
+		AppleTree.pick(self, s)
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
@@ -7671,6 +7674,7 @@ func _process(delta: float) -> void:
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			GardenDecor.GRILL: Lang.t("Dagegenlaufen, um Wildfleisch oder einen Barsch zu grillen und zu essen"),
+			AppleTree.STATION: AppleTree.station_prompt(self, station) if station.kind == AppleTree.STATION else "",
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			CapeWardrobe.KIND: Lang.t("Dagegenlaufen, um den Umhangschrank zu öffnen"),

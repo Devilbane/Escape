@@ -11,7 +11,7 @@ shader_type spatial;
 //
 // Autumn (see Outdoor.set_season, AutumnTrees): the green leaves turn,
 // cluster by cluster and tree by tree, to crimson, orange, gold and brown;
-// in winter what still clings to the branches is withered brown.
+// in winter the trees keep their autumn leaves, and snow covers some clusters.
 
 #include "res://shaders/detail.gdshaderinc"
 
@@ -19,9 +19,10 @@ uniform sampler2D albedo_tex : source_color, filter_nearest, repeat_enable;
 // 1 for the swaying, speckled foliage; 0 leaves the shape alone (stumps).
 uniform float wind = 1.0;
 // The share of green leaves that has turned (0 in summer, near 1 late in
-// autumn), and how withered the turned ones are (0 bright, 1 dull brown).
+// autumn), and how much snow lies on them (0 none, 1 winter: SNOW_SHARE of the clusters white).
 uniform float autumn : hint_range(0.0, 1.0) = 0.0;
-uniform float wither : hint_range(0.0, 1.0) = 0.0;
+uniform float snowy : hint_range(0.0, 1.0) = 0.0;
+const float SNOW_SHARE = 0.35;
 
 varying vec3 world_pos;
 varying float leafy;
@@ -52,7 +53,7 @@ vec3 autumn_colour(float t) {
 // A green leaf colour `c` at `p` turned for autumn (unchanged in summer).
 vec3 turn_leaf(vec3 c, vec3 p) {
 	float green = smoothstep(0.0, 0.06, c.g - max(c.r, c.b));
-	if (autumn <= 0.0 || green <= 0.0) return c;
+	if ((autumn <= 0.0 && snowy <= 0.0) || green <= 0.0) return c;
 	// Each tree has its own leaning (some go red, some gold, some brown) and
 	// its clusters stray a little from it.
 	float tree = hash3(floor(root_pos * 2.0) + 3.7);
@@ -62,8 +63,11 @@ vec3 turn_leaf(vec3 c, vec3 p) {
 	float turned = smoothstep(order - 0.08, order + 0.08, autumn * 1.08);
 	float light = dot(c, vec3(0.3, 0.59, 0.11)) / 0.42;
 	vec3 fall = autumn_colour(hue) * clamp(light, 0.55, 1.35);
-	fall = mix(fall, vec3(0.3, 0.17, 0.07) * clamp(light, 0.6, 1.2), wither * 0.75);
-	return mix(c, fall, turned * green);
+	vec3 leaf = mix(c, fall, turned * green);
+	// Snow on some clusters, more on the upper side of the crown.
+	float drift = vnoise(p * 1.6 + 90.0) + 0.25 * (p.y - root_pos.y) / 8.0;
+	float snow = snowy * smoothstep(1.0 - SNOW_SHARE - 0.05, 1.0 - SNOW_SHARE + 0.05, drift);
+	return mix(leaf, vec3(0.88, 0.91, 0.96) * clamp(0.75 + 0.3 * light, 0.8, 1.05), snow * green);
 }
 
 void vertex() {

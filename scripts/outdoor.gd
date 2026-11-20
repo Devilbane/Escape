@@ -365,7 +365,12 @@ var _fires: Array[Vector3] = []
 ## light shows the hero at night like a lantern's.
 var house_lights: Array[Vector3] = []
 ## Where the self-built houses keep the weather out (see HouseGround.shelter), set by HouseSketcher.
-var shelters := {}
+## No snow settles in there either (see SnowCover.set_shelter).
+var shelters := {}:
+	set(value):
+		shelters = value
+		if snow != null:
+			snow.set_shelter(shelters, width, height, TILE)
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []
@@ -496,6 +501,8 @@ var day := 0
 ## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
 ## and the flowers in the gardens go by.
 var season_day := 0
+## The apple trees round the fountain (see AppleTree.plant_round_fountains).
+var square_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -622,6 +629,9 @@ func build() -> void:
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		IvySeasons.apply(ivy, day)
+	# Apple trees round the fountain, between the benches (before the birds take the square's spots).
+	square_trees = AppleTree.plant_round_fountains(self)
+	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -674,6 +684,7 @@ func build() -> void:
 	roofed.append_array(meals.roofed)
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_warm(warm_spots)
+	snow.set_shelter(shelters, width, height, TILE)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
@@ -937,7 +948,7 @@ func _tree_material(mat: Material, wind := true) -> Material:
 		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
 		var turn := IvySeasons.tree_turn(_tree_stage)
 		bark.set_shader_parameter("autumn", turn.x)
-		bark.set_shader_parameter("wither", turn.y)
+		bark.set_shader_parameter("snowy", turn.y)
 		_scenes[key] = bark
 	return _scenes[key]
 
@@ -3804,6 +3815,7 @@ func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
 	IvySeasons.apply(undergrowth, day_of_season)
+	AppleTree.dress(square_trees, day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
 	var at := IvySeasons.stage(day_of_season)
 	if at == _tree_stage:
@@ -3813,7 +3825,7 @@ func set_season(day_of_season: int) -> void:
 	for key in _scenes:
 		if String(key).begins_with("mat_tree_"):
 			(_scenes[key] as ShaderMaterial).set_shader_parameter("autumn", turn.x)
-			(_scenes[key] as ShaderMaterial).set_shader_parameter("wither", turn.y)
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("snowy", turn.y)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).
@@ -4588,7 +4600,7 @@ func set_ice(value: float) -> void:
 ## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot; `kind`
 ## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
-	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree():
+	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_sheltered(at):
 		return
 	SnowPrints.leave(self, at, heading, size, kind, snow.daylight)
 

@@ -1,0 +1,1 @@
+- Ice fishing works again: click the hole in a frozen pond and your hero walks out over the ice and casts into it.

@@ -161,6 +161,8 @@ var _level_button: Button
 var storey := 0
 ## Added to the height of everything drawn for the storey being drawn.
 var _lift := 0.0
+## The wall piece being built and where its wall runs on (see _hidden_faces).
+var _piece_run := {}
 ## Built roof cells by ground cell on the 2 m lattice: the highest storey whose ceiling is there.
 var _covered := {}
 var _fade_state := ""
@@ -1748,6 +1750,23 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 	var mid := a + (Vector3(HouseSketch.CELL * 0.5, 0, 0) if along_x else Vector3(0, 0, HouseSketch.CELL * 0.5))
 	var flat := Vector3(HouseSketch.CELL + THICK, 0, THICK) if along_x else Vector3(THICK, 0, HouseSketch.CELL + THICK)
 	var stone: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.temple_stone()
+	# Where the wall runs on (the next piece in line, the storey above), for the
+	# rounded edges of its stone (see _hidden_faces).
+	var storey := roundi(_lift / HouseSketch.STOREY_HEIGHT)
+	var orient: String = edge[2]
+	var step := Vector2i(1, 0) if along_x else Vector2i(0, 1)
+	var axis := Vector3.RIGHT if along_x else Vector3.BACK
+	var lo := (a - axis * THICK * 0.5).dot(axis)
+	_piece_run = {"axis": axis, "lo": lo, "hi": lo + HouseSketch.CELL + THICK,
+		"before": house.has_piece(edge[0] - step.x, edge[1] - step.y, orient, storey),
+		"after": house.has_piece(edge[0] + step.x, edge[1] + step.y, orient, storey),
+		"above": house.has_piece(edge[0], edge[1], orient, storey + 1)}
+	_solid_piece_parts(mid, flat, along_x, kind, demolish, stone)
+	_piece_run = {}
+
+
+func _solid_piece_parts(mid: Vector3, flat: Vector3, along_x: bool, kind: String, demolish: bool, stone: Material) -> void:
+	var a := mid - (Vector3(HouseSketch.CELL * 0.5, 0, 0) if along_x else Vector3(0, 0, HouseSketch.CELL * 0.5))
 	if HouseSketch.FENCE_KINDS.has(kind):
 		_solid_fence(mid, along_x, kind, demolish)
 		return
@@ -1916,13 +1935,42 @@ func _solid_box(at: Vector3, size: Vector3, mat: Material) -> void:
 
 func _visual_box(at: Vector3, size: Vector3, mat: Material) -> void:
 	var m := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	m.mesh = box
+	if mat == HouseLooks.temple_stone() and mat is ShaderMaterial:
+		# Stone walls get their outer edges rounded off (see StoneLook), but not
+		# where they stand on something or butt against the next piece.
+		m.mesh = StoneLook.rounded_box(size, _hidden_faces(at, size))
+	else:
+		var box := BoxMesh.new()
+		box.size = size
+		m.mesh = box
 	m.material_override = mat
 	m.position = at + Vector3(0, _lift, 0)
 	m.set_meta("ymin", at.y + _lift - size.y * 0.5)
 	_solid.add_child(m)
+
+
+## The faces of a stone box that lie against something (see StoneLook.rounded_box):
+## the bottom always; the top when the wall goes on in the storey above; and an
+## end of the wall piece being built (_piece_run) when the wall runs on there.
+func _hidden_faces(at: Vector3, size: Vector3) -> Array:
+	var hidden: Array = [Vector3.DOWN]
+	if _piece_run.is_empty():
+		# A cellar's lining: thin panels that meet end to end round the pit.
+		if size.x < 0.15:
+			hidden.append_array([Vector3.BACK, Vector3.FORWARD])
+		elif size.z < 0.15:
+			hidden.append_array([Vector3.RIGHT, Vector3.LEFT])
+		return hidden
+	var axis: Vector3 = _piece_run["axis"]
+	if _piece_run["above"] and absf(at.y + size.y * 0.5 - WALL_HEIGHT) < 0.02:
+		hidden.append(Vector3.UP)
+	var half := absf(size.dot(axis)) * 0.5
+	var mid := at.dot(axis)
+	if _piece_run["before"] and absf(mid - half - (_piece_run["lo"] as float)) < 0.02:
+		hidden.append(-axis)
+	if _piece_run["after"] and absf(mid + half - (_piece_run["hi"] as float)) < 0.02:
+		hidden.append(axis)
+	return hidden
 
 
 func _collide(at: Vector3, size: Vector3) -> void:
@@ -2009,9 +2057,14 @@ func _marker(parent: Node3D, node: Vector2i) -> void:
 func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> void:
 	at += Vector3(0, _lift, 0)
 	var m := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	m.mesh = box
+	if mat == HouseLooks.temple_stone() and mat is ShaderMaterial:
+		# Stone walls get their outer edges rounded off (see StoneLook), but not
+		# where they stand on something or butt against the next piece.
+		m.mesh = StoneLook.rounded_box(size, _hidden_faces(at, size))
+	else:
+		var box := BoxMesh.new()
+		box.size = size
+		m.mesh = box
 	m.material_override = mat
 	m.position = at
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

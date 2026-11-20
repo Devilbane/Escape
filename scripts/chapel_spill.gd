@@ -109,6 +109,33 @@ static func material(glow_scale: float) -> ShaderMaterial:
 	return mat
 
 
+## The corners of one window's picture on the lawn, in the temple's metres, on the ground
+## (the window's bottom edge is the near end, its top edge the far end).
+static func picture(w: Array) -> Array:
+	var at: Vector3 = w[0]
+	var out: Vector3 = w[1]
+	var kind: Dictionary = w[2]
+	var side := Vector3(out.z, 0, -out.x)
+	var near: float = float(kind["sill"]) * GAP
+	var far: float = near + float(kind["height"]) * STRETCH
+	var half: float = float(kind["width"]) * 0.5
+	return [at + out * near - side * half, at + out * near + side * half,
+		at + out * far + side * half * SPREAD, at + out * far - side * half * SPREAD]
+
+
+## Every window's picture as an outline on the ground plane (x, z), placed by `to_world`
+## (the temple's transform): ground patches keep off it, so nothing hides the light.
+static func ground_outlines(to_world: Transform3D) -> Array[PackedVector2Array]:
+	var outlines: Array[PackedVector2Array] = []
+	for w: Array in WINDOWS:
+		var outline := PackedVector2Array()
+		for p: Vector3 in picture(w):
+			var g: Vector3 = to_world * p
+			outline.append(Vector2(g.x, g.z))
+		outlines.append(outline)
+	return outlines
+
+
 ## The mesh of all the pictures, in the temple's metres.
 static func build_mesh() -> ArrayMesh:
 	var verts := PackedVector3Array()
@@ -126,9 +153,7 @@ static func build_mesh() -> ArrayMesh:
 		var half: float = float(kind["width"]) * 0.5
 		var rect: Rect2 = kind["uv"]
 		var base := at + Vector3(0, LIFT, 0)
-		# The window's bottom edge is the near end, its top edge the far end.
-		var quad := [base + out * near - side * half, base + out * near + side * half,
-			base + out * far + side * half * SPREAD, base + out * far - side * half * SPREAD]
+		var quad := picture(w).map(func(p: Vector3) -> Vector3: return p + Vector3(0, LIFT, 0))
 		var quv := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
 		var tex := [Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y),
 			Vector2(rect.end.x, rect.position.y), Vector2(rect.position.x, rect.position.y)]

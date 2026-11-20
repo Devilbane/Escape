@@ -2556,12 +2556,14 @@ func _build_woodcutter() -> void:
 	var p: Player = game.player
 	var price: int = game.trader_price(Items.buy_price(TIMBER))
 	var room: int = Items.room_for(p.bag, p.bag_size(), TIMBER)
+	var stock: int = game.timber_stock
 	_add_label(Lang.t("Holzfäller"), 38, game.GOLD, game.TITLE_FONT)
-	var header := Lang.t("Dein Kupfer: %d") % game.coins
-	var all := mini(room, game.coins / price) if price > 0 else room
+	var header := Lang.t("Dein Kupfer: %d") % game.coins + "   ·   " + Lang.t("Sein Vorrat: %d Bauholz") % stock
+	var all := mini(mini(room, game.coins / price) if price > 0 else room, stock)
 	var have := p.bag.count(TIMBER)
 	var detail := {"subtitle": TradeWindow.subtitle(TIMBER), "lines": TradeWindow.stat_lines(TIMBER) + [
 			[Lang.t("Bauholz für Türen und Fenster. Gib es am Bauplan-Schild auf deinem Grundstück ab: Dort baut dein Held damit dein Haus."), TradeWindow.BLUE],
+			[Lang.t("Bruno hackt in seiner Schicht alle 20 Sekunden ein Bauholz in seinen Vorrat, bis zu 999. Was er nicht auf Lager hat, kann er nicht verkaufen."), TradeWindow.BLUE],
 			[Lang.t("Umsonst, aber mit eigener Mühe: Hack es dir selbst aus den Stämmen am Holzplatz neben dem Holzfäller oder aus umgestürzten Bäumen im Wald. Jeder Stamm gibt 2 Bauholz und liegt am nächsten Morgen wieder da."), TradeWindow.BLUE]]}
 	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Bauholz: %d") % have, "icon": TIMBER,
 			"subtitle": Lang.t("Platz für %d weitere") % room}
@@ -2571,7 +2573,7 @@ func _build_woodcutter() -> void:
 					"button": Lang.t("Verkaufen"), "action": _sell_timber, "enabled": have > 0, "detail": detail, "compare": compare},
 		] if _shop_page == "verkaufen" else [
 			{"key": "one", "id": TIMBER, "name": Lang.t("1 Bauholz"), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
-					"action": _buy_timber.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
+					"action": _buy_timber.bind(1), "enabled": room > 0 and stock > 0 and game.coins >= price, "detail": detail, "compare": compare},
 			{"key": "all", "id": TIMBER, "name": Lang.t("%d Bauholz") % maxi(all, 1), "price": Lang.t("%d Kupfer") % (maxi(all, 1) * price),
 					"price_ok": all > 0, "action": _buy_timber.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
 		]},
@@ -2583,15 +2585,18 @@ func _buy_timber(count: int) -> void:
 	var price: int = game.trader_price(Items.buy_price(TIMBER))
 	var bought := 0
 	for i in count:
-		if game.coins < price or not p.bag_fits(TIMBER):
+		if game.coins < price or not p.bag_fits(TIMBER) or game.timber_stock <= 0:
 			break
 		game.coins -= price
+		game.timber_stock -= 1
 		p.bag.append(TIMBER)
 		bought += 1
 	if bought > 0:
 		Events.bus().traded.emit(game.trader_role)
 		_note = Lang.t("Gekauft: %d Bauholz") % bought
 		Sfx.play(game, "gear_soft_0", -2.0)
+	elif game.timber_stock <= 0:
+		_note = Lang.t("Bruno hat gerade kein Bauholz mehr auf Lager.")
 	elif not p.bag_fits(TIMBER):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
@@ -2602,8 +2607,9 @@ func _buy_timber(count: int) -> void:
 
 func _sell_timber() -> void:
 	var p: Player = game.player
-	if p.bag.has(TIMBER):
+	if p.bag.has(TIMBER) and game.timber_stock < WoodcutterShift.CAP:
 		p.bag.erase(TIMBER)
+		game.timber_stock += 1
 		game.coins += sell_price(TIMBER)
 		_note = Lang.t("Verkauft: %s für %d Kupfer") % [Items.item_name(TIMBER), sell_price(TIMBER)]
 	game._update_hud()

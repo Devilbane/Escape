@@ -427,6 +427,10 @@ var wanderer_stock: Array[String] = []
 var wanderer_night := -1
 ## Finished pieces Gorm has on the shelf, id -> count (see Forge.restock): a few more each morning.
 var smith_stock := {}
+## The timber the woodcutter has cut and sells (see WoodcutterShift), and the
+## seconds he has chopped towards the next piece.
+var timber_stock := WoodcutterShift.START
+var _timber_carry := 0.0
 var _title_buttons: Control
 var _name_note: Label
 ## The hero's name, asked for when a new game starts; it goes into the ranking
@@ -2756,6 +2760,7 @@ func _tick_clock(delta: float) -> void:
 			_tick_tour(delta)
 		elif _dawn_between(before, day_hour):
 			_new_day()
+		_tick_timber(delta)
 		_tick_weather(delta)
 		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
 		snow_cover = Weather.snow_cover(snow_cover, weather, delta, Weather.is_winter(day))
@@ -3479,6 +3484,8 @@ func begin_new_game() -> void:
 	wanderer_night = -1
 	smith_stock.clear()
 	Forge.restock(smith_stock, day, hero_name)
+	timber_stock = WoodcutterShift.START
+	_timber_carry = 0.0
 	hoard.clear()
 	away_plan = Offline.empty_plan()
 	book_hours.clear()
@@ -3948,6 +3955,9 @@ func _apply_save(data: Dictionary) -> void:
 	world_hours = float(data.get("world_hours", 0.0))
 	wanderer_night = int(data.get("wanderer_night", -1))
 	_load_smith_stock(data.get("smith_stock", null))
+	# Games saved before the woodcutter kept a stock start him with a full one.
+	timber_stock = clampi(int(data.get("timber_stock", WoodcutterShift.START)), 0, WoodcutterShift.CAP)
+	_timber_carry = 0.0
 	hoard.load_from(data.get("hoard", {}))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
@@ -4155,7 +4165,7 @@ func hero_record() -> Dictionary:
 		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour, "world_hours": world_hours,
-		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock,
+		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock, "timber_stock": timber_stock,
 		"hoard": hoard.for_save(),
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover, "ice": ice_cover,
 		"inn": level.inn,
@@ -5833,6 +5843,23 @@ func note_find(kind: String, id: String, name: String, pos: Vector3) -> bool:
 ## Remembers an explanation for the compendium, once.
 ## The wandering merchant's wares for tonight: a new visit brings new ones,
 ## and what was bought stays gone until then.
+## The woodcutter cuts timber into his stock while he chops at his trunk (see
+## WoodcutterShift). Out of the open air nobody sees him: his shift says it.
+func _tick_timber(delta: float) -> void:
+	var chopping := WoodcutterShift.at_work(day_hour)
+	if level is Outdoor:
+		var cutter: Villager = null
+		for v: Villager in level.villagers:
+			if v.role == "3":
+				cutter = v
+		chopping = cutter != null and cutter.is_chopping()
+	if not chopping:
+		return
+	var now := WoodcutterShift.cut(timber_stock, _timber_carry, delta)
+	timber_stock = now[0]
+	_timber_carry = now[1]
+
+
 ## Gorm's shelf from a saved game. An older save has none: it gets the shelf
 ## of its day, so Gorm has something from the start.
 func _load_smith_stock(saved) -> void:

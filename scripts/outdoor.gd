@@ -622,8 +622,6 @@ func build() -> void:
 	_build_wall_collision()
 	_build_rock_collision()
 	_setup_astar()
-	for t in square_trees:
-		astar.set_point_solid(t.cell, true)
 	meals.garland.block(self)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.

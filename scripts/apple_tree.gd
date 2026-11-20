@@ -178,11 +178,13 @@ const VILLAGE_TREE := {"planted": -100000}
 const VILLAGE_SCALE := 1.15
 ## Round the fountain: the cells between the benches.
 const ROUND_FOUNTAIN := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
+## How far the trunk stands out of the cell's middle along each axis, away from the fountain (m).
+const TRUNK_OUT := 1.1
 
 
 ## Plants the apple trees round every fountain of `level` (an Outdoor) on paved square cells and
-## returns them as [{node, cell, look}] (see dress). Their cells leave the square's spots, and
-## Outdoor makes them solid for the walkers' paths.
+## returns them as [{node, cell, look}] (see dress). Their cells leave the square's spots (no stall
+## or bird under a tree) but stay open for the walkers' paths.
 static func plant_round_fountains(level: Node3D) -> Array:
 	var out := []
 	for y in level.height:
@@ -196,11 +198,14 @@ static func plant_round_fountains(level: Node3D) -> Array:
 				var pos: Vector3 = level.cell_to_world(c)
 				var node := Node3D.new()
 				node.name = "SquareAppleTree"
-				node.position = pos
+				# Out towards the cell's far corner, away from the fountain: the walkers' paths run
+				# through the middle of the cells (and round the fountain past this one), so the trunk
+				# stands clear of them and the cell stays open (see Outdoor's astar).
+				node.position = pos + Vector3(d.x, 0, d.y) * TRUNK_OUT
 				node.rotation.y = hash("square apple:%s" % c) % 628 / 100.0
 				node.scale = Vector3.ONE * VILLAGE_SCALE
 				level.add_child(node)
-				level._add_solid(pos, Vector3(0.5, 2.5, 0.5))
+				level._add_solid(node.position, Vector3(0.5, 2.5, 0.5))
 				level.spots.square.erase(pos)
 				level.spots.market.erase(pos)
 				out.append({"node": node, "cell": c, "look": ""})

@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Dragonlings collect for the hoard only at night; Clear litter and dropped items off dug squares; Climbing skill: let the hero climb out of a dug pit (+47 more)
+Escape! dev status | Working on: Animate the climb out of a pit; Keep the companion out of pits without stairs | Shipped this week: Dragonlings collect for the hoard only at night; Clear litter and dropped items off dug squares; Climbing skill: let the hero climb out of a dug pit (+47 more)

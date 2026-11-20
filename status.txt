@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Climbing skill: let the hero climb out of a dug pit | Shipped this week: Keep snow off dug cellar squares; House playtest with real input; camera frames the plot; hand-in refreshes (+48 more)
+Escape! dev status | Shipped this week: Climbing skill: let the hero climb out of a dug pit; Keep snow off dug cellar squares (+48 more)

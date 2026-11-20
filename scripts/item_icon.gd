@@ -487,6 +487,14 @@ func _draw() -> void:
 				draw_circle(p.call(0.5 + cos(a) * 0.2, 0.42 + sin(a) * 0.2), u * 0.13, Color(0.82, 0.86, 1.0))
 			draw_circle(p.call(0.5, 0.42), u * 0.1, GOLDEN)
 			draw_line(p.call(0.5, 0.6), p.call(0.5, 0.92), Color(0.35, 0.6, 0.3), u * 0.05)
+		"sapling":
+			# A young tree: a mound of earth, a thin trunk and a round green crown with two apples.
+			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.9), p.call(0.35, 0.8), p.call(0.65, 0.8), p.call(0.8, 0.9)]), Color(0.42, 0.28, 0.16))
+			draw_line(p.call(0.5, 0.84), p.call(0.5, 0.45), WOOD, u * 0.08)
+			draw_circle(p.call(0.5, 0.36), u * 0.26, Color(0.32, 0.6, 0.26))
+			draw_circle(p.call(0.4, 0.3), u * 0.1, Color(0.45, 0.72, 0.35))
+			draw_circle(p.call(0.38, 0.46), u * 0.06, Color(0.8, 0.18, 0.15))
+			draw_circle(p.call(0.62, 0.4), u * 0.06, Color(0.8, 0.18, 0.15))
 		"mushroom":
 			draw_rect(Rect2(p.call(0.4, 0.5), Vector2(u * 0.2, u * 0.38)), Color(0.92, 0.88, 0.78))
 			draw_colored_polygon(PackedVector2Array([p.call(0.12, 0.55), p.call(0.25, 0.25), p.call(0.5, 0.15), p.call(0.75, 0.25), p.call(0.88, 0.55)]), Color(0.6, 0.38, 0.2))

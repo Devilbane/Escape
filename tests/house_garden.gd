@@ -89,7 +89,7 @@ func _set_up() -> void:
 	game.house_sketcher.refresh()
 	# Ilse sells the garden in its own category.
 	var garden: Array = HouseFurniture.SECTIONS.filter(func(s): return s[0] == "garten")
-	check(garden.size() == 1 and garden[0][3].size() == 5, "Ilse has a garden category with five pieces")
+	check(garden.size() == 1 and garden[0][3].size() == 6, "Ilse has a garden category with six pieces")
 	for kind in garden[0][3]:
 		check(HouseFurniture.in_garden(kind), "%s belongs in the garden" % kind)
 		check(HouseFurnisher.SHORT.has(kind), "%s has a button name" % kind)

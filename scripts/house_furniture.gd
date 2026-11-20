@@ -13,7 +13,7 @@ extends RefCounted
 ## turns it a quarter clockwise seen from above. It stands only inside the house, on a built
 ## floor under a built roof (see floor_problem), never across a wall, in front of a door, on
 ## stairs or on another piece. Picked up again, it goes back into the store. The garden pieces
-## (flowers, garden torches and lamps, the grill; "garden" in KINDS) are the other way round: they
+## (flowers, garden torches and lamps, the grill, the apple tree; "garden" in KINDS) are the other way round: they
 ## stand only outdoors, on the plot's ground floor where no roof is built (see garden_problem).
 ##
 ## Pure data, kept in Storage apart from the saved games like the house plan.
@@ -65,14 +65,19 @@ const KINDS := {
 		"text": "Eine Laterne an einem Pfosten, wie die im Dorf. Ihr ruhiges Licht erhellt den Garten."},
 	"grill": {"icon": "kind:sausage", "name": "Grill", "price": 120, "size": Vector2i(1, 1), "station": GardenDecor.GRILL, "garden": true, "light": true,
 		"text": "Ein gemauerter Grill mit Eisenrost über glühender Kohle. Dagegenlaufen grillt Wildfleisch oder einen Barsch aus deinem Beutel: Essen gibt Leben zurück."},
+	AppleTree.KIND: {"icon": "kind:sapling", "name": "Apfelbaum-Setzling", "price": 60, "size": Vector2i(1, 1), "station": AppleTree.STATION, "garden": true,
+		"text": "Ein junger Apfelbaum zum Einpflanzen. Er wächst mit den Jahren: im zweiten Jahr blüht er und trägt die ersten Äpfel, ab dem dritten ist er ein großer Baum. Im Sommer und Herbst pflückst du Äpfel."},
 }
+## What a garden tree keeps of its life in the books (see AppleTree): the season day it was
+## planted on and the season it was last picked in.
+const GROWTH := ["planted", "picked"]
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
 	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen"]],
 	["werkbaenke", "Werkbänke", "kind:hammer_anvil", ["werkbank", "feinbank", "schleifrad", "alchemie"]],
 	["wand", "Licht und Wandschmuck", "kind:torch", ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]],
 	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
-	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill"]],
+	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill", AppleTree.KIND]],
 ]
 ## What the compendium says once the hero has met the furnisher.
 const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist."
@@ -118,8 +123,11 @@ static func of(hero: String) -> HouseFurniture:
 	var raw_placed = saved.get("placed", [])
 	if raw_placed is Array:
 		for p in raw_placed:
-			if p is Array and p.size() == 5 and KINDS.has(str(p[0])) and FLOORS.has(int(p[1])):
-				f.placed.append({"kind": str(p[0]), "storey": int(p[1]), "x": int(p[2]), "y": int(p[3]), "rot": posmod(int(p[4]), 4)})
+			if p is Array and p.size() in [5, 6] and KINDS.has(str(p[0])) and FLOORS.has(int(p[1])):
+				var piece := {"kind": str(p[0]), "storey": int(p[1]), "x": int(p[2]), "y": int(p[3]), "rot": posmod(int(p[4]), 4)}
+				if p.size() == 6 and p[5] is Dictionary:
+					_keep_growth(piece, p[5])
+				f.placed.append(piece)
 	return f
 
 
@@ -127,7 +135,11 @@ func save(hero: String) -> void:
 	_load()
 	var raw := []
 	for p in placed:
-		raw.append([p.kind, p.storey, p.x, p.y, p.rot])
+		var row := [p.kind, p.storey, p.x, p.y, p.rot]
+		var growth := _keep_growth({}, p)
+		if not growth.is_empty():
+			row.append(growth)
+		raw.append(row)
 	_books[Homes.deed_name(hero)] = {"owned": owned, "placed": raw}
 	Storage.write(RECORD, {"heroes": _books})
 
@@ -148,6 +160,14 @@ func waiting() -> int:
 ## How many of a kind stand in the house.
 func standing(kind: String) -> int:
 	return placed.filter(func(p): return p.kind == kind).size()
+
+
+## Copies a garden tree's GROWTH from `from` into `piece` (whole numbers) and returns `piece`.
+static func _keep_growth(piece: Dictionary, from: Dictionary) -> Dictionary:
+	for key in GROWTH:
+		if from.has(key):
+			piece[key] = int(from[key])
+	return piece
 
 
 func add(kind: String, n := 1) -> void:
@@ -349,7 +369,9 @@ func problem(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot:
 
 
 ## Puts a waiting piece down. Returns "" or why not (see problem).
-func place(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot: int) -> String:
+## `growth` is what a garden tree keeps (see GROWTH): a moved tree keeps its age, a new one is
+## planted on the day given.
+func place(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot: int, growth := {}) -> String:
 	if count(kind) <= 0:
 		return "none"
 	var why := problem(house, kind, storey, x, y, rot)
@@ -358,7 +380,7 @@ func place(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot: i
 	owned[kind] = count(kind) - 1
 	if owned[kind] <= 0:
 		owned.erase(kind)
-	placed.append({"kind": kind, "storey": storey, "x": x, "y": y, "rot": posmod(rot, 4)})
+	placed.append(_keep_growth({"kind": kind, "storey": storey, "x": x, "y": y, "rot": posmod(rot, 4)}, growth))
 	return ""
 
 

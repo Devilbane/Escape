@@ -476,6 +476,8 @@ var day := 0
 ## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
 ## and the flowers in the gardens go by.
 var season_day := 0
+## The apple trees round the fountain (see AppleTree.plant_round_fountains).
+var square_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -602,6 +604,9 @@ func build() -> void:
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		IvySeasons.apply(ivy, day)
+	# Apple trees round the fountain, between the benches (before the birds take the square's spots).
+	square_trees = AppleTree.plant_round_fountains(self)
+	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -3614,6 +3619,7 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
+	AppleTree.dress(square_trees, day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
 	var at := IvySeasons.stage(day_of_season)
 	if at == _tree_stage:

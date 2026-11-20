@@ -71,11 +71,11 @@ static func ground(level: Level, p: Vector3) -> String:
 
 ## The ground a step at `p` sounds like: the ground itself, but snow crunches over all of it in
 ## the open air while the snow lies thick (not over planks, which only stand under a roof, and not
-## in a puddle).
+## in a puddle, nor inside a built house).
 static func step_ground(level: Level, p: Vector3) -> String:
 	var kind := ground(level, p)
 	var outdoor := level as Outdoor
-	if outdoor and kind != WOOD and kind != PUDDLE and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM:
+	if outdoor and kind != WOOD and kind != PUDDLE and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM and not outdoor.is_sheltered(p):
 		return SNOW
 	return kind
 

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep the companion out of pits without stairs | Shipped this week: Animate the climb out of a pit; Dragonlings collect for the hoard only at night; Clear litter and dropped items off dug squares (+47 more)
+Escape! dev status | Shipped this week: Keep the companion out of pits without stairs; Animate the climb out of a pit; Dragonlings collect for the hoard only at night (+47 more)

@@ -101,16 +101,18 @@ func _drag(a: Vector2, b: Vector2) -> void:
 	await _button(b, MOUSE_BUTTON_LEFT, false)
 
 
-func _key(code: Key) -> void:
+func _key(code: Key, shift := false) -> void:
 	var e := InputEventKey.new()
 	e.keycode = code
 	e.physical_keycode = code
+	e.shift_pressed = shift
 	e.pressed = true
 	Input.parse_input_event(e)
 	await _wait(2)
 	e = InputEventKey.new()
 	e.keycode = code
 	e.physical_keycode = code
+	e.shift_pressed = shift
 	e.pressed = false
 	Input.parse_input_event(e)
 	await _wait(2)
@@ -466,6 +468,44 @@ func _run() -> void:
 	await _shot("ground_floor_built")
 	check(plan.count("dig", "built") == 4 and plan.count("stairs", "built") == 1, "the cellar and its stairs are built")
 	check(game.level._floor_slabs.get_child_count() > 0, "the ground is cut open over the cellar")
+
+	# --- 9. The front door: walk in through it, keep it open with E, shut it, lock it
+	_step("front door")
+	var door: BuiltDoor = sk.door_near(plan.node_world(2, 1) + Vector3(HouseSketch.CELL * 0.5, 0, 0), 0.5)
+	check(door != null and door.openness() == 0.0, "the built door has a shut leaf in a doorway %.1f m high" % HouseSketcher.DOOR_HEIGHT)
+	if door != null:
+		var front := door.global_position
+		game.player.global_position = front + Vector3(0, 0.1, -2.2)
+		game.player.reset_physics_interpolation()
+		await _wait(10)
+		await _shot("door_front")
+		var widest := 0.0
+		Input.action_press("ui_down")
+		for i in 400:
+			await _wait(1)
+			widest = maxf(widest, door.openness())
+			if game.player.global_position.z > front.z + 1.6:
+				break
+		Input.action_release("ui_down")
+		check(widest > 0.9 and game.player.global_position.z > front.z + 1.0,
+				"walking into the door opens it and the hero walks in upright (%.2f open, %.2f m in)" % [widest, game.player.global_position.z - front.z])
+		await _shot("door_walked_in")
+		await _wait(int((BuiltDoor.HOLD + BuiltDoor.OPEN_TIME + 0.5) * 60))
+		check(door.openness() == 0.0, "the door falls shut behind the hero")
+		check(game._prompt.text.contains("E:") or game.hints_shown.get("door", 0) > 0, "next to the door the prompt names E (%s)" % game._prompt.text)
+		await _key(KEY_E)
+		await _wait(int((BuiltDoor.HOLD + BuiltDoor.OPEN_TIME + 0.3) * 60))
+		check(door.is_open() and door.held_open, "E opens the door and it stays open")
+		await _shot("door_held_open")
+		await _key(KEY_E)
+		await _wait(int((BuiltDoor.OPEN_TIME + 0.3) * 60))
+		check(door.openness() == 0.0, "E shuts it again")
+		await _key(KEY_E, true)
+		check(door.locked and door._locks[0].visible and plan.locked.size() == 1, "Shift+E locks it and a padlock shows")
+		await _shot("door_locked")
+		await _wait(30)
+		await _key(KEY_E, true)
+		check(not door.locked and plan.locked.is_empty(), "Shift+E again unlocks it")
 
 	# --- 9a. The companion follows down and up the stairs
 	_step("companion on the cellar stairs")

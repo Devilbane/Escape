@@ -146,6 +146,8 @@ var wall_surface := ""
 var ceiling_surface := "wood"
 ## What the next garden walls are made of: "stone" or "wood" (see fence_kind).
 var fence_material := "stone"
+## The built doors and gates the owner locked (piece key -> true; see BuiltDoor).
+var locked := {}
 var _undo: Array = []
 var _redo: Array = []
 
@@ -1097,6 +1099,11 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 			s.floor_surface = ""
 		if not SURFACES.has(s.wall_surface):
 			s.wall_surface = ""
+		var raw_locked = saved.get("locked", [])
+		if raw_locked is Array:
+			for key in raw_locked:
+				if s.pieces.has(str(key)) and s.pieces[str(key)].kind in [DOOR, GATE]:
+					s.locked[str(key)] = true
 		s.ceiling_surface = str(saved.get("ceiling", "wood"))
 		if not CEILINGS.has(s.ceiling_surface):
 			s.ceiling_surface = "wood"
@@ -1115,6 +1122,10 @@ func save(hero: String) -> void:
 			raw[key] = [p.kind, p.state, p.get("surface", "wood")]
 		else:
 			raw[key] = [p.kind, p.state]
+	var shut := []
+	for key in locked:
+		if pieces.has(key) and pieces[key].kind in [DOOR, GATE]:
+			shut.append(key)
 	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface,
-			"ceiling": ceiling_surface, "fence": fence_material}
+			"ceiling": ceiling_surface, "fence": fence_material, "locked": shut}
 	Storage.write(RECORD, {"houses": _books})

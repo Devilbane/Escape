@@ -67,7 +67,11 @@ const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
-const DOOR_HEIGHT := 2.0
+## The doorway: high enough for the hero to walk through upright (2.4 m with
+## their reach, see Player.tall), under a timber lintel up to the wall's top;
+## stone jambs JAMB wide at each side.
+const DOOR_HEIGHT := 2.4
+const JAMB := 0.35
 const SILL := 0.9
 const WINDOW_TOP := 1.9
 const GRID_COLOR := Color(0.7, 0.85, 1.0, 0.35)
@@ -146,6 +150,10 @@ var _frame_shift := Vector3.ZERO
 var _frame_pending := false
 ## The built ballistae of every house on the map (see HouseBallista).
 var _guns := Node3D.new()
+## The door leaves of every built door and gate, by "plot|piece key".
+var doors := {}
+## The leaf _solid_piece just made, for _redraw to hang.
+var _new_door: BuiltDoor
 
 
 func _ready() -> void:
@@ -1033,6 +1041,11 @@ func _clear(node: Node3D) -> void:
 
 
 func _redraw() -> void:
+	var was := {}
+	for k in doors:
+		if is_instance_valid(doors[k]):
+			was[k] = doors[k].state()
+	doors.clear()
 	_clear(_built)
 	_clear(_solid)
 	for gun in _guns.get_children():
@@ -1059,6 +1072,9 @@ func _redraw() -> void:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 				_lift = 0.0
+				if _new_door != null:
+					_hang_door(_new_door, house, key, deed.rect == _plot, was)
+					_new_door = null
 		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
 		_solid_ballistae(house)
@@ -1411,9 +1427,9 @@ func _cell_quad(parent: Node3D, cell: Vector2i, colour: Color, high := 0.0) -> v
 		_box(parent, mid + Vector3(0, 0.01, edge * sign_), Vector3(HouseSketch.CELL - 0.1, 0.05, 0.08), frame)
 
 
-## A built piece: solid stone, a doorway with a wooden lintel, or a window
+## A built piece: solid stone, a doorway (see _solid_doorway), or a window
 ## with a pane. A piece marked for demolition is tinted red. Walls and jambs
-## stop the hero; the doorway (lintel included) stays open.
+## stop the hero; the door in the doorway stops them only while shut.
 func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool) -> void:
 	var a := house.node_world(edge[0], edge[1])
 	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
@@ -1425,15 +1441,7 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 		return
 	match kind:
 		HouseSketch.DOOR:
-			var jamb := Vector3(0.3, DOOR_HEIGHT, 0.3)
-			var span := HouseSketch.CELL * 0.5 - 0.15
-			var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
-			var lintel := flat + Vector3(0, WALL_HEIGHT - DOOR_HEIGHT, 0)
-			for sign_ in [-1.0, 1.0]:
-				_solid_box(mid + step * sign_ + Vector3(0, DOOR_HEIGHT * 0.5, 0), jamb, stone)
-			# The lintel is only seen: the hero (2.4 m with their reach, see Player.tall) must fit
-			# through the doorway, so only the jambs stop them.
-			_visual_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood())
+			_solid_doorway(mid, along_x, stone, demolish)
 		HouseSketch.WINDOW:
 			_solid_box(mid + Vector3(0, SILL * 0.5, 0), flat + Vector3(0, SILL, 0), stone)
 			_solid_box(mid + Vector3(0, (WINDOW_TOP + WALL_HEIGHT) * 0.5, 0), flat + Vector3(0, WALL_HEIGHT - WINDOW_TOP, 0), stone)
@@ -1442,6 +1450,93 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
 		_:
 			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+
+
+## A doorway in a house wall: stone jambs of the temple's blocks from the
+## floor to the wall's top, a timber lintel of the town houses' stair boards
+## resting on them, a board casing round the opening, a stone threshold and
+## the door leaf itself (see BuiltDoor). The lintel is only seen, as the hero's
+## reach comes up to it.
+func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool) -> void:
+	var axis := Vector3.RIGHT if along_x else Vector3.BACK
+	var across := Vector3.BACK if along_x else Vector3.RIGHT
+	var wood: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood()
+	var opening := HouseSketch.CELL - 2.0 * JAMB
+	# The jambs reach into the corner, as a wall piece does.
+	var jamb_long := JAMB + THICK * 0.5
+	var jamb_deep := THICK + 0.1
+	for sign_ in [-1.0, 1.0]:
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+	# The lintel: a beam over the opening, its ends resting on the jambs.
+	var beam := WALL_HEIGHT - DOOR_HEIGHT
+	_visual_box(mid + Vector3(0, DOOR_HEIGHT + beam * 0.5, 0), _along(axis, across, opening + 0.5, beam, jamb_deep + 0.06), wood)
+	# The casing: boards lining the opening's sides.
+	for sign_ in [-1.0, 1.0]:
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 - 0.03) + Vector3(0, DOOR_HEIGHT * 0.5, 0)
+		_visual_box(at, _along(axis, across, 0.06, DOOR_HEIGHT, jamb_deep + 0.02), wood)
+	# The threshold: a worn stone slab, too low to trip over.
+	_visual_box(mid + Vector3(0, 0.025, 0), _along(axis, across, opening, 0.05, jamb_deep + 0.1), stone)
+	_new_door = _door_leaf(mid, along_x, Vector2(opening - 0.12, DOOR_HEIGHT - 0.02), false, demolish)
+
+
+## A box `long` along the wall, `high` tall and `deep` through it.
+static func _along(axis: Vector3, across: Vector3, long: float, high: float, deep: float) -> Vector3:
+	return (axis * long + across * deep).abs() + Vector3(0, high, 0)
+
+
+## A door or gate leaf standing in the opening at `mid` (see BuiltDoor).
+func _door_leaf(mid: Vector3, along_x: bool, opening: Vector2, is_gate: bool, demolish: bool) -> BuiltDoor:
+	var door := BuiltDoor.new()
+	if demolish:
+		door.tint = DEMOLISH_COLOR
+	door.setup(opening, is_gate)
+	door.position = mid + Vector3(0, _lift, 0)
+	door.rotation.y = 0.0 if along_x else -PI * 0.5
+	door.set_meta("ymin", mid.y + _lift)
+	_solid.add_child(door)
+	return door
+
+
+## Hands a new leaf its owner, lock and the state the door had before the
+## houses were drawn again.
+func _hang_door(door: BuiltDoor, house: HouseSketch, key: String, own: bool, was: Dictionary) -> void:
+	var id := "%s|%s" % [house.plot, key]
+	door.own = own
+	door.hero = game.player if game != null else null
+	door.locked = house.locked.has(key)
+	door._show_lock()
+	if own:
+		door.on_lock = func(on: bool) -> void:
+			if plan == null or not plan.pieces.has(key):
+				return
+			if on:
+				plan.locked[key] = true
+			else:
+				plan.locked.erase(key)
+			plan.save(game.hero_name)
+	if was.has(id):
+		door.restore(was[id])
+	doors[id] = door
+
+
+## The built door or gate nearest `point` within `reach` (metres, along the
+## ground and about one storey up or down), or null.
+func door_near(point: Vector3, reach := 2.0) -> BuiltDoor:
+	var best: BuiltDoor = null
+	var best_d := reach
+	for k in doors:
+		var d: BuiltDoor = doors[k]
+		if not is_instance_valid(d) or not d.is_inside_tree():
+			continue
+		var at := d.global_position
+		if absf(point.y - at.y) > 1.5:
+			continue
+		var dist := Vector2(point.x - at.x, point.z - at.z).length()
+		if dist < best_d:
+			best_d = dist
+			best = d
+	return best
 
 
 ## A built garden wall: a low stone wall, a board fence between two posts, or
@@ -1484,6 +1579,10 @@ func _solid_fence(mid: Vector3, along_x: bool, kind: String, demolish: bool) -> 
 			var inner := step - (Vector3(GATE_POST * 0.5, 0, 0) if along_x else Vector3(0, 0, GATE_POST * 0.5))
 			for sign_ in [-1.0, 1.0]:
 				_solid_box(mid + inner * sign_ + Vector3(0, post.y * 0.5, 0), post, wood)
+			# A gate on the ground gets a board leaf between its posts (a gap in a
+			# roof railing stays open).
+			if not rail:
+				_new_door = _door_leaf(mid, along_x, Vector2(HouseSketch.CELL - 2.0 * GATE_POST - 0.04, high - 0.05), true, demolish)
 
 
 func _solid_box(at: Vector3, size: Vector3, mat: Material) -> void:

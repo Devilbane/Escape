@@ -47,6 +47,12 @@ func _find(node: Node, type: String, text: String) -> Control:
 	return null
 
 
+## True while the sleeping lids cover the hero's eyes (see Player.set_asleep).
+func _eyes_shut() -> bool:
+	var lids = game.player._eyelids
+	return lids != null and lids.visible
+
+
 func _settled() -> bool:
 	return game.state == game.State.PLAYING and not game.player.frozen
 
@@ -110,6 +116,7 @@ func _test() -> void:
 	check(game.has_slot_save(), "the game is saved")
 	check(not DayNight.is_night(game.day_hour), "it is no longer night")
 	check(game.player.global_position.distance_to(game.level.bed_side) < 1.0, "the hero stands by the bed")
+	check(not _eyes_shut(), "the hero wakes with open eyes")
 
 	# Past midnight, before dawn: still the same calendar night, one day counted.
 	day = game.day
@@ -117,6 +124,7 @@ func _test() -> void:
 	await _sleep_from(2.0)
 	check(is_equal_approx(game.day_hour, DayNight.WAKE_HOUR) and game.day == day + 1, "from 2:00 the morning of the same calendar day is a new day for the world once")
 	check(is_equal_approx(game.world_hours - hours, 5.0), "five hours passed (%s)" % (game.world_hours - hours))
+	check(not _eyes_shut(), "the eyes open again after a second night")
 
 	# By day it skips to the next morning, too.
 	hours = game.world_hours

@@ -23,8 +23,10 @@ extends Node3D
 const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen",
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
 	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
-	"schrein_maija": "Schrein: Maija"}
-## The tool bar's second row: light, the walls and the shrines. Everything else is on the first.
+	"schrein_maija": "Schrein: Maija",
+	"blumenbeet": "Blumenbeet", "blumenkuebel": "Kübel", "gartenfackel": "Stabfackel", "gartenlaterne": "Laterne", "grill": "Grill"}
+## The tool bar's second row: light, the walls and the shrines; the garden has the third. Everything
+## else is on the first.
 const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
@@ -64,6 +66,8 @@ const STAND_COLS := 3
 const STAND_ROWS := 3
 ## The trophies' size on the stand, against Level.TROPHY_STATUE (half again the old stand's 0.55).
 const TROPHY_SCALE := 0.825
+## The season the garden's flowers were last drawn in (see GardenDecor.stage), -1 before.
+var _garden_stage := -1
 ## Where the hero lies down in the bed, from its middle (see Game._climb_into_bed), and gets up.
 const BED_OFFSET := Vector3(-0.55, 0, -0.44)
 
@@ -120,6 +124,9 @@ func _exit_tree() -> void:
 
 func _process(_delta: float) -> void:
 	_fade()
+	# The flowers in the gardens follow the seasons.
+	if game != null and game.level is Outdoor and _garden_stage != GardenDecor.stage(game.level.season_day):
+		refresh()
 	if not active:
 		return
 	if _frame_pending and game.house_sketcher != null:
@@ -159,6 +166,7 @@ func refresh() -> void:
 		_body.remove_child(child)
 		child.queue_free()
 	furniture = HouseFurniture.of(game.hero_name)
+	_garden_stage = GardenDecor.stage(game.level.season_day)
 	var own := plan()
 	if own != null:
 		var moved := furniture.settle(own)
@@ -309,7 +317,12 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 		"bild_berge", "bild_see", "bild_drache":
 			_build_painting(root, int(info.painting))
 		_:
-			if info.has("goddess"):
+			if info.get("garden", false):
+				var lights := []
+				solids.append_array(GardenDecor.build(root, kind, maxi(_garden_stage, 0), level, lights))
+				for l in lights:
+					_add_light(l[0], Vector3.ZERO, l[1], l[2], l[3])
+			elif info.has("goddess"):
 				solids.append_array(HouseholdGods.build_shrine(root, info.goddess))
 	root.set_meta("solids", solids)
 	return station
@@ -317,18 +330,21 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 
 ## A warm light like a wall torch's, a little softer, that flickers. Its place counts as lit at
 ## night (see Outdoor.is_lit and refresh).
-func _add_light(parent: Node3D, at: Vector3) -> void:
+## A garden lamp's light is steady (`flicker` off) and its own lantern's colour.
+func _add_light(parent: Node3D, at: Vector3, energy := LIGHT_ENERGY, reach := LIGHT_RANGE, flicker := true) -> void:
 	var light := OmniLight3D.new()
 	light.name = "FurnitureLight"
-	light.light_color = Level.TORCH_COLOUR
-	light.light_energy = LIGHT_ENERGY
-	light.omni_range = LIGHT_RANGE
+	light.light_color = Level.TORCH_COLOUR if flicker else GardenDecor.LAMP_COLOUR
+	light.light_energy = energy
+	light.omni_range = reach
 	light.omni_attenuation = Level.TORCH_ATTENUATION
 	light.position = at
 	parent.add_child(light)
+	if not flicker:
+		return
 	var glow := light.create_tween().set_loops()
-	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 1.1, 0.25)
-	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 0.88, 0.32)
+	glow.tween_property(light, "light_energy", energy * 1.1, 0.25)
+	glow.tween_property(light, "light_energy", energy * 0.88, 0.32)
 
 
 ## A framed painting on the wall behind the piece: a dark oak frame with a gilt edge and the
@@ -507,6 +523,10 @@ func _first_waiting() -> String:
 
 func select(next: String) -> void:
 	tool = next
+	# Garden pieces stand only outdoors on the ground floor's level: the tool shows it.
+	if HouseFurniture.in_garden(next) and storey != 0:
+		storey = 0
+		game.house_sketcher.view_storey = storey
 	_clear_ghost()
 	_update_bar()
 
@@ -915,16 +935,17 @@ func _build_bar() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 4)
 	_bar.add_child(box)
-	# Rows 1 and 2: the pieces, each with the number waiting to be put down; light and the walls
-	# on the second row.
+	# Rows 1 to 3: the pieces, each with the number waiting to be put down; light and the walls
+	# on the second row, the garden on the third.
 	var kinds := _row(box)
 	var lights := _row(box)
+	var garden := _row(box)
 	for kind in HouseFurniture.KINDS:
 		var b := _small_button("", select.bind(kind), KIND_BUTTON.x)
 		b.tooltip_text = Lang.t(HouseFurniture.KINDS[kind].name)
-		(lights if kind in SECOND_ROW else kinds).add_child(b)
+		(garden if HouseFurniture.in_garden(kind) else lights if kind in SECOND_ROW else kinds).add_child(b)
 		_kind_buttons[kind] = b
-	# Row 3: the storey, turning, picking up, back to the blueprint, close.
+	# Row 4: the storey, turning, picking up, back to the blueprint, close.
 	var options := _row(box)
 	_level_button = _small_button("", cycle_level, 250)
 	options.add_child(_level_button)

@@ -67,6 +67,19 @@ func _process(_delta: float) -> bool:
 	check(button.button_pressed, "the button stays pressed while the tool is open")
 	game.plot_marker._process(0.0)
 	check(game.plot_marker._deeds.visible, "the plot posts show while building")
+	# Not on the cellar level of the tool, and not while the hero is down in a cellar.
+	sketcher.storey = HouseSketch.CELLAR_STOREY
+	game.plot_marker._process(0.0)
+	check(not game.plot_marker._deeds.visible, "the plot posts hide on the cellar level")
+	sketcher.storey = 0
+	var on_plot: Vector3 = game.player.global_position
+	game.player.global_position = on_plot + Vector3(0, -2.5, 0)
+	game.plot_marker._process(0.0)
+	check(not game.plot_marker._deeds.visible, "the plot posts hide while the hero is in the cellar")
+	game.player.global_position = on_plot
+	game.player.reset_physics_interpolation()
+	game.plot_marker._process(0.0)
+	check(game.plot_marker._deeds.visible, "the plot posts come back above ground")
 	game.blueprint_action()
 	check(not sketcher.active and not button.button_pressed, "a second press closes the tool")
 	game.plot_marker._process(0.0)

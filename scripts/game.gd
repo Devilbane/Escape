@@ -169,6 +169,13 @@ var writing_card := WritingCard.new(self)
 ## too, still counts as day d: that is when the wandering merchant comes
 ## (see Wanderer).
 var day := 0
+## How many season days the seasons are moved on from the real calendar (see Seasons, season_day):
+## the sky command's doing, kept in the save.
+var season_shift := 0
+## The season day the world was last dressed for (see _check_season), SEASON_UNSEEN before the
+## first look.
+const SEASON_UNSEEN := -1000000000
+var _season_seen := SEASON_UNSEEN
 ## Hours that passed in the world since the game began, sleep included (the
 ## clock of the floors whose monsters come back, see Level.respawn).
 var world_hours := 0.0
@@ -1907,6 +1914,9 @@ func _use_station(s: Dictionary) -> void:
 		# Pushing on against the fountain drinks one sip at a time.
 		if not belly_sips.still_drinking(_clock_now()):
 			_drink(s)
+	elif s.kind == GardenDecor.GRILL:
+		player.face(s.pos - player.global_position)
+		GardenDecor.grill(self)
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
@@ -2841,7 +2851,7 @@ func _clock_text() -> String:
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
-	if Weather.is_winter(day):
+	if Weather.is_winter(season_day()):
 		text += ", " + Lang.t("Winter")
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
@@ -2873,7 +2883,7 @@ func _tick_clock(delta: float) -> void:
 		_tick_timber(delta)
 		_tick_weather(delta)
 		puddle_water = Weather.puddle_water(puddle_water, weather, delta)
-		snow_cover = Weather.snow_cover(snow_cover, weather, delta, Weather.is_winter(day))
+		snow_cover = Weather.snow_cover(snow_cover, weather, delta, Weather.is_winter(season_day()))
 		ice_cover = Weather.ice(ice_cover, snow_cover, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
@@ -2884,13 +2894,15 @@ func _tick_clock(delta: float) -> void:
 		# A stroke of lightning flickers: bright, a dip, bright again.
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
 		Weather.apply(_env, _moon, _seen_look(), flicker)
+		_check_season()
 		if level is Outdoor:
 			level.day = day
-			# The winter clothes change in the night, with the village asleep: from dusk on it is
-			# already tomorrow's season that counts (the day turns at dawn).
-			var season_day := day + (1 if DayNight.is_night(day_hour) else 0)
-			level.set_winter_wear(Weather.is_winter(season_day))
-			level.set_season(season_day)
+			# The seasons follow the real calendar (see Seasons): clothes, trees and vines change
+			# with the real day.
+			var today := season_day()
+			level.season_day = today
+			level.set_winter_wear(Weather.is_winter(today))
+			level.set_season(today)
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
@@ -2940,7 +2952,6 @@ func _new_day(quiet := false) -> void:
 	day += 1
 	# The morning wipes the footprints out of the snow.
 	SnowPrints.clear()
-	_turn_of_season()
 	Forge.restock(smith_stock, day, hero_name)
 	if level != null:
 		# Mined crystal clusters grow back with the morning.
@@ -2961,11 +2972,28 @@ func _new_day(quiet := false) -> void:
 const SEASON_TALK_HOURS := 3.0
 
 
-## The first morning of winter brings snow at once (and stops any rain); the first morning after
-## it says spring is back (see Weather.is_winter).
-func _turn_of_season() -> void:
-	var winter := Weather.is_winter(day)
-	if winter == Weather.is_winter(day - 1):
+## The season day the seasons are on: the real calendar's (see Seasons), moved by season_shift.
+func season_day() -> int:
+	return Seasons.today() + season_shift
+
+
+## Notices a new season (the real calendar turned, or the sky command moved it) and tells of it
+## (see _turn_of_season). The first look after a start or a load only takes note.
+func _check_season() -> void:
+	var now := season_day()
+	if now == _season_seen:
+		return
+	var before := _season_seen
+	_season_seen = now
+	if before != SEASON_UNSEEN:
+		_turn_of_season(now, before)
+
+
+## The first day of winter brings snow at once (and stops any rain); the first day after it says
+## spring is back (see Weather.is_winter).
+func _turn_of_season(now: int, before: int) -> void:
+	var winter := Weather.is_winter(now)
+	if winter == Weather.is_winter(before):
 		return
 	if level is Outdoor:
 		# The villagers have a word about it when they step out (see Villager.season_remark).
@@ -2974,7 +3002,7 @@ func _turn_of_season() -> void:
 	if winter:
 		set_weather(Weather.SNOW)
 		if escaped:
-			quest_news(Lang.t("Der Winter ist da! Acht Tage lang fällt Schnee statt Regen."), Color(0.8, 0.9, 1.0), 5.0)
+			quest_news(Lang.t("Der Winter ist da! Eine Woche lang fällt Schnee statt Regen."), Color(0.8, 0.9, 1.0), 5.0)
 	elif escaped:
 		quest_news(Lang.t("Der Winter geht zu Ende. Der Schnee taut."), Color(0.7, 0.95, 0.7), 4.0)
 
@@ -3107,13 +3135,13 @@ func _on_elder_awakened() -> void:
 func _tick_weather(delta: float) -> void:
 	weather_hours -= delta * 24.0 / DayNight.DAY_LENGTH
 	if weather_hours <= 0.0:
-		set_weather(Weather.roll(day_hour, _weather_rng, weather, Weather.season(day)))
+		set_weather(Weather.roll(day_hour, _weather_rng, weather, Weather.season(season_day())))
 
 
 ## Sets the weather for `hours` of the day (a random spell when not given).
 ## The open air follows in _tick_clock.
 func set_weather(kind: String, hours := -1.0) -> void:
-	weather = Weather.for_season(kind if kind in Weather.KINDS else Weather.CLEAR, Weather.is_winter(day))
+	weather = Weather.for_season(kind if kind in Weather.KINDS else Weather.CLEAR, Weather.is_winter(season_day()))
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
@@ -3159,7 +3187,7 @@ func _show_weather() -> void:
 	var dusty := seen.duplicate()
 	# Not even the night's dust drifts inside a built house.
 	dusty.mist = Weather.dusty_mist(seen, day_hour) * (1.0 - _shelter)
-	var winter_fog := Weather.is_winter(day) and _shelter < 0.5
+	var winter_fog := Weather.is_winter(season_day()) and _shelter < 0.5
 	var haze := Weather.fog_haze(_env.fog_light_color, float(seen.mist), winter_fog)
 	# One even haze at night and over the winter snow; patchy clouds only by day.
 	var even := float(seen.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
@@ -3168,7 +3196,7 @@ func _show_weather() -> void:
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
 	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(seen.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day) and _shelter < 0.5)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(season_day()) and _shelter < 0.5)
 	Weather.show_leaves(_leaves, Weather.leaf_strength(seen, day_hour) * (1.0 - _shelter), light)
 	Breath.set_light(light)
 
@@ -3326,6 +3354,7 @@ func load_level(index: int, restock := true) -> void:
 		_moon.light_color = mood.light
 	if level is Outdoor:
 		level.day = day
+		level.season_day = season_day()
 		level.set_hour(day_hour)
 		level.set_weather(weather)
 	_pending_search = {}
@@ -3604,6 +3633,7 @@ func begin_new_game() -> void:
 	quests.clear()
 	journal.clear()
 	day = 0
+	season_shift = 0
 	bounties.clear()
 	bounties.refresh(day)
 	crafting.clear()
@@ -4069,6 +4099,7 @@ func _apply_save(data: Dictionary) -> void:
 	quests.catch_up()
 	journal.load_from(data.get("journal", {}))
 	day = maxi(0, int(data.get("day", 0)))
+	season_shift = int(data.get("season_shift", 0))
 	bounties.load_from(data.get("bounties", {}))
 	bounties.refresh(day)
 	crafting.load_from(data.get("crafting", {}))
@@ -4293,7 +4324,7 @@ func hero_record() -> Dictionary:
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(), "slimes": _slimes_for_save(),
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
-		"day": day, "bounties": bounties.for_save(),
+		"day": day, "season_shift": season_shift, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
@@ -4535,10 +4566,10 @@ func rest_till_morning() -> void:
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
-		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.season(day)))
+		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.season(season_day())))
 		# The puddles dried up overnight, and the snow melted (in winter it stays).
 		puddle_water = 0.0
-		if not Weather.is_winter(day):
+		if not Weather.is_winter(season_day()):
 			snow_cover = 0.0
 		player.hp = player.max_hp
 		player.cure()
@@ -4700,9 +4731,9 @@ func sleep(at_camp_now := false) -> void:
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather, and the puddles dried up overnight.
-		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.season(day)))
+		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.season(season_day())))
 		puddle_water = 0.0
-		if not Weather.is_winter(day):
+		if not Weather.is_winter(season_day()):
 			snow_cover = 0.0
 	if level.inn:
 		# A night in an inn's bed: the hero gets up rested.
@@ -5384,6 +5415,10 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	var season: Variant = SkyCommand.parse_season(text)
+	if season != null:
+		_season_command(season)
+		return
 	var sky: Variant = SkyCommand.parse(text)
 	if sky != null:
 		_sky_command(sky)
@@ -5459,12 +5494,39 @@ func _sky_help(sky: Dictionary) -> void:
 		Events.found(Lang.t(line), TELEPORT_COLOR)
 
 
+## The chat line's season command (see SkyCommand.parse_season): the world switches to the season
+## at once, with its leaves, vines and grapes, clothes, snow and the season's weather.
+func _season_command(cmd: Dictionary) -> void:
+	if cmd.has("error"):
+		if cmd.error != "":
+			Events.tell(Lang.t("Unbekannte Jahreszeit \"%s\".") % cmd.error, TELEPORT_COLOR)
+		Events.found(Lang.t(SkyCommand.SEASON_HELP), TELEPORT_COLOR)
+		return
+	_tour_time = -1.0
+	var season: String = cmd.season
+	var now := season_day()
+	season_shift += SkyCommand.season_start(now, season) - now
+	_check_season()
+	var winter := season == Weather.WINTER
+	if level is Outdoor:
+		# Everyone is dressed (or undressed) on the spot.
+		level.set_winter_wear(winter, true)
+	snow_cover = 1.0 if winter else 0.0
+	puddle_water = 0.0
+	set_weather(Weather.SNOW if winter else Weather.CLEAR, SkyCommand.HOLD_HOURS)
+	# Show it at once, without the fade of the sky.
+	_weather_look = Weather.look(weather)
+	Events.tell(Lang.t("Jahreszeit: %s") % Lang.t(SkyCommand.SEASON_NAMES[season]), TELEPORT_COLOR)
+	_update_hud()
+
+
 ## Forces the weather, hour and season a command names.
 func _sky_force(sky: Dictionary) -> void:
 	var parts: Array[String] = []
 	var kind: String = sky.weather
 	if sky.winter >= 0:
-		day = SkyCommand.autumn_from(day) if sky.get("autumn", false) else SkyCommand.day_for(day, sky.winter == 1)
+		var now := season_day()
+		season_shift += (SkyCommand.autumn_from(now) if sky.get("autumn", false) else SkyCommand.day_for(now, sky.winter == 1)) - now
 		if level is Outdoor:
 			# The command is instant: everyone is dressed (or undressed) on the spot.
 			level.set_winter_wear(sky.winter == 1, true)
@@ -5472,9 +5534,9 @@ func _sky_force(sky: Dictionary) -> void:
 			parts.append(Lang.t("Herbst an"))
 		else:
 			parts.append(Lang.t("Winter an") if sky.winter == 1 else Lang.t("Winter aus"))
-	elif Weather.is_winter(day) and kind in [Weather.RAIN, Weather.STORM]:
+	elif Weather.is_winter(season_day()) and kind in [Weather.RAIN, Weather.STORM]:
 		# There is no rain or storm in winter (see Weather.for_season): end it.
-		day = SkyCommand.day_for(day, false)
+		season_shift += SkyCommand.day_for(season_day(), false) - season_day()
 		parts.append(Lang.t("Kein Regen im Winter: der Winter wurde beendet."))
 	if sky.hour >= 0.0:
 		day_hour = sky.hour
@@ -7608,6 +7670,7 @@ func _process(delta: float) -> void:
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
+			GardenDecor.GRILL: Lang.t("Dagegenlaufen, um Wildfleisch oder einen Barsch zu grillen und zu essen"),
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			CapeWardrobe.KIND: Lang.t("Dagegenlaufen, um den Umhangschrank zu öffnen"),

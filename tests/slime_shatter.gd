@@ -51,8 +51,8 @@ func _run() -> void:
 	var lvl: Outdoor = game.level as Outdoor
 	var far := lvl.player.global_position + Vector3(0, 0, 60)
 	# Out of winter: the usual death, and no crystal.
-	game.day = 0
-	lvl.day = 0
+	game.season_shift = Weather.SPRING_DAYS - Seasons.today()
+	lvl.season_day = game.season_day()
 	var a := lvl.spawn_slime("schleim", far, {"kept_level": 12})
 	a.global_position = far
 	await _wait(3)
@@ -62,9 +62,9 @@ func _run() -> void:
 	await _wait(2)
 	check(_crystals(lvl) == 0, "no crystal out of winter")
 	# In winter: it bursts into shards without touching the random stream.
-	game.day = Weather.YEAR_DAYS - Weather.WINTER_DAYS
-	lvl.day = game.day
-	check(Weather.is_winter(game.day), "the test day is a winter day")
+	game.season_shift = Weather.YEAR_DAYS - Weather.WINTER_DAYS - Seasons.today()
+	lvl.season_day = game.season_day()
+	check(Weather.is_winter(game.season_day()), "the test day is a winter day")
 	var b := lvl.spawn_slime("schleim", far + Vector3(10, 0, 0), {"kept_level": 12})
 	b.global_position = far + Vector3(10, 0, 0)
 	await _wait(3)

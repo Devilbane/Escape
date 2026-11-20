@@ -10,7 +10,9 @@ const COUNT := 36
 const BOX := Vector3(16.0, 5.0, 11.0)
 const FALL := Vector2(0.45, 0.8)
 const SIZE := 0.2
-const TINTS := [Color(0.78, 0.5, 0.16), Color(0.7, 0.28, 0.12), Color(0.55, 0.6, 0.2), Color(0.85, 0.65, 0.2)]
+## Falling leaf colours: orange, red, gold, yellow and browns (no green: these have turned).
+const TINTS := [Color(0.78, 0.5, 0.16), Color(0.7, 0.28, 0.12), Color(0.62, 0.12, 0.08), Color(0.85, 0.65, 0.2),
+		Color(0.88, 0.76, 0.22), Color(0.5, 0.28, 0.1), Color(0.38, 0.2, 0.08)]
 
 var anchor := Vector3.ZERO
 var material := StandardMaterial3D.new()

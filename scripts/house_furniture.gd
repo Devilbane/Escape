@@ -12,7 +12,9 @@ extends RefCounted
 ## has its back to the north and its front to the south (towards the camera), each turn more
 ## turns it a quarter clockwise seen from above. It stands only inside the house, on a built
 ## floor under a built roof (see floor_problem), never across a wall, in front of a door, on
-## stairs or on another piece. Picked up again, it goes back into the store.
+## stairs or on another piece. Picked up again, it goes back into the store. The garden pieces
+## (flowers, garden torches and lamps, the grill; "garden" in KINDS) are the other way round: they
+## stand only outdoors, on the plot's ground floor where no roof is built (see garden_problem).
 ##
 ## Pure data, kept in Storage apart from the saved games like the house plan.
 
@@ -52,6 +54,17 @@ const KINDS := {
 		"text": "Ein gerahmtes Gemälde eines Drachen über dem Dorf, für eine Wand."},
 	"schrein_maija": {"icon": "kind:goddess", "name": "Schrein der Maija", "price": 400, "size": Vector2i(1, 1), "station": "", "goddess": "maija",
 		"text": "Ein kleiner Steinschrein mit der Statue der geflügelten Hausgöttin Maija, der Hüterin der Schlafenden."},
+	# The garden: pieces for the open-air part of the plot (see GardenDecor), never under a roof.
+	"blumenbeet": {"icon": "kind:flower", "name": "Blumenbeet", "price": 40, "size": Vector2i(1, 1), "station": "", "garden": true,
+		"text": "Ein Beet voller Blumen, mit Feldsteinen eingefasst. Es blüht bunt im Sommer, golden im Herbst und ruht im Winter."},
+	"blumenkuebel": {"icon": "kind:flower", "name": "Blumenkübel", "price": 30, "size": Vector2i(1, 1), "station": "", "garden": true,
+		"text": "Ein Holzkübel mit Eisenreifen und einem Strauß Blumen darin, die mit den Jahreszeiten gehen."},
+	"gartenfackel": {"icon": "kind:torch", "name": "Gartenfackel", "price": 30, "size": Vector2i(1, 1), "station": "", "garden": true, "light": true,
+		"text": "Eine Fackel auf einem hohen Stab. Sie erhellt den Garten, und nachts sieht man dich in ihrem Licht."},
+	"gartenlaterne": {"icon": "kind:flame", "name": "Gartenlaterne", "price": 80, "size": Vector2i(1, 1), "station": "", "garden": true, "light": true,
+		"text": "Eine Laterne an einem Pfosten, wie die im Dorf. Ihr ruhiges Licht erhellt den Garten."},
+	"grill": {"icon": "kind:sausage", "name": "Grill", "price": 120, "size": Vector2i(1, 1), "station": GardenDecor.GRILL, "garden": true, "light": true,
+		"text": "Ein gemauerter Grill mit Eisenrost über glühender Kohle. Dagegenlaufen grillt Wildfleisch oder einen Barsch aus deinem Beutel: Essen gibt Leben zurück."},
 }
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
@@ -59,9 +72,10 @@ const SECTIONS := [
 	["werkbaenke", "Werkbänke", "kind:hammer_anvil", ["werkbank", "feinbank", "schleifrad", "alchemie"]],
 	["wand", "Licht und Wandschmuck", "kind:torch", ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]],
 	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
+	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill"]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist."
 
 ## The floor a piece stands on, by storey (see HouseSketch: cellar, ground floor, upper floor).
 const FLOORS := {-1: -HouseSketch.DEPTH, 0: 0.0, 1: HouseSketch.STOREY_HEIGHT}
@@ -202,6 +216,30 @@ static func floor_problem(house: HouseSketch, storey: int, c: Vector2i) -> Strin
 	return ""
 
 
+## Whether a kind belongs in the garden (outdoors, never under a roof).
+static func in_garden(kind: String) -> bool:
+	return bool(KINDS.get(kind, {}).get("garden", false))
+
+
+## Why a cell of a storey is no ground for a garden piece, or "": "outside" the plot, "garden"
+## (only on the ground floor's level), "no floor" (an open cellar hole), "stairs", "roof" (a built
+## roof over it: that is indoors).
+static func garden_problem(house: HouseSketch, storey: int, c: Vector2i) -> String:
+	if not house.cell_in_plot(c.x, c.y):
+		return "outside"
+	if storey != 0:
+		return "garden"
+	var hole := house.hole_key(c.x, c.y)
+	if hole != "" and house.pieces[hole].state != HouseSketch.SKETCH \
+			and (house.pieces[hole].kind == HouseSketch.STAIRS or not house.is_covered(c.x, c.y)):
+		return "stairs" if house.pieces[hole].kind == HouseSketch.STAIRS else "no floor"
+	if house.up_key(c.x, c.y) != "":
+		return "stairs"
+	if _built(house.pieces.get(house.roof_key(c.x, c.y, 0), {})):
+		return "roof"
+	return ""
+
+
 ## The upper floor's cells where stairs up arrive: they stay free.
 static func _stairs_arrive(house: HouseSketch) -> Dictionary:
 	var out := {}
@@ -281,7 +319,7 @@ func problem(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot:
 		return "kind"
 	var spots := cells(kind, x, y, rot)
 	for c: Vector2i in spots:
-		var why := floor_problem(house, storey, c)
+		var why := garden_problem(house, storey, c) if in_garden(kind) else floor_problem(house, storey, c)
 		if why != "":
 			return why
 	if on_wall(kind):
@@ -378,6 +416,10 @@ static func reason(why: String) -> String:
 			return Lang.t("Vor einer Tür muss Platz bleiben.")
 		"taken":
 			return Lang.t("Da steht schon ein Möbelstück.")
+		"garden":
+			return Lang.t("Das gehört in den Garten: auf den Boden deines Grundstücks, im Erdgeschoss.")
+		"roof":
+			return Lang.t("Das gehört in den Garten: unter freien Himmel, nicht unter ein Dach.")
 		"needs wall":
 			return Lang.t("Das gehört an eine Wand: Zeig auf eine gebaute Wand im Haus.")
 		"none":

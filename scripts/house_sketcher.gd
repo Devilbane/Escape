@@ -39,8 +39,9 @@ const TOOL_DOOR := "door"
 const TOOL_WINDOW := "window"
 const TOOL_ERASE := "erase"
 const TOOL_DIG := "dig"
+## Stairs, down to the cellar or up to the upper floor: one tool, see _stairs_choice.
 const TOOL_STAIRS := "stairs"
-## The cellar ceiling, which is the ground floor's floor too (see HouseSketch.COVER).
+## The ground floor's floor, over the cellar its ceiling too (see HouseSketch.COVER).
 const TOOL_COVER := "cover"
 const TOOL_FENCE := "fence"
 const TOOL_BALLISTA := "ballista"
@@ -49,12 +50,14 @@ const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_BALLISTA, TO
 const RUN_TOOLS := [TOOL_WALL, TOOL_FENCE]
 ## The cellar's tools (their own row in the tool bar).
 const CELLAR_TOOLS := [TOOL_DIG, TOOL_STAIRS, TOOL_COVER]
-## Floors, roofs and the stairs up: they work on the level chosen with the
-## level button (0 ground floor, 1 upper floor, -1 cellar).
+## Floors and roofs: they work on the level chosen with the level button (0
+## ground floor, 1 upper floor, -1 cellar).
 const TOOL_SLAB := "slab"
 const TOOL_SADDLE := "saddle"
+## The stairs up are the stairs tool on the ground or upper floor (kept as a
+## name for callers; select_tool turns it into TOOL_STAIRS).
 const TOOL_UP := "up"
-const ROOF_TOOLS := [TOOL_SLAB, TOOL_SADDLE, TOOL_UP]
+const ROOF_TOOLS := [TOOL_SLAB, TOOL_SADDLE]
 ## Tools that drag a rectangle of cells.
 const RECT_TOOLS := [TOOL_DIG, TOOL_COVER, TOOL_SLAB, TOOL_SADDLE]
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
@@ -94,6 +97,8 @@ const OFF_COLOR := Color(1, 1, 1, 0.4)
 ## Where a roof or slab sketch is drawn above the floor of its storey.
 const SILL_TOP := 2.7
 const STATUS_WIDTH := 880.0
+## How wide each material button of row 2 is: room for the longest text in both languages.
+const MATERIAL_WIDTH := 250.0
 ## The character builds one piece this often (seconds) while the hero is near
 ## the plot, and works only within this many metres of its middle.
 const BUILD_SECONDS := 12.0
@@ -130,7 +135,10 @@ var _bar: PanelContainer
 var _stage_labels := {}
 var _tool_buttons := {}
 var _undo_button: Button
-var _floor_button: Button
+## The two material buttons of row 2: what they set depends on the tool (see
+## _materials); unused, a slot keeps its place but shows nothing.
+var _mat_a: Button
+var _mat_b: Button
 var _level_button: Button
 ## The level the wall, door, window, eraser and roof tools work on.
 var storey := 0
@@ -139,9 +147,6 @@ var _lift := 0.0
 ## Built roof cells by ground cell on the 2 m lattice: the highest storey whose ceiling is there.
 var _covered := {}
 var _fade_state := ""
-var _wall_button: Button
-var _ceiling_button: Button
-var _fence_button: Button
 var _redo_button: Button
 var _status: Label
 var _hover_key := ""
@@ -405,6 +410,10 @@ func cancel_drag() -> void:
 
 
 func select_tool(next: String) -> void:
+	if next == TOOL_UP:
+		next = TOOL_STAIRS
+		if storey < 0:
+			storey = 0
 	tool = next
 	# Garden walls stand on the ground, railings round the roof of the upper
 	# level; there are none in the cellar.
@@ -470,39 +479,34 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 					done = plan.sketch_roof(cells, HouseSketch.SADDLE, storey, "rx" if wide else "ry")
 			_changed()
 			if done == 0 and tool == TOOL_COVER:
-				var why := "no dig"
+				var why := "taken"
 				for c in cells:
-					if plan.problem_cover(c[0], c[1]) == "stairs":
-						why = "stairs"
-				_say(reason(why))
+					var no: String = plan.problem_cover(c[0], c[1])
+					if no == "stairs" or (no == "no dig" and why != "stairs"):
+						why = no
+				_say(reason(why) if why != "taken" else Lang.t("Dort ist schon gegraben oder gebaut."))
 			elif done == 0:
 				_say(Lang.t("Dort ist schon gegraben oder gebaut."))
 			else:
 				_say(Lang.t("%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.") % done)
 		return
-	if tool == TOOL_UP:
-		if pressed:
-			var c := plan.cell_at(point)
-			var dir := plan.upstairs_dir(c.x, c.y)
-			if dir == "":
-				_say(reason("no slab"))
-			else:
-				plan.sketch_upstairs(c.x, c.y, dir)
-				_changed()
-				_say(Lang.t("Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
-		return
 	if tool == TOOL_STAIRS:
 		if pressed:
 			var c := plan.cell_at(point)
-			var dir := plan.stairs_dir(c.x, c.y)
-			if dir == "":
-				var why := "no cellar"
-				for d in HouseSketch.DOWN:
-					if plan.problem_stairs(c.x, c.y, d) == "covered":
-						why = "covered"
+			var choice := _stairs_choice(c)
+			if choice[1] == "":
+				var why := "no slab"
+				if storey < 0:
+					why = "no cellar"
+					for d in HouseSketch.DOWN:
+						if plan.problem_stairs(c.x, c.y, d) == "covered":
+							why = "covered"
 				_say(reason(why))
 			else:
-				plan.sketch_stairs(c.x, c.y, dir)
+				if choice[0]:
+					plan.sketch_upstairs(c.x, c.y, choice[1])
+				else:
+					plan.sketch_stairs(c.x, c.y, choice[1])
 				_changed()
 				_say(Lang.t("Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
@@ -587,7 +591,7 @@ func hover(point: Vector3) -> void:
 			_range_ring(_ghost, plan.cell_world(c.x, c.y) + Vector3(0, high, 0))
 		_say(reason(why) if why != "" else Lang.t("Balliste: Sie schießt auf Schleime bis %d m weit (der Kreis).") % int(HouseBallista.RANGE))
 		return
-	if tool in RECT_TOOLS or tool == TOOL_STAIRS or tool == TOOL_UP:
+	if tool in RECT_TOOLS or tool == TOOL_STAIRS:
 		var c := plan.cell_at(point)
 		var from_cell := drag_from if drag_from.x >= 0 and tool in RECT_TOOLS else c
 		key = "c:%s:%s:%d" % [from_cell, c, storey]
@@ -604,7 +608,7 @@ func hover(point: Vector3) -> void:
 				_cell_quad(_ghost, Vector2i(cell[0], cell[1]), OK_COLOR if why_not == "" else BAD_COLOR, high)
 			_say(Lang.t("%d Felder") % cells.size() if drag_from.x >= 0 else "")
 		else:
-			var dir := plan.stairs_dir(c.x, c.y) if tool == TOOL_STAIRS else plan.upstairs_dir(c.x, c.y)
+			var dir: String = _stairs_choice(c)[1]
 			if dir == "":
 				_cell_quad(_ghost, c, BAD_COLOR)
 			else:
@@ -718,11 +722,11 @@ static func reason(why: String) -> String:
 		"no slab":
 			return Lang.t("Eine Treppe nach oben braucht zwei freie Felder und danach eine Decke.")
 		"no dig":
-			return Lang.t("Die Kellerdecke kommt nur über gegrabene Felder. Über der Treppe bleibt sie offen.")
+			return Lang.t("Dieses Feld wird zugeschüttet: Dort kommt kein Boden hin.")
 		"stairs":
-			return Lang.t("Am Fuß der Treppe bleibt die Kellerdecke offen, damit du aufrecht hinabsteigen kannst.")
+			return Lang.t("Über der Kellertreppe und an ihrem Fuß bleibt der Boden offen, damit du aufrecht hinabsteigen kannst.")
 		"covered":
-			return Lang.t("Über dem Fuß der Treppe liegt die Kellerdecke: Nimm sie dort erst zurück.")
+			return Lang.t("Über dem Fuß der Treppe liegt ein Boden: Nimm ihn dort erst zurück.")
 		"storey":
 			return Lang.t("Höher als das Obergeschoss baut dein Held nicht.")
 		"under roof":
@@ -778,26 +782,22 @@ func _build_bar() -> void:
 	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
 	var tools := _row(box)
 	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_BALLISTA: "Balliste", TOOL_ERASE: "Radierer"}
-	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
-	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe", TOOL_COVER: "Kellerdecke"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
+	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_STAIRS: "Treppe hinauf"}
+	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_COVER: "Boden"}
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_STAIRS, TOOL_DIG, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
 		_tool_buttons[t] = b
-	# Row 2: the level the tools work on, the surfaces of the cellar, the
-	# material of garden walls, undo and redo.
+	# Row 2: the level the tools work on, the materials of the selected tool
+	# (two slots of fixed width, see _materials), undo and redo.
 	var options := _row(box)
 	_level_button = _small_button("", cycle_level, 210)
 	options.add_child(_level_button)
-	_floor_button = _small_button("", cycle_floor, 190)
-	options.add_child(_floor_button)
-	_wall_button = _small_button("", cycle_wall, 190)
-	options.add_child(_wall_button)
-	_ceiling_button = _small_button("", cycle_ceiling, 190)
-	options.add_child(_ceiling_button)
-	_fence_button = _small_button("", cycle_fence, 190)
-	options.add_child(_fence_button)
+	_mat_a = _small_button("", _press_material.bind(0), MATERIAL_WIDTH)
+	options.add_child(_mat_a)
+	_mat_b = _small_button("", _press_material.bind(1), MATERIAL_WIDTH)
+	options.add_child(_mat_b)
 	_undo_button = _small_button(Lang.t("Rückgängig"), undo)
 	options.add_child(_undo_button)
 	_redo_button = _small_button(Lang.t("Wiederholen"), redo)
@@ -878,10 +878,16 @@ func _update_bar() -> void:
 	_redo_button.disabled = plan == null or not plan.can_redo()
 	if plan != null:
 		_level_button.text = Lang.t("Ebene: %s") % Lang.t(LEVEL_NAMES[storey])
-		_floor_button.text = Lang.t("Kellerboden: %s") % Lang.t(SURFACE_NAMES[plan.floor_surface])
-		_wall_button.text = Lang.t("Kellerwände: %s") % Lang.t(SURFACE_NAMES[plan.wall_surface])
-		_ceiling_button.text = Lang.t("Kellerdecke: %s") % Lang.t(SURFACE_NAMES[plan.ceiling_surface])
-		_fence_button.text = (Lang.t("Geländer: %s") if storey == HouseSketch.RAIL_STOREY else Lang.t("Gartenmauer: %s")) % Lang.t(FENCE_NAMES[plan.fence_material])
+		var mats := _materials()
+		for i in 2:
+			var b: Button = [_mat_a, _mat_b][i]
+			var used: bool = i < mats.size()
+			b.text = mats[i][0] if used else ""
+			# An unused slot keeps its place, so nothing in the row moves.
+			b.disabled = not used
+			b.modulate.a = 1.0 if used else 0.0
+			b.focus_mode = Control.FOCUS_ALL if used else Control.FOCUS_NONE
+			b.mouse_filter = Control.MOUSE_FILTER_STOP if used else Control.MOUSE_FILTER_IGNORE
 		# The garden wall tool is called "railing" on the upper level: its button
 		# is as wide as the longer name, so the row does not move.
 		var fence_tool: Button = _tool_buttons[TOOL_FENCE]
@@ -889,6 +895,12 @@ func _update_bar() -> void:
 			fence_tool.text = Lang.t(label)
 			fence_tool.custom_minimum_size.x = maxf(fence_tool.custom_minimum_size.x, fence_tool.get_combined_minimum_size().x)
 		fence_tool.text = Lang.t("Geländer") if storey == HouseSketch.RAIL_STOREY else Lang.t("Gartenmauer")
+		# The stairs tool says which way it goes on this level, as wide as its longer name.
+		var stairs_tool: Button = _tool_buttons[TOOL_STAIRS]
+		for label in ["Treppe hinab", "Treppe hinauf"]:
+			stairs_tool.text = Lang.t(label)
+			stairs_tool.custom_minimum_size.x = maxf(stairs_tool.custom_minimum_size.x, stairs_tool.get_combined_minimum_size().x)
+		stairs_tool.text = _stairs_name()
 		_status.text = _hint()
 		var have := plan.stock
 		var short := plan.missing()
@@ -924,7 +936,32 @@ func cycle_wall() -> void:
 	_changed()
 
 
-## What the next cellar ceiling is made of: wood or stone, never bare earth.
+## The material settings of the selected tool, as [text, action] (at most two):
+## digging sets the cellar's floor and walls, the floor tool its wood or stone,
+## the garden wall tool (a railing up on a roof) its stone or timber. The other
+## tools have none.
+func _materials() -> Array:
+	match tool:
+		TOOL_DIG:
+			return [[Lang.t("Kellerboden: %s") % Lang.t(SURFACE_NAMES[plan.floor_surface]), cycle_floor],
+					[Lang.t("Kellerwände: %s") % Lang.t(SURFACE_NAMES[plan.wall_surface]), cycle_wall]]
+		TOOL_COVER:
+			return [[Lang.t("Boden: %s") % Lang.t(SURFACE_NAMES[plan.ceiling_surface]), cycle_ceiling]]
+		TOOL_FENCE:
+			var name := Lang.t("Geländer: %s") if storey == HouseSketch.RAIL_STOREY else Lang.t("Gartenmauer: %s")
+			return [[name % Lang.t(FENCE_NAMES[plan.fence_material]), cycle_fence]]
+	return []
+
+
+func _press_material(slot: int) -> void:
+	if plan == null:
+		return
+	var mats := _materials()
+	if slot < mats.size():
+		(mats[slot][1] as Callable).call()
+
+
+## What the next floor is made of: wood or stone, never bare earth.
 func cycle_ceiling() -> void:
 	if plan == null:
 		return
@@ -997,18 +1034,35 @@ func _hint() -> String:
 		TOOL_DIG:
 			return Lang.t("Graben: Maustaste halten, Rechteck aufziehen, loslassen. Rechtsklick oder Esc beendet.")
 		TOOL_STAIRS:
-			return Lang.t("Treppe: Klicke ein Feld vor dem Keller an. Sie führt vier Meter nach unten.")
+			if storey < 0:
+				return Lang.t("Treppe hinab: Klicke ein Feld vor dem Keller an. Sie führt vier Meter nach unten. Für eine Treppe hinauf stelle die Ebene um.")
+			return Lang.t("Treppe hinauf: Klicke ein Feld vor einer Decke an. Sie führt vier Meter hinauf. Für eine Treppe in den Keller stelle die Ebene auf den Keller.")
 		TOOL_COVER:
-			return Lang.t("Kellerdecke: Ziehe ein Rechteck über den Keller. Sie ist zugleich der Boden des Erdgeschosses.")
+			return Lang.t("Boden: Ziehe ein Rechteck im Haus. Über dem Keller ist er zugleich die Kellerdecke.")
 		TOOL_SLAB:
 			return Lang.t("Decke: Ziehe ein Rechteck. Sie ist Boden des Stockwerks darüber oder ein begehbares Flachdach.")
 		TOOL_SADDLE:
 			return Lang.t("Satteldach: Ziehe ein Rechteck. Der First läuft entlang der langen Seite.")
-		TOOL_UP:
-			return Lang.t("Treppe nach oben: Klicke ein Feld vor einer Decke an. Sie führt vier Meter hinauf.")
 		TOOL_BALLISTA:
 			return Lang.t("Balliste: Klicke ein Feld im Garten oder auf einem Flachdach an. Sie kostet 6 Bauholz und 2 Steinblöcke.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
+
+
+## Which stairs a click on cell c puts, as [up, direction] (direction "" when
+## none fits): the level says which way first (down from the cellar level, up
+## from the ground or upper floor), and when only the other way fits there,
+## that one, so a click in front of the cellar or a slab always does the obvious.
+func _stairs_choice(c: Vector2i) -> Array:
+	var down := plan.stairs_dir(c.x, c.y)
+	var up := plan.upstairs_dir(c.x, c.y)
+	if storey < 0:
+		return [false, down] if down != "" or up == "" else [true, up]
+	return [true, up] if up != "" or down == "" else [false, down]
+
+
+## The stairs tool's name on the level shown: down on the cellar level, up above.
+func _stairs_name() -> String:
+	return Lang.t("Treppe hinab") if storey < 0 else Lang.t("Treppe hinauf")
 
 
 ## Whether the garden wall tool draws railings round the roof now.
@@ -1211,6 +1265,8 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			_cellar_ceiling(house, p[1], p[2], piece)
 			var corner := house.node_world(p[1], p[2])
 			ceilinged.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
+		elif piece.kind == HouseSketch.COVER and house.hole_key(p[1], p[2]) == "":
+			_ground_floor(house, p[1], p[2], piece)
 
 
 ## The cellar ceiling over a dug cell: a floor of the pen's planks or of
@@ -1227,6 +1283,16 @@ func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> v
 	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
 	mesh.set_meta("ymin", 0.0)
 	_cover(house, x, y, HouseSketch.CELLAR_STOREY)
+
+
+## A floor on plain ground: the pen's planks or the square's flagstones laid on
+## the grass, FLOOR_RISE high, that the hero walks on.
+func _ground_floor(house: HouseSketch, x: int, y: int, piece: Dictionary) -> void:
+	var thick := HouseSketch.FLOOR_RISE + 0.05
+	var at := house.cell_world(x, y) + Vector3(0, HouseSketch.FLOOR_RISE - thick * 0.5, 0)
+	var size := Vector3(HouseSketch.CELL, thick, HouseSketch.CELL)
+	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH)
+	_collide(at, size)
 
 
 ## The floors, roofs and stairs up of a house. Everything is solid: a slab

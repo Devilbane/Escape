@@ -1,0 +1,2 @@
+- House blueprint: the Floor tool lays wooden planks or stone on any ground-floor square, not only over the cellar.
+- House blueprint: one Stairs tool says "up" or "down" by the level, and the material buttons only show what the selected tool can use.

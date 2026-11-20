@@ -36,13 +36,13 @@ func _plan_rules() -> void:
 	s.sketch_stairs(1, 3, "e")
 	for key in s.pieces:
 		s.pieces[key].state = HouseSketch.BUILT
-	check(s.problem_cover(1, 3) == "no dig" and s.problem_cover(2, 3) == "no dig", "no ceiling over the stairs")
-	check(s.problem_cover(0, 0) == "no dig", "no ceiling where nothing is dug")
+	check(s.problem_cover(1, 3) == "stairs" and s.problem_cover(2, 3) == "stairs", "no floor over the stairs")
+	check(s.problem_cover(0, 0) == "", "a floor fits on plain ground too")
 	check(s.problem_cover(4, 3) == "", "a ceiling fits over a dug cell")
 	check(s.problem_cover(3, 3) == "stairs", "the cell at the foot of the stairs stays open")
 	# Drag over the whole cellar with its stairs: the stairs and their foot are left open by themselves.
 	var n := s.sketch_cover(s.cells_between(Vector2i(1, 3), Vector2i(4, 4)))
-	check(n == 3, "dragging over cellar and stairs covers only the three dug cells off the stairs (%d)" % n)
+	check(n == 5, "dragging over cellar and stairs covers the three dug cells off the stairs and the two plain ones beside the stairs (%d)" % n)
 	check(s.cover_at(1, 3).is_empty() and s.cover_at(2, 3).is_empty() and s.cover_at(3, 3).is_empty(), "the stairs opening stays open")
 	check(s.cover_at(4, 3).surface == "wood", "the ceiling takes the chosen material")
 	check(s.problem_cover(4, 3) == "taken", "one ceiling per cell")
@@ -77,9 +77,29 @@ func _plan_rules() -> void:
 	back.build_next()
 	back.build_next()
 	check(back.cover_at(4, 4).is_empty() and not back.is_dug(4, 4) and int(back.stock.get(HouseSketch.STONE, 0)) == 2, "taken down, its material comes back")
-	check(back.problem_cover(4, 4) == "no dig", "no ceiling over a filled-in cell")
+	check(back.problem_cover(4, 4) == "", "a filled-in cell takes a floor on the ground")
 	# Stairs cannot end under a ceiling: a new stairs piece down to a covered cell is refused.
 	check(back.problem_stairs(1, 4, "e") == "covered", "no stairs down to a covered cell (%s)" % back.problem_stairs(1, 4, "e"))
+	_ground_rules()
+
+
+## A floor laid on plain ground (no cellar under it): wood or stone, one block each.
+func _ground_rules() -> void:
+	var s := HouseSketch.new()
+	s.plot = Rect2i(0, 0, 4, 4)
+	s.ceiling_surface = "wood"
+	check(s.sketch_cover(s.cells_between(Vector2i(0, 0), Vector2i(1, 1))) == 4, "a floor is dragged over plain ground")
+	check(HouseSketch.cost_of(s.cover_at(0, 0)) == {HouseSketch.TIMBER: 1}, "a wooden floor costs one timber")
+	s.ceiling_surface = "stone"
+	check(s.sketch_cover([[2, 0]]) == 1 and HouseSketch.cost_of(s.cover_at(2, 0)) == {HouseSketch.STONE: 1}, "a stone floor costs one stone block")
+	check(s.problem_dig(0, 0) == "taken", "no digging under a floor")
+	check(s.problem_stairs(0, 1, "e") != "", "no stairs down through a floor")
+	s.deposit(HouseSketch.TIMBER, 4)
+	s.deposit(HouseSketch.STONE, 1)
+	s.order()
+	for i in 6:
+		s.build_next()
+	check(s.count(HouseSketch.COVER, HouseSketch.BUILT) == 5, "the hero lays the floor (%d)" % s.count(HouseSketch.COVER, HouseSketch.BUILT))
 
 
 func _height_at(point: Vector3) -> float:
@@ -111,7 +131,7 @@ func _process(_delta: float) -> bool:
 		game.plot_marker.refresh()
 		plan = game.house_sketcher.plan
 		plan.deposit("steinblock", 20)
-		plan.deposit("bauholz", 10)
+		plan.deposit("bauholz", 12)
 		plan.sketch_dig(plan.cells_between(Vector2i(3, 3), Vector2i(4, 4)))
 		plan.sketch_stairs(1, 3, "e")
 		plan.ordered = true
@@ -123,7 +143,7 @@ func _process(_delta: float) -> bool:
 		plan.sketch([[5, 3, "y"], [3, 3, "x"]], HouseSketch.WALL)
 		plan.sketch([[5, 3, "y"], [3, 3, "x"]], HouseSketch.DOOR)
 		plan.ordered = true
-		for i in 12:
+		for i in 16:
 			game.house_sketcher.work_once()
 		return false
 	if frames < 9:
@@ -164,9 +184,11 @@ func _process(_delta: float) -> bool:
 
 
 func _checks() -> void:
-	check(plan.count(HouseSketch.COVER, HouseSketch.BUILT) == 3, "the ceiling is built over three cells (%d)" % plan.count(HouseSketch.COVER, HouseSketch.BUILT))
+	check(plan.count(HouseSketch.COVER, HouseSketch.BUILT) == 5, "the floor is built over three dug cells and two plain ones (%d)" % plan.count(HouseSketch.COVER, HouseSketch.BUILT))
+	var ground := _height_at(plan.cell_world(1, 4))
+	check(absf(ground - HouseSketch.FLOOR_RISE) < 0.03, "a floor on plain ground lies just above it (is %f)" % ground)
 	check(plan.cover_at(3, 3).is_empty(), "the foot of the stairs stays open")
-	check(plan.count(HouseSketch.DOOR, HouseSketch.BUILT) == 2, "the doors are built")
+	check(plan.count(HouseSketch.DOOR, HouseSketch.BUILT) == 2, "the doors are built (%d, missing %s)" % [plan.count(HouseSketch.DOOR, HouseSketch.BUILT), plan.missing()])
 	var covered := plan.cell_world(3, 4)
 	var open := plan.cell_world(3, 3)
 	check(absf(_height_at(covered)) < 0.05, "the ceiling carries the hero at ground level (is %f)" % _height_at(covered))

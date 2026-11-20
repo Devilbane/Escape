@@ -47,18 +47,21 @@ const KINDS := [WALL, DOOR, WINDOW, STONE_FENCE, WOOD_FENCE, GATE]
 const DIG := "dig"
 const STAIRS := "stairs"
 const CELLAR_KINDS := [DIG, STAIRS]
-## The cellar ceiling: one piece over a dug cell that is at once the cellar's
-## ceiling and the ground floor's floor, at ground level. It is keyed by the
-## cell, the cellar storey and the orient letter COVER_ORIENT, goes only over
-## dug cells and never over the stairs or the cell at their foot (so the way
-## down always stays open with room to stand up), and is made of wood or stone
-## (CEILINGS), never bare earth.
+## The ground floor's floor ("Boden"): one piece per cell, of wood or stone
+## (CEILINGS), never bare earth. Over a dug cell it is at once the cellar's
+## ceiling, its top at ground level; on plain ground it is a floor of planks or
+## flagstones laid on the ground (FLOOR_RISE high). It is keyed by the cell, the
+## cellar storey and the orient letter COVER_ORIENT, and never goes over the
+## stairs down or the cell at their foot (so the way down always stays open with
+## room to stand up).
 const COVER := "cover"
 const COVER_ORIENT := "f"
 const CEILINGS := ["wood", "stone"]
 ## How thick the cellar ceiling is: its top is the ground, so the cellar keeps
 ## DEPTH - COVER_THICK of headroom under it, more than the hero is tall (Player.tall).
 const COVER_THICK := 0.15
+## How high a floor on plain ground stands over the grass.
+const FLOOR_RISE := 0.05
 ## Above ground. A "slab" is the floor between two storeys, or a flat roof
 ## you can walk on, over one grid cell; it belongs to the storey below it (key
 ## storey 0: it is the ceiling of the ground floor and the floor of the upper
@@ -478,7 +481,7 @@ func problem_stairs(x: int, y: int, dir: String) -> String:
 	for i in 2:
 		if not cell_in_plot(cells[i].x, cells[i].y):
 			return "outside"
-		if hole_key(cells[i].x, cells[i].y) != "":
+		if hole_key(cells[i].x, cells[i].y) != "" or not cover_at(cells[i].x, cells[i].y).is_empty():
 			return "taken"
 	if not cell_in_plot(cells[2].x, cells[2].y) or not is_dug(cells[2].x, cells[2].y):
 		return "no cellar"
@@ -491,7 +494,7 @@ func problem_stairs(x: int, y: int, dir: String) -> String:
 func problem_dig(x: int, y: int) -> String:
 	if not cell_in_plot(x, y):
 		return "outside"
-	if hole_key(x, y) != "":
+	if hole_key(x, y) != "" or not cover_at(x, y).is_empty():
 		return "taken"
 	return ""
 
@@ -581,7 +584,8 @@ func _can_build(key: String) -> bool:
 	if pieces[key].kind == STAIRS:
 		return is_dug(end.x, end.y, true)
 	if pieces[key].kind == COVER:
-		return is_dug(p[1], p[2], true) and pieces[key_of(p[1], p[2], CELL_ORIENT, CELLAR_STOREY)].state == BUILT
+		var under: Dictionary = pieces.get(key_of(p[1], p[2], CELL_ORIENT, CELLAR_STOREY), {})
+		return under.is_empty() or under.state == BUILT
 	if FENCE_KINDS.has(pieces[key].kind) and p[0] == RAIL_STOREY:
 		return roof_edge(p[1], p[2], p[3], true)
 	if pieces[key].kind == UPSTAIRS:
@@ -596,26 +600,28 @@ func cover_at(x: int, y: int) -> Dictionary:
 	return pieces.get(key_of(x, y, COVER_ORIENT, CELLAR_STOREY), {})
 
 
-## Why a cellar ceiling cannot go over a cell, or "": it needs a dug cell (sketched
-## or dug, not marked for filling in) under it, so it never closes the stairs, and
-## it leaves the cell at the stairs' foot open ("stairs"): coming down the ramp
-## the hero needs the room overhead.
+## Why a floor cannot go over a cell, or "": never over the stairs down or the
+## cell at their foot ("stairs": coming down the ramp the hero needs the room
+## overhead), nor over a dug cell marked for filling in ("no dig").
 func problem_cover(x: int, y: int) -> String:
 	if not cell_in_plot(x, y):
 		return "outside"
 	if not cover_at(x, y).is_empty():
 		return "taken"
 	var dug: Dictionary = pieces.get(key_of(x, y, CELL_ORIENT, CELLAR_STOREY), {})
-	if dug.is_empty() or dug.state == DEMOLISH:
+	if dug.is_empty():
+		# Plain ground: a floor laid on it, but not over the stairs down.
+		return "stairs" if hole_key(x, y) != "" else ""
+	if dug.state == DEMOLISH:
 		return "no dig"
 	if stairs_to(x, y) != "":
 		return "stairs"
 	return ""
 
 
-## Sketches the cellar ceiling over cells (`cells` are [x, y, ...]) in the current
-## ceiling material, as one step. Cells that are not dug (the stairs, the ground
-## round the cellar) are left out. Returns how many changed.
+## Sketches floors over cells (`cells` are [x, y, ...]) in the current material,
+## as one step: over dug cells as the cellar's ceiling, on plain ground as a
+## floor. The stairs down and their foot are left out. Returns how many changed.
 func sketch_cover(cells: Array) -> int:
 	var step := []
 	for c in cells:
@@ -629,7 +635,7 @@ func sketch_cover(cells: Array) -> int:
 	return step.size()
 
 
-## Whether the ground over a cell is closed by a built cellar ceiling (one marked
+## Whether a cell has a built floor or cellar ceiling (one marked
 ## for removal still stands).
 func is_covered(x: int, y: int) -> bool:
 	var p := cover_at(x, y)

@@ -104,7 +104,7 @@ func _process(_delta: float) -> bool:
 		check(tool_button.text == Lang.t("Gartenmauer"), "on the ground the tool draws garden walls")
 		sketcher.cycle_level()
 		check(sketcher.storey == 1 and tool_button.text == Lang.t("Geländer"), "on the upper level it draws railings")
-		check(sketcher._fence_button.text.begins_with(Lang.t("Geländer: %s").get_slice("%", 0)), "the material button names the railing")
+		check(sketcher._mat_a.text.begins_with(Lang.t("Geländer: %s").get_slice("%", 0)), "the material button names the railing")
 		# A click on the roof rings it.
 		var on_roof := plan.cell_world(4, 4)
 		sketcher.mouse(on_roof, true, MOUSE_BUTTON_LEFT)

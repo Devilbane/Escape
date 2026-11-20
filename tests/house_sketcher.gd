@@ -98,9 +98,27 @@ func _process(_delta: float) -> bool:
 	sketcher.select_tool(HouseSketcher.TOOL_DOOR)
 	sketcher.mouse(plan.node_world(1, 5) + Vector3(1.0, 0, 0.1), true, MOUSE_BUTTON_LEFT)
 	check(plan.count("gate") == 1 and plan.count("stone_fence") == 2, "a door on a garden wall makes a gate")
+	sketcher.select_tool(HouseSketcher.TOOL_FENCE)
 	sketcher.cycle_fence()
-	check(plan.fence_material == "wood" and sketcher._fence_button.text.contains(Lang.t("aus Holz")), "the material button switches garden walls to wood")
+	check(plan.fence_material == "wood" and sketcher._mat_a.text.contains(Lang.t("aus Holz")), "the material button switches garden walls to wood")
 	sketcher.cycle_fence()
+	# The material buttons follow the tool: none for doors, cellar floor and walls for digging.
+	sketcher.select_tool(HouseSketcher.TOOL_DOOR)
+	check(sketcher._mat_a.disabled and sketcher._mat_a.modulate.a == 0.0 and sketcher._mat_b.disabled, "a door has no material, its buttons are hidden")
+	var mat_place := sketcher._mat_a.get_global_rect()
+	sketcher.select_tool(HouseSketcher.TOOL_DIG)
+	check(sketcher._mat_a.text.begins_with(Lang.t("Kellerboden: %s").get_slice("%", 0)) and sketcher._mat_b.text.begins_with(Lang.t("Kellerwände: %s").get_slice("%", 0)), "digging shows the cellar's floor and walls")
+	sketcher.select_tool(HouseSketcher.TOOL_COVER)
+	check(sketcher._mat_a.text.begins_with(Lang.t("Boden: %s").get_slice("%", 0)) and sketcher._mat_b.disabled, "the floor tool shows the floor's material")
+	check(sketcher._mat_a.get_global_rect() == mat_place, "the material button keeps its place")
+	sketcher.select_tool(HouseSketcher.TOOL_STAIRS)
+	var stairs_button: Button = sketcher._tool_buttons[HouseSketcher.TOOL_STAIRS]
+	var stairs_width := stairs_button.size.x
+	check(stairs_button.text == Lang.t("Treppe hinauf"), "on the ground the stairs tool goes up")
+	sketcher.storey = -1
+	sketcher._update_bar()
+	check(stairs_button.text == Lang.t("Treppe hinab") and stairs_button.get_combined_minimum_size().x <= stairs_width + 0.5, "on the cellar level it goes down, at the same width")
+	sketcher.storey = 0
 	plan.erase([[0, 5, "x"], [1, 5, "x"], [2, 5, "x"]])
 	sketcher.leave()
 	check(not sketcher.active, "the tool closes")

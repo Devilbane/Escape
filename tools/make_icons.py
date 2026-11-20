@@ -229,6 +229,12 @@ ICONS = {
     "hero": (f'<circle cx="32" cy="20" r="10" fill="url(#gold)" {O}/><path d="M12 56c0-12 9-20 20-20s20 8 20 20z" fill="url(#gold)" {O}/>', None),
     "house": (f'<path d="M6 30L32 8l26 22z" fill="#9a3a22" {O}/><path d="M12 30h40v26H12z" fill="url(#parch)" {O}/><path d="M28 40h8v16h-8z" fill="url(#wood)" {O}/>'
               f'<path d="M16 36h8v7h-8zM40 36h8v7h-8z" fill="#f2c46d" {O}/>', None),
+    # The blueprint tool (the HUD's building button): a sheet of blue paper, its top corner
+    # rolled, with a faint grid and the white floor plan of a house with a door gap, and a pencil.
+    "blueprint": (f'<path d="M8 10h40l8 8v38H8z" fill="#2f5fae" {O}/><path d="M48 10v8h8z" fill="#9cc0f0" {O}/>'
+                  '<path d="M14 20h36M14 28h36M14 36h36M14 44h36M18 14v38M26 14v38M34 14v38M42 14v38" stroke="#bcd6ff" stroke-opacity=".3" stroke-width="1"/>'
+                  '<path d="M16 22h30v24H34M28 46H16zM30 22v12M16 34h14" fill="none" stroke="#f4f8ff" stroke-width="3" stroke-linejoin="round"/>'
+                  f'<path d="M40 58l4-10 14-14 6 6-14 14z" fill="url(#gold)" {O}/><path d="M40 58l4-10 6 6z" fill="#f2d9a6" {O}/>', None),
     # A coin of polished metal: the grey part (tinted with the metal) is a rim and a face shaded in
     # bands of light and dark like a mirror; the painting on top adds the bevel lines, a raised
     # mark, a soft sheen and a little white glint, so it still reads at 18 px.

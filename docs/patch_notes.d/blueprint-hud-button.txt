@@ -1,0 +1,2 @@
+- The blueprint sign on your plot is gone: a blueprint button beside the home button opens house building (and furnishing) while you stand on or near your plot.
+- Plot posts and cords now show only while you build or mark out land, no longer in doorways and gardens.

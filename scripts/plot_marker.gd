@@ -7,7 +7,10 @@ extends Node3D
 ## message line says why). A marked plot stays pending until it is registered
 ## at the Crown Office, or until the hero marks another.
 ##
-## Registered plots are drawn for everyone: a post on every tile of the edge and a cord between.
+## Registered plots are drawn as a post on every tile of the edge and a cord
+## between, but only while the hero builds (the blueprint or furnishing tool is
+## open) or marks out land: the rest of the time the posts would stand in doorways
+## and gardens (see deeds_shown).
 
 enum Stage { OFF, FIRST, SECOND }
 
@@ -30,8 +33,27 @@ var _last_hover := Rect2i()
 
 
 func _ready() -> void:
+	_deeds.visible = false
 	add_child(_deeds)
 	refresh()
+
+
+func _process(_delta: float) -> void:
+	var show := deeds_shown()
+	if _deeds.visible != show:
+		_deeds.visible = show
+
+
+## Whether the posts and cords of the registered plots show: only while a
+## building tool is open or land is being marked out.
+func deeds_shown() -> bool:
+	if game == null:
+		return false
+	if marking():
+		return true
+	if game.house_sketcher != null and game.house_sketcher.active:
+		return true
+	return game.house_furnisher != null and game.house_furnisher.active
 
 
 func marking() -> bool:

@@ -2,7 +2,7 @@ extends SceneTree
 ## The whole house-building flow, played the way a player does it: with real mouse and keyboard
 ## events (Input.parse_input_event), through the real window, so what the player would see and
 ## click is what is checked. It marks a plot with the Land button, registers it at the Crown Office,
-## runs into the blueprint sign, draws walls, a door and a window, plans a cellar by dragging,
+## opens the blueprint tool from its HUD button, draws walls, a door and a window, plans a cellar by dragging,
 ## adds stairs, hands in material, orders the build and lets the hero build, takes a fox down
 ## the cellar stairs (and sees it wait at the rim of a pit without them), closes the cellar
 ## with a ceiling that leaves the stairs open, then goes up:
@@ -356,20 +356,15 @@ func _run() -> void:
 		return _end()
 	await _shot("plot_registered")
 
-	# --- 4. Into the blueprint sign
-	_step("open the blueprint sign")
-	var sign_station: Dictionary = {}
-	for s in lvl.stations:
-		if s.kind == HouseSketcher.KIND and s.get("owner", "") == game.hero_name:
-			sign_station = s
-	check(not sign_station.is_empty(), "the plot has a blueprint sign")
-	if sign_station.is_empty():
-		return _end()
-	game.player.global_position = sign_station.pos + Vector3(-0.5, 0, -0.5)
+	# --- 4. The blueprint button
+	_step("open the blueprint tool from the HUD")
+	game.player.global_position = lvl.cell_to_world(plot.position)
 	game.player.reset_physics_interpolation()
-	game._use_station(sign_station)
 	await _settle()
-	check(sk.active, "running into the sign opens the blueprint tool")
+	check(game._blueprint_button.visible, "the blueprint button shows on the plot")
+	game.blueprint_action()
+	await _settle()
+	check(sk.active, "the blueprint button opens the blueprint tool")
 	_bar_ok("wall tool")
 	var bar_top: float = sk._bar.get_global_rect().position.y
 	var hidden := 0
@@ -744,13 +739,10 @@ func _big_plot() -> void:
 	game.plot_marker.refresh()
 	plan = sk.plan
 	check(plan != null and plan.plot == big, "the big plot has a fresh plan")
-	var sign_station: Dictionary = {}
-	for s in game.level.stations:
-		if s.kind == HouseSketcher.KIND and s.get("owner", "") == game.hero_name:
-			sign_station = s
-	game.player.global_position = sign_station.pos + Vector3(-0.5, 0, -0.5)
+	game.player.global_position = game.level.cell_to_world(big.position)
 	game.player.reset_physics_interpolation()
-	game._use_station(sign_station)
+	await _settle()
+	game.blueprint_action()
 	await _settle()
 	await _wait(60)
 	await _settle()

@@ -61,7 +61,7 @@ const SECTIONS := [
 	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie am Bauplan-Schild mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand."
 
 ## The floor a piece stands on, by storey (see HouseSketch: cellar, ground floor, upper floor).
 const FLOORS := {-1: -HouseSketch.DEPTH, 0: 0.0, 1: HouseSketch.STOREY_HEIGHT}

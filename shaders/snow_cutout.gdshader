@@ -11,9 +11,14 @@ uniform sampler2D cutout : source_color, filter_linear_mipmap;
 uniform vec3 uv_scale = vec3(1.0);
 uniform vec3 uv_offset = vec3(0.0);
 uniform float alpha_scissor = 0.5;
+// How readily snow settles on a card's upper rim even when it stands upright (the ivy's leaves
+// on the walls): 0 keeps to what faces the sky.
+uniform float cling = 0.0;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
+// How high this point of the card stands over the card's anchor, in card sizes.
+varying float rise;
 
 void vertex() {
 	UV = UV * uv_scale.xy + uv_offset.xy;
@@ -23,6 +28,8 @@ void vertex() {
 	if (wn.y < 0.0) {
 		wn = -wn;
 	}
+	vec3 anchor = MODEL_MATRIX[3].xyz;
+	rise = (wp.y - anchor.y) / max(length(MODEL_MATRIX[0].xyz), 0.001);
 	wp += wn * 0.01;
 	world_pos = wp;
 	world_normal = wn;
@@ -37,6 +44,8 @@ void fragment() {
 	vec2 xz = world_pos.xz;
 	float n = snow_noise(xz * 2.1) * 0.6 + snow_noise(xz * 7.0 + 3.0) * 0.4;
 	float lies = up * amount * 1.7 + (n - 0.5) * 0.6;
+	// The upper rim of a clinging card: the higher on the card, the more snow.
+	lies = max(lies, cling * amount * smoothstep(0.2, 0.55, rise) * 1.6 + (n - 0.5) * 0.5);
 	if (lies < 0.5 || snow_melted(world_pos, n)) {
 		discard;
 	}

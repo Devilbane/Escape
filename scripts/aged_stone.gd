@@ -1257,12 +1257,16 @@ static func ivy_node(leaves: Dictionary) -> Node3D:
 		mm.use_colors = true
 		mm.mesh = quad
 		mm.instance_count = picked.size()
+		var summer := PackedColorArray()
 		for k in picked.size():
 			mm.set_instance_transform(k, leaves.xforms[picked[k]])
 			mm.set_instance_color(k, leaves.colours[picked[k]])
+			summer.append(leaves.colours[picked[k]])
 		var node := MultiMeshInstance3D.new()
 		node.name = "Leaves_%d_%d" % [key.x, key.y]
 		node.multimesh = mm
+		# The summer colours, for the seasons to turn from (see IvySeasons).
+		node.set_meta("summer", summer)
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visibility_range_end = LEAF_RANGE
 		root.add_child(node)
@@ -1419,6 +1423,8 @@ static func leaf_material() -> StandardMaterial3D:
 		mat.alpha_scissor_threshold = 0.5
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.roughness = 0.7
+		# Snow clings to the leaves' upper rims, not only to what faces the sky (see SnowCover).
+		mat.set_meta("snow_cling", IvySeasons.SNOW_CLING)
 		_mats["leaf"] = mat
 	return _mats["leaf"]
 

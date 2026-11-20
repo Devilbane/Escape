@@ -3,7 +3,8 @@ extends SceneTree
 ## cellar and stairs up to a floor slab) look like the wooden steps of the town
 ## houses on Weavers' Lane (see WoodStairs.build_flight): a flight of steps in
 ## the stairs' wood, while the hero still walks a smooth ramp (see
-## HouseSketcher._ramp). Run with: godot --headless --fixed-fps 60 -s tests/house_stairs_shots.gd
+## HouseSketcher._ramp), and walks up out of the cellar onto a floor laid at
+## their top. Run with: godot --headless --fixed-fps 60 -s tests/house_stairs_shots.gd
 ## With SHOTS=<folder> and a display it also saves pictures of both stairs.
 
 var failures := 0
@@ -68,6 +69,9 @@ func _run() -> void:
 	plan.wall_surface = "wood"
 	plan.sketch_dig(plan.cells_between(Vector2i(3, 1), Vector2i(3, 2)))
 	check(plan.sketch_stairs(1, 1, "e"), "stairs down are sketched")
+	# A wooden floor on the ground where the stairs come up (it stands FLOOR_RISE over the grass).
+	plan.ceiling_surface = "wood"
+	plan.sketch_cover([[0, 0], [0, 1], [0, 2], [1, 0], [1, 2]])
 	# A floor slab with stairs up to it.
 	plan.sketch_roof(plan.cells_between(Vector2i(4, 4), Vector2i(5, 5)), HouseSketch.SLAB, 0)
 	check(plan.sketch_upstairs(2, 4, "e"), "stairs up are sketched")
@@ -94,6 +98,25 @@ func _run() -> void:
 	await _wait(2)
 	var hit := space.intersect_ray(q)
 	check(not hit.is_empty() and absf(hit.position.y - half.y + HouseSketch.DEPTH * 0.5) < 0.2, "the ramp still runs halfway down at the stairs' middle (%s)" % str(hit.get("position", "-")))
+	# Up from the cellar floor, over the stairs and onto the floor at their top.
+	var hero: Player = game.player
+	for e in game.level.enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	hero.godmode = true
+	hero.controllable = true
+	hero.global_position = plan.cell_world(3, 1) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	hero.reset_physics_interpolation()
+	await _wait(20)
+	var landing := plan.cell_world(0, 1)
+	Input.action_press("ui_left")
+	for i in 600:
+		await process_frame
+		if hero.global_position.x < landing.x:
+			break
+	Input.action_release("ui_left")
+	check(hero.global_position.x < landing.x and absf(hero.global_position.y - landing.y - HouseSketch.FLOOR_RISE) < 0.1,
+			"the hero walks up the cellar stairs onto the ground floor's floor (at %s, the floor's middle at %s)" % [hero.global_position, landing])
 	var down := plan.node_world(2, 1) + Vector3(0, 0, HouseSketch.CELL * 0.5)
 	var up := plan.node_world(3, 4) + Vector3(0, 0, HouseSketch.CELL * 0.5)
 	game.player.global_position = plan.node_world(1, 6) + Vector3(-6, 0, 6)

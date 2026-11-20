@@ -1593,7 +1593,13 @@ func _ramp(house: HouseSketch, x: int, y: int, dir: String, demolish: bool, rise
 	var flat := Vector3(step.x, 0, step.y)
 	var start := house.cell_world(x, y) - flat * (HouseSketch.CELL * 0.5)
 	var length := HouseSketch.CELL * 2.0
-	_slanted(start, start + flat * length + Vector3(0, rise, 0), HouseSketch.CELL, 0.3, PLANK_COLOR, true, false)
+	# A floor laid on the ground at the top of stairs down stands FLOOR_RISE over it: the
+	# walking ramp starts on that floor's top, or its edge stops a hero coming up.
+	var top := Vector3.ZERO
+	var landing := Vector2i(x, y) - step
+	if rise < 0.0 and house.is_covered(landing.x, landing.y) and house.hole_key(landing.x, landing.y) == "":
+		top.y = HouseSketch.FLOOR_RISE
+	_slanted(start + top, start + flat * length + Vector3(0, rise, 0), HouseSketch.CELL, 0.3, PLANK_COLOR, true, false)
 	var red: Material = _solid_material(DEMOLISH_COLOR) if demolish else null
 	var flight := WoodStairs.build_flight(_solid, start, flat, length, rise, STAIRS_WIDTH, red, red)
 	# Fades with the floor it stands on, never with the storey it reaches.

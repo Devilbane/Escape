@@ -1219,7 +1219,11 @@ func build_next() -> Dictionary:
 		var price := price_of(pieces[chosen])
 		for id in price:
 			stock[id] = int(stock.get(id, 0)) - int(price[id])
-		pieces[chosen] = {"kind": kind, "state": BUILT}
+		if pieces[chosen].has("into"):
+			pieces[chosen] = {"kind": kind, "state": BUILT}
+		else:
+			# A sketch keeps what it is made of (a dug cell's surfaces, a ceiling's material).
+			pieces[chosen].state = BUILT
 		if kind != DOOR and kind != GATE:
 			locked.erase(chosen)
 		var p := parts_of(chosen)

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Stop picking up and using things through solid walls | Shipped this week: Keep the weather out of self-built houses; Drag placed furniture to another spot and turn it where it stands (+48 more)
+Escape! dev status | Working on: Show player-built houses on the map and let the map zoom; Stop picking up and using things through solid walls | Shipped this week: Keep the weather out of self-built houses; Drag placed furniture to another spot and turn it where it stands (+48 more)

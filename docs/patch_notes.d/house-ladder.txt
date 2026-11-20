@@ -1,0 +1,1 @@
+- House blueprint: a Ladder tool (1 timber) leads up to a flat roof or out of the cellar. Only the hero climbs it; companions use the stairs.

@@ -262,6 +262,7 @@ garden_wall_shots.gd | 120 | fixed | passfail | Garden walls: stone wall, wooden
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books
 house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
 house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
+house_ladder.gd | 120 | fixed | passfail | House ladder: one cell against a slab or pit wall, built after it, the hero climbs up and down it
 bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
 house_looks_shots.gd | 120 | fixed | passfail | House looks: stone in the temple's blocks, flagstone and plank floors, stair-board walls
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node

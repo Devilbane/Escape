@@ -9,12 +9,13 @@ extends RefCounted
 ## (weather:winter, weather:autumn, weather:spring) and is kept in the save.
 ##
 ## The headless tests (a script run with -s) must not depend on the week they run in: for them the
-## clock stands still on TEST_DAY, the first day of summer, and a test moves Game.season_shift.
+## clock stands still on TEST_DAY, the first day of spring (as a new game used to start), and a test
+## moves Game.season_shift.
 
 ## Real days from 1970-01-01 to Monday 2026-11-16, the first day of an autumn.
 const AUTUMN_MONDAY := 20773
 ## The season day the tests' clock stands on (see above).
-const TEST_DAY := Weather.SPRING_DAYS
+const TEST_DAY := 0
 
 
 ## The season day of `unix` (seconds, the system's clock by default), in the player's time zone.

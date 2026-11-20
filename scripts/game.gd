@@ -1959,7 +1959,24 @@ func _spawn_pet(at := Vector3.INF) -> void:
 			pet.global_position = at
 			pet._placed = true
 		pet.dug_up.connect(_on_fox_dug_up)
+		pet.gone_home.connect(send_companion_home)
 	_spawn_home_pets()
+
+
+## The companion could not follow the hero (down a pit without stairs, or
+## through a trapdoor: it goes up and down only by stairs, see Pet and
+## HouseFloors) and lost sight of them: it runs home to the hero's house and
+## waits in the companions' corner until the hero takes it along again.
+func send_companion_home() -> void:
+	var c := companion()
+	if is_instance_valid(pet):
+		pet.queue_free()
+	pet = null
+	if c.is_empty():
+		return
+	following = -1
+	apply_companion_perk()
+	Events.tell(Lang.t("%s läuft nach Hause und wartet dort auf dich.") % c.name, Color(1.0, 0.82, 0.55))
 
 
 ## In the hero's house: the companions who stay at home rest on the straw
@@ -5709,6 +5726,9 @@ func _fall_through_trapdoor(damage: int) -> void:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	learn(Traps.LEARN)
+	# The companion does not jump down after the hero: no stairs, so home it goes.
+	if is_instance_valid(pet):
+		send_companion_home()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)

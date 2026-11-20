@@ -3,7 +3,8 @@ extends SceneTree
 ## events (Input.parse_input_event), through the real window, so what the player would see and
 ## click is what is checked. It marks a plot with the Land button, registers it at the Crown Office,
 ## runs into the blueprint sign, draws walls, a door and a window, plans a cellar by dragging,
-## adds stairs, hands in material, orders the build and lets the hero build, then goes up:
+## adds stairs, hands in material, orders the build and lets the hero build, takes a fox down
+## the cellar stairs (and sees it wait at the rim of a pit without them), then goes up:
 ## a floor slab, stairs up, an upper wall, a saddle roof and a flat roof with things set on it.
 ##
 ## Run with a display (the checks about what is on screen need one):
@@ -427,6 +428,33 @@ func _run() -> void:
 	check(plan.count("dig", "built") == 4 and plan.count("stairs", "built") == 1, "the cellar and its stairs are built")
 	check(game.level._floor_slabs.get_child_count() > 0, "the ground is cut open over the cellar")
 
+	# --- 9a. The companion follows down and up the stairs
+	_step("companion on the cellar stairs")
+	var top: Vector3 = plan.cell_world(0, 2)
+	game.player.global_position = top + Vector3(-HouseSketch.CELL * 2.0, 0, 0)
+	game.player.reset_physics_interpolation()
+	game.companions.append(Companions.make("fuchs", "Fuchs"))
+	game.following = game.companions.size() - 1
+	game._spawn_pet()
+	await _wait(30)
+	var pet: Pet = game.pet
+	check(is_instance_valid(pet) and pet.global_position.y > -0.3, "the fox stands beside the hero on the ground")
+	game.player.global_position = plan.cell_world(3, 3) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	game.player.reset_physics_interpolation()
+	var stairs_cells := [HouseFloors.cell_of(top), HouseFloors.cell_of(plan.cell_world(1, 2))]
+	var off_stairs := 0
+	for i in 300:
+		await process_frame
+		var y := pet.global_position.y
+		if y < -0.3 and y > -HouseSketch.DEPTH + 0.3 and not stairs_cells.has(HouseFloors.cell_of(pet.global_position)):
+			off_stairs += 1
+	check(pet.global_position.y < -HouseSketch.DEPTH + 0.2, "the fox follows the hero down into the cellar (y %.2f)" % pet.global_position.y)
+	check(off_stairs == 0, "it goes down over the stairs, not down a pit wall (%d frames between the floors elsewhere)" % off_stairs)
+	game.player.global_position = top + Vector3(-HouseSketch.CELL * 2.0, 0, 0)
+	game.player.reset_physics_interpolation()
+	await _wait(300)
+	check(pet.global_position.y > -0.1 and not pet.is_cut_off(), "and back up the stairs after the hero (y %.2f)" % pet.global_position.y)
+
 	# --- 9b. Climbing out of the pit without the stairs
 	_step("climb out of the cellar")
 	var hero = game.player
@@ -449,6 +477,36 @@ func _run() -> void:
 		await _wait(10)
 	await _wait(30)
 	check(hero.global_position.y > -0.5, "pushing against the pit wall climbs the hero out (y %.2f)" % hero.global_position.y)
+
+	# --- 9c. A pit without stairs: the companion waits at the rim, then goes home
+	_step("companion at the rim of a pit without stairs")
+	var stairs_key := plan.stairs_to(2, 2)
+	plan.pieces[stairs_key].state = HouseSketch.SKETCH
+	sk._redraw()
+	pet = game.pet
+	game.player.global_position = top + Vector3(-HouseSketch.CELL * 2.0, 0, 0)
+	game.player.reset_physics_interpolation()
+	await _wait(60)
+	game.player.global_position = plan.cell_world(3, 3) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	game.player.reset_physics_interpolation()
+	var lowest := 0.0
+	for i in 240:
+		await process_frame
+		if is_instance_valid(pet):
+			lowest = minf(lowest, pet.global_position.y)
+	check(is_instance_valid(pet) and pet.is_cut_off(), "the fox knows it cannot follow into the pit")
+	check(lowest > -0.3, "it never jumps down into the pit (lowest y %.2f)" % lowest)
+	check(is_instance_valid(pet) and pet.state == "rim" and game.following >= 0, "it waits at the rim while the hero is in sight")
+	var rim_d := Vector2(pet.global_position.x - game.player.global_position.x, pet.global_position.z - game.player.global_position.z).length()
+	check(rim_d < HouseSketch.CELL * 3.0, "the rim it waits at is next to the hero (%.1f m)" % rim_d)
+	# The hero goes out of its sight: off home it runs.
+	pet.global_position = game.player.global_position + Vector3(60, HouseSketch.DEPTH - 0.1, 0)
+	pet.reset_physics_interpolation()
+	await _wait(150)
+	check(not is_instance_valid(game.pet) and game.following == -1, "out of sight it goes home to the hero's house")
+	check(game.companions.size() > 0, "and stays the hero's companion there")
+	plan.pieces[stairs_key].state = HouseSketch.BUILT
+	sk._redraw()
 
 	# --- 10. Upper floor
 	_step("floor slab, stairs up, upper wall")

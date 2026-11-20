@@ -1,0 +1,1 @@
+- Your companion no longer jumps into or climbs out of a dug pit: it uses stairs, waits at the rim otherwise, and runs home if you leave it behind.

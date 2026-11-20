@@ -114,6 +114,9 @@ var game: Node
 var active := false
 var tool := TOOL_WALL
 var plan: HouseSketch
+## Where the hero's own house keeps the weather out (see HouseGround.shelter): inside it, the
+## blessing of its household goddess holds (see HouseholdGods.active).
+var own_shelter := {}
 ## The node where a wall drag started, or (-1, -1).
 var drag_from := Vector2i(-1, -1)
 var _plot := Rect2i()
@@ -1134,6 +1137,7 @@ func _redraw() -> void:
 	var ceilinged := []
 	var built_ground := []
 	var shelters := {}
+	own_shelter = {}
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
@@ -1154,7 +1158,10 @@ func _redraw() -> void:
 		_solid_above(house)
 		_solid_ballistae(house)
 		built_ground.append_array(HouseGround.rects(house))
-		shelters.merge(HouseGround.shelter(house), true)
+		var shelter := HouseGround.shelter(house)
+		shelters.merge(shelter, true)
+		if house == plan:
+			own_shelter = shelter
 	(game.level as Outdoor).shelters = shelters
 	game.level.set_floor_holes(holes, ceilinged)
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).

@@ -22,9 +22,10 @@ extends Node3D
 ## The short names on the tool bar's buttons, in the order of HouseFurniture.KINDS.
 const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen",
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
-	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache"}
-## The tool bar's second row: light and the walls. Everything else is on the first.
-const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]
+	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
+	"schrein_maija": "Schrein: Maija"}
+## The tool bar's second row: light, the walls and the shrines. Everything else is on the first.
+const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
 const LIGHT_RANGE := 9.0
@@ -275,6 +276,9 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			_add_light(holder, Vector3(0, 1.0, 0.8))
 		"bild_berge", "bild_see", "bild_drache":
 			_build_painting(root, int(info.painting))
+		_:
+			if info.has("goddess"):
+				solids.append_array(HouseholdGods.build_shrine(root, info.goddess))
 	root.set_meta("solids", solids)
 	return station
 

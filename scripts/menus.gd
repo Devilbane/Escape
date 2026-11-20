@@ -2646,6 +2646,12 @@ func _build_furnisher() -> void:
 			var size: Vector2i = info.size
 			var lines := [[Lang.t(info.text), TradeWindow.BLUE],
 					[Lang.t("Hängt an einer Wand.") if HouseFurniture.on_wall(kind) else Lang.t("Braucht %d x %d Felder Boden.") % [size.x, size.y], TradeWindow.GREY]]
+			# A shrine: what its household goddess gives while the hero is at home (see HouseholdGods).
+			var goddess := HouseholdGods.of_kind(kind)
+			if goddess != "":
+				for perk in HouseholdGods.perk_lines(goddess):
+					lines.append([perk, TradeWindow.GREEN])
+				lines.append([Lang.t("Ein Segen je Haus: Es gilt der Schrein, der zuerst aufgestellt wurde."), TradeWindow.GREY])
 			if not has_plot:
 				lines.append([Lang.t("Erst ein Grundstück: Das Amt der Krone trägt es dir ein."), TradeWindow.ORANGE])
 			entries.append({"key": "moebel:" + kind, "id": "", "icon": info.icon, "name": Lang.t(info.name),

@@ -1132,6 +1132,7 @@ func _redraw() -> void:
 	var floored := []
 	var ceilinged := []
 	var built_ground := []
+	var shelters := {}
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
@@ -1152,6 +1153,8 @@ func _redraw() -> void:
 		_solid_above(house)
 		_solid_ballistae(house)
 		built_ground.append_array(HouseGround.rects(house))
+		shelters.merge(HouseGround.shelter(house), true)
+	(game.level as Outdoor).shelters = shelters
 	game.level.set_floor_holes(holes, ceilinged)
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
 	if (game.level as Outdoor).surface_life != null:

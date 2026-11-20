@@ -103,6 +103,11 @@ var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
 ## of lightning as it fades (1 to 0).
 var _weather_look := Weather.look(Weather.CLEAR)
+## How far the view is inside a self-built house, 0 out in the open to 1 indoors (see
+## HouseGround.shelter): no rain, snow, fog, mist or storm dark is drawn in there.
+var _shelter := 0.0
+## How long the view takes to move in or out of the weather (real seconds).
+const SHELTER_FADE := 0.3
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -2802,10 +2807,11 @@ func _tick_clock(delta: float) -> void:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
 		_weather_look = Weather.blend(_weather_look, Weather.look(weather), 1.0 - exp(-delta / Weather.FADE))
+		_shelter = move_toward(_shelter, 1.0 if _under_roof() else 0.0, delta / SHELTER_FADE)
 		_flash = maxf(0.0, _flash - delta * 3.0)
 		# A stroke of lightning flickers: bright, a dip, bright again.
-		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
-		Weather.apply(_env, _moon, _weather_look, flicker)
+		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
+		Weather.apply(_env, _moon, _seen_look(), flicker)
 		if level is Outdoor:
 			level.day = day
 			# The winter clothes change in the night, with the village asleep: from dusk on it is
@@ -3039,10 +3045,28 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
+## Whether the view is inside a self-built house: the hero stands in one, or the furnisher looks
+## into one (see HouseSketcher.view_storey). There is no weather in there.
+func _under_roof() -> bool:
+	if not level is Outdoor or player == null:
+		return false
+	if house_sketcher != null and house_sketcher.view_storey != HouseSketcher.NO_VIEW:
+		return true
+	return (level as Outdoor).is_sheltered(player.global_position)
+
+
+## The weather as it is seen: out in the open the weather's own look, inside a built house
+## (see _shelter) a clear sky, so nothing of rain, fog or storm reaches the view in there.
+func _seen_look() -> Dictionary:
+	if _shelter <= 0.001:
+		return _weather_look
+	return Weather.blend(_weather_look, Weather.look(Weather.CLEAR), _shelter)
+
+
 ## Rain and mist fall and drift around the hero in the open air only, and
-## the rain patters as hard as it falls.
+## the rain patters as hard as it falls. Inside a built house none of it shows.
 func _show_weather() -> void:
-	var outside: bool = level != null and level.outdoor and player != null
+	var outside: bool = level != null and level.outdoor and player != null and _shelter < 0.999
 	if not outside:
 		_rain.emitting = false
 		_rain.visible = false
@@ -3054,24 +3078,26 @@ func _show_weather() -> void:
 		Weather.cold = false
 		_clouds.set_look(0.0, Weather.HAZE, 0.0)
 		return
-	Weather.cold = snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3
+	Weather.cold = _shelter < 0.5 and (snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3)
+	var seen := _seen_look()
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
 	_leaves.anchor = player.global_position
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	var dusty := _weather_look.duplicate()
-	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
-	var winter_fog := Weather.is_winter(day)
-	var haze := Weather.fog_haze(_env.fog_light_color, float(_weather_look.mist), winter_fog)
+	var dusty := seen.duplicate()
+	# Not even the night's dust drifts inside a built house.
+	dusty.mist = Weather.dusty_mist(seen, day_hour) * (1.0 - _shelter)
+	var winter_fog := Weather.is_winter(day) and _shelter < 0.5
+	var haze := Weather.fog_haze(_env.fog_light_color, float(seen.mist), winter_fog)
 	# One even haze at night and over the winter snow; patchy clouds only by day.
-	var even := float(_weather_look.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
-	_clouds.set_look(dusty.mist, haze, even)
+	var even := float(seen.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
+	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
-	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(_weather_look.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day))
-	Weather.show_leaves(_leaves, Weather.leaf_strength(_weather_look, day_hour), light)
+	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(seen.mist)) * 0.6)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day) and _shelter < 0.5)
+	Weather.show_leaves(_leaves, Weather.leaf_strength(seen, day_hour) * (1.0 - _shelter), light)
 	Breath.set_light(light)
 
 

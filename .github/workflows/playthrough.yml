@@ -1,16 +1,13 @@
 name: Full play-through
 
-# The bot that plays every level (tests/play_all_levels.gd) takes about 28 minutes, so it is not
-# part of the fast checks in web.yml. It runs
-#   - on a pull request that changes character or progression code (the paths below),
-#   - on a pull request that carries the label "playthrough",
+# The bot that plays every level (tests/play_all_levels.gd) takes a long time, so it is not part of
+# the fast checks in web.yml and no longer runs on pull requests (it took a runner from the test shards).
+# It runs
 #   - every night on main, and
-#   - on demand (Actions > Full play-through > Run workflow).
+#   - on demand (Actions > Full play-through > Run workflow, on main or on any branch).
 # See docs/testing.md.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
@@ -31,34 +28,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Does this change need the full play-through?
-        id: need
-        env:
-          EVENT: ${{ github.event_name }}
-          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
-          BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ "$EVENT" != "pull_request" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"; echo "Scheduled or manual run."; exit 0
-          fi
-          if echo "$LABELS" | grep -q '"playthrough"'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"; echo "Label 'playthrough' set."; exit 0
-          fi
-          # Character and progression: the hero, levels and XP, stats, items and loot, quests,
-          # reputation, saves, the game loop, the maps and the monsters the hero fights.
-          paths='^(scripts/(player|game|hero_level|hero_chat|items|item_icon|loot|quests|reputation|wishes|factions|enemy|level|tiles|crafting|camp|armour_sets|stride|save[a-z_]*|monster[a-z_]*|creations|trade_window)\.gd|levels/|project\.godot|tests/play_all_levels\.gd|\.github/workflows/playthrough\.yml)'
-          changed=$(git diff --name-only "$BASE"...HEAD | grep -E "$paths" || true)
-          if [ -n "$changed" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"; echo "Character or progression files changed:"; echo "$changed"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"; echo "No character or progression files changed; skipped."
-          fi
 
       - name: Restore Godot from the cache
-        if: steps.need.outputs.run == 'true'
         id: cache
         uses: actions/cache@v4
         with:
@@ -66,7 +37,7 @@ jobs:
           key: godot-${{ env.GODOT_VERSION }}-editor
 
       - name: Install Godot
-        if: steps.need.outputs.run == 'true' && steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/godot && cd ~/godot
           base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
@@ -74,11 +45,9 @@ jobs:
           unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
 
       - name: Import the project
-        if: steps.need.outputs.run == 'true'
         run: ~/godot/godot --headless --import
 
       - name: Play through all levels automatically
-        if: steps.need.outputs.run == 'true'
         run: |
           timeout 2400 ~/godot/godot --headless --fixed-fps 60 -s tests/play_all_levels.gd | tee test.log
           grep -q PASS test.log

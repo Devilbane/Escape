@@ -3,7 +3,8 @@
 #   tests/ci_shard.sh blocking <shard> <shards>   the tests listed in tests/ci_manifest.txt
 #   tests/ci_shard.sh extra <shard> <shards>      every other tests/*.gd (not blocking in CI)
 #   tests/ci_shard.sh on_demand <shard> <shards>  the tests in tests/ci_on_demand.txt, which general CI skips
-# Shard k of n takes every n-th test, so slow and fast ones mix. Runs all its tests, then fails if any failed.
+# The tests are split by their measured length (tests/ci_timings.txt): longest first, each to the shard with the
+# least work so far, so all shards end at about the same time. Runs all its tests, then fails if any failed.
 # A failed test is run once more: passing on the retry makes it a reported flaky test, not a failure.
 set -u
 mode=${1:?blocking, extra or on_demand}; shard=${2:?shard number from 0}; shards=${3:?number of shards}
@@ -37,29 +38,36 @@ run_test() {
   esac
 }
 
-fail=0; i=0; flaky=()
+# This shard's tests, in list order: number every line, give it its measured seconds (15 when unmeasured), deal
+# them out longest first to the least loaded shard (ties by list order), keep this shard's lines.
+mine=$(mktemp)
+awk -v tf=tests/ci_timings.txt 'BEGIN { while ((getline l < tf) > 0) if (l !~ /^#/ && split(l, a, " ") == 2) w[a[1]] = a[2] }
+  { print (($1 in w) ? w[$1] : 15), NR, $0 }' "$list" \
+  | sort -k1,1nr -k2,2n \
+  | awk -v n="$shards" -v k="$shard" '{ b = 0; for (s = 1; s < n; s++) if (load[s] < load[b]) b = s; load[b] += $1
+      if (b == k) { $1 = ""; print substr($0, 2) } }' \
+  | sort -k1,1n | cut -d' ' -f2- > "$mine"
+
+fail=0; flaky=()
 while read -r name secs fps check; do
-  if [ $((i % shards)) -eq "$shard" ]; then
-    start=$SECONDS
+  start=$SECONDS
+  run_test
+  if [ -n "${ok:-}" ]; then echo "ok   $name ($((SECONDS - start))s)"
+  else
+    # A failed test gets one more try. If that passes, it is reported as flaky (a warning and a line in the
+    # job summary) and does not block; a test that fails twice is a real failure.
+    echo "::warning::tests/$name failed once, running it again"; tail -n 15 "$log"; cp "$log" "ci_logs/${name%.gd}.first.log"
     run_test
-    if [ -n "${ok:-}" ]; then echo "ok   $name ($((SECONDS - start))s)"
+    if [ -n "${ok:-}" ]; then
+      echo "FLAKY $name passed on the second try ($((SECONDS - start))s)"
+      echo "::warning::tests/$name is flaky: it failed once and passed on the retry"
+      flaky+=("$name")
     else
-      # A failed test gets one more try. If that passes, it is reported as flaky (a warning and a line in the
-      # job summary) and does not block; a test that fails twice is a real failure.
-      echo "::warning::tests/$name failed once, running it again"; tail -n 15 "$log"; cp "$log" "ci_logs/${name%.gd}.first.log"
-      run_test
-      if [ -n "${ok:-}" ]; then
-        echo "FLAKY $name passed on the second try ($((SECONDS - start))s)"
-        echo "::warning::tests/$name is flaky: it failed once and passed on the retry"
-        flaky+=("$name")
-      else
-        echo "::error::tests/$name did not pass (twice)"; tail -n 15 "$log"; fail=1
-      fi
+      echo "::error::tests/$name did not pass (twice)"; tail -n 15 "$log"; fail=1
     fi
   fi
-  i=$((i + 1))
-done < "$list"
-rm -f "$list"
+done < "$mine"
+rm -f "$list" "$mine"
 if [ ${#flaky[@]} -gt 0 ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   { echo "### Flaky tests ($mode shard $shard)"; echo "Failed once and passed on the retry. Please make them deterministic:"; for f in "${flaky[@]}"; do echo "- \`$f\`"; done; } >> "$GITHUB_STEP_SUMMARY"
 fi

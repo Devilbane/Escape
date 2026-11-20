@@ -7,8 +7,15 @@ Tests are headless Godot scripts in `tests/`: `godot --headless -s tests/<name>.
 
 `.github/workflows/web.yml` runs the tests in parallel shards, so a pull request gets its answer in minutes
 instead of half an hour. The tests that block are listed in `tests/ci_manifest.txt` (file, timeout, whether
-it needs `--fixed-fps 60`, how it counts as passed); `tests/ci_shard.sh` runs every n-th one, 8 shards in a
-matrix. The same script runs locally: `tests/ci_shard.sh blocking 0 1` runs them all.
+it needs `--fixed-fps 60`, how it counts as passed); `tests/ci_shard.sh` splits them into 8 shards in a matrix
+by their measured length (`tests/ci_timings.txt`): longest first, each to the shard with the least work so far, so
+all shards end at about the same time. A test missing from that file counts as 15 s. Refresh it now and then
+from a run's logs (Actions > a run > Download log archive, unpack, then
+`python3 tools/ci_timings.py <folder>/*.txt`); an outdated file only makes the split less even, never wrong.
+The same script runs locally: `tests/ci_shard.sh blocking 0 1` runs them all.
+
+Every job also restores the imported project (`.godot`) from the cache that pushes to main store
+(`.github/actions/godot-setup`), so the import only handles what changed.
 
 A test that fails is run once more. If it passes the second time it is reported as **flaky** (a warning on the run
 and a line in the job summary) and does not block; a test that fails twice blocks. Treat every flaky report as a
@@ -19,6 +26,8 @@ A pull request that changes only documentation (`docs/`, `balance/`, `*.md`) ski
 reports green. The full suite, extra shards included, also runs every night on main.
 
 Every other `tests/*.gd` (not `profile_*.gd` and not the play-through) runs in 4 non-blocking `extra` shards.
+On a pull request they start only after `tests` has reported, so they never take a runner the blocking shards
+need (GitHub runs only so many jobs at once); on main and at night they run alongside the blocking shards.
 A new test therefore runs from the day it is added without an entry anywhere; it only warns until it has
 been run in CI for a while. Fix it and add a line to `tests/ci_manifest.txt` to make it block.
 
@@ -45,18 +54,13 @@ The browser version is optional. `.github/workflows/browser.yml` ("Browser versi
 (Actions > Browser version > Run workflow) and, when run on main, deploys to GitHub Pages. It does not
 run on pull requests or pushes and nothing waits for it.
 
-## Full play-through: only when it matters
+## Full play-through: nightly and on demand
 
-`tests/play_all_levels.gd` plays every level and takes about 28 minutes, so it lives in its own
-workflow, `.github/workflows/playthrough.yml`. It runs
-- on a pull request that touches character or progression code (the hero, level and XP, items and
-  loot, quests, reputation, saves, the game loop, enemies, maps in `levels/`; the path list is in the
-  workflow),
-- on a pull request labelled `playthrough` (use it when a change is risky but not on that list),
+`tests/play_all_levels.gd` plays every level and takes a long time, so it lives in its own
+workflow, `.github/workflows/playthrough.yml`, and does not run on pull requests (it used to, and took a runner
+away from the test shards). It runs
 - every night on main, and
-- by hand: Actions > Full play-through > Run workflow.
-
-On any other pull request the job starts, finds nothing to do and ends within seconds.
+- by hand: Actions > Full play-through > Run workflow (pick a branch to try a risky change before merging).
 
 ## Merge safety: test every pull request on current main
 

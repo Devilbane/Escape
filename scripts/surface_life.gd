@@ -135,6 +135,8 @@ var _cell_litter := {}
 ## Litter lifted away from loot right now: "multimesh_id:index" -> entry.
 var _lifted := {}
 var _loot_timer := 0.0
+## The dug cells (Rect2 on the ground plane, see Outdoor.set_floor_holes): no litter lies there.
+var _holes: Array = []
 var _critters: Array = []
 var _trails: Array = []
 var _time := 0.0
@@ -390,6 +392,15 @@ func _clear_around_loot() -> void:
 					var o: Vector3 = e[2]
 					if Vector2(o.x - at.x, o.z - at.z).length() < LOOT_CLEAR:
 						near["%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]] = e
+	for r: Rect2 in _holes:
+		var lo := level.world_to_cell(Vector3(r.position.x, 0, r.position.y))
+		var hi := level.world_to_cell(Vector3(r.end.x, 0, r.end.y))
+		for cy in range(lo.y, hi.y + 1):
+			for cx in range(lo.x, hi.x + 1):
+				for e in _cell_litter.get(Vector2i(cx, cy), []):
+					var o: Vector3 = e[2]
+					if r.has_point(Vector2(o.x, o.z)):
+						near["%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]] = e
 	for k in _lifted:
 		if not near.has(k):
 			var e: Array = _lifted[k]
@@ -399,6 +410,14 @@ func _clear_around_loot() -> void:
 			var e: Array = near[k]
 			(e[0] as MultiMesh).set_instance_transform(e[1], Transform3D(Basis().scaled(Vector3.ZERO), e[2]))
 	_lifted = near
+
+
+## Tells where the ground is dug out: the litter there (leaves, twigs, pebbles, tufts) is lifted
+## away at once, and comes back when the hole is filled in again.
+func set_holes(holes: Array) -> void:
+	_holes = holes.duplicate()
+	if is_inside_tree():
+		_clear_around_loot()
 
 
 ## How many pieces of litter are lifted away from loot right now.

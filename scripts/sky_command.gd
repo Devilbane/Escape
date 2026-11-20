@@ -32,6 +32,8 @@ const WEATHERS := {
 }
 ## The seasons: winter on, winter off.
 const SEASONS := {"winter": true, "spring": false, "summer": false, "frühling": false}
+## Autumn (winter off, and the first day of autumn, see Weather.is_autumn).
+const AUTUMN := ["autumn", "fall", "herbst"]
 ## Named times of day, as an hour.
 const TIMES := {
 	"dawn": 6.0, "morning": 8.0, "noon": 12.0, "afternoon": 15.0,
@@ -59,7 +61,7 @@ const WINTER_FROM := Weather.YEAR_DAYS - Weather.WINTER_DAYS
 
 
 ## What the line asks for as {"weather": kind or "", "hour": hour or -1.0,
-## "winter": -1 (unchanged), 0 or 1}, or {"error": text} when a word is not
+## "winter": -1 (unchanged), 0 or 1, "autumn": true when autumn is asked for}, or {"error": text} when a word is not
 ## understood, or null when the line is no sky command.
 static func parse(line: String) -> Variant:
 	if not ENABLED:
@@ -74,7 +76,7 @@ static func parse(line: String) -> Variant:
 			break
 	if not found:
 		return null
-	var out := {"weather": "", "hour": -1.0, "winter": -1, "tour": ""}
+	var out := {"weather": "", "hour": -1.0, "winter": -1, "tour": "", "autumn": false}
 	for word in rest.split("-", false):
 		word = word.strip_edges()
 		if word == "":
@@ -85,6 +87,9 @@ static func parse(line: String) -> Variant:
 			out.weather = WEATHERS[word]
 		elif SEASONS.has(word):
 			out.winter = 1 if SEASONS[word] else 0
+		elif word in AUTUMN:
+			out.winter = 0
+			out.autumn = true
 		elif TIMES.has(word):
 			out.hour = TIMES[word]
 		elif hour_of(word) >= 0.0:
@@ -122,10 +127,20 @@ static func day_for(day: int, winter: bool) -> int:
 	return year_start + Weather.YEAR_DAYS
 
 
+## A day in autumn, counting on from `day`: `day` itself in autumn, else the next day of autumn on
+## which the vines have turned red and gold (see IvySeasons.TURN_DAYS).
+static func autumn_from(day: int) -> int:
+	if Weather.is_autumn(day):
+		return day
+	var year_start := day - posmod(day, Weather.YEAR_DAYS)
+	var turned := year_start + WINTER_FROM - Weather.AUTUMN_DAYS + IvySeasons.TURN_DAYS - 1
+	return turned if turned > day else turned + Weather.YEAR_DAYS
+
+
 ## The options, one line each (German, translated by Lang), for the chat log.
 const HELP := [
 	"weather:<Wetter>-<Zeit>, z. B. weather:rain-noon. Wetter: clear, rain, fog, storm, snow.",
 	"Zeit: dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30.",
 	"Tour: weather:showcase zeigt jedes Wetter eine Minute lang durch einen ganzen Tag und Nacht, weather:stop beendet sie.",
-	"Jahreszeit: winter, spring. Jeder Teil geht auch allein: weather:snow, weather:-night, time:noon.",
+	"Jahreszeit: winter, autumn, spring. Jeder Teil geht auch allein: weather:snow, weather:-night, time:noon.",
 ]

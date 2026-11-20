@@ -353,6 +353,9 @@ var _window_mask: ImageTexture
 ## on the roofs, the doors (and the way they look out) that get a paved way,
 ## and the ground's mask, which those ways are painted into.
 var _ivy := {"xforms": [], "colours": []}
+## All the leaves, stems and grapes of the village (AgedStone.ivy_node), dressed for the season
+## (see set_season).
+var ivy: Node3D
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -568,7 +571,9 @@ func build() -> void:
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
-		add_child(AgedStone.ivy_node(_ivy))
+		ivy = AgedStone.ivy_node(_ivy)
+		add_child(ivy)
+		IvySeasons.apply(ivy, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -3527,6 +3532,12 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 	_wear_known = true
 	for v in villagers:
 		v.update_wear(first or at_once)
+
+
+## The vines on the houses turn with the seasons: red and gold in autumn, snowy and without grapes
+## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
+func set_season(season_day: int) -> void:
+	IvySeasons.apply(ivy, season_day)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

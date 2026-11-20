@@ -101,7 +101,7 @@ const SHORTCUTS := [
 	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
-	["Möbel aufstellen (Bauplan-Schild, „Einrichten“)", "Linksklick stellt ab, R oder Rechtsklick dreht, Esc schließt"],
+	["Möbel aufstellen (Bauplan-Schild, „Einrichten“)", "Linksklick stellt ab, gedrückt ziehen verschiebt, R oder Rechtsklick dreht, Esc schließt"],
 	["Zoom", "+ und −, Mausrad"],
 	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],

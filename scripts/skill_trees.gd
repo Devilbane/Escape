@@ -49,6 +49,7 @@ const ALL := {
 	"werfen": {"name": "Messerwurf", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick"], "in_game": true,},
 	"schleichen": {"name": "Schleichen", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick", "intelligenz"], "in_game": true,},
 	"akrobatik": {"name": "Akrobatik", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick", "tempo"],},
+	"klettern": {"name": "Klettern", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["staerke", "geschick"], "in_game": true,},
 	"fingerfertigkeit": {"name": "Fingerfertigkeit", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick", "intuition"],},
 	"bogenschiessen": {"name": "Bogenschießen", "tree": "gewandtheit", "row": "advanced", "levels": 15, "attributes": ["geschick"], "needs": {"werfen": 6, "bogenbau": 1}, "attribute_needs": {"geschick": 14},},
 	"meucheln": {"name": "Meucheln", "tree": "gewandtheit", "row": "advanced", "levels": 15, "attributes": ["geschick", "intuition"], "needs": {"schleichen": 10, "klingen": 5},},

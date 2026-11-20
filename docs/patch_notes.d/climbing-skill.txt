@@ -1,0 +1,1 @@
+- New Climbing skill (Gewandtheit): climbing out of a pit trains it, and a higher level climbs faster and higher.

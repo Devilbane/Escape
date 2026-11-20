@@ -79,4 +79,6 @@ const EN := {
 	"im Obergeschoss": "on the upper floor",
 	"%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.": "%d squares planned. Order the build: your hero then builds it.",
 	"Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann.": "Stairs planned. Order the build: your hero then builds them.",
+	"Keine Treppe: Halte dich an der Wand, dann kletterst du aus der Grube.": "No stairs: keep pushing against the wall and you will climb out of the pit.",
+	"Abgerutscht! Versuch es noch einmal.": "You slipped! Try again.",
 }

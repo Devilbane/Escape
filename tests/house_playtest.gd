@@ -427,6 +427,29 @@ func _run() -> void:
 	check(plan.count("dig", "built") == 4 and plan.count("stairs", "built") == 1, "the cellar and its stairs are built")
 	check(game.level._floor_slabs.get_child_count() > 0, "the ground is cut open over the cellar")
 
+	# --- 9b. Climbing out of the pit without the stairs
+	_step("climb out of the cellar")
+	var hero = game.player
+	hero.global_position = plan.cell_world(2, 2) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	hero.reset_physics_interpolation()
+	await _wait(30)
+	check(hero.in_pit(), "the hero stands in the pit (y %.2f)" % hero.global_position.y)
+	check(hero.climbing_level() == 1, "every hero climbs at level 1")
+	for round in 4:
+		for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
+			if not hero.in_pit():
+				break
+			Input.action_press(action)
+			await _wait(120)
+			Input.action_release(action)
+			await _wait(10)
+	for i in 90:
+		if not hero.is_climbing():
+			break
+		await _wait(10)
+	await _wait(30)
+	check(hero.global_position.y > -0.5, "pushing against the pit wall climbs the hero out (y %.2f)" % hero.global_position.y)
+
 	# --- 10. Upper floor
 	_step("floor slab, stairs up, upper wall")
 	sk.enter()

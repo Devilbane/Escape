@@ -30,6 +30,13 @@ const WOOD_FENCE := "wood_fence"
 const GATE := "gate"
 const FENCE_KINDS := [STONE_FENCE, WOOD_FENCE, GATE]
 const FENCE_HEIGHT := 2 * StoneBlock.HEIGHT
+## Railings: on the upper level (RAIL_STOREY) the garden wall kinds are the
+## railing round a flat roof instead, a stone parapet or a timber railing, about
+## hip high (RAIL_HEIGHT). A railing stands on an edge beside a slab (see
+## roof_edge) and keeps the hero from walking or jumping off; a gate in it is a
+## gap. The edge where stairs up arrive on the roof stays open (see stairs_edges).
+const RAIL_STOREY := 1
+const RAIL_HEIGHT := 1.0
 ## The house's own walls: doors and windows sit in these.
 const HOUSE_WALLS := [WALL, DOOR, WINDOW]
 const KINDS := [WALL, DOOR, WINDOW, STONE_FENCE, WOOD_FENCE, GATE]
@@ -214,8 +221,9 @@ func has_piece(x: int, y: int, orient: String, storey := 0) -> bool:
 ## Why a piece cannot be put on an edge, or "" when it can: "outside", "kind",
 ## "built" (a built piece is changed by sketching its removal, see the
 ## construction phase), "needs wall" (a door or window needs a house wall),
-## "needs fence" (a gate needs a garden wall) or "garden storey" (garden walls
-## stand on the ground).
+## "needs fence" (a gate needs a garden wall), "no roof" (above the ground a
+## garden wall is a railing and stands beside a flat roof) or "stairs edge"
+## (where stairs up arrive, a railing would bar the way).
 func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> String:
 	if not in_plot(x, y, orient):
 		return "outside"
@@ -224,7 +232,10 @@ func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> Strin
 	if storey < 0 or storey > MAX_STOREY:
 		return "storey"
 	if FENCE_KINDS.has(kind) and storey != 0:
-		return "garden storey"
+		if storey != RAIL_STOREY or not roof_edge(x, y, orient):
+			return "no roof"
+		if kind != GATE and stairs_edges().has(key_of(x, y, orient, storey)):
+			return "stairs edge"
 	var had := piece(x, y, orient, storey)
 	if had.get("state", SKETCH) != SKETCH:
 		return "built"
@@ -243,6 +254,87 @@ func fence_kind() -> String:
 ## What a door drawn on an edge becomes: a gate in a garden wall, else a door.
 func door_kind(x: int, y: int, orient: String, storey := 0) -> String:
 	return GATE if FENCE_KINDS.has(piece(x, y, orient, storey).get("kind", "")) else DOOR
+
+
+# --- Railings round a flat roof ----------------------------------------------------
+
+## The two cells an edge lies between: north and south of an east-running edge,
+## west and east of a south-running one.
+static func cells_beside(x: int, y: int, orient: String) -> Array:
+	return [Vector2i(x, y - 1), Vector2i(x, y)] if orient == ORIENT_X else [Vector2i(x - 1, y), Vector2i(x, y)]
+
+
+## The edge between two neighbouring cells, as [x, y, orient].
+static func edge_between(a: Vector2i, b: Vector2i) -> Array:
+	if a.y == b.y:
+		return [maxi(a.x, b.x), a.y, ORIENT_Y]
+	return [a.x, maxi(a.y, b.y), ORIENT_X]
+
+
+## Whether a slab (planned or built; with `built_only` built and not marked for
+## demolition) lies under the railings' level at cell `c`.
+func _roof_at(c: Vector2i, built_only := false) -> bool:
+	var s := slab_at(c.x, c.y, RAIL_STOREY - 1)
+	if s.get("kind", "") != SLAB:
+		return false
+	return s.state == BUILT if built_only else s.state != DEMOLISH
+
+
+## Whether an edge of the railings' level lies beside a slab, so a railing can
+## stand on it.
+func roof_edge(x: int, y: int, orient: String, built_only := false) -> bool:
+	for c: Vector2i in cells_beside(x, y, orient):
+		if _roof_at(c, built_only):
+			return true
+	return false
+
+
+## The edges (keys on RAIL_STOREY) where stairs up arrive on the roof: they stay
+## open, so the hero can step off the stairs.
+func stairs_edges() -> Dictionary:
+	var out := {}
+	for key in pieces:
+		if pieces[key].kind == UPSTAIRS:
+			var p := parts_of(key)
+			var cells := stairs_cells(p[1], p[2], p[3])
+			var e := edge_between(cells[1], cells[2])
+			out[key_of(e[0], e[1], e[2], RAIL_STOREY)] = true
+	return out
+
+
+## The open edges round the flat roof that cell (x, y) belongs to: every edge
+## between one of its slab cells (all the slabs joined to it) and a cell
+## without a slab, where nothing stands yet and a railing may go. Empty when
+## there is no slab at the cell.
+func ring_edges(x: int, y: int) -> Array:
+	var start := Vector2i(x, y)
+	if not _roof_at(start):
+		return []
+	var seen := {start: true}
+	var todo: Array[Vector2i] = [start]
+	var out := []
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_back()
+		for step: Vector2i in DOWN.values():
+			var next := c + step
+			if _roof_at(next):
+				if not seen.has(next):
+					seen[next] = true
+					todo.append(next)
+				continue
+			var e := edge_between(c, next)
+			if not has_piece(e[0], e[1], e[2], RAIL_STOREY) and problem(e[0], e[1], e[2], fence_kind(), RAIL_STOREY) == "":
+				out.append(e)
+	return out
+
+
+## Puts a railing (of fence_material) on every open edge round the flat roof
+## at cell (x, y), as one step. Returns how many were sketched, or -1 when
+## there is no flat roof there.
+func ring_roof(x: int, y: int) -> int:
+	if not _roof_at(Vector2i(x, y)):
+		return -1
+	return sketch(ring_edges(x, y), fence_kind(), RAIL_STOREY)
 
 
 ## Sketches pieces on edges as one step (undo takes them back together).
@@ -268,6 +360,13 @@ func sketch(edges: Array, kind: String, storey := 0) -> int:
 ## materials come back (see build_next). Erasing a piece marked for demolition
 ## keeps it. Returns how many changed.
 func erase(edges: Array, storey := 0) -> int:
+	var step := _erase_step(edges, storey)
+	_push(step)
+	return step.size()
+
+
+## The changes of erase, made at once but not yet put on the undo list.
+func _erase_step(edges: Array, storey: int) -> Array:
 	var step := []
 	for e in edges:
 		var key := key_of(e[0], e[1], e[2], storey)
@@ -287,8 +386,7 @@ func erase(edges: Array, storey := 0) -> int:
 			kept.state = BUILT
 			pieces[key] = kept
 			step.append({"key": key, "before": before, "after": kept})
-	_push(step)
-	return step.size()
+	return step
 
 
 # --- The cellar ----------------------------------------------------------------
@@ -454,12 +552,15 @@ func priority(key: String) -> int:
 	return int(p[0]) * 100 + BUILD_ORDER.find(pieces[key].kind)
 
 
-## Stairs are built only once the cell they lead to is.
+## Stairs are built only once the cell they lead to is, a railing only once a
+## slab beside it is.
 func _can_build(key: String) -> bool:
 	var p := parts_of(key)
 	var end: Vector2i = stairs_cells(p[1], p[2], p[3])[2] if DOWN.has(p[3]) else Vector2i.ZERO
 	if pieces[key].kind == STAIRS:
 		return is_dug(end.x, end.y, true)
+	if FENCE_KINDS.has(pieces[key].kind) and p[0] == RAIL_STOREY:
+		return roof_edge(p[1], p[2], p[3], true)
 	if pieces[key].kind == UPSTAIRS:
 		return not slab_at(end.x, end.y, p[0]).is_empty() and slab_at(end.x, end.y, p[0]).state != SKETCH
 	return true
@@ -532,6 +633,10 @@ func problem_upstairs(x: int, y: int, dir: String) -> String:
 	var end: Vector2i = cells[2]
 	if not cell_in_plot(end.x, end.y) or slab_at(end.x, end.y, 0).get("kind", "") != SLAB:
 		return "no slab"
+	var arrive := edge_between(cells[1], end)
+	var rail := piece(arrive[0], arrive[1], arrive[2], RAIL_STOREY)
+	if rail.get("kind", "") in [STONE_FENCE, WOOD_FENCE]:
+		return "railing"
 	return ""
 
 
@@ -570,7 +675,16 @@ func erase_above(x: int, y: int, storey: int) -> String:
 				var end: Vector2i = stairs_cells(q[1], q[2], q[3])[2]
 				if end == Vector2i(x, y):
 					return "needed"
-	erase([[p[1], p[2], p[3]]], p[0])
+	var step := _erase_step([[p[1], p[2], p[3]]], p[0])
+	# Railings that stood only beside this slab go with it, in the same step.
+	if pieces.get(key, {}).get("state", "") != BUILT and storey == RAIL_STOREY - 1:
+		var lost := []
+		for side in [[x, y, ORIENT_X], [x, y + 1, ORIENT_X], [x, y, ORIENT_Y], [x + 1, y, ORIENT_Y]]:
+			var rail := piece(side[0], side[1], side[2], RAIL_STOREY)
+			if FENCE_KINDS.has(rail.get("kind", "")) and rail.state != DEMOLISH and not roof_edge(side[0], side[1], side[2]):
+				lost.append(side)
+		step += _erase_step(lost, RAIL_STOREY)
+	_push(step)
 	return ""
 
 
@@ -797,7 +911,7 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 				if p is Array and p.size() >= 2:
 					var parts := parts_of(str(key))
 					if KINDS.has(str(p[0])) and p.size() == 2 and parts[0] >= 0 and parts[0] <= MAX_STOREY and s.in_plot(parts[1], parts[2], parts[3]) \
-							and (parts[0] == 0 or not FENCE_KINDS.has(str(p[0]))):
+							and (parts[0] == 0 or parts[0] == RAIL_STOREY or not FENCE_KINDS.has(str(p[0]))):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
 					elif str(p[0]) == DIG and p.size() == 4 and parts[0] == CELLAR_STOREY and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": DIG, "state": str(p[1]),

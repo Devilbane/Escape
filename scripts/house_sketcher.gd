@@ -17,7 +17,9 @@ extends Node3D
 ##
 ## Garden walls (two stone blocks high, of stone or timber) are drawn like
 ## walls, anywhere on the plot and free of the house; a door drawn on one
-## becomes a gate.
+## becomes a gate. On the upper level the same tool draws the railing round a
+## flat roof (see HouseSketch.RAIL_STOREY): drag it along the roof's edge, or
+## click the roof once to ring all its open edges; the stairs keep their gap.
 ##
 ## The tool bar sits at the bottom of the screen with fixed sizes, so a tool or
 ## a stage never reshapes it.
@@ -69,6 +71,9 @@ const FENCE_COLOR := Color(0.7, 0.95, 0.55, 0.45)
 const FENCE_NAMES := {"stone": "aus Stein", "wood": "aus Holz"}
 const FENCE_THICK := 0.3
 const GATE_POST := 0.3
+## How high above the roof a railing stops the hero: higher than the railing
+## itself, so a jump does not carry them over it.
+const RAIL_GUARD := 2.2
 const OK_COLOR := Color(0.4, 0.95, 0.4, 0.55)
 const BAD_COLOR := Color(1.0, 0.4, 0.35, 0.55)
 const STAGES := ["plan", "build", "done"]
@@ -359,8 +364,9 @@ func cancel_drag() -> void:
 
 func select_tool(next: String) -> void:
 	tool = next
-	# Garden walls stand on the ground: the level follows the tool.
-	if next == TOOL_FENCE:
+	# Garden walls stand on the ground, railings round the roof of the upper
+	# level; there are none in the cellar.
+	if next == TOOL_FENCE and storey < 0:
 		storey = 0
 	drag_from = Vector2i(-1, -1)
 	_clear(_ghost)
@@ -443,10 +449,23 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			drag_from = Vector2i(-1, -1)
 			_clear(_ghost)
 			if run.is_empty():
+				# A click without a drag on a flat roof rings it with a railing.
+				if _railing():
+					var c := plan.cell_at(point)
+					var ringed := plan.ring_roof(c.x, c.y)
+					_changed()
+					if ringed < 0:
+						_say(reason("no roof"))
+					elif ringed == 0:
+						_say(Lang.t("Das Dach hat schon rundum ein Geländer."))
+					else:
+						_say(Lang.t("Geländer rund um das Dach vorgemerkt: %d m.") % int(ringed * HouseSketch.CELL))
 				return
-			var n := plan.sketch(run, plan.fence_kind(), 0) if tool == TOOL_FENCE else plan.sketch(run, HouseSketch.WALL, storey)
+			var n := plan.sketch(run, plan.fence_kind(), _fence_storey()) if tool == TOOL_FENCE else plan.sketch(run, HouseSketch.WALL, storey)
 			_changed()
-			if n == 0:
+			if n == 0 and _railing():
+				_say(reason(plan.problem(run[0][0], run[0][1], run[0][2], plan.fence_kind(), HouseSketch.RAIL_STOREY)))
+			elif n == 0:
 				_say(Lang.t("Dort steht schon eine Wand."))
 		return
 	if not pressed:
@@ -512,22 +531,34 @@ func hover(point: Vector3) -> void:
 	if tool in RUN_TOOLS:
 		var to := plan.node_at(point)
 		var from := drag_from if drag_from.x >= 0 else to
-		key = "w:%s:%s" % [from, to]
+		var rail := _railing()
+		var cell := plan.cell_at(point)
+		key = "w:%s:%s:%s:%s" % [from, to, rail, cell if rail else Vector2i.ZERO]
 		if key == _hover_key:
 			return
 		_hover_key = key
 		_clear(_ghost)
+		var fence := tool == TOOL_FENCE
+		_lift = _fence_storey() * HouseSketch.STOREY_HEIGHT if fence else storey * HouseSketch.STOREY_HEIGHT
 		if drag_from.x >= 0:
 			var run := plan.run_between(from, to)
-			var fence := tool == TOOL_FENCE
-			_lift = 0.0 if fence else storey * HouseSketch.STOREY_HEIGHT
 			for e in run:
-				_segment(_ghost, e, plan.fence_kind() if fence else HouseSketch.WALL, OK_COLOR)
-			_lift = 0.0
-			var label := "Gartenmauer: %d m" if fence else "Wand: %d m"
+				var fits := not rail or plan.problem(e[0], e[1], e[2], plan.fence_kind(), HouseSketch.RAIL_STOREY) == ""
+				_segment(_ghost, e, plan.fence_kind() if fence else HouseSketch.WALL, OK_COLOR if fits else BAD_COLOR)
+			var label := "Wand: %d m"
+			if fence:
+				label = "Geländer: %d m" if rail else "Gartenmauer: %d m"
 			_say(Lang.t(label) % int(run.size() * HouseSketch.CELL) if not run.is_empty() else "")
+		elif rail:
+			# Over a flat roof the ghost shows the ring a click would draw.
+			var ring := plan.ring_edges(cell.x, cell.y)
+			for e in ring:
+				_segment(_ghost, e, plan.fence_kind(), OK_COLOR)
+			_marker(_ghost, to)
+			_say(Lang.t("Klicken: Geländer rund um das Dach (%d m).") % int(ring.size() * HouseSketch.CELL) if not ring.is_empty() else "")
 		else:
 			_marker(_ghost, to)
+		_lift = 0.0
 		return
 	var edge := plan.edge_near(point, HouseSketch.CELL * 0.3) if tool == TOOL_ERASE else plan.edge_near(point)
 	key = "e:%s:%d" % [edge, storey]
@@ -568,6 +599,12 @@ static func reason(why: String) -> String:
 			return Lang.t("Ein Gartentor braucht eine Gartenmauer.")
 		"garden storey":
 			return Lang.t("Gartenmauern stehen auf dem Boden.")
+		"no roof":
+			return Lang.t("Ein Geländer steht am Rand einer Decke oder eines Flachdachs.")
+		"stairs edge":
+			return Lang.t("Hier kommt die Treppe an: Lass den Rand offen oder setze ein Tor.")
+		"railing":
+			return Lang.t("Oben steht dort ein Geländer: Nimm es zurück oder mach ein Tor daraus.")
 		"built":
 			return Lang.t("Das ist schon gebaut. Reiß es mit dem Radierer ab, um es zu ändern.")
 		"taken":
@@ -721,7 +758,14 @@ func _update_bar() -> void:
 		_level_button.text = Lang.t("Ebene: %s") % Lang.t(LEVEL_NAMES[storey])
 		_floor_button.text = Lang.t("Kellerboden: %s") % Lang.t(SURFACE_NAMES[plan.floor_surface])
 		_wall_button.text = Lang.t("Kellerwände: %s") % Lang.t(SURFACE_NAMES[plan.wall_surface])
-		_fence_button.text = Lang.t("Gartenmauer: %s") % Lang.t(FENCE_NAMES[plan.fence_material])
+		_fence_button.text = (Lang.t("Geländer: %s") if storey == HouseSketch.RAIL_STOREY else Lang.t("Gartenmauer: %s")) % Lang.t(FENCE_NAMES[plan.fence_material])
+		# The garden wall tool is called "railing" on the upper level: its button
+		# is as wide as the longer name, so the row does not move.
+		var fence_tool: Button = _tool_buttons[TOOL_FENCE]
+		for label in ["Geländer", "Gartenmauer"]:
+			fence_tool.text = Lang.t(label)
+			fence_tool.custom_minimum_size.x = maxf(fence_tool.custom_minimum_size.x, fence_tool.get_combined_minimum_size().x)
+		fence_tool.text = Lang.t("Geländer") if storey == HouseSketch.RAIL_STOREY else Lang.t("Gartenmauer")
 		_status.text = _hint()
 		var have := plan.stock
 		var short := plan.missing()
@@ -814,6 +858,8 @@ func _hint() -> String:
 		TOOL_DOOR:
 			return Lang.t("Tür: Klicke eine Wand an. In einer Gartenmauer wird sie zum Gartentor.")
 		TOOL_FENCE:
+			if storey == HouseSketch.RAIL_STOREY:
+				return Lang.t("Geländer: Klicke auf ein Flachdach, um es rundum einzufassen, oder ziehe es am Rand entlang. An der Treppe bleibt eine Lücke.")
 			return Lang.t("Gartenmauer: Ziehe sie frei auf dem Grundstück, zwei Blöcke hoch. Eine Tür darin wird zum Tor.")
 		TOOL_WINDOW:
 			return Lang.t("Fenster: Klicke eine Wand an.")
@@ -828,6 +874,22 @@ func _hint() -> String:
 		TOOL_UP:
 			return Lang.t("Treppe nach oben: Klicke ein Feld vor einer Decke an. Sie führt vier Meter hinauf.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
+
+
+## Whether the garden wall tool draws railings round the roof now.
+func _railing() -> bool:
+	return tool == TOOL_FENCE and storey == HouseSketch.RAIL_STOREY
+
+
+## The storey the garden wall tool draws on: the ground, or the roof's edge.
+func _fence_storey() -> int:
+	return HouseSketch.RAIL_STOREY if _railing() else 0
+
+
+## How high a garden wall or railing is: pieces of the kind are drawn on the
+## ground, or with a lift on the roof, where they are railings.
+func _fence_high() -> float:
+	return HouseSketch.RAIL_HEIGHT if _lift > 0.0 else HouseSketch.FENCE_HEIGHT
 
 
 func _say(text: String) -> void:
@@ -1162,13 +1224,32 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 
 
 ## A built garden wall: a low stone wall, a board fence between two posts, or
-## a gate (two posts and an open way between them).
+## a gate (two posts and an open way between them). On a roof it is a railing:
+## a stone parapet or a timber railing (posts, handrail and balusters), with an
+## unseen guard above it up to RAIL_GUARD, so the hero cannot jump over it.
 func _solid_fence(mid: Vector3, along_x: bool, kind: String, demolish: bool) -> void:
-	var high := HouseSketch.FENCE_HEIGHT
+	var high := _fence_high()
 	var span := HouseSketch.CELL * 0.5
 	var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
 	var post := Vector3(GATE_POST, high + 0.2, GATE_POST)
 	var wood := _solid_material(DEMOLISH_COLOR if demolish else WOOD_COLOR)
+	var rail := _lift > 0.0
+	if rail and kind != HouseSketch.GATE:
+		var guard := Vector3(HouseSketch.CELL, RAIL_GUARD - high, FENCE_THICK) if along_x else Vector3(FENCE_THICK, RAIL_GUARD - high, HouseSketch.CELL)
+		_collide(mid + Vector3(0, (high + RAIL_GUARD) * 0.5, 0), guard)
+	if rail and kind == HouseSketch.WOOD_FENCE:
+		var plank := _solid_material(DEMOLISH_COLOR if demolish else PLANK_COLOR)
+		var top := Vector3(HouseSketch.CELL + 0.12, 0.1, 0.14) if along_x else Vector3(0.14, 0.1, HouseSketch.CELL + 0.12)
+		_solid_box(mid + Vector3(0, high - 0.05, 0), top, plank)
+		_visual_box(mid + Vector3(0, 0.12, 0), top - Vector3(0, 0.02, 0), plank)
+		for sign_ in [-1.0, 1.0]:
+			_solid_box(mid + step * sign_ + Vector3(0, high * 0.5, 0), Vector3(0.16, high, 0.16), wood)
+		# Balusters between the posts: see-through, but too close to slip between.
+		for i in range(1, 6):
+			var along := (i / 6.0 - 0.5) * HouseSketch.CELL
+			var at := mid + (Vector3(along, 0, 0) if along_x else Vector3(0, 0, along))
+			_solid_box(at + Vector3(0, high * 0.5, 0), Vector3(0.06, high - 0.1, 0.06), wood)
+		return
 	match kind:
 		HouseSketch.STONE_FENCE:
 			var flat := Vector3(HouseSketch.CELL + FENCE_THICK, high, FENCE_THICK) if along_x else Vector3(FENCE_THICK, high, HouseSketch.CELL + FENCE_THICK)
@@ -1250,7 +1331,7 @@ func _segment(parent: Node3D, edge: Array, kind: String, tint: Color) -> void:
 		colour = {HouseSketch.WALL: WALL_COLOR, HouseSketch.DOOR: DOOR_COLOR, HouseSketch.WINDOW: WINDOW_COLOR,
 				HouseSketch.STONE_FENCE: FENCE_COLOR, HouseSketch.WOOD_FENCE: FENCE_COLOR, HouseSketch.GATE: DOOR_COLOR}[kind]
 	var mat := _material(colour)
-	var low := HouseSketch.FENCE_HEIGHT
+	var low := _fence_high()
 	match kind:
 		HouseSketch.STONE_FENCE, HouseSketch.WOOD_FENCE:
 			var thick := Vector3(HouseSketch.CELL + FENCE_THICK, 0, FENCE_THICK) if along_x else Vector3(FENCE_THICK, 0, HouseSketch.CELL + FENCE_THICK)

@@ -47,6 +47,8 @@ const ON_COLOR := Color(1.0, 0.82, 0.4)
 ## How close the hero must come to a piece to use it, from its middle (metres).
 const TOUCH := {"bett": 2.6, "regal": 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4}
 const TOUCH_DEFAULT := 1.8
+## How far outside its solid a bump still counts as running into a piece (metres).
+const TOUCH_MARGIN := 0.4
 ## The scale of the pieces that are too big or too tall for a 2 m cell and a 2.6 m storey.
 const SHELF_SCALE := 0.75
 const FIRE_SCALE := 0.72
@@ -201,9 +203,19 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 	station.cell = game.level.world_to_cell(station.pos)
 	station.used = false
 	station.touch = TOUCH.get(p.kind, TOUCH_DEFAULT)
+	# Only running into the piece itself uses it: not a candle stand or a chest that stands
+	# within its touch beside it (see Level.station_at).
+	var rects: Array[Rect2] = []
+	for box in root.get_meta("solids", []):
+		var aabb: AABB = root.transform * AABB(box.at - Vector3(box.size.x, 0, box.size.z) * 0.5, box.size)
+		rects.append(Rect2(aabb.position.x, aabb.position.z, aabb.size.x, aabb.size.z).grow(TOUCH_MARGIN))
+	if not rects.is_empty():
+		station.touch_rects = rects
 	station.furniture = p.kind
 	if station.has("side"):
 		station.side = root.transform * station.side
+	if station.has("spot"):
+		station.spot = root.transform * station.spot
 	if station.has("rot"):
 		station.rot = root.rotation.y
 	game.level.stations.append(station)
@@ -228,6 +240,7 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			station.pos = BED_OFFSET
 			station.rot = 0.0
 			station.side = Vector3(0, 0, 1.6)
+			station.spot = Level.pillow_spot(BED_OFFSET, 0.0)
 		"truhe":
 			level._place("chest", Vector3(0, 0, -0.35), 0.0, root)
 			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(1.7, 1.2, 1.8)})
@@ -250,6 +263,7 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			var stool := level._place("stool", Vector3(0, 0, 0.75), PI, root)
 			stool.scale = Vector3.ONE * TABLE_SCALE
 			solids.append({"at": Vector3(0, 0, -0.2), "size": Vector3(1.6, 1.2, 1.6)})
+			station.spot = Vector3(0, Level.TABLE_TOP * TABLE_SCALE, -0.2)
 		"feinbank", "schleifrad", "alchemie":
 			# The bench of the crafting square faces east; turned so its front is the piece's front.
 			var turn := Node3D.new()
@@ -259,6 +273,8 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			CraftingSquare.build_bench(turn, Vector3.ZERO, info.bench, hash("home bench:" + kind))
 			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(3.0, 1.2, 2.0)})
 			station.craft = CraftingSquare.BENCHES[info.bench].craft
+			# The bench top's middle, turned with the bench like its model.
+			station.spot = turn.transform * CraftingSquare.TOP
 		"leuchter":
 			var iron := HomeStoreFurniture._mat(Color(0.18, 0.17, 0.16), 0.5, 0.6)
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.35, 0.4, 0.06), iron, Vector3(0, 0.03, 0))

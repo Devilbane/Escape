@@ -278,3 +278,4 @@ house_furniture.gd | 120 | free | passfail | House furniture: the furnisher sell
 reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a wall solid from floor to ceiling
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
 light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
+click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top

@@ -1,0 +1,1 @@
+- Furniture and items can only be used from the floor they stand on: no more opening the bookshelf or a chest upstairs from the cellar, and running into a candle stand no longer opens the shelf beside it.

@@ -39,6 +39,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Melee | run into the enemy or F | click the enemy (the hero walks up to it), “Strike” button |
 | Throwing knife | R | right click while standing, “Throw” button |
 | Use, search | run into it | click the object |
+| Use a bed or a workbench | run into it or E beside it | click the pillow or the middle of the bench top |
 | Open or shut a door you built | E | run into it (it opens and falls shut behind you) |
 | Lock or unlock your own door | Shift+E | |
 | Pick up a crate | E | click the crate, “Crate” button |

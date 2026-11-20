@@ -1421,7 +1421,7 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"B":
 			var bed_rot := _facing_room(c)
 			_add_fitted_solid(_place("bed_decorated", pos, bed_rot), pos, 1.5, Vector2(3.2, 3.2))
-			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false})
+			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false, "spot": pillow_spot(pos, bed_rot)})
 			if is_home or inn:
 				bed_side = cell_to_world(_open_side(c))
 			_add_fox_bed(c)
@@ -2476,23 +2476,69 @@ func station_at(point: Vector3) -> Dictionary:
 		if s.used:
 			continue
 		if s.has("touch"):
-			if Vector2(point.x - s.pos.x, point.z - s.pos.z).length() <= s.touch and absf(point.y - s.pos.y) < 1.8:
-				return s
+			if Vector2(point.x - s.pos.x, point.z - s.pos.z).length() > s.touch or absf(point.y - s.pos.y) >= 1.8:
+				continue
+			if s.has("touch_rects") and not (s.touch_rects as Array).any(func(r: Rect2): return r.has_point(Vector2(point.x, point.z))):
+				continue # Run into something else standing beside it.
+			return s
 		elif s.cell == c:
 			return s
 	return {}
 
 
-## The closest unused station within reach of a position, if any.
-func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+## The closest unused station within reach of a position, if any. `skip_spots` leaves out the
+## stations that are clicked only on their spot (see station_clicked).
+func nearest_station(from: Vector3, max_distance := SEARCH_RANGE, skip_spots := false) -> Dictionary:
 	var best := {}
 	var best_distance := max_distance
 	for s in stations:
+		if skip_spots and s.has("spot"):
+			continue
 		var d := Vector2(from.x - s.pos.x, from.z - s.pos.z).length()
 		if not s.used and d <= best_distance:
 			best = s
 			best_distance = d
 	return best
+
+
+## How close (metres) a click's ray has to pass to a station's "spot" to use it. Beds and
+## workbenches fill much of a room, so a click anywhere on them opened their window by accident:
+## they are clicked only on the pillow or the middle of the bench top.
+const SPOT_RADIUS := 0.55
+## How high the top of the house workbench's table is (table_medium_decorated_A, unscaled).
+const TABLE_TOP := 1.0
+## The middle of the pillows of the bed model, from its origin, its foot towards +z.
+const PILLOW := Vector3(-0.12, 1.0, -1.1)
+
+
+## Where the pillows of a bed at `pos` turned by `rot` are: the spot a click uses it on.
+static func pillow_spot(pos: Vector3, rot: float) -> Vector3:
+	return pos + Basis(Vector3.UP, rot) * PILLOW
+
+
+## The station a click uses: one with a "spot" (bed, workbench) only when the click's ray (from
+## the camera at `from`, along `dir`) passes within SPOT_RADIUS of it, else the nearest other one
+## within `max_distance` of the clicked floor point. {} when none.
+func station_clicked(floor_point: Vector3, from: Vector3, dir: Vector3, max_distance: float) -> Dictionary:
+	var best := {}
+	var best_distance := SPOT_RADIUS
+	for s in stations:
+		if s.used or not s.has("spot"):
+			continue
+		var d := spot_miss(s.spot, from, dir)
+		if d <= best_distance:
+			best = s
+			best_distance = d
+	if not best.is_empty():
+		return best
+	return nearest_station(floor_point, max_distance, true)
+
+
+## How far a ray from `from` along the unit vector `dir` passes from `spot` (metres).
+static func spot_miss(spot: Vector3, from: Vector3, dir: Vector3) -> float:
+	var to := spot - from
+	var along := maxf(0.0, to.dot(dir))
+	return (to - dir * along).length()
 
 
 ## The water closest to a spot, if the hero standing there can cast a line
@@ -5851,7 +5897,8 @@ func _build_upgrade(id: String, c: Vector2i) -> void:
 			_place("sword_shield", pos + Vector3(-sin(rot), 0, -cos(rot)) * 1.55, rot, bench)
 			_add_fitted_solid(bench, pos, 1.2, Vector2(2.6, 2.6))
 			astar.set_point_solid(c, true)
-			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true})
+			stations.append({"kind": "hauswerkbank", "cell": c, "pos": pos, "used": false, "upgrade": true,
+					"spot": pos + Vector3(0, TABLE_TOP, 0)})
 		"trophaeen":
 			var wall := _wall_side(c)
 			_build_trophy_wall(root, pos, wall)
@@ -6157,17 +6204,29 @@ var reach_walls: Array = []
 ## How high a wall must rise over the hero's feet to keep a hand from reaching
 ## over it: a house wall or a dungeon wall, not a garden wall two blocks high.
 const REACH_WALL_HEIGHT := 2.0
+## How far above or below their feet the hero can reach a thing: a stacked crate,
+## yes, but nothing on the floor above or down in the cellar (2.6 m deep, see
+## HouseSketch.DEPTH; a storey is HouseSketch.STOREY_HEIGHT high). Every item is
+## used only from the floor it stands on.
+const REACH_STOREY := 2.2
 
 
 ## True when the hero standing at `a` can reach the thing at `b`: no wall that
 ## is solid from the floor to above their head stands between them. Dungeon
 ## walls, the village's buildings, closed doors, built house walls and stone
 ## stacks too high to shoot over all stop it; low walls, garden walls,
-## railings, windows and open doorways do not. Picking up, searching, opening
-## and using anything goes through here, so nothing is taken through a wall.
+## railings, windows and open doorways do not, and nothing on another floor is
+## in reach. Picking up, searching, opening and using anything goes through
+## here, so nothing is taken through a wall, a floor or a ceiling.
 func can_reach(a: Vector3, b: Vector3) -> bool:
+	if absf(a.y - b.y) > REACH_STOREY:
+		return false # On another floor: the cellar under a room, the storey above.
 	if door_between(a, b) or tall_stone_between(a, b):
 		return false
+	for f in built_floors:
+		var fy: float = f.y
+		if (a.y + 0.5 - fy) * (b.y + 0.5 - fy) < 0.0 and ((f.rect as Rect2).has_point(Vector2(a.x, a.z)) or (f.rect as Rect2).has_point(Vector2(b.x, b.z))):
+			return false # A floor, a cellar ceiling or a roof lies between them.
 	var from := Vector2(a.x, a.z)
 	var to := Vector2(b.x, b.z)
 	for w in reach_walls:

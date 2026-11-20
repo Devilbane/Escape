@@ -1,0 +1,1 @@
+- Beds and workbenches open only when you click the pillow or the middle of the bench top (or press E beside them), so walking past no longer opens them by accident.

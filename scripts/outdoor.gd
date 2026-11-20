@@ -2774,7 +2774,8 @@ func _build_house() -> void:
 			if ch == "B":
 				_place("bed_decorated", cell_to_world(c), 0.0)
 				_add_solid(cell_to_world(c), Vector3(3.2, 1.5, 3.2))
-				stations.append({"kind": "bett", "cell": c, "pos": cell_to_world(c), "rot": 0.0, "used": false})
+				stations.append({"kind": "bett", "cell": c, "pos": cell_to_world(c), "rot": 0.0, "used": false,
+						"spot": pillow_spot(cell_to_world(c), 0.0)})
 				home_spot = cell_to_world(c + Vector2i(0, 1))
 				fox_beds.append(home_spot + Vector3(1.2, 0, -0.6))
 			elif ch == "L":
@@ -3496,11 +3497,11 @@ func _npc_station_near(point: Vector3, reach: float) -> Dictionary:
 
 ## A click near a villager walks up to the trader among them first, like a
 ## bump (see _npc_station_near); anything else as anywhere.
-func nearest_station(from: Vector3, max_distance := SEARCH_RANGE) -> Dictionary:
+func nearest_station(from: Vector3, max_distance := SEARCH_RANGE, skip_spots := false) -> Dictionary:
 	var npc := _npc_station_near(from, max_distance)
 	if not npc.is_empty() and npc.kind != "npc":
 		return npc
-	var other := super(from, max_distance)
+	var other := super(from, max_distance, skip_spots)
 	if other.is_empty() or (not npc.is_empty() and other.has("npc")):
 		return npc
 	return other

@@ -215,13 +215,20 @@ func _run() -> void:
 		check(not is_instance_valid(ball), "the ball bursts where it lands")
 		check(grown._bubble_time > 0.0, "the grown-up who is hit grumbles")
 
+	# He is solid: villagers and animals may not step into him, and paths go round his tile.
+	check(WalkRules.blocked_at(lvl, man.global_position), "nobody walks through the snowman")
+	check(not WalkRules.blocked_at(lvl, man.global_position + Vector3(Snowman.RING, 0, 0)), "the way round him is free")
+	check(lvl.astar.is_point_solid(lvl.world_to_cell(man.global_position)), "paths lead round the snowman")
+
 	# The snowman melts with the snow, and is gone with the last of it.
+	var man_cell := lvl.world_to_cell(man.global_position)
 	game.snow_cover = 0.3
 	await _wait(2)
 	check(is_instance_valid(man) and man.scale.x < 1.0, "the snowman shrinks as the snow melts")
 	game.snow_cover = 0.05
 	await _wait(2)
 	check(not is_instance_valid(man) and lvl.snowman == null, "the snowman is gone with the snow")
+	check(not lvl.astar.is_point_solid(man_cell), "his tile is open again")
 	await _wait(2)
 	check(SnowGames.marks(lvl).is_empty(), "the angels and the rolled balls melt with the snow")
 	# In the snow they go off to play more often, and for longer.

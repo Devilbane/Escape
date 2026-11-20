@@ -4103,6 +4103,7 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		pond_reeds.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
 		if cover < Snowman.MELTED:
+			astar.set_point_solid(world_to_cell(snowman.global_position), false)
 			snowman.queue_free()
 			snowman = null
 		else:

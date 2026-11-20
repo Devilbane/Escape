@@ -25,6 +25,10 @@ static func blocked_at(level: Object, point: Vector3) -> bool:
 	# A post or rail of the cattle pen's fence (see Corral).
 	if level.has_method("cell_char") and level.cell_char(level.world_to_cell(point)) == Corral.FENCE:
 		return true
+	# The snowman stands solid.
+	var man = level.get("snowman")
+	if man is Snowman and is_instance_valid(man) and man.blocks(point):
+		return true
 	var wall = level.get("village_wall")
 	if wall == null:
 		return false

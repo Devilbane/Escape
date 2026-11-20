@@ -71,6 +71,8 @@ const COVER_COLOR := Color(0.75, 0.6, 0.35, 0.8)
 const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
 const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
+## How wide the steps of built stairs are: a cell less the cellar walls beside them.
+const STAIRS_WIDTH := HouseSketch.CELL - 0.2
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
 ## The doorway: high enough for the hero to walk through upright (2.4 m with
@@ -1581,19 +1583,27 @@ func _update_fade() -> void:
 		gun.visible = not (inside and gun.position.y >= limit)
 
 
-## The ramp of a stairs piece: from the ground at the top of its first cell
+## The stairs of a stairs piece: from the ground at the top of its first cell
 ## down to the cellar floor (or up to the next storey) at the end of its second.
+## The hero and companions walk a smooth ramp there (it alone collides); what
+## shows is a flight of worn wooden steps like the town houses' on Weavers'
+## Lane (see WoodStairs.build_flight), the ramp running through every tread.
 func _ramp(house: HouseSketch, x: int, y: int, dir: String, demolish: bool, rise := -HouseSketch.DEPTH) -> void:
 	var step: Vector2i = HouseSketch.DOWN[dir]
 	var flat := Vector3(step.x, 0, step.y)
 	var start := house.cell_world(x, y) - flat * (HouseSketch.CELL * 0.5)
-	_slanted(start, start + flat * HouseSketch.CELL * 2.0 + Vector3(0, rise, 0), HouseSketch.CELL, 0.3,
-			DEMOLISH_COLOR if demolish else PLANK_COLOR, true)
+	var length := HouseSketch.CELL * 2.0
+	_slanted(start, start + flat * length + Vector3(0, rise, 0), HouseSketch.CELL, 0.3, PLANK_COLOR, true, false)
+	var red: Material = _solid_material(DEMOLISH_COLOR) if demolish else null
+	var flight := WoodStairs.build_flight(_solid, start, flat, length, rise, STAIRS_WIDTH, red, red)
+	# Fades with the floor it stands on, never with the storey it reaches.
+	flight.set_meta("ymin", minf(0.0, rise))
 
 
 ## A thick slanted board from point `a` to point `b` (its upper face runs
 ## through both), `width` wide across the slope. It stops the hero.
-func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color, collide: bool) -> void:
+## `show` false: only the collision, nothing drawn.
+func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color, collide: bool, show := true) -> void:
 	var slope := b - a
 	var length := slope.length()
 	var along := slope / length
@@ -1601,14 +1611,15 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 	var basis := Basis(along, up, along.cross(up))
 	var at := Transform3D(basis, a + slope * 0.5 - up * thick * 0.5)
 	var size := Vector3(length, thick, width)
-	var m := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	m.mesh = box
-	m.material_override = _solid_material(colour)
-	m.transform = at
-	m.set_meta("ymin", minf(a.y, b.y) - thick)
-	_solid.add_child(m)
+	if show:
+		var m := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = size
+		m.mesh = box
+		m.material_override = _solid_material(colour)
+		m.transform = at
+		m.set_meta("ymin", minf(a.y, b.y) - thick)
+		_solid.add_child(m)
 	if collide:
 		var shape := CollisionShape3D.new()
 		var bs := BoxShape3D.new()

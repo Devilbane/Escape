@@ -71,6 +71,10 @@ const COVER_COLOR := Color(0.75, 0.6, 0.35, 0.8)
 const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
 const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
+## A cellar's side wall reaches this far either side of the rim, and its top lies this far
+## under the ground (see _solid_cellar).
+const RIM_THICK := 0.2
+const RIM_SINK := 0.01
 ## How wide the steps of built stairs are: a cell less the cellar walls beside them.
 const STAIRS_WIDTH := HouseSketch.CELL - 0.2
 const WALL_HEIGHT := 2.6
@@ -120,6 +124,8 @@ const WOOD_COLOR := Color(0.4, 0.27, 0.15)
 const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
 const BALLISTA_COLOR := Color(1.0, 0.6, 0.3, 0.6)
+## How much thicker a ghost is drawn over a built piece on the same edge.
+const GHOST_GROW := 0.12
 
 var game: Node
 var active := false
@@ -595,7 +601,9 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		return
 	if tool == TOOL_ERASE:
 		var had := plan.piece(edge[0], edge[1], edge[2], storey)
-		if plan.erase([edge], storey) > 0 and had.get("state", "") == HouseSketch.BUILT:
+		if plan.erase([edge], storey) > 0 and had.has("into"):
+			_say(Lang.t("Umbau zurückgenommen: Das Stück bleibt, wie es gebaut ist."))
+		elif had.get("state", "") == HouseSketch.BUILT and plan.piece(edge[0], edge[1], edge[2], storey).get("state", "") == HouseSketch.DEMOLISH:
 			_say(Lang.t("Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück."))
 		_changed()
 		return
@@ -604,8 +612,12 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 	if why != "":
 		_say(reason(why))
 		return
+	var built: bool = plan.piece(edge[0], edge[1], edge[2], storey).get("state", "") == HouseSketch.BUILT
 	plan.sketch([edge], kind, storey)
 	_changed()
+	if built:
+		_say(Lang.t("Umbau vorgemerkt, ohne Material. Beauftrage den Bau: Dein Held baut es dann um.")
+				if plan.piece(edge[0], edge[1], edge[2], storey).has("into") else Lang.t("Umbau zurückgenommen: Das Stück bleibt, wie es gebaut ist."))
 
 
 ## The ghost follows the mouse.
@@ -722,14 +734,37 @@ func hover(point: Vector3) -> void:
 		return
 	_lift = storey * HouseSketch.STOREY_HEIGHT
 	if tool == TOOL_ERASE:
+		if piece_here.has("into"):
+			# The eraser calls the rebuild off first.
+			_segment(_ghost, edge, piece_here.into, OK_COLOR, GHOST_GROW)
+			_lift = 0.0
+			_say(Lang.t("Klicken: Umbau zurücknehmen."))
+			return
 		_segment(_ghost, edge, piece_here.get("kind", HouseSketch.WALL), DEMOLISH_COLOR if piece_here.state != HouseSketch.SKETCH else OK_COLOR)
 		_lift = 0.0
 		return
 	var kind := plan.door_kind(edge[0], edge[1], edge[2], storey) if tool == TOOL_DOOR else tool
 	var why := plan.problem(edge[0], edge[1], edge[2], kind, storey)
-	_segment(_ghost, edge, kind, OK_COLOR if why == "" else BAD_COLOR)
+	var rebuild: bool = why == "" and piece_here.get("state", "") == HouseSketch.BUILT
+	# Over a built wall the ghost is a little thicker, so it shows on the stone.
+	_segment(_ghost, edge, kind, OK_COLOR if why == "" else BAD_COLOR, GHOST_GROW if not piece_here.is_empty() and piece_here.state != HouseSketch.SKETCH else 0.0)
 	_lift = 0.0
-	_say(reason(why) if why != "" else "")
+	if rebuild:
+		_say(_rebuild_text(kind, piece_here))
+	else:
+		_say(reason(why) if why != "" else "")
+
+
+## What a click with the door or window tool on a built piece does.
+func _rebuild_text(kind: String, here: Dictionary) -> String:
+	if kind == here.kind:
+		return Lang.t("Klicken: Umbau zurücknehmen.")
+	match kind:
+		HouseSketch.DOOR:
+			return Lang.t("Klicken: Dein Held baut hier eine Tür ein, ohne Material und ohne Abriss.")
+		HouseSketch.WINDOW:
+			return Lang.t("Klicken: Dein Held baut hier ein Fenster ein, ohne Material und ohne Abriss.")
+	return Lang.t("Klicken: Dein Held baut hier ein Gartentor ein, ohne Material und ohne Abriss.")
 
 
 ## The key of the cell piece the eraser takes at a cell on the current level, or "":
@@ -1099,13 +1134,13 @@ func _hint() -> String:
 		TOOL_WALL:
 			return Lang.t("Wand: Maustaste halten und auf dem Raster ziehen. Rechtsklick oder Esc beendet.")
 		TOOL_DOOR:
-			return Lang.t("Tür: Klicke eine Wand an. In einer Gartenmauer wird sie zum Gartentor.")
+			return Lang.t("Tür: Klicke eine Wand an, auch eine schon gebaute. In einer Gartenmauer wird sie zum Gartentor.")
 		TOOL_FENCE:
 			if storey == HouseSketch.RAIL_STOREY:
 				return Lang.t("Geländer: Klicke auf ein Flachdach, um es rundum einzufassen, oder ziehe es am Rand entlang. An der Treppe bleibt eine Lücke.")
 			return Lang.t("Gartenmauer: Ziehe sie frei auf dem Grundstück, zwei Blöcke hoch. Eine Tür darin wird zum Tor.")
 		TOOL_WINDOW:
-			return Lang.t("Fenster: Klicke eine Wand an.")
+			return Lang.t("Fenster: Klicke eine Wand an, auch eine schon gebaute.")
 		TOOL_DIG:
 			return Lang.t("Graben: Maustaste halten, Rechteck aufziehen, loslassen. Rechtsklick oder Esc beendet.")
 		TOOL_STAIRS:
@@ -1258,6 +1293,12 @@ func _redraw() -> void:
 	if plan == null:
 		return
 	for key in plan.pieces:
+		if plan.pieces[key].has("into") and plan.pieces[key].state == HouseSketch.BUILT:
+			# A built piece to be rebuilt shows what it becomes over the stone.
+			var q := HouseSketch.parts_of(key)
+			_lift = q[0] * HouseSketch.STOREY_HEIGHT
+			_segment(_built, [q[1], q[2], q[3]], plan.pieces[key].into, Color(0, 0, 0, 0), GHOST_GROW)
+			_lift = 0.0
 		if plan.pieces[key].state == HouseSketch.SKETCH:
 			var p := HouseSketch.parts_of(key)
 			var kind: String = plan.pieces[key].kind
@@ -1378,9 +1419,13 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			var step: Vector2i = HouseSketch.DOWN[dir]
 			if open.has(c + step):
 				continue
-			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5 - 0.05)
-			var size := Vector3(0.1, tall, HouseSketch.CELL) if step.x != 0 else Vector3(HouseSketch.CELL, tall, 0.1)
-			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH + tall * 0.5, 0), size, wall_mat)
+			# The wall straddles the rim and its top lies just under the ground (or under the
+			# ceiling), so no crack opens between the cut ground and the wall (it showed as a
+			# fine light line).
+			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5)
+			var high := minf(tall, HouseSketch.DEPTH - RIM_SINK)
+			var size := Vector3(RIM_THICK, high, HouseSketch.CELL + RIM_THICK) if step.x != 0 else Vector3(HouseSketch.CELL + RIM_THICK, high, RIM_THICK)
+			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH + high * 0.5, 0), size, wall_mat)
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
 		if piece.state == HouseSketch.SKETCH:
@@ -1968,11 +2013,12 @@ func _draw_grid() -> void:
 
 ## A piece on an edge: a wall, a door frame or a window. `tint` of zero alpha
 ## means the kind's own blueprint colour.
-func _segment(parent: Node3D, edge: Array, kind: String, tint: Color) -> void:
+## `grow` makes it that much thicker, to show over a built piece on the same edge.
+func _segment(parent: Node3D, edge: Array, kind: String, tint: Color, grow := 0.0) -> void:
 	var a := plan.node_world(edge[0], edge[1])
 	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
 	var mid := a + (Vector3(HouseSketch.CELL * 0.5, 0, 0) if along_x else Vector3(0, 0, HouseSketch.CELL * 0.5))
-	var size_flat := Vector3(HouseSketch.CELL + THICK, 0, THICK) if along_x else Vector3(THICK, 0, HouseSketch.CELL + THICK)
+	var size_flat := Vector3(HouseSketch.CELL + THICK, 0, THICK + grow) if along_x else Vector3(THICK + grow, 0, HouseSketch.CELL + THICK)
 	var colour := tint
 	if tint.a == 0.0:
 		colour = {HouseSketch.WALL: WALL_COLOR, HouseSketch.DOOR: DOOR_COLOR, HouseSketch.WINDOW: WINDOW_COLOR,
@@ -1981,16 +2027,16 @@ func _segment(parent: Node3D, edge: Array, kind: String, tint: Color) -> void:
 	var low := _fence_high()
 	match kind:
 		HouseSketch.STONE_FENCE, HouseSketch.WOOD_FENCE:
-			var thick := Vector3(HouseSketch.CELL + FENCE_THICK, 0, FENCE_THICK) if along_x else Vector3(FENCE_THICK, 0, HouseSketch.CELL + FENCE_THICK)
+			var thick := Vector3(HouseSketch.CELL + FENCE_THICK, 0, FENCE_THICK + grow) if along_x else Vector3(FENCE_THICK + grow, 0, HouseSketch.CELL + FENCE_THICK)
 			_box(parent, mid + Vector3(0, low * 0.5, 0), thick + Vector3(0, low, 0), mat)
 		HouseSketch.GATE:
 			var span := HouseSketch.CELL * 0.5 - GATE_POST * 0.5
 			var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
 			for sign_ in [-1.0, 1.0]:
-				_box(parent, mid + step * sign_ + Vector3(0, (low + 0.2) * 0.5, 0), Vector3(GATE_POST, low + 0.2, GATE_POST), mat)
+				_box(parent, mid + step * sign_ + Vector3(0, (low + 0.2) * 0.5, 0), Vector3(GATE_POST + grow, low + 0.2, GATE_POST + grow), mat)
 		HouseSketch.DOOR:
 			# Two jambs and a lintel over the opening.
-			var jamb := Vector3(0.25, DOOR_HEIGHT, 0.25)
+			var jamb := Vector3(0.25 + grow, DOOR_HEIGHT, 0.25 + grow)
 			var span := HouseSketch.CELL * 0.5 - 0.125
 			var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
 			_box(parent, mid - step + Vector3(0, DOOR_HEIGHT * 0.5, 0), jamb, mat)

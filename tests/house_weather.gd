@@ -45,6 +45,19 @@ func _unit_checks() -> void:
 	check(not HouseGround.sheltered(shelter, house.cell_world(3, 1)), "the cell past the door is not")
 	check(not HouseGround.sheltered(shelter, middle + Vector3(0, HouseSketch.STOREY_HEIGHT, 0)), "on top of the walls is out in the weather")
 	check(HouseGround.sheltered(shelter, middle - Vector3(0, 2, 0)), "below the house is sheltered")
+	# A floor alone (a terrace) lies open to the sky; a slab keeps it off, an upper one higher up.
+	house.pieces[HouseSketch.key_of(4, 0, HouseSketch.CELL_ORIENT)] = {"kind": HouseSketch.COVER, "state": HouseSketch.BUILT}
+	check(not HouseGround.sheltered(HouseGround.shelter(house), house.cell_world(4, 0)), "snow falls on a terrace")
+	house.pieces[HouseSketch.key_of(5, 0, HouseSketch.CELL_ORIENT)] = {"kind": HouseSketch.SLAB, "state": HouseSketch.BUILT}
+	house.pieces[HouseSketch.key_of(1, 1, HouseSketch.CELL_ORIENT, 1)] = {"kind": HouseSketch.SLAB, "state": HouseSketch.BUILT}
+	shelter = HouseGround.shelter(house)
+	check(HouseGround.sheltered(shelter, house.cell_world(5, 0)), "under a slab is sheltered")
+	check(not HouseGround.sheltered(shelter, house.cell_world(5, 0) + Vector3(0, HouseSketch.STOREY_HEIGHT, 0)), "on the slab is not")
+	check(HouseGround.sheltered(shelter, middle + Vector3(0, HouseSketch.STOREY_HEIGHT + 0.5, 0)), "the upper storey under the upper slab is sheltered")
+	check(not HouseGround.sheltered(shelter, house.cell_world(2, 1) + Vector3(0, HouseSketch.STOREY_HEIGHT, 0)), "beside it, the top of the walls is not")
+	house.pieces.erase(HouseSketch.key_of(1, 1, HouseSketch.CELL_ORIENT, 1))
+	house.pieces.erase(HouseSketch.key_of(5, 0, HouseSketch.CELL_ORIENT))
+	house.pieces.erase(HouseSketch.key_of(4, 0, HouseSketch.CELL_ORIENT))
 	house.pieces[HouseSketch.key_of(1, 1, "x")].state = HouseSketch.SKETCH
 	check(HouseGround.shelter(house).is_empty(), "a sketched wall leaves the ring open")
 
@@ -99,6 +112,7 @@ func _process(_delta: float) -> bool:
 		check(not game._rain.visible, "no rain falls inside the house")
 		check(not game._env.fog_enabled, "no haze inside the house")
 		check(float(game._seen_look().sat) > 0.95 and float(game._seen_look().sun) > 0.95, "no storm grey or dark inside the house")
+		_snow_checks()
 		game.set_weather(Weather.FOG, 5.0)
 		game.level.night = false
 		check(game.level.is_lit(game.player.global_position), "in daytime fog a hero indoors is seen as on a clear day")
@@ -114,6 +128,34 @@ func _process(_delta: float) -> bool:
 		game.delete_save(game.save_path())
 		quit(1 if failures > 0 else 0)
 	return false
+
+
+## Winter: snow lies outside, but none settles inside the house, no prints are pressed and steps
+## do not crunch in there (see SnowCover.set_shelter).
+func _snow_checks() -> void:
+	var o: Outdoor = game.level
+	o.set_snow(1.0)
+	var inside: Vector3 = game.player.global_position
+	var outside := plan.node_world(0, 0) - Vector3(3, 0, 3)
+	var mat: ShaderMaterial = o.snow.material
+	check(bool(mat.get_shader_parameter("shelter_on")), "the snow knows where the houses keep it off")
+	var mask: Texture2D = mat.get_shader_parameter("shelter_mask")
+	check(mask != null, "the snow has a shelter mask")
+	if mask != null:
+		var img := mask.get_image()
+		var c := HouseGround.cell_at(inside)
+		var top := img.get_pixel(c.x, c.y).r * SnowCover.SHELTER_SCALE
+		check(top > 2.0 and top < HouseSketch.STOREY_HEIGHT, "no snow on the floor inside, up to under the roof line (%.2f m)" % top)
+		var out := HouseGround.cell_at(outside)
+		check(img.get_pixel(out.x, out.y).r == 0.0, "snow lies outside the house")
+	var before := SnowPrints._records.size()
+	o.snow_print(inside, 0.0)
+	check(SnowPrints._records.size() == before, "no footprints in the snow inside the house")
+	o.snow_print(outside, 0.0)
+	check(SnowPrints._records.size() == before + 1, "footprints outside it")
+	check(Surfaces.step_ground(o, inside) != Surfaces.SNOW, "steps inside do not crunch in snow")
+	check(Surfaces.step_ground(o, outside) == Surfaces.SNOW or Surfaces.ground(o, outside) == Surfaces.WOOD, "steps outside crunch")
+	o.set_snow(0.0)
 
 
 func _next(shelter: float) -> void:

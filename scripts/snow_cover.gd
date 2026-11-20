@@ -72,6 +72,25 @@ func set_holes(mask: Texture2D) -> void:
 	material.set_shader_parameter("holes_on", mask != null)
 
 
+## How many metres one step of the shelter mask's red stands for, times 255 (see snow.gdshaderinc).
+const SHELTER_SCALE := 16.0
+
+
+## Keeps the snow out of the self-built houses (see HouseGround.shelter): `shelters` maps a 2 m
+## cell of the map to the height of the house's top over it; nothing settles below that height.
+## The roofs keep their snow. `width` and `height` are the map's size in tiles.
+func set_shelter(shelters: Dictionary, width: int, height: int, tile: float) -> void:
+	var cells := Vector2i(width, height) * int(round(tile / HouseSketch.CELL))
+	var img := Image.create(maxi(cells.x, 1), maxi(cells.y, 1), false, Image.FORMAT_R8)
+	for c: Vector2i in shelters:
+		if c.x >= 0 and c.y >= 0 and c.x < cells.x and c.y < cells.y:
+			img.set_pixel(c.x, c.y, Color(clampf(float(shelters[c]) / SHELTER_SCALE, 0.0, 1.0), 0, 0, 1))
+	_param("shelter_mask", ImageTexture.create_from_image(img) if not shelters.is_empty() else null)
+	_param("shelter_on", not shelters.is_empty())
+	_param("shelter_size", Vector2(cells) * HouseSketch.CELL)
+	_param("shelter_shift", tile * 0.5)
+
+
 ## Where something burns: no snow settles within the radius (w) round each point (xyz), so fires,
 ## the forge's coals and its chimney, and the smoking chimneys stay clear. At most WARM_MAX.
 func set_warm(spots: Array[Vector4]) -> void:
@@ -211,7 +230,7 @@ func _cutout_for(gi: GeometryInstance3D) -> ShaderMaterial:
 		# Leaves that hold snow on their upper rims too (the ivy, see IvySeasons.SNOW_CLING).
 		m.set_shader_parameter("cling", float(base.get_meta("snow_cling", 0.0)))
 		# Copy what the others know so far.
-		for param: String in ["amount", "daylight", "moon_glow", "warm", "warm_count"]:
+		for param: String in ["amount", "daylight", "moon_glow", "warm", "warm_count", "shelter_mask", "shelter_on", "shelter_size", "shelter_shift"]:
 			m.set_shader_parameter(param, material.get_shader_parameter(param))
 		_cutouts[key] = m
 		_all.append(m)

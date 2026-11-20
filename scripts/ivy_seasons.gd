@@ -32,11 +32,13 @@ const AUTUMN_COLOURS := [Color(0.62, 0.11, 0.07), Color(0.46, 0.08, 0.1), Color(
 const TREE_TURNED := 0.97
 ## Grapes ripen in autumn: in summer the bunches hang small and unripe (GRAPE_UNRIPE_COLOURS) and
 ## only GRAPE_SUMMER_SHARE of them show; in autumn every bunch hangs, swollen by GRAPE_RIPE, in the
-## deep ripe colours; in winter and spring there are none.
+## deep ripe colours, with the extra bunches only autumn hangs (AgedStone.AUTUMN_GRAPE_CHANCE),
+## brought GRAPE_OUT metres forward out of the leaves so they show; in winter and spring there are none.
 const GRAPE_SUMMER_SHARE := 0.6
 const GRAPE_SUMMER_SIZE := 0.8
+const GRAPE_OUT := 0.09
 const GRAPE_UNRIPE_COLOURS := [Color(0.5, 0.6, 0.2), Color(0.58, 0.62, 0.24), Color(0.44, 0.5, 0.2)]
-const GRAPE_RIPE := 1.25
+const GRAPE_RIPE := 1.45
 const GRAPE_RIPE_COLOURS := [Color(0.16, 0.06, 0.24), Color(0.1, 0.06, 0.2), Color(0.32, 0.04, 0.1)]
 ## Winter colours: mostly the dark green of old ivy, now and then the bronze of a leaf in the cold.
 const WINTER_COLOURS := [Color(0.13, 0.26, 0.12), Color(0.17, 0.3, 0.13), Color(0.2, 0.27, 0.11),
@@ -143,11 +145,14 @@ static func _ripen(node: MultiMeshInstance3D, ripe: bool) -> void:
 	for i in mm.instance_count:
 		var t: Transform3D = grown[0][i]
 		var c: Color = grown[1][i]
-		var shown := rng.randf() < GRAPE_SUMMER_SHARE
+		var out: Vector3 = grown[2][i] if grown.size() > 2 else Vector3.ZERO
+		var autumn_only: bool = grown[3][i] if grown.size() > 3 else false
+		var shown := rng.randf() < GRAPE_SUMMER_SHARE and not autumn_only
 		var pick := rng.randi()
 		var light := rng.randf_range(0.85, 1.2)
 		if ripe:
 			t.basis = t.basis.scaled(Vector3.ONE * GRAPE_RIPE)
+			t.origin += out * GRAPE_OUT
 			c = GRAPE_RIPE_COLOURS[pick % GRAPE_RIPE_COLOURS.size()] * light
 		else:
 			# A hidden bunch is squashed to nothing (its place still kept for autumn).

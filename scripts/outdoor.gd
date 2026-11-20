@@ -344,7 +344,12 @@ var _fires: Array[Vector3] = []
 ## light shows the hero at night like a lantern's.
 var house_lights: Array[Vector3] = []
 ## Where the self-built houses keep the weather out (see HouseGround.shelter), set by HouseSketcher.
-var shelters := {}
+## No snow settles in there either (see SnowCover.set_shelter).
+var shelters := {}:
+	set(value):
+		shelters = value
+		if snow != null:
+			snow.set_shelter(shelters, width, height, TILE)
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []
@@ -644,6 +649,7 @@ func build() -> void:
 	roofed.append_array(meals.roofed)
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_warm(warm_spots)
+	snow.set_shelter(shelters, width, height, TILE)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
@@ -4392,7 +4398,7 @@ func set_ice(value: float) -> void:
 ## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot; `kind`
 ## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
-	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree():
+	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_sheltered(at):
 		return
 	SnowPrints.leave(self, at, heading, size, kind, snow.daylight)
 
@@ -4538,22 +4544,12 @@ func strike() -> Vector3:
 	return at
 
 
-## A bright bolt from the sky down to where lightning struck, gone in a blink.
+## A bright bolt from the sky down to where lightning struck: a hard zig-zag with a few forks
+## (see LightningBolt) that flickers for a moment and fades.
 func _show_bolt(at: Vector3) -> void:
-	var bolt := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.6
-	mesh.bottom_radius = 0.2
-	mesh.height = 40.0
-	bolt.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.9, 0.94, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(0.8, 0.88, 1.0)
-	mat.emission_energy_multiplier = 8.0
-	bolt.material_override = mat
-	bolt.position = at + Vector3(0, 20.0, 0)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var bolt := LightningBolt.build(at, rng)
 	add_child(bolt)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.8, 0.88, 1.0)
@@ -4577,17 +4573,17 @@ func _show_bolt(at: Vector3) -> void:
 	scorch.material_override = burnt
 	scorch.position = at + Vector3(0, 0.03, 0)
 	add_child(scorch)
-	# The bolt flickers: on, dark for a blink, on again, then gone.
+	# The bolt flickers: on, dark for a blink, on again (see LightningBolt.FLASHES), then fades.
 	var tween := create_tween()
-	tween.tween_interval(0.2)
-	tween.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.visible = false)
-	tween.tween_interval(0.07)
-	tween.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.visible = true)
-	tween.tween_interval(0.35)
+	for i in LightningBolt.FLASHES.size():
+		tween.tween_interval(LightningBolt.FLASHES[i])
+		if i < LightningBolt.FLASHES.size() - 1:
+			var lit := i % 2 == 1
+			tween.tween_callback(func():
+				if is_instance_valid(bolt):
+					bolt.visible = lit)
+	tween.tween_property(bolt.get_meta("core"), "albedo_color:a", 0.0, LightningBolt.FADE)
+	tween.parallel().tween_property(bolt.get_meta("glow"), "albedo_color:a", 0.0, LightningBolt.FADE)
 	tween.tween_callback(bolt.queue_free)
 	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)

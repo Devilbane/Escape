@@ -46,7 +46,7 @@ void fragment() {
 	float lies = up * amount * 1.7 + (n - 0.5) * 0.6;
 	// The upper rim of a clinging card: the higher on the card, the more snow.
 	lies = max(lies, cling * amount * smoothstep(0.2, 0.55, rise) * 1.6 + (n - 0.5) * 0.5);
-	if (lies < 0.5 || snow_melted(world_pos, n)) {
+	if (lies < 0.5 || snow_melted(world_pos, n) || snow_sheltered(world_pos)) {
 		discard;
 	}
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);

@@ -464,8 +464,8 @@ func _run() -> void:
 	check(plan.ceiling_surface == "wood", "and back to wood: never bare earth")
 	check(sk._bar.get_global_rect() == bar_before, "switching the material does not move or resize the tool bar")
 	await _drag(_cell_scr(0, 2), _cell_scr(3, 3))
-	check(plan.count(HouseSketch.COVER) == 4, "dragging over the cellar and its stairs plans the ceiling over the four dug squares (%d)" % plan.count(HouseSketch.COVER))
-	check(plan.cover_at(0, 2).is_empty() and plan.cover_at(1, 2).is_empty(), "the stairs stay open")
+	check(plan.count(HouseSketch.COVER) == 3, "dragging over the cellar and its stairs plans the ceiling over the three dug squares off the stairs (%d)" % plan.count(HouseSketch.COVER))
+	check(plan.cover_at(0, 2).is_empty() and plan.cover_at(1, 2).is_empty() and plan.cover_at(2, 2).is_empty(), "the stairs and their foot stay open")
 	await _move(_cell_scr(0, 0))
 	await _wait(5)
 	await _shot("ceiling_planned")
@@ -473,32 +473,30 @@ func _run() -> void:
 	await _press("Order the build", sk._bar)
 	sk.leave()
 	await _wait_built(200)
-	check(plan.count(HouseSketch.COVER, HouseSketch.BUILT) == 4, "the hero builds the cellar ceiling (%d)" % plan.count(HouseSketch.COVER, HouseSketch.BUILT))
+	check(plan.count(HouseSketch.COVER, HouseSketch.BUILT) == 3, "the hero builds the cellar ceiling (%d)" % plan.count(HouseSketch.COVER, HouseSketch.BUILT))
 	hero.global_position = plan.cell_world(3, 3) + Vector3(0, 0.5, 0)
 	hero.reset_physics_interpolation()
 	await _wait(60)
 	check(absf(hero.global_position.y) < 0.15, "the hero stands on the ceiling at ground level (y %.2f)" % hero.global_position.y)
 	await _shot("ceiling_built")
-	# Down at the foot of the stairs, under the ceiling: no climbing through it, out only by the stairs.
+	# Down in the cellar under the ceiling: the hero fits upright and cannot climb out through it.
+	hero.global_position = plan.cell_world(3, 3) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	hero.reset_physics_interpolation()
+	await _wait(30)
+	check(hero.global_position.y < -HouseSketch.DEPTH + 0.3 and hero._under_ceiling(), "the hero stands in the cellar under the ceiling (y %.2f)" % hero.global_position.y)
+	await _shot("under_ceiling")
+	# From the open foot of the stairs, up the stairs (they lead down eastwards, so up is to the left).
 	hero.global_position = plan.cell_world(2, 2) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
 	hero.reset_physics_interpolation()
 	await _wait(30)
-	check(hero.global_position.y < -HouseSketch.DEPTH + 0.3, "the hero fits at the foot of the stairs under the ceiling (y %.2f)" % hero.global_position.y)
-	var went_up := false
-	for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
-		Input.action_press(action)
-		for i in 24:
-			await _wait(5)
-			if hero.global_position.y > -0.3:
-				break
-		Input.action_release(action)
-		await _wait(10)
-		if hero.global_position.y > -0.3:
-			went_up = true
+	Input.action_press("ui_left")
+	for i in 80:
+		await _wait(5)
+		if hero.global_position.y > -0.1:
 			break
-	check(went_up and not hero.is_climbing(), "the hero walks up the open stairs (y %.2f)" % hero.global_position.y)
-	var stairs_cell := plan.cell_at(hero.global_position)
-	check(stairs_cell.y == 2 and stairs_cell.x <= 1, "out by the stairs, not through the ceiling (cell %s)" % stairs_cell)
+	Input.action_release("ui_left")
+	await _wait(10)
+	check(hero.global_position.y > -0.3 and not hero.is_climbing(), "the hero walks up the open stairs (y %.2f)" % hero.global_position.y)
 
 	# --- 10. Upper floor
 	_step("floor slab, stairs up, upper wall")

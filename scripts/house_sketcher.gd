@@ -338,7 +338,11 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 					done = plan.sketch_roof(cells, HouseSketch.SADDLE, storey, "rx" if wide else "ry")
 			_changed()
 			if done == 0 and tool == TOOL_COVER:
-				_say(reason("no dig"))
+				var why := "no dig"
+				for c in cells:
+					if plan.problem_cover(c[0], c[1]) == "stairs":
+						why = "stairs"
+				_say(reason(why))
 			elif done == 0:
 				_say(Lang.t("Dort ist schon gegraben oder gebaut."))
 			else:
@@ -360,7 +364,11 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			var c := plan.cell_at(point)
 			var dir := plan.stairs_dir(c.x, c.y)
 			if dir == "":
-				_say(reason("no cellar"))
+				var why := "no cellar"
+				for d in HouseSketch.DOWN:
+					if plan.problem_stairs(c.x, c.y, d) == "covered":
+						why = "covered"
+				_say(reason(why))
 			else:
 				plan.sketch_stairs(c.x, c.y, dir)
 				_changed()
@@ -521,6 +529,10 @@ static func reason(why: String) -> String:
 			return Lang.t("Eine Treppe nach oben braucht zwei freie Felder und danach eine Decke.")
 		"no dig":
 			return Lang.t("Die Kellerdecke kommt nur über gegrabene Felder. Über der Treppe bleibt sie offen.")
+		"stairs":
+			return Lang.t("Am Fuß der Treppe bleibt die Kellerdecke offen, damit du aufrecht hinabsteigen kannst.")
+		"covered":
+			return Lang.t("Über dem Fuß der Treppe liegt die Kellerdecke: Nimm sie dort erst zurück.")
 		"storey":
 			return Lang.t("Höher als das Obergeschoss baut dein Held nicht.")
 	return ""
@@ -1074,8 +1086,8 @@ func _cell_quad(parent: Node3D, cell: Vector2i, colour: Color, high := 0.0) -> v
 
 
 ## A built piece: solid stone, a doorway with a wooden lintel, or a window
-## with a pane. A piece marked for demolition is tinted red. Walls, jambs and
-## lintels stop the hero; the doorway stays open.
+## with a pane. A piece marked for demolition is tinted red. Walls and jambs
+## stop the hero; the doorway (lintel included) stays open.
 func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool) -> void:
 	var a := house.node_world(edge[0], edge[1])
 	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
@@ -1091,7 +1103,9 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			var lintel := flat + Vector3(0, WALL_HEIGHT - DOOR_HEIGHT, 0)
 			for sign_ in [-1.0, 1.0]:
 				_solid_box(mid + step * sign_ + Vector3(0, DOOR_HEIGHT * 0.5, 0), jamb, stone)
-			_solid_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, wood)
+			# The lintel is only seen: the hero (2.4 m with their reach, see Player.tall) must fit
+			# through the doorway, so only the jambs stop them.
+			_visual_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, wood)
 		HouseSketch.WINDOW:
 			_solid_box(mid + Vector3(0, SILL * 0.5, 0), flat + Vector3(0, SILL, 0), stone)
 			_solid_box(mid + Vector3(0, (WINDOW_TOP + WALL_HEIGHT) * 0.5, 0), flat + Vector3(0, WALL_HEIGHT - WINDOW_TOP, 0), stone)

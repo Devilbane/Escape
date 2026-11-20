@@ -1,1 +1,2 @@
 - New in the blueprint: a cellar ceiling of wood or stone closes your dug cellar and is the ground floor's floor at once. It leaves the stairs open, and works on cellars you already dug.
+- Fixed: you can walk through a built door of your house again (its lintel no longer stops you).

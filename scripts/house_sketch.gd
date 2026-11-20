@@ -33,14 +33,15 @@ const CELLAR_KINDS := [DIG, STAIRS]
 ## The cellar ceiling: one piece over a dug cell that is at once the cellar's
 ## ceiling and the ground floor's floor, at ground level. It is keyed by the
 ## cell, the cellar storey and the orient letter COVER_ORIENT, goes only over
-## dug cells (so the stairs down always stay open), and is made of wood or
-## stone (CEILINGS), never bare earth.
+## dug cells and never over the stairs or the cell at their foot (so the way
+## down always stays open with room to stand up), and is made of wood or stone
+## (CEILINGS), never bare earth.
 const COVER := "cover"
 const COVER_ORIENT := "f"
 const CEILINGS := ["wood", "stone"]
 ## How thick the cellar ceiling is: its top is the ground, so the cellar keeps
-## DEPTH - COVER_THICK of headroom under it.
-const COVER_THICK := 0.25
+## DEPTH - COVER_THICK of headroom under it, more than the hero is tall (Player.tall).
+const COVER_THICK := 0.15
 ## Above ground. A "slab" is the floor between two storeys, or a flat roof
 ## you can walk on, over one grid cell; it belongs to the storey below it (key
 ## storey 0: it is the ceiling of the ground floor and the floor of the upper
@@ -350,6 +351,8 @@ func problem_stairs(x: int, y: int, dir: String) -> String:
 			return "taken"
 	if not cell_in_plot(cells[2].x, cells[2].y) or not is_dug(cells[2].x, cells[2].y):
 		return "no cellar"
+	if not cover_at(cells[2].x, cells[2].y).is_empty():
+		return "covered"
 	return ""
 
 
@@ -461,7 +464,9 @@ func cover_at(x: int, y: int) -> Dictionary:
 
 
 ## Why a cellar ceiling cannot go over a cell, or "": it needs a dug cell (sketched
-## or dug, not marked for filling in) under it, so it never closes the stairs.
+## or dug, not marked for filling in) under it, so it never closes the stairs, and
+## it leaves the cell at the stairs' foot open ("stairs"): coming down the ramp
+## the hero needs the room overhead.
 func problem_cover(x: int, y: int) -> String:
 	if not cell_in_plot(x, y):
 		return "outside"
@@ -470,6 +475,8 @@ func problem_cover(x: int, y: int) -> String:
 	var dug: Dictionary = pieces.get(key_of(x, y, CELL_ORIENT, CELLAR_STOREY), {})
 	if dug.is_empty() or dug.state == DEMOLISH:
 		return "no dig"
+	if stairs_to(x, y) != "":
+		return "stairs"
 	return ""
 
 

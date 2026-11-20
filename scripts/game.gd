@@ -1963,9 +1963,9 @@ func _spawn_pet(at := Vector3.INF) -> void:
 	_spawn_home_pets()
 
 
-## The companion could not follow the hero (down a pit without stairs, or
-## through a trapdoor: it goes up and down only by stairs, see Pet and
-## HouseFloors) and lost sight of them: it runs home to the hero's house and
+## The companion could not follow the hero (down a pit without stairs: it goes
+## up and down only by stairs, see Pet and HouseFloors; a trapdoor takes both
+## down together) and lost sight of them: it runs home to the hero's house and
 ## waits in the companions' corner until the hero takes it along again.
 func send_companion_home() -> void:
 	var c := companion()
@@ -5724,9 +5724,6 @@ func _fall_through_trapdoor(damage: int) -> void:
 	player.path.clear()
 	player.velocity = Vector3.ZERO
 	learn(Traps.LEARN)
-	# The companion does not jump down after the hero: no stairs, so home it goes.
-	if is_instance_valid(pet):
-		send_companion_home()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position:y", player.global_position.y - 3.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)

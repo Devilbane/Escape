@@ -231,6 +231,7 @@ village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, ne
 pips_friend.gd | 300 | fixed | pass | Pippi, Pip's red-haired friend with pigtails and freckles (herds geese and goats, plays and chats with Pip, blocks no way)
 kid_play.gd | 600 | fixed | passfail | Pip and Pippi play (chase, cartwheels, somersaults; never at night, in an alarm, into walls or the hero)
 villager_walls.gd | 120 | fixed | pass | Villagers never cross walls or shut gates
+stuck_watch.gd | 180 | fixed | passfail | Stuck walkers (a villager or animal walking on the spot stands, then tries again 10 s later)
 goat_model.gd | 60 | free | passfail | The village goats are the sheep model dressed as goats (horns, red horns for the red-horned one, smooth coat)
 red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)
 footprint.gd | 120 | fixed | passfail | every creature claims its own place; stacked ones: the newest moves to the nearest open spot
@@ -251,11 +252,14 @@ turning.gd | 60 | free | pass | Natural turns (limited turn rate, arcs)
 frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole
 winter_wear.gd | 120 | fixed | PASS:_winter_wear | Winter clothes for the villagers
 plots.gd | 60 | free | pass | Building plots: rules, fee, deeds, the clerk
+plot_clearing.gd | 180 | free | pass | Building plots stay clear (no tree, boulder or mountain slope reaches into one)
 house_sketch.gd | 60 | free | pass | House plan: grid, snapping, sketching, undo, books
 house_sketcher.gd | 120 | free | pass | Blueprint tool: sign, drag a wall, door, eraser, undo
+garden_wall_shots.gd | 120 | fixed | passfail | Garden walls: stone wall, wooden fence and gates get built, the blueprint bar still fits
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books
 house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
 house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
+bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
 house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
 house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading

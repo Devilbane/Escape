@@ -58,9 +58,11 @@ static func is_rock(level: Level, c: Vector2i) -> bool:
 	return ch == ROCK_LETTER
 
 
-## Builds the mountains of `level` and adds them to it. Nothing happens on a
-## map without rock.
-static func build(level: Level, seed_value: int) -> void:
+## Builds the mountains of `level`, adds them to it and returns their meshes.
+## Nothing happens on a map without rock. The rock stays flat on `flat` (building
+## plots, in metres on the ground, see Plots) and only rises past their edges.
+static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Array:
+	var built := []
 	var area := Rect2i()
 	var any := false
 	for y in level.height:
@@ -69,7 +71,11 @@ static func build(level: Level, seed_value: int) -> void:
 				area = Rect2i(x, y, 1, 1) if not any else area.expand(Vector2i(x, y)).expand(Vector2i(x + 1, y + 1))
 				any = true
 	if not any:
-		return
+		return built
+	# The grid points close enough to a plot that a shaken point could land on it.
+	var level_ground: Array[Rect2] = []
+	for plot in flat:
+		level_ground.append(plot.grow(JITTER + 0.05))
 	# Past the edge of the map the rock goes on a little way.
 	area = area.grow(4)
 	# The distance field reaches a little further than the mesh: a point at
@@ -105,6 +111,9 @@ static func build(level: Level, seed_value: int) -> void:
 			if h > 1.0:
 				# Craggy: higher rock is shaken more.
 				h = maxf(0.6, h + rng.randf_range(-0.6, 0.6) * minf(1.0, h / 5.0))
+			# Flat on a plot, after the shake so the rest of the rock stays as it was.
+			if level_ground.any(func(r: Rect2) -> bool: return r.has_point(Vector2(x, z))):
+				h = 0.0
 			row.append(Vector3(x, h - SINK, z))
 		points.append(row)
 	# Weathered like the village stone (see AgedStone.rock_material).
@@ -133,6 +142,8 @@ static func build(level: Level, seed_value: int) -> void:
 			node.mesh = st.commit()
 			node.material_override = mat
 			level.add_child(node, true)
+			built.append(node)
+	return built
 
 
 ## Signed distance (metres) from each tile's middle to the edge of the

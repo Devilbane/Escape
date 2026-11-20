@@ -347,6 +347,9 @@ static func make_rain() -> CPUParticles3D:
 	return p
 
 
+const SNOWFLAKE_SHADER := preload("res://shaders/snowflake.gdshader")
+
+
 ## Snowflakes that drift down around the hero (keep them over the hero, see
 ## Game): big soft flakes, slow, with a little wind.
 static func make_snow() -> CPUParticles3D:
@@ -358,12 +361,11 @@ static func make_snow() -> CPUParticles3D:
 	p.emitting = false
 	var flake := QuadMesh.new()
 	flake.size = Vector2(0.11, 0.11)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.albedo_texture = Effects._soft_dot()
-	mat.albedo_color = Color(1, 1, 1, 0.0)
+	# Lit by the light that reaches each flake, and invisible where none does (see snowflake.gdshader).
+	var mat := ShaderMaterial.new()
+	mat.shader = SNOWFLAKE_SHADER
+	mat.set_shader_parameter("dot_tex", Effects._soft_dot())
+	mat.set_shader_parameter("albedo", Color(1, 1, 1, 0.0))
 	flake.material = mat
 	p.mesh = flake
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
@@ -476,9 +478,10 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 			snow.amount = SNOW_FLAKES
 		snow.emitting = f > 0.02
 		snow.visible = snow.emitting
-		var snow_mat: StandardMaterial3D = (snow.mesh as QuadMesh).material
-		var tone := clampf(0.2 + light, 0.2, 1.0)
-		snow_mat.albedo_color = Color(tone, tone, minf(1.0, tone * 1.05), 0.9 * f)
+		# How bright a flake is comes from the light that reaches it (the sun, the moon of tonight's
+		# phase, the lamps and the hero's lantern), not from the hour: only the amount falling is set here.
+		var snow_mat: ShaderMaterial = (snow.mesh as QuadMesh).material
+		snow_mat.set_shader_parameter("albedo", Color(0.92, 0.94, 1.0, 0.9 * f))
 	var r: float = weather_look.rain
 	rain.emitting = r > 0.02
 	rain.visible = rain.emitting

@@ -91,8 +91,36 @@ func _initialize() -> void:
 	while s.undo():
 		undone += 1
 	check(undone <= HouseSketch.UNDO_LIMIT, "undo remembers a limited number of steps")
+	_garden()
 	if failures == 0:
 		print("PASS: house sketch")
 	else:
 		print("FAILED: ", failures)
 	quit(1 if failures > 0 else 0)
+
+
+## Garden walls: free of the house, on the ground only, a door in one is a gate.
+func _garden() -> void:
+	var g := HouseSketch.new()
+	g.plot = Rect2i(0, 0, 3, 3)
+	check(g.fence_kind() == "stone_fence", "garden walls are of stone at first")
+	check(g.sketch([[0, 0, "x"], [1, 0, "x"], [2, 0, "x"]], g.fence_kind()) == 3, "a stone garden wall is sketched")
+	g.fence_material = "wood"
+	check(g.sketch([[0, 0, "y"]], g.fence_kind()) == 1 and g.count("wood_fence") == 1, "and a wooden one")
+	check(g.problem(4, 4, "x", "stone_fence", 1) == "garden storey", "no garden wall on the upper floor")
+	check(g.door_kind(1, 0, "x") == "gate" and g.door_kind(3, 3, "x") == "door", "a door on a garden wall is a gate")
+	check(g.problem(1, 0, "x", "door") == "needs wall", "no house door in a garden wall")
+	check(g.problem(1, 0, "x", "window") == "needs wall", "no window in a garden wall")
+	check(g.problem(3, 3, "x", "gate") == "needs fence", "a gate needs a garden wall")
+	check(g.sketch([[1, 0, "x"]], "gate") == 1 and g.count("stone_fence") == 2, "a gate opens the wall")
+	check(g.needs() == {"steinblock": 2, "bauholz": 3}, "garden walls cost a block or a timber each, a gate two timber")
+	g.deposit("steinblock", 2)
+	g.deposit("bauholz", 3)
+	g.order()
+	for i in 6:
+		g.build_next()
+	check(g.count("gate", "built") == 1 and g.open_pieces() == 0, "the hero builds the garden")
+	g.save("Garden test")
+	HouseSketch.reload()
+	var back := HouseSketch.of("Garden test", g.plot)
+	check(back.count("stone_fence") == 2 and back.count("gate") == 1 and back.fence_material == "wood", "the garden and its material are saved")

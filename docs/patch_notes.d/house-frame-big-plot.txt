@@ -1,0 +1,1 @@
+- House building: a big plot now fits the screen while you draw, so the north wall can be reached. The camera pulls back and centres the plot above the tool bar.

@@ -23,6 +23,7 @@ var shot_no := 0
 var plan: HouseSketch
 var sk: HouseSketcher
 var plot := Rect2i()
+const FRAME_SLACK := 2.0
 var snow := OS.get_environment("NO_SNOW") == ""
 
 
@@ -134,11 +135,13 @@ func _press(text: String, from: Node = null) -> bool:
 func _shot(name: String) -> void:
 	if shots == "" or DisplayServer.get_name() == "headless":
 		return
-	await _wait(3)
+	RenderingServer.render_loop_enabled = true
+	await _wait(4)
 	shot_no += 1
 	var img := root.get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(shots)
 	img.save_png(shots.path_join("%02d_%s.png" % [shot_no, name]))
+	RenderingServer.render_loop_enabled = false
 
 
 ## Waits until the camera stands still (it glides after the hero is moved).
@@ -168,7 +171,6 @@ func _wait_built(seconds: int) -> void:
 			if is_instance_valid(e):
 				e.queue_free()
 		game.level.enemies.clear()
-	RenderingServer.render_loop_enabled = true
 	await _wait(3)
 	for key in plan.pieces:
 		if plan.pieces[key].state != HouseSketch.BUILT:
@@ -248,6 +250,9 @@ func _push_into_pit_wall(hero, pit_spot: Vector3, roll: float) -> void:
 
 
 func _run() -> void:
+	# Drawing the frames is what makes a software renderer slow, so the game runs without it
+	# and draws only when a screenshot is taken (see _shot). What is checked does not need it.
+	RenderingServer.render_loop_enabled = false
 	if DisplayServer.get_name() == "headless":
 		# Real mouse input needs a window. The "House playtest" workflow runs this under Xvfb.
 		print("SKIPPED: the house playtest needs a display (see the header)")
@@ -293,6 +298,12 @@ func _run() -> void:
 	game.player.reset_physics_interpolation()
 	await _settle()
 	await _shot("start")
+	if OS.get_environment("BIG_ONLY") != "": # quick run of the last step only
+		Plots.register(lvl, game.hero_name, plot)
+		game.plot_marker.refresh()
+		plan = sk.plan
+		await _big_plot()
+		return _end()
 
 	# --- 2. The Land button: marks a plot with two clicks
 	_step("mark a plot")
@@ -668,7 +679,56 @@ func _run() -> void:
 	check(crate_spot != Vector3.INF, "a crate can stand on the roof")
 	var spot := lvl2.stone_spot_under(game.player, Vector3.BACK)
 	check(not spot.is_empty() and spot.layer == 4, "a stone block can be set down on the roof")
+	await _big_plot()
 	_end()
+
+
+## The biggest plot the clerk allows (8 x 8 tiles, 32 m) does not fit the usual view: the
+## camera has to pull back so the north wall can be drawn as well as the south one.
+func _big_plot() -> void:
+	_step("big plot, north wall")
+	sk.leave()
+	Plots.release(game.hero_name)
+	Plots._load()
+	var big := Rect2i(plot.position, Vector2i(Plots.MAX_SIDE, Plots.MAX_SIDE))
+	Plots._deeds.append({"owner": Homes.deed_name(game.hero_name), "x": big.position.x, "y": big.position.y, "w": big.size.x, "h": big.size.y})
+	Plots._save()
+	game.plot_marker.refresh()
+	plan = sk.plan
+	check(plan != null and plan.plot == big, "the big plot has a fresh plan")
+	var sign_station: Dictionary = {}
+	for s in game.level.stations:
+		if s.kind == HouseSketcher.KIND and s.get("owner", "") == game.hero_name:
+			sign_station = s
+	game.player.global_position = sign_station.pos + Vector3(-0.5, 0, -0.5)
+	game.player.reset_physics_interpolation()
+	game._use_station(sign_station)
+	await _settle()
+	await _wait(60)
+	await _settle()
+	await _shot("big_plot_open")
+	var free: Rect2 = sk._free_area()
+	var nn := plan.nodes()
+	print("  (pull ", game.frame_pull, " corners ", _node_scr(0, 0), _node_scr(nn.x, 0), _node_scr(0, nn.y), _node_scr(nn.x, nn.y), " fits ", sk.plot_fits(), ")")
+	var outside := 0
+	for x in range(0, nn.x + 1):
+		for y in [0, nn.y]:
+			if not free.grow(FRAME_SLACK).has_point(_node_scr(x, y)):
+				outside += 1
+	check(outside == 0, "every node of the north and south edge is on screen above the tool bar (%d outside; free area %s)" % [outside, free])
+	await _select("Wall")
+	var base := plan.count("wall")
+	await _drag(_node_scr(1, 0), _node_scr(6, 0))
+	check(plan.count("wall") == base + 5, "a north wall of five pieces can be dragged along the top edge (%d new)" % (plan.count("wall") - base))
+	await _drag(_node_scr(1, nn.y), _node_scr(6, nn.y))
+	check(plan.count("wall") == base + 10, "and a south wall along the bottom edge (%d new)" % (plan.count("wall") - base))
+	await _drag(_node_scr(0, 1), _node_scr(0, 6))
+	check(plan.count("wall") == base + 15, "and a west wall along the left edge (%d new)" % (plan.count("wall") - base))
+	await _drag(_node_scr(nn.x, 1), _node_scr(nn.x, 6))
+	check(plan.count("wall") == base + 20, "and an east wall along the right edge (%d new)" % (plan.count("wall") - base))
+	sk.leave()
+	await _settle()
+	check(game.frame_pull == 0.0, "closing the tool gives the usual view back (pull %.1f)" % game.frame_pull)
 
 
 func _end() -> void:

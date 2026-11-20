@@ -140,6 +140,10 @@ var _rng := RandomNumberGenerator.new()
 var _cut_off := false
 var _unseen := 0.0
 var _reach_check := 0.0
+## Notices a run after the hero that gets no closer (see StuckWatch); while `_hold` runs the
+## companion stands still, then sets off after the hero again.
+var _stuck_watch := StuckWatch.new()
+var _hold := 0.0
 
 
 func setup(owner_level: Level, animal_kind := "fuchs", animal_name := "") -> void:
@@ -296,13 +300,23 @@ func _physics_process(delta: float) -> void:
 		"follow":
 			if _rest <= 0.0 and _sniff():
 				return
-			if gap > FOLLOW_GAP:
+			if gap > FOLLOW_GAP and _hold > 0.0:
+				# Got stuck on the way after the hero: stands a while, then tries again.
+				_hold -= delta
+				_path.clear()
+				play("Idle")
+				_anim.speed_scale = 1.0
+			elif gap > FOLLOW_GAP:
 				_repath -= delta
 				if _repath <= 0.0 or _path.is_empty():
 					_repath = 0.4
 					_set_path(hero.global_position)
 				_walk(delta, RUN_SPEED if gap > RUN_FROM else WALK_SPEED, hero)
+				if _stuck_watch.tick(hero.global_position, StuckWatch.remaining(global_position, _path, hero.global_position), delta):
+					_hold = StuckWatch.REST
 			else:
+				_hold = 0.0
+				_stuck_watch.reset()
 				_path.clear()
 				state = "lounge"
 				_begin_act("stand", hero)

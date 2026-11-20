@@ -84,6 +84,7 @@ static func _register(menus: Menus) -> void:
 		menus._rebuild()
 		return
 	Payment.pay(game, fee)
+	Events.bus().plot_registered.emit(rect)
 	marker.pending = Rect2i()
 	marker.refresh()
 	Sfx.play_coins(game, mini(fee, 20))

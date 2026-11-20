@@ -1,0 +1,64 @@
+name: On-demand tests
+
+# Runs the tests that general CI skips (tests/ci_on_demand.txt, for example the slime siege), only when
+# started by hand: Actions > "On-demand tests" > Run workflow. Never part of the required `tests` check.
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "One test file to run (e.g. slime_siege.gd); empty runs every test in tests/ci_on_demand.txt"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  on-demand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Godot from the cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-web
+
+      - name: Install Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
+
+      - name: Import the project
+        run: ~/godot/godot --headless --import
+
+      - name: On-demand tests
+        env:
+          ONLY: ${{ inputs.test }}
+        run: |
+          if [ -n "$ONLY" ]; then
+            case "$ONLY" in *[!A-Za-z0-9_.]*|*..*) echo "::error::not a test file name: $ONLY"; exit 1;; esac
+            mkdir -p ci_logs
+            timeout 600 ~/godot/godot --headless --fixed-fps 60 -s "tests/$ONLY" 2>&1 | tee "ci_logs/${ONLY%.gd}.log"
+            grep -q PASS "ci_logs/${ONLY%.gd}.log" && ! grep -q FAIL "ci_logs/${ONLY%.gd}.log"
+          else
+            tests/ci_shard.sh on_demand 0 1
+          fi
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: on-demand-test-logs
+          path: ci_logs/
+          if-no-files-found: ignore

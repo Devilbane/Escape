@@ -15,12 +15,19 @@ extends Node3D
 ## character takes it down and the material comes back. The stage banner shows
 ## the cycle: Plan, Build, Done, and Done leads back to Plan.
 ##
+## Garden walls (two stone blocks high, of stone or timber) are drawn like
+## walls, anywhere on the plot and free of the house; a door drawn on one
+## becomes a gate.
+##
 ## The tool bar sits at the bottom of the screen with fixed sizes, so a tool or
 ## a stage never reshapes it.
 
 const KIND := "bauplan"
-## How far the camera looks past the plot's middle (metres), to lift the plot above the tool bar.
-const VIEW_SHIFT := 4.0
+## Space kept free between the plot and the screen edges or the tool bar (pixels).
+const FRAME_MARGIN := 24.0
+## How far the camera may be pulled back to fit a big plot, and how fast (metres).
+const FRAME_PULL_LIMIT := 90.0
+const FRAME_PULL_STEP := 1.5
 const TOOL_WALL := "wall"
 const TOOL_DOOR := "door"
 const TOOL_WINDOW := "window"
@@ -29,7 +36,10 @@ const TOOL_DIG := "dig"
 const TOOL_STAIRS := "stairs"
 ## The cellar ceiling, which is the ground floor's floor too (see HouseSketch.COVER).
 const TOOL_COVER := "cover"
-const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_ERASE]
+const TOOL_FENCE := "fence"
+const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_ERASE]
+## Tools that drag a straight run of edges.
+const RUN_TOOLS := [TOOL_WALL, TOOL_FENCE]
 ## The cellar's tools (their own row in the tool bar).
 const CELLAR_TOOLS := [TOOL_DIG, TOOL_STAIRS, TOOL_COVER]
 ## Floors, roofs and the stairs up: they work on the level chosen with the
@@ -58,6 +68,10 @@ const GRID_COLOR := Color(0.7, 0.85, 1.0, 0.35)
 const WALL_COLOR := Color(0.55, 0.75, 1.0, 0.4)
 const DOOR_COLOR := Color(1.0, 0.8, 0.4, 0.55)
 const WINDOW_COLOR := Color(0.6, 0.95, 1.0, 0.5)
+const FENCE_COLOR := Color(0.7, 0.95, 0.55, 0.45)
+const FENCE_NAMES := {"stone": "aus Stein", "wood": "aus Holz"}
+const FENCE_THICK := 0.3
+const GATE_POST := 0.3
 const OK_COLOR := Color(0.4, 0.95, 0.4, 0.55)
 const BAD_COLOR := Color(1.0, 0.4, 0.35, 0.55)
 const STAGES := ["plan", "build", "done"]
@@ -114,10 +128,12 @@ var _covered := {}
 var _fade_state := ""
 var _wall_button: Button
 var _ceiling_button: Button
+var _fence_button: Button
 var _redo_button: Button
 var _status: Label
 var _hover_key := ""
 var _refresh_in := 0.0
+var _frame_wait := 0.0
 
 
 func _ready() -> void:
@@ -141,6 +157,7 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	_update_fade()
 	if active:
+		frame_zoom(delta)
 		# The bag changes behind the open bar (blocks picked up, material handed in).
 		_refresh_in -= delta
 		if _refresh_in <= 0.0:
@@ -264,16 +281,72 @@ func enter() -> void:
 
 
 ## Where the camera looks while the tool is open: the middle of the plot, moved
-## so that the plot clears the tool bar (see Game._process).
+## so that the plot's middle sits in the middle of the screen above the tool bar
+## (see Game._process). Big plots do not fit at the usual zoom: `frame_zoom` pulls
+## the camera back until they do.
 func view_centre() -> Vector3:
 	var mid := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
-	return Vector3(mid.x, 0.0, mid.z + VIEW_SHIFT)
+	var free := _free_area()
+	var a = game._mouse_to_floor(game.get_viewport().get_visible_rect().get_center())
+	var b = game._mouse_to_floor(free.get_center())
+	if a == null or b == null:
+		return mid
+	return mid + Vector3(a.x - b.x, 0.0, a.z - b.z)
+
+
+## The part of the screen the plot may use: everything above the tool bar.
+func _free_area() -> Rect2:
+	var view: Rect2 = game.get_viewport().get_visible_rect()
+	var top := view.end.y
+	if _bar != null and _bar.visible:
+		top = minf(top, _bar.get_global_rect().position.y)
+	return Rect2(view.position, Vector2(view.size.x, top - view.position.y)).grow(-FRAME_MARGIN)
+
+
+## Whether the whole plot is inside the free area on screen at the current zoom.
+func plot_fits() -> bool:
+	if plan == null:
+		return true
+	var free := _free_area()
+	var n := plan.nodes()
+	for corner in [Vector2i(0, 0), Vector2i(n.x, 0), Vector2i(0, n.y), n]:
+		if not free.has_point(game.camera.unproject_position(plan.node_world(corner.x, corner.y))):
+			return false
+	return true
+
+
+## Called every frame while the tool is open: pulls the camera back, a little at a
+## time, while the plot does not fit, so every edge (the north one too) can be clicked.
+## A plot that fits with room to spare lets the camera come back in.
+func frame_zoom(delta: float) -> void:
+	_frame_wait -= delta
+	if _frame_wait > 0.0:
+		return
+	_frame_wait = 0.05
+	if not plot_fits():
+		game.frame_pull = minf(game.frame_pull + FRAME_PULL_STEP, FRAME_PULL_LIMIT)
+	elif game.frame_pull > 0.0 and _roomy():
+		game.frame_pull = maxf(game.frame_pull - FRAME_PULL_STEP, 0.0)
+
+
+## Whether the plot takes up less than four fifths of the free area in both directions.
+func _roomy() -> bool:
+	var free := _free_area()
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var n := plan.nodes()
+	for corner in [Vector2i(0, 0), Vector2i(n.x, 0), Vector2i(0, n.y), n]:
+		var p: Vector2 = game.camera.unproject_position(plan.node_world(corner.x, corner.y))
+		lo = lo.min(p)
+		hi = hi.max(p)
+	return hi.x - lo.x < free.size.x * 0.8 and hi.y - lo.y < free.size.y * 0.8
 
 
 func leave() -> void:
 	if not active:
 		return
 	active = false
+	game.frame_pull = 0.0
 	drag_from = Vector2i(-1, -1)
 	_grid.visible = false
 	_bar.visible = false
@@ -290,6 +363,9 @@ func cancel_drag() -> void:
 
 func select_tool(next: String) -> void:
 	tool = next
+	# Garden walls stand on the ground: the level follows the tool.
+	if next == TOOL_FENCE:
+		storey = 0
 	drag_from = Vector2i(-1, -1)
 	_clear(_ghost)
 	_update_bar()
@@ -374,7 +450,7 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 				_changed()
 				_say(Lang.t("Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
-	if tool == TOOL_WALL:
+	if tool in RUN_TOOLS:
 		if pressed:
 			drag_from = plan.node_at(point)
 			hover(point)
@@ -384,7 +460,7 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			_clear(_ghost)
 			if run.is_empty():
 				return
-			var n := plan.sketch(run, HouseSketch.WALL, storey)
+			var n := plan.sketch(run, plan.fence_kind(), 0) if tool == TOOL_FENCE else plan.sketch(run, HouseSketch.WALL, storey)
 			_changed()
 			if n == 0:
 				_say(Lang.t("Dort steht schon eine Wand."))
@@ -411,11 +487,12 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			_say(Lang.t("Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück."))
 		_changed()
 		return
-	var why := plan.problem(edge[0], edge[1], edge[2], tool, storey)
+	var kind := plan.door_kind(edge[0], edge[1], edge[2], storey) if tool == TOOL_DOOR else tool
+	var why := plan.problem(edge[0], edge[1], edge[2], kind, storey)
 	if why != "":
 		_say(reason(why))
 		return
-	plan.sketch([edge], tool, storey)
+	plan.sketch([edge], kind, storey)
 	_changed()
 
 
@@ -449,7 +526,7 @@ func hover(point: Vector3) -> void:
 					_cell_quad(_ghost, cell, OK_COLOR)
 			_say("")
 		return
-	if tool == TOOL_WALL:
+	if tool in RUN_TOOLS:
 		var to := plan.node_at(point)
 		var from := drag_from if drag_from.x >= 0 else to
 		key = "w:%s:%s" % [from, to]
@@ -459,11 +536,13 @@ func hover(point: Vector3) -> void:
 		_clear(_ghost)
 		if drag_from.x >= 0:
 			var run := plan.run_between(from, to)
-			_lift = storey * HouseSketch.STOREY_HEIGHT
+			var fence := tool == TOOL_FENCE
+			_lift = 0.0 if fence else storey * HouseSketch.STOREY_HEIGHT
 			for e in run:
-				_segment(_ghost, e, HouseSketch.WALL, OK_COLOR)
+				_segment(_ghost, e, plan.fence_kind() if fence else HouseSketch.WALL, OK_COLOR)
 			_lift = 0.0
-			_say(Lang.t("Wand: %d m") % int(run.size() * HouseSketch.CELL) if not run.is_empty() else "")
+			var label := "Gartenmauer: %d m" if fence else "Wand: %d m"
+			_say(Lang.t(label) % int(run.size() * HouseSketch.CELL) if not run.is_empty() else "")
 		else:
 			_marker(_ghost, to)
 		return
@@ -489,8 +568,9 @@ func hover(point: Vector3) -> void:
 		_segment(_ghost, edge, piece_here.get("kind", HouseSketch.WALL), DEMOLISH_COLOR if piece_here.state != HouseSketch.SKETCH else OK_COLOR)
 		_lift = 0.0
 		return
-	var why := plan.problem(edge[0], edge[1], edge[2], tool, storey)
-	_segment(_ghost, edge, tool, OK_COLOR if why == "" else BAD_COLOR)
+	var kind := plan.door_kind(edge[0], edge[1], edge[2], storey) if tool == TOOL_DOOR else tool
+	var why := plan.problem(edge[0], edge[1], edge[2], kind, storey)
+	_segment(_ghost, edge, kind, OK_COLOR if why == "" else BAD_COLOR)
 	_lift = 0.0
 	_say(reason(why) if why != "" else "")
 
@@ -519,6 +599,10 @@ static func reason(why: String) -> String:
 			return Lang.t("Das liegt außerhalb deines Grundstücks.")
 		"needs wall":
 			return Lang.t("Hier fehlt eine Wand: Zeichne erst die Wand.")
+		"needs fence":
+			return Lang.t("Ein Gartentor braucht eine Gartenmauer.")
+		"garden storey":
+			return Lang.t("Gartenmauern stehen auf dem Boden.")
 		"built":
 			return Lang.t("Das ist schon gebaut. Reiß es mit dem Radierer ab, um es zu ändern.")
 		"taken":
@@ -579,15 +663,16 @@ func _build_bar() -> void:
 	_bar.add_child(box)
 	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
 	var tools := _row(box)
-	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_ERASE: "Radierer"}
+	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_ERASE: "Radierer"}
 	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
 	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe", TOOL_COVER: "Kellerdecke"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_ERASE]:
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
 		_tool_buttons[t] = b
-	# Row 2: the level the tools work on, the surfaces of the cellar, undo and redo.
+	# Row 2: the level the tools work on, the surfaces of the cellar, the
+	# material of garden walls, undo and redo.
 	var options := _row(box)
 	_level_button = _small_button("", cycle_level, 210)
 	options.add_child(_level_button)
@@ -597,6 +682,8 @@ func _build_bar() -> void:
 	options.add_child(_wall_button)
 	_ceiling_button = _small_button("", cycle_ceiling, 190)
 	options.add_child(_ceiling_button)
+	_fence_button = _small_button("", cycle_fence, 190)
+	options.add_child(_fence_button)
 	_undo_button = _small_button(Lang.t("Rückgängig"), undo)
 	options.add_child(_undo_button)
 	_redo_button = _small_button(Lang.t("Wiederholen"), redo)
@@ -678,6 +765,7 @@ func _update_bar() -> void:
 		_floor_button.text = Lang.t("Kellerboden: %s") % Lang.t(SURFACE_NAMES[plan.floor_surface])
 		_wall_button.text = Lang.t("Kellerwände: %s") % Lang.t(SURFACE_NAMES[plan.wall_surface])
 		_ceiling_button.text = Lang.t("Kellerdecke: %s") % Lang.t(SURFACE_NAMES[plan.ceiling_surface])
+		_fence_button.text = Lang.t("Gartenmauer: %s") % Lang.t(FENCE_NAMES[plan.fence_material])
 		_status.text = _hint()
 		var have := plan.stock
 		var short := plan.missing()
@@ -718,6 +806,14 @@ func cycle_ceiling() -> void:
 	if plan == null:
 		return
 	plan.ceiling_surface = HouseSketch.CEILINGS[(HouseSketch.CEILINGS.find(plan.ceiling_surface) + 1) % HouseSketch.CEILINGS.size()]
+	_changed()
+
+
+## What the next garden walls are made of: stone or timber.
+func cycle_fence() -> void:
+	if plan == null:
+		return
+	plan.fence_material = "wood" if plan.fence_material == "stone" else "stone"
 	_changed()
 
 
@@ -768,7 +864,9 @@ func _hint() -> String:
 		TOOL_WALL:
 			return Lang.t("Wand: Maustaste halten und auf dem Raster ziehen. Rechtsklick oder Esc beendet.")
 		TOOL_DOOR:
-			return Lang.t("Tür: Klicke eine Wand an.")
+			return Lang.t("Tür: Klicke eine Wand an. In einer Gartenmauer wird sie zum Gartentor.")
+		TOOL_FENCE:
+			return Lang.t("Gartenmauer: Ziehe sie frei auf dem Grundstück, zwei Blöcke hoch. Eine Tür darin wird zum Tor.")
 		TOOL_WINDOW:
 			return Lang.t("Fenster: Klicke eine Wand an.")
 		TOOL_DIG:
@@ -884,10 +982,10 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 		var middle := house.cell_world(c.x, c.y)
 		var is_dig: bool = piece.kind == HouseSketch.DIG
 		if is_dig:
-			var floor_mat := _solid_material(DEMOLISH_COLOR if demolish else _surface_color(piece.get("floor", "")))
+			var floor_mat := _surface_material(piece.get("floor", ""), demolish)
 			_visual_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), floor_mat)
 			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
-		var wall_mat := _solid_material(DEMOLISH_COLOR if demolish else _surface_color(piece.get("wall", "") if is_dig else ""))
+		var wall_mat := _surface_material(piece.get("wall", "") if is_dig else "", demolish)
 		for dir in HouseSketch.DOWN:
 			var step: Vector2i = HouseSketch.DOWN[dir]
 			if open.has(c + step):
@@ -1078,6 +1176,16 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 		_body.add_child(shape)
 
 
+## The material of a cellar floor or wall: bare earth looks like real dug soil
+## (see BareEarth), stone and wood keep their colour.
+func _surface_material(surface: String, demolish: bool) -> StandardMaterial3D:
+	if demolish:
+		return _solid_material(DEMOLISH_COLOR)
+	if surface == "":
+		return BareEarth.material()
+	return _solid_material(_surface_color(surface))
+
+
 func _surface_color(surface: String) -> Color:
 	match surface:
 		"stone":
@@ -1109,6 +1217,9 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 	var flat := Vector3(HouseSketch.CELL + THICK, 0, THICK) if along_x else Vector3(THICK, 0, HouseSketch.CELL + THICK)
 	var stone := _solid_material(DEMOLISH_COLOR if demolish else STONE_COLOR)
 	var wood := _solid_material(DEMOLISH_COLOR if demolish else WOOD_COLOR)
+	if HouseSketch.FENCE_KINDS.has(kind):
+		_solid_fence(mid, along_x, kind, demolish)
+		return
 	match kind:
 		HouseSketch.DOOR:
 			var jamb := Vector3(0.3, DOOR_HEIGHT, 0.3)
@@ -1128,6 +1239,29 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
 		_:
 			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+
+
+## A built garden wall: a low stone wall, a board fence between two posts, or
+## a gate (two posts and an open way between them).
+func _solid_fence(mid: Vector3, along_x: bool, kind: String, demolish: bool) -> void:
+	var high := HouseSketch.FENCE_HEIGHT
+	var span := HouseSketch.CELL * 0.5
+	var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
+	var post := Vector3(GATE_POST, high + 0.2, GATE_POST)
+	var wood := _solid_material(DEMOLISH_COLOR if demolish else WOOD_COLOR)
+	match kind:
+		HouseSketch.STONE_FENCE:
+			var flat := Vector3(HouseSketch.CELL + FENCE_THICK, high, FENCE_THICK) if along_x else Vector3(FENCE_THICK, high, HouseSketch.CELL + FENCE_THICK)
+			_solid_box(mid + Vector3(0, high * 0.5, 0), flat, _solid_material(DEMOLISH_COLOR if demolish else STONE_COLOR))
+		HouseSketch.WOOD_FENCE:
+			var boards := Vector3(HouseSketch.CELL, high - 0.1, 0.1) if along_x else Vector3(0.1, high - 0.1, HouseSketch.CELL)
+			_solid_box(mid + Vector3(0, (high - 0.1) * 0.5, 0), boards, _solid_material(DEMOLISH_COLOR if demolish else PLANK_COLOR))
+			for sign_ in [-1.0, 1.0]:
+				_solid_box(mid + step * sign_ + Vector3(0, high * 0.5, 0), Vector3(0.18, high, 0.18), wood)
+		_:
+			var inner := step - (Vector3(GATE_POST * 0.5, 0, 0) if along_x else Vector3(0, 0, GATE_POST * 0.5))
+			for sign_ in [-1.0, 1.0]:
+				_solid_box(mid + inner * sign_ + Vector3(0, post.y * 0.5, 0), post, wood)
 
 
 func _solid_box(at: Vector3, size: Vector3, mat: Material) -> void:
@@ -1193,9 +1327,19 @@ func _segment(parent: Node3D, edge: Array, kind: String, tint: Color) -> void:
 	var size_flat := Vector3(HouseSketch.CELL + THICK, 0, THICK) if along_x else Vector3(THICK, 0, HouseSketch.CELL + THICK)
 	var colour := tint
 	if tint.a == 0.0:
-		colour = {HouseSketch.WALL: WALL_COLOR, HouseSketch.DOOR: DOOR_COLOR, HouseSketch.WINDOW: WINDOW_COLOR}[kind]
+		colour = {HouseSketch.WALL: WALL_COLOR, HouseSketch.DOOR: DOOR_COLOR, HouseSketch.WINDOW: WINDOW_COLOR,
+				HouseSketch.STONE_FENCE: FENCE_COLOR, HouseSketch.WOOD_FENCE: FENCE_COLOR, HouseSketch.GATE: DOOR_COLOR}[kind]
 	var mat := _material(colour)
+	var low := HouseSketch.FENCE_HEIGHT
 	match kind:
+		HouseSketch.STONE_FENCE, HouseSketch.WOOD_FENCE:
+			var thick := Vector3(HouseSketch.CELL + FENCE_THICK, 0, FENCE_THICK) if along_x else Vector3(FENCE_THICK, 0, HouseSketch.CELL + FENCE_THICK)
+			_box(parent, mid + Vector3(0, low * 0.5, 0), thick + Vector3(0, low, 0), mat)
+		HouseSketch.GATE:
+			var span := HouseSketch.CELL * 0.5 - GATE_POST * 0.5
+			var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
+			for sign_ in [-1.0, 1.0]:
+				_box(parent, mid + step * sign_ + Vector3(0, (low + 0.2) * 0.5, 0), Vector3(GATE_POST, low + 0.2, GATE_POST), mat)
 		HouseSketch.DOOR:
 			# Two jambs and a lintel over the opening.
 			var jamb := Vector3(0.25, DOOR_HEIGHT, 0.25)

@@ -286,6 +286,9 @@ var _shake := 0.0
 ## 0 is the normal view from above, 1 the close view; _zoom eases toward the target.
 var _zoom := 0.0
 var _zoom_target := 0.0
+## Metres the camera is pulled further back than the zoom says (the blueprint tool uses it
+## to fit a big plot on screen, see HouseSketcher.frame_zoom).
+var frame_pull := 0.0
 
 var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
@@ -533,7 +536,14 @@ func _bus_links() -> Array:
 		[bus.treasure_map_found, treasure_maps.read],
 		[bus.village_alarmed, _ring_bell],
 		[bus.village_alarmed, _close_villager_window],
+		[bus.plot_registered, _clear_plot],
 	]
+
+
+## A plot was registered: the open map clears what reaches into it (see Outdoor.clear_plot).
+func _clear_plot(rect: Rect2i) -> void:
+	if level is Outdoor:
+		(level as Outdoor).clear_plot(rect)
 
 
 ## The warning bell tolls (see Events.village_alarmed, VillageBell).
@@ -1786,6 +1796,8 @@ func _use_station(s: Dictionary) -> void:
 		_mine_crystals(s)
 	elif s.kind == QuarryRocks.KIND:
 		_break_stone(s)
+	elif s.kind == WoodLogs.KIND:
+		_chop_wood(s)
 	elif s.has("npc") and _villager_unavailable(s):
 		pass
 	elif s.has("npc"):
@@ -1898,7 +1910,7 @@ func _break_stone(s: Dictionary) -> void:
 		return
 	if s.get("digging", false):
 		return
-	if player.bag_used() >= player.bag_size():
+	if not player.bag_fits(QuarryRocks.STONE):
 		player.play("Idle")
 		show_message(Lang.t("Deine Tasche ist voll."), 2.0)
 		return
@@ -1912,7 +1924,7 @@ func _break_stone(s: Dictionary) -> void:
 	if level == null or not level.stations.has(s):
 		return
 	var count := 0
-	while count < QuarryRocks.STONE_YIELD and player.bag_used() < player.bag_size():
+	while count < QuarryRocks.STONE_YIELD and player.bag_fits(QuarryRocks.STONE):
 		player.bag.append(QuarryRocks.STONE)
 		count += 1
 	if count == 0 or not QuarryRocks.mark_broken(level, s, day):
@@ -1920,6 +1932,43 @@ func _break_stone(s: Dictionary) -> void:
 	Sfx.play(self, "gear_soft_0", -2.0, s.pos)
 	Effects.loot_text(level, s.pos + Vector3(0, 1.8, 0), "+%d %s" % [count, Items.item_name(QuarryRocks.STONE)], Color(0.75, 0.73, 0.7), DamageNumber.item_worth(QuarryRocks.STONE))
 	Events.found(Lang.t("%d Steinblöcke aus dem Steinbruch liegen in deiner Tasche.") % count, Color(0.75, 0.73, 0.7))
+	_update_hud()
+
+
+## Running into a felled trunk beside the woodcutter or a windfall in the woods:
+## two blows of the axe, then it gives its timber (as many pieces as fit in the
+## bag) and only its stump is left until the next morning (see WoodLogs). A full
+## bag leaves the trunk whole.
+func _chop_wood(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	if s.spent:
+		player.play("Idle")
+		show_message(Lang.t("Hier ist nur noch ein Stumpf. Bis zum nächsten Morgen liegt hier wieder ein Stamm."), 2.4)
+		return
+	if s.get("digging", false):
+		return
+	if not player.bag_fits(WoodLogs.TIMBER):
+		player.play("Idle")
+		show_message(Lang.t("Deine Tasche ist voll."), 2.0)
+		return
+	s.digging = true
+	player.path.clear()
+	for blow in 2:
+		player.play_once(Player.STRIKE_ANIM, DIG_BLOW * (2 - blow))
+		Sfx.play(self, "hit", -8.0, s.pos, 0.6 + blow * 0.1)
+		await get_tree().create_timer(DIG_BLOW).timeout
+	s.digging = false
+	if level == null or not level.stations.has(s):
+		return
+	var count := 0
+	while count < WoodLogs.TIMBER_YIELD and player.bag_fits(WoodLogs.TIMBER):
+		player.bag.append(WoodLogs.TIMBER)
+		count += 1
+	if count == 0 or not WoodLogs.mark_chopped(level, s, day):
+		return
+	Sfx.play(self, "gear_soft_0", -2.0, s.pos)
+	Effects.loot_text(level, s.pos + Vector3(0, 1.8, 0), "+%d %s" % [count, Items.item_name(WoodLogs.TIMBER)], WoodLogs.SAPWOOD, DamageNumber.item_worth(WoodLogs.TIMBER))
+	Events.found(Lang.t("%d Bauholz liegen in deiner Tasche.") % count, WoodLogs.SAPWOOD)
 	_update_hud()
 
 
@@ -2259,7 +2308,7 @@ func take_stone(stone: StoneBlock = null) -> String:
 		return Lang.t("Kein freier Steinblock in Reichweite.")
 	if stone.heavy:
 		return push_stone(stone)
-	if player.bag_used() >= player.bag_size():
+	if not player.bag_fits(Menus.STONE):
 		return Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg.")
 	player.path.clear()
 	player.face(stone.global_position - player.global_position)
@@ -2779,6 +2828,7 @@ func _new_day(quiet := false) -> void:
 		# Mined crystal clusters grow back with the morning.
 		Mines.refresh_crystals(level, day, true)
 		QuarryRocks.refresh(level, day, true)
+		WoodLogs.refresh(level, day, true)
 	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
@@ -3064,6 +3114,7 @@ func load_level(index: int, restock := true) -> void:
 	_slimes_fresh = false
 	Mines.refresh_crystals(level, day)
 	QuarryRocks.refresh(level, day)
+	WoodLogs.refresh(level, day)
 	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
@@ -7124,7 +7175,7 @@ func _autosave() -> void:
 
 func _camera_offset() -> Vector3:
 	var pitch := deg_to_rad(lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
-	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom)
+	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom) + frame_pull
 	# Up close the camera looks at the hero's chest instead of the feet.
 	return Vector3(0, sin(pitch), cos(pitch)) * distance + Vector3(0, lerpf(1.0, 1.6, _zoom), 0)
 
@@ -7320,6 +7371,7 @@ func _process(delta: float) -> void:
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
+			WoodLogs.KIND: Lang.t("Dagegenlaufen, um Bauholz zu hacken"),
 			HouseSketcher.KIND: Lang.t("Dagegenlaufen, um den Bauplan deines Hauses zu zeichnen"),
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",

@@ -1,0 +1,1 @@
+- Falling snow now shows only where light reaches it: at night the flakes catch the moon (barely at all under a thin crescent), lamps, torches and your lantern.

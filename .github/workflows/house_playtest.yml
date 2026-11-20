@@ -28,7 +28,7 @@ env:
 jobs:
   house-playtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -56,7 +56,7 @@ jobs:
       - name: Play the house-building flow
         run: |
           mkdir -p shots
-          SHOTS=$PWD/shots timeout 1500 xvfb-run -a -s "-screen 0 1280x720x24" \
+          SHOTS=$PWD/shots timeout 2400 xvfb-run -a -s "-screen 0 1280x720x24" \
             ~/godot/godot --rendering-driver opengl3 --fixed-fps 60 -s tests/house_playtest.gd | tee test.log
           grep -aq "^PASS" test.log
 

@@ -304,6 +304,10 @@ var _chop_face := Vector3.FORWARD
 var _chips: CPUParticles3D
 var _bitten := false
 var _stuck := 0.0
+## Notices a walk that gets nowhere (see StuckWatch). The walk given up then is kept in
+## `_retry` ({goal, speed, then}) and taken up again once StuckWatch.REST seconds of standing are over.
+var _stuck_watch := StuckWatch.new()
+var _retry: Dictionary = {}
 ## How long this villager has stood too close to someone (see _keep_apart).
 var _crowded := 0.0
 ## The smith's hammer on its way back up after a blow (the swing played
@@ -671,6 +675,8 @@ func _start(task: String, time: float) -> void:
 	if _task == "frozen" and task != "frozen" and FrozenFritz.wants(level, true):
 		return
 	_task = task
+	_retry = {}
+	_stuck_watch.reset()
 	if task != "mend":
 		_wield_wall_hammer(false)
 	if task != "frozen" and _ice != null:
@@ -1695,6 +1701,8 @@ func _separation() -> Vector3:
 
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
 	_path.clear()
+	_retry = {}
+	_stuck_watch.reset()
 	var from := level.world_to_cell(global_position)
 	for c in level.grid_path(from, level.world_to_cell(target)).slice(1):
 		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER), 0, _rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER)))
@@ -1782,6 +1790,7 @@ func _physics_process(delta: float) -> void:
 			return
 		"walk":
 			_walk(delta, hero)
+			_mind_progress(delta)
 		"mend":
 			_mend(delta)
 		"defend":
@@ -1803,6 +1812,11 @@ func _physics_process(delta: float) -> void:
 			play(_info.work if _chat_sitting else "Idle")
 	_task_time -= delta
 	if _task != "walk" and _task_time <= 0.0:
+		if _task == "idle" and not _retry.is_empty():
+			# Stood still after getting stuck (see _mind_progress): the same walk again.
+			var again := _retry
+			_walk_to(again.goal, again.speed, again.then)
+			return
 		if _task == "listen":
 			# The news is out: back to the day's work.
 			_listen_to = Vector3.INF
@@ -1810,6 +1824,23 @@ func _physics_process(delta: float) -> void:
 		_next_task()
 	if role == "0" and hero.global_position.distance_to(global_position) < 8.0:
 		_turn_to(hero.global_position - global_position, delta)
+
+
+## A walk that keeps the legs going but gets no closer (on the spot against something in
+## the way, round and round a path point; see StuckWatch) is given up: the villager stands
+## idle for StuckWatch.REST seconds, then sets off for the same place again.
+func _mind_progress(delta: float) -> void:
+	if _task != "walk" or _path.is_empty():
+		_stuck_watch.reset()
+		return
+	var goal: Vector3 = _path.back()
+	if not _stuck_watch.tick(goal, StuckWatch.remaining(global_position, _path), delta):
+		return
+	var again := {"goal": goal, "speed": _speed, "then": get_meta("then", "idle")}
+	_path.clear()
+	_start("idle", StuckWatch.REST)
+	play("Idle")
+	_retry = again
 
 
 ## The children's game (see KidPlay): chasing each other, cartwheels and somersaults.

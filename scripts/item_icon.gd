@@ -437,6 +437,16 @@ func _draw() -> void:
 				var a := PI + PI * i / 16.0
 				body.append(p.call(0.5 + cos(a) * 0.36, 0.92 + sin(a) * 0.4))
 			draw_colored_polygon(body, GOLDEN)
+		"goddess":
+			# A household goddess: wings spread behind a robed figure, a halo round her head.
+			var wing := Color(0.95, 0.78, 0.4)
+			for side: float in [-1.0, 1.0]:
+				draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.42), p.call(0.5 + side * 0.46, 0.12),
+						p.call(0.5 + side * 0.42, 0.38), p.call(0.5 + side * 0.36, 0.6), p.call(0.5 + side * 0.08, 0.66)]), wing)
+			var marble := Color(0.95, 0.92, 0.86)
+			draw_colored_polygon(PackedVector2Array([p.call(0.42, 0.36), p.call(0.58, 0.36), p.call(0.72, 0.94), p.call(0.28, 0.94)]), marble)
+			draw_circle(p.call(0.5, 0.24), u * 0.1, marble)
+			draw_arc(p.call(0.5, 0.24), u * 0.16, 0.0, TAU, 20, GOLDEN, u * 0.04, true)
 		"house":
 			# A house with a gable roof and a door: home.
 			draw_colored_polygon(PackedVector2Array([p.call(0.06, 0.5), p.call(0.5, 0.1), p.call(0.94, 0.5)]), GOLDEN)

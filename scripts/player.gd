@@ -2259,11 +2259,14 @@ var _regen_clock := 0.0
 const REGEN_PAUSE_AFTER_HIT := 1.5
 ## Seconds left before healing goes on after the last blow.
 var _regen_pause := 0.0
+## Life per second on top of the hero's own recovery, healed steadily: the blessing of the
+## household goddess in their own house (see HouseholdGods, set by Game._update_house_blessing).
+var bonus_regen := 0.0
 
 
 ## Life per second, averaged over the interval (shown in the HUD and character page).
 func life_regen() -> float:
-	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL
+	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL + bonus_regen
 
 
 ## Whether a fresh hit is holding the healing back for now.
@@ -2282,11 +2285,11 @@ func _regenerate(delta: float) -> void:
 	if _regen_pause > 0.0:
 		_regen_pause = maxf(0.0, _regen_pause - delta)
 		return
+	_regen += bonus_regen * delta
 	_regen_clock += delta
-	if _regen_clock < REGEN_INTERVAL:
-		return
-	_regen_clock -= REGEN_INTERVAL
-	_regen += attribute("konstitution") / REGEN_PER_CON_DIVISOR
+	if _regen_clock >= REGEN_INTERVAL:
+		_regen_clock -= REGEN_INTERVAL
+		_regen += attribute("konstitution") / REGEN_PER_CON_DIVISOR
 	if _regen >= 1.0:
 		var whole := floori(_regen)
 		_regen -= whole

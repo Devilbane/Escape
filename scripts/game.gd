@@ -108,6 +108,11 @@ var _weather_look := Weather.look(Weather.CLEAR)
 var _shelter := 0.0
 ## How long the view takes to move in or out of the weather (real seconds).
 const SHELTER_FADE := 0.3
+## The household goddess whose blessing the hero has now, inside their own house with her
+## shrine ("" elsewhere, see HouseholdGods), and how often that is looked at (seconds).
+var house_goddess := ""
+var _house_blessing_clock := 0.0
+const HOUSE_BLESSING_CHECK := 0.25
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -2788,6 +2793,10 @@ func _clock_text() -> String:
 func _tick_clock(delta: float) -> void:
 	if level == null:
 		return
+	_house_blessing_clock -= delta
+	if _house_blessing_clock <= 0.0:
+		_house_blessing_clock = HOUSE_BLESSING_CHECK
+		_update_house_blessing()
 	_soundscape.tick(self, delta)
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
@@ -4437,6 +4446,8 @@ func rest_till_morning() -> void:
 	if state != State.PLAYING:
 		return
 	state = State.TRANSITION
+	# Lying down in the hero's own house, under a household goddess's blessing.
+	var goddess := HouseholdGods.active(self)
 	player.frozen = true
 	player.path.clear()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
@@ -4451,7 +4462,7 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
-		_rest_injury()
+		_rest_injury(goddess)
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
@@ -4592,10 +4603,11 @@ func stay_awake() -> void:
 	menus.open("laden")
 
 
-## A night of rest mends what a rescue left (see Injury).
-func _rest_injury() -> void:
+## A night of rest mends what a rescue left (see Injury); in a bed of the hero's own house under
+## a household goddess who mends (see HouseholdGods), the night counts for more.
+func _rest_injury(goddess := "") -> void:
 	var had := player.injury
-	if had != "" and Injury.rest(player):
+	if had != "" and Injury.rest(player, HouseholdGods.rest_nights(goddess)):
 		Events.tell(Lang.t("Deine Verletzung ist verheilt."), Color(0.55, 1.0, 0.6))
 		_update_hud()
 	elif had != "":
@@ -4607,8 +4619,13 @@ func _rest_injury() -> void:
 ## logs out.
 func sleep(at_camp_now := false) -> void:
 	at_camp_now = at_camp_now and has_camp()
-	# A night in the bed: the hero wakes up the next morning.
-	_rest_injury()
+	# A night in the bed: the hero wakes up the next morning. In their own house a household
+	# goddess may bless the night (see HouseholdGods): wounds mend faster, and with her life per
+	# second the hero wakes up with full life.
+	var goddess := "" if at_camp_now else HouseholdGods.active(self)
+	_rest_injury(goddess)
+	if HouseholdGods.perk(goddess, "regen") > 0.0:
+		player.hp = player.max_hp
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
@@ -5547,7 +5564,25 @@ func hero_boons() -> Array:
 		out.append([VillageRun.KIND, VillageRun.countdown(player.ailments[VillageRun.KIND])])
 	if player.hardening > 0 or player.armour_value > 0:
 		out.append(["hardening", str(player.hardening)])
+	if house_goddess != "":
+		out.append([HouseholdGods.KIND, ""])
 	return out
+
+
+## The blessing of the household goddess (see HouseholdGods): on while the hero is inside their
+## own house with her shrine, off as soon as they leave it. Her life per second goes onto the
+## hero's own recovery (see Player.bonus_regen), and her icon shows among the boons.
+func _update_house_blessing() -> void:
+	if player == null:
+		return
+	var goddess := HouseholdGods.active(self)
+	player.bonus_regen = HouseholdGods.perk(goddess, "regen")
+	if goddess == house_goddess:
+		return
+	house_goddess = goddess
+	if goddess != "":
+		Events.teach(HouseholdGods.LEARN)
+	_update_hud()
 
 
 ## Faster than normal from gifts, level or Tempo (leaving out the curse's and
@@ -5582,6 +5617,7 @@ func icon_text(kind: String, number: String) -> String:
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		VillageRun.KIND: return Lang.t("Protected: nothing can hurt you for %s more. Run to the village and follow the way!") % VillageRun.long_countdown(player.ailments.get(VillageRun.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
+		HouseholdGods.KIND: return HouseholdGods.blessing_text(house_goddess)
 		"fast":
 			var text := Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 			if player.base_speed_capped:

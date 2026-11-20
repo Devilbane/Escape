@@ -121,11 +121,12 @@ static func nights_left(hero: Player) -> int:
 	return 0 if need <= 0 else maxi(1, need - hero.injury_rest)
 
 
-## One night's rest. Returns true when the injury mended with it.
-static func rest(hero: Player) -> bool:
+## One night's rest, counting for `count` nights (more than one under a household goddess who
+## mends, see HouseholdGods.rest_nights). Returns true when the injury mended with it.
+static func rest(hero: Player, count := 1) -> bool:
 	if hero.injury == "" or nights(hero.injury, hero.injury_severity) <= 0:
 		return false
-	hero.injury_rest += 1
+	hero.injury_rest += maxi(1, count)
 	if hero.injury_rest >= nights(hero.injury, hero.injury_severity):
 		heal(hero)
 		return true

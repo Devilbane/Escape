@@ -7217,6 +7217,10 @@ func _process(delta: float) -> void:
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
 	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
 	var target := p + _camera_offset()
+	if house_sketcher != null and house_sketcher.active:
+		# The blueprint tool looks at the whole plot, a little above the middle so
+		# the tool bar at the bottom does not hide its near edge.
+		target = house_sketcher.view_centre() + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.

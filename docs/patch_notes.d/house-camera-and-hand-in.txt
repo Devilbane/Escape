@@ -1,0 +1,1 @@
+- House building: the camera now frames your whole plot above the tool bar, and Hand in material works as soon as you pick up blocks.

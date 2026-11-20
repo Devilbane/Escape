@@ -1,0 +1,68 @@
+name: House playtest
+
+# Plays the whole house-building flow with real mouse and keyboard events under a virtual
+# display (tests/house_playtest.gd) and keeps the screenshots as an artifact. It takes about
+# 8 minutes, so it runs only when a change touches the house builder, and on demand
+# (Actions > House playtest > Run workflow). It is not part of the required `tests` check.
+
+on:
+  pull_request:
+    paths:
+      - "scripts/house_*.gd"
+      - "scripts/plot*.gd"
+      - "scripts/game.gd"
+      - "tests/house_playtest.gd"
+      - ".github/workflows/house_playtest.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: house-playtest-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  house-playtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Godot from the cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-editor
+
+      - name: Install Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
+
+      - name: Install a virtual display and a software GL driver
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri libglx-mesa0
+
+      - name: Import the project
+        run: ~/godot/godot --headless --import
+
+      - name: Play the house-building flow
+        run: |
+          mkdir -p shots
+          SHOTS=$PWD/shots timeout 1500 xvfb-run -a -s "-screen 0 1280x720x24" \
+            ~/godot/godot --rendering-driver opengl3 --fixed-fps 60 -s tests/house_playtest.gd | tee test.log
+          grep -aq "^PASS" test.log
+
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: house-playtest-screenshots
+          path: shots

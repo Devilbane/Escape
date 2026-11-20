@@ -19,6 +19,8 @@ extends Node3D
 ## a stage never reshapes it.
 
 const KIND := "bauplan"
+## How far the camera looks past the plot's middle (metres), to lift the plot above the tool bar.
+const VIEW_SHIFT := 4.0
 const TOOL_WALL := "wall"
 const TOOL_DOOR := "door"
 const TOOL_WINDOW := "window"
@@ -111,6 +113,7 @@ var _wall_button: Button
 var _redo_button: Button
 var _status: Label
 var _hover_key := ""
+var _refresh_in := 0.0
 
 
 func _ready() -> void:
@@ -133,6 +136,12 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_update_fade()
+	if active:
+		# The bag changes behind the open bar (blocks picked up, material handed in).
+		_refresh_in -= delta
+		if _refresh_in <= 0.0:
+			_refresh_in = 0.25
+			_update_bar()
 	if plan == null or not plan.ordered or game.state != game.State.PLAYING or not game.player.can_act():
 		return
 	var middle := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
@@ -248,6 +257,13 @@ func enter() -> void:
 	select_tool(TOOL_WALL)
 	game.show_message(Lang.t("Bauplan: Ziehe Wände auf dem Raster. Das Haus darf kleiner sein als das Grundstück."), 4.0)
 	_update_bar()
+
+
+## Where the camera looks while the tool is open: the middle of the plot, moved
+## so that the plot clears the tool bar (see Game._process).
+func view_centre() -> Vector3:
+	var mid := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
+	return Vector3(mid.x, 0.0, mid.z + VIEW_SHIFT)
 
 
 func leave() -> void:

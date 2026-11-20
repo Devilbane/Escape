@@ -107,7 +107,7 @@ func _run() -> void:
 	sketcher.mouse(spot, true, MOUSE_BUTTON_LEFT)
 	sketcher.mouse(spot, false, MOUSE_BUTTON_LEFT)
 	check(plan.ballista_at(1, 1, 0).get("state", "") == HouseSketch.SKETCH, "a click plans a ballista")
-	check(bar_width <= 1280.0, "the tool bar still fits the screen (%d px)" % bar_width)
+	check(bar_width <= 1280.0 - 16.0, "the tool bar still fits the screen (%d px)" % bar_width)
 	plan.deposit("steinblock", 2)
 	plan.deposit("bauholz", 6)
 	plan.ordered = true

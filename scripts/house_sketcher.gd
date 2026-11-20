@@ -826,10 +826,12 @@ func _build_bar() -> void:
 		add_child(_bar)
 
 
+## A row of the bar. Its buttons stand 4 px apart (the house spacing scale), so
+## the tool row with every tool still fits 1280 px in German.
 func _row(parent: Control) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 5)
+	row.add_theme_constant_override("separation", 4)
 	parent.add_child(row)
 	return row
 

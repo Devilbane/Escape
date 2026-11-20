@@ -215,6 +215,7 @@ ui_wheel.gd | 120 | fixed | passfail | the mouse wheel over an open window scrol
 village_bell.gd | 120 | fixed | passfail | village's warning bell (tools/make_bell_sounds.py,
 village_talk.gd | 120 | fixed | passfail | villagers talking to each other (see VillageTalk):
 town_meals.gd | 300 | free | passfail | Shared meals: the townsfolk come one by one, sit at the tables on the square, talk and leave
+meal_garland.gd | 200 | free | passfail | Dining-area frame: tall ivy poles and ropes with lamps round the tables, lit at night, clear of every path
 villager_post.gd | 120 | fixed | passfail | villager windows stay shut during an alarm or away from the post (VillagerPost)
 wall_caps.gd | 120 | fixed | passfail | wall caps (WallCaps): every dungeon wall that touches a room gets
 war_horn.gd | 120 | fixed | passfail | village's alarm horn (tools/make_horn_sounds.py,

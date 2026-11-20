@@ -360,6 +360,15 @@ const STEP_UP := Crate.SIZE + 0.15
 const GRAB_REACH := 0.7
 ## Seconds a climb onto a crate takes.
 const CLIMB_TIME := 0.35
+var _climb_time := CLIMB_TIME
+## A hero in a dug pit (see HouseSketch) with no stairs scrambles out: pushing
+## against the pit wall for PIT_PUSH_TIME seconds starts a PIT_CLIMB_TIME climb
+## onto the ground beyond it.
+const PIT_DEPTH := 1.2
+const PIT_PUSH_TIME := 0.5
+const PIT_CLIMB_TIME := 1.1
+var _pit_push := 0.0
+var _pit_hinted := false
 var _climb := -1.0
 var _climb_from := Vector3.ZERO
 var _climb_to := Vector3.ZERO
@@ -2769,6 +2778,7 @@ func _try_climb(dir: Vector3) -> bool:
 			continue
 		_climb_from = global_position
 		_climb_to = target
+		_climb_time = CLIMB_TIME
 		_climb = 0.0
 		_air_momentum = Vector3.ZERO
 		velocity = Vector3.ZERO
@@ -2780,11 +2790,58 @@ func _try_climb(dir: Vector3) -> bool:
 	return false
 
 
+## True when the hero stands in a dug pit deep enough that a jump cannot clear it.
+func in_pit() -> bool:
+	return global_position.y <= -PIT_DEPTH and is_on_floor()
+
+
+## Scrambles out of a pit with no stairs: pushing against its wall for a moment
+## pulls the hero up onto the ground beyond (a slow climb, so stairs stay the
+## quick way). Returns true when the climb starts.
+func _try_climb_out(dir: Vector3, delta: float) -> bool:
+	if not in_pit():
+		_pit_push = 0.0
+		return false
+	var push := dir.normalized()
+	var wall := false
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		if absf(hit.get_normal().y) < 0.5 and push.dot(-hit.get_normal()) > 0.5 and not hit.get_collider() is Enemy:
+			wall = true
+			break
+	if dir == Vector3.ZERO or not wall:
+		_pit_push = 0.0
+		return false
+	if not _pit_hinted:
+		_pit_hinted = true
+		Events.tell(Lang.t("Keine Treppe: Halte dich an der Wand, dann kletterst du aus der Grube."), Color(0.8, 0.85, 1.0))
+	_pit_push += delta
+	if _pit_push < PIT_PUSH_TIME:
+		return false
+	var target := Vector3(global_position.x, 0.02, global_position.z) + push * (radius + 0.6)
+	var ground := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target + Vector3(0, 1.0, 0), target - Vector3(0, 0.3, 0), 0xFFFFFFFF, [get_rid()]))
+	if ground.is_empty() or not _room_at(target):
+		return false
+	_pit_push = 0.0
+	_climb_from = global_position
+	_climb_to = target
+	_climb_time = PIT_CLIMB_TIME
+	_climb = 0.0
+	_air_momentum = Vector3.ZERO
+	velocity = Vector3.ZERO
+	face(target - global_position)
+	_current_anim = ""
+	play("Jump_Idle", 0.1)
+	train("geschick", 0.5)
+	return true
+
+
 ## Lifts the hero onto the top of a crate or block set down under them: the
 ## same pull-up as a climb, to `target` (feet there).
 func lift_onto(target: Vector3) -> void:
 	_climb_from = global_position
 	_climb_to = target
+	_climb_time = CLIMB_TIME
 	_climb = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -2811,7 +2868,7 @@ func _room_at(spot: Vector3) -> bool:
 
 ## One step of a climb: up first, then over the edge onto the top.
 func _climb_step(delta: float) -> void:
-	_climb = minf(1.0, _climb + delta / CLIMB_TIME)
+	_climb = minf(1.0, _climb + delta / _climb_time)
 	var up := smoothstep(0.0, 0.65, _climb)
 	var over := smoothstep(0.3, 1.0, _climb)
 	var p := _climb_from.lerp(_climb_to, over)
@@ -2974,7 +3031,7 @@ func _physics_process(delta: float) -> void:
 					_engage(enemy)
 				elif not hit.get_collider() is Crate:
 					bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
-	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and _try_climb(dir):
+	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and (_try_climb(dir) or _try_climb_out(dir, delta)):
 		return
 	if dir != Vector3.ZERO and (_anim_hold <= 0.0 or _jump_windup > 0.0):
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))

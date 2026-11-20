@@ -188,6 +188,9 @@ var _new_door: BuiltDoor
 
 func _ready() -> void:
 	add_child(_built)
+	# The built house's walls, roofs and floors stop the light of its torches and
+	# candles (see LightShadows).
+	_solid.set_meta(LightShadows.WALL, true)
 	add_child(_solid)
 	add_child(_body)
 	add_child(_ghost)

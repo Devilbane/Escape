@@ -3378,7 +3378,7 @@ func load_level(index: int, restock := true) -> void:
 	# frame, and the time that takes does not count (see LevelWarmup). The
 	# lamps round the hero cast their shadows from that frame on, so their
 	# shaders are built in it too (see LightShadows).
-	light_shadows.refresh()
+	light_shadows.refresh(true)
 	LevelWarmup.begin(level)
 
 

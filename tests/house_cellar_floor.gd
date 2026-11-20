@@ -67,6 +67,11 @@ func _process(_delta: float) -> bool:
 	var h := _height_at(ramp)
 	check(h < -0.5 and h > -HouseSketch.DEPTH + 0.5, "the ramp slopes between the two (is %f)" % h)
 	check(absf(_height_at(plan.node_world(1, 3) + Vector3(0.05, 0, 1.0))) < 0.4, "the ramp starts level with the ground")
+	var snow_material: ShaderMaterial = game.level.snow.material
+	check(snow_material.get_shader_parameter("holes_on") == true, "the snow keeps off the dug squares")
+	var mask: Image = (snow_material.get_shader_parameter("hole_mask") as Texture2D).get_image()
+	var cell := Vector2i(floori((pit.x + game.level.TILE * 0.5) / 2.0), floori((pit.z + game.level.TILE * 0.5) / 2.0))
+	check(mask.get_pixelv(cell).r > 0.5, "the snow mask is open over the pit")
 	print("PASS: house cellar floor" if failures == 0 else "FAILED: %d" % failures)
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())

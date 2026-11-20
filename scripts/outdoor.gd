@@ -704,6 +704,9 @@ func set_floor_holes(holes: Array) -> void:
 	if _ground_mat != null:
 		_ground_mat.set_shader_parameter("hole_mask", ImageTexture.create_from_image(mask))
 		_ground_mat.set_shader_parameter("holes_on", not lattice.is_empty())
+	# The snow keeps off the dug squares too.
+	if snow != null:
+		snow.set_holes(ImageTexture.create_from_image(mask) if not lattice.is_empty() else null)
 	if lattice.is_empty():
 		plane.plane = Plane(Vector3.UP, 0.0)
 		return

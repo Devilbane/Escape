@@ -65,6 +65,13 @@ func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Ar
 	material.set_shader_parameter("tile", tile)
 
 
+## Keeps the snow off the cellars the hero has dug: `mask` has a pixel for each 2 m cell of the
+## map (null when nothing is dug).
+func set_holes(mask: Texture2D) -> void:
+	material.set_shader_parameter("hole_mask", mask)
+	material.set_shader_parameter("holes_on", mask != null)
+
+
 ## Where something burns: no snow settles within the radius (w) round each point (xyz), so fires,
 ## the forge's coals and its chimney, and the smoking chimneys stay clear. At most WARM_MAX.
 func set_warm(spots: Array[Vector4]) -> void:

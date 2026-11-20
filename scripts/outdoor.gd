@@ -907,7 +907,7 @@ func _tree_material(mat: Material, wind := true) -> Material:
 		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
 		var turn := IvySeasons.tree_turn(_tree_stage)
 		bark.set_shader_parameter("autumn", turn.x)
-		bark.set_shader_parameter("wither", turn.y)
+		bark.set_shader_parameter("snowy", turn.y)
 		_scenes[key] = bark
 	return _scenes[key]
 
@@ -3617,7 +3617,7 @@ func set_season(day_of_season: int) -> void:
 	for key in _scenes:
 		if String(key).begins_with("mat_tree_"):
 			(_scenes[key] as ShaderMaterial).set_shader_parameter("autumn", turn.x)
-			(_scenes[key] as ShaderMaterial).set_shader_parameter("wither", turn.y)
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("snowy", turn.y)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

@@ -1,0 +1,1 @@
+- Blueprint: set a door, window or garden gate straight into a wall that is already built, with no tearing down and no material.

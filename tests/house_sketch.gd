@@ -43,7 +43,7 @@ func _initialize() -> void:
 	check(s.undo() and s.has_piece(1, 1, "x"), "undo takes the erased wall back")
 	# Built pieces stay.
 	s.pieces[HouseSketch.key_of(3, 1, "x")].state = "built"
-	check(s.problem(3, 1, "x", "window") == "built", "a built piece is not sketched over")
+	check(s.problem(3, 1, "x", "wall") == "built", "a built piece is not sketched over")
 	check(s.erase([[3, 1, "x"]]) == 1 and s.piece(3, 1, "x").state == "demolish", "a built piece is marked for demolition")
 	check(s.erase([[3, 1, "x"]]) == 1 and s.piece(3, 1, "x").state == "built", "erasing again keeps it")
 	# The character builds: materials, order, and what is done first.
@@ -92,6 +92,7 @@ func _initialize() -> void:
 		undone += 1
 	check(undone <= HouseSketch.UNDO_LIMIT, "undo remembers a limited number of steps")
 	_garden()
+	_rebuild()
 	if failures == 0:
 		print("PASS: house sketch")
 	else:
@@ -124,3 +125,52 @@ func _garden() -> void:
 	HouseSketch.reload()
 	var back := HouseSketch.of("Garden test", g.plot)
 	check(back.count("stone_fence") == 2 and back.count("gate") == 1 and back.fence_material == "wood", "the garden and its material are saved")
+
+
+## A door, window or gate set straight into a built wall: no tearing down, no material.
+func _rebuild() -> void:
+	var r := HouseSketch.new()
+	r.plot = Rect2i(0, 0, 3, 3)
+	r.sketch([[0, 0, "x"], [1, 0, "x"]], "wall")
+	r.sketch([[0, 2, "x"]], "stone_fence")
+	for key in r.pieces:
+		r.pieces[key].state = "built"
+	r.stock = {"steinblock": 0, "bauholz": 0}
+	check(r.problem(0, 0, "x", "door") == "" and r.problem(1, 0, "x", "window") == "", "a door or window fits in a built wall")
+	check(r.problem(0, 2, "x", "gate") == "" and r.problem(0, 2, "x", "door") == "needs wall", "a gate fits in a built garden wall, a house door does not")
+	check(r.sketch([[0, 0, "x"]], "door") == 1, "the door goes in at once")
+	var p := r.piece(0, 0, "x")
+	check(p.kind == "wall" and p.state == "built" and p.into == "door", "the wall keeps standing until it is rebuilt")
+	check(r.stage() == "plan" and r.open_pieces() == 1, "the rebuild is open work")
+	check(r.needs().is_empty() and r.missing().is_empty(), "a rebuild needs no material")
+	check(r.sketch([[0, 0, "x"]], "door") == 0, "the same door again changes nothing")
+	check(r.sketch([[0, 0, "x"]], "window") == 1 and r.piece(0, 0, "x").into == "window", "a window instead of the door")
+	check(r.undo() and r.piece(0, 0, "x").into == "door", "undo goes back to the door")
+	check(r.sketch([[0, 0, "x"]], "wall") == 0, "the wall tool leaves a built piece alone")
+	# Erasing calls the rebuild off; only a second erase tears down.
+	check(r.erase([[0, 0, "x"]]) == 1 and not r.piece(0, 0, "x").has("into") and r.piece(0, 0, "x").state == "built", "erasing calls the rebuild off")
+	check(r.open_pieces() == 0, "nothing left to do")
+	r.sketch([[0, 0, "x"]], "door")
+	r.sketch([[0, 2, "x"]], "gate")
+	# The books keep a planned rebuild.
+	r.save("Rebuild test")
+	HouseSketch.reload()
+	var back := HouseSketch.of("Rebuild test", r.plot)
+	check(back.piece(0, 0, "x").get("into", "") == "door" and back.piece(0, 2, "x").get("into", "") == "gate", "a planned rebuild is saved")
+	# The hero rebuilds with no material in stock.
+	check(back.order(), "the rebuild can be ordered")
+	var done := []
+	for i in 4:
+		var did := back.build_next()
+		if not did.is_empty():
+			done.append(did.kind)
+	check(done == ["door", "gate"], "the door is rebuilt before the garden gate")
+	check(back.piece(0, 0, "x") == {"kind": "door", "state": "built"}, "the wall is a door now")
+	check(back.count("gate", "built") == 1 and back.open_pieces() == 0, "and the garden wall a gate")
+	check(back.stock.get("steinblock", 0) == 0 and back.stock.get("bauholz", 0) == 0, "no material is taken or given")
+	# A door made a window loses its lock.
+	back.locked[HouseSketch.key_of(0, 0, "x")] = true
+	back.sketch([[0, 0, "x"]], "window")
+	back.order()
+	back.build_next()
+	check(back.piece(0, 0, "x").kind == "window" and back.locked.is_empty(), "a window has no lock")

@@ -287,7 +287,7 @@ var _shake := 0.0
 var _zoom := 0.0
 var _zoom_target := 0.0
 ## Metres the camera is pulled further back than the zoom says (the blueprint tool uses it
-## to fit a big plot on screen, see HouseSketcher.frame_zoom).
+## to fit a big plot on screen, see HouseSketcher.solve_frame).
 var frame_pull := 0.0
 
 var _hud: CanvasLayer

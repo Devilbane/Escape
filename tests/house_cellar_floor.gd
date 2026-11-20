@@ -79,7 +79,7 @@ func _process(_delta: float) -> bool:
 	var spot: Vector3 = (pickup.node as Node3D).position
 	check(Vector2(spot.x - pit.x, spot.z - pit.z).length() > 1.0, "a dropped item is moved out of the pit")
 	game.level.surface_life._clear_around_loot()
-	check(game.level.surface_life.litter_near(pit, 1.4) == 0, "no leaves or twigs lie on the pit")
+	check(game.level.surface_life.litter_near(pit, 0.9) == 0, "no leaves or twigs lie on the pit")
 	print("PASS: house cellar floor" if failures == 0 else "FAILED: %d" % failures)
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())

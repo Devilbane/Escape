@@ -1206,6 +1206,8 @@ func _redraw() -> void:
 	if game == null or not game.level is Outdoor:
 		return
 	game.level.reach_walls.clear()
+	game.level.built_windows.clear()
+	game.level.built_floors.clear()
 	# Everyone's built pieces stand on the map for all to see.
 	var holes := []
 	var floored := []
@@ -1389,6 +1391,7 @@ func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> v
 	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
 	mesh.set_meta("ymin", 0.0)
 	_cover(house, x, y, HouseSketch.CELLAR_STOREY)
+	_hide_under(house, x, y, -thick * 0.5)
 
 
 ## A floor on plain ground: the pen's planks or the square's flagstones laid on
@@ -1418,9 +1421,11 @@ func _solid_above(house: HouseSketch) -> void:
 				_floor_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab, "wood", demolish)
 				_collide(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab)
 				_cover(house, p[1], p[2], p[0])
+				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK * 0.5)
 			HouseSketch.SADDLE:
 				_saddle(mid, base + HouseSketch.SLAB_THICK, p[3] == "rx", demolish)
 				_cover(house, p[1], p[2], p[0])
+				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK + HouseSketch.ROOF_RISE * 0.5)
 			HouseSketch.UPSTAIRS:
 				_ramp(house, p[1], p[2], p[3], demolish, HouseSketch.STOREY_HEIGHT)
 			HouseSketch.LADDER:
@@ -1465,6 +1470,13 @@ func _ladder(house: HouseSketch, p: Array, parent: Node3D, mat: Material) -> Nod
 	spot.set_meta("top", f.edge + push * 0.7 + Vector3(0, f.high, 0))
 	parent.add_child(spot)
 	return spot
+
+
+## Tells the map that a floor or roof `height` high covers a cell of `house`, so
+## no monster sees, strikes or shoots through it (see Level.built_between).
+func _hide_under(house: HouseSketch, x: int, y: int, height: float) -> void:
+	var corner := house.node_world(x, y)
+	game.level.built_floors.append({"rect": Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL), "y": corner.y + height})
 
 
 ## One cell of pitched roof: two boards up to the ridge and a triangle at each end.
@@ -1678,6 +1690,10 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 		var b := a + (mid - a) * 2.0
 		game.level.reach_walls.append({"a": Vector2(a.x, a.z), "b": Vector2(b.x, b.z), "y": a.y + _lift,
 				"door": _new_door if kind == HouseSketch.DOOR else null})
+	elif kind == HouseSketch.WINDOW:
+		# Seen through, but no blow or shot goes through the pane (see Level.built_between).
+		var b := a + (mid - a) * 2.0
+		game.level.built_windows.append({"a": Vector2(a.x, a.z), "b": Vector2(b.x, b.z), "y": a.y + _lift})
 
 
 ## A doorway in a house wall: stone jambs of the temple's blocks from the

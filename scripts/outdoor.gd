@@ -25,6 +25,8 @@ extends Level
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
+##   π  a long dining table with benches and plates of food, where the
+##      townsfolk eat together at noon and at eight in the evening (see TownMeals)
 ##   More buildings: s  temple (a chapel)   k  office of the crown   o  post office
 ##   w  adventurers' guild   b  bank. A building turns its door to the square or path.
 ##   Villagers: 0 elder, 1 smith (melts, forges and mends gear at the forge
@@ -232,6 +234,8 @@ var animals: Array[Animal] = []
 var farm_animals: Array[FarmAnimal] = []
 ## The herald's call to arms against slimes in the village (see VillageAlarm).
 var village_alarm := VillageAlarm.new()
+## The shared lunch and dinner at the tables on the square (see TownMeals).
+var meals := TownMeals.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -1012,6 +1016,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)
+		TownMeals.LETTER:
+			meals.build_table(self, c)
 		"v":
 			_build_pedestal(c)
 		"!":
@@ -3415,6 +3421,7 @@ func _process(delta: float) -> void:
 		return
 	village_alarm.tick(self, delta)
 	village_wall.tick(self, delta)
+	meals.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

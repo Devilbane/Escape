@@ -150,6 +150,7 @@ const OUTDOOR := {
 	":": "paved square",
 	"F": "fountain (heals)",
 	"x": "bench",
+	"π": "dining table with benches and food: the townsfolk eat there at noon and at 8 pm (see TownMeals)",
 	"v": "stone pedestal with a food basket, crates close by",
 	"!": "bounty board",
 	"_": "village wall: a low stone wall, one brick per tile (1000 HP, see WallBrick and VillageWall)",

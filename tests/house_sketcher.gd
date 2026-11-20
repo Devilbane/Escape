@@ -1,6 +1,6 @@
 extends SceneTree
-## The blueprint tool on the open map (see HouseSketcher): the sign, entering,
-## drawing a wall by dragging, a door, the eraser and undo.
+## The blueprint tool on the open map (see HouseSketcher):
+## the blueprint button and the plot posts shown only while building, entering, drawing a wall by dragging, a door, the eraser and undo.
 
 var failures := 0
 var game: Node
@@ -47,9 +47,39 @@ func _process(_delta: float) -> bool:
 	check(Plots.register(game.level, game.hero_name, found) == "", "a plot is registered")
 	game.plot_marker.refresh()
 	check(sketcher.plan != null, "a plot brings a plan")
-	check(game.level.stations.any(func(s): return s.kind == HouseSketcher.KIND), "the plot has a blueprint sign")
-	sketcher.enter()
-	check(sketcher.active, "the tool opens at the sign")
+	check(not game.level.stations.any(func(s): return s.kind == HouseSketcher.KIND), "the plot has no blueprint sign any more")
+	var button: Button = game._blueprint_button
+	check(not game.plot_marker._deeds.visible, "the plot posts are hidden while not building")
+	# Far from the plot the button hides and does nothing.
+	game.player.global_position = game.level.cell_to_world(found.position + Vector2i(-40, -40))
+	game.update_blueprint_button()
+	check(not sketcher.hero_near(), "the hero is far from the plot")
+	check(not button.visible, "the blueprint button hides far from the plot")
+	check(sketcher.toggle() != "" and not sketcher.active, "far away the tool does not open")
+	# On the plot it shows and opens the tool.
+	game.player.global_position = game.level.cell_to_world(found.position + Vector2i(1, 1))
+	game.player.reset_physics_interpolation()
+	game.update_blueprint_button()
+	check(sketcher.hero_near(), "the hero stands on the plot")
+	check(button.visible and not button.button_pressed, "the blueprint button shows on the plot")
+	game.blueprint_action()
+	check(sketcher.active, "the blueprint button opens the tool")
+	check(button.button_pressed, "the button stays pressed while the tool is open")
+	game.plot_marker._process(0.0)
+	check(game.plot_marker._deeds.visible, "the plot posts show while building")
+	game.blueprint_action()
+	check(not sketcher.active and not button.button_pressed, "a second press closes the tool")
+	game.plot_marker._process(0.0)
+	check(not game.plot_marker._deeds.visible, "the plot posts hide again")
+	# Furnishing is reached from the tool, and the button closes it too.
+	game.blueprint_action()
+	sketcher.furnish()
+	game.update_blueprint_button()
+	check(game.house_furnisher.active and button.button_pressed, "the button stays pressed while furnishing")
+	game.blueprint_action()
+	check(not game.house_furnisher.active and not sketcher.active, "the button closes the furnishing tool")
+	game.blueprint_action()
+	check(sketcher.active, "the tool opens with the blueprint button")
 	var plan: HouseSketch = sketcher.plan
 	# Drag a wall: two cells east.
 	sketcher.select_tool(HouseSketcher.TOOL_WALL)

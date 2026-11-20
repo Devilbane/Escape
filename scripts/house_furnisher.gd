@@ -10,7 +10,7 @@ extends Node3D
 ## fireplace with its chimney breast (see HomeFireplace), the workshop's table and the benches
 ## of the crafting square (see CraftingSquare).
 ##
-## The tool opens from the blueprint tool's "Einrichten" button at the plot sign. It frames the
+## The tool opens from the blueprint tool's "Einrichten" button (the HUD's blueprint button opens that). It frames the
 ## plot like the blueprint tool, shows one storey at a time (the storeys above it fade away) and
 ## has a bar at the bottom with fixed sizes: one button per kind of furniture with the number
 ## waiting to be put down, the storey, turning, picking up, back to the blueprint and close. A

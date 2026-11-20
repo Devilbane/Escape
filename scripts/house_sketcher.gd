@@ -1059,6 +1059,7 @@ func _redraw() -> void:
 	var holes := []
 	var floored := []
 	var ceilinged := []
+	var built_ground := []
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
@@ -1078,7 +1079,11 @@ func _redraw() -> void:
 		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
 		_solid_ballistae(house)
+		built_ground.append_array(HouseGround.rects(house))
 	game.level.set_floor_holes(holes, ceilinged)
+	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
+	if (game.level as Outdoor).surface_life != null:
+		(game.level as Outdoor).surface_life.set_built(built_ground)
 	game.level.house_floors = HouseFloors.new(floored) if not floored.is_empty() else null
 	_raise_roofs()
 	if plan == null:

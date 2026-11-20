@@ -9,6 +9,10 @@ extends Node3D
 ##   open while someone stands in the doorway, and shuts by itself HOLD seconds
 ##   after the last one is through.
 ## - E next to it opens it and keeps it open, or shuts it (`use`).
+## - Of the monsters, only people (bandits and other humans, `DOOR_FAMILIES`)
+##   push an unlocked door open; slimes, beasts, the dead and every other
+##   monster are stopped by a shut door as by a wall, and get in only through
+##   a door someone else holds open.
 ## - The owner can lock it (Shift+E, `set_locked`): a locked door shows a
 ##   padlock on both faces and opens only for its owner and their companions,
 ##   so villagers, animals and monsters stay out.
@@ -29,6 +33,8 @@ const PUSH_REACH := 0.75
 const LEAF_THICK := 0.07
 const BOARDS := 5
 const FLOOR_GAP := 0.03
+## The monster families (see MonsterFamilies) clever enough to open a door.
+const DOOR_FAMILIES := ["bandits", "humans"]
 
 var width := 1.3
 var height := 2.4
@@ -109,9 +115,16 @@ func openness() -> float:
 
 ## Whether `body` may push the door open.
 func may_pass(body: Node) -> bool:
+	if body is Enemy and not opens_doors(body):
+		return false
 	if not locked:
 		return true
 	return own and hero != null and (body == hero or body is Pet)
+
+
+## Whether a monster knows how to open a door (people do; a slime does not).
+static func opens_doors(e: Enemy) -> bool:
+	return MonsterFamilies.family_of(e.kind) in DOOR_FAMILIES and not e.is_ghost() and not e.is_beast()
 
 
 ## The hero's E at the door: opens it and keeps it open, or shuts it. Returns

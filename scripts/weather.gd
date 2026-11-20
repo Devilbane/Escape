@@ -34,7 +34,7 @@ const KINDS := [CLEAR, RAIN, FOG, STORM, SNOW]
 ## least and at most (one hour is 50 real seconds, see DayNight.DAY_LENGTH).
 const MIN_HOURS := 1.5
 const MAX_HOURS := 3.5
-## Rain lasts long when it comes (it is rare, see RAIN_KEEP): twice as long as fog or a storm.
+## Rain lasts long when it comes: twice as long as fog or a storm.
 const RAIN_MIN_HOURS := 3.0
 const RAIN_MAX_HOURS := 7.0
 ## Snow falls only briefly: a flurry lasts this many hours of the day.
@@ -47,36 +47,61 @@ const CLEAR_MAX_HOURS := 8.0
 ## clear skies for this many hours.
 const FIRST_HOURS := 4.0
 
-## How likely each weather is to come next, by part of the day. The
-## weather never repeats (see roll), so after clear skies these weights only
-## pick which bad weather comes; after bad weather, clear skies win most
-## rolls.
-const CHANCES := {
-	"night": {CLEAR: 8.0, RAIN: 1.0, FOG: 2.0, STORM: 1.0},
-	"morning": {CLEAR: 8.0, RAIN: 0.75, FOG: 2.5, STORM: 0.25},
-	"day": {CLEAR: 14.0, RAIN: 1.5, FOG: 0.5, STORM: 0.5},
-	"evening": {CLEAR: 8.0, RAIN: 1.25, FOG: 0.5, STORM: 1.5},
-}
-
 ## The year: WINTER_DAYS of winter at the end of every YEAR_DAYS days (a new game starts on day
-## 0, so the first winter comes on day 24). Snow falls only in winter, and there is no rain and no
-## thunderstorm then: snow comes in their place, often, and the snow on the ground stays until spring.
+## 0, so the first winter comes on day 24). The days before autumn are split in half: spring first,
+## then summer (see season). There is no rain and no thunderstorm in winter: snow comes in their
+## place, often, and the snow on the ground stays until spring.
 const YEAR_DAYS := 32
 const WINTER_DAYS := 8
 ## The AUTUMN_DAYS before winter are autumn: the vines on the houses turn red and gold (see IvySeasons).
 const AUTUMN_DAYS := 8
-const WINTER_CHANCES := {
-	"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},
-	"morning": {CLEAR: 6.0, FOG: 2.5, SNOW: 4.0},
-	"day": {CLEAR: 8.0, FOG: 0.5, SNOW: 5.0},
-	"evening": {CLEAR: 6.0, FOG: 0.5, SNOW: 5.0},
+
+const SPRING := "spring"
+const SUMMER := "summer"
+const AUTUMN := "autumn"
+const WINTER := "winter"
+const SEASONS := [SPRING, SUMMER, AUTUMN, WINTER]
+
+## How likely each weather is to come next, by season and part of the day. The
+## weather never turns into itself, except that clear skies may stay clear (see
+## STAY_CLEAR); otherwise these weights pick which bad weather follows clear skies,
+## and after bad weather, clear skies win most rolls. Fog still gathers at night and
+## in the morning, and storms still brew in the evening.
+##   spring  mostly sunny, now and then rain, rarely fog, rarely a snow flurry;
+##   summer  the sunniest: thunderstorms (most on warm evenings), rarely rain or fog, no snow;
+##   autumn  changeable: sunny spells, rain, thunderstorms and fog, rarely a snow flurry;
+##   winter  snow instead of rain and storms, fog in the morning.
+const CHANCES := {
+	SPRING: {
+		"night": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.6, STORM: 0.15, SNOW: 0.3},
+		"morning": {CLEAR: 8.0, RAIN: 0.7, FOG: 0.8, STORM: 0.05, SNOW: 0.3},
+		"day": {CLEAR: 14.0, RAIN: 1.1, FOG: 0.2, STORM: 0.2, SNOW: 0.2},
+		"evening": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.3, STORM: 0.3, SNOW: 0.2},
+	},
+	SUMMER: {
+		"night": {CLEAR: 10.0, RAIN: 0.3, FOG: 0.3, STORM: 1.5},
+		"morning": {CLEAR: 10.0, RAIN: 0.2, FOG: 0.5, STORM: 0.3},
+		"day": {CLEAR: 16.0, RAIN: 0.3, FOG: 0.1, STORM: 1.0},
+		"evening": {CLEAR: 10.0, RAIN: 0.3, FOG: 0.1, STORM: 2.5},
+	},
+	AUTUMN: {
+		"night": {CLEAR: 6.0, RAIN: 2.5, FOG: 3.0, STORM: 1.5, SNOW: 0.3},
+		"morning": {CLEAR: 6.0, RAIN: 2.0, FOG: 4.0, STORM: 0.5, SNOW: 0.3},
+		"day": {CLEAR: 10.0, RAIN: 3.0, FOG: 1.0, STORM: 1.2, SNOW: 0.2},
+		"evening": {CLEAR: 6.0, RAIN: 2.5, FOG: 1.5, STORM: 2.0, SNOW: 0.2},
+	},
+	WINTER: {
+		"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},
+		"morning": {CLEAR: 6.0, FOG: 2.5, SNOW: 4.0},
+		"day": {CLEAR: 8.0, FOG: 0.5, SNOW: 5.0},
+		"evening": {CLEAR: 6.0, FOG: 0.5, SNOW: 5.0},
+	},
 }
 ## In winter the snow on the ground does not melt in dry weather at all: it lies until spring.
 
-## Rain is only a thirtieth as common as the weights above would make it: a roll
-## that lands on rain keeps it with this chance, and otherwise goes on to
-## another weather (fog, a storm, or clear skies after bad weather).
-const RAIN_KEEP := 1.0 / 30.0
+## When a clear spell ends, the chance that the sky simply stays clear for another
+## spell: this is what makes spring and summer sunnier than autumn and winter.
+const STAY_CLEAR := {SPRING: 0.5, SUMMER: 0.65, AUTUMN: 0.15, WINTER: 0.0}
 
 ## The look of each weather, laid over the light of the hour: how much of
 ## the sun (or moon) and of the ambient light is left, the colour
@@ -171,14 +196,14 @@ static func part_of_day(hour: float) -> String:
 	return "day"
 
 
-## Picks the next weather for an hour of the day. It is never the same as
-## the weather before, so every change can be seen.
-static func roll(hour: float, rng: RandomNumberGenerator, before := "", winter := false) -> String:
-	var chances: Dictionary = (WINTER_CHANCES if winter else CHANCES)[part_of_day(hour)]
-	var pick := _pick(chances, rng, before, "")
-	if pick == RAIN and rng.randf() >= RAIN_KEEP:
-		pick = _pick(chances, rng, before, RAIN)
-	return pick
+## Picks the next weather for an hour of the day in a season (see season). It is
+## never the same as the weather before, so every change can be seen, except that
+## clear skies may stay clear (see STAY_CLEAR).
+static func roll(hour: float, rng: RandomNumberGenerator, before := "", in_season := SPRING) -> String:
+	var table: Dictionary = CHANCES.get(in_season, CHANCES[SPRING])
+	if before == CLEAR and rng.randf() < float(STAY_CLEAR.get(in_season, 0.0)):
+		return CLEAR
+	return _pick(table[part_of_day(hour)], rng, before, "")
 
 
 ## One weighted pick among the weathers that are not `before` or `skip`.
@@ -207,6 +232,17 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 	if kind == RAIN:
 		return rng.randf_range(RAIN_MIN_HOURS, RAIN_MAX_HOURS)
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
+
+
+## The season of `day` (the game's count of days): SPRING, SUMMER, AUTUMN or WINTER.
+static func season(day: int) -> String:
+	if is_winter(day):
+		return WINTER
+	if is_autumn(day):
+		return AUTUMN
+	if posmod(day, YEAR_DAYS) < (YEAR_DAYS - WINTER_DAYS - AUTUMN_DAYS) / 2:
+		return SPRING
+	return SUMMER
 
 
 ## Whether `day` (the game's count of days) is in winter (see YEAR_DAYS).

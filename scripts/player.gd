@@ -2797,6 +2797,16 @@ func in_pit() -> bool:
 	return global_position.y <= -PIT_DEPTH and is_on_floor()
 
 
+## Whether something solid hangs over the hero's head up to the ground (a cellar
+## ceiling, see HouseSketch.COVER): no climbing out through it.
+func _under_ceiling() -> bool:
+	var from := global_position + Vector3(0, 1.0, 0)
+	if from.y >= 0.0:
+		return false
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, Vector3(from.x, 0.3, from.z), 0xFFFFFFFF, [get_rid()]))
+	return not hit.is_empty()
+
+
 ## The Klettern level the hero climbs with: nobody has less than Climbing.MIN_LEVEL.
 func climbing_level() -> int:
 	return maxi(Climbing.MIN_LEVEL, skill("klettern"))
@@ -2817,7 +2827,7 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 		if absf(hit.get_normal().y) < 0.5 and push.dot(-hit.get_normal()) > 0.5 and not hit.get_collider() is Enemy:
 			wall = true
 			break
-	if dir == Vector3.ZERO or not wall:
+	if dir == Vector3.ZERO or not wall or _under_ceiling():
 		_pit_push = 0.0
 		return false
 	if not _pit_hinted:

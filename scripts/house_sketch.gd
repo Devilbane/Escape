@@ -47,6 +47,18 @@ const KINDS := [WALL, DOOR, WINDOW, STONE_FENCE, WOOD_FENCE, GATE]
 const DIG := "dig"
 const STAIRS := "stairs"
 const CELLAR_KINDS := [DIG, STAIRS]
+## The cellar ceiling: one piece over a dug cell that is at once the cellar's
+## ceiling and the ground floor's floor, at ground level. It is keyed by the
+## cell, the cellar storey and the orient letter COVER_ORIENT, goes only over
+## dug cells and never over the stairs or the cell at their foot (so the way
+## down always stays open with room to stand up), and is made of wood or stone
+## (CEILINGS), never bare earth.
+const COVER := "cover"
+const COVER_ORIENT := "f"
+const CEILINGS := ["wood", "stone"]
+## How thick the cellar ceiling is: its top is the ground, so the cellar keeps
+## DEPTH - COVER_THICK of headroom under it, more than the hero is tall (Player.tall).
+const COVER_THICK := 0.15
 ## Above ground. A "slab" is the floor between two storeys, or a flat roof
 ## you can walk on, over one grid cell; it belongs to the storey below it (key
 ## storey 0: it is the ceiling of the ground floor and the floor of the upper
@@ -56,7 +68,7 @@ const CELLAR_KINDS := [DIG, STAIRS]
 const SLAB := "slab"
 const SADDLE := "saddle"
 const UPSTAIRS := "upstairs"
-const CELL_KINDS := [DIG, STAIRS, SLAB, SADDLE, UPSTAIRS]
+const CELL_KINDS := [DIG, STAIRS, COVER, SLAB, SADDLE, UPSTAIRS]
 const MAX_STOREY := 1
 ## From the floor of a storey to the floor of the next, and how thick a slab is.
 ## 3.2 m is four layers of stone blocks, so blocks stack evenly on a roof.
@@ -69,9 +81,9 @@ const CELL_ORIENT := "c"
 const DEPTH := 2.6
 ## Stairs go down towards east, west, north or south: letter -> step in cells.
 const DOWN := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0), "n": Vector2i(0, -1), "s": Vector2i(0, 1)}
-## Building order: dig first, then stairs, then walls before doors and windows.
+## Building order: dig first, then stairs and the cellar ceiling, then walls before doors and windows.
 ## The garden comes after the house.
-const BUILD_ORDER := [DIG, STAIRS, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE, STONE_FENCE, WOOD_FENCE, GATE]
+const BUILD_ORDER := [DIG, STAIRS, COVER, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE, STONE_FENCE, WOOD_FENCE, GATE]
 ## What covers the floor and the walls of dug cells: "" is the bare earth.
 const SURFACES := ["", "stone", "wood"]
 const SURFACE_COST := {"": {}, "stone": {"steinblock": 1}, "wood": {"bauholz": 1}}
@@ -91,6 +103,8 @@ const COST := {
 	# of a dug cell are added by cost_of.
 	DIG: {},
 	STAIRS: {TIMBER: 2},
+	# The cellar ceiling's material is added by cost_of (one per cell, like a slab).
+	COVER: {},
 	SLAB: {TIMBER: 1},
 	SADDLE: {TIMBER: 2},
 	UPSTAIRS: {TIMBER: 3},
@@ -119,6 +133,8 @@ var stock := {}
 ## What the next dug cells get on their floor and walls (see SURFACES).
 var floor_surface := ""
 var wall_surface := ""
+## What the next cellar ceiling is made of (see CEILINGS).
+var ceiling_surface := "wood"
 ## What the next garden walls are made of: "stone" or "wood" (see fence_kind).
 var fence_material := "stone"
 var _undo: Array = []
@@ -466,6 +482,8 @@ func problem_stairs(x: int, y: int, dir: String) -> String:
 			return "taken"
 	if not cell_in_plot(cells[2].x, cells[2].y) or not is_dug(cells[2].x, cells[2].y):
 		return "no cellar"
+	if not cover_at(cells[2].x, cells[2].y).is_empty():
+		return "covered"
 	return ""
 
 
@@ -515,11 +533,14 @@ func stairs_to(x: int, y: int) -> String:
 	return ""
 
 
-## Takes back or marks for filling in the cellar piece at a cell (a dug cell
-## or either cell of stairs). A dug cell the stairs lead down to stays until
-## the stairs are gone. Returns "" when something changed, or why not:
+## Takes back or marks for filling in the cellar piece at a cell (the cellar
+## ceiling first, then a dug cell or either cell of stairs). A dug cell the
+## stairs lead down to stays until the stairs are gone. Returns "" when something changed, or why not:
 ## "empty" or "needed".
 func erase_cell(x: int, y: int) -> String:
+	if not cover_at(x, y).is_empty() and cover_at(x, y).state != DEMOLISH:
+		erase([[x, y, COVER_ORIENT]], CELLAR_STOREY)
+		return ""
 	var key := hole_key(x, y)
 	if key == "":
 		return "empty"
@@ -552,18 +573,67 @@ func priority(key: String) -> int:
 	return int(p[0]) * 100 + BUILD_ORDER.find(pieces[key].kind)
 
 
-## Stairs are built only once the cell they lead to is, a railing only once a
-## slab beside it is.
+## Stairs are built only once the cell they lead to is, the cellar ceiling
+## only once the cell under it is dug, a railing only once a slab beside it is.
 func _can_build(key: String) -> bool:
 	var p := parts_of(key)
 	var end: Vector2i = stairs_cells(p[1], p[2], p[3])[2] if DOWN.has(p[3]) else Vector2i.ZERO
 	if pieces[key].kind == STAIRS:
 		return is_dug(end.x, end.y, true)
+	if pieces[key].kind == COVER:
+		return is_dug(p[1], p[2], true) and pieces[key_of(p[1], p[2], CELL_ORIENT, CELLAR_STOREY)].state == BUILT
 	if FENCE_KINDS.has(pieces[key].kind) and p[0] == RAIL_STOREY:
 		return roof_edge(p[1], p[2], p[3], true)
 	if pieces[key].kind == UPSTAIRS:
 		return not slab_at(end.x, end.y, p[0]).is_empty() and slab_at(end.x, end.y, p[0]).state != SKETCH
 	return true
+
+
+# --- The cellar ceiling --------------------------------------------------------
+
+## The cellar ceiling over a cell, or {}.
+func cover_at(x: int, y: int) -> Dictionary:
+	return pieces.get(key_of(x, y, COVER_ORIENT, CELLAR_STOREY), {})
+
+
+## Why a cellar ceiling cannot go over a cell, or "": it needs a dug cell (sketched
+## or dug, not marked for filling in) under it, so it never closes the stairs, and
+## it leaves the cell at the stairs' foot open ("stairs"): coming down the ramp
+## the hero needs the room overhead.
+func problem_cover(x: int, y: int) -> String:
+	if not cell_in_plot(x, y):
+		return "outside"
+	if not cover_at(x, y).is_empty():
+		return "taken"
+	var dug: Dictionary = pieces.get(key_of(x, y, CELL_ORIENT, CELLAR_STOREY), {})
+	if dug.is_empty() or dug.state == DEMOLISH:
+		return "no dig"
+	if stairs_to(x, y) != "":
+		return "stairs"
+	return ""
+
+
+## Sketches the cellar ceiling over cells (`cells` are [x, y, ...]) in the current
+## ceiling material, as one step. Cells that are not dug (the stairs, the ground
+## round the cellar) are left out. Returns how many changed.
+func sketch_cover(cells: Array) -> int:
+	var step := []
+	for c in cells:
+		if problem_cover(c[0], c[1]) != "":
+			continue
+		var key := key_of(c[0], c[1], COVER_ORIENT, CELLAR_STOREY)
+		var after := {"kind": COVER, "state": SKETCH, "surface": ceiling_surface}
+		pieces[key] = after
+		step.append({"key": key, "before": null, "after": after})
+	_push(step)
+	return step.size()
+
+
+## Whether the ground over a cell is closed by a built cellar ceiling (one marked
+## for removal still stands).
+func is_covered(x: int, y: int) -> bool:
+	var p := cover_at(x, y)
+	return not p.is_empty() and p.state != SKETCH
 
 
 # --- Floors, roofs and the stairs up -----------------------------------------------
@@ -658,13 +728,16 @@ func sketch_upstairs(x: int, y: int, dir: String) -> bool:
 
 
 ## Takes back or marks for removal the slab, saddle or stairs up at a cell of
-## a storey (the stairs cover two cells). A slab the stairs lead up to stays
+## a storey (the stairs cover two cells); on the ground floor with none of
+## them there, the cellar ceiling, which is the ground floor's floor. A slab the stairs lead up to stays
 ## until the stairs are gone. Returns "" when something changed or why not:
 ## "empty" or "needed".
 func erase_above(x: int, y: int, storey: int) -> String:
 	var key := roof_key(x, y, storey)
 	if key == "" and storey == 0:
 		key = up_key(x, y)
+	if key == "" and storey == 0 and not cover_at(x, y).is_empty():
+		key = key_of(x, y, COVER_ORIENT, CELLAR_STOREY)
 	if key == "":
 		return "empty"
 	var p := parts_of(key)
@@ -795,10 +868,15 @@ func deposit(id: String, count: int) -> void:
 		stock[id] = int(stock.get(id, 0)) + count
 
 
-## What one piece costs in materials: its kind's cost, and for a dug cell its
-## floor and wall surfaces (a piece without them costs the kind's cost only).
+## What one piece costs in materials: its kind's cost, for a dug cell its
+## floor and wall surfaces, and for the cellar ceiling its material (a piece
+## without them costs the kind's cost only).
 static func cost_of(p: Dictionary) -> Dictionary:
 	var out: Dictionary = COST[p.kind].duplicate()
+	if p.kind == COVER:
+		var made: Dictionary = SURFACE_COST.get(p.get("surface", "wood"), {})
+		for id in made:
+			out[id] = int(out.get(id, 0)) + int(made[id])
 	if p.kind == DIG:
 		for surface in [p.get("floor", ""), p.get("wall", "")]:
 			var extra: Dictionary = SURFACE_COST.get(surface, {})
@@ -833,16 +911,23 @@ func build_next() -> Dictionary:
 	if not ordered:
 		return {}
 	var result := {}
+	# A cellar ceiling comes down before the dug cell under it is filled in.
+	var doomed := []
 	for key in pieces:
 		if pieces[key].state == DEMOLISH:
-			var kind: String = pieces[key].kind
-			var refund := cost_of(pieces[key])
-			for id in refund:
-				stock[id] = int(stock.get(id, 0)) + int(refund[id])
-			pieces.erase(key)
-			var p := parts_of(key)
-			result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "demolished"}
-			break
+			if pieces[key].kind == COVER:
+				doomed.push_front(key)
+			else:
+				doomed.append(key)
+	if not doomed.is_empty():
+		var key: String = doomed[0]
+		var kind: String = pieces[key].kind
+		var refund := cost_of(pieces[key])
+		for id in refund:
+			stock[id] = int(stock.get(id, 0)) + int(refund[id])
+		pieces.erase(key)
+		var p := parts_of(key)
+		result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "demolished"}
 	if result.is_empty():
 		var chosen := ""
 		var best := 1 << 30
@@ -916,6 +1001,9 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 					elif str(p[0]) == DIG and p.size() == 4 and parts[0] == CELLAR_STOREY and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": DIG, "state": str(p[1]),
 								"floor": str(p[2]) if SURFACES.has(str(p[2])) else "", "wall": str(p[3]) if SURFACES.has(str(p[3])) else ""}
+					elif str(p[0]) == COVER and p.size() == 3 and parts[0] == CELLAR_STOREY and parts[3] == COVER_ORIENT \
+							and s.cell_in_plot(parts[1], parts[2]):
+						s.pieces[str(key)] = {"kind": COVER, "state": str(p[1]), "surface": str(p[2]) if CEILINGS.has(str(p[2])) else "wood"}
 					elif str(p[0]) == STAIRS and p.size() == 2 and DOWN.has(parts[3]) and parts[0] == CELLAR_STOREY \
 							and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": STAIRS, "state": str(p[1])}
@@ -930,6 +1018,9 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 			s.floor_surface = ""
 		if not SURFACES.has(s.wall_surface):
 			s.wall_surface = ""
+		s.ceiling_surface = str(saved.get("ceiling", "wood"))
+		if not CEILINGS.has(s.ceiling_surface):
+			s.ceiling_surface = "wood"
 	return s
 
 
@@ -939,6 +1030,12 @@ func save(hero: String) -> void:
 	var raw := {}
 	for key in pieces:
 		var p: Dictionary = pieces[key]
-		raw[key] = [p.kind, p.state, p.get("floor", ""), p.get("wall", "")] if p.kind == DIG else [p.kind, p.state]
-	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface, "fence": fence_material}
+		if p.kind == DIG:
+			raw[key] = [p.kind, p.state, p.get("floor", ""), p.get("wall", "")]
+		elif p.kind == COVER:
+			raw[key] = [p.kind, p.state, p.get("surface", "wood")]
+		else:
+			raw[key] = [p.kind, p.state]
+	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface,
+			"ceiling": ceiling_surface, "fence": fence_material}
 	Storage.write(RECORD, {"houses": _books})

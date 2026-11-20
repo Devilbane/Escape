@@ -1,0 +1,1 @@
+- Lightning bolts now flash a little longer as a sharp zig-zag with forks.

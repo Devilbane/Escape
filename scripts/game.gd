@@ -83,6 +83,7 @@ var level_files: Array[String] = []
 var level_index := 0
 var level: Level
 var player: Player
+var light_shadows: LightShadows
 var camera: Camera3D
 var _env: Environment
 var _moon: DirectionalLight3D
@@ -665,6 +666,10 @@ func _ready() -> void:
 	coop.changed.connect(func(): if menus.current == CoopWindow.KIND: menus._rebuild())
 	player = Player.new()
 	add_child(player)
+	# Walls block the light of the lamps near the hero (see LightShadows).
+	light_shadows = LightShadows.new()
+	light_shadows.focus = player
+	add_child(light_shadows)
 	player.set_display_name(hero_name)
 	# The hand torch speaks through the message line (see HandTorch).
 	player.torch.notice.connect(func(text: String, duration: float):
@@ -3332,7 +3337,10 @@ func load_level(index: int, restock := true) -> void:
 	_snap_camera()
 	_update_hud()
 	# Every shader the new level needs is built in its first, still dark
-	# frame, and the time that takes does not count (see LevelWarmup).
+	# frame, and the time that takes does not count (see LevelWarmup). The
+	# lamps round the hero cast their shadows from that frame on, so their
+	# shaders are built in it too (see LightShadows).
+	light_shadows.refresh()
 	LevelWarmup.begin(level)
 
 

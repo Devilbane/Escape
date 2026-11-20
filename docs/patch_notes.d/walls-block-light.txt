@@ -1,0 +1,1 @@
+- Walls now block the light of torches, candles, fireplaces and lamps, and house wall torches sit flat on the wall.

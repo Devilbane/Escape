@@ -24,7 +24,7 @@ const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Ka
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
 	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
 	"schrein_maija": "Schrein: Maija",
-	"blumenbeet": "Blumenbeet", "blumenkuebel": "Kübel", "gartenfackel": "Stabfackel", "gartenlaterne": "Laterne", "grill": "Grill"}
+	"blumenbeet": "Blumenbeet", "blumenkuebel": "Kübel", "gartenfackel": "Stabfackel", "gartenlaterne": "Laterne", "grill": "Grill", AppleTree.KIND: "Apfelbaum"}
 ## The tool bar's second row: light, the walls and the shrines; the garden has the third. Everything
 ## else is on the first.
 const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
@@ -57,6 +57,10 @@ const FIRE_SCALE := 0.72
 const TABLE_SCALE := 0.8
 ## The season the garden's flowers were last drawn in (see GardenDecor.stage), -1 before.
 var _garden_stage := -1
+## The season day the garden was last drawn on, and whether an apple tree stands in any garden:
+## the trees grow and ripen by the day (see AppleTree), so they are drawn again when it turns.
+var _garden_day := -1
+var _has_trees := false
 ## Where the hero lies down in the bed, from its middle (see Game._climb_into_bed), and gets up.
 const BED_OFFSET := Vector3(-0.55, 0, -0.44)
 
@@ -114,7 +118,8 @@ func _exit_tree() -> void:
 func _process(_delta: float) -> void:
 	_fade()
 	# The flowers in the gardens follow the seasons.
-	if game != null and game.level is Outdoor and _garden_stage != GardenDecor.stage(game.level.season_day):
+	if game != null and game.level is Outdoor and (_garden_stage != GardenDecor.stage(game.level.season_day) \
+			or (_has_trees and _garden_day != game.level.season_day)):
 		refresh()
 	if not active:
 		return
@@ -156,6 +161,8 @@ func refresh() -> void:
 		child.queue_free()
 	furniture = HouseFurniture.of(game.hero_name)
 	_garden_stage = GardenDecor.stage(game.level.season_day)
+	_garden_day = game.level.season_day
+	_has_trees = false
 	var own := plan()
 	if own != null:
 		var moved := furniture.settle(own)
@@ -191,7 +198,9 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 	root.rotation.y = HouseFurniture.angle(p.rot)
 	root.set_meta("storey", p.storey)
 	_pieces.add_child(root)
-	var station := build_piece(root, p.kind)
+	var station := build_piece(root, p.kind, p)
+	if p.kind == AppleTree.KIND:
+		_has_trees = true
 	for box in root.get_meta("solids", []):
 		var shape := CollisionShape3D.new()
 		var b := BoxShape3D.new()
@@ -232,8 +241,9 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 
 ## Builds the model of a piece of `kind` into `root` (its front towards +z, its middle at the
 ## origin, on the floor). Notes its solids in the meta "solids" ({at, size}, local) and returns
-## its station without a position in the world yet ({} for a piece without one).
-func build_piece(root: Node3D, kind: String) -> Dictionary:
+## its station without a position in the world yet ({} for a piece without one). `piece` is the
+## placed piece (an apple tree grows by its age, see AppleTree); {} draws a new one.
+func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 	var level: Level = game.level
 	var info: Dictionary = HouseFurniture.KINDS[kind]
 	var solids := []
@@ -305,7 +315,11 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 		"bild_berge", "bild_see", "bild_drache":
 			_build_painting(root, int(info.painting))
 		_:
-			if info.get("garden", false):
+			if kind == AppleTree.KIND:
+				var day: int = (level as Outdoor).season_day if level is Outdoor else 0
+				solids.append_array(AppleTree.build(root, piece, day))
+				station.piece = {"storey": piece.get("storey", 0), "x": piece.get("x", 0), "y": piece.get("y", 0)}
+			elif info.get("garden", false):
 				var lights := []
 				solids.append_array(GardenDecor.build(root, kind, maxi(_garden_stage, 0), level, lights))
 				for l in lights:
@@ -535,7 +549,7 @@ func turn_placed(i: int) -> bool:
 		var r: int = (p.rot + step) % 4
 		var problem := furniture.problem(house, p.kind, p.storey, p.x, p.y, r)
 		if problem == "":
-			furniture.place(house, p.kind, p.storey, p.x, p.y, r)
+			furniture.place(house, p.kind, p.storey, p.x, p.y, r, p)
 			furniture.save(game.hero_name)
 			Sfx.play(game, "gear_soft_0", -4.0)
 			_say(Lang.t("%s gedreht.") % name)
@@ -624,7 +638,7 @@ func drop(point, screen := Vector2.INF) -> void:
 	var why := "same"
 	if moved and point != null and house != null:
 		hover(point)
-		why = furniture.place(house, held.kind, storey, _hover_cell.x, _hover_cell.y, rot)
+		why = furniture.place(house, held.kind, storey, _hover_cell.x, _hover_cell.y, rot, held)
 	if why == "":
 		Sfx.play(game, "gear_soft_0", -2.0)
 		_say(Lang.t("%s steht jetzt hier.") % name)
@@ -649,7 +663,7 @@ func cancel_drag() -> void:
 
 func _put_back(house: HouseSketch, held: Dictionary) -> void:
 	if house != null:
-		furniture.place(house, held.kind, held.storey, held.x, held.y, held.rot)
+		furniture.place(house, held.kind, held.storey, held.x, held.y, held.rot, held)
 
 
 func _end_drag(next_tool: String) -> void:
@@ -841,7 +855,9 @@ func click(point: Vector3) -> void:
 		_say(HouseFurniture.reason("taken"))
 		return
 	hover(point)
-	var why := furniture.place(house, tool, storey, _hover_cell.x, _hover_cell.y, rot)
+	# A tree put down from the store is planted today (see AppleTree).
+	var growth := {"planted": game.level.season_day} if tool == AppleTree.KIND else {}
+	var why := furniture.place(house, tool, storey, _hover_cell.x, _hover_cell.y, rot, growth)
 	if why != "":
 		_say(HouseFurniture.reason(why))
 		return

@@ -468,6 +468,8 @@ var _risen: Array = []
 var day := 0
 ## The day whose season counts (see set_season): the flowers in the gardens go by it too.
 var season_day := 0
+## The apple trees round the fountain (see AppleTree.plant_round_fountains).
+var square_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -592,6 +594,9 @@ func build() -> void:
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		IvySeasons.apply(ivy, day)
+	# Apple trees round the fountain, between the benches (before the birds take the square's spots).
+	square_trees = AppleTree.plant_round_fountains(self)
+	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -612,6 +617,8 @@ func build() -> void:
 	_build_wall_collision()
 	_build_rock_collision()
 	_setup_astar()
+	for t in square_trees:
+		astar.set_point_solid(t.cell, true)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.
 		var free: Array[Vector3] = []
@@ -3598,6 +3605,7 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
+	AppleTree.dress(square_trees, day_of_season)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

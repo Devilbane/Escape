@@ -16,9 +16,9 @@ const PHASE_ORDER := ["stand", "crouch", "reach", "hang", "pull", "knee", "kneel
 
 const POSES := {
 	"stand": {},
-	"crouch": {"hips_y": -0.16, "spine": 28.0, "chest": 6.0, "arm": -35.0, "elbow": 20.0, "hip_l": 70.0, "hip_r": 70.0, "knee_l": 100.0, "knee_r": 100.0},
-	"reach": {"spine": -4.0, "arm": 170.0, "hip_l": 25.0, "hip_r": 5.0, "knee_l": 55.0, "knee_r": 30.0},
-	"hang": {"spine": 0.0, "arm": 178.0, "hip_l": 12.0, "hip_r": 25.0, "knee_l": 25.0, "knee_r": 55.0},
+	"crouch": {"hips_y": -0.14, "spine": 0.0, "chest": 0.0, "head": -8.0, "arm": -30.0, "elbow": 20.0, "hip_l": 40.0, "hip_r": 40.0, "knee_l": 75.0, "knee_r": 75.0},
+	"reach": {"spine": -4.0, "head": -20.0, "arm": 135.0, "hip_l": 10.0, "hip_r": 0.0, "knee_l": 50.0, "knee_r": 35.0},
+	"hang": {"spine": 0.0, "head": -25.0, "arm": 125.0, "hip_l": 0.0, "hip_r": 0.0, "knee_l": 35.0, "knee_r": 55.0},
 	"pull": {"spine": 24.0, "chest": 8.0, "head": -12.0, "arm": 120.0, "elbow": 105.0, "hip_l": 105.0, "hip_r": 12.0, "knee_l": 115.0, "knee_r": 30.0},
 	"knee": {"hips_y": -0.12, "spine": 34.0, "chest": 6.0, "arm": 70.0, "elbow": 20.0, "hip_l": 95.0, "hip_r": -10.0, "knee_l": 95.0, "knee_r": 105.0},
 	"kneel": {"hips_y": -0.18, "spine": 6.0, "arm": 25.0, "elbow": 35.0, "hip_l": 85.0, "hip_r": -2.0, "knee_l": 90.0, "knee_r": 110.0},
@@ -30,8 +30,8 @@ const POSES := {
 const KEYS := [
 	[0.00, "stand", null, null],
 	[0.07, "crouch", null, null],
-	[0.17, "reach", -0.22, -1.38],
-	[0.24, "hang", -0.20, -1.38],
+	[0.17, "reach", -0.45, -1.36],
+	[0.24, "hang", -0.42, -1.36],
 	## The hold: when the climb reaches U_ROLL the pull-up may fail (see Player).
 	[0.42, "pull", -0.08, -0.80],
 	[0.56, "knee", 0.28, -0.22],
@@ -39,6 +39,14 @@ const KEYS := [
 	[0.86, "kneel", 0.52, 0.0],
 	[1.00, "stand", 0.60, 0.0],
 ]
+## Clearance of the wall: the most the hero may stand forward (m from the wall's face)
+## so that no part of the body below the ledge top (the pit's side) sinks into the wall,
+## for each fiftieth of the climb. Measured on the skinned rig by tools/climb_clearance.gd;
+## tests/climb_pose.gd checks it still holds.
+## From FREE_FROM on the hero is up on the ground, with no wall left to keep clear of.
+const FREE_FROM := 0.70
+const CLEAR_STEPS := 50
+const CLEAR := [-0.57, -0.56, -0.54, -0.53, -0.52, -0.5, -0.64, -0.62, -0.49, -0.44, -0.5, -0.54, -0.56, -0.55, -0.5, -0.44, -0.44, -0.46, -0.47, -0.48, -0.45, -0.45, -0.44, -0.45, -0.46, -0.47, -0.48, -0.49, -0.47, -0.47, -0.47, -0.47, 0.13, 0.17, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 ## Where the pull-up begins: the hang, and the moment the hands may slip.
 const U_ROLL := 0.26
 
@@ -70,9 +78,10 @@ static func at(u: float, start_height: float, start_forward := -0.4) -> Dictiona
 			var t := smoothstep(0.0, 1.0, clampf((u - float(k0[0])) / span, 0.0, 1.0))
 			var y0 := start_height if k0[3] == null else float(k0[3])
 			var y1 := start_height if k1[3] == null else float(k1[3])
+			var wanted := lerpf(start_forward if k0[2] == null else float(k0[2]), start_forward if k1[2] == null else float(k1[2]), t)
 			return {
 				"pose": mix(POSES[k0[1]], POSES[k1[1]], t),
-				"forward": lerpf(start_forward if k0[2] == null else float(k0[2]), start_forward if k1[2] == null else float(k1[2]), t),
+				"forward": clear_of_wall(u, wanted),
 				"height": lerpf(y0, y1, t),
 			}
 	return {"pose": {}, "forward": 0.0, "height": 0.0}
@@ -107,3 +116,49 @@ static func apply(sk: Skeleton3D, base: Dictionary, pose: Dictionary) -> void:
 	turn.call("ul_r", Vector3.RIGHT, -angle.call("hip_r"))
 	turn.call("ll_l", Vector3.RIGHT, angle.call("knee_l"))
 	turn.call("ll_r", Vector3.RIGHT, angle.call("knee_r"))
+
+
+## `forward` held back so that the body stays clear of the wall (see CLEAR). The first
+## moments of the climb, the step back into the crouch, ease the hero out of the wall.
+static func clear_of_wall(u: float, forward: float) -> float:
+	if CLEAR.is_empty():
+		return forward
+	var at := u * CLEAR_STEPS
+	var i := clampi(int(at), 0, CLEAR_STEPS - 1)
+	var limit := lerpf(float(CLEAR[i]), float(CLEAR[i + 1]), at - i)
+	return lerpf(forward, minf(forward, limit), smoothstep(0.0, 0.07, u))
+
+
+## How far the body reaches forward (z) among the parts that are below the ledge top, in
+## metres from the rig's origin, with the feet at `height` (negative: below the ledge).
+## The hands and forearms near the ledge top are left out: they grip it. Used to measure
+## CLEAR (tools/climb_clearance.gd) and to check it (tests/climb_pose.gd).
+static func front_below_ledge(sk: Skeleton3D, height: float) -> float:
+	var front := -1e9
+	for node in sk.get_children():
+		var mi := node as MeshInstance3D
+		if mi == null or mi.skin == null:
+			continue
+		var is_arm := str(mi.name).begins_with("Rogue_Arm")
+		for surface in mi.mesh.get_surface_count():
+			var arrays := mi.mesh.surface_get_arrays(surface)
+			var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var bones = arrays[Mesh.ARRAY_BONES]
+			var weights = arrays[Mesh.ARRAY_WEIGHTS]
+			if bones == null or weights == null:
+				continue
+			var per: int = bones.size() / points.size()
+			for i in points.size():
+				var p := Vector3.ZERO
+				for k in per:
+					var w: float = weights[i * per + k]
+					if w > 0.0:
+						var slot: int = bones[i * per + k]
+						var bone := mi.skin.get_bind_bone(slot)
+						if bone < 0:
+							bone = sk.find_bone(mi.skin.get_bind_name(slot))
+						p += w * ((sk.get_bone_global_pose(bone) * mi.skin.get_bind_pose(slot)) * points[i])
+				var y := p.y + height
+				if y < -0.06 and not (is_arm and y > -0.15):
+					front = maxf(front, p.z)
+	return front

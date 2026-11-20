@@ -1,0 +1,1 @@
+- Trees, boulders and mountain slopes no longer reach into a land plot: they are cleared away when you register it, and on plots registered earlier too.

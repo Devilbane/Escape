@@ -118,9 +118,12 @@ static func glow(who: Node3D) -> void:
 	var tween := who.create_tween()
 	tween.tween_property(mat, "albedo_color:a", 0.0, GLOW_TIME)
 	tween.parallel().tween_property(light, "light_energy", 0.0, GLOW_TIME)
+	# The one-shot sparks free themselves when they are done (Effects.make_sparkles), well before
+	# the glow ends, so the callback must not hold them: in a release build a call on a freed node
+	# from a lambda crashes the whole game instead of printing an error.
 	tween.tween_callback(func():
 		for m in old:
 			if is_instance_valid(m):
 				m.material_overlay = old[m]
-		light.queue_free()
-		sparks.queue_free())
+		if is_instance_valid(light):
+			light.queue_free())

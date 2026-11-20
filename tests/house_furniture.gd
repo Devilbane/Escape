@@ -200,6 +200,7 @@ func _process(_delta: float) -> bool:
 	check(store.place(plan, "trophaeen", 0, 3, 1, 0) == "", "the stand goes where the chest stood")
 	store.save(game.hero_name)
 	check(HouseFurniture.upgrades_with_stand({}, game.hero_name).get("trophaeen", false), "a stand counts as the trophy wall")
+	_check_shelf_wall(furnisher)
 	# Taking the roof down sends the pieces under it back into the store.
 	for x in range(1, 4):
 		for y in range(1, 3):
@@ -212,3 +213,46 @@ func _process(_delta: float) -> bool:
 	print("PASS: house furniture" if failures == 0 else "FAILED: house furniture (%d)" % failures)
 	quit(1 if failures > 0 else 0)
 	return true
+
+
+## The trophy stand is a shelf wall of small cubbies: every trophy won (here all of them, as an
+## old save brings them) stands in a cubby of its own, half again as big as on the old stand,
+## and fits inside it.
+func _check_shelf_wall(furnisher: HouseFurnisher) -> void:
+	for kind in HomeUpgrades.TROPHIES:
+		game.trophies[kind] = true
+	furnisher.refresh()
+	furnisher.refresh_books()
+	check(furnisher._stands.size() == 1, "the placed stand is the hero's (%d)" % furnisher._stands.size())
+	if furnisher._stands.is_empty():
+		return
+	var stand: Node3D = furnisher._stands[0]
+	var statues := stand.get_children()
+	var count := HomeUpgrades.TROPHIES.size()
+	check(statues.size() == count, "every trophy won stands on the shelves (%d of %d)" % [statues.size(), count])
+	check(count <= HouseFurnisher.STAND_COLS * HouseFurnisher.STAND_ROWS, "the shelves have room for every trophy and more")
+	var cell_w := (HouseFurnisher.STAND_WIDTH - 2.0 * HouseFurnisher.STAND_BOARD) / HouseFurnisher.STAND_COLS
+	var cubbies := {}
+	for statue: Node3D in statues:
+		check(is_equal_approx(statue.scale.x, 0.55 * 1.5), "a trophy is half again as big as before (%.3f)" % statue.scale.x)
+		var col := floori((statue.position.x + HouseFurnisher.STAND_WIDTH * 0.5 - HouseFurnisher.STAND_BOARD) / cell_w)
+		var row := roundi(statue.position.y / HouseFurnisher.STAND_ROW)
+		cubbies[Vector2i(col, row)] = true
+		var box := _bounds(statue, stand)
+		var left := -HouseFurnisher.STAND_WIDTH * 0.5 + HouseFurnisher.STAND_BOARD + col * cell_w
+		check(box.position.x >= left - 0.01 and box.end.x <= left + cell_w + 0.01,
+				"%s fits its cubby across (%.2f..%.2f in %.2f..%.2f)" % [statue.name, box.position.x, box.end.x, left, left + cell_w])
+		check(box.end.y <= (row + 1) * HouseFurnisher.STAND_ROW - HouseFurnisher.STAND_BOARD + 0.01,
+				"%s fits under the shelf above (top %.2f)" % [statue.name, box.end.y])
+	check(cubbies.size() == statues.size(), "each trophy has a cubby of its own")
+
+
+## The box round a node's meshes, in `space`'s coordinates.
+func _bounds(node: Node3D, space: Node3D) -> AABB:
+	var out := AABB()
+	var first := true
+	for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var b := space.global_transform.affine_inverse() * mesh.global_transform * mesh.get_aabb()
+		out = b if first else out.merge(b)
+		first = false
+	return out

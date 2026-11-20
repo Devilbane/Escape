@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep the weather out of self-built houses; Drag placed furniture to another spot and turn it where it stands | Shipped this week: Add an interior furnisher and furniture for self-built houses (+49 more)
+Escape! dev status | Working on: Keep the weather out of self-built houses | Shipped this week: Drag placed furniture to another spot and turn it where it stands; Add an interior furnisher and furniture for self-built houses (+48 more)

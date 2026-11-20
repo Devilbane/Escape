@@ -286,6 +286,9 @@ var _shake := 0.0
 ## 0 is the normal view from above, 1 the close view; _zoom eases toward the target.
 var _zoom := 0.0
 var _zoom_target := 0.0
+## Metres the camera is pulled further back than the zoom says (the blueprint tool uses it
+## to fit a big plot on screen, see HouseSketcher.frame_zoom).
+var frame_pull := 0.0
 
 var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
@@ -7172,7 +7175,7 @@ func _autosave() -> void:
 
 func _camera_offset() -> Vector3:
 	var pitch := deg_to_rad(lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
-	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom)
+	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom) + frame_pull
 	# Up close the camera looks at the hero's chest instead of the feet.
 	return Vector3(0, sin(pitch), cos(pitch)) * distance + Vector3(0, lerpf(1.0, 1.6, _zoom), 0)
 

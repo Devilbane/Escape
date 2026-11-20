@@ -23,8 +23,11 @@ extends Node3D
 ## a stage never reshapes it.
 
 const KIND := "bauplan"
-## How far the camera looks past the plot's middle (metres), to lift the plot above the tool bar.
-const VIEW_SHIFT := 4.0
+## Space kept free between the plot and the screen edges or the tool bar (pixels).
+const FRAME_MARGIN := 24.0
+## How far the camera may be pulled back to fit a big plot, and how fast (metres).
+const FRAME_PULL_LIMIT := 90.0
+const FRAME_PULL_STEP := 1.5
 const TOOL_WALL := "wall"
 const TOOL_DOOR := "door"
 const TOOL_WINDOW := "window"
@@ -126,6 +129,7 @@ var _redo_button: Button
 var _status: Label
 var _hover_key := ""
 var _refresh_in := 0.0
+var _frame_wait := 0.0
 
 
 func _ready() -> void:
@@ -149,6 +153,7 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	_update_fade()
 	if active:
+		frame_zoom(delta)
 		# The bag changes behind the open bar (blocks picked up, material handed in).
 		_refresh_in -= delta
 		if _refresh_in <= 0.0:
@@ -272,16 +277,72 @@ func enter() -> void:
 
 
 ## Where the camera looks while the tool is open: the middle of the plot, moved
-## so that the plot clears the tool bar (see Game._process).
+## so that the plot's middle sits in the middle of the screen above the tool bar
+## (see Game._process). Big plots do not fit at the usual zoom: `frame_zoom` pulls
+## the camera back until they do.
 func view_centre() -> Vector3:
 	var mid := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
-	return Vector3(mid.x, 0.0, mid.z + VIEW_SHIFT)
+	var free := _free_area()
+	var a = game._mouse_to_floor(game.get_viewport().get_visible_rect().get_center())
+	var b = game._mouse_to_floor(free.get_center())
+	if a == null or b == null:
+		return mid
+	return mid + Vector3(a.x - b.x, 0.0, a.z - b.z)
+
+
+## The part of the screen the plot may use: everything above the tool bar.
+func _free_area() -> Rect2:
+	var view: Rect2 = game.get_viewport().get_visible_rect()
+	var top := view.end.y
+	if _bar != null and _bar.visible:
+		top = minf(top, _bar.get_global_rect().position.y)
+	return Rect2(view.position, Vector2(view.size.x, top - view.position.y)).grow(-FRAME_MARGIN)
+
+
+## Whether the whole plot is inside the free area on screen at the current zoom.
+func plot_fits() -> bool:
+	if plan == null:
+		return true
+	var free := _free_area()
+	var n := plan.nodes()
+	for corner in [Vector2i(0, 0), Vector2i(n.x, 0), Vector2i(0, n.y), n]:
+		if not free.has_point(game.camera.unproject_position(plan.node_world(corner.x, corner.y))):
+			return false
+	return true
+
+
+## Called every frame while the tool is open: pulls the camera back, a little at a
+## time, while the plot does not fit, so every edge (the north one too) can be clicked.
+## A plot that fits with room to spare lets the camera come back in.
+func frame_zoom(delta: float) -> void:
+	_frame_wait -= delta
+	if _frame_wait > 0.0:
+		return
+	_frame_wait = 0.05
+	if not plot_fits():
+		game.frame_pull = minf(game.frame_pull + FRAME_PULL_STEP, FRAME_PULL_LIMIT)
+	elif game.frame_pull > 0.0 and _roomy():
+		game.frame_pull = maxf(game.frame_pull - FRAME_PULL_STEP, 0.0)
+
+
+## Whether the plot takes up less than four fifths of the free area in both directions.
+func _roomy() -> bool:
+	var free := _free_area()
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var n := plan.nodes()
+	for corner in [Vector2i(0, 0), Vector2i(n.x, 0), Vector2i(0, n.y), n]:
+		var p: Vector2 = game.camera.unproject_position(plan.node_world(corner.x, corner.y))
+		lo = lo.min(p)
+		hi = hi.max(p)
+	return hi.x - lo.x < free.size.x * 0.8 and hi.y - lo.y < free.size.y * 0.8
 
 
 func leave() -> void:
 	if not active:
 		return
 	active = false
+	game.frame_pull = 0.0
 	drag_from = Vector2i(-1, -1)
 	_grid.visible = false
 	_bar.visible = false

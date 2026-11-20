@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: House playtest with real input; camera frames the plot; hand-in refreshes; Fix house drawing releases and compact the build bar (+48 more)
+Escape! dev status | Working on: Keep snow off dug cellar squares | Shipped this week: House playtest with real input; camera frames the plot; hand-in refreshes; Fix house drawing releases and compact the build bar (+48 more)

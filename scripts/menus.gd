@@ -83,6 +83,7 @@ const SHORTCUTS := [
 	["Entfesselte Kraft (Zauber)", "2 oder der Stern links neben dem Heiltrank, sobald du den Folianten aus Sternhall gelesen hast"],
 	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
 	["Benutzen, durchsuchen, Fackel", "Dagegenlaufen"],
+	["Eigene Tür öffnen, schließen, abschließen", "Dagegenlaufen öffnet sie; E öffnet oder schließt sie, Umschalt+E schließt sie ab oder auf"],
 	["Inventar", "I"],
 	["Kompendium", "H"],
 	["Charakter", "P"],

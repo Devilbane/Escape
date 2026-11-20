@@ -1,0 +1,1 @@
+- Built doors are taller, with stone jambs, a timber lintel and a real board door that swings open when you walk into it; E opens or shuts it, Shift+E locks your own (garden gates too).

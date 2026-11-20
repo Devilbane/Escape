@@ -2252,6 +2252,36 @@ func pick_up_crate(near := Vector3.INF) -> String:
 	return ""
 
 
+## The door or gate the hero built (or another hero's) within reach, when no
+## crate, stone block or backpack nearer claims the E key; else null.
+func door_in_reach() -> BuiltDoor:
+	if house_sketcher == null or player == null or level == null or not level is Outdoor:
+		return null
+	if level.crate_in_reach(player) != null or level.stone_in_reach(player) != null or level.pack_in_reach(player) != null:
+		return null
+	return house_sketcher.door_near(player.global_position)
+
+
+## E at a door opens or shuts it; Shift+E locks or unlocks the hero's own.
+## Returns "" or why not.
+func door_action(door: BuiltDoor, lock: bool) -> String:
+	if not player.can_act():
+		return Lang.t("Gerade nicht.")
+	learn("Türen und Tore, die du baust, gehen auf, wenn du hineinläufst, und fallen hinter dir wieder zu. Taste E öffnet eine Tür und hält sie offen oder schließt sie. Umschalt+E schließt deine eigene Tür ab: Dann kommen nur du und deine Gefährten hindurch, keine Dorfbewohner, Tiere oder Ungeheuer. Ein Vorhängeschloss an der Tür zeigt, dass sie abgeschlossen ist.")
+	player.face(door.global_position - player.global_position)
+	if lock:
+		if not door.own:
+			return Lang.t("Das ist nicht deine Tür.")
+		player.play_once("Interact", 0.3)
+		door.set_locked(not door.locked)
+		show_message(Lang.t("Abgeschlossen: Nur du und deine Gefährten kommen hindurch.") if door.locked else Lang.t("Aufgeschlossen."), 2.0)
+		return ""
+	var why := door.use(player.global_position)
+	if why == "":
+		player.play_once("Interact", 0.3)
+	return why
+
+
 ## Sets a crate from the bag down right under the hero, who ends up standing
 ## on top of it. Returns "" on success, else why not.
 func put_down_crate() -> String:
@@ -7427,6 +7457,16 @@ func _process(delta: float) -> void:
 		}.get(station.kind, AshSpire.prompt(station.kind)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
+	elif _prompt.text == "" and door_in_reach() != null:
+		var door := door_in_reach()
+		if door.locked and not door.own:
+			# Not a tutorial hint but the reason it stays shut: always shown.
+			_prompt.text = Lang.t("Abgeschlossen")
+		elif door.own:
+			_prompt.text = _hint("door", Lang.t("E: Tür öffnen oder schließen   Umschalt+E: aufschließen") if door.locked
+					else Lang.t("E: Tür öffnen oder schließen   Umschalt+E: abschließen"))
+		else:
+			_prompt.text = _hint("door", Lang.t("E: Tür öffnen oder schließen"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
@@ -7660,7 +7700,10 @@ func _unhandled_input(event: InputEvent) -> void:
 						gift_action()
 					KEY_E:
 						var why_not := ""
-						if level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
+						var door := door_in_reach()
+						if door != null:
+							why_not = door_action(door, event.shift_pressed)
+						elif level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
 							why_not = take_stone()
 						elif level.crate_in_reach(player) == null and level.pack_in_reach(player) != null:
 							why_not = push_floor_pack()

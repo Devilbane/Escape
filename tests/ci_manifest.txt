@@ -261,8 +261,10 @@ house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, c
 house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
 house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
 bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
+house_looks_shots.gd | 120 | fixed | passfail | House looks: stone in the temple's blocks, flagstone and plank floors, stair-board walls
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
 house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
 house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading
 ivy_seasons.gd | 120 | free | passfail | The vines on the houses follow the seasons (autumn colours, snowy and grapeless in winter)
 house_railing.gd | 120 | fixed | passfail | Roof railings: drawn and ringed round a flat roof, a gap for the stairs, built after the slab, keep the hero on the roof
+built_doors.gd | 180 | fixed | passfail | Built doors and gates: tall doorway, leaf swings open for whoever walks in and falls shut, E holds it open, Shift+E locks out creatures

@@ -1,0 +1,1 @@
+- House building: the camera no longer jitters in and out when you zoom while drawing a plan; it frames your plot once and your mouse wheel works on top of it.

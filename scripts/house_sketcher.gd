@@ -21,6 +21,10 @@ extends Node3D
 ## flat roof (see HouseSketch.RAIL_STOREY): drag it along the roof's edge, or
 ## click the roof once to ring all its open edges; the stairs keep their gap.
 ##
+## A ballista (see HouseBallista) is set on one cell with a click: on the flat
+## roof where one is planned, else on the ground. Built, it shoots at the slimes
+## that come near; while the tool is open a circle shows how far it reaches.
+##
 ## The tool bar sits at the bottom of the screen with fixed sizes, so a tool or
 ## a stage never reshapes it.
 
@@ -29,7 +33,7 @@ const KIND := "bauplan"
 const FRAME_MARGIN := 24.0
 ## How far the camera may be pulled back to fit a big plot, and how fast (metres).
 const FRAME_PULL_LIMIT := 90.0
-const FRAME_PULL_STEP := 1.5
+const FRAME_PULL_STEP := 2.0
 const TOOL_WALL := "wall"
 const TOOL_DOOR := "door"
 const TOOL_WINDOW := "window"
@@ -39,7 +43,8 @@ const TOOL_STAIRS := "stairs"
 ## The cellar ceiling, which is the ground floor's floor too (see HouseSketch.COVER).
 const TOOL_COVER := "cover"
 const TOOL_FENCE := "fence"
-const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_ERASE]
+const TOOL_BALLISTA := "ballista"
+const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_BALLISTA, TOOL_ERASE]
 ## Tools that drag a straight run of edges.
 const RUN_TOOLS := [TOOL_WALL, TOOL_FENCE]
 ## The cellar's tools (their own row in the tool bar).
@@ -98,6 +103,7 @@ const BUILD_RANGE := 16.0
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
 const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
+const BALLISTA_COLOR := Color(1.0, 0.6, 0.3, 0.6)
 
 var game: Node
 var active := false
@@ -140,7 +146,10 @@ var _redo_button: Button
 var _status: Label
 var _hover_key := ""
 var _refresh_in := 0.0
-var _frame_wait := 0.0
+var _frame_shift := Vector3.ZERO
+var _frame_pending := false
+## The built ballistae of every house on the map (see HouseBallista).
+var _guns := Node3D.new()
 ## The door leaves of every built door and gate, by "plot|piece key".
 var doors := {}
 ## The leaf _solid_piece just made, for _redraw to hang.
@@ -152,6 +161,7 @@ func _ready() -> void:
 	add_child(_solid)
 	add_child(_body)
 	add_child(_ghost)
+	add_child(_guns)
 	_grid.visible = false
 	add_child(_grid)
 	_build_bar()
@@ -168,7 +178,9 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	_update_fade()
 	if active:
-		frame_zoom(delta)
+		if _frame_pending:
+			_frame_pending = false
+			solve_frame()
 		# The bag changes behind the open bar (blocks picked up, material handed in).
 		_refresh_in -= delta
 		if _refresh_in <= 0.0:
@@ -280,29 +292,26 @@ func enter() -> void:
 		game.show_message(Lang.t("Du hast noch kein Grundstück. Das Amt der Krone trägt es dir ein."), 3.0)
 		return
 	active = true
+	_frame_pending = true
 	drag_from = Vector2i(-1, -1)
 	if game.plot_marker != null:
 		game.plot_marker.cancel()
 	_grid.visible = true
 	_bar.visible = true
+	_show_ranges(true)
 	_draw_grid()
 	select_tool(TOOL_WALL)
 	game.show_message(Lang.t("Bauplan: Ziehe Wände auf dem Raster. Das Haus darf kleiner sein als das Grundstück."), 4.0)
 	_update_bar()
 
 
-## Where the camera looks while the tool is open: the middle of the plot, moved
-## so that the plot's middle sits in the middle of the screen above the tool bar
-## (see Game._process). Big plots do not fit at the usual zoom: `frame_zoom` pulls
-## the camera back until they do.
+## Where the camera looks while the tool is open: the middle of the plot plus the
+## shift `solve_frame` found (see Game._process). The shift and the pull-back are
+## worked out once when the tool opens and then stay fixed, so the camera glides to
+## one framing and the player's own zoom (the mouse wheel) works on top of it.
 func view_centre() -> Vector3:
 	var mid := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
-	var free := _free_area()
-	var a = game._mouse_to_floor(game.get_viewport().get_visible_rect().get_center())
-	var b = game._mouse_to_floor(free.get_center())
-	if a == null or b == null:
-		return mid
-	return mid + Vector3(a.x - b.x, 0.0, a.z - b.z)
+	return mid + _frame_shift
 
 
 ## The part of the screen the plot may use: everything above the tool bar.
@@ -314,7 +323,19 @@ func _free_area() -> Rect2:
 	return Rect2(view.position, Vector2(view.size.x, top - view.position.y)).grow(-FRAME_MARGIN)
 
 
-## Whether the whole plot is inside the free area on screen at the current zoom.
+## The size on screen of the plot's four corners from the camera as it stands now.
+func _plot_extent() -> Vector2:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var n := plan.nodes()
+	for corner in [Vector2i(0, 0), Vector2i(n.x, 0), Vector2i(0, n.y), n]:
+		var p: Vector2 = game.camera.unproject_position(plan.node_world(corner.x, corner.y))
+		lo = lo.min(p)
+		hi = hi.max(p)
+	return hi - lo
+
+
+## Whether the whole plot is inside the free area on screen at the current camera.
 func plot_fits() -> bool:
 	if plan == null:
 		return true
@@ -326,31 +347,41 @@ func plot_fits() -> bool:
 	return true
 
 
-## Called every frame while the tool is open: pulls the camera back, a little at a
-## time, while the plot does not fit, so every edge (the north one too) can be clicked.
-## A plot that fits with room to spare lets the camera come back in.
-func frame_zoom(delta: float) -> void:
-	_frame_wait -= delta
-	if _frame_wait > 0.0:
+## Works out, once, how far the camera must be pulled back for the whole plot to fit
+## above the tool bar and how far it must shift to centre it there. The camera is put
+## where it will be, measured, and put back within the same frame, so nothing is
+## drawn from the trial positions and nothing here depends on where the camera was
+## gliding from. (Measuring on the live camera every frame made it hunt back and
+## forth: pulling back moved the corners, which asked for another correction.)
+func solve_frame() -> void:
+	_frame_shift = Vector3.ZERO
+	game.frame_pull = 0.0
+	if plan == null:
 		return
-	_frame_wait = 0.05
-	if not plot_fits():
-		game.frame_pull = minf(game.frame_pull + FRAME_PULL_STEP, FRAME_PULL_LIMIT)
-	elif game.frame_pull > 0.0 and _roomy():
-		game.frame_pull = maxf(game.frame_pull - FRAME_PULL_STEP, 0.0)
-
-
-## Whether the plot takes up less than four fifths of the free area in both directions.
-func _roomy() -> bool:
+	var cam: Camera3D = game.camera
+	var saved := cam.global_position
+	var mid := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
 	var free := _free_area()
-	var lo := Vector2(INF, INF)
-	var hi := Vector2(-INF, -INF)
-	var n := plan.nodes()
-	for corner in [Vector2i(0, 0), Vector2i(n.x, 0), Vector2i(0, n.y), n]:
-		var p: Vector2 = game.camera.unproject_position(plan.node_world(corner.x, corner.y))
-		lo = lo.min(p)
-		hi = hi.max(p)
-	return hi.x - lo.x < free.size.x * 0.8 and hi.y - lo.y < free.size.y * 0.8
+	var pull := 0.0
+	while pull <= FRAME_PULL_LIMIT:
+		game.frame_pull = pull
+		cam.global_position = mid + game._camera_offset()
+		var extent := _plot_extent()
+		if extent.x <= free.size.x and extent.y <= free.size.y:
+			break
+		pull += FRAME_PULL_STEP
+	game.frame_pull = minf(pull, FRAME_PULL_LIMIT)
+	cam.global_position = mid + game._camera_offset()
+	# Move the view until the plot's middle sits in the middle of the free area; the
+	# ground is seen at an angle, so a few rounds of correcting the error are needed.
+	for round in 6:
+		cam.global_position = mid + _frame_shift + game._camera_offset()
+		var at = game._mouse_to_floor(cam.unproject_position(mid))
+		var want = game._mouse_to_floor(free.get_center())
+		if at == null or want == null:
+			break
+		_frame_shift += Vector3(at.x - want.x, 0.0, at.z - want.z)
+	cam.global_position = saved
 
 
 func leave() -> void:
@@ -361,6 +392,7 @@ func leave() -> void:
 	drag_from = Vector2i(-1, -1)
 	_grid.visible = false
 	_bar.visible = false
+	_show_ranges(false)
 	_clear(_ghost)
 	if plan != null:
 		plan.save(game.hero_name)
@@ -404,6 +436,18 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		return
 	if tool in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW] and storey < 0:
 		_say(Lang.t("Im Keller graben und verkleiden die Keller-Werkzeuge: Stelle die Ebene um."))
+		return
+	if tool == TOOL_BALLISTA:
+		if pressed:
+			var c := plan.cell_at(point)
+			var up := plan.ballista_storey(c.x, c.y)
+			var why := plan.problem_ballista(c.x, c.y, up)
+			if why != "":
+				_say(reason(why))
+			else:
+				plan.sketch_ballista(c.x, c.y, up)
+				_changed()
+				_say(Lang.t("Balliste vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
 	if tool in RECT_TOOLS:
 		if pressed:
@@ -500,6 +544,8 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		var why_not := plan.erase_cell(c.x, c.y) if storey < 0 else plan.erase_above(c.x, c.y, storey)
 		if why_not == "needed":
 			_say(Lang.t("Die Treppe führt hierher: Nimm zuerst die Treppe zurück."))
+		elif why_not == "ballista":
+			_say(reason("ballista"))
 		elif why_not == "" and was_built:
 			_say(Lang.t("Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück."))
 		_changed()
@@ -526,6 +572,21 @@ func hover(point: Vector3) -> void:
 	if not active or plan == null:
 		return
 	var key := ""
+	if tool == TOOL_BALLISTA:
+		var c := plan.cell_at(point)
+		key = "b:%s" % c
+		if key == _hover_key:
+			return
+		_hover_key = key
+		_clear(_ghost)
+		var up := plan.ballista_storey(c.x, c.y)
+		var why := plan.problem_ballista(c.x, c.y, up)
+		var high := up * HouseSketch.STOREY_HEIGHT
+		_cell_quad(_ghost, c, OK_COLOR if why == "" else BAD_COLOR, high)
+		if why == "":
+			_range_ring(_ghost, plan.cell_world(c.x, c.y) + Vector3(0, high, 0))
+		_say(reason(why) if why != "" else Lang.t("Balliste: Sie schießt auf Schleime bis %d m weit (der Kreis).") % int(HouseBallista.RANGE))
+		return
 	if tool in RECT_TOOLS or tool == TOOL_STAIRS or tool == TOOL_UP:
 		var c := plan.cell_at(point)
 		var from_cell := drag_from if drag_from.x >= 0 and tool in RECT_TOOLS else c
@@ -621,6 +682,8 @@ func _eraser_key(c: Vector2i) -> String:
 		if plan.pieces.has(cover) and plan.pieces[cover].state != HouseSketch.DEMOLISH:
 			return cover
 		return plan.hole_key(c.x, c.y)
+	if not plan.ballista_at(c.x, c.y, storey).is_empty():
+		return HouseSketch.key_of(c.x, c.y, HouseSketch.BALLISTA_ORIENT, storey)
 	if plan.roof_key(c.x, c.y, storey) != "":
 		return plan.roof_key(c.x, c.y, storey)
 	if storey == 0 and plan.up_key(c.x, c.y) != "":
@@ -662,6 +725,14 @@ static func reason(why: String) -> String:
 			return Lang.t("Über dem Fuß der Treppe liegt die Kellerdecke: Nimm sie dort erst zurück.")
 		"storey":
 			return Lang.t("Höher als das Obergeschoss baut dein Held nicht.")
+		"under roof":
+			return Lang.t("Eine Balliste braucht freien Himmel: Stell sie in den Garten oder auf ein Flachdach.")
+		"ballista no roof":
+			return Lang.t("Auf dem Obergeschoss steht eine Balliste auf einem Flachdach.")
+		"many":
+			return Lang.t("Mehr als %d Ballisten passen nicht auf ein Grundstück.") % HouseSketch.MAX_BALLISTAE
+		"ballista":
+			return Lang.t("Auf dem Dach steht eine Balliste: Nimm sie zuerst zurück (Ebene: Obergeschoss).")
 	return ""
 
 
@@ -706,10 +777,10 @@ func _build_bar() -> void:
 	_bar.add_child(box)
 	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
 	var tools := _row(box)
-	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_ERASE: "Radierer"}
+	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_BALLISTA: "Balliste", TOOL_ERASE: "Radierer"}
 	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
 	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe", TOOL_COVER: "Kellerdecke"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_ERASE]:
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
@@ -763,10 +834,12 @@ func _build_bar() -> void:
 		add_child(_bar)
 
 
+## A row of the bar. Its buttons stand 4 px apart (the house spacing scale), so
+## the tool row with every tool still fits 1280 px in German.
 func _row(parent: Control) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 5)
+	row.add_theme_constant_override("separation", 4)
 	parent.add_child(row)
 	return row
 
@@ -933,6 +1006,8 @@ func _hint() -> String:
 			return Lang.t("Satteldach: Ziehe ein Rechteck. Der First läuft entlang der langen Seite.")
 		TOOL_UP:
 			return Lang.t("Treppe nach oben: Klicke ein Feld vor einer Decke an. Sie führt vier Meter hinauf.")
+		TOOL_BALLISTA:
+			return Lang.t("Balliste: Klicke ein Feld im Garten oder auf einem Flachdach an. Sie kostet 6 Bauholz und 2 Steinblöcke.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
 
 
@@ -973,6 +1048,9 @@ func _redraw() -> void:
 	doors.clear()
 	_clear(_built)
 	_clear(_solid)
+	for gun in _guns.get_children():
+		_guns.remove_child(gun)
+		gun.queue_free()
 	for child in _body.get_children():
 		child.queue_free()
 	if game == null or not game.level is Outdoor:
@@ -999,6 +1077,7 @@ func _redraw() -> void:
 					_new_door = null
 		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
+		_solid_ballistae(house)
 	game.level.set_floor_holes(holes, ceilinged)
 	game.level.house_floors = HouseFloors.new(floored) if not floored.is_empty() else null
 	_raise_roofs()
@@ -1018,10 +1097,58 @@ func _redraw() -> void:
 					_cell_quad(_built, c, STAIRS_COLOR)
 			elif kind == HouseSketch.SLAB or kind == HouseSketch.SADDLE:
 				_cell_quad(_built, Vector2i(p[1], p[2]), SLAB_COLOR if kind == HouseSketch.SLAB else ROOF_COLOR, up)
+			elif kind == HouseSketch.BALLISTA:
+				var foot := plan.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
+				_cell_quad(_built, Vector2i(p[1], p[2]), BALLISTA_COLOR, p[0] * HouseSketch.STOREY_HEIGHT)
+				_box(_built, foot + Vector3(0, 0.7, 0), Vector3(0.5, 1.4, 0.5), _material(BALLISTA_COLOR))
+				_box(_built, foot + Vector3(0, 1.25, 0), Vector3(2.2, 0.15, 0.3), _material(BALLISTA_COLOR))
 			else:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_segment(_built, [p[1], p[2], p[3]], kind, Color(0, 0, 0, 0))
 				_lift = 0.0
+
+
+## The built ballistae of a house: they stand and shoot (see HouseBallista), and
+## their post stops the hero.
+func _solid_ballistae(house: HouseSketch) -> void:
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.kind != HouseSketch.BALLISTA or piece.state == HouseSketch.SKETCH:
+			continue
+		var p := HouseSketch.parts_of(key)
+		var foot := house.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
+		var gun := HouseBallista.new()
+		gun.level = game.level
+		gun.demolish = piece.state == HouseSketch.DEMOLISH
+		gun.position = foot
+		_guns.add_child(gun)
+		gun.show_range(active)
+		_collide(foot + Vector3(0, 0.5, 0), Vector3(1.0, 1.0, 1.0))
+
+
+## The built ballistae on the map, for the tests and the game.
+func ballistae() -> Array:
+	return _guns.get_children()
+
+
+func _show_ranges(on: bool) -> void:
+	for gun: HouseBallista in _guns.get_children():
+		gun.show_range(on)
+
+
+## A faint circle of a ballista's reach round `at`.
+func _range_ring(parent: Node3D, at: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HouseBallista.RANGE - 0.15
+	torus.outer_radius = HouseBallista.RANGE + 0.15
+	torus.rings = 96
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.05, 1)
+	ring.material_override = _material(HouseBallista.RING_COLOR)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = at + Vector3(0, 0.08, 0)
+	parent.add_child(ring)
 
 
 ## Whether a house has a built cellar, floor slab or stairs: somewhere a
@@ -1081,16 +1208,16 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			ceilinged.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
 
 
-## The cellar ceiling over a dug cell: a floor of planks or stone whose top is
-## the ground, so the hero walks over the cellar on the ground floor. The ground
-## stays cut open under it (the cellar is still there). While the hero is down in
+## The cellar ceiling over a dug cell: a floor of the pen's planks or of
+## flagstones (see _floor_box) whose top is the ground, so the hero walks over
+## the cellar on the ground floor. The ground stays cut open under it (the cellar is still there). While the hero is down in
 ## the cellar under it, it fades like a roof (see _update_fade).
 func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> void:
 	var thick := HouseSketch.COVER_THICK
-	var middle := house.cell_world(x, y) + Vector3(0, -thick * 0.5, 0)
+	var at := house.cell_world(x, y) + Vector3(0, -thick * 0.5, 0)
 	var size := Vector3(HouseSketch.CELL, thick, HouseSketch.CELL)
-	_floor_box(middle, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH)
-	_collide(middle, size)
+	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH)
+	_collide(at, size)
 	# The mesh: fades away while the hero is in the cellar below it.
 	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
 	mesh.set_meta("ymin", 0.0)
@@ -1215,6 +1342,8 @@ func _update_fade() -> void:
 	for node in _solid.get_children():
 		if node.has_meta("ymin"):
 			node.visible = not (inside and float(node.get_meta("ymin")) >= limit)
+	for gun: Node3D in _guns.get_children():
+		gun.visible = not (inside and gun.position.y >= limit)
 
 
 ## The ramp of a stairs piece: from the ground at the top of its first cell

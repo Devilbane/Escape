@@ -13,3 +13,7 @@ pull requests ever edit the same file and patch notes never cause merge conflict
 - Folding (done by the maintainer now and then, not by feature PRs):
   `python3 tools/patch_notes.py fold "Heading"` moves all fragments into `docs/patch_notes.txt` as a new
   top section and deletes them.
+- Every build's notes are also kept for good in `docs/patch_history.json`, the archive the compendium's
+  "Patch notes" page shows (version list, newest first). The Windows build adds its own entry on top of
+  the archive it published last time (`python3 tools/patch_notes.py history`), ships it in the game and
+  uploads it beside `version.json`. Feature PRs never edit it.

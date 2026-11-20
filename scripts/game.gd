@@ -287,7 +287,7 @@ var _shake := 0.0
 var _zoom := 0.0
 var _zoom_target := 0.0
 ## Metres the camera is pulled further back than the zoom says (the blueprint tool uses it
-## to fit a big plot on screen, see HouseSketcher.frame_zoom).
+## to fit a big plot on screen, see HouseSketcher.solve_frame).
 var frame_pull := 0.0
 
 var _hud: CanvasLayer
@@ -1957,15 +1957,16 @@ func _chop_wood(s: Dictionary) -> void:
 		return
 	s.digging = true
 	player.path.clear()
-	for blow in 2:
-		player.play_once(Player.STRIKE_ANIM, DIG_BLOW * (2 - blow))
+	var blows: int = s.get("blows", 2)
+	for blow in blows:
+		player.play_once(Player.STRIKE_ANIM, DIG_BLOW * (blows - blow))
 		Sfx.play(self, "hit", -8.0, s.pos, 0.6 + blow * 0.1)
 		await get_tree().create_timer(DIG_BLOW).timeout
 	s.digging = false
 	if level == null or not level.stations.has(s):
 		return
 	var count := 0
-	while count < WoodLogs.TIMBER_YIELD and player.bag_fits(WoodLogs.TIMBER):
+	while count < int(s.get("yield", WoodLogs.TIMBER_YIELD)) and player.bag_fits(WoodLogs.TIMBER):
 		player.bag.append(WoodLogs.TIMBER)
 		count += 1
 	if count == 0 or not WoodLogs.mark_chopped(level, s, day):

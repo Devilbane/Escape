@@ -79,3 +79,5 @@ When you change something a player will notice (a feature, a fix, a balance chan
 `docs/patch_notes.d/<short-change-name>.txt` with one short English line `- text` (see `docs/patch_notes.d/README.md`).
 `tools/patch_notes.py` combines the fragments with `docs/patch_notes.txt` at release time, and only the newest
 two sections ship. `tests/launcher.gd` checks that the fragments parse and everything fits.
+Every build's notes are archived in `docs/patch_history.json` (the compendium's patch notes page); the Windows
+build adds to it, so never edit it in a feature PR.

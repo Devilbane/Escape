@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test: the trunks to chop for timber (see WoodLogs). The woodcutter's
 ## yard has its trunks, windfalls lie spread over the woods, a hero who runs into
 ## a trunk gets timber in the bag, only a stump is left until the next morning, a
-## full bag leaves it whole, no plot may be marked over a trunk, and timber
+## full bag leaves it whole, a windfall gives more timber than a yard trunk, no plot may be marked over a trunk, and timber
 ## stacks 5 and stone blocks 3 to a bag slot.
 ## Run with: godot --headless --fixed-fps 60 -s tests/wood_logs.gd
 
@@ -52,10 +52,18 @@ func _run() -> void:
 	var yard: Array = logs.filter(func(s): return (s.cell - home).length() < 3.0)
 	check(yard.size() == WoodLogs.CELLS.size(), "the woodcutter's yard has its trunks (%d)" % yard.size())
 	var windfalls: Array = logs.filter(func(s): return not yard.has(s))
-	check(windfalls.size() >= 4, "windfalls lie spread over the woods (%d)" % windfalls.size())
+	check(windfalls.size() >= 10, "windfalls lie spread over the woods (%d)" % windfalls.size())
 	print("windfalls at ", windfalls.map(func(s): return s.cell))
 	for w in windfalls:
 		check(yard.is_empty() or lvl.astar.get_id_path(yard[0].cell, w.cell).size() > 0, "the windfall at %s can be walked to" % w.cell)
+	# Windfalls keep out of open grass, so building land stays free: there is
+	# still a 4 x 4 plot to be had.
+	var free_plot := false
+	for y in range(lvl.height - 5):
+		for x in range(lvl.grid[y].length() - 5):
+			if Plots.problem(lvl, Rect2i(x, y, 4, 4)) == "":
+				free_plot = true
+	check(free_plot, "a free 4x4 plot of grass is still to be had")
 	if logs.is_empty():
 		_end()
 		return
@@ -85,6 +93,14 @@ func _run() -> void:
 	game._chop_wood(trunk)
 	await create_timer(1.5).timeout
 	check(trunk.spent and _timber() == 1 + WoodLogs.TIMBER_YIELD, "timber goes onto the bundle in a full bag (%d)" % _timber())
+	# A windfall is a whole tree: more swings, more timber.
+	if not windfalls.is_empty():
+		var tree: Dictionary = windfalls[0]
+		game.player.bag.clear()
+		game._chop_wood(tree)
+		await create_timer(3.0).timeout
+		check(_timber() == WoodLogs.WINDFALL_YIELD, "a windfall gives %d timber (%d)" % [WoodLogs.WINDFALL_YIELD, _timber()])
+		check(tree.spent, "the windfall is chopped up")
 	_end()
 
 

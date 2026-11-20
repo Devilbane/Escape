@@ -68,7 +68,14 @@ const COVER_THICK := 0.15
 const SLAB := "slab"
 const SADDLE := "saddle"
 const UPSTAIRS := "upstairs"
-const CELL_KINDS := [DIG, STAIRS, COVER, SLAB, SADDLE, UPSTAIRS]
+## A ballista (see HouseBallista) stands on one cell under the open sky: on the
+## ground of the plot (storey 0) or on a flat roof (storey RAIL_STOREY, on a
+## slab of the storey below). It is keyed by the cell, its storey and the orient
+## letter BALLISTA_ORIENT. A plot holds MAX_BALLISTAE at most.
+const BALLISTA := "ballista"
+const BALLISTA_ORIENT := "b"
+const MAX_BALLISTAE := 3
+const CELL_KINDS := [DIG, STAIRS, COVER, SLAB, SADDLE, UPSTAIRS, BALLISTA]
 const MAX_STOREY := 1
 ## From the floor of a storey to the floor of the next, and how thick a slab is.
 ## 3.2 m is four layers of stone blocks, so blocks stack evenly on a roof.
@@ -83,7 +90,7 @@ const DEPTH := 2.6
 const DOWN := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0), "n": Vector2i(0, -1), "s": Vector2i(0, 1)}
 ## Building order: dig first, then stairs and the cellar ceiling, then walls before doors and windows.
 ## The garden comes after the house.
-const BUILD_ORDER := [DIG, STAIRS, COVER, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE, STONE_FENCE, WOOD_FENCE, GATE]
+const BUILD_ORDER := [DIG, STAIRS, COVER, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE, STONE_FENCE, WOOD_FENCE, GATE, BALLISTA]
 ## What covers the floor and the walls of dug cells: "" is the bare earth.
 const SURFACES := ["", "stone", "wood"]
 const SURFACE_COST := {"": {}, "stone": {"steinblock": 1}, "wood": {"bauholz": 1}}
@@ -112,6 +119,8 @@ const COST := {
 	STONE_FENCE: {STONE: 1},
 	WOOD_FENCE: {TIMBER: 1},
 	GATE: {TIMBER: 2},
+	# A timber frame and bow on a stone plinth.
+	BALLISTA: {TIMBER: 6, STONE: 2},
 }
 const MATERIALS := [STONE, TIMBER]
 const ORIENT_X := "x"
@@ -493,7 +502,7 @@ func problem_stairs(x: int, y: int, dir: String) -> String:
 func problem_dig(x: int, y: int) -> String:
 	if not cell_in_plot(x, y):
 		return "outside"
-	if hole_key(x, y) != "":
+	if hole_key(x, y) != "" or not ballista_at(x, y, 0).is_empty():
 		return "taken"
 	return ""
 
@@ -586,6 +595,8 @@ func _can_build(key: String) -> bool:
 		return is_dug(p[1], p[2], true) and pieces[key_of(p[1], p[2], CELL_ORIENT, CELLAR_STOREY)].state == BUILT
 	if FENCE_KINDS.has(pieces[key].kind) and p[0] == RAIL_STOREY:
 		return roof_edge(p[1], p[2], p[3], true)
+	if pieces[key].kind == BALLISTA and p[0] == RAIL_STOREY:
+		return _roof_at(Vector2i(p[1], p[2]), true)
 	if pieces[key].kind == UPSTAIRS:
 		return not slab_at(end.x, end.y, p[0]).is_empty() and slab_at(end.x, end.y, p[0]).state != SKETCH
 	return true
@@ -674,6 +685,8 @@ func problem_roof(x: int, y: int, storey: int) -> String:
 		return "taken"
 	if storey == 0 and up_key(x, y) != "":
 		return "taken"
+	if not ballista_at(x, y, storey).is_empty():
+		return "taken"
 	return ""
 
 
@@ -700,7 +713,7 @@ func problem_upstairs(x: int, y: int, dir: String) -> String:
 		var c: Vector2i = cells[i]
 		if not cell_in_plot(c.x, c.y):
 			return "outside"
-		if hole_key(c.x, c.y) != "" or up_key(c.x, c.y) != "" or roof_key(c.x, c.y, 0) != "":
+		if hole_key(c.x, c.y) != "" or up_key(c.x, c.y) != "" or roof_key(c.x, c.y, 0) != "" or not ballista_at(c.x, c.y, 0).is_empty():
 			return "taken"
 	var end: Vector2i = cells[2]
 	if not cell_in_plot(end.x, end.y) or slab_at(end.x, end.y, 0).get("kind", "") != SLAB:
@@ -735,6 +748,8 @@ func sketch_upstairs(x: int, y: int, dir: String) -> bool:
 ## until the stairs are gone. Returns "" when something changed or why not:
 ## "empty" or "needed".
 func erase_above(x: int, y: int, storey: int) -> String:
+	if erase_ballista(x, y, storey):
+		return ""
 	var key := roof_key(x, y, storey)
 	if key == "" and storey == 0:
 		key = up_key(x, y)
@@ -744,6 +759,9 @@ func erase_above(x: int, y: int, storey: int) -> String:
 		return "empty"
 	var p := parts_of(key)
 	if pieces[key].kind == SLAB:
+		var on_top := ballista_at(x, y, storey + 1)
+		if not on_top.is_empty() and on_top.state != DEMOLISH:
+			return "ballista"
 		for other in pieces:
 			var q := parts_of(other)
 			if pieces[other].kind == UPSTAIRS and q[0] == storey:
@@ -761,6 +779,66 @@ func erase_above(x: int, y: int, storey: int) -> String:
 		step += _erase_step(lost, RAIL_STOREY)
 	_push(step)
 	return ""
+
+
+# --- Ballistae ------------------------------------------------------------------
+
+## The ballista on a cell of a storey (0 the ground, RAIL_STOREY a flat roof), or {}.
+func ballista_at(x: int, y: int, storey: int) -> Dictionary:
+	return pieces.get(key_of(x, y, BALLISTA_ORIENT, storey), {})
+
+
+## Where a ballista on a cell would stand: on the flat roof when a slab (planned
+## or built) covers the ground floor there, else on the ground.
+func ballista_storey(x: int, y: int) -> int:
+	return RAIL_STOREY if _roof_at(Vector2i(x, y)) else 0
+
+
+## Why a ballista cannot go on a cell of a storey, or "": "outside", "storey",
+## "taken" (a ballista, a hole in the ground or stairs are there), "under roof"
+## (it needs the open sky to shoot: not inside the house, not under a saddle
+## roof), "ballista no roof" (on the upper level it needs a flat roof under it) or "many"
+## (MAX_BALLISTAE are planned already).
+func problem_ballista(x: int, y: int, storey: int) -> String:
+	if not cell_in_plot(x, y):
+		return "outside"
+	if storey < 0 or storey > RAIL_STOREY:
+		return "storey"
+	if not ballista_at(x, y, storey).is_empty():
+		return "taken"
+	if storey == 0:
+		if hole_key(x, y) != "" or up_key(x, y) != "":
+			return "taken"
+		if roof_key(x, y, 0) != "":
+			return "under roof"
+	else:
+		if not _roof_at(Vector2i(x, y)):
+			return "ballista no roof"
+		if roof_key(x, y, storey) != "":
+			return "under roof"
+	if count(BALLISTA) - count(BALLISTA, DEMOLISH) >= MAX_BALLISTAE:
+		return "many"
+	return ""
+
+
+## Sketches a ballista on a cell; returns whether it did.
+func sketch_ballista(x: int, y: int, storey: int) -> bool:
+	if problem_ballista(x, y, storey) != "":
+		return false
+	var key := key_of(x, y, BALLISTA_ORIENT, storey)
+	var after := {"kind": BALLISTA, "state": SKETCH}
+	pieces[key] = after
+	_push([{"key": key, "before": null, "after": after}])
+	return true
+
+
+## Takes back or marks for removal the ballista on a cell of a storey.
+## Returns whether there was one.
+func erase_ballista(x: int, y: int, storey: int) -> bool:
+	if ballista_at(x, y, storey).is_empty():
+		return false
+	erase([[x, y, BALLISTA_ORIENT]], storey)
+	return true
 
 
 func _push(step: Array) -> void:
@@ -1011,7 +1089,8 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 						s.pieces[str(key)] = {"kind": STAIRS, "state": str(p[1])}
 					elif p.size() == 2 and s.cell_in_plot(parts[1], parts[2]) and parts[0] >= 0 and parts[0] <= MAX_STOREY \
 							and ((str(p[0]) == SLAB and parts[3] == CELL_ORIENT) or (str(p[0]) == SADDLE and SADDLE_ORIENTS.has(parts[3])) \
-							or (str(p[0]) == UPSTAIRS and DOWN.has(parts[3]) and parts[0] == 0)):
+							or (str(p[0]) == UPSTAIRS and DOWN.has(parts[3]) and parts[0] == 0) \
+							or (str(p[0]) == BALLISTA and parts[3] == BALLISTA_ORIENT and parts[0] <= RAIL_STOREY)):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
 		s.floor_surface = str(saved.get("floor", ""))
 		s.wall_surface = str(saved.get("wall", ""))

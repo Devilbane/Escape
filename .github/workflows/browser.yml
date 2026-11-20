@@ -53,6 +53,11 @@ jobs:
 
       - name: Export the browser version
         run: |
+          # The compendium's patch notes page: the archive published with the Windows build, merged
+          # with the committed one (no new entry: the browser build's number is not a Windows build).
+          curl -sfL --max-time 30 -o previous_history.json \
+            "https://github.com/${{ github.repository }}/releases/download/windows/patch_history.json" || rm -f previous_history.json
+          python3 tools/patch_notes.py history "" "" "" previous_history.json > patch_history.new && mv patch_history.new docs/patch_history.json
           sed -i 's/^const BUILD := .*/const BUILD := "${{ github.run_number }}"/' scripts/game.gd
           grep -q 'const BUILD := "${{ github.run_number }}"' scripts/game.gd
           mkdir -p build/web

@@ -109,6 +109,7 @@ elemental_fights.gd | 300 | fixed | pass | Elementals and golems fight test
 bandit_chief.gd | 120 | fixed | pass | Bandit chief boss fight test
 sneak_attack.gd | 120 | fixed | pass | Sneak attack test
 monster_lore.gd | 180 | fixed | pass | Monster lore test
+patch_history.gd | 120 | fixed | pass | Patch notes archive and the compendium's patch notes page
 vital_circle.gd | 180 | fixed | pass | Vital blow circle (the weapon swings a full circle, streak follows, no time lost)
 vital_star.gd | 180 | fixed | pass | Vital blow star (blood-red wobbling star, short-lived)
 heroine.gd | 120 | free | pass | Hero or heroine test
@@ -268,3 +269,5 @@ house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle r
 ivy_seasons.gd | 120 | free | passfail | The vines on the houses follow the seasons (autumn colours, snowy and grapeless in winter)
 house_railing.gd | 120 | fixed | passfail | Roof railings: drawn and ringed round a flat roof, a gap for the stairs, built after the slab, keep the hero on the roof
 built_doors.gd | 180 | fixed | passfail | Built doors and gates: tall doorway, leaf swings open for whoever walks in and falls shut, E holds it open, Shift+E locks out creatures
+house_ballista.gd | 120 | fixed | passfail | House ballista: planned on the ground or a flat roof, built after its roof, shoots slimes in reach and winds up again
+wall_clearance.gd | 180 | fixed | passfail | The hero's head, hat, cape, belly and gear stay out of walls, and doorways stay open

@@ -591,9 +591,13 @@ func _run() -> void:
 	game.player.global_position = plan.cell_world(3, 3) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
 	game.player.reset_physics_interpolation()
 	var lowest := 0.0
+	var first_low := -1
 	for i in 240:
 		await process_frame
 		if is_instance_valid(pet):
+			if pet.global_position.y < lowest - 0.3 and first_low < 0:
+				first_low = i
+				print("  (pet below the rim at frame ", i, ": y ", pet.global_position.y, " state ", pet.state, " cut off ", pet.is_cut_off(), " gap ", Vector2(pet.global_position.x - game.player.global_position.x, pet.global_position.z - game.player.global_position.z).length(), ")")
 			lowest = minf(lowest, pet.global_position.y)
 	check(is_instance_valid(pet) and pet.is_cut_off(), "the fox knows it cannot follow into the pit")
 	check(lowest > -0.3, "it never jumps down into the pit (lowest y %.2f)" % lowest)
@@ -756,6 +760,22 @@ func _big_plot() -> void:
 			if not free.grow(FRAME_SLACK).has_point(_node_scr(x, y)):
 				outside += 1
 	check(outside == 0, "every node of the north and south edge is on screen above the tool bar (%d outside; free area %s)" % [outside, free])
+	# The mouse wheel works on top of the framing and the camera comes to rest (it used to
+	# hunt back and forth, zooming in and out a little, once the player zoomed in).
+	var zoom_before: float = game._zoom_target
+	for i in 3:
+		await _button(Vector2(640, 250), MOUSE_BUTTON_WHEEL_UP, true)
+	check(game._zoom_target > zoom_before, "the mouse wheel zooms in while the tool is open (%.2f to %.2f)" % [zoom_before, game._zoom_target])
+	await _wait(240)
+	var cam_a: Vector3 = game.camera.global_position
+	var swing := 0.0
+	for i in 120:
+		await _wait(1)
+		swing = maxf(swing, game.camera.global_position.distance_to(cam_a))
+		cam_a = game.camera.global_position
+	check(swing < 0.01, "after zooming in the camera is at rest, not hunting (largest step %.4f m)" % swing)
+	game._zoom_target = zoom_before
+	await _wait(240)
 	await _select("Wall")
 	var base := plan.count("wall")
 	await _drag(_node_scr(1, 0), _node_scr(6, 0))

@@ -37,6 +37,12 @@ func _wait(n := 2) -> void:
 		await process_frame
 
 
+## Moves the seasons so that it is season day `d` (see Seasons) and lets the game notice it.
+func _season_to(d: int) -> void:
+	game.season_shift += d - game.season_day()
+	game._check_season()
+
+
 func _run() -> void:
 	game.load_level(game._outdoor_index(), false)
 	await _wait(4)
@@ -46,20 +52,20 @@ func _run() -> void:
 		await _wait(1)
 	var lvl: Outdoor = game.level
 	# Summer: nobody wears anything.
-	game.day = 5
+	_season_to(Weather.SPRING_DAYS + 2)
 	game.day_hour = 12.0
 	await _wait(3)
 	for v: Villager in lvl.villagers:
 		check(not v.wears_winter, "%s wears no furs in summer" % v.role)
-	# The evening before the first winter day (day 23 turns into 24 at dawn): still summer clothes
-	# for everyone who is out and near the hero, winter clothes for whoever is out of sight.
-	game.day = 23
+	# The last day before winter (the seasons follow the real calendar, see Seasons): still summer
+	# clothes; when the calendar turns to winter, winter clothes for whoever is out of sight.
+	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1)
 	game.day_hour = 20.0
 	await _wait(3)
-	check(lvl.winter_wear == false, "no winter clothes before nightfall")
-	game.day_hour = 22.0
+	check(lvl.winter_wear == false, "no winter clothes before winter")
+	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS)
 	await _wait(3)
-	check(lvl.winter_wear == true, "the wardrobe turns to winter at night")
+	check(lvl.winter_wear == true, "the wardrobe turns to winter with the calendar")
 	for v: Villager in lvl.villagers:
 		if v.at_home or not v.visible:
 			check(v.wears_winter, "%s changed while asleep" % v.role)
@@ -85,12 +91,10 @@ func _run() -> void:
 	var first: Villager = lvl.villagers[0]
 	WinterWear.put_on(first._model, WinterWear.look_for(first.role, first._info))
 	check(first._model.find_children("Hat", "", true, false).size() <= 1, "the hat is put on only once")
-	# The day turns to winter: the first winter morning brings the remarks.
-	game.day_hour = 4.9
-	game.day = 23
-	await _wait(2)
-	game.day_hour = 4.99
-	game._new_day()
+	# The calendar turns to winter: the first winter day brings the remarks.
+	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1)
+	lvl.season_talk = ""
+	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS)
 	check(lvl.season_talk == "winter", "the first winter morning is marked")
 	game.day_hour = 6.0
 	await _wait(2)
@@ -105,7 +109,7 @@ func _run() -> void:
 	check(planned[0].is_talking(), "a villager talks about the snow")
 	# Spring: everyone takes the furs off (the command is instant).
 	game.day_hour = 12.0
-	game.day = 5
+	_season_to(Weather.YEAR_DAYS + 2)
 	lvl.set_winter_wear(false, true)
 	for v: Villager in lvl.villagers:
 		check(not v.wears_winter and not WinterWear.is_worn(v._model), "%s took the furs off" % v.role)
@@ -124,7 +128,7 @@ func _shots() -> void:
 	var lvl: Outdoor = game.level
 	lvl.set_winter_wear(true, true)
 	game.snow_cover = 1.0
-	game.day = 25
+	_season_to(Weather.YEAR_DAYS - 3)
 	await _wait(120)
 	var square := Vector3.ZERO
 	var all := lvl.villagers.filter(func(v: Villager): return v.visible)

@@ -224,6 +224,8 @@ var villagers: Array = []
 ## Every living tree of the woods, for the birds and squirrels in them (see
 ## WoodsLife): where it stands and how tall it is.
 var _wood_trees: Array = []
+## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
+var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
 var woods: WoodsLife
 ## The glowworm swarms that roam the night (see GlowwormSwarms).
@@ -466,7 +468,8 @@ var _risen: Array = []
 ## The day the world's clock is on (see Game.day): with the hour it tells
 ## which night it is, and whether the wandering merchant is in the village.
 var day := 0
-## The day whose season counts (see set_season): the flowers in the gardens go by it too.
+## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
+## and the flowers in the gardens go by.
 var season_day := 0
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
@@ -902,6 +905,9 @@ func _tree_material(mat: Material, wind := true) -> Material:
 		bark.shader = TREE_SHADER
 		bark.set_shader_parameter("albedo_tex", tex)
 		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
+		var turn := IvySeasons.tree_turn(_tree_stage)
+		bark.set_shader_parameter("autumn", turn.x)
+		bark.set_shader_parameter("wither", turn.y)
 		_scenes[key] = bark
 	return _scenes[key]
 
@@ -3597,10 +3603,21 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 
 
 ## The vines on the houses turn with the seasons: red and gold in autumn, snowy and without grapes
-## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
+## in winter (see IvySeasons); the leafy trees turn with them. `day_of_season` is the season day
+## (see Seasons).
 func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
+	# The leafy trees turn with the vines (see tree.gdshader).
+	var at := IvySeasons.stage(day_of_season)
+	if at == _tree_stage:
+		return
+	_tree_stage = at
+	var turn := IvySeasons.tree_turn(at)
+	for key in _scenes:
+		if String(key).begins_with("mat_tree_"):
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("autumn", turn.x)
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("wither", turn.y)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).
@@ -4521,22 +4538,12 @@ func strike() -> Vector3:
 	return at
 
 
-## A bright bolt from the sky down to where lightning struck, gone in a blink.
+## A bright bolt from the sky down to where lightning struck: a hard zig-zag with a few forks
+## (see LightningBolt) that flickers for a moment and fades.
 func _show_bolt(at: Vector3) -> void:
-	var bolt := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.6
-	mesh.bottom_radius = 0.2
-	mesh.height = 40.0
-	bolt.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.9, 0.94, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(0.8, 0.88, 1.0)
-	mat.emission_energy_multiplier = 8.0
-	bolt.material_override = mat
-	bolt.position = at + Vector3(0, 20.0, 0)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var bolt := LightningBolt.build(at, rng)
 	add_child(bolt)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.8, 0.88, 1.0)
@@ -4560,17 +4567,17 @@ func _show_bolt(at: Vector3) -> void:
 	scorch.material_override = burnt
 	scorch.position = at + Vector3(0, 0.03, 0)
 	add_child(scorch)
-	# The bolt flickers: on, dark for a blink, on again, then gone.
+	# The bolt flickers: on, dark for a blink, on again (see LightningBolt.FLASHES), then fades.
 	var tween := create_tween()
-	tween.tween_interval(0.2)
-	tween.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.visible = false)
-	tween.tween_interval(0.07)
-	tween.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.visible = true)
-	tween.tween_interval(0.35)
+	for i in LightningBolt.FLASHES.size():
+		tween.tween_interval(LightningBolt.FLASHES[i])
+		if i < LightningBolt.FLASHES.size() - 1:
+			var lit := i % 2 == 1
+			tween.tween_callback(func():
+				if is_instance_valid(bolt):
+					bolt.visible = lit)
+	tween.tween_property(bolt.get_meta("core"), "albedo_color:a", 0.0, LightningBolt.FADE)
+	tween.parallel().tween_property(bolt.get_meta("glow"), "albedo_color:a", 0.0, LightningBolt.FADE)
 	tween.tween_callback(bolt.queue_free)
 	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)

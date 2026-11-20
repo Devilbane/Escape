@@ -39,6 +39,11 @@ const RAIL_STOREY := 1
 const RAIL_HEIGHT := 1.0
 ## The house's own walls: doors and windows sit in these.
 const HOUSE_WALLS := [WALL, DOOR, WINDOW]
+## What can be set into a piece that is already built, without tearing it down
+## first: a door or window into a built house wall, a gate into a built garden
+## wall. The piece keeps standing as it is, marked with what it becomes ("into"),
+## until the hero rebuilds it. A rebuild costs no material and gives none back.
+const CHANGES := [DOOR, WINDOW, GATE]
 const KINDS := [WALL, DOOR, WINDOW, STONE_FENCE, WOOD_FENCE, GATE]
 ## The cellar (storey CELLAR_STOREY): a "dig" piece is one grid cell dug out of
 ## the ground, DEPTH metres deep; a "stairs" piece is a ramp of two cells from the
@@ -145,7 +150,8 @@ static var _loaded := false
 
 ## The plot, in map tiles.
 var plot := Rect2i()
-## key -> {"kind": WALL / DOOR / WINDOW, "state": SKETCH / BUILT}
+## key -> {"kind": WALL / DOOR / WINDOW, "state": SKETCH / BUILT}, and for a
+## built piece to be rebuilt as something else "into": its new kind (see CHANGES).
 var pieces := {}
 ## The hero told the character to build (see build_next).
 var ordered := false
@@ -262,7 +268,8 @@ func has_piece(x: int, y: int, orient: String, storey := 0) -> bool:
 ## construction phase), "needs wall" (a door or window needs a house wall),
 ## "needs fence" (a gate needs a garden wall), "no roof" (above the ground a
 ## garden wall is a railing and stands beside a flat roof) or "stairs edge"
-## (where stairs up arrive, a railing would bar the way).
+## (where stairs up arrive, a railing would bar the way). A door, window or
+## gate may go onto a built wall of its sort: that wall is rebuilt (see CHANGES).
 func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> String:
 	if not in_plot(x, y, orient):
 		return "outside"
@@ -276,13 +283,36 @@ func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> Strin
 		if kind != GATE and stairs_edges().has(key_of(x, y, orient, storey)):
 			return "stairs edge"
 	var had := piece(x, y, orient, storey)
-	if had.get("state", SKETCH) != SKETCH:
+	var state: String = had.get("state", SKETCH)
+	# A door, window or gate goes into a built piece (the checks below say
+	# whether it fits); the same kind again only calls off a planned rebuild.
+	var rebuild: bool = state == BUILT and CHANGES.has(kind) and (had.kind != kind or had.has("into"))
+	if state != SKETCH and not rebuild:
 		return "built"
 	if (kind == DOOR or kind == WINDOW) and not HOUSE_WALLS.has(had.get("kind", "")):
 		return "needs wall"
 	if kind == GATE and not FENCE_KINDS.has(had.get("kind", "")):
 		return "needs fence"
 	return ""
+
+
+## Whether a built piece of kind `from` can be rebuilt as `to` without being torn down.
+static func can_change(from: String, to: String) -> bool:
+	if from == to or not CHANGES.has(to):
+		return false
+	return HOUSE_WALLS.has(from) if to != GATE else FENCE_KINDS.has(from)
+
+
+## Whether a piece still needs the hero's work to be built: a sketch, or a
+## built piece to be rebuilt as something else.
+static func is_planned(p: Dictionary) -> bool:
+	return p.state == SKETCH or (p.state == BUILT and p.has("into"))
+
+
+## What a planned piece still needs from the stock before the hero can do it:
+## a sketch its cost, a rebuild nothing (see CHANGES).
+static func price_of(p: Dictionary) -> Dictionary:
+	return cost_of(p) if p.state == SKETCH else {}
 
 
 ## The garden wall the fence tool draws now (see fence_material).
@@ -385,9 +415,18 @@ func sketch(edges: Array, kind: String, storey := 0) -> int:
 			continue
 		var key := key_of(e[0], e[1], e[2], storey)
 		var before = pieces.get(key, null)
-		if before != null and before.kind == kind:
-			continue
 		var after := {"kind": kind, "state": SKETCH}
+		if before != null and before.state == BUILT:
+			# Set into the built piece: it is rebuilt, or the rebuild is called off.
+			if before.get("into", before.kind) == kind:
+				continue
+			after = before.duplicate()
+			if kind == before.kind:
+				after.erase("into")
+			else:
+				after.into = kind
+		elif before != null and before.kind == kind:
+			continue
 		pieces[key] = after
 		step.append({"key": key, "before": before, "after": after})
 	_push(step)
@@ -415,6 +454,12 @@ func _erase_step(edges: Array, storey: int) -> Array:
 		if before.state == SKETCH:
 			pieces.erase(key)
 			step.append({"key": key, "before": before, "after": null})
+		elif before.state == BUILT and before.has("into"):
+			# The rebuild is called off first: the piece stays as it was built.
+			var kept: Dictionary = before.duplicate()
+			kept.erase("into")
+			pieces[key] = kept
+			step.append({"key": key, "before": before, "after": kept})
 		elif before.state == BUILT:
 			var after: Dictionary = before.duplicate()
 			after.state = DEMOLISH
@@ -598,9 +643,9 @@ func next_kind() -> String:
 	var best := 1 << 30
 	var kind := ""
 	for key in pieces:
-		if pieces[key].state == SKETCH and _affordable(pieces[key]) and _can_build(key) and priority(key) < best:
+		if is_planned(pieces[key]) and _affordable(pieces[key]) and _can_build(key) and priority(key) < best:
 			best = priority(key)
-			kind = pieces[key].kind
+			kind = pieces[key].get("into", pieces[key].kind)
 	return kind
 
 
@@ -608,7 +653,7 @@ func next_kind() -> String:
 ## each with its walls before doors and windows, then slab, stairs and roof.
 func priority(key: String) -> int:
 	var p := parts_of(key)
-	return int(p[0]) * 100 + BUILD_ORDER.find(pieces[key].kind)
+	return int(p[0]) * 100 + BUILD_ORDER.find(pieces[key].get("into", pieces[key].kind))
 
 
 ## Stairs are built only once the cell they lead to is, the cellar ceiling
@@ -1048,7 +1093,7 @@ func is_empty() -> bool:
 func open_pieces() -> int:
 	var open := 0
 	for key in pieces:
-		if pieces[key].state != BUILT:
+		if pieces[key].state != BUILT or pieces[key].has("into"):
 			open += 1
 	return open
 
@@ -1066,8 +1111,8 @@ func stage() -> String:
 func missing() -> Dictionary:
 	var need := {}
 	for key in pieces:
-		if pieces[key].state == SKETCH:
-			var cost := cost_of(pieces[key])
+		if is_planned(pieces[key]):
+			var cost := price_of(pieces[key])
 			for id in cost:
 				need[id] = int(need.get(id, 0)) + int(cost[id])
 	var out := {}
@@ -1082,8 +1127,8 @@ func missing() -> Dictionary:
 func needs() -> Dictionary:
 	var need := {}
 	for key in pieces:
-		if pieces[key].state == SKETCH:
-			var cost := cost_of(pieces[key])
+		if is_planned(pieces[key]):
+			var cost := price_of(pieces[key])
 			for id in cost:
 				need[id] = int(need.get(id, 0)) + int(cost[id])
 	return need
@@ -1112,7 +1157,7 @@ static func cost_of(p: Dictionary) -> Dictionary:
 
 
 func _affordable(p: Dictionary) -> bool:
-	var cost := cost_of(p)
+	var cost := price_of(p)
 	for id in cost:
 		if int(stock.get(id, 0)) < int(cost[id]):
 			return false
@@ -1158,23 +1203,29 @@ func build_next() -> Dictionary:
 		var chosen := ""
 		var best := 1 << 30
 		for key in pieces:
-			if pieces[key].state == SKETCH and _affordable(pieces[key]) and _can_build(key) and priority(key) < best:
+			if is_planned(pieces[key]) and _affordable(pieces[key]) and _can_build(key) and priority(key) < best:
 				best = priority(key)
 				chosen = key
 		if chosen == "":
 			var waiting := false
 			for key in pieces:
-				if pieces[key].state == SKETCH:
+				if is_planned(pieces[key]):
 					waiting = true
 			if not waiting:
 				ordered = false
 				return {}
 			return {"why": "materials"}
-		var kind: String = pieces[chosen].kind
-		var price := cost_of(pieces[chosen])
+		var kind: String = pieces[chosen].get("into", pieces[chosen].kind)
+		var price := price_of(pieces[chosen])
 		for id in price:
 			stock[id] = int(stock.get(id, 0)) - int(price[id])
-		pieces[chosen].state = BUILT
+		if pieces[chosen].has("into"):
+			pieces[chosen] = {"kind": kind, "state": BUILT}
+		else:
+			# A sketch keeps what it is made of (a dug cell's surfaces, a ceiling's material).
+			pieces[chosen].state = BUILT
+		if kind != DOOR and kind != GATE:
+			locked.erase(chosen)
 		var p := parts_of(chosen)
 		result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "built"}
 	# What was done cannot be undone with the plan's undo.
@@ -1221,9 +1272,11 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 				var p = raw[key]
 				if p is Array and p.size() >= 2:
 					var parts := parts_of(str(key))
-					if KINDS.has(str(p[0])) and p.size() == 2 and parts[0] >= 0 and parts[0] <= MAX_STOREY and s.in_plot(parts[1], parts[2], parts[3]) \
+					if KINDS.has(str(p[0])) and (p.size() == 2 or (p.size() == 3 and str(p[1]) == BUILT and can_change(str(p[0]), str(p[2])))) and parts[0] >= 0 and parts[0] <= MAX_STOREY and s.in_plot(parts[1], parts[2], parts[3]) \
 							and (parts[0] == 0 or parts[0] == RAIL_STOREY or not FENCE_KINDS.has(str(p[0]))):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
+						if p.size() == 3:
+							s.pieces[str(key)].into = str(p[2])
 					elif str(p[0]) == DIG and p.size() == 4 and parts[0] == CELLAR_STOREY and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": DIG, "state": str(p[1]),
 								"floor": str(p[2]) if SURFACES.has(str(p[2])) else "", "wall": str(p[3]) if SURFACES.has(str(p[3])) else ""}
@@ -1269,6 +1322,8 @@ func save(hero: String) -> void:
 			raw[key] = [p.kind, p.state, p.get("floor", ""), p.get("wall", "")]
 		elif p.kind == COVER:
 			raw[key] = [p.kind, p.state, p.get("surface", "wood")]
+		elif p.has("into"):
+			raw[key] = [p.kind, p.state, p.into]
 		else:
 			raw[key] = [p.kind, p.state]
 	var shut := []

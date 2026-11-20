@@ -27,7 +27,7 @@ static var _mat: StandardMaterial3D
 ## Whether a slime that is slain now shatters: a slime of the open air in winter that
 ## no bigger slime swallowed.
 static func applies(e: Enemy) -> bool:
-	return e.level is Outdoor and Weather.is_winter((e.level as Outdoor).day) \
+	return e.level is Outdoor and Weather.is_winter((e.level as Outdoor).season_day) \
 			and SlimeGrowth.grows(e.kind) and e.swallowed_by == null
 
 

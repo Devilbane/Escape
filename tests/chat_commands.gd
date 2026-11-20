@@ -35,7 +35,7 @@ func _run() -> void:
 	for i in 10:
 		await process_frame
 	var all := ChatCommands.entries()
-	check(all.size() >= 4, "godmode, teleport, weather and the tour are listed")
+	check(all.size() >= 5, "godmode, teleport, weather, the tour and the seasons are listed")
 	var names := all.map(func(e): return e.name)
 	check("Gottmodus" in names and "Teleport" in names and "Wetter und Zeit" in names and "Himmelstour" in names, "the entries: %s" % str(names))
 	for e in all:
@@ -45,7 +45,7 @@ func _run() -> void:
 	for e in all:
 		for ex in e.examples:
 			var line: String = ex
-			check(Godmode.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null, "example '%s' is a command" % line)
+			check(Godmode.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null or SkyCommand.parse_season(line) != null, "example '%s' is a command" % line)
 	check(Lang.EN.has("Befehle") and Lang.EN.has("Beispiele"), "page texts have English")
 
 	# The page.

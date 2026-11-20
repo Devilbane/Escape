@@ -47,14 +47,19 @@ const CLEAR_MAX_HOURS := 8.0
 ## clear skies for this many hours.
 const FIRST_HOURS := 4.0
 
-## The year: WINTER_DAYS of winter at the end of every YEAR_DAYS days (a new game starts on day
-## 0, so the first winter comes on day 24). The days before autumn are split in half: spring first,
-## then summer (see season). There is no rain and no thunderstorm in winter: snow comes in their
-## place, often, and the snow on the ground stays until spring.
-const YEAR_DAYS := 32
-const WINTER_DAYS := 8
-## The AUTUMN_DAYS before winter are autumn: the vines on the houses turn red and gold (see IvySeasons).
-const AUTUMN_DAYS := 8
+## The year: four seasons of SEASON_DAYS real days each, spring, summer, autumn and winter, counted
+## in season days (see Seasons: the real calendar, one real week a season). Snow falls only in winter,
+## and there is no rain and no thunderstorm then: snow comes in their place, often, and the snow on
+## the ground stays until spring.
+const SEASON_DAYS := 7
+const YEAR_DAYS := 4 * SEASON_DAYS
+const SPRING_DAYS := SEASON_DAYS
+const WINTER_DAYS := SEASON_DAYS
+## Autumn comes just before winter: the leaves of the trees and the vines on the houses turn red,
+## brown and gold (see IvySeasons, tree.gdshader).
+const AUTUMN_DAYS := SEASON_DAYS
+## The season day of the year on which autumn starts.
+const AUTUMN_FROM := YEAR_DAYS - WINTER_DAYS - AUTUMN_DAYS
 
 const SPRING := "spring"
 const SUMMER := "summer"
@@ -122,6 +127,10 @@ const HAZE := Color(0.66, 0.68, 0.72)
 ## How long the look takes to move most of the way to a new weather
 ## (real seconds).
 const FADE := 5.0
+## Fog rolls in slowly: the mist and the haze thicken evenly from nothing to their full
+## strength over this many real seconds (see ease_look), instead of within FADE. Clearing up
+## still takes FADE.
+const FOG_BUILD := 60.0
 
 ## Every night is a little dusty: the mist at its thinnest, this share of
 ## the thickness of real fog, fading in at dusk and out at dawn.
@@ -234,18 +243,23 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 	return rng.randf_range(MIN_HOURS, MAX_HOURS)
 
 
-## The season of `day` (the game's count of days): SPRING, SUMMER, AUTUMN or WINTER.
+## Whether season day `day` (see Seasons) is in spring, the SPRING_DAYS that open the year.
+static func is_spring(day: int) -> bool:
+	return posmod(day, YEAR_DAYS) < SPRING_DAYS
+
+
+## The season of season day `day` (see Seasons): SPRING, SUMMER, AUTUMN or WINTER.
 static func season(day: int) -> String:
 	if is_winter(day):
 		return WINTER
 	if is_autumn(day):
 		return AUTUMN
-	if posmod(day, YEAR_DAYS) < (YEAR_DAYS - WINTER_DAYS - AUTUMN_DAYS) / 2:
+	if is_spring(day):
 		return SPRING
 	return SUMMER
 
 
-## Whether `day` (the game's count of days) is in winter (see YEAR_DAYS).
+## Whether season day `day` (see Seasons) is in winter (see YEAR_DAYS).
 static func is_winter(day: int) -> bool:
 	return posmod(day, YEAR_DAYS) >= YEAR_DAYS - WINTER_DAYS
 
@@ -319,6 +333,19 @@ static func look(kind: String) -> Dictionary:
 
 
 ## A look partway (t from 0 to 1) from one to another.
+## The look `delta` real seconds further on its way from `from` to the look of the weather
+## `to`: most of the way within FADE, but the mist and the haze only thicken at the pace of
+## FOG_BUILD, so fog rolls in slowly.
+static func ease_look(from: Dictionary, to: Dictionary, delta: float) -> Dictionary:
+	var out := blend(from, to, 1.0 - exp(-delta / FADE))
+	var full: Dictionary = LOOKS[FOG]
+	for key in ["mist", "fog"]:
+		var was := float(from.get(key, 0.0))
+		if float(to[key]) > was:
+			out[key] = move_toward(was, float(to[key]), float(full[key]) * delta / FOG_BUILD)
+	return out
+
+
 static func blend(from: Dictionary, to: Dictionary, t: float) -> Dictionary:
 	var out := {}
 	for key in to:
@@ -480,7 +507,8 @@ static func make_mist() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = MIST_PATCHES
 	p.lifetime = 12.0
-	p.preprocess = 12.0
+	# No preprocess: fog rolls in slowly (see FOG_BUILD), so the patches can drift in as it
+	# thickens, and starting them costs no burst of twelve seconds of particles in one frame.
 	p.local_coords = false
 	p.emitting = false
 	var patch := QuadMesh.new()

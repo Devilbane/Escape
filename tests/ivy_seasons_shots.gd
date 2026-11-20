@@ -9,7 +9,7 @@ const TARGETS := {
 }
 ## season: [day, snow on the ground]
 const SEASONS := {
-	"summer": [2, 0.0],
+	"summer": [Weather.SPRING_DAYS + 2, 0.0],
 	"autumn": [Weather.YEAR_DAYS - Weather.WINTER_DAYS - Weather.AUTUMN_DAYS + IvySeasons.TURN_DAYS - 1, 0.0],
 	"winter": [Weather.YEAR_DAYS - Weather.WINTER_DAYS + 1, 1.0],
 }
@@ -51,7 +51,7 @@ func _run() -> void:
 	for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):
 		layer.visible = false
 	for season: String in SEASONS:
-		game.day = SEASONS[season][0]
+		game.season_shift = int(SEASONS[season][0]) - Seasons.today()
 		game.day_hour = 12.0
 		game.snow_cover = SEASONS[season][1]
 		game.set_weather(Weather.CLEAR, 100.0)

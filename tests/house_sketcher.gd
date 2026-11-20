@@ -67,6 +67,19 @@ func _process(_delta: float) -> bool:
 	check(button.button_pressed, "the button stays pressed while the tool is open")
 	game.plot_marker._process(0.0)
 	check(game.plot_marker._deeds.visible, "the plot posts show while building")
+	# Not on the cellar level of the tool, and not while the hero is down in a cellar.
+	sketcher.storey = HouseSketch.CELLAR_STOREY
+	game.plot_marker._process(0.0)
+	check(not game.plot_marker._deeds.visible, "the plot posts hide on the cellar level")
+	sketcher.storey = 0
+	var on_plot: Vector3 = game.player.global_position
+	game.player.global_position = on_plot + Vector3(0, -2.5, 0)
+	game.plot_marker._process(0.0)
+	check(not game.plot_marker._deeds.visible, "the plot posts hide while the hero is in the cellar")
+	game.player.global_position = on_plot
+	game.player.reset_physics_interpolation()
+	game.plot_marker._process(0.0)
+	check(game.plot_marker._deeds.visible, "the plot posts come back above ground")
 	game.blueprint_action()
 	check(not sketcher.active and not button.button_pressed, "a second press closes the tool")
 	game.plot_marker._process(0.0)
@@ -114,6 +127,17 @@ func _process(_delta: float) -> bool:
 		if plan.pieces[key].state == "built":
 			built_key = key
 	var bp := HouseSketch.parts_of(built_key)
+	# A door goes straight into the built wall: the ghost shows it, a click plans the rebuild.
+	var on_built := plan.node_world(bp[1], bp[2]) + (Vector3(1.0, 0, 0) if bp[3] == "x" else Vector3(0, 0, 1.0))
+	sketcher.select_tool(HouseSketcher.TOOL_DOOR)
+	sketcher.hover(on_built)
+	check(sketcher._ghost.get_child_count() > 0, "the door's ghost shows on the built wall")
+	check(sketcher._status.text == Lang.t("Klicken: Dein Held baut hier eine Tür ein, ohne Material und ohne Abriss."), "the preview says the rebuild is free")
+	sketcher.mouse(on_built, true, MOUSE_BUTTON_LEFT)
+	check(plan.piece(bp[1], bp[2], bp[3]).get("into", "") == "door" and plan.piece(bp[1], bp[2], bp[3]).state == "built", "a click sets a door into the built wall")
+	sketcher.select_tool(HouseSketcher.TOOL_ERASE)
+	sketcher.mouse(on_built, true, MOUSE_BUTTON_LEFT)
+	check(not plan.piece(bp[1], bp[2], bp[3]).has("into") and plan.piece(bp[1], bp[2], bp[3]).state == "built", "the eraser calls the rebuild off first")
 	sketcher.mouse(plan.node_world(bp[1], bp[2]) + (Vector3(1.0, 0, 0) if bp[3] == "x" else Vector3(0, 0, 1.0)), true, MOUSE_BUTTON_LEFT)
 	check(plan.piece(bp[1], bp[2], bp[3]).state == "demolish", "the eraser marks a built piece for demolition")
 	# A garden wall: dragged like a wall, on the ground even from the cellar (on

@@ -1,0 +1,1 @@
+- Plot posts and cords stay hidden down in your cellar, and the fine light line along a cellar's rim is gone.

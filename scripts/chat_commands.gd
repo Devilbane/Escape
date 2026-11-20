@@ -41,4 +41,10 @@ static func entries() -> Array:
 			"text": "Zeigt jedes Wetter eine Minute lang, während die Uhr einen ganzen Tag und eine Nacht durchläuft, und fängt dann von vorn an. Stop oder ein anderer Himmelsbefehl beendet sie.",
 			"examples": ["weather:showcase", "weather:stop"],
 		})
+		out.append({
+			"name": "Jahreszeit",
+			"syntax": "season:<spring|summer|autumn|winter>",
+			"text": "Wechselt sofort in eine Jahreszeit (spring, summer, autumn, winter; auch frühling, sommer, herbst): Laub, Ranken und Trauben, Kleidung, Schnee und das Wetter der Jahreszeit. Danach läuft der Kalender von dort weiter, eine echte Woche je Jahreszeit.",
+			"examples": ["season:spring", "season:summer", "season:autumn", "season:winter"],
+		})
 	return out

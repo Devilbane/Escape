@@ -10,7 +10,7 @@ extends Node3D
 ## Registered plots are drawn as a post on every tile of the edge and a cord
 ## between, but only while the hero builds (the blueprint or furnishing tool is
 ## open) or marks out land: the rest of the time the posts would stand in doorways
-## and gardens (see deeds_shown).
+## and gardens. Down in a cellar they are hidden too (see deeds_shown).
 
 enum Stage { OFF, FIRST, SECOND }
 
@@ -21,6 +21,8 @@ const OK_COLOR := Color(0.4, 0.9, 0.4)
 const BAD_COLOR := Color(1.0, 0.4, 0.35)
 const PENDING_COLOR := Color(1.0, 0.8, 0.3)
 const DEED_COLOR := Color(0.85, 0.82, 0.7)
+## Below this height (metres) the hero is down in a cellar (as HouseSketcher._update_fade counts it).
+const CELLAR_BELOW := -0.5
 
 var game: Node
 var stage := Stage.OFF
@@ -45,15 +47,26 @@ func _process(_delta: float) -> void:
 
 
 ## Whether the posts and cords of the registered plots show: only while a
-## building tool is open or land is being marked out.
+## building tool is open or land is being marked out, and never while the hero
+## is down in a cellar or a building tool looks at the cellar level.
 func deeds_shown() -> bool:
 	if game == null:
 		return false
 	if marking():
 		return true
-	if game.house_sketcher != null and game.house_sketcher.active:
-		return true
-	return game.house_furnisher != null and game.house_furnisher.active
+	if in_cellar():
+		return false
+	var sketcher: HouseSketcher = game.house_sketcher
+	if sketcher != null and sketcher.active:
+		return sketcher.storey != HouseSketch.CELLAR_STOREY
+	if game.house_furnisher == null or not game.house_furnisher.active:
+		return false
+	return sketcher == null or sketcher.view_storey != HouseSketch.CELLAR_STOREY
+
+
+## Whether the hero stands below the ground (in a cellar).
+func in_cellar() -> bool:
+	return game.player != null and is_instance_valid(game.player) and game.player.global_position.y < CELLAR_BELOW
 
 
 func marking() -> bool:

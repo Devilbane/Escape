@@ -17,7 +17,8 @@ uniform sampler2D sky_mask : filter_linear, repeat_disable;
 uniform vec2 grid_size = vec2(1.0);
 uniform float tile = 4.0;
 // Where the hero has dug a cellar (R is 1 on each dug 2 m cell, see Outdoor.set_floor_holes): the
-// ground is cut away there, so no snow lies on the hole or on the cellar floor below it.
+// ground is cut away there, so no snow lies on the hole or on the cellar floor below it. A cell
+// closed by a cellar ceiling is 0.5: snow lies on the ceiling, but not in the cellar under it.
 uniform sampler2D hole_mask : filter_nearest, repeat_disable, hint_default_black;
 uniform bool holes_on = false;
 // The height under which a covered tile is not open to the sky.
@@ -55,7 +56,7 @@ void fragment() {
 			dug = texture(hole_mask, hole_uv).r;
 		}
 	}
-	if (dug > 0.5 || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n)) {
+	if (dug > 0.75 || (dug > 0.25 && world_pos.y < -0.05) || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n)) {
 		discard;
 	}
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);

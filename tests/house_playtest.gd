@@ -218,6 +218,33 @@ func _work(max_pieces: int) -> void:
 	await _wait(10)
 
 
+## Pushes the hero in the pit against its walls, one direction after another, until a
+## climb starts from the pit floor. A push that walks up the stairs ramp and starts
+## a climb from there is let through (with a fine roll) and tried again.
+func _push_into_pit_wall(hero, pit_spot: Vector3, roll: float) -> void:
+	for round in 3:
+		for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
+			hero.global_position = pit_spot
+			hero.reset_physics_interpolation()
+			await _wait(20)
+			hero.pit_roll_forced = roll
+			Input.action_press(action)
+			for i in 90:
+				await _wait(1)
+				if hero.is_climbing():
+					break
+			Input.action_release(action)
+			if hero.is_climbing() and hero._pit_floor < -2.4:
+				return
+			if hero.is_climbing():
+				hero.pit_roll_forced = 0.0
+				for i in 900:
+					await _wait(1)
+					if not hero.is_climbing():
+						break
+				await _wait(20)
+
+
 func _run() -> void:
 	if DisplayServer.get_name() == "headless":
 		# Real mouse input needs a window. The "House playtest" workflow runs this under Xvfb.
@@ -430,25 +457,47 @@ func _run() -> void:
 	# --- 9b. Climbing out of the pit without the stairs
 	_step("climb out of the cellar")
 	var hero = game.player
-	hero.global_position = plan.cell_world(2, 2) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	var pit_spot := plan.cell_world(2, 2) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	hero.global_position = pit_spot
 	hero.reset_physics_interpolation()
 	await _wait(30)
 	check(hero.in_pit(), "the hero stands in the pit (y %.2f)" % hero.global_position.y)
 	check(hero.climbing_level() == 1, "every hero climbs at level 1")
-	for round in 4:
-		for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
-			if not hero.in_pit():
-				break
-			Input.action_press(action)
-			await _wait(120)
-			Input.action_release(action)
-			await _wait(10)
-	for i in 90:
+	# Two slips in a row at the hang: the first is caught, the second drops the hero back.
+	hero.pit_roll_forced = 0.99
+	await _push_into_pit_wall(hero, pit_spot, 0.99)
+	check(hero.is_climbing(), "pushing against the pit wall starts the climb")
+	await _shot("climb_start")
+	var floor_y: float = hero._pit_floor
+	var hung := false
+	for i in 400:
+		await _wait(1)
+		if hero.global_position.y > floor_y + 1.0 and not hung:
+			hung = true
+			var arm: Skeleton3D = hero._skeleton
+			var raised: Quaternion = arm.get_bone_pose_rotation(arm.find_bone("upperarm.l"))
+			check(not raised.is_equal_approx(hero._pit_base.ua_l.q), "the arms are posed for the hang (the rig follows the climb)")
+			await _shot("climb_hang")
 		if not hero.is_climbing():
 			break
-		await _wait(10)
+	check(hung, "the hero got up to the ledge before slipping")
+	check(not hero.is_climbing() and hero.in_pit(), "the second slip drops the hero back into the pit (y %.2f)" % hero.global_position.y)
+	check(absf(hero.global_position.y - floor_y) < 0.1, "the hero is back where the climb began (%.2f, began at %.2f)" % [hero.global_position.y, floor_y])
+	await _wait(60)
+	# The next try goes through (a fine roll), all the way up.
+	hero.pit_roll_forced = 0.0
+	await _push_into_pit_wall(hero, pit_spot, 0.0)
+	var shot_at := [0.3, 0.45, 0.6, 0.8]
+	for i in 900:
+		await _wait(1)
+		if not hero.is_climbing():
+			break
+		if not shot_at.is_empty() and hero._pit_u >= shot_at[0]:
+			await _shot("climb_%d" % int(shot_at[0] * 100))
+			shot_at.pop_front()
 	await _wait(30)
 	check(hero.global_position.y > -0.5, "pushing against the pit wall climbs the hero out (y %.2f)" % hero.global_position.y)
+	await _shot("climb_out")
 
 	# --- 10. Upper floor
 	_step("floor slab, stairs up, upper wall")

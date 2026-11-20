@@ -123,6 +123,8 @@ func _check_litter() -> void:
 		check(c.x >= 0 and life.biome_of(c) == expect[letter], "'%s' lies in the %s (got %s)" % [letter, expect[letter], life.biome_of(c)])
 	check(life.litter_on_path_middles() == 0, "the middle of every path stays clear (%d pieces)" % life.litter_on_path_middles())
 	check(life.find_children("*", "CollisionObject3D", true, false).is_empty(), "nothing on the ground blocks the way")
+	check(not (lvl as Outdoor).bare_ground.is_empty(), "the temple glass's light on the lawn is kept bare")
+	check(life.patches_on_bare_ground() == 0, "no patch of dirt or moss hides the temple's light (%d)" % life.patches_on_bare_ground())
 	var batches: Array = life.find_children("*", "MultiMeshInstance3D", true, false)
 	check(batches.size() > 20, "litter is drawn in batches (%d)" % batches.size())
 	for b: MultiMeshInstance3D in batches:

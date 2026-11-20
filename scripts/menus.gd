@@ -2564,7 +2564,7 @@ func _build_woodcutter() -> void:
 	var detail := {"subtitle": TradeWindow.subtitle(TIMBER), "lines": TradeWindow.stat_lines(TIMBER) + [
 			[Lang.t("Bauholz für Türen und Fenster. Gib es am Bauplan-Schild auf deinem Grundstück ab: Dort baut dein Held damit dein Haus."), TradeWindow.BLUE],
 			[Lang.t("Bruno hackt in seiner Schicht alle 20 Sekunden ein Bauholz in seinen Vorrat, bis zu 999. Was er nicht auf Lager hat, kann er nicht verkaufen."), TradeWindow.BLUE],
-			[Lang.t("Umsonst, aber mit eigener Mühe: Hack es dir selbst aus den Stämmen am Holzplatz neben dem Holzfäller oder aus umgestürzten Bäumen im Wald. Jeder Stamm gibt 2 Bauholz und liegt am nächsten Morgen wieder da."), TradeWindow.BLUE]]}
+			[Lang.t("Umsonst, aber mit eigener Mühe: Hack es dir selbst aus den Stämmen am Holzplatz neben dem Holzfäller (2 Bauholz) oder aus umgestürzten Bäumen im Wald (6 Bauholz). Am nächsten Morgen liegt wieder einer da."), TradeWindow.BLUE]]}
 	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Bauholz: %d") % have, "icon": TIMBER,
 			"subtitle": Lang.t("Platz für %d weitere") % room}
 	_trade(header, [

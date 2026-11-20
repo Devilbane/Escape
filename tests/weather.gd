@@ -192,26 +192,35 @@ func _rolls() -> void:
 	rng.seed = 3
 	var seen := {}
 	for hour in [2.0, 8.0, 13.0, 19.0]:
-		for i in 200:
+		for i in 400:
 			var before: String = Weather.KINDS[i % Weather.KINDS.size()]
-			var winter := i % 2 == 0
-			var next := Weather.roll(hour, rng, before, winter)
-			check(next in Weather.KINDS and next != before, "the next weather is a real change")
-			check(not winter or (next != Weather.RAIN and next != Weather.STORM), "no rain and no storm in winter")
-			check(winter or next != Weather.SNOW, "snow only in winter")
+			var season: String = Weather.SEASONS[(i / Weather.KINDS.size()) % Weather.SEASONS.size()]
+			var next := Weather.roll(hour, rng, before, season)
+			check(next in Weather.KINDS and (next != before or next == Weather.CLEAR), "the next weather is a real change (or clear skies stay)")
+			check(season != Weather.WINTER or (next != Weather.RAIN and next != Weather.STORM), "no rain and no storm in winter")
+			check(next != Weather.SNOW or season != Weather.SUMMER, "no snow in summer")
 			seen[next] = true
 	check(seen.size() == Weather.KINDS.size(), "every weather comes now and then")
-	# Rain is a thirtieth as common as the raw weights would make it (90 % rarer than it was).
-	var raw := 0
-	var kept := 0
-	for i in 60000:
-		var hr: float = [2.0, 8.0, 13.0, 19.0][i % 4]
-		if Weather.roll(hr, rng, Weather.CLEAR) == Weather.RAIN:
-			kept += 1
-		var chances: Dictionary = Weather.CHANCES[Weather.part_of_day(hr)]
-		if Weather._pick(chances, rng, Weather.CLEAR, "") == Weather.RAIN:
-			raw += 1
-	check(absf(float(kept) / float(raw) - Weather.RAIN_KEEP) < 0.012, "rain comes a thirtieth as often (%d of %d)" % [kept, raw])
+	# Each season has its own weather: share of the time over many days.
+	var shares := {}
+	for season in Weather.SEASONS:
+		shares[season] = _shares(rng, season)
+	var spring: Dictionary = shares[Weather.SPRING]
+	var summer: Dictionary = shares[Weather.SUMMER]
+	var autumn: Dictionary = shares[Weather.AUTUMN]
+	var winter: Dictionary = shares[Weather.WINTER]
+	check(spring[Weather.CLEAR] > 0.65 and spring[Weather.RAIN] > spring[Weather.FOG] and spring[Weather.RAIN] < 0.25, "spring: mostly sunny, a bit of rain (%s)" % spring)
+	check(spring[Weather.SNOW] > 0.0 and spring[Weather.SNOW] < 0.04 and spring[Weather.FOG] < 0.08, "spring: rarely snow, rarely fog")
+	check(summer[Weather.CLEAR] > spring[Weather.CLEAR] and summer[Weather.SNOW] == 0.0, "summer: the sunniest, no snow (%s)" % summer)
+	check(summer[Weather.STORM] > summer[Weather.RAIN] and summer[Weather.RAIN] < 0.08 and summer[Weather.FOG] < 0.05, "summer: thunderstorms, rarely rain or fog")
+	check(autumn[Weather.RAIN] > spring[Weather.RAIN] and autumn[Weather.FOG] > spring[Weather.FOG] and autumn[Weather.STORM] > 0.05, "autumn: rain, fog and thunderstorms (%s)" % autumn)
+	check(autumn[Weather.SNOW] > 0.0 and autumn[Weather.SNOW] < 0.04 and autumn[Weather.CLEAR] > 0.45, "autumn: still sunny spells, rarely snow")
+	check(winter[Weather.SNOW] > 0.1 and winter[Weather.RAIN] == 0.0 and winter[Weather.STORM] == 0.0, "winter: snow, no rain (%s)" % winter)
+	# The seasons follow each other over the year.
+	check(Weather.season(0) == Weather.SPRING and Weather.season(Weather.YEAR_DAYS) == Weather.SPRING, "a year starts in spring")
+	var autumn_first := Weather.YEAR_DAYS - Weather.WINTER_DAYS - Weather.AUTUMN_DAYS
+	check(Weather.season(autumn_first - 1) == Weather.SUMMER and Weather.season(autumn_first) == Weather.AUTUMN, "summer comes before autumn")
+	check(Weather.season(Weather.YEAR_DAYS - 1) == Weather.WINTER, "a year ends in winter")
 	for i in 50:
 		var h := Weather.spell(rng, Weather.RAIN)
 		check(h >= Weather.RAIN_MIN_HOURS and h <= Weather.RAIN_MAX_HOURS, "a spell of rain lasts long")
@@ -230,8 +239,27 @@ func _rolls() -> void:
 		if kind == Weather.CLEAR:
 			clear += h
 		hour = fmod(hour + h, 24.0)
-		kind = Weather.roll(hour, rng, kind)
-	check(clear / total > 0.55, "clear skies hold most of the time (%.0f%%)" % (100.0 * clear / total))
+		kind = Weather.roll(hour, rng, kind, Weather.AUTUMN)
+	check(clear / total > 0.5, "even in autumn clear skies hold most of the time (%.0f%%)" % (100.0 * clear / total))
+
+
+## The share of the time each weather holds in a season, over many days.
+func _shares(rng: RandomNumberGenerator, season: String) -> Dictionary:
+	var hour := 8.0
+	var kind: String = Weather.CLEAR
+	var time := {}
+	var total := 0.0
+	for k in Weather.KINDS:
+		time[k] = 0.0
+	for i in 20000:
+		var h := Weather.spell(rng, kind)
+		total += h
+		time[kind] += h
+		hour = fmod(hour + h, 24.0)
+		kind = Weather.roll(hour, rng, kind, season)
+	for k in Weather.KINDS:
+		time[k] = snappedf(time[k] / total, 0.001)
+	return time
 
 
 func _clock_and_saving() -> void:

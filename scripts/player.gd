@@ -933,6 +933,8 @@ func revive(at: Vector3, heal := true) -> void:
 	_down = 0.0
 	_run_hits.clear()
 	_climb = -1.0
+	if _pit_climb:
+		_end_pit_climb(false)
 	_on_crate = false
 	set_asleep(false)
 	play("Idle")
@@ -2744,7 +2746,7 @@ func on_crate() -> bool:
 
 ## Whether the hero is climbing onto a crate right now.
 func is_climbing() -> bool:
-	return _climb >= 0.0
+	return _climb >= 0.0 or _pit_climb
 
 
 ## Starts climbing onto a crate the hero pushes against: walking into one
@@ -2829,26 +2831,146 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 	if ground.is_empty() or not _room_at(target) or not Climbing.can_climb(-global_position.y, climbing_level()):
 		return false
 	_pit_push = 0.0
-	if randf() >= Climbing.chance(climbing_level(), _pit_slips):
-		# The hands slip: a pause, a little practice, and the next try is likelier.
-		_pit_slips += 1
-		_pit_push = -PIT_PUSH_TIME
-		train("klettern", Training.CLIMB_PER_METRE * 0.5)
-		Events.tell(Lang.t("Abgerutscht! Versuch es noch einmal."), Color(0.8, 0.85, 1.0))
-		return false
-	_pit_slips = 0
-	_climb_from = global_position
-	_climb_to = target
-	_climb_time = Climbing.seconds(-global_position.y, climbing_level(), speed * WALK_FACTOR)
-	_climb = 0.0
+	_start_pit_climb(push, target)
+	return true
+
+
+## The hands of a hero climbing out of a pit: where the pull-up may fail (see
+## ClimbPose.U_ROLL) the hero holds on once and falls back the second time.
+enum PitStage { CLIMB, CATCH, FALL }
+var _pit_climb := false
+var _pit_stage := PitStage.CLIMB
+var _pit_u := 0.0
+var _pit_seconds := 1.0
+var _pit_dir := Vector3.ZERO
+var _pit_wall := Vector3.ZERO
+var _pit_floor := 0.0
+var _pit_forward := -0.4
+var _pit_rolled := false
+var _pit_misses := 0
+var _pit_hold := 0.0
+var _pit_vy := 0.0
+var _pit_height := 0.0
+var _pit_at := -0.4
+var _pit_pose := {}
+var _pit_target := Vector3.ZERO
+var _pit_base := {}
+## Tests: the roll of the hands (0..1) instead of a random one; a roll above the chance slips.
+var pit_roll_forced := -1.0
+var _skeleton: Skeleton3D
+
+
+## Starts the climb out of the pit up to `target` (feet there), pushing along `push`.
+func _start_pit_climb(push: Vector3, target: Vector3) -> void:
+	if _skeleton == null:
+		_skeleton = _model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if _skeleton == null:
+		# No rig to pose: the plain pull-up.
+		_climb_from = global_position
+		_climb_to = target
+		_climb_time = Climbing.seconds(-global_position.y, climbing_level(), speed * WALK_FACTOR)
+		_climb = 0.0
+		return
+	if _pit_base.is_empty():
+		_anim.play("Idle")
+		_anim.seek(0.0, true)
+		_pit_base = ClimbPose.base_of(_skeleton)
+	_anim.pause()
+	_pit_climb = true
+	_pit_stage = PitStage.CLIMB
+	_pit_u = 0.0
+	_pit_rolled = false
+	_pit_misses = 0
+	_pit_dir = push
+	_pit_wall = global_position + push * radius
+	_pit_floor = global_position.y
+	_pit_forward = -radius
+	_pit_target = target
+	_pit_seconds = Climbing.seconds(-global_position.y, climbing_level(), speed * WALK_FACTOR)
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
-	face(target - global_position)
+	face(push)
 	_current_anim = ""
-	play("Jump_Idle", 0.1)
 	train("geschick", 0.5)
-	train("klettern", Training.CLIMB_PER_METRE * (-_climb_from.y))
-	return true
+
+
+## One step of the climb out of a pit: the pose and place for this moment of the
+## climb (ClimbPose), the roll when the hands take the weight, a catch or a fall.
+func _pit_climb_step(delta: float) -> void:
+	velocity = Vector3.ZERO
+	match _pit_stage:
+		PitStage.CLIMB:
+			_pit_u = minf(1.0, _pit_u + delta / _pit_seconds)
+			if not _pit_rolled and _pit_u >= ClimbPose.U_ROLL:
+				_pit_u = ClimbPose.U_ROLL
+				_pit_rolled = true
+				if (pit_roll_forced if pit_roll_forced >= 0.0 else randf()) >= Climbing.chance(climbing_level(), _pit_slips):
+					_pit_slips += 1
+					_pit_misses += 1
+					train("klettern", Training.CLIMB_PER_METRE * 0.5)
+					if _pit_misses >= 2:
+						_pit_stage = PitStage.FALL
+						_pit_vy = 0.0
+						Events.tell(Lang.t("Abgerutscht! Du fällst zurück in die Grube."), Color(0.8, 0.85, 1.0))
+					else:
+						_pit_stage = PitStage.CATCH
+						_pit_hold = 0.8
+						Events.tell(Lang.t("Fast abgerutscht! Du hältst dich fest."), Color(0.8, 0.85, 1.0))
+			var state := ClimbPose.at(_pit_u, _pit_floor, _pit_forward)
+			_pit_pose = state.pose
+			_pit_height = state.height
+			_pit_at = state.forward
+			_pit_place(state.forward, state.height)
+			if _pit_u >= 1.0:
+				_end_pit_climb(true)
+		PitStage.CATCH:
+			# The hands slip but hold: the body drops a little and swings, then tries again.
+			_pit_hold -= delta
+			var state := ClimbPose.at(ClimbPose.U_ROLL, _pit_floor, _pit_forward)
+			var wave := sin(clampf(1.0 - _pit_hold / 0.8, 0.0, 1.0) * PI)
+			_pit_pose = ClimbPose.mix(state.pose, ClimbPose.POSES["pull"], wave * 0.15)
+			_pit_pose["hip_l"] = float(_pit_pose.get("hip_l", 0.0)) + wave * 30.0
+			_pit_height = state.height - wave * 0.22
+			_pit_at = state.forward
+			_pit_place(state.forward, _pit_height)
+			if _pit_hold <= 0.0:
+				_pit_stage = PitStage.CLIMB
+				_pit_rolled = false
+		PitStage.FALL:
+			_pit_vy -= GRAVITY * delta
+			_pit_height += _pit_vy * delta
+			var land := _pit_floor
+			_pit_pose = ClimbPose.mix(_pit_pose, ClimbPose.POSES["crouch"], clampf(delta * 6.0, 0.0, 1.0))
+			if _pit_height <= land:
+				_pit_height = land
+				_pit_place(_pit_at, land)
+				_end_pit_climb(false)
+			else:
+				_pit_place(_pit_at, _pit_height)
+	if _pit_climb and _skeleton != null:
+		ClimbPose.apply(_skeleton, _pit_base, _pit_pose)
+
+
+## Puts the hero `forward` metres past the wall's face at `height` (world y).
+func _pit_place(forward: float, height: float) -> void:
+	global_position = Vector3(_pit_wall.x + _pit_dir.x * forward, height, _pit_wall.z + _pit_dir.z * forward)
+
+
+## The climb is over: out on the ground (`out`), or fallen back to the pit floor.
+func _end_pit_climb(out: bool) -> void:
+	_pit_climb = false
+	_pit_stage = PitStage.CLIMB
+	if out:
+		_pit_slips = 0
+		global_position = _pit_target
+		train("klettern", Training.CLIMB_PER_METRE * (-_pit_floor))
+	else:
+		_pit_push = -PIT_PUSH_TIME
+	if _skeleton != null:
+		ClimbPose.apply(_skeleton, _pit_base, {})
+	velocity = Vector3.ZERO
+	_current_anim = ""
+	play("Idle", 0.15)
 
 
 ## Lifts the hero onto the top of a crate or block set down under them: the
@@ -2974,6 +3096,9 @@ func _physics_process(delta: float) -> void:
 	_pursue(delta)
 	_auto_attack()
 	if _stay_seated(delta):
+		return
+	if _pit_climb:
+		_pit_climb_step(delta)
 		return
 	if _climb >= 0.0:
 		_climb_step(delta)

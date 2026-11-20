@@ -6675,6 +6675,10 @@ func _on_player_bumped(point: Vector3) -> void:
 		station = {} # Run into a wall with it on the other side.
 	if station.get("kind", "") == Seats.KIND and (player.is_seated() or player.still_getting_up()):
 		return
+	if station.has("spot") and not _walked_by_keys():
+		# A bed or a workbench is run into by accident on the way somewhere clicked, or running
+		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.
+		return
 	if not station.is_empty():
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
@@ -6683,6 +6687,21 @@ func _on_player_bumped(point: Vector3) -> void:
 	var obj := level.unsearched_at(point)
 	if not obj.is_empty() and level.can_reach(player.global_position, obj.pos):
 		_search(obj)
+
+
+## Whether the hero walks by the keys, not along a clicked path or steered by the held mouse.
+func _walked_by_keys() -> bool:
+	return player.path.is_empty() and player.steer == Vector3.ZERO
+
+
+## Key E beside a bed or a workbench, with no door, crate or block to handle: uses it, as its
+## spot is small for the mouse. False when none is in reach.
+func _use_spot_station_by_key() -> bool:
+	var station := level.nearest_station(player.global_position, Level.SEARCH_RANGE)
+	if station.is_empty() or not station.has("spot") or not level.can_reach(player.global_position, station.pos):
+		return false
+	_use_station(station)
+	return true
 
 
 func _search(obj: Dictionary) -> void:
@@ -7861,6 +7880,8 @@ func _unhandled_input(event: InputEvent) -> void:
 							why_not = take_stone()
 						elif level.crate_in_reach(player) == null and level.pack_in_reach(player) != null:
 							why_not = push_floor_pack()
+						elif level.crate_in_reach(player) == null and _use_spot_station_by_key():
+							pass
 						else:
 							why_not = pick_up_crate()
 						if why_not != "":
@@ -8105,7 +8126,8 @@ func _click(point: Vector3) -> void:
 		_pending_search = {}
 		_pending_station = {}
 		return
-	var station := level.nearest_station(point, 2.2)
+	# A bed or a workbench only on its pillow or the middle of its top (see Level.station_clicked).
+	var station := level.station_clicked(point, camera.global_position, (point - camera.global_position).normalized(), 2.2)
 	if not station.is_empty():
 		_pending_station = station
 		_pending_search = {}

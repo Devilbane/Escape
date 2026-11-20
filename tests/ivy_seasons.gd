@@ -55,6 +55,19 @@ func _grapes_shown(ivy: Node3D) -> bool:
 	return false
 
 
+## How many grape bunches show (x) and their mean size (y).
+func _grape_sizes(ivy: Node3D) -> Vector2:
+	var shown := 0
+	var size := 0.0
+	for node: Node in ivy.get_children():
+		if node.name.begins_with("Grapes") and (node as Node3D).visible:
+			for s: float in node.get_meta("sizes", PackedFloat32Array()):
+				if s > 0.01:
+					shown += 1
+					size += s
+	return Vector2(shown, size / maxf(1.0, float(shown)))
+
+
 var ran := false
 
 
@@ -71,9 +84,20 @@ func _run() -> void:
 	check(not Weather.is_autumn(autumn_first - 1) and Weather.is_autumn(autumn_first), "autumn starts AUTUMN_DAYS before winter")
 	check(Weather.is_autumn(Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1) and not Weather.is_autumn(Weather.YEAR_DAYS - Weather.WINTER_DAYS), "autumn ends when winter starts")
 	check(Weather.autumn_day(autumn_first) == 0 and Weather.autumn_day(0) == -1, "days into autumn")
-	check(IvySeasons.stage(0) == IvySeasons.SUMMER, "summer at the start")
+	check(IvySeasons.stage(0) == IvySeasons.SPRING, "spring at the start")
+	check(IvySeasons.stage(Weather.SPRING_DAYS) == IvySeasons.SUMMER, "summer after a week of spring")
 	check(IvySeasons.stage(Weather.YEAR_DAYS - 1) == IvySeasons.WINTER, "winter at the end of the year")
-	check(IvySeasons.stage(Weather.YEAR_DAYS) == IvySeasons.SUMMER, "spring brings summer leaves back")
+	check(IvySeasons.stage(Weather.YEAR_DAYS) == IvySeasons.SPRING, "spring comes back after winter")
+	check(Weather.YEAR_DAYS == 28 and Weather.WINTER_DAYS == 7 and Weather.AUTUMN_DAYS == 7, "four seasons of a real week each")
+	# The real calendar: Monday 2026-11-16 starts an autumn, the Monday a week later a winter, and
+	# four weeks later the next autumn.
+	var monday := 1794787200.0
+	check(Weather.is_autumn(Seasons.today(monday)) and Weather.autumn_day(Seasons.today(monday)) == 0, "a real Monday starts autumn")
+	check(Weather.is_autumn(Seasons.today(monday + 6.9 * 86400.0)), "autumn lasts the whole week")
+	check(Weather.is_winter(Seasons.today(monday + 7.0 * 86400.0)), "winter the week after")
+	check(Weather.is_spring(Seasons.today(monday + 14.0 * 86400.0)), "then spring")
+	check(Weather.season(Seasons.today(monday + 21.0 * 86400.0)) == Weather.SUMMER, "then summer")
+	check(Weather.autumn_day(Seasons.today(monday + 28.0 * 86400.0)) == 0, "and autumn again after four weeks")
 
 	# The sky command's autumn.
 	var a: Dictionary = SkyCommand.parse("weather:autumn")
@@ -96,7 +120,11 @@ func _run() -> void:
 
 	IvySeasons.apply(ivy, 2)
 	var t := _turned(ivy)
+	check(t[0] == 0.0 and not _grapes_shown(ivy), "spring: green leaves and no grapes yet")
+	IvySeasons.apply(ivy, Weather.SPRING_DAYS + 2)
+	t = _turned(ivy)
 	check(t[0] == 0.0 and _grapes_shown(ivy), "summer: green leaves and grapes")
+	var summer_grapes := _grape_sizes(ivy)
 	var last := 0.0
 	for d in IvySeasons.TURN_DAYS:
 		IvySeasons.apply(ivy, autumn_first + d)
@@ -105,6 +133,10 @@ func _run() -> void:
 		check(not t[1], "autumn leaves flowers and red leaves as they are")
 		check(_grapes_shown(ivy), "the grapes hang in autumn")
 		last = t[0]
+	var autumn_grapes := _grape_sizes(ivy)
+	check(autumn_grapes.x > summer_grapes.x and autumn_grapes.y > summer_grapes.y, "autumn's grapes are more and bigger (%s, summer %s)" % [autumn_grapes, summer_grapes])
+	var w := IvySeasons.tree_turn(IvySeasons.stage(autumn_first + IvySeasons.TURN_DAYS))
+	check(w.x > 0.9 and IvySeasons.tree_turn(IvySeasons.SUMMER) == Vector2.ZERO and IvySeasons.tree_turn(IvySeasons.SPRING) == Vector2.ZERO, "the trees turn in autumn only")
 	check(last > 0.8, "by the end of autumn nearly all leaves have turned (%.2f)" % last)
 	IvySeasons.apply(ivy, Weather.YEAR_DAYS - Weather.WINTER_DAYS)
 	t = _turned(ivy)
@@ -121,7 +153,9 @@ func _run() -> void:
 	check(dark, "winter leaves are dark")
 	IvySeasons.apply(ivy, Weather.YEAR_DAYS + 1)
 	t = _turned(ivy)
-	check(t[0] == 0.0 and _grapes_shown(ivy), "spring: green again, grapes back")
+	check(t[0] == 0.0 and not _grapes_shown(ivy), "spring: green again, no grapes yet")
+	IvySeasons.apply(ivy, Weather.YEAR_DAYS + Weather.SPRING_DAYS)
+	check(_grapes_shown(ivy), "summer: grapes back")
 
 	# The snow on the ivy's leaves clings to their rims.
 	var world := Node3D.new()

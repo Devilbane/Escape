@@ -46,7 +46,7 @@ static func wants(level: Outdoor, frozen: bool) -> bool:
 	if level == null or level.snow == null:
 		return false
 	# Once frozen he stays so for the whole winter, whatever the weather does to the snow.
-	if frozen and Weather.is_winter(level.day):
+	if frozen and Weather.is_winter(level.season_day):
 		return true
 	return level.snow.amount >= (THAW_BELOW if frozen else FREEZE_FROM)
 

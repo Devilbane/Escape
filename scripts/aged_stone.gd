@@ -1345,6 +1345,13 @@ static func _grapes_into(root: Node3D, leaves: Dictionary) -> void:
 			mm.set_instance_color(k, (leaves.grape_colours as Array)[picked[k]])
 		var node := MultiMeshInstance3D.new()
 		node.name = "Grapes_%d_%d" % [key.x, key.y]
+		# The bunches as grown, for the seasons to ripen (see IvySeasons).
+		var grown_xf: Array[Transform3D] = []
+		var grown_col := PackedColorArray()
+		for k in picked.size():
+			grown_xf.append(xf[picked[k]])
+			grown_col.append((leaves.grape_colours as Array)[picked[k]])
+		node.set_meta("grown", [grown_xf, grown_col])
 		node.multimesh = mm
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visibility_range_end = LEAF_RANGE

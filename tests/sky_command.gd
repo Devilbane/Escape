@@ -61,7 +61,7 @@ func _run() -> void:
 		check(Lang.EN.has(line), "help has an English text: " + line)
 	# The seasons.
 	check(Weather.is_winter(SkyCommand.day_for(3, true)) and not Weather.is_winter(SkyCommand.day_for(26, false)), "season days")
-	check(SkyCommand.day_for(26, false) == 32, "spring is the next year's start")
+	check(SkyCommand.day_for(26, false) == Weather.YEAR_DAYS, "spring is the next year's start")
 
 	# The game.
 	var news: Array = game.event_log.entries()
@@ -75,13 +75,36 @@ func _run() -> void:
 	game._hero_says("time:0")
 	check(is_equal_approx(game.day_hour, 0.0) and game.weather == Weather.RAIN, "time keeps the weather")
 	game._hero_says("weather:winter")
-	check(Weather.is_winter(game.day) and game.weather == Weather.SNOW and game.snow_cover == 1.0, "winter on")
+	check(Weather.is_winter(game.season_day()) and game.weather == Weather.SNOW and game.snow_cover == 1.0, "winter on")
 	game._hero_says("weather:storm")
-	check(not Weather.is_winter(game.day) and game.weather == Weather.STORM, "a storm ends the winter")
+	check(not Weather.is_winter(game.season_day()) and game.weather == Weather.STORM, "a storm ends the winter")
 	game._hero_says("weather:hail")
 	check(game.event_log.entries()[-1].contains("weather:"), "options listed")
 	game._hero_says("weather:spring")
-	check(not Weather.is_winter(game.day) and game.snow_cover == 0.0, "spring")
+	check(not Weather.is_winter(game.season_day()) and game.snow_cover == 0.0, "spring")
+
+	# The season command.
+	check(SkyCommand.parse_season("hello") == null and SkyCommand.parse_season("weather:winter") == null, "only season: lines")
+	check(SkyCommand.parse_season("season:Autumn").season == Weather.AUTUMN and SkyCommand.parse_season("jahreszeit:frühling").season == Weather.SPRING, "season words, English and German")
+	check(SkyCommand.parse_season("season:monsoon").error == "monsoon" and SkyCommand.parse_season("season:").has("error"), "unknown season")
+	for season: String in Weather.SEASONS:
+		for from in [0, 9, 17, 25]:
+			var to := SkyCommand.season_start(from, season)
+			check(Weather.season(to) == season and to >= from and to < from + Weather.YEAR_DAYS, "season:%s from day %d goes to day %d" % [season, from, to])
+	check(SkyCommand.season_start(3, Weather.AUTUMN) == Weather.AUTUMN_FROM + IvySeasons.TURN_DAYS - 1, "season:autumn shows the turned leaves")
+	check(SkyCommand.season_start(Weather.SPRING_DAYS + 3, Weather.SUMMER) == Weather.SPRING_DAYS + 3, "already in the season, the day stays")
+	for word: String in ["season:winter", "season:spring", "season:summer", "season:autumn"]:
+		game._hero_says(word)
+		var season: String = SkyCommand.parse_season(word).season
+		check(Weather.season(game.season_day()) == season, "%s switches the season" % word)
+		check(game.event_log.entries()[-1].contains(Lang.t(SkyCommand.SEASON_NAMES[season])), "%s is confirmed: %s" % [word, game.event_log.entries()[-1]])
+		if season == Weather.WINTER:
+			check(game.weather == Weather.SNOW and game.snow_cover == 1.0, "winter: snow on the ground")
+		else:
+			check(game.weather == Weather.CLEAR and game.snow_cover == 0.0, "%s: clear and no snow" % season)
+	game._hero_says("season:monsoon")
+	check(game.event_log.entries()[-1].contains("season:"), "unknown season lists the options")
+	check(Lang.EN.has(SkyCommand.SEASON_HELP), "season help has English")
 
 	# The tour.
 	check(SkyCommand.parse("weather:showcase").tour == "showcase" and SkyCommand.parse("weather:stop").tour == "stop", "tour words")

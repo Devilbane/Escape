@@ -1,0 +1,2 @@
+- Seasons now follow the real calendar: spring, summer, autumn and winter last one real week each.
+- In autumn the trees, vines and falling leaves turn red, brown and gold; grapes hang ripe and full, small and unripe in summer, and not at all in spring or winter.

@@ -1318,9 +1318,25 @@ static func grape_mesh() -> ArrayMesh:
 
 ## The grape bunches (see _grapes) as one MultiMesh per tile, under `root`.
 static func _grapes_into(root: Node3D, leaves: Dictionary) -> void:
-	var xf: Array = leaves.get("grapes", [])
+	var xf: Array = (leaves.get("grapes", []) as Array).duplicate()
 	if xf.is_empty():
 		return
+	var colours: Array = (leaves.get("grape_colours", []) as Array).duplicate()
+	# Which way each bunch faces out from its wall (from the nearest stem), and the extra bunches
+	# that only autumn hangs (see _autumn_grapes, IvySeasons).
+	var stem_grid := {}
+	for st: Transform3D in leaves.get("stems", []):
+		var key := _grape_cell(st.origin)
+		if not stem_grid.has(key):
+			stem_grid[key] = []
+		stem_grid[key].append(st)
+	var normals: Array = []
+	for g: Transform3D in xf:
+		normals.append(_stem_normal(g.origin, stem_grid))
+	var autumn_only: Array = []
+	autumn_only.resize(xf.size())
+	autumn_only.fill(false)
+	_autumn_grapes(leaves, xf, colours, normals, autumn_only)
 	var mesh := grape_mesh()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
@@ -1342,20 +1358,98 @@ static func _grapes_into(root: Node3D, leaves: Dictionary) -> void:
 		mm.instance_count = picked.size()
 		for k in picked.size():
 			mm.set_instance_transform(k, xf[picked[k]])
-			mm.set_instance_color(k, (leaves.grape_colours as Array)[picked[k]])
+			mm.set_instance_color(k, colours[picked[k]])
 		var node := MultiMeshInstance3D.new()
 		node.name = "Grapes_%d_%d" % [key.x, key.y]
-		# The bunches as grown, for the seasons to ripen (see IvySeasons).
+		# The bunches as grown, for the seasons to ripen (see IvySeasons): transform, colour, the
+		# way out from the wall, and whether only autumn hangs it.
 		var grown_xf: Array[Transform3D] = []
 		var grown_col := PackedColorArray()
+		var grown_n: Array[Vector3] = []
+		var grown_autumn: Array[bool] = []
 		for k in picked.size():
 			grown_xf.append(xf[picked[k]])
-			grown_col.append((leaves.grape_colours as Array)[picked[k]])
-		node.set_meta("grown", [grown_xf, grown_col])
+			grown_col.append(colours[picked[k]])
+			grown_n.append(normals[picked[k]])
+			grown_autumn.append(autumn_only[picked[k]])
+		node.set_meta("grown", [grown_xf, grown_col, grown_n, grown_autumn])
 		node.multimesh = mm
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visibility_range_end = LEAF_RANGE
 		root.add_child(node)
+
+
+## How likely a stem piece is to carry an extra bunch in autumn, and how close such bunches may hang
+## to any other (metres): autumn is harvest time, and the vines hang heavy with grapes.
+const AUTUMN_GRAPE_CHANCE := 0.35
+const AUTUMN_GRAPE_SPACING := 0.45
+
+
+## The grid cell (half a metre) of `at`, for finding near stems and bunches quickly.
+static func _grape_cell(at: Vector3) -> Vector3i:
+	return Vector3i((at / 0.5).floor())
+
+
+## The way out from the wall at `at`: the facing of the nearest stem piece in the cells round it
+## (`stem_grid`: cell -> stem transforms), UP when there is none.
+static func _stem_normal(at: Vector3, stem_grid: Dictionary) -> Vector3:
+	var best := Vector3.UP
+	var near := INF
+	var c := _grape_cell(at)
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			for dz in range(-1, 2):
+				for st: Transform3D in stem_grid.get(c + Vector3i(dx, dy, dz), []):
+					var d := st.origin.distance_squared_to(at)
+					if d < near:
+						near = d
+						best = st.basis.z.normalized()
+	return best
+
+
+## Whether a bunch in `grape_grid` (cell -> origins) hangs within `reach` (under 0.5 m) of `at`.
+static func _grape_near(at: Vector3, grape_grid: Dictionary, reach: float) -> bool:
+	var c := _grape_cell(at)
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			for dz in range(-1, 2):
+				for o: Vector3 in grape_grid.get(c + Vector3i(dx, dy, dz), []):
+					if o.distance_squared_to(at) < reach * reach:
+						return true
+	return false
+
+
+## Adds the bunches only autumn hangs (to `xf`, `colours`, `normals`, flagged in `autumn_only`):
+## below stem pieces, AUTUMN_GRAPE_CHANCE each, never closer than AUTUMN_GRAPE_SPACING to another
+## bunch. Dice of their own (from where each stem lies), so the vines themselves never change.
+static func _autumn_grapes(leaves: Dictionary, xf: Array, colours: Array, normals: Array, autumn_only: Array) -> void:
+	var grape_grid := {}
+	for g: Transform3D in xf:
+		var key := _grape_cell(g.origin)
+		if not grape_grid.has(key):
+			grape_grid[key] = []
+		grape_grid[key].append(g.origin)
+	for st: Transform3D in leaves.get("stems", []):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash(st.origin.snapped(Vector3.ONE * 0.01))
+		if rng.randf() >= AUTUMN_GRAPE_CHANCE:
+			continue
+		var n := st.basis.z.normalized()
+		var spot := st.origin + n * 0.05
+		if absf(n.y) < 0.5:
+			# On a wall the bunch hangs below the stem; on a roof it lies on it.
+			spot -= Vector3.UP * 0.1
+		if _grape_near(spot, grape_grid, AUTUMN_GRAPE_SPACING):
+			continue
+		var key := _grape_cell(spot)
+		if not grape_grid.has(key):
+			grape_grid[key] = []
+		grape_grid[key].append(spot)
+		var size := rng.randf_range(1.0, 1.35)
+		xf.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size), spot))
+		colours.append((GRAPE_RED if rng.randf() < GRAPE_RED_SHARE else GRAPE_COLOUR) * rng.randf_range(0.85, 1.25))
+		normals.append(n)
+		autumn_only.append(true)
 
 
 ## The stems (see _stem) as one MultiMesh of bars per tile, under `root`.

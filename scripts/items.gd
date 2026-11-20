@@ -181,8 +181,8 @@ static var ALL := {
 	# stonemason in the village, set down from the bag, moved by dragging.
 	"steinblock": {"name": "Steinblock", "slot": "stein", "weight": 4, "price": 3, "no_loot": true, "effect": "Zum Bauen: abstellen (Taste B), mit der Maus ziehen und stapeln"},
 	# Building timber for doors and windows (see HouseSketch.COST): sold by the
-	# woodcutter in the village, delivered to the plot at the blueprint sign.
-	"bauholz": {"name": "Bauholz", "slot": "stein", "weight": 3, "price": 3, "no_loot": true, "effect": "Für Türen und Fenster deines Hauses: am Bauplan-Schild auf deinem Grundstück abgeben"},
+	# woodcutter in the village, handed in through the blueprint tool.
+	"bauholz": {"name": "Bauholz", "slot": "stein", "weight": 3, "price": 3, "no_loot": true, "effect": "Für Türen und Fenster deines Hauses: im Bauplan auf deinem Grundstück abgeben"},
 	# Things carried for a villager's task (see Quests): never found as loot,
 	# never worn, worth next to nothing to the merchant.
 	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},

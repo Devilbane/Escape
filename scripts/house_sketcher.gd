@@ -1,7 +1,8 @@
 class_name HouseSketcher
 extends Node3D
-## The blueprint tool on the hero's plot (see Plots and HouseSketch). A signpost
-## on the plot's north-west corner opens it. The hero then draws their house
+## The blueprint tool on the hero's plot (see Plots and HouseSketch). The
+## blueprint button on the HUD opens it while the hero stands on their plot or
+## near it (see toggle and Game._setup_blueprint_button). The hero then draws their house
 ## like a floor plan: drag along the grid to draw a wall, click a wall to turn
 ## it into a door or a window, click a piece with the eraser to take it back.
 ## A ghost shows what the next click does (green fits, red does not, and the
@@ -9,7 +10,7 @@ extends Node3D
 ##
 ## The sketch is only a blueprint: faint, see-through pieces without collision.
 ## Building it solid is the character's work: the hero hands stone blocks and
-## timber over at the sign, orders the build, and while they are near the plot
+## timber over in the tool, orders the build, and while they are near the plot
 ## the character turns one sketched piece after another solid (every BUILD_SECONDS),
 ## using up the material. Erasing a built piece marks it for demolition: the
 ## character takes it down and the material comes back. The stage banner shows
@@ -128,9 +129,6 @@ var _deposit_button: Button
 var _stock_label: Label
 var _ghost := Node3D.new()
 var _grid := MeshInstance3D.new()
-var _sign: Node3D
-var _sign_body: StaticBody3D
-var _station := {}
 var _bar: PanelContainer
 var _stage_labels := {}
 var _tool_buttons := {}
@@ -221,7 +219,7 @@ func work_once() -> bool:
 	if result.has("why"):
 		if not _warned:
 			_warned = true
-			game.show_message(Lang.t("Dein Held wartet auf Material für den Bau: Gib Steinblöcke und Bauholz am Bauplan-Schild ab."), 5.0)
+			game.show_message(Lang.t("Dein Held wartet auf Material für den Bau: Gib Steinblöcke und Bauholz im Bauplan ab."), 5.0)
 		_update_bar()
 		return false
 	_warned = false
@@ -237,20 +235,12 @@ func node_pos(edge: Array) -> Vector3:
 	return plan.node_world(edge[0], edge[1])
 
 
-# --- The plot and its sign ----------------------------------------------------
+# --- The plot ----------------------------------------------------------------
 
-## Draws the hero's sign and plan again (after a plot is registered or the
-## plan changed).
+## Draws the hero's plan again (after a plot is registered or the plan changed).
 func refresh() -> void:
 	if game == null or not game.level is Outdoor:
 		return
-	if _sign != null:
-		_sign.queue_free()
-		_sign_body.queue_free()
-		_sign = null
-		_sign_body = null
-		game.level.stations.erase(_station)
-		_station = {}
 	_plot = Plots.plot_of(game.hero_name)
 	if _plot.size == Vector2i.ZERO:
 		plan = null
@@ -258,46 +248,49 @@ func refresh() -> void:
 		return
 	if plan == null or plan.plot != _plot:
 		plan = HouseSketch.of(game.hero_name, _plot)
-	_build_sign()
 	_redraw()
-
-
-func _build_sign() -> void:
-	var c := _plot.position
-	var pos: Vector3 = game.level.cell_to_world(c) + Vector3(-1.4, 0, -1.4)
-	_sign = Node3D.new()
-	_sign.position = pos
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.45, 0.3, 0.17)
-	var board := StandardMaterial3D.new()
-	board.albedo_color = Color(0.78, 0.68, 0.45)
-	_box(_sign, Vector3(0, 0.7, 0), Vector3(0.14, 1.4, 0.14), wood)
-	_box(_sign, Vector3(0, 1.25, 0), Vector3(0.9, 0.5, 0.08), board)
-	var label := Label3D.new()
-	label.text = Lang.t("Bauplan")
-	label.font_size = 40
-	label.pixel_size = 0.004
-	label.modulate = Color(0.25, 0.15, 0.05)
-	label.position = Vector3(0, 1.25, 0.05)
-	label.no_depth_test = false
-	_sign.add_child(label)
-	add_child(_sign)
-	_sign_body = StaticBody3D.new()
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(0.9, 1.4, 0.4)
-	shape.shape = box
-	shape.position = Vector3(0, 0.7, 0)
-	_sign_body.add_child(shape)
-	_sign_body.position = pos
-	add_child(_sign_body)
-	_station = {"kind": KIND, "cell": c, "pos": pos, "used": false, "owner": game.hero_name}
-	game.level.stations.append(_station)
 
 
 # --- Entering and leaving -----------------------------------------------------
 
-## The hero runs into their sign.
+## How many map cells round the plot the hero may stand for the blueprint
+## button to work ("on or near the plot").
+const NEAR_CELLS := 4
+
+
+## Whether the hero stands on their plot or within NEAR_CELLS of it.
+func hero_near() -> bool:
+	if plan == null or game == null or game.player == null or game.level == null or not game.level is Outdoor:
+		return false
+	var cell: Vector2i = game.level.world_to_cell(game.player.global_position)
+	return _plot.grow(NEAR_CELLS).has_point(cell)
+
+
+## Whether the blueprint button shows: one of the two building tools is open,
+## or the hero could open the blueprint tool from where they stand.
+func can_show() -> bool:
+	return active or (game != null and game.house_furnisher != null and game.house_furnisher.active) or hero_near()
+
+
+## The blueprint button on the HUD: opens the blueprint tool, or closes it (or
+## the furnishing tool, which is reached from the tool's "Einrichten" button)
+## when one is open. Returns why it did nothing, or "".
+func toggle() -> String:
+	if active:
+		leave()
+		return ""
+	if game.house_furnisher != null and game.house_furnisher.active:
+		game.house_furnisher.leave()
+		return ""
+	if plan == null:
+		return Lang.t("Du hast noch kein Grundstück. Das Amt der Krone trägt es dir ein.")
+	if not hero_near():
+		return Lang.t("Geh zu deinem Grundstück, um an deinem Haus zu bauen.")
+	enter()
+	return ""
+
+
+## Opens the tool (the blueprint button, see toggle).
 func enter() -> void:
 	if plan == null:
 		game.show_message(Lang.t("Du hast noch kein Grundstück. Das Amt der Krone trägt es dir ein."), 3.0)

@@ -101,7 +101,7 @@ const SHORTCUTS := [
 	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
-	["Möbel aufstellen (Bauplan-Schild, „Einrichten“)", "Linksklick stellt ab, R oder Rechtsklick dreht, Esc schließt"],
+	["Möbel aufstellen (Bauplan-Knopf, „Einrichten“)", "Linksklick stellt ab, R oder Rechtsklick dreht, Esc schließt"],
 	["Zoom", "+ und −, Mausrad"],
 	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
@@ -2569,7 +2569,7 @@ func _build_woodcutter() -> void:
 	var all := mini(mini(room, game.coins / price) if price > 0 else room, stock)
 	var have := p.bag.count(TIMBER)
 	var detail := {"subtitle": TradeWindow.subtitle(TIMBER), "lines": TradeWindow.stat_lines(TIMBER) + [
-			[Lang.t("Bauholz für Türen und Fenster. Gib es am Bauplan-Schild auf deinem Grundstück ab: Dort baut dein Held damit dein Haus."), TradeWindow.BLUE],
+			[Lang.t("Bauholz für Türen und Fenster. Gib es im Bauplan auf deinem Grundstück ab: Dort baut dein Held damit dein Haus."), TradeWindow.BLUE],
 			[Lang.t("Bruno hackt in seiner Schicht alle 20 Sekunden ein Bauholz in seinen Vorrat, bis zu 999. Was er nicht auf Lager hat, kann er nicht verkaufen."), TradeWindow.BLUE],
 			[Lang.t("Umsonst, aber mit eigener Mühe: Hack es dir selbst aus den Stämmen am Holzplatz neben dem Holzfäller (2 Bauholz) oder aus umgestürzten Bäumen im Wald (6 Bauholz). Am nächsten Morgen liegt wieder einer da."), TradeWindow.BLUE]]}
 	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Bauholz: %d") % have, "icon": TIMBER,
@@ -2654,9 +2654,9 @@ func _build_furnisher() -> void:
 					"detail": {"subtitle": Lang.t("Möbel für dein Haus"), "lines": lines},
 					"compare": {"title": Lang.t("Bei dir zu Hause"), "name": Lang.t(info.name), "icon": info.icon,
 						"subtitle": Lang.t("Zum Aufstellen: %d · Aufgestellt: %d") % [store.count(kind), store.standing(kind)],
-						"lines": [[Lang.t("Aufstellen am Bauplan-Schild auf deinem Grundstück: \"Einrichten\"."), TradeWindow.BLUE]]}})
+						"lines": [[Lang.t("Aufstellen im Bauplan auf deinem Grundstück: \"Einrichten\"."), TradeWindow.BLUE]]}})
 		sections.append({"key": section[0], "title": Lang.t(section[1]), "icon": section[2], "entries": entries})
-	_trade(header, sections, null, Lang.t("Zeig auf ein Möbelstück, um zu sehen, was es tut. Gekaufte Möbel stellst du am Bauplan-Schild mit \"Einrichten\" auf."))
+	_trade(header, sections, null, Lang.t("Zeig auf ein Möbelstück, um zu sehen, was es tut. Gekaufte Möbel stellst du im Bauplan mit \"Einrichten\" auf."))
 
 
 func _buy_furniture(kind: String) -> void:
@@ -2672,7 +2672,7 @@ func _buy_furniture(kind: String) -> void:
 		store.save(game.hero_name)
 		Events.bus().traded.emit(game.trader_role)
 		Sfx.play(game, "gear_soft_0", -2.0)
-		_note = Lang.t("Gekauft: %s. Aufstellen am Bauplan-Schild mit \"Einrichten\".") % Lang.t(HouseFurniture.KINDS[kind].name)
+		_note = Lang.t("Gekauft: %s. Aufstellen im Bauplan mit \"Einrichten\".") % Lang.t(HouseFurniture.KINDS[kind].name)
 		# The purse and the furniture store must agree, or a piece could be had for nothing.
 		game.save_game()
 	game._update_hud()

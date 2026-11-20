@@ -62,6 +62,9 @@ var _drawer_rail: VBoxContainer
 var _quick_buttons := {}
 ## The home button below the menu handle (see HomeRun).
 var _home_button: Button
+## The blueprint button left of the home button: opens the house building tools
+## on the hero's plot (see HouseSketcher.toggle).
+var _blueprint_button: Button
 ## The torch button below it: lights or puts out the hand torch (see HandTorch).
 var _torch_button: Button
 var _torch_count: Label
@@ -868,6 +871,7 @@ func _setup_drawer() -> void:
 	_drawer_rail.add_child(gap)
 	_drawer_rail.add_child(_drawer_handle)
 	_setup_home_button()
+	_setup_blueprint_button()
 	_setup_torch_button()
 	_setup_potion_button()
 	_setup_spell_button()
@@ -1014,6 +1018,57 @@ func _setup_home_button() -> void:
 	_home_button.add_child(icon)
 	_home_button.visible = false
 	slot.add_child(_home_button)
+
+
+## The blueprint button stands left of the home button, on the same line and as
+## big, outside the rail so the rail keeps its height (like the potion button
+## beside the torch): a blue sheet with a floor plan. It shows while the hero
+## stands on their plot or near it, and stays pressed while the blueprint or the
+## furnishing tool is open; a press opens the blueprint tool or closes the open
+## tool. Its place is kept while it is hidden, so nothing moves.
+func _setup_blueprint_button() -> void:
+	var slot: Control = _home_button.get_parent()
+	_blueprint_button = _make_button("", blueprint_action)
+	_blueprint_button.custom_minimum_size = QUICK_SIZE
+	_blueprint_button.toggle_mode = true
+	_blueprint_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_blueprint_button.position = Vector2(-QUICK_SIZE.x - QUICK_GAP, 0)
+	_blueprint_button.size = QUICK_SIZE
+	_blueprint_button.tooltip_text = Lang.t("Hausbau: Bauplan und Einrichten")
+	var icon := ItemIcon.make("kind:blueprint", QUICK_ICON, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_blueprint_button.add_child(icon)
+	_blueprint_button.visible = false
+	slot.add_child(_blueprint_button)
+
+
+## The blueprint button: opens the blueprint tool on the hero's plot, or closes
+## the building tool that is open.
+func blueprint_action() -> void:
+	if state != State.PLAYING or house_sketcher == null or menus.is_open():
+		update_blueprint_button()
+		return
+	var why := house_sketcher.toggle()
+	if why != "":
+		show_message(why, 2.4)
+	update_blueprint_button()
+
+
+## Shows the blueprint button on or near the hero's plot, pressed while a
+## building tool is open.
+func update_blueprint_button() -> void:
+	if _blueprint_button == null:
+		return
+	var show := house_sketcher != null and house_sketcher.can_show()
+	if _blueprint_button.visible != show:
+		_blueprint_button.visible = show
+	var open := house_sketcher != null and (house_sketcher.active or (house_furnisher != null and house_furnisher.active))
+	if _blueprint_button.button_pressed != open:
+		_blueprint_button.set_pressed_no_signal(open)
 
 
 ## The torch button stands on the rail just below the home button, the same
@@ -1822,9 +1877,6 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
 		menus.open(s.kind)
-	elif s.kind == HouseSketcher.KIND:
-		player.face(s.pos - player.global_position)
-		house_sketcher.enter()
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == WarHorn.KIND:
@@ -7373,6 +7425,7 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	home_run.tick()
 	update_home_button()
+	update_blueprint_button()
 	update_torch_button()
 	update_potion_button()
 	update_spell_button()
@@ -7446,7 +7499,6 @@ func _process(delta: float) -> void:
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
 			WoodLogs.KIND: Lang.t("Dagegenlaufen, um Bauholz zu hacken"),
-			HouseSketcher.KIND: Lang.t("Dagegenlaufen, um den Bauplan deines Hauses zu zeichnen"),
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",

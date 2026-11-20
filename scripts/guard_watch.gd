@@ -19,8 +19,9 @@ const WET_GROUND := 0.05
 ## How long he stands at the gate (seconds), at least and at most.
 const STAND_MIN := 7.0
 const STAND_MAX := 12.0
-## How far from the gate he sees a slime, and how long he is quiet after a call.
-const SIGHT := 26.0
+## How near the gate a slime must come before he calls the alarm (the same
+## distance as the wall's, VillageWall.WATCH_RANGE), and how long he is quiet after a call.
+const SIGHT := VillageWall.WATCH_RANGE
 const CALL_PAUSE := 20.0
 const CALL := "Ein Schleim am Westtor! Tor zu, zu den Waffen!"
 const NEWS := "Wache Ulrich hat am Westtor einen Schleim entdeckt!"

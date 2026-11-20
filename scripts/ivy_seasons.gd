@@ -6,8 +6,8 @@ extends RefCounted
 ## Spring: green leaves and no grapes yet. Summer: the green leaves and small, unripe grapes, only
 ## some of the bunches they were grown with (AgedStone). Autumn: day by day more
 ## of the green leaves turn crimson, orange and gold, until nearly all have turned. Winter: the leaves
-## darken to a dull bronze green, the snow settles on their upper rims (the ivy's snow, see
-## SnowCover and snow_cutout.gdshader) and the grapes are gone; they hang again in summer. In autumn every bunch hangs ripe and full.
+## keep their autumn colours, some lie under snow (SNOW_LEAVES), the snow settles on the upper rims
+## of the rest (the ivy's snow, see SnowCover and snow_cutout.gdshader) and the grapes are gone; they hang again in summer. In autumn every bunch hangs ripe and full.
 ##
 ## Only green leaves change: the flowers of the shrubs and the few leaves that are red all year keep
 ## their colour. The leaves' summer colours are kept on each MultiMesh (meta "summer"), so a change
@@ -40,9 +40,10 @@ const GRAPE_OUT := 0.09
 const GRAPE_UNRIPE_COLOURS := [Color(0.5, 0.6, 0.2), Color(0.58, 0.62, 0.24), Color(0.44, 0.5, 0.2)]
 const GRAPE_RIPE := 1.45
 const GRAPE_RIPE_COLOURS := [Color(0.16, 0.06, 0.24), Color(0.1, 0.06, 0.2), Color(0.32, 0.04, 0.1)]
-## Winter colours: mostly the dark green of old ivy, now and then the bronze of a leaf in the cold.
-const WINTER_COLOURS := [Color(0.13, 0.26, 0.12), Color(0.17, 0.3, 0.13), Color(0.2, 0.27, 0.11),
-		Color(0.12, 0.22, 0.14), Color(0.3, 0.2, 0.11)]
+## Winter keeps autumn's leaves (the same dice, so every leaf keeps its colour) and covers
+## SNOW_LEAVES of them with snow.
+const SNOW_LEAVES := 0.3
+const SNOW_LEAF := Color(0.88, 0.91, 0.96)
 
 
 ## The stage for season day `day` (see Seasons): SPRING, SUMMER, 1 to TURN_DAYS while autumn turns
@@ -61,17 +62,17 @@ static func stage(day: int) -> int:
 ## The share of green leaves that has turned at `at` (a stage).
 static func turned(at: int) -> float:
 	if at == WINTER:
-		return 1.0
+		return turned(TURN_DAYS)
 	if at == SPRING:
 		return 0.0
 	return float(at) / float(TURN_DAYS) * (1.0 - STAY_GREEN)
 
 
 ## How far the leafy trees have turned at `at` (a stage): x the share of green leaves turned,
-## y how withered they are (winter's dull brown).
+## y how much of the turned leaves lies under snow (winter keeps autumn's leaves, some snowed on).
 static func tree_turn(at: int) -> Vector2:
 	if at == WINTER:
-		return Vector2(1.0, 1.0)
+		return Vector2(TREE_TURNED, 1.0)
 	if at == SPRING:
 		return Vector2.ZERO
 	return Vector2(float(at) / float(TURN_DAYS) * TREE_TURNED, 0.0)
@@ -121,10 +122,11 @@ static func colours(summer: PackedColorArray, tile: String, at: int) -> PackedCo
 		var roll := rng.randf()
 		var pick := rng.randi()
 		var light := rng.randf_range(0.85, 1.15)
+		var snowed := rng.randf() < SNOW_LEAVES
 		if not is_green(c):
 			pass
-		elif at == WINTER:
-			c = WINTER_COLOURS[pick % WINTER_COLOURS.size()] * light
+		elif at == WINTER and snowed:
+			c = SNOW_LEAF * lerpf(0.92, 1.05, (light - 0.85) / 0.3)
 		elif roll < share:
 			c = AUTUMN_COLOURS[pick % AUTUMN_COLOURS.size()] * light
 		c.a = summer[i].a

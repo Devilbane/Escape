@@ -1,6 +1,6 @@
 extends SceneTree
 ## Checks that the village's vines follow the seasons (IvySeasons): green in summer, more and more
-## leaves red and gold through autumn, dark and without grapes in winter, green again in spring;
+## leaves red and gold through autumn, the same leaves partly snowed on and without grapes in winter, green again in spring;
 ## flowers and the all-year red leaves keep their colour; the sky command finds autumn; and the ivy's
 ## leaves hold snow on their upper rims (the cling of their snow material).
 ## Run with: godot --headless -s tests/ivy_seasons.gd
@@ -138,19 +138,35 @@ func _run() -> void:
 	var w := IvySeasons.tree_turn(IvySeasons.stage(autumn_first + IvySeasons.TURN_DAYS))
 	check(w.x > 0.9 and IvySeasons.tree_turn(IvySeasons.SUMMER) == Vector2.ZERO and IvySeasons.tree_turn(IvySeasons.SPRING) == Vector2.ZERO, "the trees turn in autumn only")
 	check(last > 0.8, "by the end of autumn nearly all leaves have turned (%.2f)" % last)
+	var late_autumn := {}
+	for node: Node in ivy.get_children():
+		if node.has_meta("now"):
+			late_autumn[node.name] = (node.get_meta("now") as PackedColorArray).duplicate()
 	IvySeasons.apply(ivy, Weather.YEAR_DAYS - Weather.WINTER_DAYS)
 	t = _turned(ivy)
 	check(not _grapes_shown(ivy), "no grapes in winter")
 	check(not t[1], "winter leaves flowers and red leaves as they are")
-	var dark := true
+	# Winter keeps autumn's leaves, and snow covers some of them.
+	var kept := true
+	var snowed := 0
+	var green_leaves := 0
 	for node: Node in ivy.get_children():
 		if node.has_meta("summer"):
 			var summer: PackedColorArray = node.get_meta("summer")
+			var before: PackedColorArray = late_autumn[node.name]
 			for i in summer.size():
+				if not IvySeasons.is_green(summer[i]):
+					continue
+				green_leaves += 1
 				var c: Color = (node.get_meta("now") as PackedColorArray)[i]
-				if IvySeasons.is_green(summer[i]) and c.get_luminance() > 0.4:
-					dark = false
-	check(dark, "winter leaves are dark")
+				if c.b > 0.8 and c.r > 0.75:
+					snowed += 1
+				elif not c.is_equal_approx(before[i]):
+					kept = false
+	var snow_share := float(snowed) / maxf(1.0, float(green_leaves))
+	check(kept, "winter leaves keep their autumn colours")
+	check(snow_share > 0.2 and snow_share < 0.4, "some winter leaves lie under snow (%.2f)" % snow_share)
+	check(IvySeasons.tree_turn(IvySeasons.WINTER) == Vector2(IvySeasons.TREE_TURNED, 1.0), "the trees keep autumn's leaves in winter, with snow")
 	IvySeasons.apply(ivy, Weather.YEAR_DAYS + 1)
 	t = _turned(ivy)
 	check(t[0] == 0.0 and not _grapes_shown(ivy), "spring: green again, no grapes yet")

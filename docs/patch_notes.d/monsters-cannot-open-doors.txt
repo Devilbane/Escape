@@ -1,0 +1,1 @@
+- Slimes, beasts and the dead can no longer push your house door open; only bandits and other people open an unlocked door.

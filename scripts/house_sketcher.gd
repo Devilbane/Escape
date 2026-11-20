@@ -1162,7 +1162,7 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 
 ## The material of a cellar floor or wall: bare earth looks like real dug soil
 ## (see BareEarth), stone and wood keep their colour.
-func _surface_material(surface: String, demolish: bool) -> StandardMaterial3D:
+func _surface_material(surface: String, demolish: bool) -> Material:
 	if demolish:
 		return _solid_material(DEMOLISH_COLOR)
 	if surface == "":

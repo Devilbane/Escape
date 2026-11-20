@@ -6,8 +6,9 @@ extends RefCounted
 ##
 ## The picture is made once (same every time) and tiles seamlessly; the material spreads it
 ## over every face by its position in the world, so neighbouring squares and the walls join
-## without seams. One material is shared by every bare face, so it costs no more than the
-## flat colour did.
+## without seams, and mixes two differently sized and turned layers of it so no repeat shows
+## (shaders/bare_earth.gdshader). One material is shared by every bare face, so it costs
+## little more than the flat colour did.
 
 const SIZE := 256
 ## How many metres one copy of the picture covers.
@@ -23,25 +24,22 @@ const PEBBLES := [Color(0.5, 0.47, 0.42), Color(0.42, 0.38, 0.33), Color(0.58, 0
 
 static var _tex: Texture2D = null
 static var _normal: Texture2D = null
-static var _mat: StandardMaterial3D = null
+static var _mat: ShaderMaterial = null
+
+const SHADER := preload("res://shaders/bare_earth.gdshader")
 
 
-## The shared material for bare earth.
-static func material() -> StandardMaterial3D:
+## The shared material for bare earth. The shader lays the picture twice, at two
+## sizes and turned, and mixes them by a slow noise, so it never shows as a tile.
+static func material() -> ShaderMaterial:
 	if _mat:
 		return _mat
 	_build()
-	_mat = StandardMaterial3D.new()
-	_mat.albedo_texture = _tex
-	_mat.normal_enabled = true
-	_mat.normal_texture = _normal
-	_mat.normal_scale = 0.8
-	_mat.roughness = 0.95
-	_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	_mat.uv1_triplanar = true
-	_mat.uv1_world_triplanar = true
-	_mat.uv1_triplanar_sharpness = 4.0
-	_mat.uv1_scale = Vector3.ONE / METRES
+	_mat = ShaderMaterial.new()
+	_mat.shader = SHADER
+	_mat.set_shader_parameter("soil", _tex)
+	_mat.set_shader_parameter("soil_normal", _normal)
+	_mat.set_shader_parameter("size_a", METRES)
 	return _mat
 
 
@@ -111,7 +109,7 @@ static func _build() -> void:
 	# Pebbles: small rounded stones, lit from above with a dark rim where they sit in the soil.
 	for i in 34:
 		var centre := Vector2(rng.randf() * SIZE, rng.randf() * SIZE)
-		var r := rng.randf_range(2.5, 5.5) if rng.randf() < 0.8 else rng.randf_range(6.5, 10.0)
+		var r := rng.randf_range(2.5, 5.5) if rng.randf() < 0.92 else rng.randf_range(6.5, 10.0)
 		var squash := rng.randf_range(0.6, 1.0)
 		var turn := rng.randf() * TAU
 		var stone: Color = PEBBLES[rng.randi() % PEBBLES.size()]

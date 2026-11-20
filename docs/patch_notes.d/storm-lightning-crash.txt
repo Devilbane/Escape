@@ -1,0 +1,1 @@
+- Fixed a crash when lightning struck the hero during a thunderstorm (often while building a house).

@@ -109,6 +109,7 @@ elemental_fights.gd | 300 | fixed | pass | Elementals and golems fight test
 bandit_chief.gd | 120 | fixed | pass | Bandit chief boss fight test
 sneak_attack.gd | 120 | fixed | pass | Sneak attack test
 monster_lore.gd | 180 | fixed | pass | Monster lore test
+patch_history.gd | 120 | fixed | pass | Patch notes archive and the compendium's patch notes page
 vital_circle.gd | 180 | fixed | pass | Vital blow circle (the weapon swings a full circle, streak follows, no time lost)
 vital_star.gd | 180 | fixed | pass | Vital blow star (blood-red wobbling star, short-lived)
 heroine.gd | 120 | free | pass | Hero or heroine test

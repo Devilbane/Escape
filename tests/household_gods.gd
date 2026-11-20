@@ -172,6 +172,6 @@ func _process(_delta: float) -> bool:
 	# The furnisher's card tells what the shrine gives.
 	game.menus.open("raumausstatter")
 	game.menus.close()
-	print("household_gods: ", "OK" if failures == 0 else "%d FAILED" % failures)
+	print("PASS: household gods" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 	return true

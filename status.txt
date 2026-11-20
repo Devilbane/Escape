@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Winter keeps autumn's leaves, some covered in snow; Make the leaf-covered forest edge walkable and fill its gaps (+2 more) | Shipped this week: Apple tree seedlings that grow over the years; four apple trees round the fountain (+49 more)
+Escape! dev status | Working on: Winter keeps autumn's leaves, some covered in snow; Make the leaf-covered forest edge walkable and fill its gaps (+1 more) | Shipped this week: Natural stonework: stones of differing size, rounded building edges (+49 more)

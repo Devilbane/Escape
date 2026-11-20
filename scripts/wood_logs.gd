@@ -79,12 +79,28 @@ static func windfall_cells(level: Outdoor) -> Array:
 				continue
 			if not [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN].any(func(d): return level.cell_char(c + d) == "T"):
 				continue
-			if level.near_village(c) or Plots.owner_at(c) != "":
+			if level.near_village(c) or Plots.owner_at(c) != "" or _in_open_grass(level, c):
 				continue
 			if (near + chosen).any(func(o: Vector2i): return maxi(absi(o.x - c.x), absi(o.y - c.y)) < WINDFALL_GAP):
 				continue
 			chosen.append(c)
 	return chosen
+
+
+## Whether tile `c` belongs to an open stretch of grass (a 3 x 3 block of bare
+## grass holds it), where someone may want to build: windfalls lie in the
+## thicket between trees instead, so building land stays free.
+static func _in_open_grass(level: Level, c: Vector2i) -> bool:
+	for oy in range(-2, 1):
+		for ox in range(-2, 1):
+			var open := true
+			for y in 3:
+				for x in 3:
+					if level.cell_char(c + Vector2i(ox + x, oy + y)) != ".":
+						open = false
+			if open:
+				return true
+	return false
 
 
 ## Whether a trunk to chop lies on tile `c` (a building plot must keep clear of it).

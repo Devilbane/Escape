@@ -56,6 +56,14 @@ func _run() -> void:
 	print("windfalls at ", windfalls.map(func(s): return s.cell))
 	for w in windfalls:
 		check(yard.is_empty() or lvl.astar.get_id_path(yard[0].cell, w.cell).size() > 0, "the windfall at %s can be walked to" % w.cell)
+	# Windfalls keep out of open grass, so building land stays free: there is
+	# still a 4 x 4 plot to be had.
+	var free_plot := false
+	for y in range(lvl.height - 5):
+		for x in range(lvl.grid[y].length() - 5):
+			if Plots.problem(lvl, Rect2i(x, y, 4, 4)) == "":
+				free_plot = true
+	check(free_plot, "a free 4x4 plot of grass is still to be had")
 	if logs.is_empty():
 		_end()
 		return

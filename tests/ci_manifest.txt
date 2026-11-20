@@ -251,6 +251,7 @@ turning.gd | 60 | free | pass | Natural turns (limited turn rate, arcs)
 frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole
 winter_wear.gd | 120 | fixed | PASS:_winter_wear | Winter clothes for the villagers
 plots.gd | 60 | free | pass | Building plots: rules, fee, deeds, the clerk
+plot_clearing.gd | 180 | free | pass | Building plots stay clear (no tree, boulder or mountain slope reaches into one)
 house_sketch.gd | 60 | free | pass | House plan: grid, snapping, sketching, undo, books
 house_sketcher.gd | 120 | free | pass | Blueprint tool: sign, drag a wall, door, eraser, undo
 garden_wall_shots.gd | 120 | fixed | passfail | Garden walls: stone wall, wooden fence and gates get built, the blueprint bar still fits

@@ -533,7 +533,14 @@ func _bus_links() -> Array:
 		[bus.treasure_map_found, treasure_maps.read],
 		[bus.village_alarmed, _ring_bell],
 		[bus.village_alarmed, _close_villager_window],
+		[bus.plot_registered, _clear_plot],
 	]
+
+
+## A plot was registered: the open map clears what reaches into it (see Outdoor.clear_plot).
+func _clear_plot(rect: Rect2i) -> void:
+	if level is Outdoor:
+		(level as Outdoor).clear_plot(rect)
 
 
 ## The warning bell tolls (see Events.village_alarmed, VillageBell).

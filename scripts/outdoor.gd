@@ -259,6 +259,20 @@ var town_houses: Array[Node3D] = []
 var windmills: Array[Windmill] = []
 
 var _plants := {}
+## How far each planted tree reaches out from its trunk (metres), beside _plants.
+var _plant_reach := {}
+## The tree batches drawn from _plants, by the same key (see clear_plot).
+var _plant_batches := {}
+## The meshes of each tree model, by name.
+var _plant_parts := {}
+## The building plots on this map (see Plots), in metres on the ground: no tree,
+## boulder or mountain slope reaches into them.
+var _plot_areas: Array[Rect2] = []
+## Things beside the open ground that a plot registered later may clear away:
+## {"at", "reach", "nodes"} (see clear_plot).
+var _clearable: Array[Dictionary] = []
+## The meshes of the mountains, built again when a plot beside them is registered.
+var _mountain_nodes: Array = []
 var _house_rect := Rect2i()
 var _door_cell := Vector2i(-1, -1)
 var _roof: Node3D
@@ -536,6 +550,9 @@ var _breaths: Array[CPUParticles3D] = []
 func build() -> void:
 	_rng.seed = hash(level_name)
 	add_child(_walls_body)
+	_plot_areas.clear()
+	for deed in Plots.all():
+		_plot_areas.append(plot_area(deed.rect))
 	_build_ground()
 	for y in height:
 		for x in width:
@@ -566,7 +583,7 @@ func build() -> void:
 			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.5))
 			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.95))
 		add_child(birds)
-	Mountains.build(self, hash(level_name + "berge"))
+	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
@@ -851,34 +868,53 @@ func _tree_material(mat: Material, wind := true) -> Material:
 ## most a handful of lights (rendering/limits/opengl/max_lights_per_object),
 ## so one batch for every tree of a kind on the whole map left nearly all of
 ## them blind to the lanterns, fires and torches near them.
-func _plant(name: String, pos: Vector3, rot: float, s: float) -> void:
+## A tree that would reach into a building plot is left out: the function
+## returns how far the tree reaches (metres), or -1 when it was left out.
+func _plant(name: String, pos: Vector3, rot: float, s: float) -> float:
+	var reach := _reach_of(name, s)
+	if on_plot(pos, reach):
+		return -1.0
 	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
 	var key := [name, patch]
 	if not _plants.has(key):
 		_plants[key] = []
+		_plant_reach[key] = []
 	_plants[key].append(Transform3D(Basis(Vector3.UP, rot).scaled(Vector3.ONE * s), pos))
+	_plant_reach[key].append(reach)
+	return reach
 
 
 func _flush_plants() -> void:
-	var parts := {}
 	for key in _plants:
-		var name: String = key[0]
-		if not parts.has(name):
-			var scene: Node3D = load(_model_path(name)).instantiate()
-			parts[name] = _meshes_of(scene, Transform3D())
-			scene.free()
-		for part in parts[name]:
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.mesh = part[0]
-			mm.instance_count = _plants[key].size()
-			for i in mm.instance_count:
-				mm.set_instance_transform(i, _plants[key][i] * part[1])
-			var mmi := MultiMeshInstance3D.new()
-			mmi.multimesh = mm
-			if name.begins_with("tree"):
-				mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
-			add_child(mmi)
+		_draw_plants(key)
+
+
+## One batch of trees (see _plant), drawn again after some were cleared away.
+func _draw_plants(key: Array) -> void:
+	for node in _plant_batches.get(key, []):
+		if is_instance_valid(node):
+			node.queue_free()
+	_plant_batches[key] = []
+	if _plants[key].is_empty():
+		return
+	var name: String = key[0]
+	if not _plant_parts.has(name):
+		var scene: Node3D = load(_model_path(name)).instantiate()
+		_plant_parts[name] = _meshes_of(scene, Transform3D())
+		scene.free()
+	for part in _plant_parts[name]:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = part[0]
+		mm.instance_count = _plants[key].size()
+		for i in mm.instance_count:
+			mm.set_instance_transform(i, _plants[key][i] * part[1])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		if name.begins_with("tree"):
+			mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
+		add_child(mmi)
+		_plant_batches[key].append(mmi)
 
 
 ## Every mesh in a model, with where it sits inside the model.
@@ -945,20 +981,38 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_grave_light(c, pos)
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]
-			_put(tree, pos + _jitter(0.5), _rng.randf() * TAU, _rng.randf_range(1.1, 1.4))
-			_add_solid(pos, Vector3(1.4, 4, 1.4))
+			var at := pos + _jitter(0.5)
+			var rot := _rng.randf() * TAU
+			var size := _rng.randf_range(1.1, 1.4)
+			var reach := _reach_of(tree, size)
+			if not on_plot(at, reach):
+				_clearable.append({"at": at, "reach": reach, "nodes": [_put(tree, at, rot, size),
+						_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.4, 4, 1.4))]})
 		"p":
 			_put_layout(pos, VillageClutter.PUMPKINS, 1.2)
 		"l":
 			_build_lantern(pos)
 		"r":
 			var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
-			# Blocked where the boulder is drawn: some reach well past the
-			# middle of their tile, and the hero must not squeeze in between.
-			_add_turned_solid(_put(rock, pos + _jitter(0.4), _rng.randf() * TAU, _rng.randf_range(7.0, 9.0)), 1.6)
+			var at := pos + _jitter(0.4)
+			var rot := _rng.randf() * TAU
+			var size := _rng.randf_range(7.0, 9.0)
+			var reach := _reach_of(rock, size)
+			if not on_plot(at, reach):
+				# Blocked where the boulder is drawn: some reach well past the
+				# middle of their tile, and the hero must not squeeze in between.
+				var boulder := _put(rock, at, rot, size)
+				var shapes := _walls_body.get_child_count()
+				_add_turned_solid(boulder, 1.6)
+				var nodes: Array = [boulder]
+				for i in range(shapes, _walls_body.get_child_count()):
+					nodes.append(_walls_body.get_child(i))
+				_clearable.append({"at": at, "reach": reach, "nodes": nodes})
 		"T":
-			_build_tree(pos, true)
-			_add_solid(pos, Vector3(1.8, 4, 1.8))
+			var reach := _build_tree(pos, true)
+			if reach >= 0.0:
+				_clearable.append({"at": pos, "reach": reach + 0.3,
+						"nodes": [_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.8, 4, 1.8))]})
 		"t":
 			_put_layout(pos, VillageClutter.STUMP, 1.2)
 		"e":
@@ -1335,8 +1389,9 @@ func _build_temple_lamps(chapel: Node3D) -> void:
 		_lantern_glow(glass_at, glass_at)
 
 
-## A leafy tree, or near the graveyard an autumn pine or a bare one.
-func _build_tree(pos: Vector3, single := false) -> void:
+## A leafy tree, or near the graveyard an autumn pine or a bare one. Returns
+## how far it reaches (metres), or -1 when it would stand over a building plot.
+func _build_tree(pos: Vector3, single := false) -> float:
 	var near_crypt := pos.distance_to(cell_to_world(start_cell)) < 13.0 * TILE
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
@@ -1344,24 +1399,92 @@ func _build_tree(pos: Vector3, single := false) -> void:
 	# How tall it stands (metres), for the woods' wildlife (see WoodsLife).
 	var height := 0.0
 	var leafy := false
+	var reach := 0.0
 	if near_crypt and roll < 0.45:
-		_plant(["tree_dead_large", "tree_dead_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(1.2, 1.6))
+		reach = _plant(["tree_dead_large", "tree_dead_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(1.2, 1.6))
 	elif roll < 0.35 or (near_crypt and roll < 0.8):
 		var scale_of := _rng.randf_range(0.9, 1.25)
 		var pine: String = ["tree_pine_orange_large", "tree_pine_yellow_large", "tree_pine_orange_medium", "tree_pine_yellow_medium"][_rng.randi() % 4]
-		_plant(pine, at, rot, scale_of)
+		reach = _plant(pine, at, rot, scale_of)
 		height = (6.9 if pine.ends_with("large") else 5.4) * scale_of
 	elif roll < 0.75 or single:
 		var scale_of := _rng.randf_range(5.5, 7.5)
-		_plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, scale_of)
+		reach = _plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, scale_of)
 		height = 1.1 * scale_of
 		leafy = true
 	else:
 		var scale_of := _rng.randf_range(3.0, 3.8)
-		_plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, scale_of)
+		reach = _plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, scale_of)
 		height = 1.2 * scale_of
+	if reach < 0.0:
+		return reach
 	if height > 0.0 and not near_crypt:
 		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
+	return reach
+
+
+# --- Building plots -------------------------------------------------------------
+
+## Room kept free round a plot (metres): a crown or boulder that comes closer
+## seems to stand on the plot from the camera's angle, so it goes too.
+const PLOT_CLEARANCE := 1.0
+
+## The ground a plot of tiles covers, in metres.
+func plot_area(rect: Rect2i) -> Rect2:
+	return Rect2((rect.position.x - 0.5) * TILE, (rect.position.y - 0.5) * TILE, rect.size.x * TILE, rect.size.y * TILE)
+
+
+## Whether something standing at `at` and reaching `reach` metres round it
+## would stand over a building plot, or too close to its edge.
+func on_plot(at: Vector3, reach: float) -> bool:
+	var p := Vector2(at.x, at.z)
+	for area in _plot_areas:
+		var nearest := p.clamp(area.position, area.end)
+		if nearest.distance_to(p) < reach + PLOT_CLEARANCE:
+			return true
+	return false
+
+
+## How far a model drawn `s` times its size reaches out from where it stands.
+func _reach_of(name: String, s: float) -> float:
+	var box := _aabb_of(name)
+	return maxf(maxf(absf(box.position.x), absf(box.end.x)), maxf(absf(box.position.z), absf(box.end.z))) * s
+
+
+## A plot registered while the map is open (see Events.plot_registered): the
+## trees, boulders and mountain slopes reaching into it go at once.
+func clear_plot(rect: Rect2i) -> void:
+	var area := plot_area(rect)
+	if _plot_areas.has(area):
+		return
+	_plot_areas.append(area)
+	for key in _plants:
+		var transforms: Array = _plants[key]
+		var reaches: Array = _plant_reach[key]
+		var before := transforms.size()
+		for i in range(before - 1, -1, -1):
+			if on_plot((transforms[i] as Transform3D).origin, reaches[i]):
+				transforms.remove_at(i)
+				reaches.remove_at(i)
+		if transforms.size() < before:
+			_draw_plants(key)
+	for i in range(_clearable.size() - 1, -1, -1):
+		var thing: Dictionary = _clearable[i]
+		if on_plot(thing.at, thing.reach):
+			for node in thing.nodes:
+				if is_instance_valid(node):
+					node.queue_free()
+			_clearable.remove_at(i)
+	# The rock leans back from the plot's edge.
+	var beside_rock := false
+	for y in range(rect.position.y - 2, rect.end.y + 2):
+		for x in range(rect.position.x - 2, rect.end.x + 2):
+			beside_rock = beside_rock or cell_char(Vector2i(x, y)) == Mountains.ROCK_LETTER
+	if beside_rock:
+		for node in _mountain_nodes:
+			if is_instance_valid(node):
+				node.queue_free()
+		_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
 
 
 ## The birds and squirrels in the trees along the forest's edge: only trees

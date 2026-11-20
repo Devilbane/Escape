@@ -6,6 +6,16 @@ extends RefCounted
 ## train the skill with `Training.CLIMB_PER_METRE` for each metre.
 ## Today it is the hero scrambling out of a dug pit (see Player._try_climb_out).
 
+## Everybody climbs at least at this level, so no hero is ever stuck in a pit.
+const MIN_LEVEL := 1
+## The chance that one attempt to pull up succeeds: at level 1 about every other
+## try, better with skill, and every failed try in a row adds PITY to the next
+## one, so a few attempts always get the hero out.
+const CHANCE_BASE := 0.45
+const CHANCE_PER_LEVEL := 0.05
+const CHANCE_MAX := 0.95
+const PITY := 0.2
+
 ## Seconds a climb takes per metre at skill level 0.
 const SECONDS_PER_METRE := 0.45
 ## Each level makes the climb this much faster, down to MIN_FACTOR of the base time.
@@ -29,3 +39,8 @@ static func reach(level: int) -> float:
 
 static func can_climb(height: float, level: int) -> bool:
 	return height <= reach(level)
+
+
+## The chance for an attempt at skill `level` after `failures` slips in a row.
+static func chance(level: int, failures: int) -> float:
+	return minf(1.0, minf(CHANCE_MAX, CHANCE_BASE + CHANCE_PER_LEVEL * (level - MIN_LEVEL)) + PITY * failures)

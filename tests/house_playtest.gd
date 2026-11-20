@@ -434,13 +434,15 @@ func _run() -> void:
 	hero.reset_physics_interpolation()
 	await _wait(30)
 	check(hero.in_pit(), "the hero stands in the pit (y %.2f)" % hero.global_position.y)
-	for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
-		if not hero.in_pit():
-			break
-		Input.action_press(action)
-		await _wait(120)
-		Input.action_release(action)
-		await _wait(10)
+	check(hero.climbing_level() == 1, "every hero climbs at level 1")
+	for round in 4:
+		for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
+			if not hero.in_pit():
+				break
+			Input.action_press(action)
+			await _wait(120)
+			Input.action_release(action)
+			await _wait(10)
 	await _wait(30)
 	check(hero.global_position.y > -0.5, "pushing against the pit wall climbs the hero out (y %.2f)" % hero.global_position.y)
 

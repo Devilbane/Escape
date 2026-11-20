@@ -368,6 +368,7 @@ const PIT_DEPTH := 1.2
 const PIT_PUSH_TIME := 0.5
 var _pit_push := 0.0
 var _pit_hinted := false
+var _pit_slips := 0
 var _climb := -1.0
 var _climb_from := Vector3.ZERO
 var _climb_to := Vector3.ZERO
@@ -2794,12 +2795,18 @@ func in_pit() -> bool:
 	return global_position.y <= -PIT_DEPTH and is_on_floor()
 
 
+## The Klettern level the hero climbs with: nobody has less than Climbing.MIN_LEVEL.
+func climbing_level() -> int:
+	return maxi(Climbing.MIN_LEVEL, skill("klettern"))
+
+
 ## Scrambles out of a pit with no stairs: pushing against its wall for a moment
 ## pulls the hero up onto the ground beyond (a slow climb, so stairs stay the
 ## quick way). Returns true when the climb starts.
 func _try_climb_out(dir: Vector3, delta: float) -> bool:
 	if not in_pit():
 		_pit_push = 0.0
+		_pit_slips = 0
 		return false
 	var push := dir.normalized()
 	var wall := false
@@ -2819,12 +2826,20 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 		return false
 	var target := Vector3(global_position.x, 0.02, global_position.z) + push * (radius + 0.6)
 	var ground := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target + Vector3(0, 1.0, 0), target - Vector3(0, 0.3, 0), 0xFFFFFFFF, [get_rid()]))
-	if ground.is_empty() or not _room_at(target) or not Climbing.can_climb(-global_position.y, skill("klettern")):
+	if ground.is_empty() or not _room_at(target) or not Climbing.can_climb(-global_position.y, climbing_level()):
 		return false
 	_pit_push = 0.0
+	if randf() >= Climbing.chance(climbing_level(), _pit_slips):
+		# The hands slip: a pause, a little practice, and the next try is likelier.
+		_pit_slips += 1
+		_pit_push = -PIT_PUSH_TIME
+		train("klettern", Training.CLIMB_PER_METRE * 0.5)
+		Events.tell(Lang.t("Abgerutscht! Versuch es noch einmal."), Color(0.8, 0.85, 1.0))
+		return false
+	_pit_slips = 0
 	_climb_from = global_position
 	_climb_to = target
-	_climb_time = Climbing.seconds(-global_position.y, skill("klettern"))
+	_climb_time = Climbing.seconds(-global_position.y, climbing_level())
 	_climb = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO

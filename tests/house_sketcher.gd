@@ -103,6 +103,23 @@ func _process(_delta: float) -> bool:
 	check(plan.count("dig") == 4, "dragging with the dig tool sketches a rectangle of cells, with the level on the cellar")
 	check(sketcher._status.text.contains("4") or sketcher._status.text.contains(Lang.t("%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.") % 4), "the status says four squares are planned")
 	check(plan.next_kind() == "" or plan.next_kind() == "dig", "the next piece to build is a dig")
+	# The release of the mouse button goes through the game's input, as in play.
+	sketcher.select_tool(HouseSketcher.TOOL_DIG)
+	sketcher.active = true
+	var dug_before := plan.count("dig")
+	sketcher.mouse(plan.cell_world(6, 6), true, MOUSE_BUTTON_LEFT)
+	check(sketcher.drag_from.x >= 0, "pressing starts a drag")
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	release.position = root.get_visible_rect().size * 0.5
+	game._input(release)
+	check(sketcher.drag_from.x < 0, "letting go of the mouse ends the drag through the game's input")
+	sketcher.active = false
+	var planned_now := plan.count("dig") > dug_before
+	if planned_now:
+		plan.undo()
+	check(planned_now or game._mouse_to_floor(release.position) == null, "and the dragged squares are planned (when the mouse is over the ground)")
 	sketcher.select_tool(HouseSketcher.TOOL_STAIRS)
 	sketcher.mouse(plan.cell_world(1, 3), true, MOUSE_BUTTON_LEFT)
 	check(plan.count("stairs") == 1, "the stairs tool puts a ramp down to the cellar")

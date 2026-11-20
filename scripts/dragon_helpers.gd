@@ -198,14 +198,41 @@ func _via(h: Dictionary, goal: Vector3) -> Variant:
 ## where the lanes allow: the dragonling's wings and the eaves reach further
 ## than a tile's own edge, so a walker's path hugging a wall would clip it. A
 ## tile beside an obstacle costs CLOSE times as much as an open one, so the way
-## squeezes along a wall only where there is no roomier way round.
+## squeezes along a wall only where there is no roomier way round. A nook the
+## tiles close off only corner to corner (the hero squeezes in between a tree
+## and a lamp, say) is left through that gap: never straight through a
+## building on the way home.
 static func way_round(lvl: Level, from: Vector3, to: Vector3) -> Array[Vector3]:
 	var a := lvl.world_to_cell(from)
 	var b := lvl.world_to_cell(to)
+	if not lvl.astar.is_in_boundsv(a) or not lvl.astar.is_in_boundsv(b):
+		return WalkRules.path(lvl, from, to, null, true)
+	var grid := _flight_grid(lvl, AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES)
+	# Where it sets out it may stand in a solid tile (the arch).
+	grid.set_point_solid(a, false)
+	var cells := grid.get_id_path(a, b, true)
+	if cells.is_empty() or cells[-1] != b:
+		# No way on the tiles: let it slip between two corners.
+		var loose := _flight_grid(lvl, AStarGrid2D.DIAGONAL_MODE_ALWAYS)
+		loose.set_point_solid(a, false)
+		var squeezed := loose.get_id_path(a, b, true)
+		if not squeezed.is_empty() and (cells.is_empty() or squeezed[-1] == b):
+			cells = squeezed
+	if cells.is_empty():
+		return WalkRules.path(lvl, from, to, null, true)
+	var out: Array[Vector3] = []
+	for c: Vector2i in cells.slice(1):
+		out.append(lvl.cell_to_world(c))
+	return out
+
+
+## The level's tiles for a flyer: its obstacles solid, and the tiles beside
+## them CLOSE times as dear as open ones.
+static func _flight_grid(lvl: Level, diagonals: AStarGrid2D.DiagonalMode) -> AStarGrid2D:
 	var grid := AStarGrid2D.new()
 	grid.region = lvl.astar.region
 	grid.cell_size = lvl.astar.cell_size
-	grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	grid.diagonal_mode = diagonals
 	grid.update()
 	var size := grid.region.size
 	for y in size.y:
@@ -219,17 +246,7 @@ static func way_round(lvl: Level, from: Vector3, to: Vector3) -> Array[Vector3]:
 					var n := c + Vector2i(dx, dy)
 					if grid.is_in_boundsv(n):
 						grid.set_point_weight_scale(n, CLOSE)
-	if not grid.is_in_boundsv(a) or not grid.is_in_boundsv(b):
-		return WalkRules.path(lvl, from, to, null, true)
-	# Where it sets out it may stand in a solid tile (the arch).
-	grid.set_point_solid(a, false)
-	var cells := grid.get_id_path(a, b, true)
-	if cells.is_empty():
-		return WalkRules.path(lvl, from, to, null, true)
-	var out: Array[Vector3] = []
-	for c: Vector2i in cells.slice(1):
-		out.append(lvl.cell_to_world(c))
-	return out
+	return grid
 
 
 ## Snatches the thing up: off the floor, held under the helper, and away.

@@ -3,7 +3,8 @@ extends SceneTree
 ## events (Input.parse_input_event), through the real window, so what the player would see and
 ## click is what is checked. It marks a plot with the Land button, registers it at the Crown Office,
 ## runs into the blueprint sign, draws walls, a door and a window, plans a cellar by dragging,
-## adds stairs, hands in material, orders the build and lets the hero build, then goes up:
+## adds stairs, hands in material, orders the build and lets the hero build, closes the cellar
+## with a ceiling that leaves the stairs open, then goes up:
 ## a floor slab, stairs up, an upper wall, a saddle roof and a flat roof with things set on it.
 ##
 ## Run with a display (the checks about what is on screen need one):
@@ -449,6 +450,55 @@ func _run() -> void:
 		await _wait(10)
 	await _wait(30)
 	check(hero.global_position.y > -0.5, "pushing against the pit wall climbs the hero out (y %.2f)" % hero.global_position.y)
+
+	# --- 9c. The cellar ceiling: the ground floor's floor over the cellar, open over the stairs
+	_step("cellar ceiling")
+	sk.enter()
+	await _settle()
+	await _select("Cellar ceiling")
+	check(sk.tool == HouseSketcher.TOOL_COVER, "the cellar ceiling tool is selected")
+	var bar_before: Rect2 = sk._bar.get_global_rect()
+	await _press("Cellar ceiling: of wood", sk._bar)
+	check(plan.ceiling_surface == "stone", "the material button turns the ceiling to stone")
+	await _press("Cellar ceiling: of stone", sk._bar)
+	check(plan.ceiling_surface == "wood", "and back to wood: never bare earth")
+	check(sk._bar.get_global_rect() == bar_before, "switching the material does not move or resize the tool bar")
+	await _drag(_cell_scr(0, 2), _cell_scr(3, 3))
+	check(plan.count(HouseSketch.COVER) == 4, "dragging over the cellar and its stairs plans the ceiling over the four dug squares (%d)" % plan.count(HouseSketch.COVER))
+	check(plan.cover_at(0, 2).is_empty() and plan.cover_at(1, 2).is_empty(), "the stairs stay open")
+	await _move(_cell_scr(0, 0))
+	await _wait(5)
+	await _shot("ceiling_planned")
+	_bar_ok("cellar ceiling")
+	await _press("Order the build", sk._bar)
+	sk.leave()
+	await _wait_built(200)
+	check(plan.count(HouseSketch.COVER, HouseSketch.BUILT) == 4, "the hero builds the cellar ceiling (%d)" % plan.count(HouseSketch.COVER, HouseSketch.BUILT))
+	hero.global_position = plan.cell_world(3, 3) + Vector3(0, 0.5, 0)
+	hero.reset_physics_interpolation()
+	await _wait(60)
+	check(absf(hero.global_position.y) < 0.15, "the hero stands on the ceiling at ground level (y %.2f)" % hero.global_position.y)
+	await _shot("ceiling_built")
+	# Down at the foot of the stairs, under the ceiling: no climbing through it, out only by the stairs.
+	hero.global_position = plan.cell_world(2, 2) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
+	hero.reset_physics_interpolation()
+	await _wait(30)
+	check(hero.global_position.y < -HouseSketch.DEPTH + 0.3, "the hero fits at the foot of the stairs under the ceiling (y %.2f)" % hero.global_position.y)
+	var went_up := false
+	for action in ["ui_left", "ui_up", "ui_right", "ui_down"]:
+		Input.action_press(action)
+		for i in 24:
+			await _wait(5)
+			if hero.global_position.y > -0.3:
+				break
+		Input.action_release(action)
+		await _wait(10)
+		if hero.global_position.y > -0.3:
+			went_up = true
+			break
+	check(went_up and not hero.is_climbing(), "the hero walks up the open stairs (y %.2f)" % hero.global_position.y)
+	var stairs_cell := plan.cell_at(hero.global_position)
+	check(stairs_cell.y == 2 and stairs_cell.x <= 1, "out by the stairs, not through the ceiling (cell %s)" % stairs_cell)
 
 	# --- 10. Upper floor
 	_step("floor slab, stairs up, upper wall")

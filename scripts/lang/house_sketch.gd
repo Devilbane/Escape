@@ -81,4 +81,8 @@ const EN := {
 	"Treppe vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann.": "Stairs planned. Order the build: your hero then builds them.",
 	"Keine Treppe: Halte dich an der Wand, dann kletterst du aus der Grube.": "No stairs: keep pushing against the wall and you will climb out of the pit.",
 	"Abgerutscht! Versuch es noch einmal.": "You slipped! Try again.",
+	"Kellerdecke": "Cellar ceiling",
+	"Kellerdecke: %s": "Cellar ceiling: %s",
+	"Kellerdecke: Ziehe ein Rechteck über den Keller. Sie ist zugleich der Boden des Erdgeschosses.": "Cellar ceiling: drag a rectangle over the cellar. It is the ground floor's floor as well.",
+	"Die Kellerdecke kommt nur über gegrabene Felder. Über der Treppe bleibt sie offen.": "The cellar ceiling only goes over dug squares. It stays open over the stairs.",
 }

@@ -27,9 +27,11 @@ const TOOL_WINDOW := "window"
 const TOOL_ERASE := "erase"
 const TOOL_DIG := "dig"
 const TOOL_STAIRS := "stairs"
+## The cellar ceiling, which is the ground floor's floor too (see HouseSketch.COVER).
+const TOOL_COVER := "cover"
 const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_ERASE]
 ## The cellar's tools (their own row in the tool bar).
-const CELLAR_TOOLS := [TOOL_DIG, TOOL_STAIRS]
+const CELLAR_TOOLS := [TOOL_DIG, TOOL_STAIRS, TOOL_COVER]
 ## Floors, roofs and the stairs up: they work on the level chosen with the
 ## level button (0 ground floor, 1 upper floor, -1 cellar).
 const TOOL_SLAB := "slab"
@@ -37,11 +39,12 @@ const TOOL_SADDLE := "saddle"
 const TOOL_UP := "up"
 const ROOF_TOOLS := [TOOL_SLAB, TOOL_SADDLE, TOOL_UP]
 ## Tools that drag a rectangle of cells.
-const RECT_TOOLS := [TOOL_DIG, TOOL_SLAB, TOOL_SADDLE]
+const RECT_TOOLS := [TOOL_DIG, TOOL_COVER, TOOL_SLAB, TOOL_SADDLE]
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
 const SLAB_COLOR := Color(0.9, 0.75, 0.4, 0.7)
 const ROOF_COLOR := Color(0.55, 0.22, 0.16)
 const SURFACE_NAMES := {"": "roh", "stone": "aus Stein", "wood": "aus Holz"}
+const COVER_COLOR := Color(0.75, 0.6, 0.35, 0.8)
 const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
 const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const EARTH_COLOR := Color(0.28, 0.2, 0.13)
@@ -110,6 +113,7 @@ var _lift := 0.0
 var _covered := {}
 var _fade_state := ""
 var _wall_button: Button
+var _ceiling_button: Button
 var _redo_button: Button
 var _status: Label
 var _hover_key := ""
@@ -326,12 +330,16 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 			match tool:
 				TOOL_DIG:
 					done = plan.sketch_dig(cells)
+				TOOL_COVER:
+					done = plan.sketch_cover(cells)
 				TOOL_SLAB:
 					done = plan.sketch_roof(cells, HouseSketch.SLAB, storey)
 				_:
 					done = plan.sketch_roof(cells, HouseSketch.SADDLE, storey, "rx" if wide else "ry")
 			_changed()
-			if done == 0:
+			if done == 0 and tool == TOOL_COVER:
+				_say(reason("no dig"))
+			elif done == 0:
 				_say(Lang.t("Dort ist schon gegraben oder gebaut."))
 			else:
 				_say(Lang.t("%d Felder vorgemerkt. Beauftrage den Bau: Dein Held baut es dann.") % done)
@@ -378,7 +386,7 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 	var edge := plan.edge_near(point, HouseSketch.CELL * 0.3) if tool == TOOL_ERASE else plan.edge_near(point)
 	if tool == TOOL_ERASE and (edge.is_empty() or storey < 0 or plan.piece(edge[0], edge[1], edge[2], storey).is_empty()):
 		var c := plan.cell_at(point)
-		var key := plan.hole_key(c.x, c.y) if storey < 0 else (plan.roof_key(c.x, c.y, storey) if plan.roof_key(c.x, c.y, storey) != "" else (plan.up_key(c.x, c.y) if storey == 0 else ""))
+		var key := _eraser_key(c)
 		var was_built: bool = key != "" and plan.pieces[key].state == HouseSketch.BUILT
 		var why_not := plan.erase_cell(c.x, c.y) if storey < 0 else plan.erase_above(c.x, c.y, storey)
 		if why_not == "needed":
@@ -416,11 +424,12 @@ func hover(point: Vector3) -> void:
 			return
 		_hover_key = key
 		_clear(_ghost)
-		var high := 0.0 if tool == TOOL_DIG or tool == TOOL_STAIRS else storey * HouseSketch.STOREY_HEIGHT + SILL_TOP
+		var high := 0.0 if tool in CELLAR_TOOLS else storey * HouseSketch.STOREY_HEIGHT + SILL_TOP
 		if tool in RECT_TOOLS:
 			var cells := plan.cells_between(from_cell, c)
 			for cell in cells:
-				var why_not := plan.problem_dig(cell[0], cell[1]) if tool == TOOL_DIG else plan.problem_roof(cell[0], cell[1], storey)
+				var why_not := plan.problem_dig(cell[0], cell[1]) if tool == TOOL_DIG else (plan.problem_cover(cell[0], cell[1]) if tool == TOOL_COVER
+						else plan.problem_roof(cell[0], cell[1], storey))
 				_cell_quad(_ghost, Vector2i(cell[0], cell[1]), OK_COLOR if why_not == "" else BAD_COLOR, high)
 			_say(Lang.t("%d Felder") % cells.size() if drag_from.x >= 0 else "")
 		else:
@@ -459,7 +468,7 @@ func hover(point: Vector3) -> void:
 	var piece_here: Dictionary = {} if edge.is_empty() else plan.piece(edge[0], edge[1], edge[2], storey)
 	if tool == TOOL_ERASE and (edge.is_empty() or piece_here.is_empty()):
 		var cell := plan.cell_at(point)
-		var cell_key := plan.hole_key(cell.x, cell.y) if storey < 0 else (plan.roof_key(cell.x, cell.y, storey) if plan.roof_key(cell.x, cell.y, storey) != "" else (plan.up_key(cell.x, cell.y) if storey == 0 else ""))
+		var cell_key := _eraser_key(cell)
 		if cell_key != "":
 			_cell_quad(_ghost, cell, DEMOLISH_COLOR, 0.0 if storey < 0 else storey * HouseSketch.STOREY_HEIGHT + SILL_TOP)
 		_say("")
@@ -478,6 +487,24 @@ func hover(point: Vector3) -> void:
 	_say(reason(why) if why != "" else "")
 
 
+## The key of the cell piece the eraser takes at a cell on the current level, or "":
+## in the cellar the ceiling, then the dug cell or stairs; above, the slab or roof,
+## on the ground floor then the stairs up, then the cellar ceiling (its floor).
+func _eraser_key(c: Vector2i) -> String:
+	var cover := HouseSketch.key_of(c.x, c.y, HouseSketch.COVER_ORIENT, HouseSketch.CELLAR_STOREY)
+	if storey < 0:
+		if plan.pieces.has(cover) and plan.pieces[cover].state != HouseSketch.DEMOLISH:
+			return cover
+		return plan.hole_key(c.x, c.y)
+	if plan.roof_key(c.x, c.y, storey) != "":
+		return plan.roof_key(c.x, c.y, storey)
+	if storey == 0 and plan.up_key(c.x, c.y) != "":
+		return plan.up_key(c.x, c.y)
+	if storey == 0 and plan.pieces.has(cover):
+		return cover
+	return ""
+
+
 static func reason(why: String) -> String:
 	match why:
 		"outside":
@@ -492,6 +519,8 @@ static func reason(why: String) -> String:
 			return Lang.t("Eine Treppe braucht zwei freie Felder und danach einen gegrabenen Keller.")
 		"no slab":
 			return Lang.t("Eine Treppe nach oben braucht zwei freie Felder und danach eine Decke.")
+		"no dig":
+			return Lang.t("Die Kellerdecke kommt nur über gegrabene Felder. Über der Treppe bleibt sie offen.")
 		"storey":
 			return Lang.t("Höher als das Obergeschoss baut dein Held nicht.")
 	return ""
@@ -540,8 +569,8 @@ func _build_bar() -> void:
 	var tools := _row(box)
 	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_ERASE: "Radierer"}
 	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
-	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_ERASE]:
+	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe", TOOL_COVER: "Kellerdecke"}
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
@@ -554,6 +583,8 @@ func _build_bar() -> void:
 	options.add_child(_floor_button)
 	_wall_button = _small_button("", cycle_wall, 190)
 	options.add_child(_wall_button)
+	_ceiling_button = _small_button("", cycle_ceiling, 190)
+	options.add_child(_ceiling_button)
 	_undo_button = _small_button(Lang.t("Rückgängig"), undo)
 	options.add_child(_undo_button)
 	_redo_button = _small_button(Lang.t("Wiederholen"), redo)
@@ -634,6 +665,7 @@ func _update_bar() -> void:
 		_level_button.text = Lang.t("Ebene: %s") % Lang.t(LEVEL_NAMES[storey])
 		_floor_button.text = Lang.t("Kellerboden: %s") % Lang.t(SURFACE_NAMES[plan.floor_surface])
 		_wall_button.text = Lang.t("Kellerwände: %s") % Lang.t(SURFACE_NAMES[plan.wall_surface])
+		_ceiling_button.text = Lang.t("Kellerdecke: %s") % Lang.t(SURFACE_NAMES[plan.ceiling_surface])
 		_status.text = _hint()
 		var have := plan.stock
 		var short := plan.missing()
@@ -666,6 +698,14 @@ func cycle_wall() -> void:
 	if plan == null:
 		return
 	plan.wall_surface = _next_surface(plan.wall_surface)
+	_changed()
+
+
+## What the next cellar ceiling is made of: wood or stone, never bare earth.
+func cycle_ceiling() -> void:
+	if plan == null:
+		return
+	plan.ceiling_surface = HouseSketch.CEILINGS[(HouseSketch.CEILINGS.find(plan.ceiling_surface) + 1) % HouseSketch.CEILINGS.size()]
 	_changed()
 
 
@@ -723,6 +763,8 @@ func _hint() -> String:
 			return Lang.t("Graben: Maustaste halten, Rechteck aufziehen, loslassen. Rechtsklick oder Esc beendet.")
 		TOOL_STAIRS:
 			return Lang.t("Treppe: Klicke ein Feld vor dem Keller an. Sie führt vier Meter nach unten.")
+		TOOL_COVER:
+			return Lang.t("Kellerdecke: Ziehe ein Rechteck über den Keller. Sie ist zugleich der Boden des Erdgeschosses.")
 		TOOL_SLAB:
 			return Lang.t("Decke: Ziehe ein Rechteck. Sie ist Boden des Stockwerks darüber oder ein begehbares Flachdach.")
 		TOOL_SADDLE:
@@ -754,6 +796,7 @@ func _redraw() -> void:
 		return
 	# Everyone's built pieces stand on the map for all to see.
 	var holes := []
+	var floored := []
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
@@ -765,9 +808,9 @@ func _redraw() -> void:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 				_lift = 0.0
-		_solid_cellar(house, holes)
+		_solid_cellar(house, holes, floored)
 		_solid_above(house)
-	game.level.set_floor_holes(holes)
+	game.level.set_floor_holes(holes, floored)
 	_raise_roofs()
 	if plan == null:
 		return
@@ -778,6 +821,8 @@ func _redraw() -> void:
 			var up: float = p[0] * HouseSketch.STOREY_HEIGHT + SILL_TOP
 			if kind == HouseSketch.DIG:
 				_cell_quad(_built, Vector2i(p[1], p[2]), DIG_COLOR)
+			elif kind == HouseSketch.COVER:
+				_cell_quad(_built, Vector2i(p[1], p[2]), COVER_COLOR, 0.12)
 			elif kind == HouseSketch.STAIRS or kind == HouseSketch.UPSTAIRS:
 				for c in HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2):
 					_cell_quad(_built, c, STAIRS_COLOR)
@@ -791,8 +836,9 @@ func _redraw() -> void:
 
 ## The cellar of a house: the ground opens over every built cell, the pit gets
 ## a floor, walls and stairs, and `holes` collects the open cells (Rect2 in
-## world x/z) so the map can cut its ground there.
-func _solid_cellar(house: HouseSketch, holes: Array) -> void:
+## world x/z) so the map can cut its ground there; `floored` collects those of
+## them a cellar ceiling closes again.
+func _solid_cellar(house: HouseSketch, holes: Array, floored: Array = []) -> void:
 	var open := {}
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
@@ -825,9 +871,29 @@ func _solid_cellar(house: HouseSketch, holes: Array) -> void:
 			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH * 0.5, 0), size, wall_mat)
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
-		if piece.kind == HouseSketch.STAIRS and piece.state != HouseSketch.SKETCH:
-			var p := HouseSketch.parts_of(key)
+		if piece.state == HouseSketch.SKETCH:
+			continue
+		var p := HouseSketch.parts_of(key)
+		if piece.kind == HouseSketch.STAIRS:
 			_ramp(house, p[1], p[2], p[3], piece.state == HouseSketch.DEMOLISH)
+		elif piece.kind == HouseSketch.COVER and open.has(Vector2i(p[1], p[2])):
+			_cellar_ceiling(house, p[1], p[2], piece)
+			var corner := house.node_world(p[1], p[2])
+			floored.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
+
+
+## The cellar ceiling over a dug cell: a floor of planks or stone whose top is
+## the ground, so the hero walks over the cellar on the ground floor. The ground
+## stays cut open under it (the cellar is still there). While the hero is down in
+## the cellar under it, it fades like a roof (see _update_fade).
+func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> void:
+	var colour := DEMOLISH_COLOR if piece.state == HouseSketch.DEMOLISH else _surface_color(piece.get("surface", "wood"))
+	var thick := HouseSketch.COVER_THICK
+	_solid_box(house.cell_world(x, y) + Vector3(0, -thick * 0.5, 0), Vector3(HouseSketch.CELL, thick, HouseSketch.CELL), _solid_material(colour))
+	# The mesh: fades away while the hero is in the cellar below it.
+	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
+	mesh.set_meta("ymin", 0.0)
+	_cover(house, x, y, HouseSketch.CELLAR_STOREY)
 
 
 ## The floors, roofs and stairs up of a house. Everything is solid: a slab

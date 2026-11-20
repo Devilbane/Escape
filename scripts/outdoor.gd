@@ -683,7 +683,9 @@ const HOLE_CELL := 2.0
 ## x/z, each on the 2 m lattice of the map (see HouseSketch.CELL). The ground is
 ## not drawn there and the hero can fall in; with no holes everything is as
 ## before. Walkable floors inside the holes are the cellar's own business.
-func set_floor_holes(holes: Array) -> void:
+## `floored` are the holes closed over by a cellar ceiling (see HouseSketch.COVER):
+## still cut open, but litter, snow and dropped things lie on them as on the ground.
+func set_floor_holes(holes: Array, floored: Array = []) -> void:
 	if _floor_slabs.get_parent() == null:
 		_walls_body.add_child(_floor_slabs)
 	for child in _floor_slabs.get_children():
@@ -692,6 +694,17 @@ func set_floor_holes(holes: Array) -> void:
 	# The picture: a mask with a pixel for each 2 m cell of the map.
 	var mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
 	var lattice := {}
+	var closed := {}
+	for r: Rect2 in floored:
+		closed[Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))] = true
+	# Where the cellar lies open to the sky, and the cells nothing may lie on. The snow's mask is 1
+	# on an open cell and half on a closed one: snow lies on the ceiling but not in the cellar under it.
+	var snow_mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
+	var open_lattice := {}
+	var open_holes := []
+	for r: Rect2 in holes:
+		if not closed.has(Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))):
+			open_holes.append(r)
 	var lo := Vector2i(1 << 30, 1 << 30)
 	var hi := Vector2i(-(1 << 30), -(1 << 30))
 	for r: Rect2 in holes:
@@ -702,19 +715,22 @@ func set_floor_holes(holes: Array) -> void:
 				lattice[Vector2i(x, y)] = true
 				lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
 				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+				if not closed.has(Vector2i(x, y)):
+					open_lattice[Vector2i(x, y)] = true
 				if x >= 0 and y >= 0 and x < width * 2 and y < height * 2:
 					mask.set_pixel(x, y, Color(1, 0, 0, 1))
+					snow_mask.set_pixel(x, y, Color(0.5 if closed.has(Vector2i(x, y)) else 1.0, 0, 0, 1))
 	if _ground_mat != null:
 		_ground_mat.set_shader_parameter("hole_mask", ImageTexture.create_from_image(mask))
 		_ground_mat.set_shader_parameter("holes_on", not lattice.is_empty())
 	# Nothing lies in a hole: the litter on it is lifted away, and what the hero dropped there moves
 	# to the nearest whole ground.
 	if surface_life != null:
-		surface_life.set_holes(holes)
-	_move_pickups_out(lattice)
-	# The snow keeps off the dug squares too.
+		surface_life.set_holes(open_holes)
+	_move_pickups_out(open_lattice)
+	# The snow keeps off the dug squares too (a cellar ceiling gets snow like the ground).
 	if snow != null:
-		snow.set_holes(ImageTexture.create_from_image(mask) if not lattice.is_empty() else null)
+		snow.set_holes(ImageTexture.create_from_image(snow_mask) if not lattice.is_empty() else null)
 	if lattice.is_empty():
 		plane.plane = Plane(Vector3.UP, 0.0)
 		return

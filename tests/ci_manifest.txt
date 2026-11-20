@@ -255,5 +255,6 @@ house_sketch.gd | 60 | free | pass | House plan: grid, snapping, sketching, undo
 house_sketcher.gd | 120 | free | pass | Blueprint tool: sign, drag a wall, door, eraser, undo
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books
 house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
+house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
 house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
 house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading

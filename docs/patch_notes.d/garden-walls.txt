@@ -1,0 +1,1 @@
+- Plots: draw a free-standing garden wall of stone or wood, two blocks high, anywhere on your plot. A door drawn in it becomes a gate.

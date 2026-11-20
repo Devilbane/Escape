@@ -22,7 +22,17 @@ const CELLS_PER_TILE := 2
 const WALL := "wall"
 const DOOR := "door"
 const WINDOW := "window"
-const KINDS := [WALL, DOOR, WINDOW]
+## Garden walls stand free of the house, on the ground floor only: two stone
+## blocks high (FENCE_HEIGHT), of stone or of timber. A door drawn on a garden
+## wall turns it into a gate, an opening the hero walks through.
+const STONE_FENCE := "stone_fence"
+const WOOD_FENCE := "wood_fence"
+const GATE := "gate"
+const FENCE_KINDS := [STONE_FENCE, WOOD_FENCE, GATE]
+const FENCE_HEIGHT := 2 * StoneBlock.HEIGHT
+## The house's own walls: doors and windows sit in these.
+const HOUSE_WALLS := [WALL, DOOR, WINDOW]
+const KINDS := [WALL, DOOR, WINDOW, STONE_FENCE, WOOD_FENCE, GATE]
 ## The cellar (storey CELLAR_STOREY): a "dig" piece is one grid cell dug out of
 ## the ground, DEPTH metres deep; a "stairs" piece is a ramp of two cells from the
 ## ground down to a dug cell. Cell pieces are keyed by the cell (x, y) and the
@@ -53,7 +63,8 @@ const DEPTH := 2.6
 ## Stairs go down towards east, west, north or south: letter -> step in cells.
 const DOWN := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0), "n": Vector2i(0, -1), "s": Vector2i(0, 1)}
 ## Building order: dig first, then stairs, then walls before doors and windows.
-const BUILD_ORDER := [DIG, STAIRS, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE]
+## The garden comes after the house.
+const BUILD_ORDER := [DIG, STAIRS, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE, STONE_FENCE, WOOD_FENCE, GATE]
 ## What covers the floor and the walls of dug cells: "" is the bare earth.
 const SURFACES := ["", "stone", "wood"]
 const SURFACE_COST := {"": {}, "stone": {"steinblock": 1}, "wood": {"bauholz": 1}}
@@ -76,6 +87,10 @@ const COST := {
 	SLAB: {TIMBER: 1},
 	SADDLE: {TIMBER: 2},
 	UPSTAIRS: {TIMBER: 3},
+	# A garden wall is half as high as a house wall.
+	STONE_FENCE: {STONE: 1},
+	WOOD_FENCE: {TIMBER: 1},
+	GATE: {TIMBER: 2},
 }
 const MATERIALS := [STONE, TIMBER]
 const ORIENT_X := "x"
@@ -97,6 +112,8 @@ var stock := {}
 ## What the next dug cells get on their floor and walls (see SURFACES).
 var floor_surface := ""
 var wall_surface := ""
+## What the next garden walls are made of: "stone" or "wood" (see fence_kind).
+var fence_material := "stone"
 var _undo: Array = []
 var _redo: Array = []
 
@@ -196,7 +213,9 @@ func has_piece(x: int, y: int, orient: String, storey := 0) -> bool:
 
 ## Why a piece cannot be put on an edge, or "" when it can: "outside", "kind",
 ## "built" (a built piece is changed by sketching its removal, see the
-## construction phase) or "needs wall" (a door or window needs a wall).
+## construction phase), "needs wall" (a door or window needs a house wall),
+## "needs fence" (a gate needs a garden wall) or "garden storey" (garden walls
+## stand on the ground).
 func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> String:
 	if not in_plot(x, y, orient):
 		return "outside"
@@ -204,12 +223,26 @@ func problem(x: int, y: int, orient: String, kind: String, storey := 0) -> Strin
 		return "kind"
 	if storey < 0 or storey > MAX_STOREY:
 		return "storey"
+	if FENCE_KINDS.has(kind) and storey != 0:
+		return "garden storey"
 	var had := piece(x, y, orient, storey)
 	if had.get("state", SKETCH) != SKETCH:
 		return "built"
-	if kind != WALL and had.is_empty():
+	if (kind == DOOR or kind == WINDOW) and not HOUSE_WALLS.has(had.get("kind", "")):
 		return "needs wall"
+	if kind == GATE and not FENCE_KINDS.has(had.get("kind", "")):
+		return "needs fence"
 	return ""
+
+
+## The garden wall the fence tool draws now (see fence_material).
+func fence_kind() -> String:
+	return WOOD_FENCE if fence_material == "wood" else STONE_FENCE
+
+
+## What a door drawn on an edge becomes: a gate in a garden wall, else a door.
+func door_kind(x: int, y: int, orient: String, storey := 0) -> String:
+	return GATE if FENCE_KINDS.has(piece(x, y, orient, storey).get("kind", "")) else DOOR
 
 
 ## Sketches pieces on edges as one step (undo takes them back together).
@@ -763,7 +796,8 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 				var p = raw[key]
 				if p is Array and p.size() >= 2:
 					var parts := parts_of(str(key))
-					if KINDS.has(str(p[0])) and p.size() == 2 and parts[0] >= 0 and parts[0] <= MAX_STOREY and s.in_plot(parts[1], parts[2], parts[3]):
+					if KINDS.has(str(p[0])) and p.size() == 2 and parts[0] >= 0 and parts[0] <= MAX_STOREY and s.in_plot(parts[1], parts[2], parts[3]) \
+							and (parts[0] == 0 or not FENCE_KINDS.has(str(p[0]))):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
 					elif str(p[0]) == DIG and p.size() == 4 and parts[0] == CELLAR_STOREY and s.cell_in_plot(parts[1], parts[2]):
 						s.pieces[str(key)] = {"kind": DIG, "state": str(p[1]),
@@ -777,6 +811,7 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
 		s.floor_surface = str(saved.get("floor", ""))
 		s.wall_surface = str(saved.get("wall", ""))
+		s.fence_material = "wood" if str(saved.get("fence", "stone")) == "wood" else "stone"
 		if not SURFACES.has(s.floor_surface):
 			s.floor_surface = ""
 		if not SURFACES.has(s.wall_surface):
@@ -791,5 +826,5 @@ func save(hero: String) -> void:
 	for key in pieces:
 		var p: Dictionary = pieces[key]
 		raw[key] = [p.kind, p.state, p.get("floor", ""), p.get("wall", "")] if p.kind == DIG else [p.kind, p.state]
-	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface}
+	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface, "fence": fence_material}
 	Storage.write(RECORD, {"houses": _books})

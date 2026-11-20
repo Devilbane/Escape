@@ -86,6 +86,21 @@ func _process(_delta: float) -> bool:
 	var bp := HouseSketch.parts_of(built_key)
 	sketcher.mouse(plan.node_world(bp[1], bp[2]) + (Vector3(1.0, 0, 0) if bp[3] == "x" else Vector3(0, 0, 1.0)), true, MOUSE_BUTTON_LEFT)
 	check(plan.piece(bp[1], bp[2], bp[3]).state == "demolish", "the eraser marks a built piece for demolition")
+	# A garden wall: dragged like a wall, on the ground even from the upper floor.
+	sketcher.storey = 1
+	sketcher.select_tool(HouseSketcher.TOOL_FENCE)
+	check(sketcher.storey == 0, "the garden wall tool works on the ground")
+	sketcher.mouse(plan.node_world(0, 5), true, MOUSE_BUTTON_LEFT)
+	sketcher.hover(plan.node_world(3, 5))
+	sketcher.mouse(plan.node_world(3, 5), false, MOUSE_BUTTON_LEFT)
+	check(plan.count("stone_fence") == 3, "a drag draws a garden wall")
+	sketcher.select_tool(HouseSketcher.TOOL_DOOR)
+	sketcher.mouse(plan.node_world(1, 5) + Vector3(1.0, 0, 0.1), true, MOUSE_BUTTON_LEFT)
+	check(plan.count("gate") == 1 and plan.count("stone_fence") == 2, "a door on a garden wall makes a gate")
+	sketcher.cycle_fence()
+	check(plan.fence_material == "wood" and sketcher._fence_button.text.contains(Lang.t("aus Holz")), "the material button switches garden walls to wood")
+	sketcher.cycle_fence()
+	plan.erase([[0, 5, "x"], [1, 5, "x"], [2, 5, "x"]])
 	sketcher.leave()
 	check(not sketcher.active, "the tool closes")
 	# The plan is in the books.

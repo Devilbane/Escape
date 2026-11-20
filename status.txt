@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Keep the companion out of pits without stairs; Animate the climb out of a pit; Dragonlings collect for the hoard only at night (+47 more)
+Escape! dev status | Working on: Fix the crash when lightning strikes the hero | Shipped this week: Keep the companion out of pits without stairs; Animate the climb out of a pit; Dragonlings collect for the hoard only at night (+47 more)

@@ -19,5 +19,5 @@ func _initialize() -> void:
 	check(Climbing.chance(1, 0) > 0.3 and Climbing.chance(1, 0) < 0.7, "level 1 needs a few tries")
 	check(Climbing.chance(1, 3) >= 1.0, "a few slips in a row always lead to a success")
 	check(Climbing.chance(20, 0) > Climbing.chance(1, 0), "skill makes a try likelier")
-	print("climbing: ", "ok" if failures == 0 else "%d failed" % failures)
+	print("PASS: climbing" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

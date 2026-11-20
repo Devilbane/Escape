@@ -114,6 +114,12 @@ signal village_alarmed(reason: String)
 signal mercy_prayed(restored: int)
 
 
+## A hero registered a building plot at the Crown Office (see PlotOffice): the
+## tiles it covers. The open map clears the trees, boulders and mountain slopes
+## reaching into it (see Outdoor.clear_plot).
+signal plot_registered(rect: Rect2i)
+
+
 static var _bus: Events = null
 
 

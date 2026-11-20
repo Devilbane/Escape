@@ -4538,22 +4538,12 @@ func strike() -> Vector3:
 	return at
 
 
-## A bright bolt from the sky down to where lightning struck, gone in a blink.
+## A bright bolt from the sky down to where lightning struck: a hard zig-zag with a few forks
+## (see LightningBolt) that flickers for a moment and fades.
 func _show_bolt(at: Vector3) -> void:
-	var bolt := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.6
-	mesh.bottom_radius = 0.2
-	mesh.height = 40.0
-	bolt.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.9, 0.94, 1.0)
-	mat.emission_enabled = true
-	mat.emission = Color(0.8, 0.88, 1.0)
-	mat.emission_energy_multiplier = 8.0
-	bolt.material_override = mat
-	bolt.position = at + Vector3(0, 20.0, 0)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var bolt := LightningBolt.build(at, rng)
 	add_child(bolt)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(0.8, 0.88, 1.0)
@@ -4577,17 +4567,17 @@ func _show_bolt(at: Vector3) -> void:
 	scorch.material_override = burnt
 	scorch.position = at + Vector3(0, 0.03, 0)
 	add_child(scorch)
-	# The bolt flickers: on, dark for a blink, on again, then gone.
+	# The bolt flickers: on, dark for a blink, on again (see LightningBolt.FLASHES), then fades.
 	var tween := create_tween()
-	tween.tween_interval(0.2)
-	tween.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.visible = false)
-	tween.tween_interval(0.07)
-	tween.tween_callback(func():
-		if is_instance_valid(bolt):
-			bolt.visible = true)
-	tween.tween_interval(0.35)
+	for i in LightningBolt.FLASHES.size():
+		tween.tween_interval(LightningBolt.FLASHES[i])
+		if i < LightningBolt.FLASHES.size() - 1:
+			var lit := i % 2 == 1
+			tween.tween_callback(func():
+				if is_instance_valid(bolt):
+					bolt.visible = lit)
+	tween.tween_property(bolt.get_meta("core"), "albedo_color:a", 0.0, LightningBolt.FADE)
+	tween.parallel().tween_property(bolt.get_meta("glow"), "albedo_color:a", 0.0, LightningBolt.FADE)
 	tween.tween_callback(bolt.queue_free)
 	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)

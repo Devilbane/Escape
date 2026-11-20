@@ -65,6 +65,8 @@ func _process(_delta: float) -> bool:
 	_storm()
 	_clears_up()
 	_rolls()
+	_bolt()
+	_fog_rolls_in()
 	_clock_and_saving()
 	_dungeon()
 	_finish()
@@ -260,6 +262,48 @@ func _shares(rng: RandomNumberGenerator, season: String) -> Dictionary:
 	for k in Weather.KINDS:
 		time[k] = snappedf(time[k] / total, 0.001)
 	return time
+
+
+## The lightning bolt zig-zags hard from the sky to the strike, forks a few times, and stays a moment.
+func _bolt() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var at := Vector3(5, 0, -3)
+	for n in 20:
+		var line := LightningBolt.path(at, rng)
+		check(line[line.size() - 1].is_equal_approx(at) and line[0].y > 20.0, "the bolt runs from the sky down to the strike")
+		var turns := 0
+		for i in range(1, line.size() - 1):
+			var a: float = line[i].x - line[i - 1].x
+			var b: float = line[i + 1].x - line[i].x
+			if signf(a) != signf(b):
+				turns += 1
+		check(turns >= line.size() - 3, "the bolt zig-zags at every kink (%d turns)" % turns)
+		var forks := LightningBolt.forks(line, rng)
+		check(forks.size() >= LightningBolt.FORKS_MIN and forks.size() <= LightningBolt.FORKS_MAX, "the bolt forks a few times")
+		for f in forks:
+			check(f[f.size() - 1].y > at.y + 0.5 and f[f.size() - 1].y < f[0].y, "a fork runs down and dies out in the air")
+	var bolt := LightningBolt.build(at, rng)
+	check(bolt.get_child_count() == 2 and (bolt.get_child(0) as MeshInstance3D).mesh.get_surface_count() == 1, "the bolt is a core and a glow")
+	bolt.free()
+	check(LightningBolt.lasts() >= 1.2, "the bolt stays a moment (%.2f s)" % LightningBolt.lasts())
+
+
+## Fog rolls in slowly, thickening evenly over FOG_BUILD seconds, and lifts at the usual pace.
+func _fog_rolls_in() -> void:
+	var look := Weather.look(Weather.CLEAR)
+	var fog := Weather.look(Weather.FOG)
+	var seen := []
+	for i in 60:
+		look = Weather.ease_look(look, fog, Weather.FOG_BUILD / 60.0)
+		seen.append(float(look.mist))
+	check(seen[5] < 0.15 and seen[29] > 0.4 and seen[29] < 0.6, "the fog thickens slowly (%.2f after a tenth, %.2f halfway)" % [seen[5], seen[29]])
+	check(is_equal_approx(seen[59], 1.0) and is_equal_approx(float(look.fog), float(fog.fog)), "the fog reaches its full thickness after FOG_BUILD")
+	check(float(look.sun) < 0.6, "the light dims at the usual pace")
+	for i in 30:
+		look = Weather.ease_look(look, Weather.look(Weather.CLEAR), 1.0)
+	check(float(look.mist) < 0.01, "the fog lifts within the usual fade")
+	check(Weather.make_mist().preprocess == 0.0, "the mist starts without a burst of particles")
 
 
 func _clock_and_saving() -> void:

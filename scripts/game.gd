@@ -2888,7 +2888,7 @@ func _tick_clock(delta: float) -> void:
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
-		_weather_look = Weather.blend(_weather_look, Weather.look(weather), 1.0 - exp(-delta / Weather.FADE))
+		_weather_look = Weather.ease_look(_weather_look, Weather.look(weather), delta)
 		_shelter = move_toward(_shelter, 1.0 if _under_roof() else 0.0, delta / SHELTER_FADE)
 		_flash = maxf(0.0, _flash - delta * 3.0)
 		# A stroke of lightning flickers: bright, a dip, bright again.

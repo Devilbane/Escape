@@ -337,6 +337,8 @@ var _fires: Array[Vector3] = []
 ## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their
 ## light shows the hero at night like a lantern's.
 var house_lights: Array[Vector3] = []
+## Where the self-built houses keep the weather out (see HouseGround.shelter), set by HouseSketcher.
+var shelters := {}
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []
@@ -3522,9 +3524,9 @@ func _setup_astar() -> void:
 
 ## By day everything is lit. At night, and in fog, only the lanterns and
 ## the campfire show the hero to the eyes of enemies: a sneaking hero in the
-## dark or the fog stays unseen.
+## dark or the fog stays unseen. There is no fog inside a built house: by day it is lit there.
 func is_lit(pos: Vector3) -> bool:
-	if not night and weather != Weather.FOG:
+	if not night and (weather != Weather.FOG or is_sheltered(pos)):
 		return true
 	for lamp in _lamps:
 		if _flat_distance(pos, lamp.global_position) < LAMP_REACH:
@@ -3536,6 +3538,11 @@ func is_lit(pos: Vector3) -> bool:
 		if _flat_distance(pos, light) < LAMP_REACH:
 			return true
 	return false
+
+
+## Whether a spot lies inside a self-built house, where no weather reaches (see HouseGround.shelter).
+func is_sheltered(pos: Vector3) -> bool:
+	return HouseGround.sheltered(shelters, pos)
 
 
 ## The shut gate of the village wall stops shots too (see VillageWall.shot_blocked).

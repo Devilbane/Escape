@@ -84,3 +84,31 @@ static func rects(house: HouseSketch) -> Array:
 		else:
 			out.append(Rect2(a.x - WALL_STRIP, a.z - WALL_STRIP, WALL_STRIP * 2, HouseSketch.CELL + WALL_STRIP * 2))
 	return out
+
+
+## The ground cell (on the map's 2 m house lattice, see HouseSketch.CELL) a world point lies in.
+static func cell_at(pos: Vector3) -> Vector2i:
+	return Vector2i(floori((pos.x + Level.TILE * 0.5) / HouseSketch.CELL), floori((pos.z + Level.TILE * 0.5) / HouseSketch.CELL))
+
+
+## Where `house` keeps the weather out (no rain, snow, fog or storm dark inside, see
+## Game._shelter): its inside cells (see inside_cells) as map cells (see cell_at), each with the
+## height of the top of the house (metres). Standing on the roof is outside again.
+static func shelter(house: HouseSketch) -> Dictionary:
+	var out := {}
+	var cells := inside_cells(house)
+	if cells.is_empty():
+		return out
+	var top := 0
+	for key in house.pieces:
+		if _stands(house.pieces[key]):
+			top = maxi(top, int(HouseSketch.parts_of(key)[0]))
+	var height := (top + 1) * HouseSketch.STOREY_HEIGHT - 0.4
+	for c: Vector2i in cells:
+		out[cell_at(house.node_world(c.x, c.y) + Vector3(HouseSketch.CELL * 0.5, 0, HouseSketch.CELL * 0.5))] = height
+	return out
+
+
+## Whether a world point lies inside a built house, out of the weather (see shelter).
+static func sheltered(shelters: Dictionary, pos: Vector3) -> bool:
+	return shelters.has(cell_at(pos)) and pos.y < float(shelters[cell_at(pos)])

@@ -1,0 +1,127 @@
+extends SceneTree
+## No weather inside a built house (see HouseGround.shelter and Game._shelter): a hero who steps
+## in out of a storm sees no rain, no fog and no storm dark, and in daytime fog a hero indoors is
+## lit as on a clear day (see Outdoor.is_lit). Out in the open again, the storm is back.
+## Run with: godot --headless -s tests/house_weather.gd
+
+var failures := 0
+var game: Node
+var frames := 0
+var plan: HouseSketch
+## The frame of the last step, and how far the view has to have moved in (1) or out (0) of the
+## weather before the next step (see Game._shelter). The fade takes real time, not frames.
+var step_at := 0
+var want := 0.0
+var step := 0
+
+
+func check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _initialize() -> void:
+	Storage.use(Storage.Memory.new())
+	Plots.reload()
+	HouseSketch.reload()
+	game = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+
+
+func _unit_checks() -> void:
+	var house := HouseSketch.new()
+	house.plot = Rect2i(10, 10, 3, 3)
+	# A closed 2 x 2 ring of wall with a door, and a slab over one cell outside it.
+	for e in [[1, 1, "x"], [2, 1, "x"], [1, 3, "x"], [2, 3, "x"], [1, 1, "y"], [1, 2, "y"], [3, 1, "y"]]:
+		house.pieces[HouseSketch.key_of(e[0], e[1], e[2])] = {"kind": HouseSketch.WALL, "state": HouseSketch.BUILT}
+	house.pieces[HouseSketch.key_of(3, 2, "y")] = {"kind": HouseSketch.DOOR, "state": HouseSketch.BUILT}
+	var shelter := HouseGround.shelter(house)
+	check(shelter.size() == 4, "the ring keeps the weather off four cells (is %d)" % shelter.size())
+	var middle := house.cell_world(1, 1)
+	check(HouseGround.sheltered(shelter, middle), "the middle of an inside cell is sheltered")
+	check(HouseGround.sheltered(shelter, middle + Vector3(0.9, 0, 0.9)), "the edge of an inside cell is sheltered")
+	check(not HouseGround.sheltered(shelter, house.cell_world(0, 0)), "the cell outside the ring is not")
+	check(not HouseGround.sheltered(shelter, house.cell_world(3, 1)), "the cell past the door is not")
+	check(not HouseGround.sheltered(shelter, middle + Vector3(0, HouseSketch.STOREY_HEIGHT, 0)), "on top of the walls is out in the weather")
+	check(HouseGround.sheltered(shelter, middle - Vector3(0, 2, 0)), "below the house is sheltered")
+	house.pieces[HouseSketch.key_of(1, 1, "x")].state = HouseSketch.SKETCH
+	check(HouseGround.shelter(house).is_empty(), "a sketched wall leaves the ring open")
+
+
+func _process(_delta: float) -> bool:
+	frames += 1
+	if frames == 2:
+		_unit_checks()
+	if frames == 5:
+		game.hero_name = "Weather test"
+		game.escaped = true
+		game.load_level(game._outdoor_index(), false)
+		game.state = game.State.PLAYING
+		var found := Rect2i()
+		for y in range(game.level.height - 4):
+			for x in range(game.level.grid[y].length() - 4):
+				var r := Rect2i(x, y, 3, 3)
+				if Plots.problem(game.level, r) == "":
+					found = r
+					break
+			if found.size != Vector2i.ZERO:
+				break
+		Plots.register(game.level, game.hero_name, found)
+		game.plot_marker.refresh()
+		plan = game.house_sketcher.plan
+		plan.deposit("steinblock", 40)
+		plan.sketch(plan.run_between(Vector2i(1, 1), Vector2i(5, 1)), HouseSketch.WALL)
+		plan.sketch(plan.run_between(Vector2i(5, 1), Vector2i(5, 5)), HouseSketch.WALL)
+		plan.sketch(plan.run_between(Vector2i(5, 5), Vector2i(1, 5)), HouseSketch.WALL)
+		plan.sketch(plan.run_between(Vector2i(1, 5), Vector2i(1, 1)), HouseSketch.WALL)
+		plan.ordered = true
+		for i in 20:
+			game.house_sketcher.work_once()
+		game.house_sketcher._redraw()
+		game.day_hour = 12.0
+		game.set_weather(Weather.STORM, 5.0)
+		game._weather_look = Weather.look(Weather.STORM)
+		_put_hero(plan.node_world(0, 0) - Vector3(3, 0, 3))
+		step_at = frames
+		return false
+	if frames > 5 and (frames - step_at < 20 or not is_equal_approx(game._shelter, want)) and frames < 3000:
+		return false
+	if frames > 5 and frames - step_at >= 20 and step == 0:
+		check(plan.count(HouseSketch.WALL, HouseSketch.BUILT) == 16, "the walls are built (%d)" % plan.count(HouseSketch.WALL, HouseSketch.BUILT))
+		check(game._rain.visible, "out in the open the storm's rain falls")
+		check(game._env.fog_enabled, "out in the open the storm brings haze")
+		_put_hero(plan.node_world(3, 3))
+		_next(1.0)
+		return false
+	if step == 1:
+		check(game.level.is_sheltered(game.player.global_position), "the hero stands inside the house")
+		check(not game._rain.visible, "no rain falls inside the house")
+		check(not game._env.fog_enabled, "no haze inside the house")
+		check(float(game._seen_look().sat) > 0.95 and float(game._seen_look().sun) > 0.95, "no storm grey or dark inside the house")
+		game.set_weather(Weather.FOG, 5.0)
+		game.level.night = false
+		check(game.level.is_lit(game.player.global_position), "in daytime fog a hero indoors is seen as on a clear day")
+		game.set_weather(Weather.STORM, 5.0)
+		_put_hero(plan.node_world(0, 0) - Vector3(3, 0, 3))
+		_next(0.0)
+		return false
+	if step == 2:
+		check(game._rain.visible, "out again, the rain falls again")
+		check(game._env.fog_enabled, "out again, the haze is back")
+		print("PASS: house weather" if failures == 0 else "FAILED: %d" % failures)
+		Plots.release(game.hero_name)
+		game.delete_save(game.save_path())
+		quit(1 if failures > 0 else 0)
+	return false
+
+
+func _next(shelter: float) -> void:
+	step += 1
+	step_at = frames
+	want = shelter
+
+
+func _put_hero(at: Vector3) -> void:
+	game.player.global_position = Vector3(at.x, game.player.global_position.y, at.z)
+	game.player.reset_physics_interpolation()

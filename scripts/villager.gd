@@ -675,6 +675,10 @@ func _start(task: String, time: float) -> void:
 	if _task == "frozen" and task != "frozen" and FrozenFritz.wants(level, true):
 		return
 	_task = task
+	# Called away from the herald on the way to him (an alarm, a chat, a fright):
+	# no longer listening, or he would stay deaf to chats until the next call.
+	if task != "walk" and task != "listen":
+		_listen_to = Vector3.INF
 	_retry = {}
 	_stuck_watch.reset()
 	if task != "mend":

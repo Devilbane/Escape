@@ -46,8 +46,11 @@ var _delete_asked := ""
 var saved_now := ""
 ## Which page of the compendium shows: "wissen" (controls and everything
 ## learned), "befehle" (the chat commands), "auftraege" (the villagers' tasks), "ruf" (the villagers'
-## opinion of the hero) or "rezepte" (the recipes found and the ingredient pouch).
+## opinion of the hero), "rezepte" (the recipes found and the ingredient pouch) or "patchnotes"
+## (the notes of every build, see PatchHistory).
 var compendium_page := "wissen"
+## The build whose notes the patch notes page shows; "" for the newest.
+var patch_notes_pick := ""
 ## The inventory's open tab: "tasche" (the bag) or "beutel" (the ingredient pouch).
 var inventory_tab := "tasche"
 ## Which page of the map window shows: "karte" (the map) or "tagebuch" (the
@@ -2564,7 +2567,7 @@ func _build_woodcutter() -> void:
 	var detail := {"subtitle": TradeWindow.subtitle(TIMBER), "lines": TradeWindow.stat_lines(TIMBER) + [
 			[Lang.t("Bauholz für Türen und Fenster. Gib es am Bauplan-Schild auf deinem Grundstück ab: Dort baut dein Held damit dein Haus."), TradeWindow.BLUE],
 			[Lang.t("Bruno hackt in seiner Schicht alle 20 Sekunden ein Bauholz in seinen Vorrat, bis zu 999. Was er nicht auf Lager hat, kann er nicht verkaufen."), TradeWindow.BLUE],
-			[Lang.t("Umsonst, aber mit eigener Mühe: Hack es dir selbst aus den Stämmen am Holzplatz neben dem Holzfäller oder aus umgestürzten Bäumen im Wald. Jeder Stamm gibt 2 Bauholz und liegt am nächsten Morgen wieder da."), TradeWindow.BLUE]]}
+			[Lang.t("Umsonst, aber mit eigener Mühe: Hack es dir selbst aus den Stämmen am Holzplatz neben dem Holzfäller (2 Bauholz) oder aus umgestürzten Bäumen im Wald (6 Bauholz). Am nächsten Morgen liegt wieder einer da."), TradeWindow.BLUE]]}
 	var compare := {"title": Lang.t("In deiner Tasche"), "name": Lang.t("Bauholz: %d") % have, "icon": TIMBER,
 			"subtitle": Lang.t("Platz für %d weitere") % room}
 	_trade(header, [
@@ -4119,16 +4122,15 @@ func _build_compendium() -> void:
 		tabs_shown.append(["orte", Lang.t("Orte (%d)") % _visited_places().size()])
 	elif compendium_page == "orte":
 		compendium_page = "wissen"
+	# The patch notes of every build, always there and always last.
+	tabs_shown.append(["patchnotes", Lang.t("Patchnotes")])
 	var gap := COMPENDIUM_TAB_GAP if tabs_shown.size() < 6 else COMPENDIUM_TAB_GAP_FULL
 	tabs.add_theme_constant_override("separation", gap)
-	# All tabs share one width, narrower when there are more of them, so the
-	# row never grows past the window.
-	var tab_width := minf(COMPENDIUM_TAB, floorf((WINDOW_SIZES.kompendium.x - gap * (tabs_shown.size() - 1)) / tabs_shown.size()))
+	var tab_buttons: Array[Button] = []
 	for tab in tabs_shown:
 		var b := _item_button(tab[1], func():
 			compendium_page = tab[0]
 			_rebuild())
-		b.custom_minimum_size = Vector2(tab_width, 44)
 		# A tab never grows past its share, so the row always fits the window.
 		b.clip_text = true
 		if compendium_page == tab[0]:
@@ -4136,11 +4138,18 @@ func _build_compendium() -> void:
 		else:
 			b.modulate = Color(0.75, 0.75, 0.8)
 		tabs.add_child(b)
+		tab_buttons.append(b)
+	var widths := compendium_tab_widths(tab_buttons.map(func(b: Button) -> float: return _text_width(b)), WINDOW_SIZES.kompendium.x - gap * (tabs_shown.size() - 1))
+	for i in tab_buttons.size():
+		tab_buttons[i].custom_minimum_size = Vector2(widths[i], 44)
 	if compendium_page == "auftraege":
 		_build_quest_log()
 		return
 	if compendium_page == "befehle":
 		_build_chat_commands()
+		return
+	if compendium_page == "patchnotes":
+		_build_patch_notes()
 		return
 	if compendium_page == "rezepte":
 		_build_recipes()
@@ -4261,6 +4270,161 @@ func _build_chat_commands() -> void:
 		examples.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		examples.custom_minimum_size.x = WINDOW_SIZES.kompendium.x - 100
 		block.add_child(examples)
+
+
+## Room a compendium tab keeps around its text.
+const COMPENDIUM_TAB_PADDING := 12.0
+
+
+## The widths of the compendium's tabs, from the widths of their texts and the room
+## the row has. All tabs share one width (at most COMPENDIUM_TAB), narrower when there
+## are more of them; a tab whose text needs more keeps what it needs and the others
+## share the rest, so the row never grows past the window and no text is cut.
+static func compendium_tab_widths(text_widths: Array, room: float) -> Array:
+	var count := text_widths.size()
+	var out := []
+	out.resize(count)
+	var wide := {}
+	# A tab joins the wide ones while its text does not fit the even share of what is left.
+	var changed := true
+	while changed:
+		changed = false
+		var left := room
+		for i in wide:
+			left -= wide[i]
+		var share := minf(COMPENDIUM_TAB, floorf(left / maxi(1, count - wide.size())))
+		for i in count:
+			if not wide.has(i) and text_widths[i] + COMPENDIUM_TAB_PADDING > share:
+				wide[i] = ceilf(text_widths[i] + COMPENDIUM_TAB_PADDING)
+				changed = true
+	var left := room
+	for i in wide:
+		left -= wide[i]
+	var share := minf(COMPENDIUM_TAB, floorf(left / maxi(1, count - wide.size())))
+	for i in count:
+		out[i] = wide.get(i, share)
+	return out
+
+
+## How wide a button's text is drawn.
+func _text_width(b: Button) -> float:
+	return b.get_theme_font("font").get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, b.get_theme_font_size("font_size")).x
+
+
+## Width of the patch notes page's version list, and the height of both its regions.
+const PATCH_LIST_WIDTH := 260
+const PATCH_REGION_HEIGHT := 380
+
+
+## The compendium's patch notes page, laid out like a book: the versions on the left page,
+## newest first, and the notes of the picked one on the right. Both pages are scroll regions
+## of fixed size, so picking a version only refills the right page and nothing else moves.
+func _build_patch_notes() -> void:
+	var all := PatchHistory.builds()
+	if patch_notes_pick == "" or PatchHistory.find(patch_notes_pick).is_empty():
+		patch_notes_pick = all[0].build if not all.is_empty() else ""
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 24)
+	columns.alignment = BoxContainer.ALIGNMENT_CENTER
+	_box.add_child(columns)
+
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 6)
+	columns.add_child(left)
+	var list_title: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
+	list_title.text = Lang.t("Versionen (%d)") % all.size()
+	left.add_child(list_title)
+	var list_scroll := ScrollContainer.new()
+	list_scroll.name = "PatchVersions"
+	list_scroll.custom_minimum_size = Vector2(PATCH_LIST_WIDTH, PATCH_REGION_HEIGHT)
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left.add_child(list_scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 6)
+	list_scroll.add_child(list)
+
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 6)
+	columns.add_child(right)
+	var notes_width: float = WINDOW_SIZES.kompendium.x - PATCH_LIST_WIDTH - 24 - 40
+	var heading: Label = game._make_label(game.TEXT_FONT, 24, game.GOLD)
+	heading.custom_minimum_size.x = notes_width
+	heading.clip_text = true
+	right.add_child(heading)
+	# One line under the heading, always there: the date and how many changes.
+	var sub: Label = game._make_label(game.TEXT_FONT, 16, BLUE)
+	sub.custom_minimum_size.x = notes_width
+	sub.clip_text = true
+	right.add_child(sub)
+	var notes_scroll := ScrollContainer.new()
+	notes_scroll.name = "PatchNotes"
+	notes_scroll.custom_minimum_size = Vector2(notes_width, PATCH_REGION_HEIGHT - 30)
+	notes_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(notes_scroll)
+	var notes := VBoxContainer.new()
+	notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	notes.add_theme_constant_override("separation", 8)
+	notes_scroll.add_child(notes)
+
+	if all.is_empty():
+		var none: Label = game._make_label(game.TEXT_FONT, 16)
+		none.text = Lang.t("Noch keine Patchnotes.")
+		list.add_child(none)
+		heading.text = Lang.t("Patchnotes")
+		sub.text = Lang.t("Jede neue Version bringt ihre Patchnotes hierher.")
+		return
+	var buttons := {}
+	var pick := func(build: String) -> void:
+		patch_notes_pick = build
+		for b in buttons:
+			buttons[b].modulate = Color(1.0, 0.9, 0.6) if b == build else Color(0.75, 0.75, 0.8)
+		var entry := PatchHistory.find(build)
+		heading.text = "%s %s" % [Lang.t("Version"), entry.version]
+		var parts := []
+		if entry.date != "":
+			parts.append(_patch_date(entry.date))
+		parts.append(Lang.t("1 Änderung") if entry.notes.size() == 1 else Lang.t("%d Änderungen") % entry.notes.size())
+		if entry.build == game.BUILD:
+			parts.append(Lang.t("deine Version"))
+		sub.text = "  ·  ".join(parts)
+		for child in notes.get_children():
+			notes.remove_child(child)
+			child.queue_free()
+		for line in entry.notes:
+			var l: Label = game._make_label(game.TEXT_FONT, 16)
+			l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.custom_minimum_size.x = notes_width - 20
+			l.text = "• " + line
+			notes.add_child(l)
+		notes_scroll.scroll_vertical = 0
+	for entry in all:
+		var text: String = entry.version
+		if entry.date != "":
+			text += "  ·  " + _patch_date(entry.date)
+		if entry.build == game.BUILD:
+			text += "  ·  " + Lang.t("deine")
+		var b := _item_button(text, pick.bind(entry.build))
+		b.custom_minimum_size = Vector2(PATCH_LIST_WIDTH - 16, 44)
+		b.clip_text = true
+		b.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		list.add_child(b)
+		buttons[entry.build] = b
+	pick.call(patch_notes_pick)
+	# After a rebuild the picked version is in view again.
+	if buttons.has(patch_notes_pick) and patch_notes_pick != all[0].build:
+		list_scroll.ensure_control_visible.call_deferred(buttons[patch_notes_pick])
+
+
+## A date of the archive ("2026-11-20") as the player reads it: 20.11.2026 in German.
+func _patch_date(iso: String) -> String:
+	var p := iso.split("-")
+	if p.size() != 3:
+		return iso
+	if Lang.language == "en":
+		return iso
+	return "%s.%s.%s" % [p[2], p[1], p[0]]
 
 
 ## The floors and places the hero has entered, by their number in the game.

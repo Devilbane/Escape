@@ -1,0 +1,1 @@
+- Fixed clumps of coloured and dark balls hanging in the air by villagers when it is not cold.

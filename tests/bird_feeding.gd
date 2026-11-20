@@ -183,6 +183,9 @@ func _run() -> void:
 	check(not birds.winter_perches.is_empty(), "the lamp posts are perches in winter")
 	var moves := func(on: bool) -> int:
 		lvl.set_winter_wear(on, true)
+		# The same random draws for summer and winter, whatever ran before: the two are
+		# compared like for like, and a change elsewhere in the village cannot tip the count.
+		birds._rng.seed = 1
 		var flights := 0
 		for b: Dictionary in birds.birds:
 			b.state = "sit"

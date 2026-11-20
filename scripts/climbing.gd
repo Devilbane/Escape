@@ -16,8 +16,9 @@ const CHANCE_PER_LEVEL := 0.05
 const CHANCE_MAX := 0.95
 const PITY := 0.2
 
-## Seconds a climb takes per metre at skill level 0.
-const SECONDS_PER_METRE := 0.45
+## A climb at the first level takes this many times as long as walking the same
+## distance on foot.
+const SLOWDOWN := 5.0
 ## Each level makes the climb this much faster, down to MIN_FACTOR of the base time.
 const SPEEDUP_PER_LEVEL := 0.035
 const MIN_FACTOR := 0.4
@@ -26,10 +27,12 @@ const REACH_BASE := 3.5
 const REACH_PER_LEVEL := 0.4
 
 
-## Seconds for climbing `height` metres at skill `level`.
-static func seconds(height: float, level: int) -> float:
-	var factor := maxf(MIN_FACTOR, 1.0 - SPEEDUP_PER_LEVEL * level)
-	return maxf(0.3, height * SECONDS_PER_METRE * factor)
+## Seconds for climbing `height` metres at skill `level` by a hero who walks
+## `walk_speed` metres a second: SLOWDOWN times the walk at level 1, a little less
+## with each level.
+static func seconds(height: float, level: int, walk_speed: float) -> float:
+	var factor := maxf(MIN_FACTOR, 1.0 - SPEEDUP_PER_LEVEL * (level - MIN_LEVEL))
+	return maxf(0.3, height / maxf(0.1, walk_speed) * SLOWDOWN * factor)
 
 
 ## The most metres the hero can climb in one go at skill `level`.

@@ -443,6 +443,10 @@ func _run() -> void:
 			await _wait(120)
 			Input.action_release(action)
 			await _wait(10)
+	for i in 90:
+		if not hero.is_climbing():
+			break
+		await _wait(10)
 	await _wait(30)
 	check(hero.global_position.y > -0.5, "pushing against the pit wall climbs the hero out (y %.2f)" % hero.global_position.y)
 

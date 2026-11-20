@@ -2839,7 +2839,7 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 	_pit_slips = 0
 	_climb_from = global_position
 	_climb_to = target
-	_climb_time = Climbing.seconds(-global_position.y, climbing_level())
+	_climb_time = Climbing.seconds(-global_position.y, climbing_level(), speed * WALK_FACTOR)
 	_climb = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO

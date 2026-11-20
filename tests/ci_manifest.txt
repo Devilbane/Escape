@@ -281,4 +281,5 @@ reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
 light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
 click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top
+forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone

@@ -1184,8 +1184,8 @@ static func _leaf(at: Vector3, n: Vector3, across: Vector3, rng: RandomNumberGen
 
 
 ## A round shrub of ivy-like leaves standing on the ground at `at`, now
-## and then in flower. Its leaves join the ivy's (one MultiMesh for both).
-static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
+## and then in flower. Its leaves join the ivy's (one MultiMesh for both). Returns its radius.
+static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionary) -> float:
 	var radius := rng.randf_range(0.8, 1.5)
 	var tall := radius * rng.randf_range(0.7, 1.05)
 	var count := int(50 + radius * 80)
@@ -1206,6 +1206,7 @@ static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionar
 		if in_flower and out.y > 0.3 and rng.randf() < 0.18:
 			c = flowers * rng.randf_range(0.85, 1.05)
 		leaves.colours.append(c)
+	return radius
 
 
 ## A little ivy on a round basin (the village fountain) standing on the ground

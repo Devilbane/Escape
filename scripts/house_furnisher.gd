@@ -29,6 +29,8 @@ const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drach
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
 const LIGHT_RANGE := 9.0
+## How far the back of the mounted torch's plate lies behind its origin.
+const TORCH_BACK := 0.025
 ## A painting's frame (across, high) and how high its middle hangs (metres).
 const PAINTING := Vector2(1.3, 1.0)
 const PAINTING_HEIGHT := 1.55
@@ -267,7 +269,8 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 			solids.append({"at": Vector3.ZERO, "size": Vector3(0.6, 1.4, 0.6)})
 		"fackel":
 			var holder := Node3D.new()
-			holder.position = Vector3(0, 1.45, -HouseSketch.CELL * 0.5 + 0.5)
+			# Its iron plate flat against the wall's face (TORCH_BACK: the plate's back).
+			holder.position = Vector3(0, 1.45, -HouseSketch.CELL * 0.5 + HouseSketcher.THICK * 0.5 + TORCH_BACK)
 			root.add_child(holder)
 			level._place("torch_mounted", Vector3.ZERO, 0.0, holder)
 			var flame := Effects.make_flame()

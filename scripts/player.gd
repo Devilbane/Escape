@@ -430,7 +430,7 @@ func _ready() -> void:
 	_fill = OmniLight3D.new()
 	_fill.light_color = Color(0.72, 0.82, 1.0)
 	_fill.omni_range = 3.2
-	_fill.shadow_enabled = false
+	_fill.set_meta(LightShadows.NO_SHADOW, true)
 	_fill.position = Vector3(0, 1.7, 1.5)
 	_fill.visible = false
 	add_child(_fill)

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Raise the village slime alarm only at the village's edge; Make the leaf-covered forest edge walkable and fill its gaps | Shipped this week: Only walls block light; everything else is lit as before; Winter keeps autumn's leaves, some covered in snow (+48 more)
+Escape! dev status | Working on: Raise the village slime alarm only at the village's edge | Shipped this week: Make the leaf-covered forest edge walkable and fill its gaps; Only walls block light; everything else is lit as before (+48 more)

@@ -46,6 +46,8 @@ const ON_COLOR := Color(1.0, 0.82, 0.4)
 ## How close the hero must come to a piece to use it, from its middle (metres).
 const TOUCH := {"bett": 2.6, "regal": 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4}
 const TOUCH_DEFAULT := 1.8
+## How far outside its solid a bump still counts as running into a piece (metres).
+const TOUCH_MARGIN := 0.4
 ## The scale of the pieces that are too big or too tall for a 2 m cell and a 2.6 m storey.
 const SHELF_SCALE := 0.75
 const FIRE_SCALE := 0.72
@@ -200,6 +202,14 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 	station.cell = game.level.world_to_cell(station.pos)
 	station.used = false
 	station.touch = TOUCH.get(p.kind, TOUCH_DEFAULT)
+	# Only running into the piece itself uses it: not a candle stand or a chest that stands
+	# within its touch beside it (see Level.station_at).
+	var rects: Array[Rect2] = []
+	for box in root.get_meta("solids", []):
+		var aabb: AABB = root.transform * AABB(box.at - Vector3(box.size.x, 0, box.size.z) * 0.5, box.size)
+		rects.append(Rect2(aabb.position.x, aabb.position.z, aabb.size.x, aabb.size.z).grow(TOUCH_MARGIN))
+	if not rects.is_empty():
+		station.touch_rects = rects
 	station.furniture = p.kind
 	if station.has("side"):
 		station.side = root.transform * station.side

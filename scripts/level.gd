@@ -2476,8 +2476,11 @@ func station_at(point: Vector3) -> Dictionary:
 		if s.used:
 			continue
 		if s.has("touch"):
-			if Vector2(point.x - s.pos.x, point.z - s.pos.z).length() <= s.touch and absf(point.y - s.pos.y) < 1.8:
-				return s
+			if Vector2(point.x - s.pos.x, point.z - s.pos.z).length() > s.touch or absf(point.y - s.pos.y) >= 1.8:
+				continue
+			if s.has("touch_rects") and not (s.touch_rects as Array).any(func(r: Rect2): return r.has_point(Vector2(point.x, point.z))):
+				continue # Run into something else standing beside it.
+			return s
 		elif s.cell == c:
 			return s
 	return {}
@@ -6157,17 +6160,29 @@ var reach_walls: Array = []
 ## How high a wall must rise over the hero's feet to keep a hand from reaching
 ## over it: a house wall or a dungeon wall, not a garden wall two blocks high.
 const REACH_WALL_HEIGHT := 2.0
+## How far above or below their feet the hero can reach a thing: a stacked crate,
+## yes, but nothing on the floor above or down in the cellar (2.6 m deep, see
+## HouseSketch.DEPTH; a storey is HouseSketch.STOREY_HEIGHT high). Every item is
+## used only from the floor it stands on.
+const REACH_STOREY := 2.2
 
 
 ## True when the hero standing at `a` can reach the thing at `b`: no wall that
 ## is solid from the floor to above their head stands between them. Dungeon
 ## walls, the village's buildings, closed doors, built house walls and stone
 ## stacks too high to shoot over all stop it; low walls, garden walls,
-## railings, windows and open doorways do not. Picking up, searching, opening
-## and using anything goes through here, so nothing is taken through a wall.
+## railings, windows and open doorways do not, and nothing on another floor is
+## in reach. Picking up, searching, opening and using anything goes through
+## here, so nothing is taken through a wall, a floor or a ceiling.
 func can_reach(a: Vector3, b: Vector3) -> bool:
+	if absf(a.y - b.y) > REACH_STOREY:
+		return false # On another floor: the cellar under a room, the storey above.
 	if door_between(a, b) or tall_stone_between(a, b):
 		return false
+	for f in built_floors:
+		var fy: float = f.y
+		if (a.y + 0.5 - fy) * (b.y + 0.5 - fy) < 0.0 and ((f.rect as Rect2).has_point(Vector2(a.x, a.z)) or (f.rect as Rect2).has_point(Vector2(b.x, b.z))):
+			return false # A floor, a cellar ceiling or a roof lies between them.
 	var from := Vector2(a.x, a.z)
 	var to := Vector2(b.x, b.z)
 	for w in reach_walls:

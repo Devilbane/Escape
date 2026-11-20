@@ -1072,6 +1072,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_build_bench(c)
 		TownMeals.LETTER:
 			meals.build_table(self, c)
+			# Still part of the square: the birds peck for crumbs under the tables, and the
+			# square's middle stays where it was. Villagers on an errand skip it (see Villager._errand).
+			spots.square.append(pos)
+			spots.market.append(pos)
 		"v":
 			_build_pedestal(c)
 		"!":

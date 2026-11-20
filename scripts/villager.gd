@@ -1531,7 +1531,8 @@ func _play_spot() -> Vector3:
 
 ## Somewhere in the village worth a visit: the well, the square, a house.
 func _errand() -> Vector3:
-	var places: Array = level.spots.well + level.spots.square
+	# Not the dining tables on the square (see TownMeals).
+	var places: Array = (level.spots.well + level.spots.square).filter(func(p: Vector3): return level.cell_char(level.world_to_cell(p)) != TownMeals.LETTER)
 	if places.is_empty() or level.world_to_cell(places[0]).distance_to(home) > 18:
 		return _nearby(5)
 	return places[_rng.randi() % places.size()]

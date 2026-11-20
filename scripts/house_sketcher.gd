@@ -54,7 +54,6 @@ const ROOF_COLOR := Color(0.55, 0.22, 0.16)
 const SURFACE_NAMES := {"": "roh", "stone": "aus Stein", "wood": "aus Holz"}
 const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
 const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
-const EARTH_COLOR := Color(0.28, 0.2, 0.13)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
@@ -84,7 +83,6 @@ const BUILD_SECONDS := 12.0
 ## Digging a square of the cellar goes faster than raising a wall.
 const DIG_SECONDS := 3.0
 const BUILD_RANGE := 16.0
-const STONE_COLOR := Color(0.5, 0.48, 0.44)
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
 const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
@@ -924,10 +922,9 @@ func _solid_cellar(house: HouseSketch, holes: Array) -> void:
 		var middle := house.cell_world(c.x, c.y)
 		var is_dig: bool = piece.kind == HouseSketch.DIG
 		if is_dig:
-			var floor_mat := _surface_material(piece.get("floor", ""), demolish)
-			_visual_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), floor_mat)
+			_floor_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), piece.get("floor", ""), demolish)
 			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
-		var wall_mat := _surface_material(piece.get("wall", "") if is_dig else "", demolish)
+		var wall_mat := _wall_material(piece.get("wall", "") if is_dig else "", demolish)
 		for dir in HouseSketch.DOWN:
 			var step: Vector2i = HouseSketch.DOWN[dir]
 			if open.has(c + step):
@@ -955,8 +952,9 @@ func _solid_above(house: HouseSketch) -> void:
 		var mid := house.cell_world(p[1], p[2])
 		match piece.kind:
 			HouseSketch.SLAB:
-				_solid_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), Vector3(HouseSketch.CELL, HouseSketch.SLAB_THICK, HouseSketch.CELL),
-						_solid_material(DEMOLISH_COLOR if demolish else PLANK_COLOR))
+				var slab := Vector3(HouseSketch.CELL, HouseSketch.SLAB_THICK, HouseSketch.CELL)
+				_floor_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab, "wood", demolish)
+				_collide(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab)
 				_cover(house, p[1], p[2], p[0])
 			HouseSketch.SADDLE:
 				_saddle(mid, base + HouseSketch.SLAB_THICK, p[3] == "rx", demolish)
@@ -1098,23 +1096,36 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 		_body.add_child(shape)
 
 
-## The material of a cellar floor or wall: bare earth looks like real dug soil
-## (see BareEarth), stone and wood keep their colour.
-func _surface_material(surface: String, demolish: bool) -> StandardMaterial3D:
+## The material of a cellar wall: bare earth looks like real dug soil (see
+## BareEarth), stone is the temple's blocks and wood the town houses' stair
+## boards (see HouseLooks).
+func _wall_material(surface: String, demolish: bool) -> Material:
 	if demolish:
 		return _solid_material(DEMOLISH_COLOR)
-	if surface == "":
-		return BareEarth.material()
-	return _solid_material(_surface_color(surface))
-
-
-func _surface_color(surface: String) -> Color:
 	match surface:
 		"stone":
-			return STONE_COLOR
+			return HouseLooks.temple_stone()
 		"wood":
-			return PLANK_COLOR
-	return EARTH_COLOR
+			return HouseLooks.stair_wood()
+	return BareEarth.material()
+
+
+## A floor filling a box `size` big round `middle`: bare earth, the village
+## square's flagstones or the cattle pen's boards (see HouseLooks). A floor
+## marked for demolition is tinted red.
+func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool) -> void:
+	if demolish:
+		_visual_box(middle, size, _solid_material(DEMOLISH_COLOR))
+		return
+	match surface:
+		"stone":
+			_visual_box(middle, size, HouseLooks.flagstones())
+		"wood":
+			var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size)
+			boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
+			_solid.add_child(boards)
+		_:
+			_visual_box(middle, size, BareEarth.material())
 
 
 ## A flat tinted square over a grid cell (the blueprint of a dug cell).
@@ -1137,8 +1148,7 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
 	var mid := a + (Vector3(HouseSketch.CELL * 0.5, 0, 0) if along_x else Vector3(0, 0, HouseSketch.CELL * 0.5))
 	var flat := Vector3(HouseSketch.CELL + THICK, 0, THICK) if along_x else Vector3(THICK, 0, HouseSketch.CELL + THICK)
-	var stone := _solid_material(DEMOLISH_COLOR if demolish else STONE_COLOR)
-	var wood := _solid_material(DEMOLISH_COLOR if demolish else WOOD_COLOR)
+	var stone: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.temple_stone()
 	if HouseSketch.FENCE_KINDS.has(kind):
 		_solid_fence(mid, along_x, kind, demolish)
 		return
@@ -1150,7 +1160,7 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			var lintel := flat + Vector3(0, WALL_HEIGHT - DOOR_HEIGHT, 0)
 			for sign_ in [-1.0, 1.0]:
 				_solid_box(mid + step * sign_ + Vector3(0, DOOR_HEIGHT * 0.5, 0), jamb, stone)
-			_solid_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, wood)
+			_solid_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood())
 		HouseSketch.WINDOW:
 			_solid_box(mid + Vector3(0, SILL * 0.5, 0), flat + Vector3(0, SILL, 0), stone)
 			_solid_box(mid + Vector3(0, (WINDOW_TOP + WALL_HEIGHT) * 0.5, 0), flat + Vector3(0, WALL_HEIGHT - WINDOW_TOP, 0), stone)
@@ -1172,7 +1182,7 @@ func _solid_fence(mid: Vector3, along_x: bool, kind: String, demolish: bool) -> 
 	match kind:
 		HouseSketch.STONE_FENCE:
 			var flat := Vector3(HouseSketch.CELL + FENCE_THICK, high, FENCE_THICK) if along_x else Vector3(FENCE_THICK, high, HouseSketch.CELL + FENCE_THICK)
-			_solid_box(mid + Vector3(0, high * 0.5, 0), flat, _solid_material(DEMOLISH_COLOR if demolish else STONE_COLOR))
+			_solid_box(mid + Vector3(0, high * 0.5, 0), flat, _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.temple_stone())
 		HouseSketch.WOOD_FENCE:
 			var boards := Vector3(HouseSketch.CELL, high - 0.1, 0.1) if along_x else Vector3(0.1, high - 0.1, HouseSketch.CELL)
 			_solid_box(mid + Vector3(0, (high - 0.1) * 0.5, 0), boards, _solid_material(DEMOLISH_COLOR if demolish else PLANK_COLOR))

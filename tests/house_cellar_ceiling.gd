@@ -179,6 +179,12 @@ func _checks() -> void:
 	check(not below.is_empty() and absf(below.position.y + HouseSketch.DEPTH) < 0.05, "the cellar floor is still under the ceiling")
 	var roof := space.intersect_ray(PhysicsRayQueryParameters3D.create(covered + Vector3(0, -HouseSketch.DEPTH + 0.2, 0), covered + Vector3(0, 2, 0)))
 	check(not roof.is_empty() and roof.position.y < -HouseSketch.COVER_THICK + 0.05, "from the cellar the ceiling is overhead")
+	# A companion walks over the ceiling as over the ground, and still down the stairs below it (see HouseFloors).
+	var floors: HouseFloors = game.level.house_floors
+	check(floors != null and floors.storey_at(covered) == HouseFloors.GROUND, "on the ceiling a companion is on the ground floor")
+	check(floors != null and floors.storey_at(covered + Vector3(0, -HouseSketch.DEPTH, 0)) == HouseFloors.CELLAR, "under it the cellar is still the cellar")
+	check(floors != null and floors.reachable(plan.cell_world(0, 0), covered) and floors.reachable(covered, covered + Vector3(0, -HouseSketch.DEPTH, 0)),
+			"a companion reaches the ceiling and the cellar under it")
 	check(roof.position.y + HouseSketch.DEPTH > game.player.tall, "the hero fits upright under the ceiling (%.2f m)" % (roof.position.y + HouseSketch.DEPTH))
 	# Snow lies on the ceiling but not in the open pit; dropped things stay on the ceiling.
 	var snow_material: ShaderMaterial = game.level.snow.material

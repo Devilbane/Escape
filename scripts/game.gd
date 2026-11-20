@@ -1959,7 +1959,24 @@ func _spawn_pet(at := Vector3.INF) -> void:
 			pet.global_position = at
 			pet._placed = true
 		pet.dug_up.connect(_on_fox_dug_up)
+		pet.gone_home.connect(send_companion_home)
 	_spawn_home_pets()
+
+
+## The companion could not follow the hero (down a pit without stairs: it goes
+## up and down only by stairs, see Pet and HouseFloors; a trapdoor takes both
+## down together) and lost sight of them: it runs home to the hero's house and
+## waits in the companions' corner until the hero takes it along again.
+func send_companion_home() -> void:
+	var c := companion()
+	if is_instance_valid(pet):
+		pet.queue_free()
+	pet = null
+	if c.is_empty():
+		return
+	following = -1
+	apply_companion_perk()
+	Events.tell(Lang.t("%s läuft nach Hause und wartet dort auf dich.") % c.name, Color(1.0, 0.82, 0.55))
 
 
 ## In the hero's house: the companions who stay at home rest on the straw

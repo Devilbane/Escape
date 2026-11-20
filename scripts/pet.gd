@@ -25,6 +25,13 @@ extends Node3D
 ## The fox never fights, cannot be hurt and takes up no room, like the wild
 ## animals. If it falls too far behind it catches up at once.
 ##
+## It never jumps down into a pit and never climbs out of one, as the hero
+## can: round a house on the open-air map it walks only where HouseFloors lets
+## it, down into a cellar and up to an upper floor only by built stairs. Where
+## the hero went without stairs it waits at the rim (state "rim"), and once the
+## hero is gone from the screen while it waits there it runs home to the
+## hero's house (gone_home, see Game.send_companion_home).
+##
 ## The model only has Idle, Walk, Gallop and Eating, so sitting and lying
 ## down are poses laid over Idle bone by bone (POSES), faded in and out.
 
@@ -85,6 +92,15 @@ const POSE_SPEED := 2.2
 const ACTS := {"stand": 2.0, "sit": 3.0, "lie": 2.5, "wander": 2.0, "circle": 1.5, "sniff": 2.5}
 
 signal dug_up(id: String, pos: Vector3)
+## It could not follow the hero and lost sight of them: off home it goes.
+signal gone_home
+
+## While it waits at the rim, out of sight this long (seconds) sends it home.
+const HOME_AFTER := 1.5
+## How often (seconds) it checks whether it can still reach the hero.
+const REACH_CHECK := 0.3
+## After this long at the rim (seconds) the fox sits down to wait.
+const RIM_SIT := 3.0
 
 var level: Level
 ## What kind of animal it is (see Companions.SPECIES), and its name.
@@ -94,7 +110,8 @@ var given_name := ""
 ## find), "dig", "climb" (on the stairs behind the hero, see climb), or
 ## "bed" (off to its basket and asleep there while the hero sleeps), or
 ## "wake" (getting up and hopping out of the basket, see wake_up), or
-## "home" (waiting at the hero's house, see rest_at).
+## "home" (waiting at the hero's house, see rest_at), or "rim" (waiting where
+## it cannot follow the hero, see _wait_at_rim), or "gone" (on its way home).
 var state := "follow"
 ## While lounging: "stand", "sit", "lie", "wander", "circle" or "sniff".
 var _act := "stand"
@@ -118,6 +135,11 @@ var _climb: Tween = null
 var _bed := Vector3.ZERO
 var _posed_bones: Array[int] = []
 var _rng := RandomNumberGenerator.new()
+## Whether the hero is somewhere it cannot walk to (see HouseFloors), and how
+## long it has been out of sight while so.
+var _cut_off := false
+var _unseen := 0.0
+var _reach_check := 0.0
 
 
 func setup(owner_level: Level, animal_kind := "fuchs", animal_name := "") -> void:
@@ -173,7 +195,7 @@ func _hero() -> Node3D:
 func pose() -> String:
 	if state == "bed" and _path.is_empty():
 		return "sleep"
-	if state in ["lounge", "home"] and _path.is_empty() and _act in POSES:
+	if state in ["lounge", "home", "rim"] and _path.is_empty() and _act in POSES:
 		return _act
 	return ""
 
@@ -229,7 +251,7 @@ func _lay_pose(p: Dictionary, weight: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	var hero := _hero()
-	if hero == null or state == "climb" or state == "wake":
+	if hero == null or state == "climb" or state == "wake" or state == "gone":
 		return
 	if _trail == null and SnowTrail.FEET.has(kind):
 		_trail = SnowTrail.new(kind)
@@ -242,10 +264,31 @@ func _physics_process(delta: float) -> void:
 		_rest_at_home(delta)
 		return
 	var gap := _flat(hero.global_position - global_position).length()
-	if not _placed or gap > CATCH_UP:
+	var floors := _floors()
+	_reach_check -= delta
+	if floors != null and _placed and _reach_check <= 0.0:
+		_reach_check = REACH_CHECK
+		if not floors.reaches_ground(global_position):
+			# The stairs it came down by were taken away: it finds its way up.
+			global_position = floors.nearest_ground(global_position)
+			reset_physics_interpolation()
+			_path.clear()
+		_cut_off = not floors.reachable(global_position, hero.global_position)
+	elif floors == null:
+		_cut_off = false
+	if not _placed or (gap > CATCH_UP and not _cut_off):
 		_beside_hero(hero)
 		_placed = true
 		return
+	if _cut_off:
+		_wait_at_rim(delta, hero, floors)
+		return
+	if state == "rim":
+		_path.clear()
+		state = "follow"
+	if floors != null and floors.storey_at(global_position) != floors.storey_at(hero.global_position):
+		# The hero went up or down the stairs: after them, however near they are.
+		gap = maxf(gap, LEASH + 0.1)
 	var hero_speed := Vector2(hero.velocity.x, hero.velocity.z).length() if hero is CharacterBody3D else 0.0
 	_hero_still = _hero_still + delta if hero_speed < 0.3 else 0.0
 	_rest -= delta
@@ -287,6 +330,70 @@ func _physics_process(delta: float) -> void:
 			_timer -= delta
 			if _timer <= 0.0:
 				_dig_up()
+
+
+# --- At the rim ---------------------------------------------------------------------
+
+## The hero is where it cannot go (a pit without stairs): it goes to the spot
+## nearest them that it can reach, the rim, and waits there looking at them.
+## Once they are out of sight for HOME_AFTER seconds, it goes home.
+func _wait_at_rim(delta: float, hero: Node3D, floors: HouseFloors) -> void:
+	if state != "rim":
+		state = "rim"
+		_path.clear()
+		_repath = 0.0
+		_act = "stand"
+		_timer = RIM_SIT
+		_anim.speed_scale = 1.0
+	if _on_screen():
+		_unseen = 0.0
+	else:
+		_unseen += delta
+		if _unseen >= HOME_AFTER:
+			state = "gone"
+			_path.clear()
+			gone_home.emit()
+			return
+	_repath -= delta
+	if _repath <= 0.0:
+		_repath = 0.5
+		_path.clear()
+		if floors.covers(global_position):
+			_path.assign(floors.route(global_position, hero.global_position).points)
+		else:
+			_grid_path(floors.nearest_ground(hero.global_position))
+		if not _path.is_empty() and _flat(_path[-1] - global_position).length() < 0.3:
+			_path.clear()
+	if not _path.is_empty():
+		_act = "stand"
+		_timer = RIM_SIT
+		_walk(delta, RUN_SPEED if _flat(_path[-1] - global_position).length() > RUN_FROM else WALK_SPEED, hero)
+		return
+	_anim.speed_scale = 1.0 if _act == "stand" else 0.5
+	play("Idle")
+	_turn_to(hero.global_position - global_position, delta * 0.6)
+	_timer -= delta
+	if _timer <= 0.0 and _act == "stand" and kind == "fuchs":
+		_act = "sit"
+
+
+## Whether the camera sees it.
+func _on_screen() -> bool:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	return cam == null or cam.is_position_in_frustum(global_position + Vector3(0, 0.4, 0))
+
+
+## The floors round the houses on this map (see HouseFloors), or null.
+func _floors() -> HouseFloors:
+	if level == null:
+		return null
+	var floors = level.get("house_floors")
+	return floors if floors is HouseFloors else null
+
+
+## Whether it waits where it cannot follow the hero.
+func is_cut_off() -> bool:
+	return _cut_off
 
 
 # --- Lounging ---------------------------------------------------------------------
@@ -403,6 +510,10 @@ func _spot_near(centre: Vector3, near: float, far: float) -> Vector3:
 
 
 func _go_to(p: Vector3) -> bool:
+	var floors := _floors()
+	if floors != null and floors.covers(p):
+		var node := floors.node_at(Vector3(p.x, global_position.y, p.z))
+		p.y = floors.height(node, p)
 	if _flat(p - global_position).length() < 0.3 or not _open(level.world_to_cell(p)):
 		return false
 	return _set_path(p)
@@ -604,6 +715,10 @@ func arrive() -> void:
 
 ## Puts the fox down on open ground right next to the hero.
 func _beside_hero(hero: Node3D) -> void:
+	var floors := _floors()
+	if floors != null and floors.covers(hero.global_position):
+		_beside_hero_on(floors, hero)
+		return
 	var here := level.world_to_cell(hero.global_position)
 	var spot := hero.global_position
 	var near: Array[Vector3] = [hero.global_position + hero.global_transform.basis.z * 1.5, hero.global_position - hero.global_transform.basis.z * 1.5]
@@ -617,6 +732,32 @@ func _beside_hero(hero: Node3D) -> void:
 	reset_physics_interpolation()
 	_path.clear()
 	state = "follow"
+
+
+## Next to the hero round a house: on the hero's own floor when it could
+## walk there, else at the rim of the pit the hero is in.
+func _beside_hero_on(floors: HouseFloors, hero: Node3D) -> void:
+	var at := hero.global_position
+	var spot := floors.nearest_ground(at)
+	if floors.reaches_ground(at):
+		spot = at
+		var near: Array[Vector3] = [at + hero.global_transform.basis.z * 1.5, at - hero.global_transform.basis.z * 1.5]
+		for d in HouseFloors.STEPS:
+			near.append(at + Vector3(d.x, 0, d.y) * HouseSketch.CELL)
+		for p in near:
+			var node := floors.node_at(Vector3(p.x, at.y, p.z))
+			if node == HouseFloors.NONE:
+				continue
+			p.y = floors.height(node, p)
+			if absf(p.y - at.y) < 0.5 and floors.reachable(p, at):
+				spot = p
+				break
+	global_position = spot
+	reset_physics_interpolation()
+	_path.clear()
+	state = "follow"
+	_cut_off = not floors.reachable(spot, at)
+	_reach_check = REACH_CHECK
 
 
 ## Looks for a hidden ingredient in nose range. True when it found one and
@@ -686,17 +827,40 @@ func _walk(delta: float, speed: float, hero: Node3D) -> void:
 		speed = minf(speed, Stride.top_speed(rig, anim, size))
 	var to := _flat(_path[0] - global_position)
 	var step := speed * delta
+	var next := _path[0]
+	if to.length() > step:
+		next = global_position + to.normalized() * step
+		next.y = lerpf(global_position.y, _path[0].y, step / to.length())
+	var floors := _floors()
+	if floors != null and floors.covers(next) and absf(floors.height(floors.node_at(next), next) - next.y) > 0.5:
+		# A drop or a wall it cannot climb ahead: never over the edge.
+		_path.clear()
+		_repath = 0.0
+		return
+	global_position = next
 	if to.length() <= step:
-		global_position = Vector3(_path[0].x, global_position.y, _path[0].z)
 		_path.pop_front()
-	else:
-		global_position += to.normalized() * step
 	_turn_to(to, delta)
 	play(anim)
 	_anim.speed_scale = Stride.playback(rig, anim, size, speed)
 
 
 func _set_path(target: Vector3) -> bool:
+	_path.clear()
+	var floors := _floors()
+	if floors != null and floors.covers(global_position):
+		# Round a house: only where it can walk, by the stairs (see HouseFloors).
+		var way := floors.route(global_position, target)
+		if way.reached:
+			_path.assign(way.points)
+		return not _path.is_empty()
+	if floors != null and floors.covers(target) and not floors.reachable(global_position, target):
+		return false
+	return _grid_path(target)
+
+
+## The way to `target` on the map's own grid.
+func _grid_path(target: Vector3) -> bool:
 	_path.clear()
 	var from := level.world_to_cell(global_position)
 	var to := level.world_to_cell(target)
@@ -705,7 +869,7 @@ func _set_path(target: Vector3) -> bool:
 		return true
 	var cells: Array[Vector2i] = level.grid_path(from, to)
 	for c in cells.slice(1, cells.size() - 1):
-		_path.append(level.cell_to_world(c))
+		_path.append(level.cell_to_world(c) + Vector3(0, global_position.y, 0))
 	if not cells.is_empty():
 		_path.append(Vector3(target.x, global_position.y, target.z))
 	return not _path.is_empty()

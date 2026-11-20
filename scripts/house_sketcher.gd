@@ -809,10 +809,13 @@ func _redraw() -> void:
 	# Everyone's built pieces stand on the map for all to see.
 	var holes := []
 	var floored := []
+	var ceilinged := []
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
 		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
+		if _has_floors(house):
+			floored.append(house)
 		for key in house.pieces:
 			var p := HouseSketch.parts_of(key)
 			var piece: Dictionary = house.pieces[key]
@@ -820,9 +823,10 @@ func _redraw() -> void:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 				_lift = 0.0
-		_solid_cellar(house, holes, floored)
+		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
-	game.level.set_floor_holes(holes, floored)
+	game.level.set_floor_holes(holes, ceilinged)
+	game.level.house_floors = HouseFloors.new(floored) if not floored.is_empty() else null
 	_raise_roofs()
 	if plan == null:
 		return
@@ -846,11 +850,21 @@ func _redraw() -> void:
 				_lift = 0.0
 
 
+## Whether a house has a built cellar, floor slab or stairs: somewhere a
+## companion walks by other rules than on the open ground (see HouseFloors).
+static func _has_floors(house: HouseSketch) -> bool:
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.state != HouseSketch.SKETCH and piece.kind in [HouseSketch.DIG, HouseSketch.STAIRS, HouseSketch.SLAB, HouseSketch.UPSTAIRS]:
+			return true
+	return false
+
+
 ## The cellar of a house: the ground opens over every built cell, the pit gets
 ## a floor, walls and stairs, and `holes` collects the open cells (Rect2 in
-## world x/z) so the map can cut its ground there; `floored` collects those of
+## world x/z) so the map can cut its ground there; `ceilinged` collects those of
 ## them a cellar ceiling closes again.
-func _solid_cellar(house: HouseSketch, holes: Array, floored: Array = []) -> void:
+func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> void:
 	var open := {}
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
@@ -891,7 +905,7 @@ func _solid_cellar(house: HouseSketch, holes: Array, floored: Array = []) -> voi
 		elif piece.kind == HouseSketch.COVER and open.has(Vector2i(p[1], p[2])):
 			_cellar_ceiling(house, p[1], p[2], piece)
 			var corner := house.node_world(p[1], p[2])
-			floored.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
+			ceilinged.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
 
 
 ## The cellar ceiling over a dug cell: a floor of planks or stone whose top is

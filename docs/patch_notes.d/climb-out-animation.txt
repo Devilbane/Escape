@@ -1,0 +1,1 @@
+- Climbing out of a pit is now animated: crouch, jump, hang on the ledge, pull up with a knee, kneel and stand. The first slip is caught, the second drops you back down.

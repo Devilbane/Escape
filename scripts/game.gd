@@ -2854,8 +2854,8 @@ func _clock_text() -> String:
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
-	if Weather.is_winter(season_day()):
-		text += ", " + Lang.t("Winter")
+	# The season, always (see Seasons): it follows the real calendar, a week each.
+	text += ", " + Lang.t(Seasons.WORDS[Weather.season(season_day())])
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
 	# At night the clock names tonight's moon (see Moon).

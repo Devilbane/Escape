@@ -1,6 +1,7 @@
 extends SceneTree
 ## Screenshots of the shared meals on the square (see TownMeals): the townsfolk
-## seated at the dining tables at noon, from the side and close up.
+## seated at the dining tables under their canopies at noon, from the side and
+## close up, then at dusk with the lanterns lit, and in the game's own view.
 ## Run with: SHOTS=<folder> godot -s tests/town_meals_shots.gd (needs a display); without SHOTS it only builds the village.
 
 var game: Node
@@ -78,6 +79,27 @@ func _run() -> void:
 			await _wait(5)
 			root.get_texture().get_image().save_png(shots.path_join(name + ".png"))
 			cam.queue_free()
+		# Dusk: the lanterns and candles are lit.
+		game.day_hour = 19.7
+		lvl.set_hour(19.7)
+		await _wait(20)
+		for name: String in ["meal_dusk", "meal_dusk_close"]:
+			var cam := Camera3D.new()
+			cam.fov = 55.0
+			root.add_child(cam)
+			var view: Array = views[name.replace("_dusk", "")]
+			cam.global_position = middle + (view[0] as Vector3)
+			cam.look_at(middle + (view[1] as Vector3))
+			cam.make_current()
+			await _wait(5)
+			root.get_texture().get_image().save_png(shots.path_join(name + ".png"))
+			cam.queue_free()
+		# The game's own camera, the hero beside the tables (the cloth fades while they are near).
+		game.camera.make_current()
+		game.player.global_position = meals.tables[0] + Vector3(0, 0, 4)
+		game.player.reset_physics_interpolation()
+		await _wait(90)
+		root.get_texture().get_image().save_png(shots.path_join("meal_game.png"))
 	game.delete_save(game.save_path())
 	print("PASS: town meals shots")
 	quit(0)

@@ -2777,7 +2777,9 @@ func _spawn_villagers() -> void:
 				_build_anvil(v, c, Vector3.LEFT)
 			elif ch == "3":
 				_build_chopping_log(v, c)
+				WoodLogs.build(self, c)
 	_spawn_pips_friend()
+	WoodLogs.build_windfalls(self)
 
 
 ## Pip's friend Pippi stands beside him at the goats. She has no map letter:

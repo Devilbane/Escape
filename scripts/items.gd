@@ -31,7 +31,8 @@ const BAG_SIZE := 8
 ## lighting a torch take one from a bundle; only the count of slots and the
 ## inventory's grid see bundles (see slots_used and stacks).
 const STACK := {"fackel": 5, "donnererz": 5, "wurfmesser": 10,
-		"heiltrank_schwach": 5, "heiltrank": 5, "heiltrank_stark": 5}
+		"heiltrank_schwach": 5, "heiltrank": 5, "heiltrank_stark": 5,
+		"bauholz": 5, "steinblock": 3}
 ## Small things bundle by their slot too: jewellery (rings, amulets, bracelets)
 ## and animal food. Only identical items share a slot: an item is one id with
 ## fixed values, so two Kupferringe are alike, a Kupferring and a Rubinring
@@ -353,6 +354,14 @@ static func fits(items: Array, size: int, id: String) -> bool:
 	if most > 1 and items.count(id) % most != 0:
 		return true
 	return slots_used(items) < size
+
+
+## How many more of `id` fit in a bag of `size` slots holding `items`: the
+## room left on its open bundle plus a full bundle for each free slot.
+static func room_for(items: Array, size: int, id: String) -> int:
+	var most := stack_size(id)
+	var open := (most - items.count(id) % most) % most
+	return open + maxi(size - slots_used(items), 0) * most
 
 
 ## How many items the bag holds with this backpack worn ("" for none).

@@ -496,7 +496,7 @@ const SIGN_MARGIN := 0.08
 const SIGN_FONT_SIZE := 56
 const SIGN_PIXEL_SIZE := 0.004
 ## The pictures a sign can show instead of its writing (see sign_icon).
-const SIGN_ICONS := ["scissors", "anvil", "stone", "ring", "gem", "flask", "chest", "coin"]
+const SIGN_ICONS := ["scissors", "anvil", "stone", "ring", "gem", "flask", "chest", "axe", "coin"]
 
 
 ## How wide `text` is on a shop sign's board, in metres.
@@ -632,6 +632,11 @@ static func sign_icon(kind: String) -> Node3D:
 			pic.add_child(_part(_box(Vector3(0.05, 0.3, 0.06)), dark, Vector3(-0.1, -0.02, 0)))
 			pic.add_child(_part(_box(Vector3(0.05, 0.3, 0.06)), dark, Vector3(0.1, -0.02, 0)))
 			pic.add_child(_part(_box(Vector3(0.06, 0.07, 0.07)), gold, Vector3(0, 0.0, 0)))
+		"axe":
+			var haft := _paint(Color(0.55, 0.36, 0.2))
+			pic.add_child(_part(_box(Vector3(0.05, 0.42, 0.04)), haft, Vector3(0.03, -0.02, 0), Vector3(0, 0, 0.35)))
+			pic.add_child(_part(_box(Vector3(0.16, 0.12, 0.05)), steel, Vector3(-0.08, 0.13, 0.01), Vector3(0, 0, 0.35)))
+			pic.add_child(_part(_box(Vector3(0.04, 0.17, 0.05)), steel, Vector3(-0.15, 0.1, 0.01), Vector3(0, 0, 0.35)))
 		_:
 			var coin := CylinderMesh.new()
 			coin.top_radius = 0.16

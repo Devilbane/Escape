@@ -99,7 +99,7 @@ static func problem(level: Level, rect: Rect2i) -> String:
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			var c := Vector2i(x, y)
-			if level.cell_char(c) != GRASS:
+			if level.cell_char(c) != GRASS or WoodLogs.lies_on(level, c):
 				return "ground"
 			if level is Outdoor and (level as Outdoor).near_village(c):
 				return "village"

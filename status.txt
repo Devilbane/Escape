@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Climbing skill: let the hero climb out of a dug pit; Keep snow off dug cellar squares (+48 more)
+Escape! dev status | Working on: Clear litter and dropped items off dug squares | Shipped this week: Climbing skill: let the hero climb out of a dug pit; Keep snow off dug cellar squares (+48 more)

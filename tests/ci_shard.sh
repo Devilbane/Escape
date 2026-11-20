@@ -2,22 +2,25 @@
 # Runs one shard of the headless tests, see .github/workflows/web.yml.
 #   tests/ci_shard.sh blocking <shard> <shards>   the tests listed in tests/ci_manifest.txt
 #   tests/ci_shard.sh extra <shard> <shards>      every other tests/*.gd (not blocking in CI)
+#   tests/ci_shard.sh on_demand <shard> <shards>  the tests in tests/ci_on_demand.txt, which general CI skips
 # Shard k of n takes every n-th test, so slow and fast ones mix. Runs all its tests, then fails if any failed.
 # A failed test is run once more: passing on the retry makes it a reported flaky test, not a failure.
 set -u
-mode=${1:?blocking or extra}; shard=${2:?shard number from 0}; shards=${3:?number of shards}
+mode=${1:?blocking, extra or on_demand}; shard=${2:?shard number from 0}; shards=${3:?number of shards}
 godot=${GODOT:-$HOME/godot/godot}
 cd "$(dirname "$0")/.."
 
 mkdir -p ci_logs
 list=$(mktemp)
-if [ "$mode" = blocking ]; then
-  grep -v '^#' tests/ci_manifest.txt | grep . | awk -F' [|] ' '{print $1" "$2" "$3" "$4}' > "$list"
+if [ "$mode" = blocking ] || [ "$mode" = on_demand ]; then
+  manifest=tests/ci_manifest.txt; [ "$mode" = on_demand ] && manifest=tests/ci_on_demand.txt
+  grep -v '^#' "$manifest" | grep . | awk -F' [|] ' '{print $1" "$2" "$3" "$4}' > "$list"
 else
   for t in tests/*.gd; do
     n=$(basename "$t")
     case "$n" in play_all_levels.gd|profile_*.gd) continue;; esac
     grep -q "^$n " tests/ci_manifest.txt && continue
+    grep -q "^$n " tests/ci_on_demand.txt && continue
     echo "$n 120 fixed passfail"
   done > "$list"
 fi

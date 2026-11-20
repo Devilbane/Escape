@@ -1,0 +1,6 @@
+# Tests that never run in the general CI (neither the blocking `tests` shards nor the extra shards),
+# because they are slow or flaky there. They stay in tests/ and run on demand:
+#   GitHub: Actions > "On-demand tests" > Run workflow   (.github/workflows/on_demand_tests.yml)
+#   locally: tests/ci_shard.sh on_demand 0 1            (or godot --headless --fixed-fps 60 -s tests/<name>)
+# Columns as in tests/ci_manifest.txt: file | timeout in seconds | fixed or free | check | what it checks.
+slime_siege.gd | 300 | fixed | passfail | Slime siege (every slime of wall level outside the village wall leaves a mark on it)

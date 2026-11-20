@@ -499,6 +499,8 @@ var _floor_shape: CollisionShape3D
 var _floor_slabs := StaticBody3D.new()
 ## The snowman Pip and Pippi build in the snow (see Snowman), or null.
 var snowman: Snowman
+## The leaves, twigs and pebbles on the ground (see SurfaceLife).
+var surface_life: SurfaceLife
 ## The bounds of the square and the graveyard fence, found once (see ground_at).
 var _ground_rects := {}
 var _strike_timer := 0.0
@@ -578,7 +580,8 @@ func build() -> void:
 	_flush_plants()
 	_build_woods_life()
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
-	add_child(SurfaceLife.new(self))
+	surface_life = SurfaceLife.new(self)
+	add_child(surface_life)
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
 	pond_reeds = PondReeds.grow(self, _pond_waters)
@@ -704,6 +707,11 @@ func set_floor_holes(holes: Array) -> void:
 	if _ground_mat != null:
 		_ground_mat.set_shader_parameter("hole_mask", ImageTexture.create_from_image(mask))
 		_ground_mat.set_shader_parameter("holes_on", not lattice.is_empty())
+	# Nothing lies in a hole: the litter on it is lifted away, and what the hero dropped there moves
+	# to the nearest whole ground.
+	if surface_life != null:
+		surface_life.set_holes(holes)
+	_move_pickups_out(lattice)
 	# The snow keeps off the dug squares too.
 	if snow != null:
 		snow.set_holes(ImageTexture.create_from_image(mask) if not lattice.is_empty() else null)
@@ -731,6 +739,38 @@ func set_floor_holes(holes: Array) -> void:
 			elif not open and run >= 0:
 				_slab(Rect2(origin + Vector2(run, ry) * HOLE_CELL, Vector2(cx - run, 1) * HOLE_CELL))
 				run = -1
+
+
+## Moves everything lying on the floor to be picked up out of the dug cells (`lattice`: the 2 m
+## cells that are holes), to the centre of the nearest cell that is whole ground.
+func _move_pickups_out(lattice: Dictionary) -> void:
+	if lattice.is_empty():
+		return
+	for p in _pickups:
+		if not (p is Dictionary and is_instance_valid(p.get("node"))):
+			continue
+		var node: Node3D = p.node
+		var cell := Vector2i(floori((node.position.x + TILE * 0.5) / HOLE_CELL), floori((node.position.z + TILE * 0.5) / HOLE_CELL))
+		if not lattice.has(cell):
+			continue
+		var found := cell
+		for ring in range(1, 40):
+			var best := INF
+			for dy in range(-ring, ring + 1):
+				for dx in range(-ring, ring + 1):
+					if maxi(absi(dx), absi(dy)) != ring or lattice.has(cell + Vector2i(dx, dy)):
+						continue
+					var d := float(dx * dx + dy * dy)
+					if d < best:
+						best = d
+						found = cell + Vector2i(dx, dy)
+			if best < INF:
+				break
+		node.position = Vector3((found.x + 0.5) * HOLE_CELL - TILE * 0.5, node.position.y, (found.y + 0.5) * HOLE_CELL - TILE * 0.5)
+		var entry = p.get("floor")
+		if entry is Array and entry.size() >= 4:
+			entry[2] = snappedf(node.position.x, 0.01)
+			entry[3] = snappedf(node.position.z, 0.01)
 
 
 func _slab(area: Rect2) -> void:

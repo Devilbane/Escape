@@ -272,7 +272,7 @@ func _physics_process(delta: float) -> void:
 	_reach_check -= delta
 	if floors != null and _placed and _reach_check <= 0.0:
 		_reach_check = REACH_CHECK
-		if not floors.reaches_ground(global_position):
+		if not floors.reaches_ground(global_position) or _sunk(floors):
 			# The stairs it came down by were taken away: it finds its way up.
 			global_position = floors.nearest_ground(global_position)
 			reset_physics_interpolation()
@@ -403,6 +403,13 @@ func _floors() -> HouseFloors:
 		return null
 	var floors = level.get("house_floors")
 	return floors if floors is HouseFloors else null
+
+
+## Whether it hangs below the floor it stands over: the stairs it was on were taken
+## away from under it, so the ground is level here again but it still sinks into it.
+func _sunk(floors: HouseFloors) -> bool:
+	var node := floors.node_at(global_position)
+	return node != HouseFloors.NONE and absf(floors.height(node, global_position) - global_position.y) > 0.5
 
 
 ## Whether it waits where it cannot follow the hero.

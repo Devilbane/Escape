@@ -70,12 +70,12 @@ func _run() -> void:
 	game.plot_marker.refresh()
 	var sketcher: HouseSketcher = game.house_sketcher
 	var plan: HouseSketch = sketcher.plan
-	plan.deposit("steinblock", 40)
-	plan.deposit("bauholz", 20)
-	plan.sketch_dig(plan.cells_between(Vector2i(3, 3), Vector2i(5, 5)))
+	plan.deposit("steinblock", 200)
+	plan.deposit("bauholz", 100)
+	plan.sketch_dig(plan.cells_between(Vector2i(3, 2), Vector2i(7, 7)))
 	plan.sketch_stairs(1, 3, "e")
 	plan.ordered = true
-	for i in 30:
+	for i in 120:
 		sketcher.work_once()
 	await _wait(5)
 	var earthy := 0
@@ -88,6 +88,7 @@ func _run() -> void:
 		var pit := plan.cell_world(4, 4)
 		game.player.global_position = plan.node_world(0, 0) + Vector3(-6, 0, -6)
 		await _shot("bare_cellar", pit + Vector3(5, 6, 7), pit + Vector3(0, -2.4, 0))
+		await _shot("bare_cellar_top", plan.cell_world(5, 5) + Vector3(0.01, 9, 0), plan.cell_world(5, 5) + Vector3(0, -2.6, 0))
 		await _shot("bare_cellar_close", pit + Vector3(1.2, -0.8, 1.6), pit + Vector3(-1.5, -2.4, -1.2))
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())

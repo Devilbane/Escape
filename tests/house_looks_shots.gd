@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test: the finished stone and wood of a house built on a plot (see
 ## HouseLooks): stone walls and garden walls in the temple's blocks, a stone
 ## cellar floor of flagstones, wooden floors of the pen's boards and wooden
-## cellar walls of the stairs' boards.
+## cellar walls of the stairs' boards; cellar ceilings of flagstones or boards.
 ## Run with: godot --headless --fixed-fps 60 -s tests/house_looks_shots.gd
 ## With SHOTS=<folder> and a display it also saves pictures of the house.
 
@@ -77,6 +77,11 @@ func _run() -> void:
 	plan.floor_surface = "wood"
 	plan.wall_surface = "wood"
 	plan.sketch_dig(plan.cells_between(Vector2i(5, 4), Vector2i(6, 5)))
+	# A ceiling over one square of each: stone over the stone pit, planks over the wooden one.
+	plan.ceiling_surface = "stone"
+	plan.sketch_cover([[6, 2]])
+	plan.ceiling_surface = "wood"
+	plan.sketch_cover([[6, 5]])
 	# A stone garden wall along two sides.
 	plan.sketch(plan.run_between(Vector2i(0, 0), Vector2i(n.x, 0)) + plan.run_between(Vector2i(n.x, 0), Vector2i(n.x, n.y)), HouseSketch.STONE_FENCE)
 	plan.deposit(HouseSketch.STONE, 400)
@@ -102,9 +107,9 @@ func _run() -> void:
 		elif m.material_override == WeatheredProps.vertex_material():
 			planks += 1
 	check(stone > 20, "walls, garden walls and stone cellar walls are the temple's blocks (%d)" % stone)
-	check(flags == 4, "the stone cellar floor is four squares of flagstones (%d)" % flags)
+	check(flags == 4 + 1, "the stone cellar floor and its ceiling are flagstones (%d)" % flags)
 	check(stair_boards > 0, "the wooden cellar walls are the stairs' boards (%d)" % stair_boards)
-	check(planks == 4 + 3, "the wooden cellar floor and the flat roof are the pen's boards (%d)" % planks)
+	check(planks == 4 + 3 + 1, "the wooden cellar floor, its ceiling and the flat roof are the pen's boards (%d)" % planks)
 	var mid := plan.node_world(n.x / 2, n.y / 2)
 	game.player.global_position = mid + Vector3(0, 0, Level.TILE * 4)
 	await _shot("house_front", mid + Vector3(4, 7, 15), mid + Vector3(0, 1, 0))

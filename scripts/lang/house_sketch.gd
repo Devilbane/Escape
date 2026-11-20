@@ -98,4 +98,10 @@ const EN := {
 	"Ein Geländer steht am Rand einer Decke oder eines Flachdachs.": "A railing stands on the edge of a floor or flat roof.",
 	"Hier kommt die Treppe an: Lass den Rand offen oder setze ein Tor.": "The stairs arrive here: leave the edge open or put a gate.",
 	"Oben steht dort ein Geländer: Nimm es zurück oder mach ein Tor daraus.": "A railing stands up there: take it back or turn it into a gate.",
+	"Kellerdecke": "Cellar ceiling",
+	"Kellerdecke: %s": "Cellar ceiling: %s",
+	"Kellerdecke: Ziehe ein Rechteck über den Keller. Sie ist zugleich der Boden des Erdgeschosses.": "Cellar ceiling: drag a rectangle over the cellar. It is the ground floor's floor as well.",
+	"Die Kellerdecke kommt nur über gegrabene Felder. Über der Treppe bleibt sie offen.": "The cellar ceiling only goes over dug squares. It stays open over the stairs.",
+	"Am Fuß der Treppe bleibt die Kellerdecke offen, damit du aufrecht hinabsteigen kannst.": "The cellar ceiling stays open at the foot of the stairs, so you can walk down standing upright.",
+	"Über dem Fuß der Treppe liegt die Kellerdecke: Nimm sie dort erst zurück.": "The cellar ceiling lies over the foot of the stairs: take it back there first.",
 }

@@ -9,7 +9,7 @@ extends RefCounted
 ##
 ## The floors are laid out on the 2 m lattice of the houses (HouseSketch.CELL),
 ## one node per lattice cell and storey: GROUND is the open ground (every cell
-## round a plot that is not dug open), CELLAR the dug cells and the ramps down
+## round a plot that is not dug open, and every cellar ceiling), CELLAR the dug cells and the ramps down
 ## to them, UPPER the floor slabs and the ramps up to them. Nodes on one storey
 ## join their neighbours; a ramp joins only the cell before it and the one after
 ## it, so nothing walks off its side. Built from every plot on the map at once,
@@ -39,6 +39,8 @@ var _areas: Array[Rect2i] = []
 ## still only a blueprint).
 func _init(houses: Array = []) -> void:
 	var holes := {}
+	# Dug cells closed by a cellar ceiling (see HouseSketch.COVER): ground on top, cellar below.
+	var ceilings := {}
 	for house: HouseSketch in houses:
 		var n := house.nodes()
 		var first := cell_of(house.node_world(0, 0) + Vector3(0.1, 0, 0.1))
@@ -58,6 +60,8 @@ func _init(houses: Array = []) -> void:
 					for i in 2:
 						holes[at + step * i] = true
 						_nodes[Vector3i(at.x + step.x * i, at.y + step.y * i, CELLAR)] = {"y": 0.0, "step": step, "index": i, "rise": -HouseSketch.DEPTH}
+				HouseSketch.COVER:
+					ceilings[at] = true
 				HouseSketch.SLAB:
 					if p[0] == 0:
 						_nodes[Vector3i(at.x, at.y, UPPER)] = {"y": HouseSketch.STOREY_HEIGHT}
@@ -68,7 +72,7 @@ func _init(houses: Array = []) -> void:
 	for area in _areas:
 		for z in range(area.position.y, area.end.y):
 			for x in range(area.position.x, area.end.x):
-				if not holes.has(Vector2i(x, z)):
+				if not holes.has(Vector2i(x, z)) or ceilings.has(Vector2i(x, z)):
 					_nodes[Vector3i(x, z, GROUND)] = {"y": 0.0}
 	for node: Vector3i in _nodes:
 		_links[node] = _joined(node)

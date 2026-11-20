@@ -4514,6 +4514,8 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
+		# Awake again: the eyes open before the night lifts.
+		player.set_asleep(false)
 		_rest_injury(goddess)
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)

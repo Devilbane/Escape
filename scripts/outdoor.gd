@@ -466,6 +466,8 @@ var _risen: Array = []
 ## The day the world's clock is on (see Game.day): with the hour it tells
 ## which night it is, and whether the wandering merchant is in the village.
 var day := 0
+## The day whose season counts (see set_season): the flowers in the gardens go by it too.
+var season_day := 0
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -3592,8 +3594,9 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 
 ## The vines on the houses turn with the seasons: red and gold in autumn, snowy and without grapes
 ## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
-func set_season(season_day: int) -> void:
-	IvySeasons.apply(ivy, season_day)
+func set_season(day_of_season: int) -> void:
+	season_day = day_of_season
+	IvySeasons.apply(ivy, day_of_season)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

@@ -31,7 +31,7 @@ const KINDS := {
 	"kamin": {"icon": "kind:flame", "name": "Kamin", "price": 150, "size": Vector2i(1, 1), "station": "",
 		"text": "Ein Kamin aus Feldsteinen mit Rauchfang. Das Feuer knistert und wärmt den Raum mit seinem Licht."},
 	"trophaeen": {"icon": "kind:shield", "name": "Trophäenständer", "price": 150, "size": Vector2i(1, 1), "station": "trophaeen",
-		"text": "Ein Ständer für die Trophäen mächtiger Gegner. Jede Trophäe darauf gibt +1 Leben, wie die Trophäenwand."},
+		"text": "Eine Regalwand aus Holz mit kleinen Fächern für die Trophäen mächtiger Gegner. Jede Trophäe darauf gibt +1 Leben, wie die Trophäenwand."},
 	"werkbank": {"icon": "kind:hammer", "name": "Werkbank", "price": 125, "size": Vector2i(1, 1), "station": "hauswerkbank",
 		"text": "Eisenbarren werden zu Wurfmessern, abgenutzte Ausrüstung wird geflickt, und Handwerk während du weg bist geht schneller."},
 	"feinbank": {"icon": "kind:ring", "name": "Werkbank des Feinschmieds", "price": 250, "size": Vector2i(2, 1), "station": "werkbank", "bench": "+",

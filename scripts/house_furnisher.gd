@@ -53,6 +53,17 @@ const TOUCH_MARGIN := 0.4
 const SHELF_SCALE := 0.75
 const FIRE_SCALE := 0.72
 const TABLE_SCALE := 0.8
+## The trophy stand's shelf wall (metres): its width and depth, the boards' thickness, the kick
+## board below the bottom shelf, and the height of each row of cubbies.
+const STAND_WIDTH := 1.8
+const STAND_DEPTH := 0.5
+const STAND_BOARD := 0.05
+const STAND_BOTTOM := 0.08
+const STAND_ROW := 0.82
+const STAND_COLS := 3
+const STAND_ROWS := 3
+## The trophies' size on the stand, against Level.TROPHY_STATUE (half again the old stand's 0.55).
+const TROPHY_SCALE := 0.825
 ## Where the hero lies down in the bed, from its middle (see Game._climb_into_bed), and gets up.
 const BED_OFFSET := Vector3(-0.55, 0, -0.44)
 
@@ -256,7 +267,8 @@ func build_piece(root: Node3D, kind: String) -> Dictionary:
 					"size": Vector3(HomeFireplace.WIDTH * FIRE_SCALE, 1.6, HomeFireplace.DEPTH * FIRE_SCALE)})
 		"trophaeen":
 			root.set_meta("stand", _build_stand(root))
-			solids.append({"at": Vector3(0, 0, -0.55), "size": Vector3(1.8, 1.0, 0.8)})
+			solids.append({"at": Vector3(0, 0, -HouseSketch.CELL * 0.5 + 0.1 + STAND_DEPTH * 0.5),
+					"size": Vector3(STAND_WIDTH, STAND_BOTTOM + STAND_ROWS * STAND_ROW, STAND_DEPTH + 0.05)})
 		"werkbank":
 			var table := level._place("table_medium_decorated_A", Vector3(0, 0, -0.2), 0.0, root)
 			table.scale = Vector3.ONE * TABLE_SCALE
@@ -346,23 +358,64 @@ static func _painting_texture(motif: int) -> Texture2D:
 	return load(PAINTINGS[clampi(motif, 0, PAINTINGS.size() - 1)])
 
 
-## A trophy stand: an oak shelf on a low plinth with a back board and two small banners. Returns
-## the node the statuettes stand on.
+## The trophy stand: a wooden shelf wall against the back of its cell, with a grid of small
+## shelves (STAND_COLS x STAND_ROWS cubbies), each holding one trophy on its coloured plinth.
+## Returns the node the statuettes stand on (its origin at the bottom shelf's middle front).
 func _build_stand(root: Node3D) -> Node3D:
 	var oak := StandardMaterial3D.new()
 	oak.albedo_texture = load("res://assets/house/wood_floor.jpg")
 	oak.albedo_color = Color(0.55, 0.38, 0.26)
 	oak.roughness = 0.8
+	var dark := oak.duplicate() as StandardMaterial3D
+	dark.albedo_color = Color(0.36, 0.24, 0.16)
 	var back := -HouseSketch.CELL * 0.5 + 0.1
-	HomeStoreFurniture._add(root, HomeStoreFurniture._box(Vector3(1.8, 1.7, 0.08)), oak, Vector3(0, 1.75, back))
-	HomeStoreFurniture._add(root, HomeStoreFurniture._box(Vector3(1.8, 0.9, 0.7)), oak, Vector3(0, 0.45, back + 0.4))
+	var w := STAND_WIDTH
+	var d := STAND_DEPTH
+	var t := STAND_BOARD
+	var top: float = STAND_BOTTOM + STAND_ROWS * STAND_ROW
+	var mid := back + d * 0.5
+	# The back board, the two sides, a kick board below and a crown on top.
+	_board(root, Vector3(w, top, 0.04), dark, Vector3(0, top * 0.5, back + 0.02))
 	for side: float in [-1.0, 1.0]:
-		var banner: Node3D = game.level._place("banner_shield_brown", Vector3(side * 0.65, 1.3, back + 0.06), 0.0, root)
-		banner.scale = Vector3.ONE * 0.35
+		_board(root, Vector3(t, top, d), oak, Vector3(side * (w - t) * 0.5, top * 0.5, mid))
+	_board(root, Vector3(w, STAND_BOTTOM, d), dark, Vector3(0, STAND_BOTTOM * 0.5, mid))
+	_board(root, Vector3(w + 0.08, 0.06, d + 0.05), dark, Vector3(0, top + 0.03, mid + 0.01))
+	# The shelves, and the dividers between the cubbies.
+	for row in STAND_ROWS + 1:
+		_board(root, Vector3(w - t, t, d), oak, Vector3(0, STAND_BOTTOM + row * STAND_ROW - t * 0.5, mid))
+	var inner := w - 2.0 * t
+	for col in range(1, STAND_COLS):
+		var x := -inner * 0.5 + inner * col / STAND_COLS
+		_board(root, Vector3(t, top - STAND_BOTTOM, d - 0.02), oak, Vector3(x, (top + STAND_BOTTOM) * 0.5, mid - 0.01))
 	var shelf := Node3D.new()
-	shelf.position = Vector3(0, 0.9, back + 0.4)
+	shelf.position = Vector3(0, STAND_BOTTOM, mid)
 	root.add_child(shelf)
 	return shelf
+
+
+## One board of the trophy stand, `size` big, its middle at `at`.
+static func _board(root: Node3D, size: Vector3, mat: Material, at: Vector3) -> void:
+	HomeStoreFurniture._add(root, HomeStoreFurniture._box(size), mat, at)
+
+
+## Where each of `count` trophies stands on the shelf wall, from the stand's shelf node: the top
+## row first, left to right. More trophies than cubbies squeeze in more to a row.
+static func stand_slots(count: int) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var cols := maxi(STAND_COLS, ceili(float(count) / STAND_ROWS))
+	var inner := STAND_WIDTH - 2.0 * STAND_BOARD
+	for i in count:
+		var row := STAND_ROWS - 1 - i / cols
+		var col := i % cols
+		out.append(Vector3(-inner * 0.5 + inner * (col + 0.5) / cols, row * STAND_ROW, -0.01))
+	return out
+
+
+## How big the trophies stand on the shelf wall: TROPHY_SCALE, smaller when more than the
+## cubbies have to share a row.
+static func stand_scale(count: int) -> float:
+	var cols := maxi(STAND_COLS, ceili(float(count) / STAND_ROWS))
+	return TROPHY_SCALE * STAND_COLS / cols
 
 
 ## Puts the books kept and the trophies won on the hero's shelves and stands.
@@ -371,19 +424,21 @@ func refresh_books() -> void:
 	for shelf in _shelves:
 		if is_instance_valid(shelf):
 			Bookshelf.refresh_shelf(shelf, count)
+	var shown := HomeUpgrades.trophies_shown(game.trophies)
+	var slots := stand_slots(shown.size())
+	var size := stand_scale(shown.size())
 	for stand: Node3D in _stands:
 		if not is_instance_valid(stand):
 			continue
 		for child in stand.get_children():
 			stand.remove_child(child)
 			child.queue_free()
-		var shown := HomeUpgrades.trophies_shown(game.trophies)
 		for i in shown.size():
 			var statue: Node3D = game.level._trophy_statue(shown[i])
 			if statue == null:
 				continue
-			statue.scale = Vector3.ONE * 0.55
-			statue.position.x = -0.75 + 1.5 * (i + 0.5) / shown.size()
+			statue.scale = Vector3.ONE * size
+			statue.position = slots[i]
 			stand.add_child(statue)
 
 

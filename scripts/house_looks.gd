@@ -30,9 +30,18 @@ const PLANK_VARY := 0.08
 static var _mats := {}
 
 
-## The temple's wall blocks, lined up across every piece: the courses run level
-## round the house and start on a joint at the ground.
-static func temple_stone() -> StandardMaterial3D:
+## The stone of the walls: the natural stonework of the village (StoneLook,
+## shaders/house_stone.gdshader), or with StoneLook's "old" look the temple's
+## wall blocks. Either way it is laid in world space, so the courses run level
+## round the house from one wall piece to the next.
+static func temple_stone() -> Material:
+	if StoneLook.settings()["masonry"] > 0.0:
+		if not _mats.has("natural"):
+			var natural := ShaderMaterial.new()
+			natural.shader = preload("res://shaders/house_stone.gdshader")
+			StoneLook.apply(natural)
+			_mats["natural"] = natural
+		return _mats["natural"]
 	if not _mats.has("stone"):
 		var tex: Texture2D = load(TEMPLE_BLOCKS)
 		var wide := BLOCK_BAND * float(tex.get_width()) / float(tex.get_height())

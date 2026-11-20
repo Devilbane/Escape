@@ -20,6 +20,8 @@ const ROOF_SHADER := preload("res://shaders/aged_roof.gdshader")
 ## Roof tints, picked per house (the stone tints are AgedStone.HOUSE_TINTS).
 const ROOFS := [Color(1, 1, 1), Color(0.8, 0.72, 0.68), Color(0.72, 0.74, 0.8), Color(1.0, 0.86, 0.7)]
 const TIMBER := Color(0.42, 0.30, 0.22)
+## The stone of the plinth and the chimney (with StoneLook's natural stonework).
+const PLINTH_TINT := Color(0.7, 0.69, 0.66)
 ## Where the stone blocks sit on the cathedral trim sheet: v from the top of
 ## four rows of blocks to their bottom, and how many metres those rows cover.
 const STONE_V := Vector2(0.6, 0.92)
@@ -187,7 +189,8 @@ static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionar
 		"plaster": AgedStone.house_material(AgedStone.HOUSE_TINTS[rng.randi() % AgedStone.HOUSE_TINTS.size()]),
 		"timber": _textured("timber", WOOD_TEX, TIMBER),
 		"roof": _roof_material(rng.randi() % ROOFS.size()),
-		"stone": _textured("stone", STONE_TEX, Color(0.9, 0.88, 0.85)),
+		# The plinth and the chimney: the natural stonework, a little greyer than the walls.
+		"stone": AgedStone.house_material(PLINTH_TINT) if StoneLook.settings()["masonry"] > 0.0 else _textured("stone", STONE_TEX, Color(0.9, 0.88, 0.85)),
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
 	}
@@ -201,7 +204,8 @@ static func _mesh_of(parts: Dictionary, mats: Dictionary) -> MeshInstance3D:
 		st.commit(mesh)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, mats[key])
 	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
+	# The stone's outer edges are rounded off in the light (see StoneLook).
+	mi.mesh = StoneLook.rounded_mesh(mesh, false)
 	return mi
 
 

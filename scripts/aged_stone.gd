@@ -160,6 +160,7 @@ static func kit_material(palette: Texture2D, windows: Texture2D) -> ShaderMateri
 		mat.set_shader_parameter("uneven_roofs", 1.0)
 		mat.set_shader_parameter("wood_tex", load(WOOD_TEX))
 		mat.set_shader_parameter("wood_grain", 1.0)
+		StoneLook.apply(mat)
 		_mats[key] = mat
 	return _mats[key]
 
@@ -222,7 +223,10 @@ static func grained_mesh(mesh: Mesh) -> Mesh:
 			cols[t + 1] = c
 			cols[t + 2] = c
 		flat[Mesh.ARRAY_COLOR] = cols
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, flat)
+		# How far each spot lies from the building's outer edges, which the
+		# shader rounds off (see StoneLook).
+		flat[Mesh.ARRAY_CUSTOM0] = StoneLook.edge_data(pos)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, flat, [], {}, StoneLook.custom_format())
 		out.surface_set_material(out.get_surface_count() - 1, mat)
 	_grained[key] = out
 	return out
@@ -255,6 +259,7 @@ static func house_material(tint: Color) -> ShaderMaterial:
 		mat.set_shader_parameter("tint", tint)
 		mat.set_shader_parameter("trim", load(TRIM))
 		mat.set_shader_parameter("soft_joints", 1.0)
+		StoneLook.apply(mat)
 		_mats[key] = mat
 	return _mats[key]
 
@@ -282,6 +287,7 @@ static func grave_material(palette: Texture2D, hewn: bool, shade := 0, glowing: 
 		mat.set_shader_parameter("lichen", 1.0 if hewn else 0.4)
 		if glowing:
 			mat.set_shader_parameter("glow_mask", glowing)
+		StoneLook.apply(mat)
 		_mats[key] = mat
 	return _mats[key]
 

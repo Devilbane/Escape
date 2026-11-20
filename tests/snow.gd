@@ -79,7 +79,7 @@ func _rules() -> void:
 		check(hours <= Weather.MAX_HOURS * 0.6, "snowfall is shorter than other spells")
 	var seen := {}
 	for i in 600:
-		seen[Weather.roll(12.0 + (i % 12), rng, Weather.CLEAR, true)] = true
+		seen[Weather.roll(12.0 + (i % 12), rng, Weather.CLEAR, Weather.WINTER)] = true
 	check(seen.has(Weather.SNOW), "snow comes up in the winter rolls")
 	check(not seen.has(Weather.RAIN) and not seen.has(Weather.STORM), "no rain and no storm in winter")
 	# The year: eight days of winter at the end of every one.

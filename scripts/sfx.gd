@@ -147,9 +147,10 @@ static func _stream(sound: String) -> AudioStream:
 
 ## Plays a sound once. With `at`, it fades with the distance from the camera.
 ## `pitch` shifts the sound up or down around the usual small random spread.
-static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pitch := 1.0) -> void:
+## Returns the player (null when nothing plays), to cut the sound short.
+static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pitch := 1.0) -> AudioStreamPlayer:
 	if tree_node == null or not tree_node.is_inside_tree():
-		return
+		return null
 	var tree := tree_node.get_tree()
 	if at is Vector3:
 		var cam := tree_node.get_viewport().get_camera_3d()
@@ -159,7 +160,7 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 			var far := maxf(0.0, cam.global_position.distance_to(at) - 33.0)
 			volume_db -= far * 0.9
 			if volume_db < -40.0:
-				return
+				return null
 	var p := AudioStreamPlayer.new()
 	p.stream = _stream(sound)
 	p.bus = BUS
@@ -169,6 +170,7 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 	tree.root.add_child(p)
 	p.finished.connect(p.queue_free)
 	p.play()
+	return p
 
 
 ## Plays a sound once from a spot in the world, so it is heard from that

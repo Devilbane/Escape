@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Fix the crash when lightning strikes the hero; Keep the companion out of pits without stairs; Animate the climb out of a pit (+47 more)
+Escape! dev status | Working on: Show falling snow only where light reaches it | Shipped this week: Fix the crash when lightning strikes the hero; Keep the companion out of pits without stairs; Animate the climb out of a pit (+47 more)

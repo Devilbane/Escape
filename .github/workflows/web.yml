@@ -47,7 +47,8 @@ jobs:
 
   # The fast checks: the gate for pull requests, and what the Windows build on main waits for
   # (desktop.yml). The browser export is optional and lives in browser.yml.
-  # The tests are split into parallel shards (tests/ci_shard.sh, the list is tests/ci_manifest.txt).
+  # The tests are split into parallel shards of about equal length (tests/ci_shard.sh, the list is
+  # tests/ci_manifest.txt, the measured lengths tests/ci_timings.txt).
   # `tests` at the end gathers them into one check: that single name is what branch protection requires
   # and what the Windows build waits for, however many shards there are.
   shard:
@@ -62,40 +63,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore Godot from the cache
-        id: cache
-        uses: actions/cache@v4
+      - name: Godot and the imported project
+        uses: ./.github/actions/godot-setup
         with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-web
-
-      - name: Install Godot
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/godot && cd ~/godot
-          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
-          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
-          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          mkdir -p $templates
-          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
-          rm Godot_v*_export_templates.tpz
-
-      - name: Import the project
-        run: ~/godot/godot --headless --import
+          godot-version: ${{ env.GODOT_VERSION }}
+          save-import: ${{ github.event_name != 'pull_request' && matrix.shard == 0 }}
 
       - name: Tests of this shard
         run: tests/ci_shard.sh blocking ${{ matrix.shard }} 8
 
   # Every test in tests/ that the manifest does not list. A new test runs from the day it is added, but
   # only warns until it is listed (see docs/testing.md). Not part of `tests`, so it never blocks a merge.
+  # On a pull request these shards start only once `tests` has reported, so they never take a runner that
+  # the blocking shards or `tests` are waiting for (GitHub runs only so many jobs at once), and auto-merge
+  # does not wait for them. On main and at night they run alongside the blocking shards (extra-main below),
+  # so the Windows build, which waits for the whole run, is not held up.
   extra:
     name: extra-tests (${{ matrix.shard }})
-    needs: scope
-    if: needs.scope.outputs.full == 'true'
+    needs: [scope, tests]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.scope.outputs.full == 'true' }}
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -105,30 +91,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore Godot from the cache
-        id: cache
-        uses: actions/cache@v4
+      - name: Godot and the imported project
+        uses: ./.github/actions/godot-setup
         with:
-          path: |
-            ~/godot
-            ~/.local/share/godot/export_templates
-          key: godot-${{ env.GODOT_VERSION }}-web
+          godot-version: ${{ env.GODOT_VERSION }}
 
-      - name: Install Godot
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p ~/godot && cd ~/godot
-          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
-          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
-          unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
-          templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
-          mkdir -p $templates
-          unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
-          rm Godot_v*_export_templates.tpz
+      - name: Extra tests of this shard (a failure is only a warning)
+        run: tests/ci_shard.sh extra ${{ matrix.shard }} 4
 
-      - name: Import the project
-        run: ~/godot/godot --headless --import
+  # The same extra shards on main, at night and on manual runs, started together with the blocking ones.
+  extra-main:
+    name: extra-tests (${{ matrix.shard }})
+    needs: scope
+    if: github.event_name != 'pull_request' && needs.scope.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot and the imported project
+        uses: ./.github/actions/godot-setup
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
 
       - name: Extra tests of this shard (a failure is only a warning)
         run: tests/ci_shard.sh extra ${{ matrix.shard }} 4

@@ -1478,7 +1478,10 @@ func _next_task() -> void:
 			else:
 				_start("work", 6.0)
 		"work", "sit":
-			if _task in ["work", "sit"] and _rng.randf() < 0.35:
+			# The woodcutter keeps to his trunk through his shift (see WoodcutterShift).
+			var on_shift := role == "3" and WoodcutterShift.at_work(level.hour)
+			var on_break := role == "3" and WoodcutterShift.on_break(level.hour)
+			if _task in ["work", "sit"] and (on_break or (not on_shift and _rng.randf() < 0.35)):
 				_walk_to(_errand(), WALK_SPEED, "idle")
 			elif level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "sit" if _info.plan == "sit" else "work")
@@ -2008,6 +2011,13 @@ func set_chopping(stand: Vector3, face: Vector3, chips: CPUParticles3D) -> void:
 	_chop_stand = stand
 	_chop_face = face
 	_chips = chips
+
+
+## Whether the woodcutter is at his trunk cutting timber right now (see
+## WoodcutterShift): at work on his own tile, not hiding, fighting or asleep.
+func is_chopping() -> bool:
+	return chops() and role == "3" and _task == "work" and not night \
+			and level.world_to_cell(global_position) == home and not level.village_alarm.raised
 
 
 ## Whether this villager strikes something of his own: wood on a trunk, or

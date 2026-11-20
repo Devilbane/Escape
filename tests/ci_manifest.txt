@@ -263,3 +263,4 @@ bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like du
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
 house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
 house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading
+house_railing.gd | 120 | fixed | passfail | Roof railings: drawn and ringed round a flat roof, a gap for the stairs, built after the slab, keep the hero on the roof

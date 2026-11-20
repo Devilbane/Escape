@@ -16,7 +16,8 @@ extends Node3D
 ## Paths stay readable: on a path tile, litter only lies along its verges,
 ## never on the middle of the way. Whatever lies on the floor to be picked
 ## up (dropped gear, spilt coins, loot) stays visible: litter around it is
-## lifted away while it lies there (see _clear_around_loot).
+## lifted away while it lies there (see _clear_around_loot). No patch of dirt,
+## moss or lichen lies over the temple glass's light on the lawn (see _on_bare_ground).
 ##
 ## Everything is placed by a random generator seeded with the level's name,
 ## so the world looks the same every time it is played.
@@ -130,7 +131,7 @@ var _rng := RandomNumberGenerator.new()
 var _biome: PackedStringArray = []
 ## Batches being filled: "chunk_x,chunk_y,kind" -> [[Transform3D, Color], ...].
 var _batches := {}
-## Each tile's litter, for lifting it away from loot: [MultiMesh, index, position, transform].
+## Each tile's litter, for lifting it away from loot: [MultiMesh, index, position, transform, kind].
 var _cell_litter := {}
 ## Litter lifted away from loot right now: "multimesh_id:index" -> entry.
 var _lifted := {}
@@ -277,6 +278,22 @@ func _on_verge(c: Vector2i, off: Vector2) -> bool:
 	return false
 
 
+## Whether a patch this wide (radius, metres) at a spot would reach onto ground the level
+## keeps bare (Outdoor.bare_ground: the temple glass's light on the lawn).
+func _on_bare_ground(at: Vector3, radius: float) -> bool:
+	var outlines: Array = level.get("bare_ground") if "bare_ground" in level else []
+	var p := Vector2(at.x, at.z)
+	for outline: PackedVector2Array in outlines:
+		if Geometry2D.is_point_in_polygon(p, outline):
+			return true
+		for i in outline.size():
+			var a := outline[i]
+			var b := outline[(i + 1) % outline.size()]
+			if p.distance_to(Geometry2D.get_closest_point_to_segment(p, a, b)) < radius:
+				return true
+	return false
+
+
 func _colour(kind: String, biome: String) -> Color:
 	var list: Array = COLOURS.get(kind + ":" + biome, COLOURS[kind])
 	var col: Color = list[_rng.randi() % list.size()]
@@ -329,6 +346,8 @@ func _lay(kind: String, c: Vector2i, at: Vector3) -> void:
 			basis = basis.scaled(Vector3.ONE * s)
 	var t := Transform3D(basis, at + Vector3(0, lift, 0))
 	var col := _colour(kind, biome)
+	if kind in PATCHES and _on_bare_ground(at, s * 0.5):
+		return
 	if kind == "mushroom":
 		# A pale stem under a coloured cap, a few together.
 		_add("mushroom_stem", c, t, Color(0.86, 0.82, 0.72))
@@ -366,7 +385,7 @@ func _flush_batches() -> void:
 			var c: Vector2i = items[i][2]
 			if not _cell_litter.has(c):
 				_cell_litter[c] = []
-			_cell_litter[c].append([mm, i, (items[i][0] as Transform3D).origin, items[i][0]])
+			_cell_litter[c].append([mm, i, (items[i][0] as Transform3D).origin, items[i][0], kind])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "Litter_" + kind
 		mmi.multimesh = mm
@@ -449,6 +468,17 @@ func litter_on_path_middles() -> int:
 		for e in _cell_litter[c]:
 			var o: Vector3 = e[2]
 			if absf(o.x - mid.x) < PATH_VERGE and absf(o.z - mid.z) < PATH_VERGE:
+				count += 1
+	return count
+
+
+## How many patches of dirt, moss or lichen lie over ground kept bare (the temple glass's
+## light), for the tests: none should.
+func patches_on_bare_ground() -> int:
+	var count := 0
+	for c: Vector2i in _cell_litter:
+		for e in _cell_litter[c]:
+			if e[4] in PATCHES and _on_bare_ground(e[2], 0.0):
 				count += 1
 	return count
 

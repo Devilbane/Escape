@@ -1,0 +1,62 @@
+name: Godot and the imported project
+description: >
+  Restores Godot (or downloads it) and the imported project files (.godot) from the cache, then runs the
+  import, which only re-imports what changed since the cached copy. Used by the test shards in web.yml.
+
+inputs:
+  godot-version:
+    description: The Godot version, e.g. 4.7.2
+    required: true
+  save-import:
+    description: "true: store the freshly imported .godot in the cache when it was not there yet (pushes to main only)"
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Restore Godot from the cache
+      id: godot
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/godot
+          ~/.local/share/godot/export_templates
+        key: godot-${{ inputs.godot-version }}-web
+
+    - name: Install Godot
+      if: steps.godot.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GODOT_VERSION: ${{ inputs.godot-version }}
+      run: |
+        mkdir -p ~/godot && cd ~/godot
+        base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+        wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+        wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+        unzip -q Godot_v*_linux.x86_64.zip && mv Godot_v*_linux.x86_64 godot && rm Godot_v*_linux.x86_64.zip
+        templates=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+        mkdir -p $templates
+        unzip -qj Godot_v*_export_templates.tpz templates/web_nothreads_release.zip templates/web_nothreads_debug.zip templates/version.txt -d $templates
+        rm Godot_v*_export_templates.tpz
+
+    # The imported files of the last main build that stored them. The key follows the .import files, so an
+    # added or re-set asset makes a new key; the nearest older copy is restored and only the difference imported.
+    - name: Restore the imported project from the cache
+      id: imported
+      uses: actions/cache/restore@v4
+      with:
+        path: .godot
+        key: godot-import-${{ inputs.godot-version }}-${{ hashFiles('**/*.import') }}
+        restore-keys: godot-import-${{ inputs.godot-version }}-
+
+    - name: Import the project
+      shell: bash
+      run: ~/godot/godot --headless --import
+
+    - name: Store the imported project in the cache
+      if: inputs.save-import == 'true' && steps.imported.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: .godot
+        key: godot-import-${{ inputs.godot-version }}-${{ hashFiles('**/*.import') }}

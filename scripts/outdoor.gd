@@ -513,6 +513,9 @@ var _floor_shape: CollisionShape3D
 var _floor_slabs := StaticBody3D.new()
 ## The snowman Pip and Pippi build in the snow (see Snowman), or null.
 var snowman: Snowman
+## Outlines on the ground (x, z) where no patch of dirt, moss or lichen lies: the temple
+## glass's light on the lawn (see ChapelSpill), which a patch drawn over it would hide.
+var bare_ground: Array[PackedVector2Array] = []
 ## The leaves, twigs and pebbles on the ground (see SurfaceLife).
 var surface_life: SurfaceLife
 ## The bounds of the square and the graveyard fence, found once (see ground_at).
@@ -2183,6 +2186,7 @@ func _build_chapel(center: Vector3, rot: float, room: Vector2) -> Node3D:
 	chapel.rotation.y = rot
 	chapel.position = center - (Vector3(0, 0, CHAPEL_FOOT_MID) * s).rotated(Vector3.UP, rot)
 	spill.transform = chapel.transform
+	bare_ground.append_array(ChapelSpill.ground_outlines(chapel.transform))
 	add_child(chapel)
 	_build_temple_lamps(chapel)
 	return chapel

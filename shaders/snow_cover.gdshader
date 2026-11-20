@@ -16,6 +16,10 @@ render_mode cull_back;
 uniform sampler2D sky_mask : filter_linear, repeat_disable;
 uniform vec2 grid_size = vec2(1.0);
 uniform float tile = 4.0;
+// Where the hero has dug a cellar (R is 1 on each dug 2 m cell, see Outdoor.set_floor_holes): the
+// ground is cut away there, so no snow lies on the hole or on the cellar floor below it.
+uniform sampler2D hole_mask : filter_nearest, repeat_disable, hint_default_black;
+uniform bool holes_on = false;
 // The height under which a covered tile is not open to the sky.
 uniform float roof_height = 3.6;
 
@@ -44,7 +48,14 @@ void fragment() {
 	// Melted round fires, the forge and smoking chimneys. Open water and ice stay bare (G of the
 	// mask marks the pond tiles, only at ground level).
 	float pond = texture(sky_mask, uv).g * (1.0 - step(0.3, world_pos.y));
-	if (lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n)) {
+	float dug = 0.0;
+	if (holes_on && world_pos.y < 0.3) {
+		vec2 hole_uv = (xz + vec2(0.5 * tile)) / (grid_size * tile);
+		if (hole_uv.x >= 0.0 && hole_uv.y >= 0.0 && hole_uv.x <= 1.0 && hole_uv.y <= 1.0) {
+			dug = texture(hole_mask, hole_uv).r;
+		}
+	}
+	if (dug > 0.5 || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n)) {
 		discard;
 	}
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);

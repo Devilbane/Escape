@@ -1,0 +1,1 @@
+- Snow no longer lies over squares you dig for a cellar in winter.

@@ -109,7 +109,7 @@ func _run() -> void:
 
 	# The hero in the room: its lights cast shadows, so the walls hold their light in.
 	game.player.global_position = plan.cell_world(2, 2)
-	shadows.refresh()
+	shadows.refresh(true)
 	check(torch_light != null and torch_light.shadow_enabled, "the torch near the hero casts shadows")
 	check(shadows.shadowed() <= LightShadows.BUDGET, "never more than %d lights cast shadows (%d)" % [LightShadows.BUDGET, shadows.shadowed()])
 	# Small glows and marked lights stay plain.
@@ -120,15 +120,35 @@ func _run() -> void:
 	marked.omni_range = 10.0
 	marked.set_meta(LightShadows.NO_SHADOW, true)
 	game.player.add_child(marked)
-	shadows.refresh()
+	shadows.refresh(true)
 	check(not glow.shadow_enabled, "a small glow casts no shadows")
 	check(not marked.shadow_enabled, "a light marked NO_SHADOW casts none")
 	check(game.player._fill.has_meta(LightShadows.NO_SHADOW), "the soft light on the hero's face stays plain")
 	glow.queue_free()
 	marked.queue_free()
-	# Far away, the house's lights need no shadows.
+	# Far away, the house's lights need no shadows: they fade out, not at once.
 	game.player.global_position = plan.cell_world(2, 2) + Vector3(200, 0, 0)
 	shadows.refresh()
+	check(torch_light != null and not shadows.casts(torch_light), "a torch far from the hero is let go")
+	check(torch_light != null and torch_light.shadow_enabled and torch_light.shadow_opacity > 0.5, "its shadows fade out instead of vanishing at once")
+	shadows._fade(0.5)
+	check(torch_light != null and torch_light.shadow_enabled and torch_light.shadow_opacity < 0.6, "half way they are half gone (%.2f)" % torch_light.shadow_opacity)
+	shadows._fade(0.6)
+	check(torch_light != null and not torch_light.shadow_enabled, "then the torch casts no shadows")
+	# Coming back, they fade in the same way.
+	game.player.global_position = plan.cell_world(2, 2)
+	shadows.refresh()
+	check(torch_light != null and torch_light.shadow_enabled and torch_light.shadow_opacity < 0.5, "coming back, its shadows fade in")
+	shadows._fade(1.0)
+	check(torch_light != null and torch_light.shadow_opacity == 1.0, "until they are whole")
+	# The fountain's glow stays plain: its own bowl and column would shade the square.
+	var fountains := 0
+	for light: OmniLight3D in level.find_children("*", "OmniLight3D", false, false):
+		if light.has_meta(LightShadows.NO_SHADOW):
+			fountains += 1
+	check(fountains >= 1, "the village fountain's glow casts no shadows (%d)" % fountains)
+	game.player.global_position = plan.cell_world(2, 2) + Vector3(200, 0, 0)
+	shadows.refresh(true)
 	check(torch_light != null and not torch_light.shadow_enabled, "a torch far from the hero casts no shadows")
 	# Many lights at once: only the budget's nearest.
 	var many: Array = []
@@ -139,7 +159,7 @@ func _run() -> void:
 		game.player.add_child(l)
 		many.append(l)
 	await _wait(1)
-	shadows.refresh()
+	shadows.refresh(true)
 	check(shadows.shadowed() == LightShadows.BUDGET, "with many lights only %d cast shadows (%d)" % [LightShadows.BUDGET, shadows.shadowed()])
 	check(many[0].shadow_enabled and not many[-1].shadow_enabled, "the nearest ones do")
 	for l in many:
@@ -150,12 +170,21 @@ func _run() -> void:
 		game._set_atmosphere(true)
 		game.player.global_position = plan.cell_world(2, 2)
 		await _wait(2)
-		shadows.refresh()
+		shadows.refresh(true)
 		var mid := plan.cell_world(2, 1)
 		await _shot("torch_close", mid + Vector3(1.6, 1.6, 2.6), mid + Vector3(0, 1.4, -0.9))
 		await _shot("torch_side", mid + Vector3(2.4, 1.8, -0.2), mid + Vector3(0, 1.6, -0.85))
 		# Behind the north wall, outside: the torch's light stays in.
 		await _shot("outside_north", mid + Vector3(0, 5, -9), mid + Vector3(0, 0, -2))
+		var well: Dictionary = {}
+		for st in level.stations:
+			if st.kind == "brunnen":
+				well = st
+		if not well.is_empty():
+			for d in [36, 24, 14, 6]:
+				game.player.global_position = well.pos + Vector3(d, 0, 0)
+				await _wait(90)
+				await _shot("fountain_hero_%02d" % d, well.pos + Vector3(0, 14, 12), well.pos)
 		await _shot("from_above", plan.cell_world(2, 2) + Vector3(0, 16, 9), plan.cell_world(2, 2))
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())

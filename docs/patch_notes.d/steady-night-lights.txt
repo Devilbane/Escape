@@ -1,0 +1,1 @@
+- Lights no longer flicker on and off as you walk around at night, and the fountain's glow stays steady.

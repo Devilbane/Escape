@@ -1895,6 +1895,9 @@ func _build_fountain(c: Vector2i) -> void:
 	glow.light_energy = 0.9 if not old else 0.7
 	glow.omni_range = 6.5
 	glow.position = pos + Vector3(0, 1.8, 0)
+	# A soft glow off the water, under the fountain's own bowl: no shadows, or
+	# the bowl and column would darken the square round it (see LightShadows).
+	glow.set_meta(LightShadows.NO_SHADOW, true)
 	add_child(glow)
 	# The glow breathes slowly, like the water.
 	var tween := glow.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)

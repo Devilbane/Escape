@@ -82,12 +82,12 @@ func _rules() -> void:
 		seen[Weather.roll(12.0 + (i % 12), rng, Weather.CLEAR, Weather.WINTER)] = true
 	check(seen.has(Weather.SNOW), "snow comes up in the winter rolls")
 	check(not seen.has(Weather.RAIN) and not seen.has(Weather.STORM), "no rain and no storm in winter")
-	# The year: eight days of winter at the end of every one.
+	# The year: a week of winter at the end of every one.
 	var winter_days := 0
 	for d in Weather.YEAR_DAYS:
 		if Weather.is_winter(d):
 			winter_days += 1
-	check(winter_days == 8, "winter lasts 8 days (%d)" % winter_days)
+	check(winter_days == 7, "winter lasts 7 days (%d)" % winter_days)
 	check(not Weather.is_winter(0) and Weather.is_winter(Weather.YEAR_DAYS - 1), "a year starts out of winter and ends in it")
 	check(not Weather.is_winter(Weather.YEAR_DAYS), "the next year starts out of winter")
 	check(Weather.for_season(Weather.RAIN, true) == Weather.SNOW and Weather.for_season(Weather.STORM, true) == Weather.SNOW, "in winter snow comes instead of rain")
@@ -367,23 +367,31 @@ func _breath() -> void:
 	check(not Weather.cold, "no breath to see once the snow is nearly gone")
 
 
+## Moves the seasons so that it is season day `d` (see Seasons) and lets the game notice it.
+func _season_to(d: int) -> void:
+	game.season_shift += d - game.season_day()
+	game._check_season()
+
+
 func _winter() -> void:
-	var before: int = game.day
+	var before: int = game.season_shift
 	game.escaped = true
-	game.day = Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1
+	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1)
 	game.set_weather(Weather.RAIN, 4.0)
-	game._new_day(true)
-	check(Weather.is_winter(game.day), "the first day of winter")
+	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS)
+	check(Weather.is_winter(game.season_day()), "the first day of winter")
 	check(game.weather == Weather.SNOW, "winter begins with snow, the rain stops")
 	game.set_weather(Weather.STORM, 2.0)
 	check(game.weather == Weather.SNOW, "no storm in winter")
 	check(game._clock_text().contains(Lang.t("Winter")), "the clock says it is winter")
-	game.day = Weather.YEAR_DAYS - 1
-	game._new_day(true)
-	check(not Weather.is_winter(game.day), "winter ends after 8 days")
+	_season_to(Weather.YEAR_DAYS - 1)
+	check(Weather.is_winter(game.season_day()), "still winter on its last day")
+	_season_to(Weather.YEAR_DAYS)
+	check(not Weather.is_winter(game.season_day()), "winter ends after a week")
 	game.set_weather(Weather.RAIN, 2.0)
 	check(game.weather == Weather.RAIN, "after winter it can rain again")
-	game.day = before
+	game.season_shift = before
+	game._check_season()
 
 
 func _dungeon() -> void:

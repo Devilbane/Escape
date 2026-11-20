@@ -224,6 +224,8 @@ var villagers: Array = []
 ## Every living tree of the woods, for the birds and squirrels in them (see
 ## WoodsLife): where it stands and how tall it is.
 var _wood_trees: Array = []
+## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
+var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
 var woods: WoodsLife
 ## The glowworm swarms that roam the night (see GlowwormSwarms).
@@ -466,7 +468,8 @@ var _risen: Array = []
 ## The day the world's clock is on (see Game.day): with the hour it tells
 ## which night it is, and whether the wandering merchant is in the village.
 var day := 0
-## The day whose season counts (see set_season): the flowers in the gardens go by it too.
+## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
+## and the flowers in the gardens go by.
 var season_day := 0
 ## The apple trees round the fountain (see AppleTree.plant_round_fountains).
 var square_trees: Array = []
@@ -588,6 +591,8 @@ func build() -> void:
 			Corral.build_shelter(self)
 	_pave_entrances()
 	_plant_bushes()
+	# The ivy-covered poles and ropes with their lamps round the dining tables (see MealGarland).
+	meals.garland.build(self, meals.tables, _ivy)
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -619,6 +624,7 @@ func build() -> void:
 	_setup_astar()
 	for t in square_trees:
 		astar.set_point_solid(t.cell, true)
+	meals.garland.block(self)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.
 		var free: Array[Vector3] = []
@@ -906,6 +912,9 @@ func _tree_material(mat: Material, wind := true) -> Material:
 		bark.shader = TREE_SHADER
 		bark.set_shader_parameter("albedo_tex", tex)
 		bark.set_shader_parameter("wind", 1.0 if wind else 0.0)
+		var turn := IvySeasons.tree_turn(_tree_stage)
+		bark.set_shader_parameter("autumn", turn.x)
+		bark.set_shader_parameter("wither", turn.y)
 		_scenes[key] = bark
 	return _scenes[key]
 
@@ -3601,11 +3610,22 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 
 
 ## The vines on the houses turn with the seasons: red and gold in autumn, snowy and without grapes
-## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
+## in winter (see IvySeasons); the leafy trees turn with them. `day_of_season` is the season day
+## (see Seasons).
 func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
 	AppleTree.dress(square_trees, day_of_season)
+	# The leafy trees turn with the vines (see tree.gdshader).
+	var at := IvySeasons.stage(day_of_season)
+	if at == _tree_stage:
+		return
+	_tree_stage = at
+	var turn := IvySeasons.tree_turn(at)
+	for key in _scenes:
+		if String(key).begins_with("mat_tree_"):
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("autumn", turn.x)
+			(_scenes[key] as ShaderMaterial).set_shader_parameter("wither", turn.y)
 
 
 ## Whether a tile is walkable ground (for villagers picking where to go).

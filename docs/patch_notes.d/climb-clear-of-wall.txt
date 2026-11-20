@@ -1,0 +1,1 @@
+- The hero now keeps clear of the wall while climbing out of a pit: no more sinking into it, with the hands on the ledge.

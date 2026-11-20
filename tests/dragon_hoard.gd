@@ -317,6 +317,26 @@ func _test_way_round() -> void:
 			for p in mine.slice(0, mine.size() - 1):
 				check(not lvl.astar.is_point_solid(lvl.world_to_cell(p)), "a dragonling's way crosses no solid tile")
 	check(ways > 20, "there are long ways to test (%d)" % ways)
+	# A nook the tiles close off only corner to corner (beside the guild hall,
+	# between the cow pen and the mountain): the way home leaves it through the
+	# gap instead of being empty, which sent the dragonling straight through
+	# the hall.
+	var home := lvl.world_to_cell(den)
+	var nooks := 0
+	for y in lvl.height:
+		for x in lvl.width:
+			var c := Vector2i(x, y)
+			if lvl.astar.is_point_solid(c) or nooks >= 30:
+				continue
+			var plain_way := lvl.astar.get_id_path(c, home, true)
+			if not plain_way.is_empty() and plain_way[-1] == home:
+				continue
+			nooks += 1
+			var out := DragonHelpers.way_round(lvl, lvl.cell_to_world(c), den)
+			check(not out.is_empty() and lvl.world_to_cell(out[-1]) == home, "from the nook at %s a dragonling finds its way home" % str(c))
+			for p in out.slice(0, out.size() - 1):
+				check(not lvl.astar.is_point_solid(lvl.world_to_cell(p)), "and crosses no solid tile on it")
+	check(nooks > 0, "the map has a nook to test")
 	check(roomy * 10 < plain * 7, "their ways hug buildings less than a walker's (%d against %d tiles)" % [roomy, plain])
 
 

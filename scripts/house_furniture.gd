@@ -20,6 +20,7 @@ const RECORD := "furniture"
 
 ## The kinds, in the order the furnisher shows them: picture, name, what it does, price in copper,
 ## size in grid cells (across, deep) and the window its station opens (see Game._use_station).
+## A shrine names its household goddess ("goddess", see HouseholdGods).
 const KINDS := {
 	"bett": {"icon": "kind:bedroll", "name": "Bett", "price": 100, "size": Vector2i(2, 2), "station": "bett",
 		"text": "Ein großes Bett mit Nachttisch. Schlaf bis zum Morgen oder logg dich aus, wie im Bett deines alten Hauses."},
@@ -49,15 +50,18 @@ const KINDS := {
 		"text": "Ein gerahmtes Gemälde eines stillen Sees unter dem Mond, für eine Wand."},
 	"bild_drache": {"icon": "kind:map", "name": "Gemälde: Drache", "price": 125, "size": Vector2i(1, 1), "station": "", "wall": true, "painting": 2,
 		"text": "Ein gerahmtes Gemälde eines Drachen über dem Dorf, für eine Wand."},
+	"schrein_maija": {"icon": "kind:goddess", "name": "Schrein der Maija", "price": 400, "size": Vector2i(1, 1), "station": "", "goddess": "maija",
+		"text": "Ein kleiner Steinschrein mit der Statue der geflügelten Hausgöttin Maija, der Hüterin der Schlafenden."},
 }
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
 	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen"]],
 	["werkbaenke", "Werkbänke", "kind:hammer_anvil", ["werkbank", "feinbank", "schleifrad", "alchemie"]],
 	["wand", "Licht und Wandschmuck", "kind:torch", ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]],
+	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie am Bauplan-Schild mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand."
 
 ## The floor a piece stands on, by storey (see HouseSketch: cellar, ground floor, upper floor).
 const FLOORS := {-1: -HouseSketch.DEPTH, 0: 0.0, 1: HouseSketch.STOREY_HEIGHT}

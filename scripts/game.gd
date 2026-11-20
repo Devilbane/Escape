@@ -62,6 +62,9 @@ var _drawer_rail: VBoxContainer
 var _quick_buttons := {}
 ## The home button below the menu handle (see HomeRun).
 var _home_button: Button
+## The blueprint button left of the home button: opens the house building tools
+## on the hero's plot (see HouseSketcher.toggle).
+var _blueprint_button: Button
 ## The torch button below it: lights or puts out the hand torch (see HandTorch).
 var _torch_button: Button
 var _torch_count: Label
@@ -108,6 +111,11 @@ var _weather_look := Weather.look(Weather.CLEAR)
 var _shelter := 0.0
 ## How long the view takes to move in or out of the weather (real seconds).
 const SHELTER_FADE := 0.3
+## The household goddess whose blessing the hero has now, inside their own house with her
+## shrine ("" elsewhere, see HouseholdGods), and how often that is looked at (seconds).
+var house_goddess := ""
+var _house_blessing_clock := 0.0
+const HOUSE_BLESSING_CHECK := 0.25
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -873,6 +881,7 @@ func _setup_drawer() -> void:
 	_drawer_rail.add_child(gap)
 	_drawer_rail.add_child(_drawer_handle)
 	_setup_home_button()
+	_setup_blueprint_button()
 	_setup_torch_button()
 	_setup_potion_button()
 	_setup_spell_button()
@@ -1019,6 +1028,57 @@ func _setup_home_button() -> void:
 	_home_button.add_child(icon)
 	_home_button.visible = false
 	slot.add_child(_home_button)
+
+
+## The blueprint button stands left of the home button, on the same line and as
+## big, outside the rail so the rail keeps its height (like the potion button
+## beside the torch): a blue sheet with a floor plan. It shows while the hero
+## stands on their plot or near it, and stays pressed while the blueprint or the
+## furnishing tool is open; a press opens the blueprint tool or closes the open
+## tool. Its place is kept while it is hidden, so nothing moves.
+func _setup_blueprint_button() -> void:
+	var slot: Control = _home_button.get_parent()
+	_blueprint_button = _make_button("", blueprint_action)
+	_blueprint_button.custom_minimum_size = QUICK_SIZE
+	_blueprint_button.toggle_mode = true
+	_blueprint_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
+	_blueprint_button.position = Vector2(-QUICK_SIZE.x - QUICK_GAP, 0)
+	_blueprint_button.size = QUICK_SIZE
+	_blueprint_button.tooltip_text = Lang.t("Hausbau: Bauplan und Einrichten")
+	var icon := ItemIcon.make("kind:blueprint", QUICK_ICON, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -QUICK_ICON / 2.0
+	icon.offset_top = -QUICK_ICON / 2.0
+	icon.offset_right = QUICK_ICON / 2.0
+	icon.offset_bottom = QUICK_ICON / 2.0
+	_blueprint_button.add_child(icon)
+	_blueprint_button.visible = false
+	slot.add_child(_blueprint_button)
+
+
+## The blueprint button: opens the blueprint tool on the hero's plot, or closes
+## the building tool that is open.
+func blueprint_action() -> void:
+	if state != State.PLAYING or house_sketcher == null or menus.is_open():
+		update_blueprint_button()
+		return
+	var why := house_sketcher.toggle()
+	if why != "":
+		show_message(why, 2.4)
+	update_blueprint_button()
+
+
+## Shows the blueprint button on or near the hero's plot, pressed while a
+## building tool is open.
+func update_blueprint_button() -> void:
+	if _blueprint_button == null:
+		return
+	var show := house_sketcher != null and house_sketcher.can_show()
+	if _blueprint_button.visible != show:
+		_blueprint_button.visible = show
+	var open := house_sketcher != null and (house_sketcher.active or (house_furnisher != null and house_furnisher.active))
+	if _blueprint_button.button_pressed != open:
+		_blueprint_button.set_pressed_no_signal(open)
 
 
 ## The torch button stands on the rail just below the home button, the same
@@ -1827,9 +1887,6 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		trader_role = s.npc.role
 		menus.open(s.kind)
-	elif s.kind == HouseSketcher.KIND:
-		player.face(s.pos - player.global_position)
-		house_sketcher.enter()
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == WarHorn.KIND:
@@ -2794,6 +2851,10 @@ func _clock_text() -> String:
 func _tick_clock(delta: float) -> void:
 	if level == null:
 		return
+	_house_blessing_clock -= delta
+	if _house_blessing_clock <= 0.0:
+		_house_blessing_clock = HOUSE_BLESSING_CHECK
+		_update_house_blessing()
 	_soundscape.tick(self, delta)
 	if state == State.PLAYING and level.process_mode != Node.PROCESS_MODE_DISABLED:
 		var before := day_hour
@@ -4443,6 +4504,8 @@ func rest_till_morning() -> void:
 	if state != State.PLAYING:
 		return
 	state = State.TRANSITION
+	# Lying down in the hero's own house, under a household goddess's blessing.
+	var goddess := HouseholdGods.active(self)
 	player.frozen = true
 	player.path.clear()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
@@ -4457,7 +4520,9 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
-		_rest_injury()
+		# Awake again: the eyes open before the night lifts.
+		player.set_asleep(false)
+		_rest_injury(goddess)
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
@@ -4598,10 +4663,11 @@ func stay_awake() -> void:
 	menus.open("laden")
 
 
-## A night of rest mends what a rescue left (see Injury).
-func _rest_injury() -> void:
+## A night of rest mends what a rescue left (see Injury); in a bed of the hero's own house under
+## a household goddess who mends (see HouseholdGods), the night counts for more.
+func _rest_injury(goddess := "") -> void:
 	var had := player.injury
-	if had != "" and Injury.rest(player):
+	if had != "" and Injury.rest(player, HouseholdGods.rest_nights(goddess)):
 		Events.tell(Lang.t("Deine Verletzung ist verheilt."), Color(0.55, 1.0, 0.6))
 		_update_hud()
 	elif had != "":
@@ -4613,8 +4679,13 @@ func _rest_injury() -> void:
 ## logs out.
 func sleep(at_camp_now := false) -> void:
 	at_camp_now = at_camp_now and has_camp()
-	# A night in the bed: the hero wakes up the next morning.
-	_rest_injury()
+	# A night in the bed: the hero wakes up the next morning. In their own house a household
+	# goddess may bless the night (see HouseholdGods): wounds mend faster, and with her life per
+	# second the hero wakes up with full life.
+	var goddess := "" if at_camp_now else HouseholdGods.active(self)
+	_rest_injury(goddess)
+	if HouseholdGods.perk(goddess, "regen") > 0.0:
+		player.hp = player.max_hp
 	if level.outdoor or level.building != "":
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
@@ -5553,7 +5624,25 @@ func hero_boons() -> Array:
 		out.append([VillageRun.KIND, VillageRun.countdown(player.ailments[VillageRun.KIND])])
 	if player.hardening > 0 or player.armour_value > 0:
 		out.append(["hardening", str(player.hardening)])
+	if house_goddess != "":
+		out.append([HouseholdGods.KIND, ""])
 	return out
+
+
+## The blessing of the household goddess (see HouseholdGods): on while the hero is inside their
+## own house with her shrine, off as soon as they leave it. Her life per second goes onto the
+## hero's own recovery (see Player.bonus_regen), and her icon shows among the boons.
+func _update_house_blessing() -> void:
+	if player == null:
+		return
+	var goddess := HouseholdGods.active(self)
+	player.bonus_regen = HouseholdGods.perk(goddess, "regen")
+	if goddess == house_goddess:
+		return
+	house_goddess = goddess
+	if goddess != "":
+		Events.teach(HouseholdGods.LEARN)
+	_update_hud()
 
 
 ## Faster than normal from gifts, level or Tempo (leaving out the curse's and
@@ -5588,6 +5677,7 @@ func icon_text(kind: String, number: String) -> String:
 		BloatedBelly.KIND: return Lang.t("Zu viel Wasser getrunken: Dein Bauch ist prall und du bist viel langsamer. Noch %s, dann geht es von selbst vorbei.") % BloatedBelly.long_countdown(player.ailments.get(BloatedBelly.KIND, 0.0))
 		VillageRun.KIND: return Lang.t("Protected: nothing can hurt you for %s more. Run to the village and follow the way!") % VillageRun.long_countdown(player.ailments.get(VillageRun.KIND, 0.0))
 		"power": return Lang.t("Kampfkraft %s: Deine Schläge treffen härter.") % number
+		HouseholdGods.KIND: return HouseholdGods.blessing_text(house_goddess)
 		"fast":
 			var text := Lang.t("Schneller als sonst: Tempo %d%%") % roundi(player.speed / Player.SPEED * 100.0)
 			if player.base_speed_capped:
@@ -7407,6 +7497,7 @@ func _process(delta: float) -> void:
 	_steer_by_mouse(delta)
 	home_run.tick()
 	update_home_button()
+	update_blueprint_button()
 	update_torch_button()
 	update_potion_button()
 	update_spell_button()
@@ -7481,7 +7572,6 @@ func _process(delta: float) -> void:
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
 			WoodLogs.KIND: Lang.t("Dagegenlaufen, um Bauholz zu hacken"),
-			HouseSketcher.KIND: Lang.t("Dagegenlaufen, um den Bauplan deines Hauses zu zeichnen"),
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",

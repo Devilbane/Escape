@@ -2,15 +2,17 @@ class_name TownMeals
 extends RefCounted
 ## Shared meals on the village square. Long tables with benches and plates of
 ## food stand on the square (map letter LETTER), and the townsfolk eat there
-## together twice a day: lunch around noon and dinner around eight in the
-## evening (MEALS).
+## together twice a day: lunch around noon and dinner around seven in the
+## evening (MEALS). A canopy of striped cloth on posts keeps the rain and the
+## snow off each table, and a lantern hangs under it, with two candles on the
+## table: they light up at dusk and burn through the night (set_glow).
 ##
 ## Nobody comes all at once. When a meal draws near, every villager who goes
 ## (see goes) is given an hour of their own to arrive, spread round the meal's
 ## hour (ARRIVE_EARLY, ARRIVE_LATE, averaged from two rolls so most come close
-## to the middle), and an hour to leave again (STAY). Each one walks over at
-## their hour, takes a free seat, sits down and eats; they get up one by one
-## at their own hour and go back to their day. Dinner always ends before the
+## to the middle). Each one walks over at their hour, takes a free seat, sits
+## down and eats for about an hour (SEATED: an hour, give or take a quarter,
+## counted from sitting down); they get up one by one and go back to their day. Dinner always ends before the
 ## village goes to bed (LAST_CALL).
 ##
 ## At the table they talk: now and then two who sit at the same table trade a
@@ -29,19 +31,20 @@ extends RefCounted
 const LETTER := "π"
 
 ## The hours of the meals (see DayNight).
-const MEALS := [12.0, 20.0]
+const MEALS := [12.0, 19.0]
 ## How long before and after a meal's hour the townsfolk set off for the table
 ## (game hours; an hour is 50 seconds, see DayNight.DAY_LENGTH). They set off a
 ## little ahead (WALK_AHEAD), so most sit down close to the meal's hour.
 const ARRIVE_EARLY := 0.7
 const ARRIVE_LATE := 0.5
 const WALK_AHEAD := 0.3
-## How long after setting off each one leaves again (game hours, picked at
-## random between the two), and how long they eat at least once seated.
-const STAY := Vector2(1.2, 1.7)
-const EAT_AT_LEAST := 0.5
+## How long each one stays seated and eats (game hours, picked at random
+## between the two: an hour, give or take a quarter).
+const SEATED := Vector2(0.75, 1.25)
+## One who finds no seat or never gets there gives up this long after setting off (game hours).
+const GIVE_UP := 1.5
 ## When the meal is over for everyone, counted from its hour (game hours).
-const MEAL_END := 2.0
+const MEAL_END := 2.2
 ## Everyone has left the dinner table by then: the village goes to bed at DayNight.NIGHT_FROM.
 const LAST_CALL := DayNight.NIGHT_FROM - 0.15
 ## Who never comes to the table: the woodcutter (out in the woods) and the wandering merchant.
@@ -62,6 +65,32 @@ const TOP := 1.0
 const TOP_HALF := 0.78
 ## How long sitting down and getting up take (seconds; the chair animations).
 const SIT_TIME := 0.8
+
+## The canopy over each table: its posts stand just past the ends of the
+## benches (x) and beside their backs (z); the cloth runs from the eaves up to a
+## ridge along the table and hangs a little past the posts.
+const POST_X := 2.35
+const POST_Z := 1.8
+const EAVE := 2.55
+const RIDGE := 3.25
+const OVERHANG := 0.25
+## The cloth's stripes, how wide each is, and the scalloped edge hanging from the eaves.
+const CLOTH := [Color(0.88, 0.82, 0.68), Color(0.68, 0.2, 0.16)]
+const STRIPE := 0.55
+const VALANCE := 0.28
+## How see-through the cloth is: from afar, and with the hero close by, so the
+## diners under it stay in view (see _fade_cloth).
+const CLOTH_ALPHA := 0.82
+const CLOTH_NEAR_ALPHA := 0.35
+const CLOTH_NEAR := 9.0
+## The lantern under the ridge (its glass, metres above the ground) and how
+## brightly it and the candles burn at night (see set_glow).
+const LANTERN_Y := 2.15
+const LAMP_ENERGY := 2.6
+const LAMP_RANGE := 7.5
+const FLAME_GLOW := 4.0
+## Where the two candles stand on the table (x from its middle).
+const CANDLE_XS := [-1.4, 1.4]
 
 ## Seconds between two table talks (picked at random), and the pause between two lines.
 const TALK_EVERY := Vector2(3.0, 7.0)
@@ -98,7 +127,7 @@ const TABLE_TALK := [
 var seats: Array = []
 ## The middles of the tables (world positions).
 var tables: Array = []
-## Who comes to the meal now: Villager -> {"arrive", "leave", "seated"} (game hours).
+## Who comes to the meal now: Villager -> {"arrive", "leave", "last", "sat", "stay" (game hours), "seated"}.
 var _plan := {}
 ## Which meal _plan is for (day * 10 + meal), -1 for none.
 var _meal_key := -1
@@ -107,6 +136,13 @@ var _rng := RandomNumberGenerator.new()
 var _talk := {}
 var _talk_in := 0.0
 var _turn := 0
+## The lanterns' lights, one under every canopy (see set_glow).
+var lights: Array[OmniLight3D] = []
+var _flames: Array[MeshInstance3D] = []
+var _flame_mat: StandardMaterial3D
+var _cloth_mat: StandardMaterial3D
+## The tiles under the canopies, where no snow settles (see Outdoor's sky mask).
+var roofed: Array[Vector2i] = []
 
 
 func _init() -> void:
@@ -141,7 +177,172 @@ func build_table(level: Outdoor, c: Vector2i) -> void:
 	# Blocked where the table and its benches stand, so the hero walks round them.
 	var depth := (BENCH_OFF + Seats.BENCH_SIZE.z * 0.5) * 2.0
 	level._add_box(level._walls_body, pos + Vector3(0, 0.5, 0), Vector3(TABLE_SCALE.x * 2.27, 1.0, depth))
+	_build_canopy(level, node, c)
 	tables.append(pos)
+
+
+## The canopy over the table at `c`: four posts, rafters at both ends, a ridge
+## pole and eave beams, the striped cloth with its scalloped edge, the lantern
+## hanging from the ridge and two candles on the table.
+func _build_canopy(level: Outdoor, node: Node3D, c: Vector2i) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("canopy|%s" % c)
+	var b := WeatheredProps.Builder.new()
+	var dark := WeatheredProps.DARK_TIMBER
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			b.box(Vector3(sx * POST_X, 0, sz * POST_Z), Vector3(0.14, EAVE, 0.14), WeatheredProps.vary(WeatheredProps.TIMBER[1], rng),
+					WeatheredProps.WOOD, Basis(Vector3.UP, rng.randf_range(-0.1, 0.1)))
+			# A rafter from the top of the post up to the ridge.
+			b.bar(Vector3(sx * POST_X, EAVE - 0.05, sz * POST_Z), Vector3(sx * POST_X, RIDGE, 0), 0.05, dark, WeatheredProps.WOOD)
+		# The eave beam along the posts' tops on this side.
+		b.bar(Vector3(-POST_X - 0.1, EAVE - 0.06, sx * POST_Z), Vector3(POST_X + 0.1, EAVE - 0.06, sx * POST_Z), 0.05, dark, WeatheredProps.WOOD)
+	b.bar(Vector3(-POST_X - 0.15, RIDGE, 0), Vector3(POST_X + 0.15, RIDGE, 0), 0.06, dark, WeatheredProps.WOOD)
+	# The lantern: a short chain from the ridge, then the iron frame round the glass (as VillageProps.build_lamp).
+	var lantern := Vector3(0, LANTERN_Y, 0)
+	var iron := WeatheredProps.IRON_COLOUR * 0.8
+	b.bar(Vector3(0, RIDGE - 0.05, 0), lantern + Vector3(0, 0.36, 0), 0.015, WeatheredProps.IRON_COLOUR, WeatheredProps.IRON, 4)
+	b.frustum(lantern + Vector3(0, -0.26, 0), Vector2(0.18, 0.18), Vector2(0.3, 0.3), 0.06, iron, WeatheredProps.IRON)
+	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		b.box(lantern + Vector3(corner.x * 0.13, -0.2, corner.y * 0.13), Vector3(0.03, 0.36, 0.03), iron, WeatheredProps.IRON)
+	b.frustum(lantern + Vector3(0, 0.16, 0), Vector2(0.34, 0.34), Vector2(0.06, 0.06), 0.18, iron, WeatheredProps.IRON)
+	b.cylinder(lantern + Vector3(0, 0.34, 0), 0.04, 0.04, 0.05, iron, WeatheredProps.IRON, 6)
+	# Two candles in iron holders on the table.
+	for x: float in CANDLE_XS:
+		b.cylinder(Vector3(x, TOP, 0), 0.07, 0.05, 0.03, iron, WeatheredProps.IRON, 8)
+		b.cylinder(Vector3(x, TOP + 0.03, 0), 0.025, 0.025, 0.16, Color(0.95, 0.92, 0.82), WeatheredProps.FRESH, 8)
+	var frame := b.finish(node)
+	frame.name = "Canopy"
+	var glass := MeshInstance3D.new()
+	var pane := BoxMesh.new()
+	pane.size = Vector3(0.24, 0.34, 0.24)
+	glass.mesh = pane
+	glass.material_override = level._lantern_panes()
+	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glass.position = lantern - Vector3(0, 0.03, 0)
+	node.add_child(glass)
+	node.add_child(_cloth_mesh())
+	var light := OmniLight3D.new()
+	light.name = "TableLight"
+	light.light_color = Color(1.0, 0.74, 0.48)
+	light.light_energy = 0.0
+	light.omni_range = LAMP_RANGE
+	light.omni_attenuation = 1.6
+	light.position = lantern - Vector3(0, 0.1, 0)
+	light.visible = false
+	node.add_child(light)
+	lights.append(light)
+	if _flame_mat == null:
+		_flame_mat = StandardMaterial3D.new()
+		_flame_mat.albedo_color = Color(1.0, 0.8, 0.5)
+		_flame_mat.emission_enabled = true
+		_flame_mat.emission = Color(1.0, 0.7, 0.35)
+		_flame_mat.emission_energy_multiplier = 0.0
+	var spots: Array[Vector3] = [lantern - Vector3(0, 0.05, 0)]
+	for x: float in CANDLE_XS:
+		spots.append(Vector3(x, TOP + 0.23, 0))
+	for at in spots:
+		var flame := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radius = 0.03
+		ball.height = 0.1
+		flame.mesh = ball
+		flame.material_override = _flame_mat
+		flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		flame.position = at
+		flame.visible = false
+		node.add_child(flame)
+		_flames.append(flame)
+	# The posts are solid, thin as they are drawn.
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			level._add_solid(node.position + Vector3(sx * POST_X, 0, sz * POST_Z), Vector3(0.22, EAVE, 0.22))
+	# No snow settles on the ground under the cloth (see SnowCover.set_sky_mask).
+	roofed.append(c)
+
+
+## The canopy's cloth: two slopes from the eaves up to the ridge in stripes
+## running down the slope, and a scalloped edge hanging from both eaves. All
+## the tables share one material, which fades while the hero is near (see _fade_cloth).
+func _cloth_mesh() -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half := POST_X + OVERHANG
+	var count := int(ceil(half * 2.0 / STRIPE))
+	var width := half * 2.0 / count
+	# Past the eave beams the cloth runs on down the same slope.
+	var drop := (RIDGE - EAVE) / POST_Z * OVERHANG
+	var eave_y := EAVE + 0.02 - drop
+	var top := RIDGE + 0.07
+	for side in [-1.0, 1.0]:
+		var eave_z: float = side * (POST_Z + OVERHANG)
+		var n := Vector3(0, POST_Z, side * (RIDGE - EAVE)).normalized()
+		var out := Vector3(0, 0, side)
+		for i in count:
+			var x0 := -half + i * width
+			var x1 := x0 + width
+			var mid := (x0 + x1) * 0.5
+			st.set_color(CLOTH[i % 2])
+			st.set_normal(n)
+			for v in [Vector3(x0, eave_y, eave_z), Vector3(x1, eave_y, eave_z), Vector3(x1, top, 0),
+					Vector3(x0, eave_y, eave_z), Vector3(x1, top, 0), Vector3(x0, top, 0)]:
+				st.add_vertex(v)
+			# The scalloped edge: a flap hanging from the eave, its lower edge in a point.
+			st.set_color(CLOTH[(i + 1) % 2])
+			st.set_normal(out)
+			var low := eave_y - VALANCE * 0.6
+			for v in [Vector3(x0, eave_y, eave_z), Vector3(x1, eave_y, eave_z), Vector3(x1, low, eave_z),
+					Vector3(x0, eave_y, eave_z), Vector3(x1, low, eave_z), Vector3(mid, eave_y - VALANCE, eave_z),
+					Vector3(x0, eave_y, eave_z), Vector3(mid, eave_y - VALANCE, eave_z), Vector3(x0, low, eave_z)]:
+				st.add_vertex(v)
+	var mi := MeshInstance3D.new()
+	mi.name = "Cloth"
+	mi.mesh = st.commit()
+	if _cloth_mat == null:
+		_cloth_mat = StandardMaterial3D.new()
+		_cloth_mat.vertex_color_use_as_albedo = true
+		_cloth_mat.roughness = 0.95
+		_cloth_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_cloth_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+		_cloth_mat.albedo_color = Color(1, 1, 1, CLOTH_ALPHA)
+	mi.material_override = _cloth_mat
+	# Snow lies on the ground round it, not as the overlay's flat white on the cloth.
+	mi.set_meta("no_snow", true)
+	return mi
+
+
+## Lights the lanterns and candles for the glow of the hour (0 by day, 1 at
+## night, see DayNight.glow_at): they light up as dusk falls (see Outdoor.set_hour).
+func set_glow(glow: float) -> void:
+	var lit := smoothstep(0.05, 0.4, glow)
+	for light in lights:
+		light.light_energy = LAMP_ENERGY * lit
+		light.visible = lit > 0.01
+	if _flame_mat:
+		_flame_mat.emission_energy_multiplier = FLAME_GLOW * lit
+	for flame in _flames:
+		flame.visible = lit > 0.01
+
+
+## Whether a table's burning lantern lights `pos` within `reach` metres (see Outdoor.is_lit).
+func lights_up(pos: Vector3, reach: float) -> bool:
+	for light in lights:
+		if light.visible and Vector2(pos.x - light.global_position.x, pos.z - light.global_position.z).length() < reach:
+			return true
+	return false
+
+
+## Fades the cloth while the hero is near a table, so the diners under it stay in view.
+func _fade_cloth(level: Outdoor, delta: float) -> void:
+	if _cloth_mat == null or level.player == null:
+		return
+	var near := false
+	var hero: Vector3 = level.player.global_position
+	for t: Vector3 in tables:
+		if Vector2(hero.x - t.x, hero.z - t.z).length() < CLOTH_NEAR:
+			near = true
+			break
+	_cloth_mat.albedo_color.a = move_toward(_cloth_mat.albedo_color.a, CLOTH_NEAR_ALPHA if near else CLOTH_ALPHA, delta * 1.5)
 
 
 ## Plates of food in front of every seat, mugs beside them and a bread board
@@ -287,9 +488,9 @@ func plan_for(centre: float, now: float) -> Dictionary:
 	var arrive := centre - WALK_AHEAD + (_rng.randf_range(-ARRIVE_EARLY, ARRIVE_LATE) + _rng.randf_range(-ARRIVE_EARLY, ARRIVE_LATE)) * 0.5
 	if arrive < now:
 		arrive = now + _rng.randf_range(0.0, 0.35)
-	var leave := minf(arrive + _rng.randf_range(STAY.x, STAY.y), centre + MEAL_END - 0.05)
-	var last := LAST_CALL - _rng.randf_range(0.0, 0.2) if centre >= 18.0 else 24.0
-	return {"arrive": arrive, "leave": minf(leave, last), "last": last, "seated": false, "sat": -1.0}
+	var last := minf(LAST_CALL - _rng.randf_range(0.0, 0.1) if centre >= 18.0 else 24.0, centre + MEAL_END - 0.05)
+	return {"arrive": arrive, "leave": minf(arrive + GIVE_UP, last), "last": last, "seated": false, "sat": -1.0,
+			"stay": _rng.randf_range(SEATED.x, SEATED.y)}
 
 
 ## Runs the meals on `level`: plans who comes when a meal draws near, sends
@@ -298,6 +499,7 @@ func plan_for(centre: float, now: float) -> Dictionary:
 func tick(level: Outdoor, delta: float) -> void:
 	if seats.is_empty() or level.hour < 0.0:
 		return
+	_fade_cloth(level, delta)
 	_check_seats()
 	var meal := meal_at(level.hour)
 	if meal < 0:
@@ -326,9 +528,9 @@ func tick(level: Outdoor, delta: float) -> void:
 			p.seated = false
 			p.sat = -1.0
 		if p.sat < 0.0 and v.seated_at_meal():
-			# A long walk over does not cut the meal short: everyone eats a while.
+			# The hour at the table counts from sitting down: a long walk over does not cut it short.
 			p.sat = level.hour
-			p.leave = minf(maxf(p.leave, p.sat + EAT_AT_LEAST), p.last)
+			p.leave = minf(p.sat + p.stay, p.last)
 		if level.hour >= p.leave:
 			if v.dines():
 				v.leave_meal()

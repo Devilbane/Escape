@@ -1,0 +1,1 @@
+- Sleeping till morning no longer leaves the hero's eyes closed after waking up.

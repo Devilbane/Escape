@@ -1,0 +1,1 @@
+- Monsters can no longer see, hear, strike or shoot you through the walls, roof or shut door of a built house; windows and open doors still let them see in.

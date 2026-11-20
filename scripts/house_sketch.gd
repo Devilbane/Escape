@@ -78,7 +78,15 @@ const UPSTAIRS := "upstairs"
 const BALLISTA := "ballista"
 const BALLISTA_ORIENT := "b"
 const MAX_BALLISTAE := 3
-const CELL_KINDS := [DIG, STAIRS, COVER, SLAB, SADDLE, UPSTAIRS, BALLISTA]
+## A ladder stands on one cell, its foot, against the edge to the next cell in
+## a direction, its top: on the ground (storey 0) or a flat roof (storey 1) up
+## to a slab of that storey, or in a dug cell (CELLAR_STOREY) up the pit wall to
+## the ground beside it. It is keyed by the foot cell, its storey and
+## LADDER_ORIENTS[direction]. Cheaper and smaller than stairs, but only the hero
+## climbs it: companions take the stairs (see HouseFloors).
+const LADDER := "ladder"
+const LADDER_ORIENTS := {"e": "le", "w": "lw", "n": "ln", "s": "ls"}
+const CELL_KINDS := [DIG, STAIRS, COVER, SLAB, SADDLE, UPSTAIRS, BALLISTA, LADDER]
 const MAX_STOREY := 1
 ## From the floor of a storey to the floor of the next, and how thick a slab is.
 ## 3.2 m is four layers of stone blocks, so blocks stack evenly on a roof.
@@ -93,7 +101,7 @@ const DEPTH := 2.6
 const DOWN := {"e": Vector2i(1, 0), "w": Vector2i(-1, 0), "n": Vector2i(0, -1), "s": Vector2i(0, 1)}
 ## Building order: dig first, then stairs and the cellar ceiling, then walls before doors and windows.
 ## The garden comes after the house.
-const BUILD_ORDER := [DIG, STAIRS, COVER, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, SADDLE, STONE_FENCE, WOOD_FENCE, GATE, BALLISTA]
+const BUILD_ORDER := [DIG, STAIRS, COVER, WALL, DOOR, WINDOW, SLAB, UPSTAIRS, LADDER, SADDLE, STONE_FENCE, WOOD_FENCE, GATE, BALLISTA]
 ## What covers the floor and the walls of dug cells: "" is the bare earth.
 const SURFACES := ["", "stone", "wood"]
 const SURFACE_COST := {"": {}, "stone": {"steinblock": 1}, "wood": {"bauholz": 1}}
@@ -118,6 +126,7 @@ const COST := {
 	SLAB: {TIMBER: 1},
 	SADDLE: {TIMBER: 2},
 	UPSTAIRS: {TIMBER: 3},
+	LADDER: {TIMBER: 1},
 	# A garden wall is half as high as a house wall.
 	STONE_FENCE: {STONE: 1},
 	WOOD_FENCE: {TIMBER: 1},
@@ -492,7 +501,8 @@ func problem_stairs(x: int, y: int, dir: String) -> String:
 	for i in 2:
 		if not cell_in_plot(cells[i].x, cells[i].y):
 			return "outside"
-		if hole_key(cells[i].x, cells[i].y) != "" or not cover_at(cells[i].x, cells[i].y).is_empty():
+		if hole_key(cells[i].x, cells[i].y) != "" or not cover_at(cells[i].x, cells[i].y).is_empty() \
+				or ladder_key(cells[i].x, cells[i].y, 0) != "" or not ladders_to(cells[i].x, cells[i].y, CELLAR_STOREY).is_empty():
 			return "taken"
 	if not cell_in_plot(cells[2].x, cells[2].y) or not is_dug(cells[2].x, cells[2].y):
 		return "no cellar"
@@ -506,6 +516,8 @@ func problem_dig(x: int, y: int) -> String:
 	if not cell_in_plot(x, y):
 		return "outside"
 	if hole_key(x, y) != "" or not cover_at(x, y).is_empty() or not ballista_at(x, y, 0).is_empty():
+		return "taken"
+	if ladder_key(x, y, 0) != "" or not ladders_to(x, y, CELLAR_STOREY).is_empty():
 		return "taken"
 	return ""
 
@@ -557,10 +569,22 @@ func erase_cell(x: int, y: int) -> String:
 		return ""
 	var key := hole_key(x, y)
 	if key == "":
+		var ladder := ladder_key(x, y, CELLAR_STOREY)
+		if ladder != "":
+			erase([[x, y, parts_of(ladder)[3]]], CELLAR_STOREY)
+			return ""
 		return "empty"
 	var p := parts_of(key)
 	if pieces[key].kind == DIG and stairs_to(x, y) != "":
 		return "needed"
+	if pieces[key].kind == DIG:
+		# A ladder in the cell goes first; the cell stays until it is gone.
+		var ladder := ladder_key(x, y, CELLAR_STOREY)
+		if ladder != "":
+			if pieces[ladder].state == DEMOLISH:
+				return "ladder needed"
+			erase([[x, y, parts_of(ladder)[3]]], CELLAR_STOREY)
+			return ""
 	erase([[p[1], p[2], p[3]]], CELLAR_STOREY)
 	return ""
 
@@ -603,6 +627,13 @@ func _can_build(key: String) -> bool:
 		return _roof_at(Vector2i(p[1], p[2]), true)
 	if pieces[key].kind == UPSTAIRS:
 		return not slab_at(end.x, end.y, p[0]).is_empty() and slab_at(end.x, end.y, p[0]).state != SKETCH
+	if pieces[key].kind == LADDER:
+		var top := ladder_top(p[1], p[2], p[3])
+		if p[0] == CELLAR_STOREY:
+			return is_dug(p[1], p[2], true)
+		if p[0] > 0 and not _roof_at(Vector2i(p[1], p[2]), true):
+			return false
+		return slab_at(top.x, top.y, p[0]).get("state", SKETCH) != SKETCH
 	return true
 
 
@@ -629,6 +660,8 @@ func problem_cover(x: int, y: int) -> String:
 		return "no dig"
 	if stairs_to(x, y) != "":
 		return "stairs"
+	if ladder_key(x, y, CELLAR_STOREY) != "":
+		return "ladder"
 	return ""
 
 
@@ -693,6 +726,8 @@ func problem_roof(x: int, y: int, storey: int) -> String:
 		return "taken"
 	if not ballista_at(x, y, storey).is_empty():
 		return "taken"
+	if ladder_key(x, y, storey) != "":
+		return "taken"
 	return ""
 
 
@@ -719,7 +754,8 @@ func problem_upstairs(x: int, y: int, dir: String) -> String:
 		var c: Vector2i = cells[i]
 		if not cell_in_plot(c.x, c.y):
 			return "outside"
-		if hole_key(c.x, c.y) != "" or up_key(c.x, c.y) != "" or roof_key(c.x, c.y, 0) != "" or not ballista_at(c.x, c.y, 0).is_empty():
+		if hole_key(c.x, c.y) != "" or up_key(c.x, c.y) != "" or roof_key(c.x, c.y, 0) != "" or not ballista_at(c.x, c.y, 0).is_empty() \
+				or ladder_key(c.x, c.y, 0) != "" or not ladders_to(c.x, c.y, CELLAR_STOREY).is_empty():
 			return "taken"
 	var end: Vector2i = cells[2]
 	if not cell_in_plot(end.x, end.y) or slab_at(end.x, end.y, 0).get("kind", "") != SLAB:
@@ -748,13 +784,17 @@ func sketch_upstairs(x: int, y: int, dir: String) -> bool:
 	return true
 
 
-## Takes back or marks for removal the slab, saddle or stairs up at a cell of
-## a storey (the stairs cover two cells); on the ground floor with none of
+## Takes back or marks for removal the ballista, ladder, slab, saddle or stairs
+## up at a cell of a storey (the stairs cover two cells); on the ground floor with none of
 ## them there, the cellar ceiling, which is the ground floor's floor. A slab the stairs lead up to stays
 ## until the stairs are gone. Returns "" when something changed or why not:
 ## "empty" or "needed".
 func erase_above(x: int, y: int, storey: int) -> String:
 	if erase_ballista(x, y, storey):
+		return ""
+	var ladder := ladder_key(x, y, storey)
+	if ladder != "":
+		erase([[x, y, parts_of(ladder)[3]]], storey)
 		return ""
 	var key := roof_key(x, y, storey)
 	if key == "" and storey == 0:
@@ -774,6 +814,9 @@ func erase_above(x: int, y: int, storey: int) -> String:
 				var end: Vector2i = stairs_cells(q[1], q[2], q[3])[2]
 				if end == Vector2i(x, y):
 					return "needed"
+		# A ladder leaning on the slab, or standing on it, keeps it.
+		if not ladders_to(x, y, storey).is_empty() or ladder_key(x, y, storey + 1) != "":
+			return "ladder needed"
 	var step := _erase_step([[p[1], p[2], p[3]]], p[0])
 	# Railings that stood only beside this slab go with it, in the same step.
 	if pieces.get(key, {}).get("state", "") != BUILT and storey == RAIL_STOREY - 1:
@@ -785,6 +828,103 @@ func erase_above(x: int, y: int, storey: int) -> String:
 		step += _erase_step(lost, RAIL_STOREY)
 	_push(step)
 	return ""
+
+
+# --- Ladders ---------------------------------------------------------------------
+
+## The direction (a key of DOWN) a ladder's orient letter stands for, or "".
+static func ladder_dir_of(orient: String) -> String:
+	for dir in LADDER_ORIENTS:
+		if LADDER_ORIENTS[dir] == orient:
+			return dir
+	return ""
+
+
+## The cell a ladder with its foot at (x, y) leans against: where it leads.
+static func ladder_top(x: int, y: int, orient: String) -> Vector2i:
+	return Vector2i(x, y) + (DOWN.get(ladder_dir_of(orient), Vector2i.ZERO) as Vector2i)
+
+
+## The key of the ladder whose foot stands on a cell of a storey, or "".
+func ladder_key(x: int, y: int, storey: int) -> String:
+	for dir in LADDER_ORIENTS:
+		var key := key_of(x, y, LADDER_ORIENTS[dir], storey)
+		if pieces.has(key):
+			return key
+	return ""
+
+
+## The keys of the ladders of a storey that lead to cell (x, y).
+func ladders_to(x: int, y: int, storey: int) -> Array:
+	var out := []
+	for dir in LADDER_ORIENTS:
+		var foot: Vector2i = Vector2i(x, y) - (DOWN[dir] as Vector2i)
+		var key := key_of(foot.x, foot.y, LADDER_ORIENTS[dir], storey)
+		if pieces.has(key):
+			out.append(key)
+	return out
+
+
+## Why a ladder cannot stand on cell (x, y) of a storey leaning towards `dir`,
+## or "". In the cellar: in a dug cell with no ceiling over it, against the
+## pit wall to ground that is not dug ("no cellar", "covered", "no ledge").
+## On the ground or a flat roof: on free footing with nothing over it, against
+## a slab of the same storey and not through a railing ("no roof", "no slab", "railing").
+func problem_ladder(x: int, y: int, dir: String, storey: int) -> String:
+	var foot := Vector2i(x, y)
+	var top: Vector2i = foot + (DOWN[dir] as Vector2i)
+	if not cell_in_plot(x, y) or not cell_in_plot(top.x, top.y):
+		return "outside"
+	if storey < CELLAR_STOREY or storey > MAX_STOREY:
+		return "storey"
+	if ladder_key(x, y, storey) != "":
+		return "taken"
+	if storey == CELLAR_STOREY:
+		var dug: Dictionary = pieces.get(key_of(x, y, CELL_ORIENT, CELLAR_STOREY), {})
+		if dug.is_empty() or dug.state == DEMOLISH:
+			return "no cellar"
+		if not cover_at(x, y).is_empty():
+			return "covered"
+		if hole_key(top.x, top.y) != "":
+			return "no ledge"
+		return ""
+	if storey == 0:
+		if hole_key(x, y) != "" or up_key(x, y) != "" or not ballista_at(x, y, 0).is_empty():
+			return "taken"
+	else:
+		if not _roof_at(foot):
+			return "no roof"
+		if not ballista_at(x, y, storey).is_empty():
+			return "taken"
+	if roof_key(x, y, storey) != "":
+		return "taken"
+	if slab_at(top.x, top.y, storey).get("kind", "") != SLAB:
+		return "no slab"
+	var e := edge_between(foot, top)
+	if FENCE_KINDS.has(piece(e[0], e[1], e[2], storey + 1).get("kind", "")):
+		return "railing"
+	return ""
+
+
+## The direction a ladder on cell (x, y) of a storey can lean, or "": of those
+## that fit, the one most along `prefer` (towards the mouse, say).
+func ladder_dir(x: int, y: int, storey: int, prefer := Vector2.ZERO) -> String:
+	var dirs: Array = DOWN.keys()
+	dirs.sort_custom(func(a, b): return prefer.dot(Vector2(DOWN[a])) > prefer.dot(Vector2(DOWN[b])))
+	for dir in dirs:
+		if problem_ladder(x, y, dir, storey) == "":
+			return dir
+	return ""
+
+
+func sketch_ladder(x: int, y: int, dir: String, storey: int) -> bool:
+	if problem_ladder(x, y, dir, storey) != "":
+		return false
+	var key := key_of(x, y, LADDER_ORIENTS[dir], storey)
+	var after := {"kind": LADDER, "state": SKETCH}
+	pieces[key] = after
+	_push([{"key": key, "before": null, "after": after}])
+	return true
 
 
 # --- Ballistae ------------------------------------------------------------------
@@ -1098,6 +1238,9 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 							or (str(p[0]) == UPSTAIRS and DOWN.has(parts[3]) and parts[0] == 0) \
 							or (str(p[0]) == BALLISTA and parts[3] == BALLISTA_ORIENT and parts[0] <= RAIL_STOREY)):
 						s.pieces[str(key)] = {"kind": str(p[0]), "state": str(p[1])}
+					elif str(p[0]) == LADDER and p.size() == 2 and ladder_dir_of(parts[3]) != "" and s.cell_in_plot(parts[1], parts[2]) \
+							and parts[0] >= CELLAR_STOREY and parts[0] <= MAX_STOREY:
+						s.pieces[str(key)] = {"kind": LADDER, "state": str(p[1])}
 		s.floor_surface = str(saved.get("floor", ""))
 		s.wall_surface = str(saved.get("wall", ""))
 		s.fence_material = "wood" if str(saved.get("fence", "stone")) == "wood" else "stone"

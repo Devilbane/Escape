@@ -21,6 +21,8 @@ extends Control
 ##   "fast"     faster: boots with an arrow up
 ##   "hardening" hardened: a shield, with the hardening
 ##   "schutz"   protected on the run to the village (see VillageRun): a shield, with the seconds left
+##   "hausgoettin" the blessing of a household goddess in the hero's own house (see
+##              HouseholdGods): the winged goddess
 ## and, with a golden frame, things waiting for the hero (Game.hero_notices):
 ##   "repair"   worn gear to mend: hammer and anvil, with how many pieces
 ##   "upgrade"  a home upgrade Hagen can build now: a stone block, arrow up
@@ -33,7 +35,7 @@ const BOON_FRAME := Color(0.4, 0.92, 0.4)
 ## The kinds that are notices (golden frame) rather than conditions.
 const NOTICES := ["repair", "upgrade"]
 ## The kinds that are boons (green frame) rather than troubles.
-const BOONS := ["power", "fast", "hardening", "schutz"]
+const BOONS := ["power", "fast", "hardening", "schutz", "hausgoettin"]
 const TILE := Color(0.09, 0.065, 0.045, 0.92)
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
@@ -60,6 +62,7 @@ static func make(what: String, number := "", tip := "") -> StatusIcon:
 		"hardening", "schutz": picture = "kind:shield"
 		"repair": picture = "kind:hammer_anvil"
 		"upgrade": picture = "kind:stone"
+		"hausgoettin": picture = "kind:goddess"
 	if picture != "":
 		var drawn := ItemIcon.make(picture, SIZE - 8.0, true)
 		drawn.position = Vector2(4, 4)

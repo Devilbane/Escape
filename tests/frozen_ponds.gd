@@ -1,6 +1,7 @@
 extends SceneTree
 ## Headless test for the frozen ponds: they freeze while snow lies and thaw slowly after, and once
-## frozen over the hero can walk on them while one hole per pond stays open for fishing.
+## frozen over the hero can walk on them while one hole per pond stays open for fishing: a click
+## on the hole walks the hero out over the ice and casts into it.
 ## Run with: godot --headless -s tests/frozen_ponds.gd
 ## With SHOTS=<folder> (and a display) it also saves pictures of the ice.
 
@@ -48,6 +49,22 @@ func _shot(name: String, from: Vector3, to: Vector3, fov := 55.0) -> void:
 	cam.queue_free()
 
 
+## The nearest walkable tile beside the pond of `hole` (the bank), in the world.
+func _shore_near(lvl: Outdoor, hole: Dictionary) -> Vector3:
+	var at: Vector2i = lvl.world_to_cell(hole.pos)
+	var best := Vector2i(-1, -1)
+	for r in range(1, 12):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				var c := at + Vector2i(dx, dy)
+				if best.x < 0 and lvl.astar.is_in_boundsv(c) and not "~;".contains(lvl.cell_char(c)) \
+						and not lvl.astar.is_point_solid(c):
+					best = c
+		if best.x >= 0:
+			break
+	return lvl.cell_to_world(best)
+
+
 func _run() -> void:
 	# The ice builds with snow and melts slowly (Weather.ice).
 	var hours := DayNight.DAY_LENGTH / 24.0
@@ -85,6 +102,35 @@ func _run() -> void:
 	check(lvl.nearest_water(hole.pos + Vector3(2.5, 0, 0), 2.4).get("water", "") == hole.water, "the hole can be fished from its edge")
 	var far: Vector3 = hole.pos + Vector3(0, 0, 4.0)
 	check(lvl.nearest_water(far, 1.0).is_empty(), "the ice between is not water")
+	# A click on the hole is a click on water (the fountain basin still is not), and the
+	# way-finding leads over the ice to it while the hole's own tile stays shut.
+	check(Fishing.water_in(lvl.fishing_waters, hole.pos) == hole, "a click on the hole is on water")
+	for w: Dictionary in lvl.fishing_waters:
+		if w.water == "brunnen":
+			check(Fishing.water_in(lvl.fishing_waters, w.pos).is_empty(), "a click on the fountain is not")
+	var open_ice := 0
+	for w: Dictionary in lvl._pond_waters:
+		if lvl.astar.is_point_solid(w.cell) == w.get("hole", false):
+			open_ice += 1
+	check(open_ice == ponds, "the paths lead over the ice, not into the holes")
+	# Clicked from the shore, the hero walks out over the ice and casts into the hole.
+	for e in lvl.enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	lvl.enemies.clear()
+	var shore: Vector3 = _shore_near(lvl, hole)
+	game.player.global_position = shore + Vector3(0, 0.3, 0)
+	game.player.reset_physics_interpolation()
+	await _wait(5)
+	check(game.fishing.click_water(hole.pos), "the click on the hole is taken")
+	for i in 900:
+		await physics_frame
+		game.player.hp = game.player.max_hp
+		if game.fishing.is_fishing():
+			break
+	check(game.fishing.is_fishing() and game.fishing.water == hole, "walked to the hole and cast into it")
+	check(Level.water_distance(hole, game.fishing._float_rest) <= 0.0, "the float lies in the hole")
+	game.fishing.stop()
 
 	game.ice_cover = 0.2
 	lvl.set_ice(0.2)
@@ -95,6 +141,11 @@ func _run() -> void:
 		if not (w.shape as CollisionShape3D).disabled:
 			blocking += 1
 	check(blocking == ponds, "thawed: the pond blocks the way again")
+	var shut := 0
+	for w: Dictionary in lvl._pond_waters:
+		if lvl.astar.is_point_solid(w.cell):
+			shut += 1
+	check(shut == ponds, "thawed: the paths go round the pond again")
 
 	if shots != "":
 		for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):

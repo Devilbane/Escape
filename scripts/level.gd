@@ -132,6 +132,9 @@ const WORN_PIECES := ["chest", "chest_gold", "bed_decorated", "stool", "sword_sh
 ## Kit texture sets that get the worn look: barrels, crates, tables,
 ## shelves, chests and the wall decorations.
 const WORN_SETS := ["props", "chests", "wallprops"]
+## The pieces that are walls: the only things that stop the light of torches
+## and lamps (see LightShadows).
+const WALL_PIECES := ["wall", "wall_cracked", "wall_shelves", "wall_doorway", "wall_doorway_door"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
 const SOLID := "(#bxotkCDHBLmhVF?f=U|N%T^&aI*!;{-:[\\')/`\"°"
 ## Reach for searching: anything on a neighbouring tile.
@@ -882,10 +885,12 @@ func _setup_astar() -> void:
 
 func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> Node3D:
 	if KIT_PIECES.has(piece):
-		return _place_kit(KIT_PIECES[piece], pos, rot_y, parent)
+		return _place_kit(KIT_PIECES[piece], pos, rot_y, parent, piece in WALL_PIECES)
 	if not _scenes.has(piece):
 		_scenes[piece] = load(ASSET_DIR + piece + ".glb")
 	var node: Node3D = _scenes[piece].instantiate()
+	if piece in WALL_PIECES:
+		node.set_meta(LightShadows.WALL, true)
 	node.position = pos
 	node.rotation.y = rot_y
 	parent.add_child(node)
@@ -922,8 +927,10 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 	return node
 
 
-func _place_kit(parts: Array, pos: Vector3, rot_y: float, parent: Node) -> Node3D:
+func _place_kit(parts: Array, pos: Vector3, rot_y: float, parent: Node, wall := false) -> Node3D:
 	var node := Node3D.new()
+	if wall:
+		node.set_meta(LightShadows.WALL, true)
 	node.position = pos
 	node.rotation.y = rot_y
 	parent.add_child(node)
@@ -1895,9 +1902,6 @@ func _build_fountain(c: Vector2i) -> void:
 	glow.light_energy = 0.9 if not old else 0.7
 	glow.omni_range = 6.5
 	glow.position = pos + Vector3(0, 1.8, 0)
-	# A soft glow off the water, under the fountain's own bowl: no shadows, or
-	# the bowl and column would darken the square round it (see LightShadows).
-	glow.set_meta(LightShadows.NO_SHADOW, true)
 	add_child(glow)
 	# The glow breathes slowly, like the water.
 	var tween := glow.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)

@@ -1,0 +1,1 @@
+- Torches, candles and lamps light everything as before again: only walls now stop their light, nothing else casts shadows from them.

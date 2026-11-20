@@ -32,8 +32,9 @@ const LIGHT_RANGE := 9.0
 ## A painting's frame (across, high) and how high its middle hangs (metres).
 const PAINTING := Vector2(1.3, 1.0)
 const PAINTING_HEIGHT := 1.55
-## The painted pictures, made once (see _painting_texture).
-static var _paintings := {}
+## The painted pictures, by motif (see _painting_texture).
+const PAINTINGS := ["res://assets/house/painting_mountains.jpg", "res://assets/house/painting_lake.jpg",
+	"res://assets/house/painting_dragon.jpg"]
 const PICK_UP := "aufheben"
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
 const KIND_BUTTON := Vector2(130, 32)
@@ -320,84 +321,10 @@ func _build_painting(root: Node3D, motif: int) -> void:
 	root.add_child(canvas)
 
 
-## The picture of a motif, painted once into a small texture: 0 the mountains at dusk, 1 a lake
-## under the moon, 2 a dragon over the village.
-static func _painting_texture(motif: int) -> ImageTexture:
-	if _paintings.has(motif):
-		return _paintings[motif]
-	var w := 128
-	var h := 96
-	var img := Image.create(w, h, false, Image.FORMAT_RGB8)
-	var skies := [[Color(0.98, 0.62, 0.32), Color(0.42, 0.25, 0.45)], [Color(0.12, 0.16, 0.32), Color(0.03, 0.05, 0.14)],
-			[Color(0.75, 0.82, 0.92), Color(0.45, 0.6, 0.85)]]
-	var sky: Array = skies[motif]
-	for y in h:
-		for x in w:
-			img.set_pixel(x, y, (sky[1] as Color).lerp(sky[0], float(y) / h))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7 + motif
-	match motif:
-		0:
-			_disc(img, Vector2(92, 40), 11, Color(1.0, 0.85, 0.5))
-			for m in [[20, 30, 46], [64, 22, 60], [108, 34, 42]]:
-				_peak(img, m[0], m[1], m[2], Color(0.25, 0.2, 0.3), Color(0.92, 0.9, 0.95))
-			_band(img, 76, h, Color(0.2, 0.32, 0.18), Color(0.12, 0.2, 0.1))
-		1:
-			_disc(img, Vector2(36, 24), 9, Color(0.95, 0.95, 0.85))
-			for i in 40:
-				img.set_pixel(rng.randi_range(0, w - 1), rng.randi_range(0, 50), Color(0.9, 0.9, 1.0))
-			_peak(img, 90, 40, 70, Color(0.06, 0.08, 0.14), Color(0.06, 0.08, 0.14))
-			_band(img, 62, h, Color(0.1, 0.18, 0.32), Color(0.04, 0.08, 0.18))
-			for y in range(64, 92, 3):
-				for x in range(32 - (y - 62) / 4, 40 + (y - 62) / 4):
-					img.set_pixel(x, y, Color(0.75, 0.78, 0.7))
-		2:
-			_band(img, 70, h, Color(0.35, 0.5, 0.25), Color(0.25, 0.38, 0.18))
-			for i in 5:
-				var hx := 14 + i * 22
-				img.fill_rect(Rect2i(hx, 58, 14, 14), Color(0.8, 0.72, 0.6))
-				for r in 8:
-					img.fill_rect(Rect2i(hx - 2 + r, 50 + r, 18 - r * 2, 1), Color(0.6, 0.2, 0.15))
-			# The dragon: a red body and two wings against the sky.
-			var red := Color(0.7, 0.12, 0.08)
-			img.fill_rect(Rect2i(52, 26, 30, 6), red)
-			img.fill_rect(Rect2i(80, 22, 8, 7), red)
-			img.fill_rect(Rect2i(36, 30, 18, 3), red)
-			for r in 14:
-				img.fill_rect(Rect2i(58 + r / 2, 12 + r, 14 - r / 2, 1), red.darkened(0.2))
-			_disc(img, Vector2(88, 24), 1, Color(1.0, 0.85, 0.3))
-	# A few brush strokes of noise, so it looks painted rather than printed.
-	for i in 600:
-		var x := rng.randi_range(0, w - 2)
-		var y := rng.randi_range(0, h - 1)
-		img.set_pixel(x, y, img.get_pixel(x, y).lerp(img.get_pixel(x + 1, y), 0.5).darkened(rng.randf_range(-0.06, 0.08)))
-	var tex := ImageTexture.create_from_image(img)
-	_paintings[motif] = tex
-	return tex
-
-
-static func _disc(img: Image, at: Vector2, r: int, colour: Color) -> void:
-	for y in range(-r, r + 1):
-		for x in range(-r, r + 1):
-			if x * x + y * y <= r * r:
-				var p := Vector2i(at) + Vector2i(x, y)
-				if p.x >= 0 and p.y >= 0 and p.x < img.get_width() and p.y < img.get_height():
-					img.set_pixelv(p, colour)
-
-
-## A mountain peak at x with its top at `top` and half its foot `half` wide, snow on its tip.
-static func _peak(img: Image, x0: int, top: int, half: int, rock: Color, snow: Color) -> void:
-	for y in range(top, img.get_height()):
-		var span := int(float(y - top) / (img.get_height() - top) * half * 2.0)
-		for x in range(x0 - span, x0 + span + 1):
-			if x >= 0 and x < img.get_width():
-				img.set_pixel(x, y, snow if y < top + 8 else rock)
-
-
-static func _band(img: Image, from_y: int, to_y: int, top: Color, bottom: Color) -> void:
-	for y in range(from_y, to_y):
-		for x in img.get_width():
-			img.set_pixel(x, y, top.lerp(bottom, float(y - from_y) / maxf(1.0, to_y - from_y)))
+## The picture of a motif: 0 snowy peaks at dusk, 1 a lake under the full moon, 2 a dragon over
+## the village. Oil paintings at 1040 x 800, made by tools/make_paintings.py.
+static func _painting_texture(motif: int) -> Texture2D:
+	return load(PAINTINGS[clampi(motif, 0, PAINTINGS.size() - 1)])
 
 
 ## A trophy stand: an oak shelf on a low plinth with a back board and two small banners. Returns

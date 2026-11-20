@@ -5412,6 +5412,10 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	var season: Variant = SkyCommand.parse_season(text)
+	if season != null:
+		_season_command(season)
+		return
 	var sky: Variant = SkyCommand.parse(text)
 	if sky != null:
 		_sky_command(sky)
@@ -5485,6 +5489,32 @@ func _sky_help(sky: Dictionary) -> void:
 		Events.tell(Lang.t("Wetter und Zeit erzwingen. Optionen:"), TELEPORT_COLOR)
 	for line in SkyCommand.HELP:
 		Events.found(Lang.t(line), TELEPORT_COLOR)
+
+
+## The chat line's season command (see SkyCommand.parse_season): the world switches to the season
+## at once, with its leaves, vines and grapes, clothes, snow and the season's weather.
+func _season_command(cmd: Dictionary) -> void:
+	if cmd.has("error"):
+		if cmd.error != "":
+			Events.tell(Lang.t("Unbekannte Jahreszeit \"%s\".") % cmd.error, TELEPORT_COLOR)
+		Events.found(Lang.t(SkyCommand.SEASON_HELP), TELEPORT_COLOR)
+		return
+	_tour_time = -1.0
+	var season: String = cmd.season
+	var now := season_day()
+	season_shift += SkyCommand.season_start(now, season) - now
+	_check_season()
+	var winter := season == Weather.WINTER
+	if level is Outdoor:
+		# Everyone is dressed (or undressed) on the spot.
+		level.set_winter_wear(winter, true)
+	snow_cover = 1.0 if winter else 0.0
+	puddle_water = 0.0
+	set_weather(Weather.SNOW if winter else Weather.CLEAR, SkyCommand.HOLD_HOURS)
+	# Show it at once, without the fade of the sky.
+	_weather_look = Weather.look(weather)
+	Events.tell(Lang.t("Jahreszeit: %s") % Lang.t(SkyCommand.SEASON_NAMES[season]), TELEPORT_COLOR)
+	_update_hud()
 
 
 ## Forces the weather, hour and season a command names.

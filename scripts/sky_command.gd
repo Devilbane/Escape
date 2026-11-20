@@ -10,6 +10,7 @@ extends RefCounted
 ##   time:14              14:00 (also "14:30"), the weather stays
 ##   weather:winter-snow  the winter (the first day of winter) with snow
 ##   weather:spring       out of winter (the first day of the next spring)
+##   season:autumn        straight into a season, with all its looks (see parse_season)
 ##
 ## "weather:" and "time:" are the same command: after the colon come words
 ## joined by "-", in any order, each one a weather, a season or an hour. Any
@@ -135,6 +136,52 @@ static func autumn_from(day: int) -> int:
 	var year_start := day - posmod(day, Weather.YEAR_DAYS)
 	var turned := year_start + WINTER_FROM - Weather.AUTUMN_DAYS + IvySeasons.TURN_DAYS - 1
 	return turned if turned > day else turned + Weather.YEAR_DAYS
+
+
+## The season command: "season:" (or "jahreszeit:") followed by a season's name switches the world
+## to that season at once: leaves, vines, grapes, clothes, snow and the season's weather.
+const SEASON_PREFIXES := ["season:", "jahreszeit:"]
+## The words of each season (English, as typed; the German names work too).
+const SEASON_WORDS := {
+	"spring": Weather.SPRING, "frühling": Weather.SPRING, "fruehling": Weather.SPRING,
+	"summer": Weather.SUMMER, "sommer": Weather.SUMMER,
+	"autumn": Weather.AUTUMN, "fall": Weather.AUTUMN, "herbst": Weather.AUTUMN,
+	"winter": Weather.WINTER,
+}
+## The German name of each season, for the confirmation (translated by Lang).
+const SEASON_NAMES := {
+	Weather.SPRING: "Frühling", Weather.SUMMER: "Sommer", Weather.AUTUMN: "Herbst", Weather.WINTER: "Winter",
+}
+const SEASON_HELP := "Jahreszeit wechseln: season:spring, season:summer, season:autumn oder season:winter."
+
+
+## What a season command asks for: {"season": Weather.SPRING ...}, {"error": word} when the name is
+## not understood (or missing), or null when the line is no season command.
+static func parse_season(line: String) -> Variant:
+	if not ENABLED:
+		return null
+	var lower := line.strip_edges().to_lower()
+	for prefix in SEASON_PREFIXES:
+		if lower.begins_with(prefix):
+			var word := lower.substr(prefix.length()).strip_edges()
+			if SEASON_WORDS.has(word):
+				return {"season": SEASON_WORDS[word]}
+			return {"error": word}
+	return null
+
+
+## The season day (see Seasons) to switch to for `season`, counting on from `day`: `day` itself when
+## it is already that season, else the first day of the next such season (for autumn the day its
+## leaves have fully turned, see IvySeasons.TURN_DAYS).
+static func season_start(day: int, season: String) -> int:
+	if Weather.season(day) == season:
+		return day
+	var first := Weather.SEASONS.find(season) * Weather.SEASON_DAYS
+	if season == Weather.AUTUMN:
+		first += IvySeasons.TURN_DAYS - 1
+	var year_start := day - posmod(day, Weather.YEAR_DAYS)
+	var at := year_start + first
+	return at if at > day else at + Weather.YEAR_DAYS
 
 
 ## The options, one line each (German, translated by Lang), for the chat log.

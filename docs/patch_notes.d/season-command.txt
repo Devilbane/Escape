@@ -1,0 +1,1 @@
+- New chat command season:spring, season:summer, season:autumn or season:winter switches the world straight to that season.

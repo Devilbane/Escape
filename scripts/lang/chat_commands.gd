@@ -13,6 +13,8 @@ const EN := {
 	"Wetter und Zeit": "Weather and time",
 	"Erzwingt Wetter (clear, rain, fog, storm, snow), Tageszeit (dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30) und Jahreszeit (winter, autumn, spring). Jeder Teil geht auch allein; time: ist dasselbe wie weather:. Schnee legt sofort eine volle Schneedecke.": "Forces the weather (clear, rain, fog, storm, snow), the time of day (dawn, morning, noon, afternoon, dusk, evening, night, midnight or an hour like 14 or 14:30) and the season (winter, autumn, spring). Either part works alone; time: is the same as weather:. Snow lays a full cover of snow at once.",
 	"Himmelstour": "Sky tour",
+	"Jahreszeit": "Season",
+	"Wechselt sofort in eine Jahreszeit (spring, summer, autumn, winter; auch frühling, sommer, herbst): Laub, Ranken und Trauben, Kleidung, Schnee und das Wetter der Jahreszeit. Danach läuft der Kalender von dort weiter, eine echte Woche je Jahreszeit.": "Switches to a season at once (spring, summer, autumn, winter): leaves, vines and grapes, clothes, snow and the season's weather. The calendar then runs on from there, one real week per season.",
 	"Zeigt jedes Wetter eine Minute lang, während die Uhr einen ganzen Tag und eine Nacht durchläuft, und fängt dann von vorn an. Stop oder ein anderer Himmelsbefehl beendet sie.": "Shows each weather for a minute while the clock sweeps a whole day and night, then starts over. Stop, or any other sky command, ends it.",
 	"Keine Befehle eingeschaltet.": "No commands are switched on.",
 }

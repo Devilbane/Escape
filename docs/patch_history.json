@@ -1,0 +1,1250 @@
+{
+ "builds": [
+  {
+   "version": "0.5.2325",
+   "build": "2325",
+   "date": "2026-11-20",
+   "notes": [
+    "Bare earth in a dug cellar no longer shows a repeating tile pattern: the soil blends into itself across the whole floor and walls.",
+    "Fixed clumps of coloured and dark balls hanging in the air by villagers when it is not cold.",
+    "The vines on the village houses turn red and gold in autumn and wear snow in winter, when their grapes are gone; type weather:autumn to see autumn at once.",
+    "The townsfolk now share lunch around noon and dinner around 8 pm at long tables on the village square, chatting and gossiping over their plates."
+   ]
+  },
+  {
+   "version": "0.5.2314",
+   "build": "2314",
+   "date": "2026-11-20",
+   "notes": [
+    "Flat roofs can get a railing of stone or wood: on the upper level the garden wall tool rings the roof with one click, leaves a gap for the stairs and keeps you from falling off."
+   ]
+  },
+  {
+   "version": "0.5.2311",
+   "build": "2311",
+   "date": "2026-11-20",
+   "notes": [
+    "Animals and villagers that get stuck walking on the spot now stand still and try again 10 seconds later.",
+    "No more dirt patch on the lawn hiding the temple's coloured window light.",
+    "The woodcutter now keeps a timber stock (starts at 200, grows by 1 every 20 seconds while he chops, up to 999) and sells only what he has. He stays at his trunk through his shift, leaving only for his breaks, alarms and after work."
+   ]
+  },
+  {
+   "version": "0.5.2303",
+   "build": "2303",
+   "date": "2026-11-20",
+   "notes": [
+    "A cellar left bare in the house builder now looks like real dug earth: varied soil, pebbles and roots instead of one flat brown.",
+    "House building: a big plot now fits the screen while you draw, so the north wall can be reached. The camera pulls back and centres the plot above the tool bar."
+   ]
+  },
+  {
+   "version": "0.5.2292",
+   "build": "2292",
+   "date": "2026-11-20",
+   "notes": [
+    "Chop your own timber: run into the trunks at the new wood yard beside the woodcutter, or into fallen trees spread through the woods. Each gives 2 timber and is back the next morning.",
+    "Timber now stacks 5 and stone blocks 3 to a backpack slot.",
+    "Plots: draw a free-standing garden wall of stone or wood, two blocks high, anywhere on your plot. A door drawn in it becomes a gate.",
+    "Trees, boulders and mountain slopes no longer reach into a land plot: they are cleared away when you register it, and on plots registered earlier too."
+   ]
+  },
+  {
+   "version": "0.5.2289",
+   "build": "2289",
+   "date": "2026-11-20",
+   "notes": [
+    "Falling snow now shows only where light reaches it: at night the flakes catch the moon (barely at all under a thin crescent), lamps, torches and your lantern."
+   ]
+  },
+  {
+   "version": "0.5.2283",
+   "build": "2283",
+   "date": "2026-11-20",
+   "notes": [
+    "Fixed a crash when lightning struck the hero during a thunderstorm (often while building a house)."
+   ]
+  },
+  {
+   "version": "0.5.2281",
+   "build": "2281",
+   "date": "2026-11-20",
+   "notes": [
+    "Climbing out of a pit is now animated: crouch, jump, hang on the ledge, pull up with a knee, kneel and stand. The first slip is caught, the second drops you back down.",
+    "Your companion no longer jumps into or climbs out of a dug pit: it uses stairs, waits at the rim otherwise, and runs home if you leave it behind (a trapdoor still takes it along)."
+   ]
+  },
+  {
+   "version": "0.5.2276",
+   "build": "2276",
+   "date": "2026-11-20",
+   "notes": [
+    "The little dragonlings now collect things for their hoard only at night: at daybreak they fly home, and what is left waits for the next night."
+   ]
+  },
+  {
+   "version": "0.5.2274",
+   "build": "2274",
+   "date": "2026-11-20",
+   "notes": [
+    "Digging a cellar clears the leaves, twigs and pebbles off the dug squares, and anything you dropped there is moved onto the grass."
+   ]
+  },
+  {
+   "version": "0.5.2270",
+   "build": "2270",
+   "date": "2026-11-20",
+   "notes": [
+    "Dug a cellar without stairs? Push against the pit wall for a moment and your hero climbs out.",
+    "New Climbing skill (Gewandtheit): climbing out of a pit trains it, and a higher level climbs faster and higher."
+   ]
+  },
+  {
+   "version": "0.5.2268",
+   "build": "2268",
+   "date": "2026-11-20",
+   "notes": [
+    "Snow no longer lies over squares you dig for a cellar in winter."
+   ]
+  },
+  {
+   "version": "0.5.2260",
+   "build": "2260",
+   "date": "2026-11-20",
+   "notes": [
+    "House building: the camera now frames your whole plot above the tool bar, and Hand in material works as soon as you pick up blocks."
+   ]
+  },
+  {
+   "version": "0.5.2258",
+   "build": "2258",
+   "date": "2026-11-20",
+   "notes": [
+    "Fixed drawing the cellar and walls: the rectangle now stays until you let go of the mouse (right click or Esc ends the tool), and the build bar is much smaller."
+   ]
+  },
+  {
+   "version": "0.5.2257",
+   "build": "2257",
+   "date": "2026-11-20",
+   "notes": [
+    "The eagle's feathers (and other creatures built from several parts) now really stay free of snow in winter.",
+    "The village snowman is solid now: you, the villagers and the animals have to walk round him."
+   ]
+  },
+  {
+   "version": "0.5.2254",
+   "build": "2254",
+   "date": "2026-11-20",
+   "notes": [
+    "Cellar planning is clearer: planned squares have a dark frame and a brighter colour, a hint tells you to order the build, and digging is faster than building walls."
+   ]
+  },
+  {
+   "version": "0.5.2250",
+   "build": "2250",
+   "date": "2026-11-19",
+   "notes": [
+    "Glasses and monocles now sit right on the villagers' eyes (Amtmann Gero's were too high)."
+   ]
+  },
+  {
+   "version": "0.5.2247",
+   "build": "2247",
+   "date": "2026-11-19",
+   "notes": [
+    "You can now set stone blocks and crates down on your flat roof."
+   ]
+  },
+  {
+   "version": "0.5.2244",
+   "build": "2244",
+   "date": "2026-11-19",
+   "notes": [
+    "New: build a second floor, a flat roof you can walk on or a saddle roof; the roof and upper floors fade away while you stand inside, so you can see out through the windows."
+   ]
+  },
+  {
+   "version": "0.5.2242",
+   "build": "2242",
+   "date": "2026-11-19",
+   "notes": [
+    "New: dig a cellar under your house: plan it in the blueprint tool, choose stone, wood or bare earth for floor and walls, add stairs, and your hero digs and builds it."
+   ]
+  },
+  {
+   "version": "0.5.2241",
+   "build": "2241",
+   "date": "2026-11-19",
+   "notes": [
+    "The fog weather is no longer drawn at night; day fog is unchanged."
+   ]
+  },
+  {
+   "version": "0.5.2238",
+   "build": "2238",
+   "date": "2026-11-19",
+   "notes": [
+    "The character can build your house while you are away: plan a Hausbau block in the day planner.",
+    "Villagers who end up crowded together now always get free: they step apart even when standing exactly on each other, slide along walls, and walk off to an open spot if they stay squeezed.",
+    "Villagers now leave their houses one by one in the morning, at random moments, instead of all at once."
+   ]
+  },
+  {
+   "version": "0.5.2236",
+   "build": "2236",
+   "date": "2026-11-19",
+   "notes": [
+    "Fritz stays frozen when you bump into him or greet him: no quests, gossip or news, only his frozen mumble.",
+    "New: your hero now builds the house you sketched: hand stone blocks (mason) and timber (woodcutter) in at the blueprint sign, order the build, and walls, doors and windows turn solid one by one while you are near. Erase a built piece to have it taken down and get the material back.",
+    "Fog at night no longer lights up the scenery: it is as dark as the night and only hides things; fog at night and in winter is one even haze.",
+    "You can now pay copper prices with silver or gold coins when your copper is short; the merchant gives the change back in copper.",
+    "Winter nights: snow is now seen evenly by moonlight (bright at full moon, only a hint at new moon), with lamps lighting it locally.",
+    "Snowballs now burst into a clear white splash when they hit you, and a little snow clings to you for a moment; the balls themselves have the same snowy look as the ground and the snowman.",
+    "The temple's two lamps now hang flush on the front wall, close to the door and at equal distances on either side.",
+    "The tome of Unleashed Power can now be put on the bookshelf at home like any other book.",
+    "Every villager now has a look of their own: different skin tones and hair colours, glasses and a monocle on some, and more hat colours."
+   ]
+  },
+  {
+   "version": "0.5.2217",
+   "build": "2217",
+   "date": "2026-11-19",
+   "notes": [
+    "New: a \"Land\" button in the menu starts marking a building plot at any time, so you do not have to walk back to the clerk to repeat it."
+   ]
+  },
+  {
+   "version": "0.5.2208",
+   "build": "2208",
+   "date": "2026-11-19",
+   "notes": [
+    "New: plan your house on your registered plot: run into the blueprint sign, drag walls along the grid, turn them into doors and windows, with undo. It is only a sketch for now."
+   ]
+  },
+  {
+   "version": "0.5.2205",
+   "build": "2205",
+   "date": "2026-11-19",
+   "notes": [
+    "New: mark out a plot of land and register it at the Crown Office's new land registry clerk, the first step toward building your own house."
+   ]
+  },
+  {
+   "version": "0.5.2201",
+   "build": "2201",
+   "date": "2026-11-19",
+   "notes": [
+    "Two lamps now hang on the temple's front wall beside the door and light up at night."
+   ]
+  },
+  {
+   "version": "0.5.2199",
+   "build": "2199",
+   "date": "2026-11-19",
+   "notes": [
+    "Dragonlings now fly a way that keeps a whole tile clear of buildings, so their wings no longer clip walls and roofs.",
+    "Snow lies dim and blue-grey at night instead of glowing bright white.",
+    "Lamp and lantern light fades softly over the snow at night, with a gentler colour, instead of a hard-edged bright disc."
+   ]
+  },
+  {
+   "version": "0.5.2195",
+   "build": "2195",
+   "date": "2026-11-19",
+   "notes": [
+    "Animals no longer leave tracks in the snow (they never showed up well); your own footprints last all day."
+   ]
+  },
+  {
+   "version": "0.5.2186",
+   "build": "2186",
+   "date": "2026-11-19",
+   "notes": [
+    "Coins and small loot lying on the ground no longer get covered with snow in winter."
+   ]
+  },
+  {
+   "version": "0.5.2184",
+   "build": "2184",
+   "date": "2026-11-19",
+   "notes": [
+    "At night the hero's hair no longer glows red while the face turns black: the lantern hangs lower and a soft cool fill keeps the face readable.",
+    "The hero's spiky hair now covers the back of the head fully, with no bare patches."
+   ]
+  },
+  {
+   "version": "0.5.2179",
+   "build": "2179",
+   "date": "2026-11-19",
+   "notes": [
+    "Fixed little coloured balls showing up in the winter breath when villagers stopped to talk.",
+    "The fox digs up hidden ingredients far less often: a rest of about 45 seconds after each find.",
+    "The snowman now has the same snow look as the snowy ground tiles."
+   ]
+  },
+  {
+   "version": "0.5.2173",
+   "build": "2173",
+   "date": "2026-11-19",
+   "notes": [
+    "Cows and bulls are relaxed now: they no longer bolt or spin when someone walks up to them."
+   ]
+  },
+  {
+   "version": "0.5.2168",
+   "build": "2168",
+   "date": "2026-11-19",
+   "notes": [
+    "Pip and Pippi now pelt the villagers and the hero with snowballs much more often.",
+    "Footprints in the snow now survive a trip into a house or dungeon and stay until the next morning.",
+    "The windmill's turning sails no longer show fixed snow cover in winter."
+   ]
+  },
+  {
+   "version": "0.5.2162",
+   "build": "2162",
+   "date": "2026-11-19",
+   "notes": [
+    "Villagers who are frozen stiff in winter now count as fixed obstacles, so others keep clear of them.",
+    "You can blow the village alarm horn at the west gate to call everyone to the market square (one minute cooldown).",
+    "Snow footprints are lit like the snow around them, so they no longer read as cold blue-grey dots in the evening light.",
+    "The temple's window light on the ground is longer and keeps its colours all along instead of fading with distance."
+   ]
+  },
+  {
+   "version": "0.5.2157",
+   "build": "2157",
+   "date": "2026-11-19",
+   "notes": [
+    "The eagle that carries off a fallen hero no longer picks up snow on its feathers in winter.",
+    "Townsfolk and the hero breathe a third as often, with longer, slower breaths.",
+    "Snow and the snowman no longer glow at night; they are lit by the light of the hour like everything else."
+   ]
+  },
+  {
+   "version": "0.5.2144",
+   "build": "2144",
+   "date": "2026-11-19",
+   "notes": [
+    "Villagers who stop for a chat now step apart and stand a comfortable distance from each other, facing one another, instead of overlapping.",
+    "Deer and stags leave bigger, clearer hoof tracks in the snow.",
+    "Winter breath is denser and trails behind you as one soft cloud while you walk.",
+    "The constant winter snowfall is much denser and clearly visible, even without snow weather.",
+    "The mouse cursor is now twice as large and drawn as a crystal arrow in the Devilbane logo's blue, turning gold with a starry glint over anything you can press.",
+    "Villagers on the wall throw their knives over the village wall at slimes outside, lobbing them high over the stones.",
+    "Night fog is dark, bluish cloud that follows the moon: brighter with a bright moon, sinking into the dark without one, never white.",
+    "Footprints in the snow are a neutral soft grey now (no blue cast), stay all day and are wiped away when a new day starts.",
+    "The temple's window light on the ground now spreads wider the farther it lies from the wall."
+   ]
+  },
+  {
+   "version": "0.5.2131",
+   "build": "2131",
+   "date": "2026-11-19",
+   "notes": [
+    "The village pond is much larger with a natural, uneven shoreline and reeds and cattails along its bank, which wear caps of snow in winter. In winter its ice blends into the surrounding snow instead of showing a green rim.",
+    "The graveyard gates now swing open with a rusty iron creak when you approach, and close again behind you.",
+    "Squirrels no longer get the snow-cover overlay and leave small paw prints in the snow.",
+    "The dungeon gates outside (mines, the dragon's lair, the Ashen Spire, the Great Old One's cave, the keep's gate) wear snow caps, drifts and icicles in winter."
+   ]
+  },
+  {
+   "version": "0.5.2112",
+   "build": "2112",
+   "date": "2026-11-19",
+   "notes": [
+    "Villagers keep a visible gap between each other: they slide apart smoothly when they get too close, and bend their way round people on the street instead of walking into them."
+   ]
+  },
+  {
+   "version": "0.5.2107",
+   "build": "2107",
+   "date": "2026-11-19",
+   "notes": [
+    "In winter Pip and Pippi play in the snow far more (snowball fights, snow angels, rolling big snowballs, sliding), the nests hold no eggs or chicks, and the birds mostly sit on roofs and lamp posts, coming down for the seed villagers now scatter much more often."
+   ]
+  },
+  {
+   "version": "0.5.2106",
+   "build": "2106",
+   "date": "2026-11-19",
+   "notes": [
+    "Frozen Fritz is turned a quarter-step to the left on screen.",
+    "Frozen Fritz is left alone by slimes and the alarm, and never wakes up before winter ends.",
+    "Footprints in the snow now stay for about five real minutes (and go when the snow melts); the hero's own boots outlast the little animals' tracks."
+   ]
+  },
+  {
+   "version": "0.5.2102",
+   "build": "2102",
+   "date": "2026-11-19",
+   "notes": [
+    "The cow shelter now has a real straw roof (layered bundles, frayed eaves, snow on top in winter) and a straw floor without the green border.",
+    "Fixed a hard straight edge of different lighting across the snow on the market square.",
+    "In winter, street lamps, the bounty board and stone buildings such as the guildhall and the bank grow a few extra crystal-blue icicles.",
+    "The snow looks natural now: no more straight rows and grid lines that made it look like woven white cloth.",
+    "Fog no longer looks like black smoke at night: it is pale, moonlit blue-grey.",
+    "In winter a few small snowflakes always drift down, even on clear days; real snowfall is as heavy as before.",
+    "In winter, slain slimes of the open air shatter like glass and leave slime crystals that never melt; brew a strong Frost potion from one at the alchemist's table."
+   ]
+  },
+  {
+   "version": "0.5.2089",
+   "build": "2089",
+   "date": "2026-11-19",
+   "notes": [
+    "Cows, the bull and the other farm animals no longer spin on the spot to watch a hero walking past: they turn slowly, and only when the hero is well to the side.",
+    "Your companion fox, doe or stag now leaves paw and hoof tracks in the snow.",
+    "The village snowman now wears an old top hat and is made of lumpy, sparkling packed snow."
+   ]
+  },
+  {
+   "version": "0.5.2078",
+   "build": "2078",
+   "date": "2026-11-19",
+   "notes": [
+    "The little dragonlings now fly around buildings instead of through them."
+   ]
+  },
+  {
+   "version": "0.5.2075",
+   "build": "2075",
+   "date": "2026-11-19",
+   "notes": [
+    "Frozen breath is one smooth stream of misty air instead of separate puffs,, dark at night instead of glowing, and a cloud no longer vanishes when the next breath starts.",
+    "Footprints in the snow show again, in deep snow and in every light from night to noon; monsters and beetles now leave tracks too, and beetles and lizards no longer wear a snow coat.",
+    "Sheep, goats and the rest of the farm herd steer round one another and slide apart smoothly instead of stacking up, blocking each other or snapping back.",
+    "The temple's front steps now wear a layer of snow in winter.",
+    "Winter snow now stays on the ground, roofs, benches and fountain until spring instead of melting away within minutes."
+   ]
+  },
+  {
+   "version": "0.5.2071",
+   "build": "2071",
+   "date": "2026-11-19",
+   "notes": [
+    "Frozen Fritz now stands facing the screen, so you can see his face.",
+    "Frozen Fritz stays frozen when the village alarm sounds.",
+    "Props around you keep the same shadows as you walk past them, instead of getting an extra layer of shade from one side.",
+    "Lamps, workbench lights and windows near the square no longer switch off and on as you walk past.",
+    "Townsfolk change into winter clothes in the night before winter: fur collars and mantles (fox, wolf, hare, bear, sable, lynx), scarves, fur hats, knit caps and hoods, and they remark on the snow in the morning."
+   ]
+  },
+  {
+   "version": "0.5.2061",
+   "build": "2061",
+   "date": "2026-11-19",
+   "notes": [
+    "Icicles under eaves and windows are bigger, longer and a glinting light crystal blue.",
+    "The shadows of people moving behind Weavers' Lane's windows are now much larger and cross the window faster.",
+    "Curtains in Weavers' Lane are now drawn shut before a window's light goes out for the night.",
+    "The compendium has a new Commands page that lists every chat command with its syntax, a short description and examples.",
+    "Birds and fluttering flags no longer get a coat of snow in winter.",
+    "The temple's coloured window light now shines on top of the winter snow instead of being buried."
+   ]
+  },
+  {
+   "version": "0.5.2036",
+   "build": "2036",
+   "date": "2026-11-18",
+   "notes": [
+    "A Linux penguin now sits on the temple tower's peak, with a banner fluttering beside it."
+   ]
+  },
+  {
+   "version": "0.5.2027",
+   "build": "2027",
+   "date": "2026-11-18",
+   "notes": [
+    "Slimes dry out in dry weather, losing a level a minute, and after an hour retreat into the nearest pond, taking their loot with them but freeing any townsfolk."
+   ]
+  },
+  {
+   "version": "0.5.2026",
+   "build": "2026",
+   "date": "2026-11-18",
+   "notes": [
+    "Cows and the bull in the village pen now have an open shelter with straw and a trough, and lie down there in rain, snow and at night.",
+    "Leaves drift gently through the air by day, except in rain, fog or snow."
+   ]
+  },
+  {
+   "version": "0.5.2022",
+   "build": "2022",
+   "date": "2026-11-18",
+   "notes": [
+    "Farm animals (goats, sheep, cows, geese, dogs) now swing round in a small arc when they change direction, bigger ones wider, and a bolting one turns sharper.",
+    "The light of the temple's windows now sits closer to the wall, is softer and fades out further away, and shines down to the lawn in soft coloured rays."
+   ]
+  },
+  {
+   "version": "0.5.2016",
+   "build": "2016",
+   "date": "2026-11-18",
+   "notes": [
+    "Chat commands such as weather:rain-noon or time:14 force the weather, the hour and the winter, for testing. weather:showcase tours every weather for a minute through a full day and night; weather:stop ends it.",
+    "Animals and monsters now swing round in a small arc when they change direction instead of snapping; big ones turn wider, and hunters that have spotted you still turn sharply.",
+    "Anyone can now break stone for building at the stonemason's quarry hill; the rock grows back by the next morning.",
+    "Snow now lies thick on roofs and ledges with overhanging rims and icicles, has a softer grey-white texture, covers bushes and leaves, and breath clouds in the cold are much larger."
+   ]
+  },
+  {
+   "version": "0.5.2003",
+   "build": "2003",
+   "date": "2026-11-18",
+   "notes": [
+    "The ponds freeze over while snow lies. You can walk on the ice, and one small hole is left open for ice fishing."
+   ]
+  },
+  {
+   "version": "0.5.2000",
+   "build": "2000",
+   "date": "2026-11-18",
+   "notes": [
+    "Lightning is brighter and lasts longer, leaves a scorch mark, and whoever it strikes keeps a harmless oddity for a couple of minutes (crackling sparks, soot and smoke, or a pulsing glow)."
+   ]
+  },
+  {
+   "version": "0.5.1998",
+   "build": "1998",
+   "date": "2026-11-18",
+   "notes": [
+    "In snowy winter Zecher Fritz leaves the tavern and freezes on the market square in mid-toast, with snow and icicles on his raised mug and arm. He cannot sing until the snow melts, and birds like to land on him."
+   ]
+  },
+  {
+   "version": "0.5.1996",
+   "build": "1996",
+   "date": "2026-11-18",
+   "notes": [
+    "Winter now comes for 8 days each year with snow instead of rain; rain is much rarer but lasts longer, and fires, chimneys and the forge stay free of snow."
+   ]
+  },
+  {
+   "version": "0.5.1992",
+   "build": "1992",
+   "date": "2026-11-18",
+   "notes": [
+    "Slimes no longer leave a shiny spot on the ground: their puddle dries up a few seconds after they die.",
+    "Footprints in the snow now point the way you walk, and birds, foxes, deer, goats, sheep, cows and dogs leave their own tracks.",
+    "The temple's windows now cast a shiny picture of their own coloured glass onto the lawn beside them, fading with distance and fainter in daylight."
+   ]
+  },
+  {
+   "version": "0.5.1985",
+   "build": "1985",
+   "date": "2026-11-18",
+   "notes": [
+    "The way to the door of the house beside the stonemason is open again.",
+    "Monsters and villagers see over walls of two stone layers (like the village wall) and shoot over them; three layers and a shut gate block sight and shots alike."
+   ]
+  },
+  {
+   "version": "0.5.1981",
+   "build": "1981",
+   "date": "2026-11-18",
+   "notes": [
+    "Footsteps crunch in the snow.",
+    "The coloured light from the temple's windows now falls as a crisp stained-glass mosaic, like the windows themselves, and a little dimmer."
+   ]
+  },
+  {
+   "version": "0.5.1977",
+   "build": "1977",
+   "date": "2026-11-18",
+   "notes": [
+    "The fireplace crackle inside your house is a little louder.",
+    "Knives, arrows and spells can be shot over a wall of two stone-block layers (the village wall too); from three layers up, and at a shut gate, the wall stops them.",
+    "Brief snowfalls now cover roofs, ledges and meadows in snow that melts away again. Footsteps leave grey prints, everyone's breath shows in the cold, and Pip and Pippi build a snowman and pelt each other (and the odd grown-up) with snowballs."
+   ]
+  },
+  {
+   "version": "0.5.1968",
+   "build": "1968",
+   "date": "2026-11-18",
+   "notes": [
+    "Goats and sheep that cannot get on in the direction they are strolling now turn and head another way."
+   ]
+  },
+  {
+   "version": "0.5.1964",
+   "build": "1964",
+   "date": "2026-11-18",
+   "notes": [
+    "The stonemason now chips stone at a small quarry hill in the south-west corner of the village.",
+    "Villagers no longer throw knives or cast spells at slimes through the village wall: the wall stops the shot, so they wait for a clear throw."
+   ]
+  },
+  {
+   "version": "0.5.1957",
+   "build": "1957",
+   "date": "2026-11-18",
+   "notes": [
+    "Sleeping long enough for skill rolls now adds a \"Resting\" journal entry, plus one for every skill that breaks through."
+   ]
+  },
+  {
+   "version": "0.5.1952",
+   "build": "1952",
+   "date": "2026-11-18",
+   "notes": [
+    "The compendium's Places page now shows the monsters' level range and who lives in each place, instead of a floor number.",
+    "The coloured light from the temple's right windows now falls level with the light from the left windows."
+   ]
+  },
+  {
+   "version": "0.5.1940",
+   "build": "1940",
+   "date": "2026-11-13",
+   "notes": [
+    "The temple's stained-glass windows now shine by day and cast coloured light onto the ground outside, strongest at night and in fog.",
+    "Zarek brings a bigger cart: more ingredients, healing potions, four new odd wares and one torn map piece per visit; collect all three to start a quest with Odo the scholar."
+   ]
+  },
+  {
+   "version": "0.5.1937",
+   "build": "1937",
+   "date": "2026-11-13",
+   "notes": [
+    "Weavers' Lane's windows now light up one by one in the evening, and behind the lit glass curtains are drawn and opened again and, now and then, a person's shadow walks past."
+   ]
+  },
+  {
+   "version": "0.5.1932",
+   "build": "1932",
+   "date": "2026-11-13",
+   "notes": [
+    "After an update the launcher shows the patch notes of every build since the one you last played, newest first, not only the latest."
+   ]
+  },
+  {
+   "version": "0.5.1927",
+   "build": "1927",
+   "date": "2026-11-13",
+   "notes": [
+    "Lightning in a thunderstorm can strike animals, villagers, monsters and the hero: the struck glow, scream and take a little damage."
+   ]
+  },
+  {
+   "version": "0.5.1925",
+   "build": "1925",
+   "date": "2026-11-13",
+   "notes": [
+    "The map no longer shows light green dots for gathered herbs and ingredients.",
+    "Fixed: after the eagle (or the dwarves) carried you off, your dropped backpack could vanish; it now stays where you fell and is marked on the map.",
+    "Skills now level on a longer, steadier table (about 11,500 uses for level 10), and crafts and exploring pay more per action to match; your saved hero keeps every level it has."
+   ]
+  },
+  {
+   "version": "0.5.1919",
+   "build": "1919",
+   "date": "2026-11-13",
+   "notes": [
+    "Monsters now hit as hard as the armour, shield and dodging of well-equipped heroes call for, so fights above level 5 are riskier; the townsfolk fight stronger to keep up."
+   ]
+  },
+  {
+   "version": "0.5.1917",
+   "build": "1917",
+   "date": "2026-11-13",
+   "notes": [
+    "Play together: host a game on your PC or join a friend's, and see each other's heroes walk around (Co-op button in the menu)."
+   ]
+  },
+  {
+   "version": "0.5.1903",
+   "build": "1903",
+   "date": "2026-11-12",
+   "notes": [
+    "New skill trees window (key Y or the menu): all eight trees with every planned skill, what each needs and opens; your hero's skills carry over unchanged."
+   ]
+  },
+  {
+   "version": "0.5.1898",
+   "build": "1898",
+   "date": "2026-11-11",
+   "notes": [
+    "Peaceful animals no longer block anyone and only ease away from each other; the red-horned goat still claims its own place."
+   ]
+  },
+  {
+   "version": "0.5.1896",
+   "build": "1896",
+   "date": "2026-11-11",
+   "notes": [
+    "Patches of bare earth and moss on the ground no longer show through the fog and the night haze."
+   ]
+  },
+  {
+   "version": "0.5.1894",
+   "build": "1894",
+   "date": "2026-11-11",
+   "notes": [
+    "The red-horned goat's legs now gallop while it charges."
+   ]
+  },
+  {
+   "version": "0.5.1891",
+   "build": "1891",
+   "date": "2026-11-11",
+   "notes": [
+    "The night's dust haze is now moonlit blue-grey, so it can actually be seen in the dark.",
+    "Every night now carries a very light dust haze outdoors, a quarter as thick as real fog.",
+    "Villagers now carry 3 throwing knives each, hurl them at a slime from afar before closing in with their blades, and get them back every night."
+   ]
+  },
+  {
+   "version": "0.5.1886",
+   "build": "1886",
+   "date": "2026-11-11",
+   "notes": [
+    "The BRIKAN cape now shows a navy crest with a gold compass, a saw and an open book.",
+    "The hero's footsteps are louder in villages, so they stand out from the townsfolk and the ambience."
+   ]
+  },
+  {
+   "version": "0.5.1881",
+   "build": "1881",
+   "date": "2026-11-11",
+   "notes": [
+    "A forsaken wasteland lies far beyond the mountain tavern: follow the signposted pilgrims' path south to the ruined shrine of Mirenna, Lady of Mercy, where you can pray to be healed, mend the shrine with small gifts, and meet Old Sarra at her well."
+   ]
+  },
+  {
+   "version": "0.5.1877",
+   "build": "1877",
+   "date": "2026-11-11",
+   "notes": [
+    "Item wear now shows on the rim of its slot: the rim darkens from the top down as durability drops. A piece at 0 is destroyed, cannot be worn or mended, and can only be melted down at the smith.",
+    "Being rescued now leaves an injury: a broken leg (no jumping, later no running), a broken arm (no shield), a head wound (less Intelligence) or deep scars (weaker skills), from minor to lasting. Bosses leave the worst. Sleep heals minor and serious ones; a prayer to the healing goddess Mirenna in the village temple heals serious ones; a lasting one needs a pilgrimage to a distant shrine."
+   ]
+  },
+  {
+   "version": "0.5.1873",
+   "build": "1873",
+   "date": "2026-11-11",
+   "notes": [
+    "The temple's priestess Elsbeth blesses you in the name of one of six gods. Each gives a boon (some with a burden); every rescue takes a third of the blessing, gone after three. Your blessing shows on the character page."
+   ]
+  },
+  {
+   "version": "0.5.1871",
+   "build": "1871",
+   "date": "2026-11-11",
+   "notes": [
+    "New cape design BRIKAN: golden letters with a striped Tigerente toy duck below, at the cape wardrobe."
+   ]
+  },
+  {
+   "version": "0.5.1868",
+   "build": "1868",
+   "date": "2026-11-11",
+   "notes": [
+    "Skills now level up in your sleep: practice makes a skill ripe, a night away (8+ hours) rolls the new level. Your hero tells you how they feel about each skill, wins are announced by a speech bubble (a golden \"Eureka!\" for a flash of insight), and the skill card keeps a history of past levels."
+   ]
+  },
+  {
+   "version": "0.5.1866",
+   "build": "1866",
+   "date": "2026-11-11",
+   "notes": [
+    "The fireplace in your house now juts out into the room with its own sooty back, so the wall no longer shows behind the flames. It is built of rough, uneven stone and burns with layered flames and drifting sparks.",
+    "The wooden floor planks in the player's house are bleached lighter, so the dark grain and gaps look less heavy.",
+    "The bark of the ivy and grapevine branches is lighter."
+   ]
+  },
+  {
+   "version": "0.5.1860",
+   "build": "1860",
+   "date": "2026-11-10",
+   "notes": [
+    "Grapevines on the buildings are thicker and twisted, with fewer clumped leaves, smaller darker grapes, and now climb the castle tower."
+   ]
+  },
+  {
+   "version": "0.5.1858",
+   "build": "1858",
+   "date": "2026-11-10",
+   "notes": [
+    "Ivy now grows everywhere in the village as bright grapevines with red and blue grapes, rooted at the foot of the walls and spreading over the roofs, never across doors."
+   ]
+  },
+  {
+   "version": "0.5.1857",
+   "build": "1857",
+   "date": "2026-11-10",
+   "notes": [
+    "The dark parts of the wooden floors inside your houses are lighter, so the floor blends in better.",
+    "Move the trophy wall of your house to the north wall of the top floor."
+   ]
+  },
+  {
+   "version": "0.5.1853",
+   "build": "1853",
+   "date": "2026-11-10",
+   "notes": [
+    "Fixed the cell doors in the cellar vaults jail: no more lone stone bar standing crosswise in the gap.",
+    "Every floor of your house except the cellar now has a fireplace with a crackling fire that lights the room.",
+    "The rocks that fall in the Sternhall are rough, faceted lumps of grainy, cracked stone, each with its own tint.",
+    "The teleport list of places and codes now goes into the event log in its own colour instead of flashing line by line over the hero.",
+    "Chat commands: \"teleport dorfx\" goes to the village square, and \"godmode\" toggles invulnerability with triple speed (for testing).",
+    "Window lights in the village now go out one by one between 20:00 and 23:00, together with their pools of light on the ground, until every house is dark. The temple stays lit all night."
+   ]
+  },
+  {
+   "version": "0.5.1844",
+   "build": "1844",
+   "date": "2026-11-10",
+   "notes": [
+    "You can now forge weapons and armour yourself at the fine metalwork bench on the crafting square; it can fail (see the chance on each piece), costing half the bars and the copper.",
+    "The ruined courtyard of Sternhall sounds like a cave now (drips, low drone, distant echoes) instead of having birds.",
+    "The ivy on the houses now has winding, tapering vines with small curling tendrils and hanging bunches of blue grapes, spread out and always joined to leaves."
+   ]
+  },
+  {
+   "version": "0.5.1836",
+   "build": "1836",
+   "date": "2026-11-10",
+   "notes": [
+    "Gorm's forge never fails any more: forging at his menu always gives you the piece.",
+    "The floors inside your houses now have the same worn wooden boards as the stairs.",
+    "While the village gates are shut because of an alarm, you can run into one to open it and slip through; it shuts again behind you."
+   ]
+  },
+  {
+   "version": "0.5.1828",
+   "build": "1828",
+   "date": "2026-11-10",
+   "notes": [
+    "The wooden stairs up in your house are now even: every step looks the same, like the stairs down.",
+    "Fix the red-horned goat (and other farm animals) sleeping on after dawn: they now wake up in the morning.",
+    "Fewer glowworms drift through the village at night, and each one now casts a soft green-yellow glow on the ground around it.",
+    "The woods at night sound a little less echoey."
+   ]
+  },
+  {
+   "version": "0.5.1819",
+   "build": "1819",
+   "date": "2026-11-10",
+   "notes": [
+    "Fixed a flat white band that showed on the village street in fog.",
+    "The forge spreads drifting embers, and its chimney now glows with a fire and puffs thin smoke."
+   ]
+  },
+  {
+   "version": "0.5.1812",
+   "build": "1812",
+   "date": "2026-11-10",
+   "notes": [
+    "The god-born Traveller's backpack now gives +1 hardening and +5% speed while worn.",
+    "Monsters, villagers, figures and animals no longer stand inside each other: whoever arrives later is moved to the nearest open spot."
+   ]
+  },
+  {
+   "version": "0.5.1807",
+   "build": "1807",
+   "date": "2026-11-10",
+   "notes": [
+    "The shopkeeper always has a backpack of each kind for sale, so a lost one can be replaced.",
+    "When you are knocked out, your backpack drops as a single bundle with everything in it, so one step gets it all back (the backpack first).",
+    "Dug-up finds and ingredients dropped by foes no longer vanish when you leave a place and come back.",
+    "Ivy now climbs the bank's tower in branching vines, keeping clear of its door and windows.",
+    "The temple's stained-glass windows shine brighter at night.",
+    "A new epic loot find, a recipe scroll (Pattern: Scale satchel), teaches you to make the Scale satchel, a backpack with 24 slots.",
+    "The stone benches by the fountain no longer have red, blood-like stains; they look like worn, mossy stone.",
+    "Glowworm swarms drift over the village and the open land at night, thickest in the village, and fade out with the dawn.",
+    "Geese's wings are now attached to their bodies instead of floating beside them.",
+    "The guild hall's ivy now spreads over every side, entrance included, as branching vines that keep windows and the door clear.",
+    "Your own house now crackles softly with a cozy hearth fire instead of the cave air.",
+    "Ivy now grows along the edges and corners of buildings and runs along the eaves, branching out from there.",
+    "Ivy's woody branches now show on the temple's and the bank tower's roofs too.",
+    "Ivy now shows woody brown branches on the walls, with the leaves growing along them.",
+    "Fixed the stonemason standing idle in a walking pose beside a hurt wall brick.",
+    "Every night now carries a light dust haze outdoors, about a third as thick as real fog.",
+    "The patch notes now list only what is new in the build you are downloading, and they keep up with every update.",
+    "Pip and Pippi now really play: they chase each other across the meadow, tag each other and show off cartwheels and somersaults.",
+    "Footsteps on grass, gravel, wooden floors, paving, paths and fields now use real recorded steps, each ground with its own sound.",
+    "Slimes and blobs can now grow up to level 40 by eating and merging (they are still born no higher than level 25).",
+    "Slimes and blobs now do 80% less damage to the village wall.",
+    "Only slimes and blobs of level 20 or higher eat into the village wall now; smaller ones leave it alone.",
+    "Squirrels bound with a higher, longer leap, and their paws now hang on visible legs.",
+    "When the woodcutter helps the stonemason, the wall is mended 50% faster.",
+    "Branching ivy vines now spread across parts of the temple's roof, leaving the tiles showing between them.",
+    "Townsfolk now make quiet footsteps that fit the ground they walk on, and splash in puddles; far away ones stay silent.",
+    "Lit windows now cast a soft pool of their own light onto the ground in front of them at night.",
+    "The woodcutter now helps the stonemason repair the village wall.",
+    "The woodcutter takes up a hammer and swings it when he helps mend the village wall.",
+    "The stairs inside your house are now worn, well-used wooden stairs instead of grey stone."
+   ]
+  },
+  {
+   "version": "0.5.1726",
+   "build": "1726",
+   "date": "2026-11-10",
+   "notes": [
+    "Choosing \"Sleep and log out\" now saves and then closes the game.",
+    "Ivy no longer grows over any door in the village: every entrance is swept clear of leaves.",
+    "Barrels, crates, planks, handcarts, stones and pumpkins in the village now sit in tidy heaps instead of overlapping and clipping into each other."
+   ]
+  },
+  {
+   "version": "0.5.1708",
+   "build": "1708",
+   "date": "2026-11-10",
+   "notes": [
+    "The village goats are now proper goats with swept-back horns, a beard and natural walking, trotting and grazing; the red-horned goat has bigger red horns."
+   ]
+  },
+  {
+   "version": "0.5.1704",
+   "build": "1704",
+   "date": "2026-11-10",
+   "notes": [
+    "Squirrels now bound properly: stretched out in the air with paws forward and hind legs thrown back, tail arched high, and paws that alternate when they climb."
+   ]
+  },
+  {
+   "version": "0.5.1702",
+   "build": "1702",
+   "date": "2026-11-10",
+   "notes": [
+    "The village sheep are now proper woolly sheep with a dark face and legs, short legs and a short neck."
+   ]
+  },
+  {
+   "version": "0.5.1700",
+   "build": "1700",
+   "date": "2026-11-10",
+   "notes": [
+    "Animals (geese, goats, sheep, cows, dogs, deer, squirrels, hopping birds) keep out of walls and shut gates, wait and find another way like villagers, and stop their legs the moment they stop.",
+    "The cap on base movement speed is raised from 150% to 175%.",
+    "The village now has a fenced cattle pen on its east meadow: the two cows and the bull live inside it and never wander off.",
+    "The windows of the adventurers' guild hall are now free of ivy, with only a few strands at their edges.",
+    "The stonemason now repairs a damaged village wall at night too, and goes back to bed once it is whole.",
+    "The stonemason's wall repair now makes a soft, short stony tap instead of a harsh blow.",
+    "Ivy keeps off the windmill's door and the doors of other stone buildings, covers the mill like other buildings, and is about 30% thinner everywhere, growing along vines without piled-up leaves.",
+    "Steps into puddles now make a real, recorded splash, for deep and nearly dry puddles alike.",
+    "Villagers no longer open their trade window during an alarm or away from their post; they say so instead.",
+    "The village sheep are now woolly: a fluffy cream fleece with dark faces and legs, and they walk properly.",
+    "Zarek the wandering merchant is a level 50 mage: he stays by his wagon and blasts every slime nearby with arcane bolts and fireballs, and can take a beating."
+   ]
+  },
+  {
+   "version": "0.5.1669",
+   "build": "1669",
+   "date": "2026-11-10",
+   "notes": [
+    "Sharper new sounds: sword swings and hits, axe swings, the village bell, the anvil, rumbling stone, secrets, potions, bones and the heavier rain."
+   ]
+  },
+  {
+   "version": "0.5.1667",
+   "build": "1667",
+   "date": "2026-11-09",
+   "notes": [
+    "Meet Pippi, Pip's red-haired friend with long pigtails and freckles: she minds the geese and goats with him, plays tag and chats with him in Lindenhain."
+   ]
+  },
+  {
+   "version": "0.5.1664",
+   "build": "1664",
+   "date": "2026-11-09",
+   "notes": [
+    "Villagers keep their swords and axes sheathed and only draw them when a slime or other danger threatens, putting them away again shortly after.",
+    "Villagers can no longer walk through walls or shut gates: they wait and find another way round."
+   ]
+  },
+  {
+   "version": "0.5.1659",
+   "build": "1659",
+   "date": "2026-11-09",
+   "notes": [
+    "More ivy on the fronts of village buildings, most of all on the temple and the guild hall, and on the castle's gate and base; windows stay clear and doors stay recognisable.",
+    "Villagers who bump into each other on the street now stop, face each other and chat for a few seconds before walking on.",
+    "A red-horned goat among Pip's goats now picks fights: it paws the ground, shouts, charges and bumps you (no damage). It cannot be hurt, gives up after 3 bumps and sulks for 10 minutes.",
+    "Slimes and Blobs that cannot reach a villager they see behind the village wall now eat into the wall instead of pushing against it."
+   ]
+  },
+  {
+   "version": "0.5.1634",
+   "build": "1634",
+   "date": "2026-11-09",
+   "notes": [
+    "The attribute line now says how far each attribute is to its next point (\"Speed 145% (87% to +1)\") instead of a bare percentage.",
+    "Flags and banners now flutter much stronger (about twice as far, and a bit livelier), in the village, the dungeon and the dragon's lair.",
+    "The trophy wall in your house no longer gets squeezed in beside the front door where you could not reach it, and no banner or shield hangs behind a furniture spot there; it now hangs on a wall with free floor in front.",
+    "Lindenhain now has animals: geese, goats, sheep, cows, a bull and two friendly dogs wander the village meadows, and Pip looks after the goats.",
+    "Squirrels bound about at the edge of the woods and run up the trees when you come near, and birds perch in the treetops and flutter off to another tree when you walk by."
+   ]
+  },
+  {
+   "version": "0.5.1621",
+   "build": "1621",
+   "date": "2026-11-09",
+   "notes": [
+    "Write \"teleport\" in the chat line to list every place with a 5-letter code, then write a code to be taken to that place's entrance."
+   ]
+  },
+  {
+   "version": "0.5.1617",
+   "build": "1617",
+   "date": "2026-11-09",
+   "notes": [
+    "Spiders, the Spider Queen and the Hollow Mother now have a hairy, bristly coat: stiff pale-tipped hairs over dark fuzz, with a soft furry glow along their edges.",
+    "Monster lore only floats a word when it reaches a new whole percent.",
+    "The ruined courtyard of Sternhall now has a quiet outdoor wind-and-leaves ambience instead of the eerie hall drone."
+   ]
+  },
+  {
+   "version": "0.5.1600",
+   "build": "1600",
+   "date": "2026-11-09",
+   "notes": [
+    "Archivist Veth in the archive is a real boss now: ten times the life, a health bar, and a telegraphed purple shockwave every few seconds. Step out of the ring before it bursts.",
+    "Copper coins in the house's coin chest now look like copper instead of gold.",
+    "Fixed the recipe lists at the fine metalwork bench, the alchemist's table and the gem cutter's table: the ingredients now show on one readable line each instead of one letter per line.",
+    "Gains in monster lore and skills now show as a brief word over your head (\"Skeleton lore +5%\", \"Swordplay +1\") instead of lines in the event log; the log keeps one explanation of monster lore.",
+    "New sounds: all sword and axe blows, hits, swings and spells now use a combat sound pack, and the woodcutters' chopping and the village's church bell use new, richer recordings.",
+    "Every place now has its own ambient soundscape: the village by day and night, the market chatter, the forge, the fields, campfires, the woods by day and night, light, steady and heavy rain, and a fitting loop on every dungeon floor (dungeon, cave, mine, crystal, fire, ancient halls, the spire). They fade into each other as you move."
+   ]
+  },
+  {
+   "version": "0.5.1579",
+   "build": "1579",
+   "date": "2026-11-09",
+   "notes": [
+    "The armoured guardian now has 20 times a skeleton's life, so it can also be fought in normal combat (long and hard), while a stab in the back still kills it in one blow and it then never respawns.",
+    "Base movement speed (Tempo, gear, gifts, level and companions together) is now capped at 150%; running still speeds you up on top of that cap, and the Tempo details and speed icon tell you when you are at the cap."
+   ]
+  },
+  {
+   "version": "0.5.1560",
+   "build": "1560",
+   "date": "2026-11-09",
+   "notes": [
+    "Stairs now fit the place they stand in: the stairs out of bone, rock and crystal caves are hewn from the cave's own stone, and the shafts down in the mines are cut from rock, bone, obsidian, crystal or ember stone with uneven steps, a rough lip and faint glowing edges where the setting has them. Their steps are lit a little so they read as steps, not a black pit."
+   ]
+  },
+  {
+   "version": "0.5.1550",
+   "build": "1550",
+   "date": "2026-11-09",
+   "notes": [
+    "A soft see-through circle now opens around the hero in the wall tops and walls that stand between the camera and the hero, so the hero and the floor around them are no longer hidden behind stone, above all in narrow corridors. The fog of war and the lighting stay as they were.",
+    "Tasks tied to a place (the bandit pass, the dungeon, Sternhall, the Ashen Spire) now show pinned at the top of the event log with a short line while you are there, until done. Brother Orlan in the archive gives a new one: bring him a healing potion."
+   ]
+  },
+  {
+   "version": "0.5.1534",
+   "build": "1534",
+   "date": "2026-11-09",
+   "notes": [
+    "The wandering merchant's ingredients now show their own pictures (a mushroom, a tuft of moss, a blob of jelly ...) instead of a backpack.",
+    "Village ivy now grows on every side of a building (each side as thick as the front used to be), and it never fully covers a window any more, including on the stone buildings.",
+    "The village warning bell now uses a real recording of church bells ringing in a tower.",
+    "The bookshelf in your house now stands on the ground floor against the north wall, and the wall torch beside it hangs one wall to the west.",
+    "Rain now falls only a third as often; fog, storms and clear skies take its place, and each spell of rain lasts as long as before."
+   ]
+  },
+  {
+   "version": "0.5.1502",
+   "build": "1502",
+   "date": "2026-11-09",
+   "notes": [
+    "A great Norse horn now stands inside the village wall, right beside the west gate. When the village is alarmed the town guard walks to it and blows two long, deep blasts like a ship's fog horn; the church bell tolls once the horn has died away, so the two never sound over each other."
+   ]
+  },
+  {
+   "version": "0.5.1486",
+   "build": "1486",
+   "date": "2026-11-09",
+   "notes": [
+    "Fixed being shut in the archive's bed room after sleeping there: the iron bars of the prisoner's cell no longer count as a way out, so the secret wall opens from inside."
+   ]
+  },
+  {
+   "version": "0.5.1481",
+   "build": "1481",
+   "date": "2026-11-08",
+   "notes": [
+    "You can use at most 9 shrines in the whole beginner dungeon; the shrine window shows how many blessings are left, and after the ninth the shrines go quiet."
+   ]
+  },
+  {
+   "version": "0.5.1479",
+   "build": "1479",
+   "date": "2026-11-08",
+   "notes": [
+    "Prison cells now really hold: the iron bars of a cell are turned with its wall, so a column of bars is solid from end to end and nobody walks through the gaps between the tiles."
+   ]
+  },
+  {
+   "version": "0.5.1477",
+   "build": "1477",
+   "date": "2026-11-08",
+   "notes": [
+    "The dark fill around the dungeon no longer covers the floor grates or the stairs going down: you see the pits below the grates again, and the stairs are open."
+   ]
+  },
+  {
+   "version": "0.5.1467",
+   "build": "1467",
+   "date": "2026-11-08",
+   "notes": [
+    "The launcher now shows only the newest two sections of the patch notes, so old notes no longer need trimming."
+   ]
+  },
+  {
+   "version": "0.5.1465",
+   "build": "1465",
+   "date": "2026-11-08",
+   "notes": [
+    "A slime you hit now turns on you first: it drops villagers and the wall as targets while you fight it, and goes back to them after about 6 seconds without a blow or when you get far away.",
+    "Much more ivy in the village, always clear of doors: thick on the guild hall, castle and temple, a little on the fountain.",
+    "Smaller touches: knives refill from the belt, purses count up into silver and gold, a star rings a vital blow, splashier puddles, steadier moon shadows, a chat line under the event log and health bars with levels on slimes and big monsters.",
+    "A cape wardrobe in the house, a new app icon and aged entrances for the mine, the Great Old One's lair and the Ashen Spire."
+   ]
+  },
+  {
+   "version": "0.5.1458",
+   "build": "1458",
+   "date": "2026-11-08",
+   "notes": [
+    "Stepping out of the crypt now starts a two-minute run to the village: nothing can hurt you (blows, traps, poison, bleeding, fire) while the shield countdown shows, and it ends early when you reach the village.",
+    "The plain, unlit timber frames in the mine tunnels (bare brown beams with no texture or lighting) are gone.",
+    "A backpack you lost (your bag after being carried off) or set down on the floor now shows on the map as an orange backpack mark, with \"Lost backpack\" in the legend. The mark is gone once the pack is picked up, emptied or swept away.",
+    "Bone Pit (level 8): the visible spike traps now sit on the same bone-coloured floor as the rest, the rough floor patches match it, and the skulls and bones in the walls no longer shimmer or hang in the air when a wall fades out as you walk by.",
+    "Weak monsters now ignore you when their level is below half your level plus 2: they no longer notice, chase or attack you, but still defend themselves if you hit them. Bosses always fight."
+   ]
+  },
+  {
+   "version": "0.5.1426",
+   "build": "1426",
+   "date": "2026-11-08",
+   "notes": [
+    "Crates and stone blocks are no longer dropped in front of you: they are always set down right under your feet and you end up standing on top of them, so you can stack up and step off as usual."
+   ]
+  },
+  {
+   "version": "0.5.1424",
+   "build": "1424",
+   "date": "2026-11-08",
+   "notes": [
+    "The faint \"db\" watermark in the bottom-right corner now shows the new db logo, with the same size and transparency.",
+    "The logo above the title on the play screen is gone; it stays on the launcher's loading screen."
+   ]
+  },
+  {
+   "version": "0.5.1422",
+   "build": "1422",
+   "date": "2026-11-08",
+   "notes": [
+    "The dark void around every dungeon is now filled with a plain, dark version of the dungeon's own wall material (stone, bone, rock, obsidian or crystal), and the wall tops and outer sides are plain and flat instead of busy, so no black gap shows, not even beside a hidden secret passage. Nothing else changes."
+   ]
+  },
+  {
+   "version": "0.5.1418",
+   "build": "1418",
+   "date": "2026-11-08",
+   "notes": [
+    "Stairs going down now open towards the open floor of the room instead of lining up with a wall."
+   ]
+  },
+  {
+   "version": "0.5.1414",
+   "build": "1414",
+   "date": "2026-11-08",
+   "notes": [
+    "A secret room can always be opened from the inside: if a loaded game or a night slept in its bed leaves you behind a closed secret wall, the wall slides open by itself."
+   ]
+  },
+  {
+   "version": "0.5.1412",
+   "build": "1412",
+   "date": "2026-11-08",
+   "notes": [
+    "A great Norse horn now stands by the west gate. When the village is alarmed the town guard runs to it and blows two long, deep blasts like a ship's fog horn; the church bell tolls once the horn has died away, so the two never sound over each other.",
+    "A classic church bell now tolls over the village when something hostile happens: a slime at the gate or the wall, a broken stretch of wall, a slime inside, or a villager eaten. It rings at most once every 30 seconds."
+   ]
+  },
+  {
+   "version": "0.5.1409",
+   "build": "1409",
+   "date": "2026-11-08",
+   "notes": [
+    "The compendium has a new Places page with the description of every floor you have entered, so you can read it again after it fades from the screen."
+   ]
+  },
+  {
+   "version": "0.5.1406",
+   "build": "1406",
+   "date": "2026-11-08",
+   "notes": [
+    "The Windows download is now the main release: every update of the game builds it automatically, and the browser version is only published on request.",
+    "The village stonemason now mends the wall at 4 HP a second and never tires: there is no daily limit on his work any more.",
+    "Dungeon walls now have tops and outer sides in their own stone, bone, rock, obsidian or crystal look, so no black void shows right beside them. Nothing else changes: walls block you exactly as before.",
+    "Slimes now go for villagers first: a slime with a way to reach a villager hunts them instead of eating into the village wall, and only attacks the wall when no villager is within reach.",
+    "Your house now has a bookshelf in the cellar: put your books on it and the shelf shows how many you keep, with a count on its plaque.",
+    "Pointing at an item in your bag, a chest or the vault now compares it with what you wear in that place: green numbers where it is better, red where it is worse.",
+    "A book now teaches for 100 hours of reading, then it is used up: it stays in your bag or chest, but you learn nothing more from it. Its details and the day plan show the hours left."
+   ]
+  },
+  {
+   "version": "0.5.1370",
+   "build": "1370",
+   "date": "2026-11-08",
+   "notes": [
+    "New cave monsters: fire elementals, obsidian, stone and crystal golems, each with telegraphed special moves (fire bolts and scorched floor, shard throws, quakes, a mirror ward and a prismatic burst).",
+    "Cracks now spread over the stones of the village wall as slimes eat into it, in three clear stages (light, medium, heavy), so you can see how close a brick is to breaking.",
+    "The town guard now checks the west gate for slimes much more often at night and in or after rain, and calls the alarm when he spots one.",
+    "Every slime outside the village now eats into the village wall, and at least one attempt in three breaks a stretch of it."
+   ]
+  },
+  {
+   "version": "0.5.1352",
+   "build": "1352",
+   "date": "2026-11-08",
+   "notes": [
+    "The event log has a slim scroll bar you can drag to read older messages.",
+    "New cave looks for walls and floors: bone (with skulls and bones), rock, obsidian and glowing crystal, in three seamless variants each, with matching torches, braziers and candelabra. Bone Pit, Bone Gallery, Copper Mine, Crystal Grotto and Ember Tunnels wear them."
+   ]
+  },
+  {
+   "version": "0.5.1346",
+   "build": "1346",
+   "date": "2026-11-08",
+   "notes": [
+    "Forging at Gorm's forge is now a d100 roll: your chance rises with Strength, Intelligence, Intuition, Dexterity and your forging skill. A failed attempt spoils half the bars, but you still learn.",
+    "Sneaking no longer makes the hero strike back on their own; only a foe you click is attacked.",
+    "The hoard at home now counts the coins you carry plus those in your chest, and your bank vault shows its own hoard of the coins stored there.",
+    "Stairs down are now real stone steps that fade into the dark, in houses, mines and the dragon's lair, instead of a black hole.",
+    "The glowing ember cracks in the deep mines can be crossed now, but they burn: 1 life a second near them, 3 while standing on one.",
+    "Ghostly voices (moans, a banshee's shriek, the whispers out of the holes) and bandit taunts now also appear in the event log.",
+    "Falling rocks in Sternhall's vaults hit harder: a direct hit now takes about a quarter of your life.",
+    "New dungeon level: the Great Old One's lair (level 25) with traps, secret rooms, bones and a spread-out hoard.",
+    "Townsfolk now hold the village wall against slimes until it breaks, and the wall sits in the narrow neck by the village.",
+    "Monsters with over 100 health show a health bar and their level, like slimes do.",
+    "Slimes show a health bar and level; a monster's name and level appear on your first hit, and its level, XP and health when it falls.",
+    "Throwing knives refill automatically when your belt runs empty.",
+    "Your purse is counted up into silver and gold without converting the coins.",
+    "A vital blow rings a star around the hero.",
+    "Steps through puddles are splashier and wetter.",
+    "The moon's shadows reach further, so mountain shadows no longer jump.",
+    "The event log has an always-visible chat line beneath it.",
+    "The mine, Great Old One and Ashen Spire entrances got the aged, textured look.",
+    "A cape wardrobe stands next to the bed on the first floor of the house.",
+    "New app icon on the exe, the window and the web page; the emblem shows on the title and launcher screens.",
+    "The village is built of aged stone with ivy and paved paths; nights can be nearly pitch black and moonlight changes with the moon's phase. Light your torch with V.",
+    "Crystal mining in the Crystal Grotto, cut into jewellery, and a new dungeon: sneak into the Great Old One's lair.",
+    "Loot has a rarity by usefulness; shrines offer an attribute point and Constitution; the refuge fountain heals 5 life per drink.",
+    "A new HUD: life bar with condition icons, ammo under it, gold under the XP bar, messages over the hero's head and a scrollable event log.",
+    "Hazards: trapdoors drop you a floor and tentacles reach out of floor grates.",
+    "Combat: hit and block chances on the character page, thunder weapons that can stun, and a short regeneration pause after a blow.",
+    "Walk or run with a stamina meter; a running hero hit hard gets knocked down; sneaking turns you grey and see-through.",
+    "A 20-slot backpack, several save games, a storage chest in the mountain tavern and the new map workshop for building your own levels.",
+    "Fixes: no more getting stuck in doorways or furniture, no shots through pillars, smoother running and level starts."
+   ]
+  }
+ ]
+}

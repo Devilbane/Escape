@@ -26,6 +26,7 @@ on:
       - "docs/patch_notes.txt"
       - "docs/patch_notes.d/**"
       - "tools/patch_notes.py"
+      - "docs/patch_history.json"
       - "tests/launcher.gd"
   workflow_dispatch:
 
@@ -96,6 +97,19 @@ jobs:
           grep -q "const REV := \"$rev\"" scripts/launcher.gd
           echo "Version $version.$build, launcher $rev"
 
+      - name: Patch notes archive for the compendium
+        run: |
+          # Every build's notes, newest first, travel inside the game (docs/patch_history.json, the
+          # compendium's patch notes page). The archive published with the previous build is merged
+          # with the committed one and this build's notes, so nothing is lost when a build ships only
+          # its own new notes (tools/patch_notes.py history).
+          curl -sfL --max-time 30 -o previous_history.json \
+            "https://github.com/${{ github.repository }}/releases/download/windows/patch_history.json" || rm -f previous_history.json
+          python3 tools/patch_notes.py history "$BUILD" "$VERSION" "$(git rev-parse -q --verify refs/tags/windows || true)" previous_history.json > patch_history.new
+          mv patch_history.new docs/patch_history.json
+          cp docs/patch_history.json build_patch_history.json
+          python3 -c "import json; a = json.load(open('docs/patch_history.json')); print(len(a['builds']), 'builds in the patch notes archive')"
+
       - name: Export the launcher and the game
         run: |
           mkdir -p build/Escape/game build/release
@@ -148,6 +162,7 @@ jobs:
           python3 ../tools/patch_notes.py build "$(git rev-parse -q --verify refs/tags/windows || true)" > Escape/game/patch_notes.txt
           cp Escape/Escape.exe Escape/game/Escape.pck release/
           cp Escape/game/Escape.exe release/EscapeGame.exe
+          cp ../build_patch_history.json release/patch_history.json
           zip -qr9 release/Escape-Windows.zip Escape
           python3 - <<'PY'
           import hashlib, json, os
@@ -214,10 +229,10 @@ jobs:
           if gh release view windows >/dev/null 2>&1; then
             # The files first, version.json last: the launcher only looks for a new game once
             # the files it names are in place.
-            gh release upload windows Escape.exe EscapeGame.exe Escape.pck Escape-Windows.zip --clobber
+            gh release upload windows Escape.exe EscapeGame.exe Escape.pck Escape-Windows.zip patch_history.json --clobber
             gh release upload windows version.json --clobber
             gh release edit windows --title "Escape! for Windows ($VERSION.$BUILD)" --notes "$notes" --latest
           else
-            gh release create windows Escape.exe EscapeGame.exe Escape.pck Escape-Windows.zip version.json \
+            gh release create windows Escape.exe EscapeGame.exe Escape.pck Escape-Windows.zip patch_history.json version.json \
               --title "Escape! for Windows ($VERSION.$BUILD)" --notes "$notes" --latest
           fi

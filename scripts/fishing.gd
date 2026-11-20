@@ -67,6 +67,9 @@ const BOTTLE_NOTES := [
 ]
 ## How far from the water's edge the hero can stand and still cast (metres).
 const RANGE := 2.4
+## How far from the middle of an ice hole the hero stops when walking to it
+## (metres): just off its tile (Level.TILE), within RANGE of the open water.
+const HOLE_STOP := 2.6
 ## Seconds until a fish bites: a random time between these two.
 const WAIT_MIN := 2.5
 const WAIT_MAX := 6.5
@@ -206,13 +209,19 @@ func water_near() -> Dictionary:
 	return game.level.nearest_water(game.player.global_position, RANGE)
 
 
-## The pond water at a clicked spot (on the floor plane), or {}. The round
-## fountain basin is left out: a click on it uses the fountain.
+## The pond water at a clicked spot (on the floor plane), or {}: also the
+## round hole in a frozen pond (see IceCover). The round fountain basin is
+## left out: a click on it uses the fountain.
 func water_at(point: Vector3) -> Dictionary:
 	if game == null or game.level == null:
 		return {}
-	for w in game.level.fishing_waters:
-		if not w.round and Level.water_distance(w, point) <= 0.0:
+	return water_in(game.level.fishing_waters, point)
+
+
+## The water of `waters` at a spot, or {} (see water_at).
+static func water_in(waters: Array, point: Vector3) -> Dictionary:
+	for w in waters:
+		if (not w.round or w.get("ice", false)) and Level.water_distance(w, point) <= 0.0:
 			return w
 	return {}
 
@@ -238,7 +247,8 @@ func click_water(point: Vector3) -> bool:
 		return true
 	_walk_target = point
 	_walk_kind = w.water
-	game.player.walk_to(point)
+	# An ice hole sits in a tile the hero cannot step on: stop on the ice at its edge.
+	game.player.walk_to(point, HOLE_STOP if w.get("ice", false) else 0.0)
 	return true
 
 

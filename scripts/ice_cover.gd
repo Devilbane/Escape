@@ -6,7 +6,9 @@ extends RefCounted
 ## small hole is left in the middle, kept open by the villagers for fishing. Once the pond is
 ## frozen over, the hero can walk on it (the tiles stop blocking the way), except for the
 ## tile of the hole, and the line can only be cast into the hole (it is the pond's only
-## entry in `Outdoor.fishing_waters`). When the ice thaws, everything is as it was.
+## entry in `Outdoor.fishing_waters`). The way-finding (`Level.astar`) opens the ice too, so a
+## click on the hole walks the hero out across the ice to its edge (see Fishing.click_water).
+## When the ice thaws, everything is as it was.
 
 const SHADER_HOLES := 4
 ## How far the open hole reaches from the middle of its tile (metres).
@@ -83,6 +85,8 @@ func set_amount(value: float) -> void:
 	for w: Dictionary in ponds:
 		if not w.get("hole", false):
 			(w.shape as CollisionShape3D).set_deferred("disabled", frozen)
+			if level.astar.is_in_boundsv(w.cell):
+				level.astar.set_point_solid(w.cell, not frozen)
 		level.fishing_waters.erase(w)
 	for h: Dictionary in holes:
 		level.fishing_waters.erase(h)

@@ -86,8 +86,9 @@ func _process(_delta: float) -> bool:
 	var bp := HouseSketch.parts_of(built_key)
 	sketcher.mouse(plan.node_world(bp[1], bp[2]) + (Vector3(1.0, 0, 0) if bp[3] == "x" else Vector3(0, 0, 1.0)), true, MOUSE_BUTTON_LEFT)
 	check(plan.piece(bp[1], bp[2], bp[3]).state == "demolish", "the eraser marks a built piece for demolition")
-	# A garden wall: dragged like a wall, on the ground even from the upper floor.
-	sketcher.storey = 1
+	# A garden wall: dragged like a wall, on the ground even from the cellar (on
+	# the upper level the same tool draws railings, see tests/house_railing.gd).
+	sketcher.storey = -1
 	sketcher.select_tool(HouseSketcher.TOOL_FENCE)
 	check(sketcher.storey == 0, "the garden wall tool works on the ground")
 	sketcher.mouse(plan.node_world(0, 5), true, MOUSE_BUTTON_LEFT)

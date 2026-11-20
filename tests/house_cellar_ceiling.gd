@@ -215,7 +215,36 @@ func _checks() -> void:
 	check(mask.get_pixelv(cell.call(open)).r > 0.75, "the snow keeps off the open pit")
 	var half: float = mask.get_pixelv(cell.call(covered)).r
 	check(half > 0.25 and half < 0.75, "the snow lies on the ceiling but not in the cellar under it (%f)" % half)
+	_no_flicker()
 	game.level._drop_item(Items.KNIFE, covered + Vector3(0.3, 0, 0.3), false)
 	game.house_sketcher._redraw()
 	var spot: Vector3 = (game.level._pickups.back().node as Node3D).position
 	check(Vector2(spot.x - covered.x, spot.z - covered.z).length() < 1.0, "a thing dropped on the ceiling stays there")
+
+
+## No two built pieces of different looks lie with their tops in one plane over the same
+## spot: such faces flicker through each other (z-fighting), as a cellar wall's top did
+## through the ceiling over it, and a door's lintel on its jambs.
+func _no_flicker() -> void:
+	var boxes := []
+	for m in game.house_sketcher._solid.get_children():
+		# Only level faces count: a slanted board (the stairs) has no flat top.
+		if not m is MeshInstance3D or not (m as MeshInstance3D).global_basis.is_equal_approx(Basis()):
+			continue
+		var box: AABB = (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
+		boxes.append([box, (m as MeshInstance3D).material_override, m.name])
+	var clashes := []
+	for i in boxes.size():
+		for j in range(i + 1, boxes.size()):
+			var a: AABB = boxes[i][0]
+			var b: AABB = boxes[j][0]
+			if boxes[i][1] == boxes[j][1] and boxes[i][1] != null:
+				continue
+			if absf(a.end.y - b.end.y) > 0.002:
+				continue
+			var flat_a := Rect2(a.position.x, a.position.z, a.size.x, a.size.z)
+			var flat_b := Rect2(b.position.x, b.position.z, b.size.x, b.size.z)
+			var both := flat_a.intersection(flat_b)
+			if both.size.x > 0.005 and both.size.y > 0.005:
+				clashes.append("%s / %s at y %.3f" % [boxes[i][0], boxes[j][0], a.end.y])
+	check(clashes.is_empty(), "no two built surfaces flicker through each other (%d: %s)" % [clashes.size(), clashes.slice(0, 3)])

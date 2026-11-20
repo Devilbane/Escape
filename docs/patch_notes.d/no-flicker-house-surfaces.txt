@@ -1,0 +1,1 @@
+- Built houses no longer flicker where cellar walls meet the floor above them or where a door's lintel sits on its frame.

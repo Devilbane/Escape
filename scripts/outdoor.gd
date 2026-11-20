@@ -584,6 +584,8 @@ func build() -> void:
 			Corral.build_shelter(self)
 	_pave_entrances()
 	_plant_bushes()
+	# The ivy-covered poles and ropes with their lamps round the dining tables (see MealGarland).
+	meals.garland.build(self, meals.tables, _ivy)
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -610,6 +612,7 @@ func build() -> void:
 	_build_wall_collision()
 	_build_rock_collision()
 	_setup_astar()
+	meals.garland.block(self)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.
 		var free: Array[Vector3] = []

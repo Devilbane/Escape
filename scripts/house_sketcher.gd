@@ -73,6 +73,12 @@ const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
+## How far two built surfaces that would lie in one plane are kept apart: two faces
+## in the same place flicker through each other (z-fighting).
+const FACE_GAP := 0.01
+## How far a cellar wall stops under a cellar ceiling: inside the ceiling's
+## thickness, so the ceiling hides its top.
+const CEILING_GAP := HouseSketch.COVER_THICK * 0.5
 ## The doorway: high enough for the hero to walk through upright (2.4 m with
 ## their reach, see Player.tall), under a timber lintel up to the wall's top;
 ## stone jambs JAMB wide at each side.
@@ -1344,6 +1350,14 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 		else:
 			for c in HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2):
 				open[c] = piece
+	# The dug cells a cellar ceiling closes: their walls stop under it, so the wall's top
+	# never lies in the ceiling's top face and flickers through the ground floor.
+	var roofed := {}
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.state != HouseSketch.SKETCH and piece.kind == HouseSketch.COVER:
+			var p := HouseSketch.parts_of(key)
+			roofed[Vector2i(p[1], p[2])] = true
 	for c: Vector2i in open:
 		var piece: Dictionary = open[c]
 		var demolish: bool = piece.state == HouseSketch.DEMOLISH
@@ -1355,13 +1369,14 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			_floor_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), piece.get("floor", ""), demolish)
 			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
 		var wall_mat := _wall_material(piece.get("wall", "") if is_dig else "", demolish)
+		var tall: float = HouseSketch.DEPTH - (CEILING_GAP if roofed.has(c) else 0.0)
 		for dir in HouseSketch.DOWN:
 			var step: Vector2i = HouseSketch.DOWN[dir]
 			if open.has(c + step):
 				continue
 			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5 - 0.05)
-			var size := Vector3(0.1, HouseSketch.DEPTH, HouseSketch.CELL) if step.x != 0 else Vector3(HouseSketch.CELL, HouseSketch.DEPTH, 0.1)
-			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH * 0.5, 0), size, wall_mat)
+			var size := Vector3(0.1, tall, HouseSketch.CELL) if step.x != 0 else Vector3(HouseSketch.CELL, tall, 0.1)
+			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH + tall * 0.5, 0), size, wall_mat)
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
 		if piece.state == HouseSketch.SKETCH:
@@ -1713,14 +1728,17 @@ func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool
 		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
 		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
 	# The lintel: a beam over the opening, its ends resting on the jambs.
-	var beam := WALL_HEIGHT - DOOR_HEIGHT
+	# It stands a hair over the jambs, so its top never shares their top face (that flickers).
+	var beam := WALL_HEIGHT - DOOR_HEIGHT + FACE_GAP
 	_visual_box(mid + Vector3(0, DOOR_HEIGHT + beam * 0.5, 0), _along(axis, across, opening + 0.5, beam, jamb_deep + 0.06), wood)
 	# The casing: boards lining the opening's sides.
 	for sign_ in [-1.0, 1.0]:
 		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 - 0.03) + Vector3(0, DOOR_HEIGHT * 0.5, 0)
 		_visual_box(at, _along(axis, across, 0.06, DOOR_HEIGHT, jamb_deep + 0.02), wood)
 	# The threshold: a worn stone slab, too low to trip over.
-	_visual_box(mid + Vector3(0, 0.025, 0), _along(axis, across, opening, 0.05, jamb_deep + 0.1), stone)
+	# A hair higher than a floor on the ground (FLOOR_RISE), so their tops never flicker.
+	var sill_top: float = HouseSketch.FLOOR_RISE + FACE_GAP
+	_visual_box(mid + Vector3(0, sill_top * 0.5, 0), _along(axis, across, opening, sill_top, jamb_deep + 0.1), stone)
 	_new_door = _door_leaf(mid, along_x, Vector2(opening - 0.12, DOOR_HEIGHT - 0.02), false, demolish)
 
 

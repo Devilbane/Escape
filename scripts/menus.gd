@@ -57,6 +57,13 @@ var inventory_tab := "tasche"
 ## journal), and which level's map.
 var map_page := "karte"
 var _map_file := ""
+## How far each level's map is zoomed and where it looks, kept while the game
+## runs (level file -> [zoom, centre tile]; see MapView.zoom).
+var _map_zoom := {}
+## The map window's zoom buttons (see _add_map_zoom).
+var _zoom_in: Button
+var _zoom_out: Button
+var _zoom_fit: Button
 ## The fixed size of both pages of the map window.
 const MAP_PAGE_SIZE := Vector2(980, 450)
 ## The moon line at the top of the journal: its colour and the height kept
@@ -103,6 +110,7 @@ const SHORTCUTS := [
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
 	["Möbel aufstellen (Bauplan-Schild, „Einrichten“)", "Linksklick stellt ab, gedrückt ziehen verschiebt, R oder Rechtsklick dreht, Esc schließt"],
 	["Zoom", "+ und −, Mausrad"],
+	["Karte zoomen und verschieben", "Mausrad, + und −, oder die Knöpfe oben rechts auf der Karte; 0 zeigt die ganze Karte, Ziehen verschiebt sie"],
 	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
 ]
@@ -464,6 +472,9 @@ func _input(event: InputEvent) -> void:
 			_use_keys(false)
 		return
 	if not (event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion or event is InputEventAction):
+		return
+	if _map_zoom_key(event):
+		_box.get_viewport().set_input_as_handled()
 		return
 	if _focus_index() >= 0 or not FOCUS_KEYS.any(func(a): return event.is_action_pressed(a)):
 		return
@@ -5273,9 +5284,16 @@ func _build_map_page(journal: Journal) -> void:
 		view.hero_at = Vector2(p.x, p.z)
 		var f: Vector3 = game.player.facing()
 		view.hero_facing = Vector2(f.x, f.z)
+	var kept: Array = _map_zoom.get(_map_file, [])
+	if kept.size() == 2:
+		view.zoom = kept[0]
+		view.center = kept[1]
+	elif view.hero_at != Vector2.INF:
+		view.center = view.hero_at + Vector2(0.5, 0.5)
 	view.setup(journal, _map_file, game.TEXT_FONT)
 	columns.add_child(view)
 	view.resized.connect(view.queue_redraw)
+	_add_map_zoom(view)
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(280, 360)
@@ -5295,6 +5313,11 @@ func _build_map_page(journal: Journal) -> void:
 		_legend_line(legend, Journal.MARK_COLORS.secret, Lang.t("Geheimraum"))
 	if not view.lost_packs().is_empty():
 		_legend_line(legend, MapView.PACK_COLOR, Lang.t("Verlorener Rucksack"))
+	var own := view.own_house()
+	if not own.is_empty():
+		_legend_line(legend, MapView.HOUSE_COLOR, Lang.t("Dein Haus") if own.built else Lang.t("Dein Grundstück"))
+	if view.has_other_houses():
+		_legend_line(legend, MapView.OTHER_HOUSE_COLOR, Lang.t("Häuser anderer Helden"))
 	var finds := journal.map_finds_on(_map_file)
 	if not finds.is_empty():
 		_legend_title(legend, Lang.t("Funde"))
@@ -5318,6 +5341,83 @@ func _build_map_page(journal: Journal) -> void:
 	if journal.is_full(_map_file):
 		explored += " " + Lang.t("(vollständig)")
 	_add_label(explored, 16, BLUE)
+
+
+## The zoom buttons, in a column in the map's top right corner, over the map
+## so the window keeps its size: in, out, and the whole map. They and the
+## mouse wheel, a drag and the + - 0 keys (see _map_zoom_key) change only the
+## map, never the window.
+func _add_map_zoom(view: MapView) -> void:
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", UiKit.frame_style(Color(0.08, 0.06, 0.05, 0.82), UiKit.BRONZE, 2, 6))
+	frame.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	frame.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	frame.offset_left = -ZOOM_BUTTON.x - 8 - 12
+	frame.offset_right = -8
+	frame.offset_top = 8
+	frame.mouse_filter = Control.MOUSE_FILTER_STOP
+	view.add_child(frame)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	frame.add_child(column)
+	_zoom_in = _zoom_button("+", Lang.t("Näher heran (+, Mausrad)"), func(): view.zoom_at(1.0))
+	_zoom_out = _zoom_button("−", Lang.t("Weiter weg (−, Mausrad)"), func(): view.zoom_at(-1.0))
+	_zoom_fit = _zoom_button("", Lang.t("Ganze Karte zeigen (0)"), view.zoom_fit)
+	var icon := ItemIcon.make("kind:map", 30, true)
+	icon.set_anchors_preset(Control.PRESET_CENTER)
+	icon.offset_left = -15
+	icon.offset_top = -15
+	icon.offset_right = 15
+	icon.offset_bottom = 15
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_zoom_fit.add_child(icon)
+	for b in [_zoom_in, _zoom_out, _zoom_fit]:
+		column.add_child(b)
+	view.tooltip_text = Lang.t("Mausrad: zoomen. Ziehen: Karte verschieben.")
+	view.view_changed.connect(_map_zoom_changed.bind(view))
+	view.resized.connect(_map_zoom_changed.bind(view, false))
+	_map_zoom_changed(view, false)
+
+
+const ZOOM_BUTTON := Vector2(44, 44)
+
+
+func _zoom_button(text: String, tip: String, action: Callable) -> Button:
+	var b: Button = game._make_button(text, action)
+	b.custom_minimum_size = ZOOM_BUTTON
+	b.add_theme_font_size_override("font_size", UiKit.sized(24))
+	b.tooltip_text = tip
+	return b
+
+
+## Keeps the map's zoom for the next time it is shown, and the buttons in step.
+func _map_zoom_changed(view: MapView, keep := true) -> void:
+	if keep:
+		_map_zoom[view.file] = [view.zoom, view.view_center()]
+	if is_instance_valid(_zoom_in):
+		_zoom_in.disabled = not view.can_zoom_in()
+		_zoom_out.disabled = not view.can_zoom_out()
+		_zoom_fit.disabled = not view.can_zoom_out()
+
+
+## + and - zoom the open map round its middle, 0 shows it whole. True when
+## the key was used.
+func _map_zoom_key(event: InputEvent) -> bool:
+	if current != "karte" or map_page != "karte" or not (event is InputEventKey) or not event.pressed:
+		return false
+	var view: MapView = _box.find_child("MapView", true, false)
+	if view == null:
+		return false
+	match (event as InputEventKey).physical_keycode:
+		KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+			view.zoom_at(1.0)
+		KEY_MINUS, KEY_KP_SUBTRACT:
+			view.zoom_at(-1.0)
+		KEY_0, KEY_KP_0:
+			view.zoom_fit()
+		_:
+			return false
+	return true
 
 
 func _legend_title(box: VBoxContainer, text: String) -> void:

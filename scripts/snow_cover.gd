@@ -119,7 +119,9 @@ func _uncover() -> void:
 
 
 func _on_node_added(node: Node) -> void:
-	if _covered and root.is_ancestor_of(node):
+	# The tree reports every node of a subtree that comes in, so a mesh of a bare creature (the
+	# eagle's feathers) arrives on its own: look at what it hangs from too.
+	if _covered and root.is_ancestor_of(node) and not under_bare(node):
 		_add(node)
 		if node.is_in_group(SnowCaps.GROUP):
 			(node as Node3D).visible = true
@@ -222,6 +224,16 @@ static func _base_material(gi: GeometryInstance3D) -> BaseMaterial3D:
 	if mesh == null or mesh.get_surface_count() == 0:
 		return null
 	return mesh.surface_get_material(0) as BaseMaterial3D
+
+
+## Whether this node hangs below something that is left bare (see bare).
+func under_bare(node: Node) -> bool:
+	var up := node.get_parent()
+	while up != null and up != root:
+		if bare(up):
+			return true
+		up = up.get_parent()
+	return false
 
 
 ## Whether snow stays off this node: a creature, a puddle's water, a node marked "no_snow".

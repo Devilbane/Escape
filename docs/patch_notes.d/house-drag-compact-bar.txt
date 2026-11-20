@@ -1,0 +1,1 @@
+- Fixed drawing the cellar and walls: the rectangle now stays until you let go of the mouse (right click or Esc ends the tool), and the build bar is much smaller.

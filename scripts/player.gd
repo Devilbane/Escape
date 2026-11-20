@@ -373,6 +373,9 @@ var _climb := -1.0
 var _climb_from := Vector3.ZERO
 var _climb_to := Vector3.ZERO
 var _on_crate := false
+## Draws the model back from walls that the head or the gear would sink into (see WallClearance).
+var _clearance := WallClearance.new()
+var _clearance_pivot: Node3D
 
 
 func _ready() -> void:
@@ -388,7 +391,12 @@ func _ready() -> void:
 	add_child(shape)
 
 	_model = preload("res://assets/characters/Rogue.glb").instantiate()
-	add_child(_model)
+	# The model hangs on a pivot that WallClearance draws back from walls, so the figure's
+	# own moves (the leap of a vital strike) stay its own.
+	_clearance_pivot = Node3D.new()
+	_clearance_pivot.name = "WallClearance"
+	add_child(_clearance_pivot)
+	_clearance_pivot.add_child(_model)
 	for part in HIDDEN_PARTS:
 		var node := _model.find_child(part, true, false)
 		if node:
@@ -2983,6 +2991,14 @@ func _end_pit_climb(out: bool) -> void:
 	play("Idle", 0.15)
 
 
+## Whether the drawn hero is kept out of walls now: not while seated, lying, climbing
+## (that keeps clear on its own, see ClimbPose) or dead, which put the model where it belongs.
+func _keeps_clear_of_walls() -> bool:
+	if dead or _seated or _pit_climb or _climb >= 0.0 or _clearance_pivot == null:
+		return false
+	return not (_current_anim.begins_with("Lie_") or _current_anim.begins_with("Sit_") or _current_anim.begins_with("Death"))
+
+
 ## Lifts the hero onto the top of a crate or block set down under them: the
 ## same pull-up as a climb, to `target` (feet there).
 func lift_onto(target: Vector3) -> void:
@@ -3076,6 +3092,7 @@ func _flee_step() -> Vector3:
 func _physics_process(delta: float) -> void:
 	if frozen:
 		return
+	_clearance.tick(self, _clearance_pivot, _model, delta, _keeps_clear_of_walls())
 	_busy = maxf(0.0, _busy - delta)
 	_flourish = maxf(0.0, _flourish - delta)
 	_invulnerable = maxf(0.0, _invulnerable - delta)

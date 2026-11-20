@@ -1,0 +1,1 @@
+- The hero's head, hat, cape, belly and gear no longer poke through walls: the figure keeps clear of them.

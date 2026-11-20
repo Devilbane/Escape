@@ -25,9 +25,14 @@ const HEARTWOOD := Color(0.68, 0.48, 0.28)
 ## The windfalls out in the woods (see build_windfalls): longer, with older,
 ## mossier bark, at most WINDFALLS of them, at least WINDFALL_GAP tiles apart.
 const MOSSY_BARK := Color(0.33, 0.3, 0.19)
-const WINDFALL_LENGTH := 3.2
-const WINDFALLS := 10
-const WINDFALL_GAP := 10
+## A windfall is a whole tree: thicker, it takes WINDFALL_BLOWS swings and gives
+## WINDFALL_YIELD pieces.
+const WINDFALL_LENGTH := 3.6
+const WINDFALL_RADIUS := 0.45
+const WINDFALL_YIELD := 6
+const WINDFALL_BLOWS := 4
+const WINDFALLS := 16
+const WINDFALL_GAP := 7
 
 
 ## Builds the trunks and their sign for a woodcutter on `home` and adds them to `level`.
@@ -37,7 +42,7 @@ static func build(level: Outdoor, home: Vector2i) -> void:
 		var cell: Vector2i = home + offset
 		if level.cell_char(cell) != ".":
 			continue
-		_add_log(level, cell, BARK, LENGTH)
+		_add_log(level, cell, BARK, LENGTH, RADIUS, TIMBER_YIELD, 2)
 		if first == Vector3.INF:
 			first = level.cell_to_world(cell)
 	if first == Vector3.INF:
@@ -58,7 +63,7 @@ static func build(level: Outdoor, home: Vector2i) -> void:
 ## WINDFALL_GAP tiles to another, at most WINDFALLS of them.
 static func build_windfalls(level: Outdoor) -> void:
 	for cell in windfall_cells(level):
-		_add_log(level, cell, MOSSY_BARK, WINDFALL_LENGTH)
+		_add_log(level, cell, MOSSY_BARK, WINDFALL_LENGTH, WINDFALL_RADIUS, WINDFALL_YIELD, WINDFALL_BLOWS)
 
 
 ## The tiles the windfalls lie on (see build_windfalls), the same for every game.
@@ -74,12 +79,28 @@ static func windfall_cells(level: Outdoor) -> Array:
 				continue
 			if not [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN].any(func(d): return level.cell_char(c + d) == "T"):
 				continue
-			if level.near_village(c) or Plots.owner_at(c) != "":
+			if level.near_village(c) or Plots.owner_at(c) != "" or _in_open_grass(level, c):
 				continue
 			if (near + chosen).any(func(o: Vector2i): return maxi(absi(o.x - c.x), absi(o.y - c.y)) < WINDFALL_GAP):
 				continue
 			chosen.append(c)
 	return chosen
+
+
+## Whether tile `c` belongs to an open stretch of grass (a 3 x 3 block of bare
+## grass holds it), where someone may want to build: windfalls lie in the
+## thicket between trees instead, so building land stays free.
+static func _in_open_grass(level: Level, c: Vector2i) -> bool:
+	for oy in range(-2, 1):
+		for ox in range(-2, 1):
+			var open := true
+			for y in 3:
+				for x in 3:
+					if level.cell_char(c + Vector2i(ox + x, oy + y)) != ".":
+						open = false
+			if open:
+				return true
+	return false
 
 
 ## Whether a trunk to chop lies on tile `c` (a building plot must keep clear of it).
@@ -89,7 +110,8 @@ static func lies_on(level: Level, c: Vector2i) -> bool:
 
 ## One trunk on `cell`: the whole log with its sawn ends, and the stump and
 ## chips that stay when it has been chopped.
-static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length: float) -> void:
+## `radius` is the trunk's, `pieces` the timber it gives and `blows` the swings it takes.
+static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length: float, r := RADIUS, pieces := TIMBER_YIELD, blows := 2) -> void:
 	var bark := _paint(bark_colour, 1.0)
 	var sapwood := _paint(SAPWOOD, 0.9)
 	var heartwood := _paint(HEARTWOOD, 0.9)
@@ -107,18 +129,18 @@ static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length:
 	root.add_child(whole)
 	var trunk := MeshInstance3D.new()
 	var round_mesh := CylinderMesh.new()
-	round_mesh.top_radius = RADIUS
-	round_mesh.bottom_radius = RADIUS * 1.1
+	round_mesh.top_radius = r
+	round_mesh.bottom_radius = r * 1.1
 	round_mesh.height = length
 	round_mesh.radial_segments = 14
 	round_mesh.rings = 1
 	trunk.mesh = round_mesh
 	trunk.material_override = bark
-	trunk.position = Vector3(0, RADIUS, 0)
+	trunk.position = Vector3(0, r, 0)
 	trunk.rotation.z = PI * 0.5
 	whole.add_child(trunk)
 	for side in [-1.0, 1.0]:
-		var radius: float = RADIUS * (1.1 if side < 0.0 else 1.0)
+		var radius: float = r * (1.1 if side < 0.0 else 1.0)
 		for ring in [[radius * 0.94, sapwood, 0.012], [radius * 0.45, heartwood, 0.02]]:
 			var disc := MeshInstance3D.new()
 			var disc_mesh := CylinderMesh.new()
@@ -129,14 +151,14 @@ static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length:
 			disc_mesh.rings = 1
 			disc.mesh = disc_mesh
 			disc.material_override = ring[1]
-			disc.position = Vector3(-side * (length * 0.5 + ring[2]), RADIUS, 0)
+			disc.position = Vector3(-side * (length * 0.5 + ring[2]), r, 0)
 			disc.rotation.z = PI * 0.5
 			whole.add_child(disc)
 	# What stays when it is chopped: a short sawn stump and pale chips.
 	var stump := MeshInstance3D.new()
 	var stump_mesh := CylinderMesh.new()
-	stump_mesh.top_radius = RADIUS
-	stump_mesh.bottom_radius = RADIUS * 1.15
+	stump_mesh.top_radius = r
+	stump_mesh.bottom_radius = r * 1.15
 	stump_mesh.height = 0.25
 	stump_mesh.radial_segments = 14
 	stump.mesh = stump_mesh
@@ -145,8 +167,8 @@ static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length:
 	root.add_child(stump)
 	var cut := MeshInstance3D.new()
 	var cut_mesh := CylinderMesh.new()
-	cut_mesh.top_radius = RADIUS * 0.94
-	cut_mesh.bottom_radius = RADIUS * 0.94
+	cut_mesh.top_radius = r * 0.94
+	cut_mesh.bottom_radius = r * 0.94
 	cut_mesh.height = 0.02
 	cut_mesh.radial_segments = 14
 	cut.mesh = cut_mesh
@@ -162,8 +184,8 @@ static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length:
 		chip.position = Vector3(rng.randf_range(-1.2, 1.2), 0.0125, rng.randf_range(-0.9, 0.9))
 		chip.rotation.y = rng.randf() * TAU
 		root.add_child(chip)
-	level._add_solid(pos, Vector3(length, 0.6, 1.0))
-	level.stations.append({"kind": KIND, "cell": cell, "pos": pos, "used": false, "spent": false, "root": root, "trunk": whole})
+	level._add_solid(pos, Vector3(length, 0.6 + r, 1.0 + r))
+	level.stations.append({"kind": KIND, "cell": cell, "pos": pos, "used": false, "spent": false, "root": root, "trunk": whole, "yield": pieces, "blows": blows})
 
 
 static func _paint(colour: Color, roughness: float) -> StandardMaterial3D:

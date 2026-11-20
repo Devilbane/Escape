@@ -1,0 +1,1 @@
+- Companions no longer stay sunk in the ground when the cellar stairs they stand on are taken away.

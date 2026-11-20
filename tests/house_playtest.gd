@@ -551,9 +551,13 @@ func _run() -> void:
 	game.player.global_position = plan.cell_world(3, 3) + Vector3(0, -HouseSketch.DEPTH + 0.1, 0)
 	game.player.reset_physics_interpolation()
 	var lowest := 0.0
+	var first_low := -1
 	for i in 240:
 		await process_frame
 		if is_instance_valid(pet):
+			if pet.global_position.y < lowest - 0.3 and first_low < 0:
+				first_low = i
+				print("  (pet below the rim at frame ", i, ": y ", pet.global_position.y, " state ", pet.state, " cut off ", pet.is_cut_off(), " gap ", Vector2(pet.global_position.x - game.player.global_position.x, pet.global_position.z - game.player.global_position.z).length(), ")")
 			lowest = minf(lowest, pet.global_position.y)
 	check(is_instance_valid(pet) and pet.is_cut_off(), "the fox knows it cannot follow into the pit")
 	check(lowest > -0.3, "it never jumps down into the pit (lowest y %.2f)" % lowest)

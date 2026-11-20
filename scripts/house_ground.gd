@@ -21,8 +21,14 @@ static func _stands(piece: Dictionary) -> bool:
 	return piece.get("state", "") != HouseSketch.SKETCH
 
 
-## The cells of `house` (in its own grid) that lie inside it.
-static func inside_cells(house: HouseSketch) -> Dictionary:
+## What keeps the sky off the cells under it (see shelter): a slab or a roof on any storey. A floor
+## alone (a cellar ceiling, a terrace) does not: rain and snow fall on it.
+const ROOFING := [HouseSketch.SLAB, HouseSketch.SADDLE]
+
+
+## The cells of `house` (in its own grid) that lie inside it: covered by one of `covering`, or closed
+## in by the house's walls.
+static func inside_cells(house: HouseSketch, covering: Array = COVERING) -> Dictionary:
 	var out := {}
 	var walls := {}
 	for key in house.pieces:
@@ -30,7 +36,7 @@ static func inside_cells(house: HouseSketch) -> Dictionary:
 		if not _stands(piece):
 			continue
 		var p := HouseSketch.parts_of(key)
-		if piece.kind in COVERING:
+		if piece.kind in covering:
 			if piece.kind == HouseSketch.UPSTAIRS:
 				for c: Vector2i in HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2):
 					out[c] = true
@@ -91,21 +97,32 @@ static func cell_at(pos: Vector3) -> Vector2i:
 	return Vector2i(floori((pos.x + Level.TILE * 0.5) / HouseSketch.CELL), floori((pos.z + Level.TILE * 0.5) / HouseSketch.CELL))
 
 
-## Where `house` keeps the weather out (no rain, snow, fog or storm dark inside, see
-## Game._shelter): its inside cells (see inside_cells) as map cells (see cell_at), each with the
-## height of the top of the house (metres). Standing on the roof is outside again.
+## Where `house` keeps the weather out (no rain, falling or settled snow, fog or storm dark inside,
+## see Game._shelter and SnowCover.set_shelter): the cells under its roofs and slabs and those closed
+## in by its walls (see inside_cells), as map cells (see cell_at), each with the height of the top of
+## the house (metres). Standing on the roof is outside again.
 static func shelter(house: HouseSketch) -> Dictionary:
 	var out := {}
-	var cells := inside_cells(house)
+	var cells := inside_cells(house, ROOFING)
 	if cells.is_empty():
 		return out
-	var top := 0
+	# Each cell is sheltered up to the roof over it (the highest slab or roof on it); a cell closed in
+	# only by walls, up to the top of the walls.
+	var walls_top := 0
+	var roof_top := {}
 	for key in house.pieces:
-		if _stands(house.pieces[key]):
-			top = maxi(top, int(HouseSketch.parts_of(key)[0]))
-	var height := (top + 1) * HouseSketch.STOREY_HEIGHT - 0.4
+		var piece: Dictionary = house.pieces[key]
+		if not _stands(piece):
+			continue
+		var p := HouseSketch.parts_of(key)
+		if piece.kind in ROOFING:
+			var c := Vector2i(p[1], p[2])
+			roof_top[c] = maxi(int(roof_top.get(c, 0)), int(p[0]))
+		elif piece.kind in HouseSketch.HOUSE_WALLS:
+			walls_top = maxi(walls_top, int(p[0]))
 	for c: Vector2i in cells:
-		out[cell_at(house.node_world(c.x, c.y) + Vector3(HouseSketch.CELL * 0.5, 0, HouseSketch.CELL * 0.5))] = height
+		var top := int(roof_top.get(c, walls_top))
+		out[cell_at(house.node_world(c.x, c.y) + Vector3(HouseSketch.CELL * 0.5, 0, HouseSketch.CELL * 0.5))] = (top + 1) * HouseSketch.STOREY_HEIGHT - 0.4
 	return out
 
 

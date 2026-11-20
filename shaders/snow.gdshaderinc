@@ -16,6 +16,27 @@ uniform float moon_glow : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 warm[32];
 uniform int warm_count = 0;
 
+// Inside the self-built houses no snow settles (see SnowCover.set_shelter): R of the mask is the
+// height of a house's top over each 2 m cell, in eighths of SHELTER_SCALE metres, 0 where no house
+// keeps the snow off. The mask starts `shelter_shift` metres before the world's origin.
+uniform sampler2D shelter_mask : filter_nearest, repeat_disable, hint_default_black;
+uniform bool shelter_on = false;
+uniform vec2 shelter_size = vec2(1.0);
+uniform float shelter_shift = 2.0;
+const float SHELTER_SCALE = 16.0;
+
+// Whether world spot `p` lies inside a built house, under its top.
+bool snow_sheltered(vec3 p) {
+	if (!shelter_on) {
+		return false;
+	}
+	vec2 uv = (p.xz + vec2(shelter_shift)) / shelter_size;
+	if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
+		return false;
+	}
+	return p.y < texture(shelter_mask, uv).r * SHELTER_SCALE;
+}
+
 float snow_hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }

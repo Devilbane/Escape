@@ -924,10 +924,10 @@ func _solid_cellar(house: HouseSketch, holes: Array) -> void:
 		var middle := house.cell_world(c.x, c.y)
 		var is_dig: bool = piece.kind == HouseSketch.DIG
 		if is_dig:
-			var floor_mat := _solid_material(DEMOLISH_COLOR if demolish else _surface_color(piece.get("floor", "")))
+			var floor_mat := _surface_material(piece.get("floor", ""), demolish)
 			_visual_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), floor_mat)
 			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
-		var wall_mat := _solid_material(DEMOLISH_COLOR if demolish else _surface_color(piece.get("wall", "") if is_dig else ""))
+		var wall_mat := _surface_material(piece.get("wall", "") if is_dig else "", demolish)
 		for dir in HouseSketch.DOWN:
 			var step: Vector2i = HouseSketch.DOWN[dir]
 			if open.has(c + step):
@@ -1096,6 +1096,16 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 		shape.shape = bs
 		shape.transform = at
 		_body.add_child(shape)
+
+
+## The material of a cellar floor or wall: bare earth looks like real dug soil
+## (see BareEarth), stone and wood keep their colour.
+func _surface_material(surface: String, demolish: bool) -> StandardMaterial3D:
+	if demolish:
+		return _solid_material(DEMOLISH_COLOR)
+	if surface == "":
+		return BareEarth.material()
+	return _solid_material(_surface_color(surface))
 
 
 func _surface_color(surface: String) -> Color:

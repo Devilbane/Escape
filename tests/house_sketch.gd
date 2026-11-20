@@ -107,7 +107,7 @@ func _garden() -> void:
 	check(g.sketch([[0, 0, "x"], [1, 0, "x"], [2, 0, "x"]], g.fence_kind()) == 3, "a stone garden wall is sketched")
 	g.fence_material = "wood"
 	check(g.sketch([[0, 0, "y"]], g.fence_kind()) == 1 and g.count("wood_fence") == 1, "and a wooden one")
-	check(g.problem(4, 4, "x", "stone_fence", 1) == "garden storey", "no garden wall on the upper floor")
+	check(g.problem(4, 4, "x", "stone_fence", 1) == "no roof", "no garden wall on the upper floor away from a flat roof (see tests/house_railing.gd)")
 	check(g.door_kind(1, 0, "x") == "gate" and g.door_kind(3, 3, "x") == "door", "a door on a garden wall is a gate")
 	check(g.problem(1, 0, "x", "door") == "needs wall", "no house door in a garden wall")
 	check(g.problem(1, 0, "x", "window") == "needs wall", "no window in a garden wall")

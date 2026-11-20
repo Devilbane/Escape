@@ -21,6 +21,10 @@ extends Node3D
 ## flat roof (see HouseSketch.RAIL_STOREY): drag it along the roof's edge, or
 ## click the roof once to ring all its open edges; the stairs keep their gap.
 ##
+## A ballista (see HouseBallista) is set on one cell with a click: on the flat
+## roof where one is planned, else on the ground. Built, it shoots at the slimes
+## that come near; while the tool is open a circle shows how far it reaches.
+##
 ## The tool bar sits at the bottom of the screen with fixed sizes, so a tool or
 ## a stage never reshapes it.
 
@@ -39,7 +43,8 @@ const TOOL_STAIRS := "stairs"
 ## The cellar ceiling, which is the ground floor's floor too (see HouseSketch.COVER).
 const TOOL_COVER := "cover"
 const TOOL_FENCE := "fence"
-const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_ERASE]
+const TOOL_BALLISTA := "ballista"
+const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_BALLISTA, TOOL_ERASE]
 ## Tools that drag a straight run of edges.
 const RUN_TOOLS := [TOOL_WALL, TOOL_FENCE]
 ## The cellar's tools (their own row in the tool bar).
@@ -94,6 +99,7 @@ const BUILD_RANGE := 16.0
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
 const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
+const BALLISTA_COLOR := Color(1.0, 0.6, 0.3, 0.6)
 
 var game: Node
 var active := false
@@ -138,6 +144,8 @@ var _hover_key := ""
 var _refresh_in := 0.0
 var _frame_shift := Vector3.ZERO
 var _frame_pending := false
+## The built ballistae of every house on the map (see HouseBallista).
+var _guns := Node3D.new()
 
 
 func _ready() -> void:
@@ -145,6 +153,7 @@ func _ready() -> void:
 	add_child(_solid)
 	add_child(_body)
 	add_child(_ghost)
+	add_child(_guns)
 	_grid.visible = false
 	add_child(_grid)
 	_build_bar()
@@ -281,6 +290,7 @@ func enter() -> void:
 		game.plot_marker.cancel()
 	_grid.visible = true
 	_bar.visible = true
+	_show_ranges(true)
 	_draw_grid()
 	select_tool(TOOL_WALL)
 	game.show_message(Lang.t("Bauplan: Ziehe Wände auf dem Raster. Das Haus darf kleiner sein als das Grundstück."), 4.0)
@@ -374,6 +384,7 @@ func leave() -> void:
 	drag_from = Vector2i(-1, -1)
 	_grid.visible = false
 	_bar.visible = false
+	_show_ranges(false)
 	_clear(_ghost)
 	if plan != null:
 		plan.save(game.hero_name)
@@ -417,6 +428,18 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		return
 	if tool in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW] and storey < 0:
 		_say(Lang.t("Im Keller graben und verkleiden die Keller-Werkzeuge: Stelle die Ebene um."))
+		return
+	if tool == TOOL_BALLISTA:
+		if pressed:
+			var c := plan.cell_at(point)
+			var up := plan.ballista_storey(c.x, c.y)
+			var why := plan.problem_ballista(c.x, c.y, up)
+			if why != "":
+				_say(reason(why))
+			else:
+				plan.sketch_ballista(c.x, c.y, up)
+				_changed()
+				_say(Lang.t("Balliste vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
 	if tool in RECT_TOOLS:
 		if pressed:
@@ -513,6 +536,8 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		var why_not := plan.erase_cell(c.x, c.y) if storey < 0 else plan.erase_above(c.x, c.y, storey)
 		if why_not == "needed":
 			_say(Lang.t("Die Treppe führt hierher: Nimm zuerst die Treppe zurück."))
+		elif why_not == "ballista":
+			_say(reason("ballista"))
 		elif why_not == "" and was_built:
 			_say(Lang.t("Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück."))
 		_changed()
@@ -539,6 +564,21 @@ func hover(point: Vector3) -> void:
 	if not active or plan == null:
 		return
 	var key := ""
+	if tool == TOOL_BALLISTA:
+		var c := plan.cell_at(point)
+		key = "b:%s" % c
+		if key == _hover_key:
+			return
+		_hover_key = key
+		_clear(_ghost)
+		var up := plan.ballista_storey(c.x, c.y)
+		var why := plan.problem_ballista(c.x, c.y, up)
+		var high := up * HouseSketch.STOREY_HEIGHT
+		_cell_quad(_ghost, c, OK_COLOR if why == "" else BAD_COLOR, high)
+		if why == "":
+			_range_ring(_ghost, plan.cell_world(c.x, c.y) + Vector3(0, high, 0))
+		_say(reason(why) if why != "" else Lang.t("Balliste: Sie schießt auf Schleime bis %d m weit (der Kreis).") % int(HouseBallista.RANGE))
+		return
 	if tool in RECT_TOOLS or tool == TOOL_STAIRS or tool == TOOL_UP:
 		var c := plan.cell_at(point)
 		var from_cell := drag_from if drag_from.x >= 0 and tool in RECT_TOOLS else c
@@ -634,6 +674,8 @@ func _eraser_key(c: Vector2i) -> String:
 		if plan.pieces.has(cover) and plan.pieces[cover].state != HouseSketch.DEMOLISH:
 			return cover
 		return plan.hole_key(c.x, c.y)
+	if not plan.ballista_at(c.x, c.y, storey).is_empty():
+		return HouseSketch.key_of(c.x, c.y, HouseSketch.BALLISTA_ORIENT, storey)
 	if plan.roof_key(c.x, c.y, storey) != "":
 		return plan.roof_key(c.x, c.y, storey)
 	if storey == 0 and plan.up_key(c.x, c.y) != "":
@@ -675,6 +717,14 @@ static func reason(why: String) -> String:
 			return Lang.t("Über dem Fuß der Treppe liegt die Kellerdecke: Nimm sie dort erst zurück.")
 		"storey":
 			return Lang.t("Höher als das Obergeschoss baut dein Held nicht.")
+		"under roof":
+			return Lang.t("Eine Balliste braucht freien Himmel: Stell sie in den Garten oder auf ein Flachdach.")
+		"ballista no roof":
+			return Lang.t("Auf dem Obergeschoss steht eine Balliste auf einem Flachdach.")
+		"many":
+			return Lang.t("Mehr als %d Ballisten passen nicht auf ein Grundstück.") % HouseSketch.MAX_BALLISTAE
+		"ballista":
+			return Lang.t("Auf dem Dach steht eine Balliste: Nimm sie zuerst zurück (Ebene: Obergeschoss).")
 	return ""
 
 
@@ -719,10 +769,10 @@ func _build_bar() -> void:
 	_bar.add_child(box)
 	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
 	var tools := _row(box)
-	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_ERASE: "Radierer"}
+	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_BALLISTA: "Balliste", TOOL_ERASE: "Radierer"}
 	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
 	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe", TOOL_COVER: "Kellerdecke"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_ERASE]:
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
@@ -776,10 +826,12 @@ func _build_bar() -> void:
 		add_child(_bar)
 
 
+## A row of the bar. Its buttons stand 4 px apart (the house spacing scale), so
+## the tool row with every tool still fits 1280 px in German.
 func _row(parent: Control) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 5)
+	row.add_theme_constant_override("separation", 4)
 	parent.add_child(row)
 	return row
 
@@ -946,6 +998,8 @@ func _hint() -> String:
 			return Lang.t("Satteldach: Ziehe ein Rechteck. Der First läuft entlang der langen Seite.")
 		TOOL_UP:
 			return Lang.t("Treppe nach oben: Klicke ein Feld vor einer Decke an. Sie führt vier Meter hinauf.")
+		TOOL_BALLISTA:
+			return Lang.t("Balliste: Klicke ein Feld im Garten oder auf einem Flachdach an. Sie kostet 6 Bauholz und 2 Steinblöcke.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
 
 
@@ -981,6 +1035,9 @@ func _clear(node: Node3D) -> void:
 func _redraw() -> void:
 	_clear(_built)
 	_clear(_solid)
+	for gun in _guns.get_children():
+		_guns.remove_child(gun)
+		gun.queue_free()
 	for child in _body.get_children():
 		child.queue_free()
 	if game == null or not game.level is Outdoor:
@@ -1004,6 +1061,7 @@ func _redraw() -> void:
 				_lift = 0.0
 		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
+		_solid_ballistae(house)
 	game.level.set_floor_holes(holes, ceilinged)
 	game.level.house_floors = HouseFloors.new(floored) if not floored.is_empty() else null
 	_raise_roofs()
@@ -1023,10 +1081,58 @@ func _redraw() -> void:
 					_cell_quad(_built, c, STAIRS_COLOR)
 			elif kind == HouseSketch.SLAB or kind == HouseSketch.SADDLE:
 				_cell_quad(_built, Vector2i(p[1], p[2]), SLAB_COLOR if kind == HouseSketch.SLAB else ROOF_COLOR, up)
+			elif kind == HouseSketch.BALLISTA:
+				var foot := plan.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
+				_cell_quad(_built, Vector2i(p[1], p[2]), BALLISTA_COLOR, p[0] * HouseSketch.STOREY_HEIGHT)
+				_box(_built, foot + Vector3(0, 0.7, 0), Vector3(0.5, 1.4, 0.5), _material(BALLISTA_COLOR))
+				_box(_built, foot + Vector3(0, 1.25, 0), Vector3(2.2, 0.15, 0.3), _material(BALLISTA_COLOR))
 			else:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_segment(_built, [p[1], p[2], p[3]], kind, Color(0, 0, 0, 0))
 				_lift = 0.0
+
+
+## The built ballistae of a house: they stand and shoot (see HouseBallista), and
+## their post stops the hero.
+func _solid_ballistae(house: HouseSketch) -> void:
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.kind != HouseSketch.BALLISTA or piece.state == HouseSketch.SKETCH:
+			continue
+		var p := HouseSketch.parts_of(key)
+		var foot := house.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
+		var gun := HouseBallista.new()
+		gun.level = game.level
+		gun.demolish = piece.state == HouseSketch.DEMOLISH
+		gun.position = foot
+		_guns.add_child(gun)
+		gun.show_range(active)
+		_collide(foot + Vector3(0, 0.5, 0), Vector3(1.0, 1.0, 1.0))
+
+
+## The built ballistae on the map, for the tests and the game.
+func ballistae() -> Array:
+	return _guns.get_children()
+
+
+func _show_ranges(on: bool) -> void:
+	for gun: HouseBallista in _guns.get_children():
+		gun.show_range(on)
+
+
+## A faint circle of a ballista's reach round `at`.
+func _range_ring(parent: Node3D, at: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HouseBallista.RANGE - 0.15
+	torus.outer_radius = HouseBallista.RANGE + 0.15
+	torus.rings = 96
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.05, 1)
+	ring.material_override = _material(HouseBallista.RING_COLOR)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = at + Vector3(0, 0.08, 0)
+	parent.add_child(ring)
 
 
 ## Whether a house has a built cellar, floor slab or stairs: somewhere a
@@ -1220,6 +1326,8 @@ func _update_fade() -> void:
 	for node in _solid.get_children():
 		if node.has_meta("ymin"):
 			node.visible = not (inside and float(node.get_meta("ymin")) >= limit)
+	for gun: Node3D in _guns.get_children():
+		gun.visible = not (inside and gun.position.y >= limit)
 
 
 ## The ramp of a stairs piece: from the ground at the top of its first cell

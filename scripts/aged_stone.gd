@@ -259,7 +259,8 @@ static func house_material(tint: Color) -> ShaderMaterial:
 		mat.set_shader_parameter("tint", tint)
 		mat.set_shader_parameter("trim", load(TRIM))
 		mat.set_shader_parameter("soft_joints", 1.0)
-		StoneLook.apply(mat)
+		# The villagers' houses keep the trim sheet's even blocks and their hard
+		# edges; the natural stonework (StoneLook) is for the other buildings.
 		_mats[key] = mat
 	return _mats[key]
 

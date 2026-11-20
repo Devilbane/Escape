@@ -1,6 +1,7 @@
 class_name StoneLook
-## The natural stonework of every stone wall (shaders/masonry.gdshaderinc): the
-## village's buildings (AgedStone), the hero's houses, garden and cellar walls
+## The natural stonework of the stone walls (shaders/masonry.gdshaderinc): the
+## village's stone buildings (AgedStone; the villagers' own houses keep the trim
+## sheet's blocks), the hero's houses, garden and cellar walls
 ## (HouseLooks) and the dungeon walls (Level). Stones of differing size are laid
 ## in courses of differing height, with rounded corners, and the hard outer edges
 ## of a building are rounded off.
@@ -20,6 +21,8 @@ const STYLES := {
 	"rustic": {"masonry": 1.0, "course": 0.26, "irregular": 0.7, "edge": 0.22},
 }
 const STYLE := "dressed"
+## The looks the dungeon levels choose among (see for_map).
+const DUNGEON_LOOKS := ["old", "dressed", "rustic"]
 
 ## The widest an edge is ever rounded (metres): how far edge_data looks for edges.
 const REACH := 0.35
@@ -42,13 +45,23 @@ static func settings() -> Dictionary:
 	return STYLES[style]
 
 
-## Sets the stonework's shader parameters on a material made with masonry.
-static func apply(mat: ShaderMaterial) -> void:
-	var s := settings()
+## Sets the stonework's shader parameters on a material made with masonry, in the
+## look in use or in the look named by `look`.
+static func apply(mat: ShaderMaterial, look := "") -> void:
+	var s: Dictionary = STYLES[look] if STYLES.has(look) else settings()
 	mat.set_shader_parameter("masonry", s["masonry"])
 	mat.set_shader_parameter("course", s["course"])
 	mat.set_shader_parameter("irregular", s["irregular"])
 	mat.set_shader_parameter("edge_round", s["edge"])
+
+
+## The look of a dungeon map's walls: each map one of DUNGEON_LOOKS, picked by its
+## file name, so the levels vary and a level always looks the same. STONE_STYLE
+## (screenshots) overrides it.
+static func for_map(file: String) -> String:
+	if STYLES.has(OS.get_environment("STONE_STYLE")):
+		return OS.get_environment("STONE_STYLE")
+	return DUNGEON_LOOKS[posmod(hash(file), DUNGEON_LOOKS.size())]
 
 
 ## The format flag for CUSTOM0 holding four floats.

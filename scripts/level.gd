@@ -1066,9 +1066,10 @@ func _kit_material(set_name: String) -> Material:
 		stone.shader = STONE_SHADER
 		stone.set_shader_parameter("albedo_tex", load(KIT_DIR + "walls_albedo.png"))
 		stone.set_shader_parameter("normal_tex", load(KIT_DIR + "walls_normal.png"))
-		# Laid in natural stonework like the village's walls (see StoneLook); the
-		# kit's tile pieces meet edge to edge, so their edges stay sharp.
-		StoneLook.apply(stone)
+		# Each dungeon level is laid in its own one of StoneLook's looks (the kit's
+		# old bricks, dressed or rustic stone), picked by its map; the kit's tile
+		# pieces meet edge to edge, so their edges stay sharp.
+		StoneLook.apply(stone, StoneLook.for_map(file))
 		stone.set_shader_parameter("edge_round", 0.0)
 		_scenes[key] = stone
 	if not _scenes.has(key) and set_name in WORN_SETS:

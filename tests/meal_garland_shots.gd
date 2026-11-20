@@ -1,7 +1,7 @@
 extends SceneTree
 ## Screenshots of the frame round the dining tables (see MealGarland): the
 ## ivy-covered poles and ropes with their lamps at noon, at dusk and at night,
-## wide and close up, in autumn, and in the game's own view at night.
+## wide and close up, and in the game's own view at night and by day.
 ## Run with: SHOTS=<folder> godot -s tests/meal_garland_shots.gd (needs a display); without SHOTS it only builds the village.
 
 var game: Node
@@ -79,18 +79,7 @@ func _run() -> void:
 	await _wait(40)
 	if shots != "":
 		root.get_texture().get_image().save_png(shots.path_join("garland_game_day.png"))
-	# Autumn: the ivy on the poles and ropes turns with the village's.
-	game.camera.current = false
-	IvySeasons.apply(lvl.ivy, _autumn_day())
-	await _wait(10)
-	await _shoot("garland_autumn", middle, Vector3(-4, 13, 21), Vector3(0, 1.5, 0))
 	game.delete_save(game.save_path())
 	print("PASS: meal garland shots")
 	quit(0)
 
-
-func _autumn_day() -> int:
-	for d in 400:
-		if IvySeasons.stage(d) == IvySeasons.TURN_DAYS:
-			return d
-	return 0

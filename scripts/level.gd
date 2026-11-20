@@ -6122,8 +6122,13 @@ func refresh_vaults() -> void:
 
 ## True when nothing blocks the view between two points on the grid.
 ## A closed door blocks it too, even for someone standing in its doorway.
+## The walls, shut doors, floors and roofs of built houses hide what is inside;
+## their windows and open doorways do not (see built_between).
 func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 	if door_between(a, b) or tall_stone_between(a, b):
+		return false
+	var eye := Vector3(0, EYE_HEIGHT, 0)
+	if built_between(a + eye, b + eye):
 		return false
 	var from := Vector2(a.x, a.z) / TILE
 	var to := Vector2(b.x, b.z) / TILE
@@ -6185,6 +6190,60 @@ func can_reach(a: Vector3, b: Vector3) -> bool:
 	return true
 
 
+## The window panes of the built houses (see HouseSketcher), in the shape of
+## reach_walls: one sees through them, but no blow, shot or spell goes through
+## the glass. Kept apart from reach_walls because a hand reaches through them.
+var built_windows: Array = []
+## The floors and roofs of the built houses (see HouseSketcher): {"rect": Rect2
+## in world x/z, "y": the height of the boards}. A cellar ceiling, an upper
+## floor's slab and a roof all hide what is under them from what is above.
+var built_floors: Array = []
+## How high above the feet one looks from (see has_line_of_sight) and where a
+## blow lands (see blow_blocked), for the walls and floors of built houses.
+const EYE_HEIGHT := 1.5
+const BLOW_HEIGHT := 1.0
+
+
+## Whether a built house's wall, shut door, floor or roof (and, with `glass`,
+## a window pane) cuts the straight line from `a` to `b`, both taken at their
+## own height. A wall only counts on its own storey: the line must cross it
+## between its foot and its top. Open doorways, garden walls and railings let
+## everything through. Off the open-air map nothing is built, so this is false.
+func built_between(a: Vector3, b: Vector3, glass := false) -> bool:
+	if reach_walls.is_empty() and built_floors.is_empty():
+		return false
+	var from := Vector2(a.x, a.z)
+	var to := Vector2(b.x, b.z)
+	var span := from.distance_to(to)
+	for list in ([reach_walls, built_windows] if glass else [reach_walls]):
+		for w in list:
+			var door = w.get("door")
+			if door != null and (not is_instance_valid(door) or door.is_open()):
+				continue
+			var hit = Geometry2D.segment_intersects_segment(from, to, w.a, w.b)
+			if hit == null:
+				continue
+			var y := a.y if span < 0.001 else lerpf(a.y, b.y, from.distance_to(hit) / span)
+			if y >= float(w.y) - 0.3 and y <= float(w.y) + HouseSketcher.WALL_HEIGHT:
+				return true
+	for f in built_floors:
+		var fy: float = f.y
+		if (a.y - fy) * (b.y - fy) >= 0.0:
+			continue # Both above the boards, or both below them.
+		if (f.rect as Rect2).has_point(from.lerp(to, (a.y - fy) / (a.y - b.y))):
+			return true
+	return false
+
+
+## Whether a monster's blow from `a` cannot land on someone at `b` (both feet):
+## a closed door, or a built house's wall, window, shut door or floor between
+## them. Inside their house with the door shut, the hero is out of reach; in
+## an open doorway they can be struck.
+func blow_blocked(a: Vector3, b: Vector3) -> bool:
+	var up := Vector3(0, BLOW_HEIGHT, 0)
+	return door_between(a, b) or built_between(a + up, b + up, true)
+
+
 ## Whether a map tile is a wall from floor to ceiling: rock or a closed door
 ## in a dungeon, the forest or a building's block on the open-air map.
 func _blocks_reach(c: Vector2i) -> bool:
@@ -6231,7 +6290,8 @@ func shot_blocked(a: Vector3, b: Vector3) -> bool:
 	for foot in shot_blockers:
 		if segment_hits_rect(from, to, foot):
 			return true
-	return tall_stone_between(a, b)
+	# A built house's walls, panes, shut doors and floors stop shots and spells.
+	return tall_stone_between(a, b) or built_between(a, b, true)
 
 
 ## Whether a stack of the hero's blocks three layers high (StoneBlock.SHOT_STOP_LAYERS) or more

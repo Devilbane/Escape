@@ -6573,6 +6573,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		Sfx.play(self, "swing", -6.0)
 		return
 	var station := level.station_at(point)
+	if not station.is_empty() and not level.can_reach(player.global_position, station.pos):
+		station = {} # Run into a wall with it on the other side.
 	if station.get("kind", "") == Seats.KIND and (player.is_seated() or player.still_getting_up()):
 		return
 	if not station.is_empty():
@@ -6581,7 +6583,7 @@ func _on_player_bumped(point: Vector3) -> void:
 		_use_station(station)
 		return
 	var obj := level.unsearched_at(point)
-	if not obj.is_empty():
+	if not obj.is_empty() and level.can_reach(player.global_position, obj.pos):
 		_search(obj)
 
 
@@ -7420,7 +7422,7 @@ func _process(delta: float) -> void:
 		pack_camp()
 	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
 		player.path.clear()
-		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3:
+		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3 and _within_reach(_pending_station.pos):
 			_use_station(_pending_station)
 		_pending_station = {}
 	if _pending_crate != null and player.can_act():
@@ -7429,22 +7431,23 @@ func _process(delta: float) -> void:
 		elif _arrived(_pending_crate.global_position) or _reach(_pending_crate.global_position) <= Level.CRATE_REACH:
 			var crate_pos := _pending_crate.global_position
 			_pending_crate = null
-			if _reach(crate_pos) <= Level.CRATE_REACH:
+			if _reach(crate_pos) <= Level.CRATE_REACH and _within_reach(crate_pos):
 				var why := pick_up_crate(crate_pos)
 				if why != "":
 					show_message(why, 1.6)
 	if not _pending_search.is_empty() and player.can_act() and _arrived(_pending_search.pos):
 		player.path.clear()
-		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3:
+		if _reach(_pending_search.pos) <= Level.SEARCH_RANGE + 0.3 and _within_reach(_pending_search.pos):
 			_search(_pending_search)
 		_pending_search = {}
 	var near := level.nearest_interactable(player.global_position)
 	_hints_now.clear()
 	var station := level.nearest_station(player.global_position)
-	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein")
+	var at_station: bool = not station.is_empty() and (level_index < 2 or station.kind != "schrein") \
+			and level.can_reach(player.global_position, station.pos)
 	# Only the first levels explain how to search; after that players know.
 	_prompt.text = ""
-	if not at_station and level_index < 2 and not near.is_empty() and not near.searched:
+	if not at_station and level_index < 2 and not near.is_empty() and not near.searched and level.can_reach(player.global_position, near.pos):
 		_prompt.text = _hint("search", Lang.t("Dagegenlaufen, um %s zu untersuchen") % Lang.t(_with_article(near.label)))
 	if player.is_seated():
 		# Sitting: how to get up again, not how to sit down.
@@ -7571,6 +7574,15 @@ func _count_hints() -> void:
 
 func _reach(pos: Vector3) -> float:
 	return Vector2(player.global_position.x - pos.x, player.global_position.z - pos.z).length()
+
+
+## Whether the hero can put a hand on a clicked thing they walked up to: no wall
+## solid from floor to ceiling between them (see Level.can_reach). Says why not.
+func _within_reach(pos: Vector3) -> bool:
+	if level.can_reach(player.global_position, pos):
+		return true
+	show_message(Lang.t("Eine Wand ist im Weg."), 1.6)
+	return false
 
 
 ## The hero has walked up to a clicked thing: at the end of the path, or close

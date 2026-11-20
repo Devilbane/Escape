@@ -1127,6 +1127,7 @@ func _redraw() -> void:
 		child.queue_free()
 	if game == null or not game.level is Outdoor:
 		return
+	game.level.reach_walls.clear()
 	# Everyone's built pieces stand on the map for all to see.
 	var holes := []
 	var floored := []
@@ -1549,6 +1550,11 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
 		_:
 			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+	if kind == HouseSketch.WALL or kind == HouseSketch.DOOR:
+		# Nothing is picked up or used through it (see Level.can_reach); a window is reached through.
+		var b := a + (mid - a) * 2.0
+		game.level.reach_walls.append({"a": Vector2(a.x, a.z), "b": Vector2(b.x, b.z), "y": a.y + _lift,
+				"door": _new_door if kind == HouseSketch.DOOR else null})
 
 
 ## A doorway in a house wall: stone jambs of the temple's blocks from the

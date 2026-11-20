@@ -686,8 +686,11 @@ const HOLE_CELL := 2.0
 func set_floor_holes(holes: Array) -> void:
 	if _floor_slabs.get_parent() == null:
 		_walls_body.add_child(_floor_slabs)
+	# Taken out of the body at once and freed at the end of the frame, never freed right away:
+	# the redraw can come while the physics step still holds contacts with these shapes.
 	for child in _floor_slabs.get_children():
-		child.free()
+		_floor_slabs.remove_child(child)
+		child.queue_free()
 	var plane := _floor_shape.shape as WorldBoundaryShape3D
 	# The picture: a mask with a pixel for each 2 m cell of the map.
 	var mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
@@ -4241,10 +4244,11 @@ func _spawn_weather_foe(s: Dictionary) -> void:
 	add_child(mist)
 	var purse: Array = Enemy.KINDS[s.kind].get("purse", [0, 2])
 	e.died.connect(func():
-		enemy_killed.emit(e)
-		drop_kill_loot(e, randi_range(purse[0], purse[1]))
 		s.enemy = null
-		s.timer = WEATHER_RESPAWN)
+		s.timer = WEATHER_RESPAWN
+		if is_instance_valid(e):
+			enemy_killed.emit(e)
+			drop_kill_loot(e, randi_range(purse[0], purse[1])))
 	s.enemy = e
 	enemies = enemies.filter(func(x): return is_instance_valid(x))
 	enemies.append(e)
@@ -4357,9 +4361,13 @@ func _show_bolt(at: Vector3) -> void:
 	# The bolt flickers: on, dark for a blink, on again, then gone.
 	var tween := create_tween()
 	tween.tween_interval(0.2)
-	tween.tween_callback(func(): bolt.visible = false)
+	tween.tween_callback(func():
+		if is_instance_valid(bolt):
+			bolt.visible = false)
 	tween.tween_interval(0.07)
-	tween.tween_callback(func(): bolt.visible = true)
+	tween.tween_callback(func():
+		if is_instance_valid(bolt):
+			bolt.visible = true)
 	tween.tween_interval(0.35)
 	tween.tween_callback(bolt.queue_free)
 	tween.tween_property(glow, "light_energy", 0.0, 1.0)

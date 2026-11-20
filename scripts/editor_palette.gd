@@ -94,7 +94,7 @@ const OUTDOOR_GROUPS := [
 	["Wege und Eingänge", "PREa([])><|`\"°"],
 	["Gebäude", "hjnmuskowb^IiBL"],
 	["Dorf und Lager", "gzlexπqFv!@NfC+%*$?_\\§¤"],
-	["Dorfbewohner", "0123456789KOGMYZS¢"],
+	["Dorfbewohner", "0123456789KOGMYZS¢µ"],
 	["Wilde Gegner", "cAXQWHJU{}-/"],
 	["Tiere", "DV&"],
 ]
@@ -115,7 +115,7 @@ const OUTDOOR_NAMES := {
 	"@": "Platz des fahrenden Händlers", "N": "Zelt", "f": "Lagerfeuer", "C": "Schatztruhe der Räuber",
 	"+": "Werkbank für Feinarbeit", "%": "Schleifrad", "*": "Alchemietisch", "$": "Deine Lagertruhe",
 	"0": "Dorfvorsteher", "1": "Schmied", "2": "Bäuerin", "3": "Holzfäller", "4": "Wache", "5": "Zecher",
-	"6": "Krämerin", "7": "Kind", "8": "Gelehrter", "9": "Wasserträgerin", "K": "Herold der Krone", "¢": "Amtmann des Grundbuchs",
+	"6": "Krämerin", "7": "Kind", "8": "Gelehrter", "9": "Wasserträgerin", "K": "Herold der Krone", "¢": "Amtmann des Grundbuchs", "µ": "Raumausstatterin",
 	"O": "Priesterin", "G": "Gildenmeister", "M": "Postmeister", "Y": "Bankier", "Z": "Barbier", "S": "Steinmetz",
 	"c": "Halsabschneider", "A": "Wilderer", "X": "Schläger", "Q": "Räuberhauptmann", "W": "Wolf", "H": "Ork",
 	"J": "Yeti", "U": "Spinne", "{": "Felstroll", "}": "Bergork", "-": "Eiswolf", "/": "Klippenschütze",

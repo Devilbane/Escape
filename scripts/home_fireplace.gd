@@ -75,6 +75,19 @@ static func pick(level: Level) -> Dictionary:
 ## Builds a fireplace on the wall piece `w` ({"pos", "rot"}) of `level`.
 ## Returns the node that holds it.
 static func build(level: Level, w: Dictionary) -> Node3D:
+	var root := build_into(level, w)
+	# The wall behind and the surround stop the hero; the tile in front stays free.
+	var side := Vector3(sin(w.rot), 0.0, cos(w.rot))
+	var size := Vector3(WIDTH, 1.6, DEPTH)
+	if absf(side.x) > 0.5:
+		size = Vector3(DEPTH, 1.6, WIDTH)
+	level._add_solid(w.pos + side * (DEPTH * 0.5), size)
+	return root
+
+
+## The fireplace itself on the wall piece `w` ({"pos", "rot"}), added to `parent`. No solid: the
+## caller adds it (a fireplace of a self-built house uses it too, see HouseFurnisher).
+static func build_into(parent: Node, w: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Fireplace"
 	root.position = w.pos
@@ -151,13 +164,7 @@ static func build(level: Level, w: Dictionary) -> Node3D:
 	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 0.82, 0.3)
 	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 1.05, 0.18)
 	glow.tween_property(light, "light_energy", LIGHT_ENERGY * 0.9, 0.35)
-	level.add_child(root)
-	# The wall behind and the surround stop the hero; the tile in front stays free.
-	var side := Vector3(sin(w.rot), 0.0, cos(w.rot))
-	var size := Vector3(WIDTH, 1.6, DEPTH)
-	if absf(side.x) > 0.5:
-		size = Vector3(DEPTH, 1.6, WIDTH)
-	level._add_solid(w.pos + side * (DEPTH * 0.5), size)
+	parent.add_child(root)
 	return root
 
 

@@ -65,6 +65,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Say something | Enter (Enter sends; Esc or an empty line goes back) | click the line under the event log; whoever stands near answers |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
 | Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |
+| Set up furniture (blueprint sign, “Furnish”) | R turns it, Esc closes | left click puts it down, hold and drag moves a placed piece, right click turns it |
 | Zoom | + and − | mouse wheel (up close the camera tilts and you see the face) |
 
 A jump from a run keeps its momentum: the faster you are, the farther you fly.

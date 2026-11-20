@@ -51,6 +51,7 @@ const LOOKS := {
 	"9": {"skin": FAIR},
 	"K": {"skin": BROWN},
 	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON},
+	"µ": {"skin": Color(0.98, 0.8, 0.7), "glasses": "round", "frame": SILVER},
 	"O": {"skin": DARK},
 	"G": {"skin": Color(0.72, 0.52, 0.4)},
 	"M": {"skin": Color(0.9, 0.8, 0.66)},

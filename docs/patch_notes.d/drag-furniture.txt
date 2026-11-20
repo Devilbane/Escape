@@ -1,0 +1,1 @@
+- Placed furniture can be dragged to another spot or onto another wall with the left mouse button held.

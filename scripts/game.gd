@@ -103,6 +103,11 @@ var _weather_rng := RandomNumberGenerator.new()
 ## The look of the sky as it moves towards the weather's own, and a stroke
 ## of lightning as it fades (1 to 0).
 var _weather_look := Weather.look(Weather.CLEAR)
+## How far the view is inside a self-built house, 0 out in the open to 1 indoors (see
+## HouseGround.shelter): no rain, snow, fog, mist or storm dark is drawn in there.
+var _shelter := 0.0
+## How long the view takes to move in or out of the weather (real seconds).
+const SHELTER_FADE := 0.3
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -274,7 +279,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler"]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -416,6 +421,8 @@ var menus: Menus
 var plot_marker: PlotMarker
 ## The blueprint tool on the hero's plot (see HouseSketch).
 var house_sketcher: HouseSketcher
+## The furniture in the self-built houses and the tool to put it down (see HouseFurnisher).
+var house_furnisher: HouseFurnisher
 ## Playing together with friends (see CoopSession); off unless the player hosts or joins.
 var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
@@ -2800,10 +2807,11 @@ func _tick_clock(delta: float) -> void:
 		DayNight.apply(_env, _moon, day_hour)
 		_moonlight()
 		_weather_look = Weather.blend(_weather_look, Weather.look(weather), 1.0 - exp(-delta / Weather.FADE))
+		_shelter = move_toward(_shelter, 1.0 if _under_roof() else 0.0, delta / SHELTER_FADE)
 		_flash = maxf(0.0, _flash - delta * 3.0)
 		# A stroke of lightning flickers: bright, a dip, bright again.
-		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0)
-		Weather.apply(_env, _moon, _weather_look, flicker)
+		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
+		Weather.apply(_env, _moon, _seen_look(), flicker)
 		if level is Outdoor:
 			level.day = day
 			# The winter clothes change in the night, with the village asleep: from dusk on it is
@@ -3037,10 +3045,28 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
+## Whether the view is inside a self-built house: the hero stands in one, or the furnisher looks
+## into one (see HouseSketcher.view_storey). There is no weather in there.
+func _under_roof() -> bool:
+	if not level is Outdoor or player == null:
+		return false
+	if house_sketcher != null and house_sketcher.view_storey != HouseSketcher.NO_VIEW:
+		return true
+	return (level as Outdoor).is_sheltered(player.global_position)
+
+
+## The weather as it is seen: out in the open the weather's own look, inside a built house
+## (see _shelter) a clear sky, so nothing of rain, fog or storm reaches the view in there.
+func _seen_look() -> Dictionary:
+	if _shelter <= 0.001:
+		return _weather_look
+	return Weather.blend(_weather_look, Weather.look(Weather.CLEAR), _shelter)
+
+
 ## Rain and mist fall and drift around the hero in the open air only, and
-## the rain patters as hard as it falls.
+## the rain patters as hard as it falls. Inside a built house none of it shows.
 func _show_weather() -> void:
-	var outside: bool = level != null and level.outdoor and player != null
+	var outside: bool = level != null and level.outdoor and player != null and _shelter < 0.999
 	if not outside:
 		_rain.emitting = false
 		_rain.visible = false
@@ -3052,24 +3078,26 @@ func _show_weather() -> void:
 		Weather.cold = false
 		_clouds.set_look(0.0, Weather.HAZE, 0.0)
 		return
-	Weather.cold = snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3
+	Weather.cold = _shelter < 0.5 and (snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3)
+	var seen := _seen_look()
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
 	_leaves.anchor = player.global_position
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	var dusty := _weather_look.duplicate()
-	dusty.mist = Weather.dusty_mist(_weather_look, day_hour)
-	var winter_fog := Weather.is_winter(day)
-	var haze := Weather.fog_haze(_env.fog_light_color, float(_weather_look.mist), winter_fog)
+	var dusty := seen.duplicate()
+	# Not even the night's dust drifts inside a built house.
+	dusty.mist = Weather.dusty_mist(seen, day_hour) * (1.0 - _shelter)
+	var winter_fog := Weather.is_winter(day) and _shelter < 0.5
+	var haze := Weather.fog_haze(_env.fog_light_color, float(seen.mist), winter_fog)
 	# One even haze at night and over the winter snow; patchy clouds only by day.
-	var even := float(_weather_look.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
-	_clouds.set_look(dusty.mist, haze, even)
+	var even := float(seen.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
+	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
-	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(_weather_look.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day))
-	Weather.show_leaves(_leaves, Weather.leaf_strength(_weather_look, day_hour), light)
+	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(seen.mist)) * 0.6)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(day) and _shelter < 0.5)
+	Weather.show_leaves(_leaves, Weather.leaf_strength(seen, day_hour) * (1.0 - _shelter), light)
 	Breath.set_light(light)
 
 
@@ -3127,6 +3155,7 @@ func load_level(index: int, restock := true) -> void:
 	level.build()
 	plot_marker = null
 	house_sketcher = null
+	house_furnisher = null
 	if level is Outdoor:
 		plot_marker = PlotMarker.new()
 		plot_marker.game = self
@@ -3134,6 +3163,9 @@ func load_level(index: int, restock := true) -> void:
 		house_sketcher = HouseSketcher.new()
 		house_sketcher.game = self
 		level.add_child(house_sketcher)
+		house_furnisher = HouseFurnisher.new()
+		house_furnisher.game = self
+		level.add_child(house_furnisher)
 		plot_marker.refresh()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
@@ -3979,7 +4011,7 @@ func _apply_save(data: Dictionary) -> void:
 		for id in read:
 			book_hours[String(id)] = clampf(float(read[id]), 0.0, float(Offline.BOOK_HOURS))
 	player.bag.assign(data.bag)
-	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
+	player.home_hp = HomeUpgrades.trophy_hp(HouseFurniture.upgrades_with_stand(home_upgrades, hero_name), trophies)
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
@@ -4431,7 +4463,9 @@ func rest_till_morning() -> void:
 			snow_cover = 0.0
 		player.hp = player.max_hp
 		player.cure()
-		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
+		# Out of a bed of a self-built house beside its foot (see HouseFurnisher), else beside the bed of the room.
+		var side: Vector3 = bed.get("side", level.bed_side)
+		player.global_position = side if side != Vector3.ZERO else player.global_position
 		player.face(Vector3.BACK)
 		player.play("Idle")
 		_snap_camera()
@@ -4963,7 +4997,7 @@ func _return_from_away(data: Dictionary) -> void:
 	var plan := Offline.normalized(away.get("plan", {}), away_choices())
 	var hours := Offline.game_hours(real_seconds)
 	var read := float(book_hours.get(String(plan.study), 0.0))
-	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"), read)
+	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt") or HouseFurniture.of(hero_name).standing("werkbank") > 0, read)
 	away_report = _apply_away(plan, result)
 	var night := _sleep_night(real_seconds, data)
 	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
@@ -7350,6 +7384,9 @@ func _process(delta: float) -> void:
 		# The blueprint tool looks at the whole plot, a little above the middle so
 		# the tool bar at the bottom does not hide its near edge.
 		target = house_sketcher.view_centre() + _camera_offset()
+	elif house_furnisher != null and house_furnisher.active:
+		# So does the furnishing tool, at the height of the storey it shows.
+		target = house_furnisher.view_centre() + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.
@@ -7439,6 +7476,7 @@ func _process(delta: float) -> void:
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			"raumausstatter": Lang.t("Dagegenlaufen, um bei %s Möbel zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
@@ -7611,6 +7649,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo)
 	if not pressed:
+		return
+	# The furnishing tool takes the clicks on the floor, R to turn and Esc to close.
+	if state == State.PLAYING and house_furnisher != null and house_furnisher.active and not menus.is_open() \
+			and house_furnisher.handle_input(event):
+		get_viewport().set_input_as_handled()
 		return
 	match state:
 		State.TITLE:
@@ -8014,17 +8057,21 @@ func _win_trophy(kind: String) -> void:
 	apply_home_bonus()
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
+	if house_furnisher != null:
+		house_furnisher.refresh_books()
 
 
 ## Puts as many books on the bookshelf of the house as the hero keeps there.
 func refresh_bookshelf() -> void:
 	if level != null and level.is_home:
 		Bookshelf.refresh(level, HomeStores.total(home_stores, HomeStores.BOOKS))
+	if house_furnisher != null:
+		house_furnisher.refresh_books()
 
 
 ## The life the trophy wall gives goes into the hero's stats.
 func apply_home_bonus() -> void:
-	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
+	player.home_hp = HomeUpgrades.trophy_hp(HouseFurniture.upgrades_with_stand(home_upgrades, hero_name), trophies)
 	player.refresh_stats()
 	_update_hud()
 

@@ -70,7 +70,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "holzfaeller", "barbier", "tempel", RuinedShrine.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -100,6 +100,7 @@ const SHORTCUTS := [
 	["Steinblock verschieben", "Block mit der linken Maustaste greifen, ziehen und loslassen (Rechtsklick dabei dreht ihn)"],
 	["Steinblock aufheben", "E neben dem Block, oder ihn kurz anklicken"],
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
+	["Möbel aufstellen (Bauplan-Schild, „Einrichten“)", "Linksklick stellt ab, R oder Rechtsklick dreht, Esc schließt"],
 	["Zoom", "+ und −, Mausrad"],
 	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
@@ -334,6 +335,8 @@ func _rebuild() -> void:
 			_build_stonemason()
 		"holzfaeller":
 			_build_woodcutter()
+		"raumausstatter":
+			_build_furnisher()
 		"ausbau":
 			_build_upgrades()
 		"hauswerkbank":
@@ -2623,6 +2626,58 @@ func _sell_timber() -> void:
 
 ## The stonemason's buy and sell tabs, and the way to the house upgrades for
 ## a hero who has a town house.
+# --- The interior furnisher's furniture (see HouseFurniture) -------------------------
+
+## Raumausstatterin Ilse sells furniture for the self-built house: it goes into the hero's furniture
+## store (not the bag) and is put down at the plot sign with "Einrichten" (see HouseFurnisher).
+func _build_furnisher() -> void:
+	Events.teach(HouseFurniture.LEARN)
+	var store := HouseFurniture.of(game.hero_name)
+	var has_plot := Plots.plot_of(game.hero_name).size != Vector2i.ZERO
+	_add_label(Lang.t("Raumausstatterin"), 38, game.GOLD, game.TITLE_FONT)
+	var header := Lang.t("Deine Münzen: %s") % Loot.worth_text(game.coins, Payment._silver(game), Payment._gold(game))
+	var sections := []
+	for section in HouseFurniture.SECTIONS:
+		var entries := []
+		for kind in section[3]:
+			var info: Dictionary = HouseFurniture.KINDS[kind]
+			var price: int = game.trader_price(int(info.price))
+			var size: Vector2i = info.size
+			var lines := [[Lang.t(info.text), TradeWindow.BLUE],
+					[Lang.t("Hängt an einer Wand.") if HouseFurniture.on_wall(kind) else Lang.t("Braucht %d x %d Felder Boden.") % [size.x, size.y], TradeWindow.GREY]]
+			if not has_plot:
+				lines.append([Lang.t("Erst ein Grundstück: Das Amt der Krone trägt es dir ein."), TradeWindow.ORANGE])
+			entries.append({"key": "moebel:" + kind, "id": "", "icon": info.icon, "name": Lang.t(info.name),
+					"price": Loot.worth_text(price, 0, 0), "price_ok": Payment.can_pay(game, price),
+					"action": _buy_furniture.bind(kind), "enabled": has_plot and Payment.can_pay(game, price),
+					"detail": {"subtitle": Lang.t("Möbel für dein Haus"), "lines": lines},
+					"compare": {"title": Lang.t("Bei dir zu Hause"), "name": Lang.t(info.name), "icon": info.icon,
+						"subtitle": Lang.t("Zum Aufstellen: %d · Aufgestellt: %d") % [store.count(kind), store.standing(kind)],
+						"lines": [[Lang.t("Aufstellen am Bauplan-Schild auf deinem Grundstück: \"Einrichten\"."), TradeWindow.BLUE]]}})
+		sections.append({"key": section[0], "title": Lang.t(section[1]), "icon": section[2], "entries": entries})
+	_trade(header, sections, null, Lang.t("Zeig auf ein Möbelstück, um zu sehen, was es tut. Gekaufte Möbel stellst du am Bauplan-Schild mit \"Einrichten\" auf."))
+
+
+func _buy_furniture(kind: String) -> void:
+	var price: int = game.trader_price(int(HouseFurniture.KINDS[kind].price))
+	if Plots.plot_of(game.hero_name).size == Vector2i.ZERO:
+		_note = Lang.t("Erst ein Grundstück: Das Amt der Krone trägt es dir ein.")
+	elif not Payment.can_pay(game, price):
+		_note = Lang.t("Dafür reicht dein Geld nicht.")
+	else:
+		Payment.pay(game, price)
+		var store := HouseFurniture.of(game.hero_name)
+		store.add(kind)
+		store.save(game.hero_name)
+		Events.bus().traded.emit(game.trader_role)
+		Sfx.play(game, "gear_soft_0", -2.0)
+		_note = Lang.t("Gekauft: %s. Aufstellen am Bauplan-Schild mit \"Einrichten\".") % Lang.t(HouseFurniture.KINDS[kind].name)
+		# The purse and the furniture store must agree, or a piece could be had for nothing.
+		game.save_game()
+	game._update_hud()
+	_rebuild()
+
+
 func _stonemason_tabs() -> HBoxContainer:
 	var tabs := _shop_pages()
 	if Homes.house_of(game.hero_name) > 0:
@@ -2954,7 +3009,7 @@ func _mend_at_home(id: String) -> void:
 func _build_trophies() -> void:
 	_add_label(Lang.t("Trophäenwand"), 38, game.GOLD, game.TITLE_FONT)
 	var won := HomeUpgrades.trophies_shown(game.trophies)
-	_add_label(Lang.t("Jede Trophäe gibt dir +%d Leben. Zusammen: +%d Leben.") % [HomeUpgrades.TROPHY_HP, HomeUpgrades.trophy_hp(game.home_upgrades, game.trophies)], 20, game.GOLD)
+	_add_label(Lang.t("Jede Trophäe gibt dir +%d Leben. Zusammen: +%d Leben.") % [HomeUpgrades.TROPHY_HP, HomeUpgrades.trophy_hp(HouseFurniture.upgrades_with_stand(game.home_upgrades, game.hero_name), game.trophies)], 20, game.GOLD)
 	# Every trophy names what wins it; the ones won are struck through in
 	# green with the word "won", so colour is never the only cue.
 	for kind in HomeUpgrades.TROPHIES:

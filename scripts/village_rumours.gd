@@ -100,7 +100,7 @@ const RUMOURS := {
 	"grauen": {"who": ["3", "4", "O"],
 		"tell": ["In den finsteren Löchern draußen in der Wildnis atmet etwas. Etwas Riesiges, das keinen Namen hat. Geh da nicht allein hin."],
 		"chat": [["In den Löchern draußen atmet etwas. Ich hab es gehört.", "Das warst du selbst, vor lauter Angst.", "Lach nur. Du warst noch nie dort."]]},
-	"wanderer": {"who": ["5", "6", "K"],
+	"wanderer": {"who": ["5", "6", "K", "µ"],
 		"tell": ["Jede dritte Nacht kommt ein Händler mit einem Karren ins Dorf. Er hat Dinge, die es sonst nirgends gibt."],
 		"chat": [["Der Wanderhändler war wieder da. Mitten in der Nacht.", "Hast du was gekauft?", "Mondsilber. Ich weiß nicht einmal, wofür."]]},
 	"tentakel": {"who": ["4", "8", "9"],

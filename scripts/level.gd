@@ -2467,11 +2467,18 @@ func _build_merchant(c: Vector2i) -> void:
 	stations.append({"kind": "haendler", "cell": c, "pos": pos, "used": false})
 
 
-## The unused station whose cell contains a world position, if any.
+## The unused station whose cell contains a world position, if any. A station with a "touch"
+## radius (a piece of furniture in a self-built house, see HouseFurnisher) is touched within that
+## distance of its middle and on its own floor instead: several of them may share a tile.
 func station_at(point: Vector3) -> Dictionary:
 	var c := world_to_cell(point)
 	for s in stations:
-		if s.cell == c and not s.used:
+		if s.used:
+			continue
+		if s.has("touch"):
+			if Vector2(point.x - s.pos.x, point.z - s.pos.z).length() <= s.touch and absf(point.y - s.pos.y) < 1.8:
+				return s
+		elif s.cell == c:
 			return s
 	return {}
 

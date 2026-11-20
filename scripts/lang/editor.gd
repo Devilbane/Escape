@@ -284,6 +284,7 @@ const EN := {
 	"Wasserträgerin": "Water carrier",
 	"Herold der Krone": "Herald of the crown",
 	"Amtmann des Grundbuchs": "Land registry clerk",
+	"Raumausstatterin": "Interior furnisher",
 	"Priesterin": "Priestess",
 	"Gildenmeister": "Guild master",
 	"Postmeister": "Postmaster",

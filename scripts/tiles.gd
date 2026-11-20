@@ -192,6 +192,7 @@ const OUTDOOR := {
 	"9": "water carrier",
 	"K": "herald of the crown",
 	"¢": "clerk of the land registry (Amtmann Gero, see PlotOffice)",
+	"µ": "interior furnisher (Raumausstatterin Ilse: furniture for self-built houses, see HouseFurniture)",
 	"O": "priestess",
 	"G": "guild master",
 	"M": "postmaster",

@@ -93,10 +93,10 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢cAXQWHJUDV&@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µcAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS¢"
+const VILLAGERS := "0123456789KOGMYZS¢µ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -334,6 +334,9 @@ var _lamps: Array[OmniLight3D] = []
 const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
+## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their
+## light shows the hero at night like a lantern's.
+var house_lights: Array[Vector3] = []
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []
@@ -2917,7 +2920,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter"}.get(ch, "npc")
 			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -3528,6 +3531,9 @@ func is_lit(pos: Vector3) -> bool:
 			return true
 	for fire in _fires:
 		if _flat_distance(pos, fire) < LAMP_REACH:
+			return true
+	for light in house_lights:
+		if _flat_distance(pos, light) < LAMP_REACH:
 			return true
 	return false
 

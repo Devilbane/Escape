@@ -39,11 +39,26 @@ const PITCH := 0.25
 ## The shelf on tile `c`, its back on the wall beside it.
 static func build(level: Level, c: Vector2i) -> Node3D:
 	var pos := level.cell_to_world(c)
-	var pivot := Node3D.new()
+	var pivot := build_shelf(level, pos, level._back_to_wall(c, level._facing_room(c)))
 	pivot.name = NODE
+	var back := -Level.TILE * 0.5 + 0.1
+	# Solid across the shelf and a little in front, not the whole tile.
+	var depth := DEPTH + 0.3
+	var centre := pivot.transform * Vector3(0, 0, back + depth * 0.5)
+	var size := pivot.transform.basis * Vector3(WIDTH, 0, depth)
+	level._add_solid(Vector3(centre.x, 0, centre.z), Vector3(absf(size.x), 2.4, absf(size.z)))
+	level.stations.append({"kind": KIND, "cell": c, "pos": pos, "used": false})
+	refresh(level, 0)
+	return pivot
+
+
+## The shelf itself at `pos`, turned by `rot`, its back half a tile behind `pos` (a shelf of a
+## self-built house uses it too, see HouseFurnisher). No solid and no station: the caller adds them.
+static func build_shelf(parent: Node, pos: Vector3, rot: float) -> Node3D:
+	var pivot := Node3D.new()
 	pivot.position = pos
-	pivot.rotation.y = level._back_to_wall(c, level._facing_room(c))
-	level.add_child(pivot)
+	pivot.rotation.y = rot
+	parent.add_child(pivot)
 	var oak := HomeStoreFurniture._mat(OAK, 0.85)
 	var dark := HomeStoreFurniture._mat(DARK_OAK, 0.9)
 	var back := -Level.TILE * 0.5 + 0.1
@@ -71,13 +86,6 @@ static func build(level: Level, c: Vector2i) -> Node3D:
 	label.outline_modulate = Color(0.1, 0.06, 0.03)
 	label.position = Vector3(0, HEIGHT - 0.2, back + DEPTH + 0.06)
 	pivot.add_child(label)
-	# Solid across the shelf and a little in front, not the whole tile.
-	var depth := DEPTH + 0.3
-	var centre := pivot.transform * Vector3(0, 0, back + depth * 0.5)
-	var size := pivot.transform.basis * Vector3(WIDTH, 0, depth)
-	level._add_solid(Vector3(centre.x, 0, centre.z), Vector3(absf(size.x), 2.4, absf(size.z)))
-	level.stations.append({"kind": KIND, "cell": c, "pos": pos, "used": false})
-	refresh(level, 0)
 	return pivot
 
 
@@ -98,6 +106,11 @@ static func refresh(level: Level, count: int) -> void:
 	var pivot := level.get_node_or_null(NODE)
 	if pivot == null:
 		return
+	refresh_shelf(pivot, count)
+
+
+## Puts the books for `count` books kept on one shelf (see build_shelf).
+static func refresh_shelf(pivot: Node, count: int) -> void:
 	var books: Node3D = pivot.get_node(BOOKS_NODE)
 	for old in books.get_children():
 		books.remove_child(old)

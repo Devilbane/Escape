@@ -1,1 +1,1 @@
-Escape! dev status | Working on: House playtest with real input; camera frames the plot; hand-in refreshes | Shipped this week: Fix house drawing releases and compact the build bar; Make the village snowman solid; Keep snow off the parts of bare creatures (eagle feathers) (+47 more)
+Escape! dev status | Shipped this week: House playtest with real input; camera frames the plot; hand-in refreshes; Fix house drawing releases and compact the build bar (+48 more)

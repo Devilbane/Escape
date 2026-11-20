@@ -22,6 +22,11 @@ Every other `tests/*.gd` (not `profile_*.gd` and not the play-through) runs in 4
 A new test therefore runs from the day it is added without an entry anywhere; it only warns until it has
 been run in CI for a while. Fix it and add a line to `tests/ci_manifest.txt` to make it block.
 
+Tests listed in `tests/ci_on_demand.txt` (now `slime_siege.gd`) are skipped by both the blocking and the extra
+shards, because they are slow or flaky in CI. They run only on demand: Actions > "On-demand tests" > Run
+workflow (`.github/workflows/on_demand_tests.yml`, optionally with one file name), or locally with
+`tests/ci_shard.sh on_demand 0 1`.
+
 The workflow is called "Tests". Its last job, `tests`, gathers the shards: it passes only when every blocking
 shard passed. That is the single check to require on pull requests, and the Windows build on main waits only
 for it (never for the play-through, the extra shards or the browser export). Adding or removing shards never

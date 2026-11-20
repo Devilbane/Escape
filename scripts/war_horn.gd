@@ -3,11 +3,13 @@ extends RefCounted
 ## The village's alarm horn: a great Norse horn on a timber cradle just inside
 ## the west gate, beside the guard's post (see VillageProps.build_war_horn).
 ## When the village is alarmed (see VillageBell, Events.alarm) the town guard
-## walks to the horn and blows it from there, two long, deep blasts like a big ship's fog horn
-## (tools/make_horn_sounds.py). The church bell then tolls after the horn has
-## died away, so the two never sound over each other; the bell's cooldown
-## (VillageBell.COOLDOWN) covers both. With no guard to blow it (away, hurt,
-## eaten, in his house) the bell tolls alone.
+## runs to the horn's mouthpiece and blows it, two long, deep blasts like a big
+## ship's fog horn with a breath between them (HornBlow: each blast sounds
+## while the blower's lips are on the horn, tools/make_horn_sounds.py). The
+## church bell then tolls after the horn has died away, so the two never sound
+## over each other; the bell's cooldown (VillageBell.COOLDOWN) covers both.
+## With no guard to blow it (away, hurt, eaten, in his house) the bell tolls
+## alone. The hero can blow it too, the same way.
 
 const SOUND := "war_horn"
 ## The station kind of the horn the hero can blow.
@@ -18,10 +20,10 @@ const BLOWN := "Du stößt ins Horn. Das Dorf versammelt sich auf dem Marktplatz
 const BLOWN_ALONE := "Du stößt ins Horn. Niemand scheint es zu hören."
 const TOO_SOON := "Das Horn braucht noch einen Moment, bis es wieder erschallt."
 const BUSY := "Die Wache bläst gerade schon ins Horn."
+const BUSY_HERO := "Du bläst doch schon ins Horn."
 ## The loudness of the horn, in dB (it carries over the whole village).
 const VOLUME_DB := 2.0
-## How long the horn sounds (seconds), and the quiet before the bell follows.
-const LENGTH := 6.5
+## The quiet after the horn before the bell follows (seconds).
 const GAP := 0.4
 ## How far from the horn the guard can still be and run to it (metres).
 const REACH := 30.0
@@ -29,6 +31,8 @@ const REACH := 30.0
 const TIMEOUT := 25.0
 
 static var _sounded := true
+## The hero's blowing of the horn, while it lasts (see hero_blow).
+static var _hero_blow: HornBlow
 
 
 ## Where the horn stands: inside the wall, on the free tile beside the guard's
@@ -70,14 +74,16 @@ static func facing(o: Outdoor, at: Vector3) -> float:
 static func guard(o: Outdoor) -> Villager:
 	if o.war_horn_at == Vector3.INF:
 		return null
+	if hero_blowing():
+		return null
 	for v in o.villagers:
 		if v.role == "4" and v.can_blow_horn(o.war_horn_at):
 			return v
 	return null
 
 
-## The guard walks to the horn and blows it (see Villager.sound_alarm, which
-## calls `sound` once he stands at it). Returns whether he is on it: false when
+## The guard runs to the horn and blows it (see Villager.sound_alarm, which
+## calls `sound` once he sets out from his post to the mouthpiece). Returns whether he is on it: false when
 ## nobody can blow it and the bell has to toll alone.
 static func blow(o: Outdoor) -> bool:
 	var v := guard(o)
@@ -85,7 +91,7 @@ static func blow(o: Outdoor) -> bool:
 		return false
 	_sounded = false
 	v.sound_alarm(o.war_horn_at)
-	# Should he never get there (he is cut down, called to the wall), the bell tolls anyway.
+	# Should he never get to it (he is cut down, called to the wall), the bell tolls anyway.
 	o.get_tree().create_timer(TIMEOUT).timeout.connect(func():
 		if is_instance_valid(o) and o.is_inside_tree() and not _sounded:
 			_sounded = true
@@ -93,13 +99,14 @@ static func blow(o: Outdoor) -> bool:
 	return true
 
 
-## The horn sounds, blown by the guard at the horn; the bell tolls after it.
-static func sound(o: Outdoor) -> void:
+## The guard sets his lips to the horn: it will sound for `seconds` (see
+## HornBlow.seconds_left, the blasts themselves sound as he blows them), and
+## the bell tolls after it, even should he be called away half way.
+static func sound(o: Outdoor, seconds: float) -> void:
 	if _sounded:
 		return
 	_sounded = true
-	Sfx.play(o, SOUND, VOLUME_DB, o.war_horn_at)
-	Sfx.play_after(o, LENGTH + GAP, VillageBell.SOUND, VillageBell.VOLUME_DB)
+	Sfx.play_after(o, seconds + GAP, VillageBell.SOUND, VillageBell.VOLUME_DB)
 
 
 static var _hero_last := -INF
@@ -108,16 +115,39 @@ static var _hero_last := -INF
 ## Forgets when the hero last blew the horn (a new game, a test).
 static func reset_hero() -> void:
 	_hero_last = -INF
+	_hero_blow = null
 
 
-## The hero blows the horn: it sounds, and the villagers gather on the square.
-## Returns the text to show the hero (the horn sounded unless it is on cooldown
-## or the guard is blowing it now).
-static func hero_blow(o: Outdoor, now := Time.get_ticks_msec() / 1000.0) -> String:
+## Whether the hero is at the horn blowing it now.
+static func hero_blowing() -> bool:
+	return _hero_blow != null and not _hero_blow.done
+
+
+## Why the hero cannot blow the horn now (the text to show), or "" when they can.
+static func hero_cannot(now := Time.get_ticks_msec() / 1000.0) -> String:
 	if not _sounded:
 		return Lang.t(BUSY)
+	if hero_blowing():
+		return Lang.t(BUSY_HERO)
 	if now - _hero_last < HERO_COOLDOWN:
 		return Lang.t(TOO_SOON)
+	return ""
+
+
+## The hero walks to the horn and blows it (see HornBlow; the hero's body plays
+## it, Player.blow_horn). At the first blast the villagers gather on the square
+## and `told` gets the text to show the hero. Should the hero walk off before
+## the horn has sounded, it is as if they never tried: no cooldown.
+static func hero_blow(o: Outdoor, from: Vector3, told := Callable(), now := Time.get_ticks_msec() / 1000.0) -> HornBlow:
 	_hero_last = now
-	Sfx.play(o, SOUND, VOLUME_DB, o.war_horn_at)
-	return Lang.t(BLOWN) if o.gather_village() else Lang.t(BLOWN_ALONE)
+	var blow := HornBlow.begin(o, from)
+	blow.on_blast = func(i: int):
+		if i == 0:
+			var text := Lang.t(BLOWN) if o.gather_village() else Lang.t(BLOWN_ALONE)
+			if told.is_valid():
+				told.call(text)
+	blow.on_stop = func(sounded: int):
+		if sounded == 0 and _hero_last == now:
+			_hero_last = -INF
+	_hero_blow = blow
+	return blow

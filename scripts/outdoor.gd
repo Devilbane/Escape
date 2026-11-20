@@ -26,7 +26,7 @@ extends Level
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
 ##   π  a long dining table with benches and plates of food, where the
-##      townsfolk eat together at noon and at eight in the evening (see TownMeals)
+##      townsfolk eat together at noon and at seven in the evening (see TownMeals)
 ##   More buildings: s  temple (a chapel)   k  office of the crown   o  post office
 ##   w  adventurers' guild   b  bank. A building turns its door to the square or path.
 ##   Villagers: 0 elder, 1 smith (melts, forges and mends gear at the forge
@@ -637,6 +637,7 @@ func build() -> void:
 		for sy in range(Corral.SHELTER.position.y, Corral.SHELTER.end.y):
 			for sx in range(Corral.SHELTER.position.x, Corral.SHELTER.end.x):
 				roofed.append(Vector2i(sx, sy))
+	roofed.append_array(meals.roofed)
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_warm(warm_spots)
 	_floor_shape = CollisionShape3D.new()
@@ -3548,7 +3549,7 @@ func is_lit(pos: Vector3) -> bool:
 	for light in house_lights:
 		if _flat_distance(pos, light) < LAMP_REACH:
 			return true
-	return false
+	return meals.lights_up(pos, LAMP_REACH)
 
 
 ## Whether a spot lies inside a self-built house, where no weather reaches (see HouseGround.shelter).
@@ -3711,6 +3712,8 @@ func set_hour(new_hour: float) -> void:
 		_candle_mat.emission_energy_multiplier = CANDLE_GLOW * glow
 	for candle in _candles:
 		candle.visible = glow > 0.02
+	# The lanterns and candles at the dining tables (see TownMeals).
+	meals.set_glow(glow)
 	for mat in _window_mats.values():
 		if mat is ShaderMaterial:
 			mat.set_shader_parameter("glow", WINDOW_GLOW * glow)

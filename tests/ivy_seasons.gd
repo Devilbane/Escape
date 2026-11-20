@@ -96,7 +96,7 @@ func _run() -> void:
 	check(Weather.is_autumn(Seasons.today(monday + 6.9 * 86400.0)), "autumn lasts the whole week")
 	check(Weather.is_winter(Seasons.today(monday + 7.0 * 86400.0)), "winter the week after")
 	check(Weather.is_spring(Seasons.today(monday + 14.0 * 86400.0)), "then spring")
-	check(Seasons.name_of(Seasons.today(monday + 21.0 * 86400.0)) == "summer", "then summer")
+	check(Weather.season(Seasons.today(monday + 21.0 * 86400.0)) == Weather.SUMMER, "then summer")
 	check(Weather.autumn_day(Seasons.today(monday + 28.0 * 86400.0)) == 0, "and autumn again after four weeks")
 
 	# The sky command's autumn.

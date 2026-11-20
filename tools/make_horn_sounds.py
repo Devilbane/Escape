@@ -1,7 +1,9 @@
 """Builds the village's alarm horn (see WarHorn, scripts/war_horn.gd):
 
-  war_horn  two long, deep blasts like the fog horn of a big ship, a low hum with
-            a rich stack of overtones, swelling in slowly and fading out slowly
+  war_horn  one long, deep blast like the fog horn of a big ship, a low hum with
+            a rich stack of overtones, swelling in slowly and fading out slowly.
+            The horn is blown twice: whoever blows it (HornBlow) plays the blast
+            once per breath, so the sound keeps in step with the body.
 
 The note sits near 58 Hz with a second voice a hair off it (the slow throb of a big
 horn), plus a breath of air in the mouth. Nothing is downloaded: it is all
@@ -34,16 +36,7 @@ def blast(sec=3.0, attack=0.45, release=1.0):
     return out * swell * fade
 
 
-def horn(blasts=2, gap=0.5):
-    one = blast()
-    n = len(one)
-    out = np.zeros(int((n + SR * gap) * (blasts - 1)) + n)
-    for i in range(blasts):
-        a = int((n + SR * gap) * i)
-        out[a:a + n] += one * (1.0 - 0.06 * i)
-    return out
-
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    save("war_horn", horn(), 0.85)
+    save("war_horn", blast(), 0.85)

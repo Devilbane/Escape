@@ -8,6 +8,7 @@ extends SceneTree
 ## - Shift+E locks the hero's own door (a padlock shows; saved with the house):
 ##   a creature cannot push a locked door open and is stopped by it, an unlocked
 ##   one opens for it; the hero still gets through their own locked door.
+## - Monsters other than people (a slime, say) do not open even an unlocked door.
 ## - A gate in a garden wall gets a leaf of its own.
 ## Run with: godot --headless --fixed-fps 60 -s tests/built_doors.gd
 ## With SHOTS=<folder> and a display it also saves pictures of the door.
@@ -227,6 +228,35 @@ func _run() -> void:
 		pushed = pushed or door.is_open()
 	check(pushed and beast.global_position.z < at.z, "an unlocked door opens for a creature too (z %.2f)" % (beast.global_position.z - at.z))
 	beast.queue_free()
+	await _wait(int((BuiltDoor.HOLD + BuiltDoor.OPEN_TIME + 0.4) * 60))
+	check(door.openness() == 0.0 and not door.locked, "the unlocked door is shut again")
+
+	# A slime is no door opener: an unlocked, shut door stops it like a wall.
+	var slime: Enemy = game.level._spawn_enemy("schleim", game.level.world_to_cell(at + Vector3(0, 0, 3.0)))
+	# Its own mind stays off: the test moves it.
+	slime.set_physics_process(false)
+	slime.set_process(false)
+	slime.global_position = at + Vector3(0, 0.05, 1.5)
+	slime.reset_physics_interpolation()
+	check(not door.may_pass(slime) and not BuiltDoor.opens_doors(slime), "a slime may not open a door")
+	await _wait(3)
+	var slime_stopped := true
+	for i in 90:
+		slime.velocity = Vector3(0, -1, -3.0)
+		slime.move_and_slide()
+		await _wait(1)
+		if door.openness() > 0.0:
+			slime_stopped = false
+	check(slime_stopped and slime.global_position.z > at.z, "a slime cannot push an unlocked door open and stays out (z %.2f)" % (slime.global_position.z - at.z))
+	slime.queue_free()
+	# People can: a bandit opens an unlocked door, but not a locked one.
+	var bandit: Enemy = game.level._spawn_enemy("schlaeger", game.level.world_to_cell(at + Vector3(0, 0, 3.0)))
+	bandit.process_mode = Node.PROCESS_MODE_DISABLED
+	check(BuiltDoor.opens_doors(bandit) and door.may_pass(bandit), "a bandit opens an unlocked door")
+	door.locked = true
+	check(not door.may_pass(bandit), "but not a locked one")
+	door.locked = false
+	bandit.queue_free()
 	_end()
 
 

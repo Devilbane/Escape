@@ -27,17 +27,6 @@ static func today(unix := -1.0) -> int:
 	return days - AUTUMN_MONDAY + Weather.AUTUMN_FROM
 
 
-## The name of the season on season day `day` ("spring", "summer", "autumn" or "winter").
-static func name_of(day: int) -> String:
-	if Weather.is_winter(day):
-		return "winter"
-	if Weather.is_autumn(day):
-		return "autumn"
-	if Weather.is_spring(day):
-		return "spring"
-	return "summer"
-
-
 ## Whether a test script runs the game (godot -s tests/<name>.gd): its main loop has a script.
 static func _in_test() -> bool:
 	var loop := Engine.get_main_loop()

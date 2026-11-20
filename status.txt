@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Fix house drawing releases and compact the build bar; Make the village snowman solid | Shipped this week: Keep snow off the parts of bare creatures (eagle feathers); Cellar planning: clearer squares, hints, faster digging (+48 more)
+Escape! dev status | Working on: Fix house drawing releases and compact the build bar | Shipped this week: Make the village snowman solid; Keep snow off the parts of bare creatures (eagle feathers); Cellar planning: clearer squares, hints, faster digging (+47 more)

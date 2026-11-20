@@ -44,6 +44,19 @@ func _initialize() -> void:
 			var cut := "%s/%s" % [hair.style, hair.color]
 			check(not cuts.has(cut), "%s has the same haircut and colour (%s) as %s" % [info.name, cut, cuts.get(cut, "")])
 			cuts[cut] = info.name
+	# Knights with bare heads (the herald and the clerk) wear hair dyed apart, not the model's own blond.
+	var dyes := {}
+	for role: String in roles:
+		var info: Dictionary = Villager.ROLES[role]
+		if info.model == "Knight" and not "Knight_Helmet" in info.show:
+			var dye: String = TownsfolkLook.look_for(role, info).dye
+			check(HairLook.COLORS.has(dye), "%s has dyed hair" % info.name)
+			check(not dyes.has(dye), "%s has the same hair colour as %s" % [info.name, dyes.get(dye, "")])
+			dyes[dye] = info.name
+	check(dyes.size() >= 2, "both bare-headed knights are checked")
+	var dyed: Image = TownsfolkLook.dye_texture("black").get_image()
+	var patch := HairLook.HAIR_UV.get_center() * dyed.get_width()
+	check(dyed.get_pixelv(Vector2i(patch)).a == 1.0 and dyed.get_pixel(0, dyed.get_height() - 1).a == 0.0, "the dye covers only the hair")
 	check(glasses >= 3, "some townsfolk wear glasses")
 	check(Villager.ROLES["7"].hair == {"style": "spiky", "color": "blond"}, "Pip keeps his hair")
 	# The glasses sit on the eyes whatever the model's head box is (the Knight's is taller).

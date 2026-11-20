@@ -7429,6 +7429,17 @@ func _steer_by_mouse(delta: float) -> void:
 ## or key press anywhere can start the music.
 func _input(event: InputEvent) -> void:
 	Music.notice_input(event)
+	# Letting go of the mouse ends a drag in the blueprint tool (a wall, a
+	# rectangle of cellar or roof). It is seen here because the release may
+	# happen over the tool bar, and because _unhandled_input hands on key and
+	# button presses only.
+	if event is InputEventMouseButton and not event.pressed and state == State.PLAYING \
+			and house_sketcher != null and house_sketcher.active and house_sketcher.drag_from.x >= 0:
+		var point = _mouse_to_floor(event.position)
+		if point != null:
+			house_sketcher.mouse(point, false, event.button_index)
+		else:
+			house_sketcher.cancel_drag()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -61,7 +61,7 @@ const ON_COLOR := Color(1.0, 0.82, 0.4)
 const OFF_COLOR := Color(1, 1, 1, 0.4)
 ## Where a roof or slab sketch is drawn above the floor of its storey.
 const SILL_TOP := 2.7
-const STATUS_WIDTH := 640.0
+const STATUS_WIDTH := 880.0
 ## The character builds one piece this often (seconds) while the hero is near
 ## the plot, and works only within this many metres of its middle.
 const BUILD_SECONDS := 12.0
@@ -260,6 +260,12 @@ func leave() -> void:
 	_clear(_ghost)
 	if plan != null:
 		plan.save(game.hero_name)
+
+
+## Gives up the drag in progress (the mouse was let go off the ground).
+func cancel_drag() -> void:
+	drag_from = Vector2i(-1, -1)
+	_clear(_ghost)
 
 
 func select_tool(next: String) -> void:
@@ -494,106 +500,104 @@ func redo() -> void:
 
 # --- The tool bar --------------------------------------------------------------
 
+## The tool bar is small so most of the screen stays free to draw on: three
+## rows of small buttons (what to draw; level, surfaces and undo; the build
+## and the stage) and two lines of text. Every button keeps its size, only
+## texts change.
 func _build_bar() -> void:
 	_bar = PanelContainer.new()
 	_bar.visible = false
 	_bar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_bar.offset_bottom = -16
-	_bar.add_theme_stylebox_override("panel", UiKit.panel_style(UiKit.BRONZE))
+	_bar.offset_bottom = -8
+	var style := UiKit.panel_style(UiKit.BRONZE)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	_bar.add_theme_stylebox_override("panel", style)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
+	box.add_theme_constant_override("separation", 4)
 	_bar.add_child(box)
-	var stages := HBoxContainer.new()
-	stages.alignment = BoxContainer.ALIGNMENT_CENTER
-	stages.add_theme_constant_override("separation", 10)
-	box.add_child(stages)
-	for i in STAGES.size():
-		if i > 0:
-			var arrow: Label = UiKit.label(UiKit.TEXT_FONT, 18, OFF_COLOR)
-			arrow.text = "▸"
-			stages.add_child(arrow)
-		var l: Label = UiKit.label(UiKit.TEXT_FONT, 20, OFF_COLOR)
-		l.text = Lang.t(STAGE_NAMES[STAGES[i]])
-		l.custom_minimum_size = Vector2(110, 0)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		stages.add_child(l)
-		_stage_labels[STAGES[i]] = l
-	var tools := HBoxContainer.new()
-	tools.alignment = BoxContainer.ALIGNMENT_CENTER
-	tools.add_theme_constant_override("separation", 8)
-	box.add_child(tools)
+	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
+	var tools := _row(box)
 	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_ERASE: "Radierer"}
-	for t in TOOLS:
-		var b: Button = UiKit.button(Lang.t(names[t]), select_tool.bind(t))
-		b.custom_minimum_size = Vector2(120, 48)
+	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
+	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe"}
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_ERASE]:
+		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
+		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
 		_tool_buttons[t] = b
-	_undo_button = UiKit.button(Lang.t("Rückgängig"), undo)
-	_undo_button.custom_minimum_size = Vector2(110, 48)
-	tools.add_child(_undo_button)
-	_redo_button = UiKit.button(Lang.t("Wiederholen"), redo)
-	_redo_button.custom_minimum_size = Vector2(90, 48)
-	tools.add_child(_redo_button)
-	var done: Button = UiKit.button(Lang.t("Schließen"), leave)
-	done.custom_minimum_size = Vector2(110, 48)
-	tools.add_child(done)
-	var cellar := HBoxContainer.new()
-	cellar.alignment = BoxContainer.ALIGNMENT_CENTER
-	cellar.add_theme_constant_override("separation", 8)
-	box.add_child(cellar)
-	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe"}
-	for t in CELLAR_TOOLS:
-		var b: Button = UiKit.button(Lang.t(cellar_names[t]), select_tool.bind(t))
-		b.custom_minimum_size = Vector2(170, 48)
-		cellar.add_child(b)
-		_tool_buttons[t] = b
-	_floor_button = UiKit.button("", cycle_floor)
-	_floor_button.custom_minimum_size = Vector2(190, 48)
-	cellar.add_child(_floor_button)
-	_wall_button = UiKit.button("", cycle_wall)
-	_wall_button.custom_minimum_size = Vector2(230, 48)
-	cellar.add_child(_wall_button)
-	var roofs := HBoxContainer.new()
-	roofs.alignment = BoxContainer.ALIGNMENT_CENTER
-	roofs.add_theme_constant_override("separation", 8)
-	box.add_child(roofs)
-	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
-	for t in ROOF_TOOLS:
-		var b: Button = UiKit.button(Lang.t(roof_names[t]), select_tool.bind(t))
-		b.custom_minimum_size = Vector2(190, 48) if t == TOOL_SLAB else Vector2(150, 48)
-		roofs.add_child(b)
-		_tool_buttons[t] = b
-	_level_button = UiKit.button("", cycle_level)
-	_level_button.custom_minimum_size = Vector2(230, 48)
-	roofs.add_child(_level_button)
-	var actions := HBoxContainer.new()
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 8)
-	box.add_child(actions)
-	_deposit_button = UiKit.button(Lang.t("Material abgeben"), deposit_materials)
-	_deposit_button.custom_minimum_size = Vector2(250, 48)
+	# Row 2: the level the tools work on, the surfaces of the cellar, undo and redo.
+	var options := _row(box)
+	_level_button = _small_button("", cycle_level, 210)
+	options.add_child(_level_button)
+	_floor_button = _small_button("", cycle_floor, 190)
+	options.add_child(_floor_button)
+	_wall_button = _small_button("", cycle_wall, 190)
+	options.add_child(_wall_button)
+	_undo_button = _small_button(Lang.t("Rückgängig"), undo)
+	options.add_child(_undo_button)
+	_redo_button = _small_button(Lang.t("Wiederholen"), redo)
+	options.add_child(_redo_button)
+	# Row 3: where the plan stands, and the build.
+	var actions := _row(box)
+	for i in STAGES.size():
+		if i > 0:
+			var arrow: Label = UiKit.label(UiKit.TEXT_FONT, 14, OFF_COLOR)
+			arrow.text = "▸"
+			actions.add_child(arrow)
+		var l: Label = UiKit.label(UiKit.TEXT_FONT, 15, OFF_COLOR)
+		l.text = Lang.t(STAGE_NAMES[STAGES[i]])
+		l.custom_minimum_size = Vector2(60, 0)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		actions.add_child(l)
+		_stage_labels[STAGES[i]] = l
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(16, 0)
+	actions.add_child(gap)
+	_deposit_button = _small_button(Lang.t("Material abgeben"), deposit_materials, 150)
 	actions.add_child(_deposit_button)
-	_order_button = UiKit.button(Lang.t("Bau beauftragen"), toggle_order)
-	_order_button.custom_minimum_size = Vector2(250, 48)
+	_order_button = _small_button(Lang.t("Bau beauftragen"), toggle_order, 150)
 	actions.add_child(_order_button)
-	_stock_label = UiKit.label(UiKit.TEXT_FONT, 16, Color(0.8, 0.9, 1.0))
-	_stock_label.custom_minimum_size = Vector2(STATUS_WIDTH, 26)
-	_stock_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_stock_label.clip_text = true
-	_stock_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var done := _small_button(Lang.t("Schließen"), leave)
+	actions.add_child(done)
+	_stock_label = _line(Color(0.8, 0.9, 1.0))
 	box.add_child(_stock_label)
-	_status = UiKit.label(UiKit.TEXT_FONT, 16, Color(1.0, 0.75, 0.5))
-	_status.custom_minimum_size = Vector2(STATUS_WIDTH, 26)
-	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_status.clip_text = true
-	_status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_status = _line(Color(1.0, 0.75, 0.5))
 	box.add_child(_status)
 	if game != null and game._hud != null:
 		game._hud.add_child(_bar)
 	else:
 		add_child(_bar)
+
+
+func _row(parent: Control) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 5)
+	parent.add_child(row)
+	return row
+
+
+## A small button: low, with small text, and at least `width` wide.
+func _small_button(text: String, action: Callable, width := 0.0) -> Button:
+	var b: Button = UiKit.button(text, action)
+	b.custom_minimum_size = Vector2(width, 32)
+	b.add_theme_font_size_override("font_size", 14)
+	return b
+
+
+## A one-line text of the bar: it keeps its height and clips what does not fit.
+func _line(colour: Color) -> Label:
+	var l: Label = UiKit.label(UiKit.TEXT_FONT, 14, colour)
+	l.custom_minimum_size = Vector2(STATUS_WIDTH, 20)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.clip_text = true
+	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	return l
 
 
 func _update_bar() -> void:
@@ -694,13 +698,13 @@ func toggle_order() -> void:
 func _hint() -> String:
 	match tool:
 		TOOL_WALL:
-			return Lang.t("Wand: Maustaste halten und auf dem Raster ziehen. Rechtsklick beendet.")
+			return Lang.t("Wand: Maustaste halten und auf dem Raster ziehen. Rechtsklick oder Esc beendet.")
 		TOOL_DOOR:
 			return Lang.t("Tür: Klicke eine Wand an.")
 		TOOL_WINDOW:
 			return Lang.t("Fenster: Klicke eine Wand an.")
 		TOOL_DIG:
-			return Lang.t("Graben: Maustaste halten und ein Rechteck aufziehen. Boden und Wand wählst du vorher.")
+			return Lang.t("Graben: Maustaste halten, Rechteck aufziehen, loslassen. Rechtsklick oder Esc beendet.")
 		TOOL_STAIRS:
 			return Lang.t("Treppe: Klicke ein Feld vor dem Keller an. Sie führt vier Meter nach unten.")
 		TOOL_SLAB:

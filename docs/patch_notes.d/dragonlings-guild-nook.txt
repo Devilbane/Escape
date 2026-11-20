@@ -1,0 +1,1 @@
+- Dragonlings carrying loot no longer fly straight through the guild hall from the nook beside the cow pen.

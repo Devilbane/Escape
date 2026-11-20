@@ -63,6 +63,8 @@ const CHANCES := {
 ## thunderstorm then: snow comes in their place, often, and the snow on the ground stays until spring.
 const YEAR_DAYS := 32
 const WINTER_DAYS := 8
+## The AUTUMN_DAYS before winter are autumn: the vines on the houses turn red and gold (see IvySeasons).
+const AUTUMN_DAYS := 8
 const WINTER_CHANCES := {
 	"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},
 	"morning": {CLEAR: 6.0, FOG: 2.5, SNOW: 4.0},
@@ -210,6 +212,19 @@ static func spell(rng: RandomNumberGenerator, kind := RAIN) -> float:
 ## Whether `day` (the game's count of days) is in winter (see YEAR_DAYS).
 static func is_winter(day: int) -> bool:
 	return posmod(day, YEAR_DAYS) >= YEAR_DAYS - WINTER_DAYS
+
+
+## Whether `day` is in autumn, the AUTUMN_DAYS just before winter.
+static func is_autumn(day: int) -> bool:
+	var d := posmod(day, YEAR_DAYS)
+	return d >= YEAR_DAYS - WINTER_DAYS - AUTUMN_DAYS and d < YEAR_DAYS - WINTER_DAYS
+
+
+## How many days of autumn have passed on `day` (0 on its first day), or -1 outside autumn.
+static func autumn_day(day: int) -> int:
+	if not is_autumn(day):
+		return -1
+	return posmod(day, YEAR_DAYS) - (YEAR_DAYS - WINTER_DAYS - AUTUMN_DAYS)
 
 
 ## The weather a winter allows: snow where rain or a storm would be.
@@ -473,9 +488,12 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 			var want := SNOW_FLAKES if f > WINTER_FLURRY else WINTER_FLAKES
 			if snow.amount != want:
 				snow.amount = want
+				# A new count means a new buffer: blank it, or it shows stray coloured balls.
+				Effects.start_cold(snow)
 			f = maxf(f, WINTER_FLURRY)
 		elif snow.amount != SNOW_FLAKES:
 			snow.amount = SNOW_FLAKES
+			Effects.start_cold(snow)
 		snow.emitting = f > 0.02
 		snow.visible = snow.emitting
 		# How bright a flake is comes from the light that reaches it (the sun, the moon of tonight's

@@ -25,6 +25,8 @@ extends Level
 ##   The hero's house: I  stone wall   i  wooden floor (a gap in the
 ##   walls is the door)   B  bed (save and log out)   L  chest (storage)
 ##   :  paved square         F  fountain (heals)   x  bench
+##   π  a long dining table with benches and plates of food, where the
+##      townsfolk eat together at noon and at eight in the evening (see TownMeals)
 ##   More buildings: s  temple (a chapel)   k  office of the crown   o  post office
 ##   w  adventurers' guild   b  bank. A building turns its door to the square or path.
 ##   Villagers: 0 elder, 1 smith (melts, forges and mends gear at the forge
@@ -232,6 +234,8 @@ var animals: Array[Animal] = []
 var farm_animals: Array[FarmAnimal] = []
 ## The herald's call to arms against slimes in the village (see VillageAlarm).
 var village_alarm := VillageAlarm.new()
+## The shared lunch and dinner at the tables on the square (see TownMeals).
+var meals := TownMeals.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -353,6 +357,9 @@ var _window_mask: ImageTexture
 ## on the roofs, the doors (and the way they look out) that get a paved way,
 ## and the ground's mask, which those ways are painted into.
 var _ivy := {"xforms": [], "colours": []}
+## All the leaves, stems and grapes of the village (AgedStone.ivy_node), dressed for the season
+## (see set_season).
+var ivy: Node3D
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -571,7 +578,9 @@ func build() -> void:
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
-		add_child(AgedStone.ivy_node(_ivy))
+		ivy = AgedStone.ivy_node(_ivy)
+		add_child(ivy)
+		IvySeasons.apply(ivy, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -703,7 +712,9 @@ const HOLE_CELL := 2.0
 ## x/z, each on the 2 m lattice of the map (see HouseSketch.CELL). The ground is
 ## not drawn there and the hero can fall in; with no holes everything is as
 ## before. Walkable floors inside the holes are the cellar's own business.
-func set_floor_holes(holes: Array) -> void:
+## `floored` are the holes closed over by a cellar ceiling (see HouseSketch.COVER):
+## still cut open, but litter, snow and dropped things lie on them as on the ground.
+func set_floor_holes(holes: Array, floored: Array = []) -> void:
 	if _floor_slabs.get_parent() == null:
 		_walls_body.add_child(_floor_slabs)
 	# Taken out of the body at once and freed at the end of the frame, never freed right away:
@@ -715,6 +726,17 @@ func set_floor_holes(holes: Array) -> void:
 	# The picture: a mask with a pixel for each 2 m cell of the map.
 	var mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
 	var lattice := {}
+	var closed := {}
+	for r: Rect2 in floored:
+		closed[Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))] = true
+	# Where the cellar lies open to the sky, and the cells nothing may lie on. The snow's mask is 1
+	# on an open cell and half on a closed one: snow lies on the ceiling but not in the cellar under it.
+	var snow_mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
+	var open_lattice := {}
+	var open_holes := []
+	for r: Rect2 in holes:
+		if not closed.has(Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))):
+			open_holes.append(r)
 	var lo := Vector2i(1 << 30, 1 << 30)
 	var hi := Vector2i(-(1 << 30), -(1 << 30))
 	for r: Rect2 in holes:
@@ -725,19 +747,22 @@ func set_floor_holes(holes: Array) -> void:
 				lattice[Vector2i(x, y)] = true
 				lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
 				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+				if not closed.has(Vector2i(x, y)):
+					open_lattice[Vector2i(x, y)] = true
 				if x >= 0 and y >= 0 and x < width * 2 and y < height * 2:
 					mask.set_pixel(x, y, Color(1, 0, 0, 1))
+					snow_mask.set_pixel(x, y, Color(0.5 if closed.has(Vector2i(x, y)) else 1.0, 0, 0, 1))
 	if _ground_mat != null:
 		_ground_mat.set_shader_parameter("hole_mask", ImageTexture.create_from_image(mask))
 		_ground_mat.set_shader_parameter("holes_on", not lattice.is_empty())
 	# Nothing lies in a hole: the litter on it is lifted away, and what the hero dropped there moves
 	# to the nearest whole ground.
 	if surface_life != null:
-		surface_life.set_holes(holes)
-	_move_pickups_out(lattice)
-	# The snow keeps off the dug squares too.
+		surface_life.set_holes(open_holes)
+	_move_pickups_out(open_lattice)
+	# The snow keeps off the dug squares too (a cellar ceiling gets snow like the ground).
 	if snow != null:
-		snow.set_holes(ImageTexture.create_from_image(mask) if not lattice.is_empty() else null)
+		snow.set_holes(ImageTexture.create_from_image(snow_mask) if not lattice.is_empty() else null)
 	if lattice.is_empty():
 		plane.plane = Plane(Vector3.UP, 0.0)
 		return
@@ -1069,6 +1094,12 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			spots.well.append(pos + Vector3(0, 0, 2.6))
 		"x":
 			_build_bench(c)
+		TownMeals.LETTER:
+			meals.build_table(self, c)
+			# Still part of the square: the birds peck for crumbs under the tables, and the
+			# square's middle stays where it was. Villagers on an errand skip it (see Villager._errand).
+			spots.square.append(pos)
+			spots.market.append(pos)
 		"v":
 			_build_pedestal(c)
 		"!":
@@ -3533,6 +3564,12 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 		v.update_wear(first or at_once)
 
 
+## The vines on the houses turn with the seasons: red and gold in autumn, snowy and without grapes
+## in winter (see IvySeasons). `season_day` is the day whose season counts (from dusk on tomorrow's).
+func set_season(season_day: int) -> void:
+	IvySeasons.apply(ivy, season_day)
+
+
 ## Whether a tile is walkable ground (for villagers picking where to go).
 func is_open(c: Vector2i) -> bool:
 	return WALK.contains(cell_char(c)) and not astar.is_point_solid(c)
@@ -3544,6 +3581,7 @@ func _process(delta: float) -> void:
 		return
 	village_alarm.tick(self, delta)
 	village_wall.tick(self, delta)
+	meals.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

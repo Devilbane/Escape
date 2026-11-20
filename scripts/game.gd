@@ -2777,7 +2777,9 @@ func _tick_clock(delta: float) -> void:
 			level.day = day
 			# The winter clothes change in the night, with the village asleep: from dusk on it is
 			# already tomorrow's season that counts (the day turns at dawn).
-			level.set_winter_wear(Weather.is_winter(day + (1 if DayNight.is_night(day_hour) else 0)))
+			var season_day := day + (1 if DayNight.is_night(day_hour) else 0)
+			level.set_winter_wear(Weather.is_winter(season_day))
+			level.set_season(season_day)
 			level.set_hour(day_hour)
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
@@ -5312,11 +5314,14 @@ func _sky_force(sky: Dictionary) -> void:
 	var parts: Array[String] = []
 	var kind: String = sky.weather
 	if sky.winter >= 0:
-		day = SkyCommand.day_for(day, sky.winter == 1)
+		day = SkyCommand.autumn_from(day) if sky.get("autumn", false) else SkyCommand.day_for(day, sky.winter == 1)
 		if level is Outdoor:
 			# The command is instant: everyone is dressed (or undressed) on the spot.
 			level.set_winter_wear(sky.winter == 1, true)
-		parts.append(Lang.t("Winter an") if sky.winter == 1 else Lang.t("Winter aus"))
+		if sky.get("autumn", false):
+			parts.append(Lang.t("Herbst an"))
+		else:
+			parts.append(Lang.t("Winter an") if sky.winter == 1 else Lang.t("Winter aus"))
 	elif Weather.is_winter(day) and kind in [Weather.RAIN, Weather.STORM]:
 		# There is no rain or storm in winter (see Weather.for_season): end it.
 		day = SkyCommand.day_for(day, false)

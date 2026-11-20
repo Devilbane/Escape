@@ -32,7 +32,7 @@ static func entries() -> Array:
 		out.append({
 			"name": "Wetter und Zeit",
 			"syntax": "weather:<Wetter>-<Zeit>",
-			"text": "Erzwingt Wetter (clear, rain, fog, storm, snow), Tageszeit (dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30) und Jahreszeit (winter, spring). Jeder Teil geht auch allein; time: ist dasselbe wie weather:. Schnee legt sofort eine volle Schneedecke.",
+			"text": "Erzwingt Wetter (clear, rain, fog, storm, snow), Tageszeit (dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30) und Jahreszeit (winter, autumn, spring). Jeder Teil geht auch allein; time: ist dasselbe wie weather:. Schnee legt sofort eine volle Schneedecke.",
 			"examples": ["weather:rain-noon", "weather:snow", "weather:-night", "time:14:30", "weather:winter"],
 		})
 		out.append({

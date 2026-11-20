@@ -208,6 +208,8 @@ func _cutout_for(gi: GeometryInstance3D) -> ShaderMaterial:
 		m.set_shader_parameter("uv_scale", base.uv1_scale)
 		m.set_shader_parameter("uv_offset", base.uv1_offset)
 		m.set_shader_parameter("alpha_scissor", base.alpha_scissor_threshold if base.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR else 0.5)
+		# Leaves that hold snow on their upper rims too (the ivy, see IvySeasons.SNOW_CLING).
+		m.set_shader_parameter("cling", float(base.get_meta("snow_cling", 0.0)))
 		# Copy what the others know so far.
 		for param: String in ["amount", "daylight", "moon_glow", "warm", "warm_count"]:
 			m.set_shader_parameter(param, material.get_shader_parameter(param))

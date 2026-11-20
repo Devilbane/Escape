@@ -343,10 +343,20 @@ func _breath() -> void:
 				puff = b
 	check(puff != null, "someone out in the village breathes")
 	check(Weather.cold, "it is cold")
+	# A breath that has not been drawn yet starts blank and hidden: out of the cold it never emits,
+	# and an unblanked buffer showed as clumps of coloured and dark balls by every villager.
+	var fresh := Breath.new()
+	var cold_puff := fresh._make_puff()
+	var buffer := RenderingServer.multimesh_get_buffer(cold_puff.get_base())
+	check(not cold_puff.emitting and not cold_puff.visible, "a new breath starts cold and hidden")
+	check(buffer.size() == cold_puff.amount * 20 and Array(buffer).all(func(x: float) -> bool: return x == 0.0),
+			"a new breath starts with a blank buffer")
+	cold_puff.free()
+	fresh.free()
 	if puff != null:
 		puff._timer = 0.0
 		puff._process(0.016)
-		check(puff._puff.emitting, "a villager breathes out a cloud in the cold")
+		check(puff._puff.emitting and puff._puff.visible, "a villager breathes out a cloud in the cold")
 		puff._process(Breath.BLOW + 0.1)
 		check(not puff._puff.emitting, "the breath stops by itself, the cloud drifts on")
 		puff.exhale()

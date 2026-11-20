@@ -76,26 +76,32 @@ static func build(level: Level, c: Vector2i, ch: String) -> void:
 	if ch == CHEST:
 		_build_chest(level, c, pos)
 		return
+	build_bench(level, pos, ch, hash("bench:%s:%d:%d" % [ch, c.x, c.y]))
+	var bench: Dictionary = BENCHES[ch]
+	_add_sign(level, pos, Lang.t(bench.sign), bench.icon)
+	level._add_solid(pos + Vector3(-0.5, 0, 0), Vector3(2.0, 1.2, 3.0))
+	level.stations.append({"kind": "werkbank", "craft": bench.craft, "cell": c, "pos": pos, "used": false})
+
+
+## The bench of a craft letter and what lies on it, at `pos` in `parent`: the worker stands to its
+## east. No sign, solid or station (a bench of a self-built house uses it too, see HouseFurnisher).
+static func build_bench(parent: Node, pos: Vector3, ch: String, seed_value: int) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("bench:%s:%d:%d" % [ch, c.x, c.y])
+	rng.seed = seed_value
 	var b := WeatheredProps.Builder.new()
 	VillageProps.build_workbench(b, Vector3(-0.7, 0, 0), rng)
 	var top := Vector3(-0.7, 0.98, 0)
 	match ch:
 		"+":
 			VillageProps.dress_metalwork(b, top, rng)
-			_dress_metalwork(level, pos)
+			_dress_metalwork(parent, pos)
 		"%":
 			VillageProps.dress_gem_wheel(b, top, rng)
-			_dress_gem_wheel(level, pos)
+			_dress_gem_wheel(parent, pos)
 		"*":
 			VillageProps.dress_alchemy(b, top, CAULDRON, rng)
-			_dress_alchemy(level, pos)
-	b.finish(level, pos)
-	var bench: Dictionary = BENCHES[ch]
-	_add_sign(level, pos, Lang.t(bench.sign), bench.icon)
-	level._add_solid(pos + Vector3(-0.5, 0, 0), Vector3(2.0, 1.2, 3.0))
-	level.stations.append({"kind": "werkbank", "craft": bench.craft, "cell": c, "pos": pos, "used": false})
+			_dress_alchemy(parent, pos)
+	b.finish(parent, pos)
 
 
 # --- Pieces -------------------------------------------------------------------
@@ -125,7 +131,7 @@ static func _build_chest(level: Level, c: Vector2i, pos: Vector3) -> void:
 ## On the fine metalwork bench, besides the anvil and the hearth of bricks
 ## (see VillageProps.dress_metalwork): the metal glowing in the crucible, a
 ## gold ring and a coil of silver wire, and a warm light.
-static func _dress_metalwork(level: Level, pos: Vector3) -> void:
+static func _dress_metalwork(level: Node, pos: Vector3) -> void:
 	var top := pos + Vector3(-0.7, 0.98, 0)
 	var glow := _mat(Color(0.4, 0.12, 0.02), 0.6)
 	glow.emission_enabled = true
@@ -158,7 +164,7 @@ static func _dress_metalwork(level: Level, pos: Vector3) -> void:
 ## On the gem cutter's bench, besides the wheel (see
 ## VillageProps.dress_gem_wheel): cut stones in red, blue and green on a
 ## cloth, glittering.
-static func _dress_gem_wheel(level: Level, pos: Vector3) -> void:
+static func _dress_gem_wheel(level: Node, pos: Vector3) -> void:
 	var top := pos + Vector3(-0.7, 0.98, 0)
 	_mesh(level, _box_mesh(Vector3(0.7, 0.01, 0.8)), WeatheredProps.colour_material(Color(0.3, 0.16, 0.34)), top + Vector3(0.05, 0.005, 0.6))
 	var colours := [Color(0.9, 0.1, 0.15), Color(0.15, 0.35, 1.0), Color(0.1, 0.85, 0.35), Color(0.95, 0.85, 0.3), Color(0.7, 0.3, 0.95)]
@@ -179,7 +185,7 @@ static func _dress_gem_wheel(level: Level, pos: Vector3) -> void:
 ## On and by the alchemist's table, besides the cauldron, the mortar and the
 ## book (see VillageProps.dress_alchemy): bottles of coloured brews, the
 ## green brew bubbling in the cauldron over a small fire, and its light.
-static func _dress_alchemy(level: Level, pos: Vector3) -> void:
+static func _dress_alchemy(level: Node, pos: Vector3) -> void:
 	var top := pos + Vector3(-0.7, 0.98, 0)
 	var glass := [Color(0.3, 0.8, 0.4, 0.75), Color(0.7, 0.2, 0.8, 0.75), Color(0.9, 0.4, 0.15, 0.75), Color(0.3, 0.5, 0.95, 0.75)]
 	for i in glass.size():
@@ -248,7 +254,7 @@ static func _box_mesh(size: Vector3) -> BoxMesh:
 	return mesh
 
 
-static func _mesh(level: Level, mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO) -> void:
+static func _mesh(level: Node, mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO) -> void:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = mat

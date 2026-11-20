@@ -274,7 +274,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler"]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler"]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -416,6 +416,8 @@ var menus: Menus
 var plot_marker: PlotMarker
 ## The blueprint tool on the hero's plot (see HouseSketch).
 var house_sketcher: HouseSketcher
+## The furniture in the self-built houses and the tool to put it down (see HouseFurnisher).
+var house_furnisher: HouseFurnisher
 ## Playing together with friends (see CoopSession); off unless the player hosts or joins.
 var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
@@ -3127,6 +3129,7 @@ func load_level(index: int, restock := true) -> void:
 	level.build()
 	plot_marker = null
 	house_sketcher = null
+	house_furnisher = null
 	if level is Outdoor:
 		plot_marker = PlotMarker.new()
 		plot_marker.game = self
@@ -3134,6 +3137,9 @@ func load_level(index: int, restock := true) -> void:
 		house_sketcher = HouseSketcher.new()
 		house_sketcher.game = self
 		level.add_child(house_sketcher)
+		house_furnisher = HouseFurnisher.new()
+		house_furnisher.game = self
+		level.add_child(house_furnisher)
 		plot_marker.refresh()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
@@ -3979,7 +3985,7 @@ func _apply_save(data: Dictionary) -> void:
 		for id in read:
 			book_hours[String(id)] = clampf(float(read[id]), 0.0, float(Offline.BOOK_HOURS))
 	player.bag.assign(data.bag)
-	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
+	player.home_hp = HomeUpgrades.trophy_hp(HouseFurniture.upgrades_with_stand(home_upgrades, hero_name), trophies)
 	player.refresh_stats()
 	# Games saved before there was a clock wake up in the morning.
 	day_hour = fposmod(float(data.get("hour", DayNight.START_HOUR)), 24.0)
@@ -4431,7 +4437,9 @@ func rest_till_morning() -> void:
 			snow_cover = 0.0
 		player.hp = player.max_hp
 		player.cure()
-		player.global_position = level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
+		# Out of a bed of a self-built house beside its foot (see HouseFurnisher), else beside the bed of the room.
+		var side: Vector3 = bed.get("side", level.bed_side)
+		player.global_position = side if side != Vector3.ZERO else player.global_position
 		player.face(Vector3.BACK)
 		player.play("Idle")
 		_snap_camera()
@@ -4963,7 +4971,7 @@ func _return_from_away(data: Dictionary) -> void:
 	var plan := Offline.normalized(away.get("plan", {}), away_choices())
 	var hours := Offline.game_hours(real_seconds)
 	var read := float(book_hours.get(String(plan.study), 0.0))
-	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt"), read)
+	var result := Offline.simulate(plan, hours, HomeUpgrades.has(home_upgrades, "werkstatt") or HouseFurniture.of(hero_name).standing("werkbank") > 0, read)
 	away_report = _apply_away(plan, result)
 	var night := _sleep_night(real_seconds, data)
 	away_report.push_front(Lang.t("Du warst %s weg, für %s vergingen %s.") % [
@@ -7350,6 +7358,9 @@ func _process(delta: float) -> void:
 		# The blueprint tool looks at the whole plot, a little above the middle so
 		# the tool bar at the bottom does not hide its near edge.
 		target = house_sketcher.view_centre() + _camera_offset()
+	elif house_furnisher != null and house_furnisher.active:
+		# So does the furnishing tool, at the height of the storey it shows.
+		target = house_furnisher.view_centre() + _camera_offset()
 	camera.global_position = camera.global_position.lerp(target, 1.0 - exp(-5.0 * delta))
 	if _shake > 0.0:
 		# The ground trembles while a secret wall sinks.
@@ -7439,6 +7450,7 @@ func _process(delta: float) -> void:
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			"raumausstatter": Lang.t("Dagegenlaufen, um bei %s Möbel zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
@@ -7611,6 +7623,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 	var pressed: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventKey and event.pressed and not event.echo)
 	if not pressed:
+		return
+	# The furnishing tool takes the clicks on the floor, R to turn and Esc to close.
+	if state == State.PLAYING and house_furnisher != null and house_furnisher.active and not menus.is_open() \
+			and house_furnisher.handle_input(event):
+		get_viewport().set_input_as_handled()
 		return
 	match state:
 		State.TITLE:
@@ -8014,17 +8031,21 @@ func _win_trophy(kind: String) -> void:
 	apply_home_bonus()
 	if level.is_home:
 		level.show_home_upgrades(home_upgrades, trophies)
+	if house_furnisher != null:
+		house_furnisher.refresh_books()
 
 
 ## Puts as many books on the bookshelf of the house as the hero keeps there.
 func refresh_bookshelf() -> void:
 	if level != null and level.is_home:
 		Bookshelf.refresh(level, HomeStores.total(home_stores, HomeStores.BOOKS))
+	if house_furnisher != null:
+		house_furnisher.refresh_books()
 
 
 ## The life the trophy wall gives goes into the hero's stats.
 func apply_home_bonus() -> void:
-	player.home_hp = HomeUpgrades.trophy_hp(home_upgrades, trophies)
+	player.home_hp = HomeUpgrades.trophy_hp(HouseFurniture.upgrades_with_stand(home_upgrades, hero_name), trophies)
 	player.refresh_stats()
 	_update_hud()
 

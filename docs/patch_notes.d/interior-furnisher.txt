@@ -1,0 +1,2 @@
+- New in the village: Ilse the furnisher sells beds, chests, bookshelves, fireplaces, trophy stands, workbenches, candle stands, wall torches and paintings for your self-built house.
+- Set furniture up at your blueprint sign with "Furnish": it works like the furniture of your old house (sleep, storage, books, crafting, trophies), and lamps, torches and fireplaces light the room.

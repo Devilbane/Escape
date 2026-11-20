@@ -153,6 +153,12 @@ var _hover_key := ""
 var _refresh_in := 0.0
 var _frame_shift := Vector3.ZERO
 var _frame_pending := false
+## The furnishing tool (see HouseFurnisher) looks at one storey: while it is set, the storeys
+## above it fade as if the hero stood inside on it (NO_VIEW: the hero's own place decides).
+const NO_VIEW := -99
+var view_storey := NO_VIEW
+## The highest storey that shows now (the ones above have faded away), 99 when nothing fades.
+var fade_storey := 99
 ## The built ballistae of every house on the map (see HouseBallista).
 var _guns := Node3D.new()
 ## The door leaves of every built door and gate, by "plot|piece key".
@@ -320,11 +326,13 @@ func view_centre() -> Vector3:
 
 
 ## The part of the screen the plot may use: everything above the tool bar.
-func _free_area() -> Rect2:
+func _free_area(bar: Control = null) -> Rect2:
 	var view: Rect2 = game.get_viewport().get_visible_rect()
 	var top := view.end.y
-	if _bar != null and _bar.visible:
-		top = minf(top, _bar.get_global_rect().position.y)
+	if bar == null:
+		bar = _bar
+	if bar != null and bar.visible:
+		top = minf(top, bar.get_global_rect().position.y)
 	return Rect2(view.position, Vector2(view.size.x, top - view.position.y)).grow(-FRAME_MARGIN)
 
 
@@ -358,7 +366,8 @@ func plot_fits() -> bool:
 ## drawn from the trial positions and nothing here depends on where the camera was
 ## gliding from. (Measuring on the live camera every frame made it hunt back and
 ## forth: pulling back moved the corners, which asked for another correction.)
-func solve_frame() -> void:
+## `bar` is the tool bar to keep the plot above (the furnishing tool passes its own).
+func solve_frame(bar: Control = null) -> void:
 	_frame_shift = Vector3.ZERO
 	game.frame_pull = 0.0
 	if plan == null:
@@ -366,7 +375,7 @@ func solve_frame() -> void:
 	var cam: Camera3D = game.camera
 	var saved := cam.global_position
 	var mid := plan.node_world(plan.nodes().x / 2, plan.nodes().y / 2)
-	var free := _free_area()
+	var free := _free_area(bar)
 	var pull := 0.0
 	while pull <= FRAME_PULL_LIMIT:
 		game.frame_pull = pull
@@ -401,6 +410,13 @@ func leave() -> void:
 	_clear(_ghost)
 	if plan != null:
 		plan.save(game.hero_name)
+
+
+## Over to the furnishing tool, to put furniture down in the house.
+func furnish() -> void:
+	leave()
+	if game.house_furnisher != null:
+		game.house_furnisher.enter()
 
 
 ## Gives up the drag in progress (the mouse was let go off the ground).
@@ -822,6 +838,8 @@ func _build_bar() -> void:
 	actions.add_child(_deposit_button)
 	_order_button = _small_button(Lang.t("Bau beauftragen"), toggle_order, 150)
 	actions.add_child(_order_button)
+	# Into the furnishing tool (see HouseFurnisher): the furniture bought from the furnisher.
+	actions.add_child(_small_button(Lang.t("Einrichten"), furnish, 120))
 	var done := _small_button(Lang.t("Schließen"), leave)
 	actions.add_child(done)
 	_stock_label = _line(Color(0.8, 0.9, 1.0))
@@ -1140,6 +1158,9 @@ func _redraw() -> void:
 		(game.level as Outdoor).surface_life.set_built(built_ground)
 	game.level.house_floors = HouseFloors.new(floored) if not floored.is_empty() else null
 	_raise_roofs()
+	# Furniture that no longer fits the changed house goes back into the store (see HouseFurnisher).
+	if game.house_furnisher != null and game.house_furnisher.is_inside_tree():
+		game.house_furnisher.refresh()
 	if plan == null:
 		return
 	for key in plan.pieces:
@@ -1395,7 +1416,7 @@ func _cover(house: HouseSketch, x: int, y: int, level: int) -> void:
 ## storeys over their head fade away while they stand under a roof, and come
 ## back when they step out or climb onto the roof.
 func _update_fade() -> void:
-	if game == null or game.player == null or (_covered.is_empty() and _fade_state == ""):
+	if game == null or game.player == null or (_covered.is_empty() and _fade_state == "" and view_storey == NO_VIEW):
 		return
 	var pos: Vector3 = game.player.global_position
 	var level := -1 if pos.y < -0.5 else clampi(floori((pos.y + 0.2) / HouseSketch.STOREY_HEIGHT), 0, HouseSketch.MAX_STOREY + 1)
@@ -1405,6 +1426,10 @@ func _update_fade() -> void:
 		for dy in range(-1, 2):
 			if int(_covered.get(at + Vector2i(dx, dy), -2)) >= level:
 				inside = true
+	if view_storey != NO_VIEW:
+		level = view_storey
+		inside = true
+	fade_storey = level if inside else 99
 	var state := "%d:%s" % [level, inside]
 	if state == _fade_state:
 		return

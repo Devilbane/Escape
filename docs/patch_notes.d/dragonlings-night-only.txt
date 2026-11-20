@@ -1,0 +1,1 @@
+- The little dragonlings now collect things for their hoard only at night: at daybreak they fly home, and what is left waits for the next night.

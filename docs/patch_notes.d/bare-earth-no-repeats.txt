@@ -1,0 +1,1 @@
+- Bare earth in a dug cellar no longer shows a repeating tile pattern: the soil blends into itself across the whole floor and walls.

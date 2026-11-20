@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Winter keeps autumn's leaves, some covered in snow; Make the leaf-covered forest edge walkable and fill its gaps (+1 more) | Shipped this week: Natural stonework: stones of differing size, rounded building edges (+49 more)
+Escape! dev status | Working on: Make the leaf-covered forest edge walkable and fill its gaps; Fade wall shadows in and out; the fountain's glow stays plain | Shipped this week: Winter keeps autumn's leaves, some covered in snow; Natural stonework: stones of differing size, rounded building edges (+48 more)

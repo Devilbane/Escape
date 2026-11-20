@@ -111,6 +111,11 @@ func _make_puff() -> CPUParticles3D:
 	fade.set_color(fade.get_point_count() - 1, Color(1, 1, 1, 0.0))
 	puff.color_ramp = fade
 	puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Out of the cold it never emits, yet a CPUParticles3D draws its buffer all the same: unblanked,
+	# that was whatever the graphics driver left in that memory, a clump of coloured and dark balls by
+	# every villager. Hidden as well until the first breath, so nothing can show before it.
+	Effects.start_cold(puff)
+	puff.visible = false
 	return puff
 
 
@@ -147,4 +152,5 @@ func _set_moving(moving: bool) -> void:
 ## Breathes out now: the stream starts and stops by itself, clouds still in the air stay.
 func exhale() -> void:
 	_blow = BLOW
+	_puff.visible = true
 	_puff.emitting = true

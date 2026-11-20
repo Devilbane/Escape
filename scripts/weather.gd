@@ -473,9 +473,12 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 			var want := SNOW_FLAKES if f > WINTER_FLURRY else WINTER_FLAKES
 			if snow.amount != want:
 				snow.amount = want
+				# A new count means a new buffer: blank it, or it shows stray coloured balls.
+				Effects.start_cold(snow)
 			f = maxf(f, WINTER_FLURRY)
 		elif snow.amount != SNOW_FLAKES:
 			snow.amount = SNOW_FLAKES
+			Effects.start_cold(snow)
 		snow.emitting = f > 0.02
 		snow.visible = snow.emitting
 		# How bright a flake is comes from the light that reaches it (the sun, the moon of tonight's

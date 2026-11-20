@@ -911,6 +911,104 @@ func _stay_seated(delta: float) -> bool:
 	return true
 
 
+# --- Blowing the alarm horn (see HornBlow, WarHorn.hero_blow) ---------------------
+
+## The hero's blowing of the alarm horn while it lasts, the rig's standing
+## pose it is posed over, and whether the body is posed for it yet.
+var _horn: HornBlow
+var _horn_base := {}
+var _horn_posed := false
+## The way the hero still pushes from walking into the horn: holding on that
+## way keeps blowing; letting go, then any step, ends it (Vector3.ZERO: let go).
+var _horn_push := Vector3.ZERO
+## The walk round to the horn's mouthpiece.
+const HORN_WALK := "Walking_A"
+
+
+## Walks to the horn's mouthpiece and blows it (see HornBlow). There is no
+## lock: any step, click, jump or attack, or a blow taken, ends it at once.
+func blow_horn(blow: HornBlow) -> void:
+	stand_up()
+	_end_horn()
+	path.clear()
+	_hunt = null
+	_target = null
+	velocity = Vector3.ZERO
+	_flourish = 0.0
+	_horn = blow
+	_horn_push = Vector3.INF
+
+
+## Whether the hero is at the horn (or on the way to its mouthpiece) blowing it.
+func blowing_horn() -> bool:
+	return _horn != null
+
+
+## One tick of blowing the horn: the walk to the mouthpiece, then the body
+## posed for each blast and each breath. True while it goes on; any wish to
+## do something else ends it, and the same tick goes on to do that.
+func _horn_step(delta: float) -> bool:
+	if _horn == null:
+		return false
+	var wish := Vector3.ZERO
+	if controllable:
+		wish = _keyboard_direction()
+		if wish == Vector3.ZERO:
+			wish = steer
+	if _horn_push == Vector3.INF:
+		_horn_push = wish
+	if wish == Vector3.ZERO or wish.dot(_horn_push) < 0.7:
+		_horn_push = Vector3.ZERO
+	var pushing_on := wish != Vector3.ZERO and _horn_push != Vector3.ZERO
+	if dead or not controllable or (wish != Vector3.ZERO and not pushing_on) or not path.is_empty() or _hunt != null or _busy > 0.0 or _knockback.length() > 0.5:
+		_end_horn()
+		return false
+	var walk := Stride.top_speed("kaykit", HORN_WALK, _model.scale.x)
+	var state := _horn.step(delta, walk)
+	var pos: Vector3 = state.pos
+	var face_to: Vector3 = state.face
+	global_position = Vector3(pos.x, global_position.y, pos.z)
+	velocity = Vector3.ZERO
+	_model.rotation.y = lerp_angle(_model.rotation.y, atan2(face_to.x, face_to.z), 1.0 - exp(-14.0 * delta))
+	if state.walking:
+		play(HORN_WALK)
+		_anim.speed_scale = Stride.playback("kaykit", HORN_WALK, _model.scale.x, walk)
+	else:
+		if _skeleton == null:
+			_skeleton = _model.find_child("Skeleton3D", true, false) as Skeleton3D
+		if not _horn_posed and _skeleton != null:
+			_horn_posed = true
+			_anim.speed_scale = 1.0
+			_anim.play("Idle")
+			_anim.seek(0.0, true)
+			if _horn_base.is_empty():
+				_horn_base = ClimbPose.base_of(_skeleton)
+			_anim.pause()
+			_current_anim = ""
+		_model.position.y = 0.0
+		_on_toes = false
+		if _horn_posed:
+			ClimbPose.apply(_skeleton, _horn_base, state.pose)
+	if _horn.done:
+		_end_horn()
+		return false
+	return true
+
+
+## Done with the horn, or off to do something else half way (the blast dies away).
+func _end_horn() -> void:
+	if _horn == null:
+		return
+	_horn.stop()
+	_horn = null
+	if _horn_posed:
+		_horn_posed = false
+		if _skeleton != null:
+			ClimbPose.apply(_skeleton, _horn_base, {})
+		_current_anim = ""
+		play("Idle", 0.15)
+
+
 func face(direction: Vector3) -> void:
 	_model.rotation.y = atan2(direction.x, direction.z)
 
@@ -943,6 +1041,7 @@ func revive(at: Vector3, heal := true) -> void:
 	_climb = -1.0
 	if _pit_climb:
 		_end_pit_climb(false)
+	_end_horn()
 	_on_crate = false
 	set_asleep(false)
 	play("Idle")
@@ -3125,7 +3224,7 @@ func on_ladder() -> bool:
 ## Whether the drawn hero is kept out of walls now: not while seated, lying, climbing
 ## (that keeps clear on its own, see ClimbPose) or dead, which put the model where it belongs.
 func _keeps_clear_of_walls() -> bool:
-	if dead or _seated or _pit_climb or _climb >= 0.0 or _ladder_t >= 0.0 or _clearance_pivot == null:
+	if dead or _seated or _pit_climb or _horn != null or _climb >= 0.0 or _ladder_t >= 0.0 or _clearance_pivot == null:
 		return false
 	return not (_current_anim.begins_with("Lie_") or _current_anim.begins_with("Sit_") or _current_anim.begins_with("Death"))
 
@@ -3254,6 +3353,8 @@ func _physics_process(delta: float) -> void:
 	_pursue(delta)
 	_auto_attack()
 	if _stay_seated(delta):
+		return
+	if _horn_step(delta):
 		return
 	if _pit_climb:
 		_pit_climb_step(delta)

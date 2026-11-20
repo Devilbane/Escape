@@ -1895,8 +1895,14 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == "schrein":
 		_open_shrine(s)
 	elif s.kind == WarHorn.KIND:
-		player.face(s.pos - player.global_position)
-		show_message(WarHorn.hero_blow(level as Outdoor), 3.0)
+		# The hero walks round to the mouthpiece and blows (see HornBlow); the
+		# villagers gather at the first blast.
+		var why := WarHorn.hero_cannot()
+		if why != "":
+			player.face(s.pos - player.global_position)
+			show_message(why, 3.0)
+		else:
+			player.blow_horn(WarHorn.hero_blow(level as Outdoor, player.global_position, func(text: String): show_message(text, 3.0)))
 	elif s.kind == "brunnen":
 		# Pushing on against the fountain drinks one sip at a time.
 		if not belly_sips.still_drinking(_clock_now()):
@@ -3101,7 +3107,7 @@ func _on_elder_awakened() -> void:
 func _tick_weather(delta: float) -> void:
 	weather_hours -= delta * 24.0 / DayNight.DAY_LENGTH
 	if weather_hours <= 0.0:
-		set_weather(Weather.roll(day_hour, _weather_rng, weather, Weather.is_winter(day)))
+		set_weather(Weather.roll(day_hour, _weather_rng, weather, Weather.season(day)))
 
 
 ## Sets the weather for `hours` of the day (a random spell when not given).
@@ -4529,7 +4535,7 @@ func rest_till_morning() -> void:
 			_new_day(true)
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
-		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.is_winter(day)))
+		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.season(day)))
 		# The puddles dried up overnight, and the snow melted (in winter it stays).
 		puddle_water = 0.0
 		if not Weather.is_winter(day):
@@ -4694,7 +4700,7 @@ func sleep(at_camp_now := false) -> void:
 		world_hours += fposmod(DayNight.WAKE_HOUR - day_hour, 24.0)
 		day_hour = DayNight.WAKE_HOUR
 		# A new morning brings new weather, and the puddles dried up overnight.
-		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.is_winter(day)))
+		set_weather(Weather.roll(day_hour, _weather_rng, "", Weather.season(day)))
 		puddle_water = 0.0
 		if not Weather.is_winter(day):
 			snow_cover = 0.0

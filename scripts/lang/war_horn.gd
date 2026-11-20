@@ -7,5 +7,6 @@ const EN := {
 	"Du stößt ins Horn. Niemand scheint es zu hören.": "You blow the horn. Nobody seems to hear it.",
 	"Das Horn braucht noch einen Moment, bis es wieder erschallt.": "The horn needs a moment before it can sound again.",
 	"Die Wache bläst gerade schon ins Horn.": "The guard is already blowing the horn.",
+	"Du bläst doch schon ins Horn.": "You are already blowing the horn.",
 	"Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln": "Walk into it to blow the horn and gather the village",
 }

@@ -21,6 +21,10 @@ extends Node3D
 ## flat roof (see HouseSketch.RAIL_STOREY): drag it along the roof's edge, or
 ## click the roof once to ring all its open edges; the stairs keep their gap.
 ##
+## A ballista (see HouseBallista) is set on one cell with a click: on the flat
+## roof where one is planned, else on the ground. Built, it shoots at the slimes
+## that come near; while the tool is open a circle shows how far it reaches.
+##
 ## The tool bar sits at the bottom of the screen with fixed sizes, so a tool or
 ## a stage never reshapes it.
 
@@ -39,7 +43,8 @@ const TOOL_STAIRS := "stairs"
 ## The cellar ceiling, which is the ground floor's floor too (see HouseSketch.COVER).
 const TOOL_COVER := "cover"
 const TOOL_FENCE := "fence"
-const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_ERASE]
+const TOOL_BALLISTA := "ballista"
+const TOOLS := [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_BALLISTA, TOOL_ERASE]
 ## Tools that drag a straight run of edges.
 const RUN_TOOLS := [TOOL_WALL, TOOL_FENCE]
 ## The cellar's tools (their own row in the tool bar).
@@ -62,7 +67,11 @@ const STAIRS_COLOR := Color(1.0, 0.85, 0.3, 0.8)
 const PLANK_COLOR := Color(0.5, 0.34, 0.18)
 const WALL_HEIGHT := 2.6
 const THICK := 0.2
-const DOOR_HEIGHT := 2.0
+## The doorway: high enough for the hero to walk through upright (2.4 m with
+## their reach, see Player.tall), under a timber lintel up to the wall's top;
+## stone jambs JAMB wide at each side.
+const DOOR_HEIGHT := 2.4
+const JAMB := 0.35
 const SILL := 0.9
 const WINDOW_TOP := 1.9
 const GRID_COLOR := Color(0.7, 0.85, 1.0, 0.35)
@@ -94,6 +103,7 @@ const BUILD_RANGE := 16.0
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
 const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
+const BALLISTA_COLOR := Color(1.0, 0.6, 0.3, 0.6)
 
 var game: Node
 var active := false
@@ -144,6 +154,12 @@ const NO_VIEW := -99
 var view_storey := NO_VIEW
 ## The highest storey that shows now (the ones above have faded away), 99 when nothing fades.
 var fade_storey := 99
+## The built ballistae of every house on the map (see HouseBallista).
+var _guns := Node3D.new()
+## The door leaves of every built door and gate, by "plot|piece key".
+var doors := {}
+## The leaf _solid_piece just made, for _redraw to hang.
+var _new_door: BuiltDoor
 
 
 func _ready() -> void:
@@ -151,6 +167,7 @@ func _ready() -> void:
 	add_child(_solid)
 	add_child(_body)
 	add_child(_ghost)
+	add_child(_guns)
 	_grid.visible = false
 	add_child(_grid)
 	_build_bar()
@@ -287,6 +304,7 @@ func enter() -> void:
 		game.plot_marker.cancel()
 	_grid.visible = true
 	_bar.visible = true
+	_show_ranges(true)
 	_draw_grid()
 	select_tool(TOOL_WALL)
 	game.show_message(Lang.t("Bauplan: Ziehe Wände auf dem Raster. Das Haus darf kleiner sein als das Grundstück."), 4.0)
@@ -383,6 +401,7 @@ func leave() -> void:
 	drag_from = Vector2i(-1, -1)
 	_grid.visible = false
 	_bar.visible = false
+	_show_ranges(false)
 	_clear(_ghost)
 	if plan != null:
 		plan.save(game.hero_name)
@@ -433,6 +452,18 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		return
 	if tool in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW] and storey < 0:
 		_say(Lang.t("Im Keller graben und verkleiden die Keller-Werkzeuge: Stelle die Ebene um."))
+		return
+	if tool == TOOL_BALLISTA:
+		if pressed:
+			var c := plan.cell_at(point)
+			var up := plan.ballista_storey(c.x, c.y)
+			var why := plan.problem_ballista(c.x, c.y, up)
+			if why != "":
+				_say(reason(why))
+			else:
+				plan.sketch_ballista(c.x, c.y, up)
+				_changed()
+				_say(Lang.t("Balliste vorgemerkt. Beauftrage den Bau: Dein Held baut sie dann."))
 		return
 	if tool in RECT_TOOLS:
 		if pressed:
@@ -529,6 +560,8 @@ func mouse(point: Vector3, pressed: bool, button: int) -> void:
 		var why_not := plan.erase_cell(c.x, c.y) if storey < 0 else plan.erase_above(c.x, c.y, storey)
 		if why_not == "needed":
 			_say(Lang.t("Die Treppe führt hierher: Nimm zuerst die Treppe zurück."))
+		elif why_not == "ballista":
+			_say(reason("ballista"))
 		elif why_not == "" and was_built:
 			_say(Lang.t("Zum Abriss vorgemerkt: Dein Held reißt es ab und bekommt das Material zurück."))
 		_changed()
@@ -555,6 +588,21 @@ func hover(point: Vector3) -> void:
 	if not active or plan == null:
 		return
 	var key := ""
+	if tool == TOOL_BALLISTA:
+		var c := plan.cell_at(point)
+		key = "b:%s" % c
+		if key == _hover_key:
+			return
+		_hover_key = key
+		_clear(_ghost)
+		var up := plan.ballista_storey(c.x, c.y)
+		var why := plan.problem_ballista(c.x, c.y, up)
+		var high := up * HouseSketch.STOREY_HEIGHT
+		_cell_quad(_ghost, c, OK_COLOR if why == "" else BAD_COLOR, high)
+		if why == "":
+			_range_ring(_ghost, plan.cell_world(c.x, c.y) + Vector3(0, high, 0))
+		_say(reason(why) if why != "" else Lang.t("Balliste: Sie schießt auf Schleime bis %d m weit (der Kreis).") % int(HouseBallista.RANGE))
+		return
 	if tool in RECT_TOOLS or tool == TOOL_STAIRS or tool == TOOL_UP:
 		var c := plan.cell_at(point)
 		var from_cell := drag_from if drag_from.x >= 0 and tool in RECT_TOOLS else c
@@ -650,6 +698,8 @@ func _eraser_key(c: Vector2i) -> String:
 		if plan.pieces.has(cover) and plan.pieces[cover].state != HouseSketch.DEMOLISH:
 			return cover
 		return plan.hole_key(c.x, c.y)
+	if not plan.ballista_at(c.x, c.y, storey).is_empty():
+		return HouseSketch.key_of(c.x, c.y, HouseSketch.BALLISTA_ORIENT, storey)
 	if plan.roof_key(c.x, c.y, storey) != "":
 		return plan.roof_key(c.x, c.y, storey)
 	if storey == 0 and plan.up_key(c.x, c.y) != "":
@@ -691,6 +741,14 @@ static func reason(why: String) -> String:
 			return Lang.t("Über dem Fuß der Treppe liegt die Kellerdecke: Nimm sie dort erst zurück.")
 		"storey":
 			return Lang.t("Höher als das Obergeschoss baut dein Held nicht.")
+		"under roof":
+			return Lang.t("Eine Balliste braucht freien Himmel: Stell sie in den Garten oder auf ein Flachdach.")
+		"ballista no roof":
+			return Lang.t("Auf dem Obergeschoss steht eine Balliste auf einem Flachdach.")
+		"many":
+			return Lang.t("Mehr als %d Ballisten passen nicht auf ein Grundstück.") % HouseSketch.MAX_BALLISTAE
+		"ballista":
+			return Lang.t("Auf dem Dach steht eine Balliste: Nimm sie zuerst zurück (Ebene: Obergeschoss).")
 	return ""
 
 
@@ -735,10 +793,10 @@ func _build_bar() -> void:
 	_bar.add_child(box)
 	# Row 1: what to draw. Walls, doors and windows; floors and roofs; the cellar; the eraser.
 	var tools := _row(box)
-	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_ERASE: "Radierer"}
+	var names := {TOOL_WALL: "Wand", TOOL_DOOR: "Tür", TOOL_WINDOW: "Fenster", TOOL_FENCE: "Gartenmauer", TOOL_BALLISTA: "Balliste", TOOL_ERASE: "Radierer"}
 	var roof_names := {TOOL_SLAB: "Decke oder Flachdach", TOOL_SADDLE: "Satteldach", TOOL_UP: "Treppe nach oben"}
 	var cellar_names := {TOOL_DIG: "Keller graben", TOOL_STAIRS: "Kellertreppe", TOOL_COVER: "Kellerdecke"}
-	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_ERASE]:
+	for t in [TOOL_WALL, TOOL_DOOR, TOOL_WINDOW, TOOL_FENCE, TOOL_SLAB, TOOL_SADDLE, TOOL_UP, TOOL_DIG, TOOL_STAIRS, TOOL_COVER, TOOL_BALLISTA, TOOL_ERASE]:
 		var label: String = names.get(t, roof_names.get(t, cellar_names.get(t, "")))
 		var b := _small_button(Lang.t(label), select_tool.bind(t))
 		tools.add_child(b)
@@ -794,10 +852,12 @@ func _build_bar() -> void:
 		add_child(_bar)
 
 
+## A row of the bar. Its buttons stand 4 px apart (the house spacing scale), so
+## the tool row with every tool still fits 1280 px in German.
 func _row(parent: Control) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 5)
+	row.add_theme_constant_override("separation", 4)
 	parent.add_child(row)
 	return row
 
@@ -964,6 +1024,8 @@ func _hint() -> String:
 			return Lang.t("Satteldach: Ziehe ein Rechteck. Der First läuft entlang der langen Seite.")
 		TOOL_UP:
 			return Lang.t("Treppe nach oben: Klicke ein Feld vor einer Decke an. Sie führt vier Meter hinauf.")
+		TOOL_BALLISTA:
+			return Lang.t("Balliste: Klicke ein Feld im Garten oder auf einem Flachdach an. Sie kostet 6 Bauholz und 2 Steinblöcke.")
 	return Lang.t("Radierer: Klicke ein Stück an, um es zurückzunehmen.")
 
 
@@ -997,8 +1059,16 @@ func _clear(node: Node3D) -> void:
 
 
 func _redraw() -> void:
+	var was := {}
+	for k in doors:
+		if is_instance_valid(doors[k]):
+			was[k] = doors[k].state()
+	doors.clear()
 	_clear(_built)
 	_clear(_solid)
+	for gun in _guns.get_children():
+		_guns.remove_child(gun)
+		gun.queue_free()
 	for child in _body.get_children():
 		child.queue_free()
 	if game == null or not game.level is Outdoor:
@@ -1007,6 +1077,7 @@ func _redraw() -> void:
 	var holes := []
 	var floored := []
 	var ceilinged := []
+	var built_ground := []
 	_covered.clear()
 	_fade_state = ""
 	for deed in Plots.all():
@@ -1020,9 +1091,17 @@ func _redraw() -> void:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 				_lift = 0.0
+				if _new_door != null:
+					_hang_door(_new_door, house, key, deed.rect == _plot, was)
+					_new_door = null
 		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
+		_solid_ballistae(house)
+		built_ground.append_array(HouseGround.rects(house))
 	game.level.set_floor_holes(holes, ceilinged)
+	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
+	if (game.level as Outdoor).surface_life != null:
+		(game.level as Outdoor).surface_life.set_built(built_ground)
 	game.level.house_floors = HouseFloors.new(floored) if not floored.is_empty() else null
 	_raise_roofs()
 	# Furniture that no longer fits the changed house goes back into the store (see HouseFurnisher).
@@ -1044,10 +1123,58 @@ func _redraw() -> void:
 					_cell_quad(_built, c, STAIRS_COLOR)
 			elif kind == HouseSketch.SLAB or kind == HouseSketch.SADDLE:
 				_cell_quad(_built, Vector2i(p[1], p[2]), SLAB_COLOR if kind == HouseSketch.SLAB else ROOF_COLOR, up)
+			elif kind == HouseSketch.BALLISTA:
+				var foot := plan.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
+				_cell_quad(_built, Vector2i(p[1], p[2]), BALLISTA_COLOR, p[0] * HouseSketch.STOREY_HEIGHT)
+				_box(_built, foot + Vector3(0, 0.7, 0), Vector3(0.5, 1.4, 0.5), _material(BALLISTA_COLOR))
+				_box(_built, foot + Vector3(0, 1.25, 0), Vector3(2.2, 0.15, 0.3), _material(BALLISTA_COLOR))
 			else:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_segment(_built, [p[1], p[2], p[3]], kind, Color(0, 0, 0, 0))
 				_lift = 0.0
+
+
+## The built ballistae of a house: they stand and shoot (see HouseBallista), and
+## their post stops the hero.
+func _solid_ballistae(house: HouseSketch) -> void:
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if piece.kind != HouseSketch.BALLISTA or piece.state == HouseSketch.SKETCH:
+			continue
+		var p := HouseSketch.parts_of(key)
+		var foot := house.cell_world(p[1], p[2]) + Vector3(0, p[0] * HouseSketch.STOREY_HEIGHT, 0)
+		var gun := HouseBallista.new()
+		gun.level = game.level
+		gun.demolish = piece.state == HouseSketch.DEMOLISH
+		gun.position = foot
+		_guns.add_child(gun)
+		gun.show_range(active)
+		_collide(foot + Vector3(0, 0.5, 0), Vector3(1.0, 1.0, 1.0))
+
+
+## The built ballistae on the map, for the tests and the game.
+func ballistae() -> Array:
+	return _guns.get_children()
+
+
+func _show_ranges(on: bool) -> void:
+	for gun: HouseBallista in _guns.get_children():
+		gun.show_range(on)
+
+
+## A faint circle of a ballista's reach round `at`.
+func _range_ring(parent: Node3D, at: Vector3) -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = HouseBallista.RANGE - 0.15
+	torus.outer_radius = HouseBallista.RANGE + 0.15
+	torus.rings = 96
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.05, 1)
+	ring.material_override = _material(HouseBallista.RING_COLOR)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.position = at + Vector3(0, 0.08, 0)
+	parent.add_child(ring)
 
 
 ## Whether a house has a built cellar, floor slab or stairs: somewhere a
@@ -1245,6 +1372,8 @@ func _update_fade() -> void:
 	for node in _solid.get_children():
 		if node.has_meta("ymin"):
 			node.visible = not (inside and float(node.get_meta("ymin")) >= limit)
+	for gun: Node3D in _guns.get_children():
+		gun.visible = not (inside and gun.position.y >= limit)
 
 
 ## The ramp of a stairs piece: from the ground at the top of its first cell
@@ -1328,9 +1457,9 @@ func _cell_quad(parent: Node3D, cell: Vector2i, colour: Color, high := 0.0) -> v
 		_box(parent, mid + Vector3(0, 0.01, edge * sign_), Vector3(HouseSketch.CELL - 0.1, 0.05, 0.08), frame)
 
 
-## A built piece: solid stone, a doorway with a wooden lintel, or a window
+## A built piece: solid stone, a doorway (see _solid_doorway), or a window
 ## with a pane. A piece marked for demolition is tinted red. Walls and jambs
-## stop the hero; the doorway (lintel included) stays open.
+## stop the hero; the door in the doorway stops them only while shut.
 func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool) -> void:
 	var a := house.node_world(edge[0], edge[1])
 	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
@@ -1342,15 +1471,7 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 		return
 	match kind:
 		HouseSketch.DOOR:
-			var jamb := Vector3(0.3, DOOR_HEIGHT, 0.3)
-			var span := HouseSketch.CELL * 0.5 - 0.15
-			var step := Vector3(span, 0, 0) if along_x else Vector3(0, 0, span)
-			var lintel := flat + Vector3(0, WALL_HEIGHT - DOOR_HEIGHT, 0)
-			for sign_ in [-1.0, 1.0]:
-				_solid_box(mid + step * sign_ + Vector3(0, DOOR_HEIGHT * 0.5, 0), jamb, stone)
-			# The lintel is only seen: the hero (2.4 m with their reach, see Player.tall) must fit
-			# through the doorway, so only the jambs stop them.
-			_visual_box(mid + Vector3(0, (DOOR_HEIGHT + WALL_HEIGHT) * 0.5, 0), lintel, _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood())
+			_solid_doorway(mid, along_x, stone, demolish)
 		HouseSketch.WINDOW:
 			_solid_box(mid + Vector3(0, SILL * 0.5, 0), flat + Vector3(0, SILL, 0), stone)
 			_solid_box(mid + Vector3(0, (WINDOW_TOP + WALL_HEIGHT) * 0.5, 0), flat + Vector3(0, WALL_HEIGHT - WINDOW_TOP, 0), stone)
@@ -1359,6 +1480,93 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
 		_:
 			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+
+
+## A doorway in a house wall: stone jambs of the temple's blocks from the
+## floor to the wall's top, a timber lintel of the town houses' stair boards
+## resting on them, a board casing round the opening, a stone threshold and
+## the door leaf itself (see BuiltDoor). The lintel is only seen, as the hero's
+## reach comes up to it.
+func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool) -> void:
+	var axis := Vector3.RIGHT if along_x else Vector3.BACK
+	var across := Vector3.BACK if along_x else Vector3.RIGHT
+	var wood: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood()
+	var opening := HouseSketch.CELL - 2.0 * JAMB
+	# The jambs reach into the corner, as a wall piece does.
+	var jamb_long := JAMB + THICK * 0.5
+	var jamb_deep := THICK + 0.1
+	for sign_ in [-1.0, 1.0]:
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+	# The lintel: a beam over the opening, its ends resting on the jambs.
+	var beam := WALL_HEIGHT - DOOR_HEIGHT
+	_visual_box(mid + Vector3(0, DOOR_HEIGHT + beam * 0.5, 0), _along(axis, across, opening + 0.5, beam, jamb_deep + 0.06), wood)
+	# The casing: boards lining the opening's sides.
+	for sign_ in [-1.0, 1.0]:
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 - 0.03) + Vector3(0, DOOR_HEIGHT * 0.5, 0)
+		_visual_box(at, _along(axis, across, 0.06, DOOR_HEIGHT, jamb_deep + 0.02), wood)
+	# The threshold: a worn stone slab, too low to trip over.
+	_visual_box(mid + Vector3(0, 0.025, 0), _along(axis, across, opening, 0.05, jamb_deep + 0.1), stone)
+	_new_door = _door_leaf(mid, along_x, Vector2(opening - 0.12, DOOR_HEIGHT - 0.02), false, demolish)
+
+
+## A box `long` along the wall, `high` tall and `deep` through it.
+static func _along(axis: Vector3, across: Vector3, long: float, high: float, deep: float) -> Vector3:
+	return (axis * long + across * deep).abs() + Vector3(0, high, 0)
+
+
+## A door or gate leaf standing in the opening at `mid` (see BuiltDoor).
+func _door_leaf(mid: Vector3, along_x: bool, opening: Vector2, is_gate: bool, demolish: bool) -> BuiltDoor:
+	var door := BuiltDoor.new()
+	if demolish:
+		door.tint = DEMOLISH_COLOR
+	door.setup(opening, is_gate)
+	door.position = mid + Vector3(0, _lift, 0)
+	door.rotation.y = 0.0 if along_x else -PI * 0.5
+	door.set_meta("ymin", mid.y + _lift)
+	_solid.add_child(door)
+	return door
+
+
+## Hands a new leaf its owner, lock and the state the door had before the
+## houses were drawn again.
+func _hang_door(door: BuiltDoor, house: HouseSketch, key: String, own: bool, was: Dictionary) -> void:
+	var id := "%s|%s" % [house.plot, key]
+	door.own = own
+	door.hero = game.player if game != null else null
+	door.locked = house.locked.has(key)
+	door._show_lock()
+	if own:
+		door.on_lock = func(on: bool) -> void:
+			if plan == null or not plan.pieces.has(key):
+				return
+			if on:
+				plan.locked[key] = true
+			else:
+				plan.locked.erase(key)
+			plan.save(game.hero_name)
+	if was.has(id):
+		door.restore(was[id])
+	doors[id] = door
+
+
+## The built door or gate nearest `point` within `reach` (metres, along the
+## ground and about one storey up or down), or null.
+func door_near(point: Vector3, reach := 2.0) -> BuiltDoor:
+	var best: BuiltDoor = null
+	var best_d := reach
+	for k in doors:
+		var d: BuiltDoor = doors[k]
+		if not is_instance_valid(d) or not d.is_inside_tree():
+			continue
+		var at := d.global_position
+		if absf(point.y - at.y) > 1.5:
+			continue
+		var dist := Vector2(point.x - at.x, point.z - at.z).length()
+		if dist < best_d:
+			best_d = dist
+			best = d
+	return best
 
 
 ## A built garden wall: a low stone wall, a board fence between two posts, or
@@ -1401,6 +1609,10 @@ func _solid_fence(mid: Vector3, along_x: bool, kind: String, demolish: bool) -> 
 			var inner := step - (Vector3(GATE_POST * 0.5, 0, 0) if along_x else Vector3(0, 0, GATE_POST * 0.5))
 			for sign_ in [-1.0, 1.0]:
 				_solid_box(mid + inner * sign_ + Vector3(0, post.y * 0.5, 0), post, wood)
+			# A gate on the ground gets a board leaf between its posts (a gap in a
+			# roof railing stays open).
+			if not rail:
+				_new_door = _door_leaf(mid, along_x, Vector2(HouseSketch.CELL - 2.0 * GATE_POST - 0.04, high - 0.05), true, demolish)
 
 
 func _solid_box(at: Vector3, size: Vector3, mat: Material) -> void:

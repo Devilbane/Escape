@@ -138,6 +138,8 @@ var _lifted := {}
 var _loot_timer := 0.0
 ## The dug cells (Rect2 on the ground plane, see Outdoor.set_floor_holes): no litter lies there.
 var _holes: Array = []
+## The ground under the built houses (Rect2, see HouseGround): no litter lies there either.
+var _built: Array = []
 var _critters: Array = []
 var _trails: Array = []
 var _time := 0.0
@@ -411,7 +413,7 @@ func _clear_around_loot() -> void:
 					var o: Vector3 = e[2]
 					if Vector2(o.x - at.x, o.z - at.z).length() < LOOT_CLEAR:
 						near["%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]] = e
-	for r: Rect2 in _holes:
+	for r: Rect2 in _holes + _built:
 		var lo := level.world_to_cell(Vector3(r.position.x, 0, r.position.y))
 		var hi := level.world_to_cell(Vector3(r.end.x, 0, r.end.y))
 		for cy in range(lo.y, hi.y + 1):
@@ -435,6 +437,14 @@ func _clear_around_loot() -> void:
 ## away at once, and comes back when the hole is filled in again.
 func set_holes(holes: Array) -> void:
 	_holes = holes.duplicate()
+	if is_inside_tree():
+		_clear_around_loot()
+
+
+## Tells where the built houses stand (see HouseGround.rects): the grass tufts, twigs and
+## leaves inside them are lifted away, and come back when the house is taken down.
+func set_built(ground: Array) -> void:
+	_built = ground.duplicate()
 	if is_inside_tree():
 		_clear_around_loot()
 

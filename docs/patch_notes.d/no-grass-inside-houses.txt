@@ -1,0 +1,1 @@
+- Grass tufts, twigs and leaves no longer grow inside built houses; they come back when the house is taken down.

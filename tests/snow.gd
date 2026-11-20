@@ -64,6 +64,11 @@ func _rules() -> void:
 	check(flakes.emitting and flakes.amount == Weather.SNOW_FLAKES, "a winter snowfall brings them all")
 	Weather.show_particles(rain, mist, Weather.look(Weather.CLEAR), 1.0, flakes, false)
 	check(not flakes.emitting and flakes.amount == Weather.SNOW_FLAKES, "a clear day out of winter has none")
+	# The flakes give no light of their own: they show only as much as light reaches them (the
+	# moon of tonight's phase, lamps, the hero's lantern), and an unlit flake adds nothing.
+	var flake_mat := (flakes.mesh as QuadMesh).material as ShaderMaterial
+	var flake_code := flake_mat.shader.code if flake_mat else ""
+	check(flake_mat != null and not flake_code.contains("unshaded") and flake_code.contains("blend_add") and flake_code.contains("void light()"), "snowflakes are lit by the light that reaches them, never glowing")
 	for node: Node in [rain, mist, flakes]:
 		node.free()
 	var rng := RandomNumberGenerator.new()

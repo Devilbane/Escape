@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless test for Zecher Fritz's drinking songs (see DrinkingSongs): every
+## Headless test for Fritz's drinking songs (see DrinkingSongs): every
 ## verse has four lines with English texts and the tune has its sounds; in the
 ## evening near the hero, Fritz sings a whole verse, line after line, in the
 ## event log; far from the hero he does not; the moon song waits for the

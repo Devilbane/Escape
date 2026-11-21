@@ -215,7 +215,7 @@ var village_talk := VillageTalk.new(self)
 var village_worries := VillageWorries.new(self)
 ## Small talk, rumours and stories in the village (see VillageRumours).
 var village_rumours := VillageRumours.new(self)
-## Zecher Fritz's drinking songs at the tavern (see DrinkingSongs).
+## Fritz's drinking songs at the tavern (see DrinkingSongs).
 var drinking_songs := DrinkingSongs.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).

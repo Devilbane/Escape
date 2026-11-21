@@ -268,7 +268,7 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 		station = {"kind": info.station, "pos": Vector3.ZERO}
 	match kind:
 		"bett":
-			level._place("bed_decorated", BED_OFFSET, 0.0, root)
+			CosyBed.build(root, BED_OFFSET, 0.0)
 			solids.append({"at": Vector3(0, 0, -0.47), "size": Vector3(2.6, 1.5, 3.0)})
 			# The bed's own middle (where the hero lies, see Game._climb_into_bed), and beside its foot.
 			station.pos = BED_OFFSET
@@ -276,7 +276,7 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			station.side = Vector3(0, 0, 1.6)
 			station.spot = Level.pillow_spot(BED_OFFSET, 0.0)
 		"truhe":
-			level._place("chest", Vector3(0, 0, -0.35), 0.0, root)
+			FittedChest.place(root, "brass", Vector3(0, 0, -0.35))
 			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(1.7, 1.2, 1.8)})
 		"regal":
 			var shelf := Bookshelf.build_shelf(root, Vector3(0, 0, -HouseSketch.CELL * 0.5 + (Level.TILE * 0.5 - 0.1) * SHELF_SCALE), 0.0)

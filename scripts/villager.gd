@@ -66,7 +66,8 @@ const SKIN_ROSY := Color(0.97, 0.85, 0.88)
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
 ## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; tool: something held in place of the model's own
-## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer); lines:
+## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer; "book": a closed book in the
+## left hand, the clerk's ledger); lines:
 ## what they say, one after another.
 const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
@@ -84,7 +85,7 @@ const ROLES := {
 	"4": {"name": "Wache Ulrich", "model": "Knight", "show": ["Knight_Helmet", "1H_Sword", "Round_Shield", "Knight_Cape"],
 		"colors": [Color(1, 1, 1), Color(0.8, 0.8, 0.85), Color(0.35, 0.45, 0.8)], "plan": "patrol", "work": "Idle",
 		"lines": ["Halt! Ach, du bist der Neue. Willkommen.", "Seit Jahren kam keiner mehr aus der Gruft.", "Ich halte Wache. Hier bist du sicher."]},
-	"5": {"name": "Zecher Fritz", "model": "Barbarian", "show": ["Mug"],
+	"5": {"name": "Fritz", "model": "Barbarian", "show": ["Mug"],
 		"colors": [Color(0.4, 0.55, 0.4), Color(0.45, 0.35, 0.28), Color(1, 1, 1)], "plan": "sit", "work": "Sit_Floor_Idle",
 		"lines": ["Prost! Auf die Freiheit!", "Das Bier hier ist das beste diesseits der Berge.", "Setz dich doch, erzähl von da unten!"]},
 	"6": {"name": "Krämerin Mira", "model": "Rogue", "show": ["Rogue_Cape"], "sex": "female",
@@ -112,7 +113,7 @@ const ROLES := {
 	"µ": {"name": "Raumausstatterin Ilse", "model": "Rogue", "show": [], "sex": "female", "hair": {"style": "natural", "color": "ginger"},
 		"colors": [Color(0.35, 0.55, 0.5), Color(0.4, 0.32, 0.26), Color(0.8, 0.65, 0.35)], "plan": "stay", "work": "Idle",
 		"lines": ["Ein Haus ist erst ein Heim, wenn ein Bett darin steht.", "Betten, Truhen, Regale, Kamine: Ich liefere alles bis an Euer Grundstück.", "Stellt die Möbel im Bauplan auf, mit \"Einrichten\"."]},
-	"¢": {"name": "Amtmann Gero", "model": "Knight", "show": ["Badge_Shield"],
+	"¢": {"name": "Amtmann Gero", "model": "Knight", "show": [], "tool": "book",
 		"colors": [Color(0.55, 0.45, 0.35), Color(0.3, 0.3, 0.38), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
 		"lines": ["Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.", "Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.", "Die Gebühr richtet sich nach der Größe des Landes."]},
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
@@ -274,6 +275,8 @@ var _news := 0
 ## Night has fallen, and whether the villager is inside their house asleep
 ## (hidden, and nobody to talk to or trade with until morning).
 var night := false
+## Seconds until a child puts its pumpkin on or takes it off (see _mind_pumpkin); -1 before the first look.
+var _pumpkin_clock := -1.0
 var at_home := false
 ## The room this villager takes up (metres, see Footprint): half a body width.
 var radius := 0.5
@@ -469,6 +472,35 @@ const SPRING_LINES := [
 ]
 
 
+## In autumn a child puts a pumpkin on its head now and then, keeps it on for a while and takes it
+## off again (see PumpkinHat); out of autumn, and at night, it stays off. `step`: seconds since the
+## last look.
+func _mind_pumpkin(step: float) -> void:
+	if not role in PumpkinHat.WEARERS or _model == null:
+		return
+	var on := PumpkinHat.worn(_model)
+	if not Weather.is_autumn(level.season_day) or night:
+		if on:
+			PumpkinHat.take_off(_model)
+			_head_top = -1.0
+		_pumpkin_clock = -1.0
+		return
+	if _pumpkin_clock < 0.0:
+		# The first autumn day (or morning): some time before the first pumpkin, now soon, now late.
+		_pumpkin_clock = _rng.randf_range(0.0, PumpkinHat.OFF_TIME.y)
+	_pumpkin_clock -= step
+	if _pumpkin_clock > 0.0:
+		return
+	if on:
+		PumpkinHat.take_off(_model)
+		_pumpkin_clock = _rng.randf_range(PumpkinHat.OFF_TIME.x, PumpkinHat.OFF_TIME.y)
+	else:
+		PumpkinHat.put_on(_model, visible)
+		_pumpkin_clock = _rng.randf_range(PumpkinHat.ON_TIME.x, PumpkinHat.ON_TIME.y)
+	# A bird perches on top of the pumpkin, or on the hair again (see _top_of_head).
+	_head_top = -1.0
+
+
 ## Puts the winter clothes on or takes them off, when the village's wardrobe (Outdoor.winter_wear)
 ## differs from what we wear: at once when asked, or when nobody can see it (at home, or far from
 ## the hero); otherwise as soon as we go home to sleep.
@@ -568,6 +600,31 @@ static func dress_model(model: Node3D, info: Dictionary) -> void:
 			var hammer := VillageProps.smith_hammer(axe.get_parent())
 			hammer.name = "SmithHammer"
 			hammer.transform = axe.transform
+	elif info.get("tool", "") == "book":
+		# The clerk's ledger, the Mage's closed book, in the left hand where a shield would be.
+		var hand: Node3D = model.find_child("handslot_l", true, false)
+		if hand and hand.find_child("Ledger", false, false) == null:
+			var book := MeshInstance3D.new()
+			book.name = "Ledger"
+			_book_source()
+			book.mesh = _book_mesh
+			book.transform = _book_at
+			hand.add_child(book)
+
+
+static var _book_mesh: Mesh
+static var _book_at: Transform3D
+
+
+## The closed book out of the Mage model (its mesh, and where it sits in the hand), read once.
+static func _book_source() -> void:
+	if _book_mesh != null:
+		return
+	var mage: Node3D = load("res://assets/characters/Mage.glb").instantiate()
+	var found: MeshInstance3D = mage.find_child("Spellbook", true, false)
+	_book_mesh = found.mesh
+	_book_at = found.transform
+	mage.free()
 
 
 func play(anim_name: String, blend := 0.25) -> void:
@@ -1833,6 +1890,7 @@ func _physics_process(delta: float) -> void:
 	if _wear_check <= 0.0:
 		_wear_check = 1.0
 		update_wear()
+		_mind_pumpkin(1.0)
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
 	_leave_prints()

@@ -129,7 +129,9 @@ func _init(level: Level, seed_value: int) -> void:
 				continue
 			var at := level.cell_to_world(c)
 			var depth := 0.5 - 0.5 * dips.get_noise_2d(at.x, at.z)
-			var score := depth + rng.randf() * 0.6
+			# The chance per tile, not drawn in turn: a change to one part of the map leaves the
+			# puddles everywhere else where they were.
+			var score := depth + float(hash([seed_value, c.x, c.y]) % 65536) / 65536.0 * 0.6
 			if level.cell_char(c) == PATH:
 				score += 0.3
 			if _beside(level, c, Outdoor.BLOCK_CHARS):

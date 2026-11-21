@@ -36,8 +36,9 @@ const HATS := ["ushanka", "knit", "hood", "tall"]
 const MANTLES := [false, true]
 
 ## Whose looks these are, in order: the fur, the wool and the coat go round the list. A person's own
-## look is fixed, so they wear the same every winter.
-const ORDER := "0123456789KOGMYZS"
+## look is fixed, so they wear the same every winter. Clerk Gero (¢) stands near Herald Konrad (K)
+## and, left out of the list, happened to wear the same fur and hat.
+const ORDER := "0123456789KOGMYZS¢"
 
 const SIDES := 12
 const TAG := "WinterWear"

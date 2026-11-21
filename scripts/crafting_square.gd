@@ -119,7 +119,7 @@ const CAULDRON := Vector3(0.55, 0, 1.15)
 ## The hero's storage chest, iron-bound, its lid turned to the square, with
 ## a sign so nobody walks past it.
 static func _build_chest(level: Level, c: Vector2i, pos: Vector3) -> void:
-	level._place("chest", pos + Vector3(-0.4, 0, 0), PI * 0.5)
+	FittedChest.place(level, "oak", pos + Vector3(-0.4, 0, 0), PI * 0.5)
 	# A low plinth of two old slabs keeps it off the wet paving.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("chest:%d:%d" % [c.x, c.y])

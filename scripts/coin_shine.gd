@@ -26,7 +26,6 @@ static var _star_mesh: QuadMesh
 static var _pop: Curve
 static var _polished := {}
 static var _faces := {}
-static var _chest_gold := {}
 
 
 ## Polishes every mesh of `node` (a coin, a stack or a heap of gold): a
@@ -64,32 +63,6 @@ static func _polish(source: StandardMaterial3D) -> StandardMaterial3D:
 		m.emission_texture = source.albedo_texture
 		m.emission_energy_multiplier = 0.1
 	return m
-
-
-## The gold heaped up in a treasure chest (KayKit's chest_gold): its body
-## keeps the worn look, but the coins above HEAP_HEIGHT stay bright, and a few
-## glints blink on them. The glints are returned switched off: they start
-## once the chest is open (the lid hides the coins until then).
-const HEAP_HEIGHT := 0.62
-
-
-static func add_to_chest(chest: Node3D) -> CPUParticles3D:
-	var body := chest.find_child("chest_gold", true, false) as MeshInstance3D
-	if body == null:
-		return null
-	var worn := body.material_override as ShaderMaterial
-	if worn != null:
-		if not _chest_gold.has(worn):
-			var m := worn.duplicate() as ShaderMaterial
-			m.set_shader_parameter("shiny_gold_above", HEAP_HEIGHT)
-			_chest_gold[worn] = m
-		body.material_override = _chest_gold[worn]
-	var to_chest := chest.global_transform.affine_inverse() * body.global_transform
-	var points := _top_points(body.mesh, to_chest, HEAP_HEIGHT)
-	var glints := make(points, 5, 0.9)
-	Effects.start_cold(glints)
-	chest.add_child(glints)
-	return glints
 
 
 ## Glints over a heap of gold placed with Level._place_lair (`pile`, scaled

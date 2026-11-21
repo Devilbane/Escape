@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless test for Zecher Fritz frozen on the market square in the snow (see FrozenFritz): he
+## Headless test for Fritz frozen on the market square in the snow (see FrozenFritz): he
 ## leaves the tavern when the snow lies thick, freezes in his toast with ice, snow and icicles on
 ## him, cannot sing, only mumbles when talked to, serves birds as a perch, and thaws when the snow
 ## has melted. With SHOTS=<folder> (and a display) it also takes pictures.

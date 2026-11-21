@@ -79,7 +79,7 @@ const EN := {
 	"Brief aus der Hauptstadt": "Letter from the capital",
 	"Für Dorfvorsteher Aldo": "For Aldo, the village elder",
 	"Kürbis": "Pumpkin",
-	"Für Zecher Fritz im Wirtshaus": "For Fritz the drinker at the tavern",
+	"Für Fritz im Wirtshaus": "For Fritz at the tavern",
 	"Wassereimer": "Bucket of water",
 	"Für Priesterin Elsbeth am Tempel": "For Elsbeth the priestess at the temple",
 }

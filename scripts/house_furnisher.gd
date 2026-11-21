@@ -4,7 +4,7 @@ extends Node3D
 ## furnishing tool the hero uses to put their own pieces down.
 ##
 ## Everyone's furniture stands in their houses for all to see; only the hero's own pieces are
-## stations (bed, storage chest, bookshelf, trophy stand, workbenches), and they open the very
+## stations (bed, storage chest, bookshelf, trophy stand, weapon rack, workbenches), and they open the very
 ## windows of their counterparts in the old town house. The pieces are the same models too:
 ## the decorated bed, the iron-bound chest, the oak bookshelf (see Bookshelf), the stone
 ## fireplace with its chimney breast (see HomeFireplace), the workshop's table and the benches
@@ -20,14 +20,14 @@ extends Node3D
 ## it down again).
 
 ## The short names on the tool bar's buttons, in the order of HouseFurniture.KINDS.
-const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen",
+const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen", WeaponRack.KIND: "Waffenständer",
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
 	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
 	"schrein_maija": "Schrein: Maija",
 	"blumenbeet": "Blumenbeet", "blumenkuebel": "Kübel", "gartenfackel": "Stabfackel", "gartenlaterne": "Laterne", "grill": "Grill", AppleTree.KIND: "Apfelbaum"}
-## The tool bar's second row: light, the walls and the shrines; the garden has the third. Everything
+## The tool bar's second row: the weapon rack, light, the walls and the shrines; the garden has the third. Everything
 ## else is on the first.
-const SECOND_ROW := ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
+const SECOND_ROW := [WeaponRack.KIND, "leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
 const LIGHT_RANGE := 9.0
@@ -47,7 +47,7 @@ const OK_COLOR := Color(0.4, 0.95, 0.4, 0.45)
 const BAD_COLOR := Color(1.0, 0.4, 0.35, 0.45)
 const ON_COLOR := Color(1.0, 0.82, 0.4)
 ## How close the hero must come to a piece to use it, from its middle (metres).
-const TOUCH := {"bett": 2.6, "regal": 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4}
+const TOUCH := {"bett": 2.6, "regal": 2.4, WeaponRack.KIND: 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4}
 const TOUCH_DEFAULT := 1.8
 ## How far outside its solid a bump still counts as running into a piece (metres).
 const TOUCH_MARGIN := 0.4
@@ -88,9 +88,11 @@ var _body := StaticBody3D.new()
 var _ghost := Node3D.new()
 var _ghost_key := ""
 var _stations: Array = []
-## The bookshelves and trophy stands of the hero's house, to show books and trophies.
+## The bookshelves, trophy stands and weapon racks of the hero's house, to show books, trophies
+## and weapons.
 var _shelves: Array = []
 var _stands: Array = []
+var _racks: Array = []
 var _bar: PanelContainer
 var _kind_buttons := {}
 var _level_button: Button
@@ -164,6 +166,7 @@ func refresh() -> void:
 	_stations.clear()
 	_shelves.clear()
 	_stands.clear()
+	_racks.clear()
 	for child in _pieces.get_children():
 		_pieces.remove_child(child)
 		child.queue_free()
@@ -225,6 +228,8 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 		_shelves.append(root.get_meta("shelf"))
 	elif p.kind == "trophaeen":
 		_stands.append(root.get_meta("stand"))
+	elif p.kind == WeaponRack.KIND:
+		_racks.append(root.get_meta("rack"))
 	if station.is_empty():
 		return
 	station.pos = root.transform * station.get("pos", Vector3.ZERO)
@@ -263,7 +268,7 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 		station = {"kind": info.station, "pos": Vector3.ZERO}
 	match kind:
 		"bett":
-			level._place("bed_decorated", BED_OFFSET, 0.0, root)
+			CosyBed.build(root, BED_OFFSET, 0.0)
 			solids.append({"at": Vector3(0, 0, -0.47), "size": Vector3(2.6, 1.5, 3.0)})
 			# The bed's own middle (where the hero lies, see Game._climb_into_bed), and beside its foot.
 			station.pos = BED_OFFSET
@@ -271,7 +276,7 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			station.side = Vector3(0, 0, 1.6)
 			station.spot = Level.pillow_spot(BED_OFFSET, 0.0)
 		"truhe":
-			level._place("chest", Vector3(0, 0, -0.35), 0.0, root)
+			FittedChest.place(root, "brass", Vector3(0, 0, -0.35))
 			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(1.7, 1.2, 1.8)})
 		"regal":
 			var shelf := Bookshelf.build_shelf(root, Vector3(0, 0, -HouseSketch.CELL * 0.5 + (Level.TILE * 0.5 - 0.1) * SHELF_SCALE), 0.0)
@@ -287,6 +292,11 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			root.set_meta("stand", _build_stand(root))
 			solids.append({"at": Vector3(0, 0, -HouseSketch.CELL * 0.5 + 0.1 + STAND_DEPTH * 0.5),
 					"size": Vector3(STAND_WIDTH, STAND_BOTTOM + STAND_ROWS * STAND_ROW, STAND_DEPTH + 0.05)})
+		WeaponRack.KIND:
+			var rack := WeaponRack.build_rack(root, Vector3(0, 0, -HouseSketch.CELL * 0.5 + HouseSketcher.THICK * 0.5 + 0.02), 0.0)
+			root.set_meta("rack", rack)
+			solids.append({"at": Vector3(0, 0, -HouseSketch.CELL * 0.5 + HouseSketcher.THICK * 0.5 + WeaponRack.DEPTH * 0.5 + 0.05),
+					"size": Vector3(WeaponRack.WIDTH, WeaponRack.HEIGHT, WeaponRack.DEPTH + 0.15)})
 		"werkbank":
 			var table := level._place("table_medium_decorated_A", Vector3(0, 0, -0.2), 0.0, root)
 			table.scale = Vector3.ONE * TABLE_SCALE
@@ -448,12 +458,16 @@ static func stand_scale(count: int) -> float:
 	return TROPHY_SCALE * STAND_COLS / cols
 
 
-## Puts the books kept and the trophies won on the hero's shelves and stands.
+## Puts the books kept, the weapons kept and the trophies won on the hero's shelves, racks and stands.
 func refresh_books() -> void:
 	var count := HomeStores.total(game.home_stores, HomeStores.BOOKS)
 	for shelf in _shelves:
 		if is_instance_valid(shelf):
 			Bookshelf.refresh_shelf(shelf, count)
+	var weapons: Dictionary = game.home_stores.get(HomeStores.WEAPONS, {})
+	for rack in _racks:
+		if is_instance_valid(rack):
+			WeaponRack.refresh_rack(rack, weapons)
 	var shown := HomeUpgrades.trophies_shown(game.trophies)
 	var slots := stand_slots(shown.size())
 	var size := stand_scale(shown.size())

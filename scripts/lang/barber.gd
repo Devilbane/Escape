@@ -45,7 +45,7 @@ const EN := {
 	"Bäuerin Lene": "Lene the Farmer",
 	"Holzfäller Bruno": "Bruno the Woodcutter",
 	"Wache Ulrich": "Ulrich the Guard",
-	"Zecher Fritz": "Fritz the Drinker",
+	"Fritz": "Fritz",
 	"Pip": "Pip",
 	"Gelehrter Odo": "Odo the Scholar",
 	"Wasserträgerin Hanna": "Hanna the Water Carrier",

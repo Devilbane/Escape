@@ -20,6 +20,17 @@ func check(ok: bool, what: String) -> void:
 
 func _initialize() -> void:
 	seed(5)
+	# The herald and the clerk stand close together: their winter fur and hats differ.
+	var herald := WinterWear.look_for("K", Villager.ROLES["K"])
+	var clerk := WinterWear.look_for("¢", Villager.ROLES["¢"])
+	check(herald.fur != clerk.fur and herald.hat != clerk.hat, "Herald Konrad and Clerk Gero wear different furs and hats")
+	# The clerk holds his ledger, not a shield.
+	var gero: Node3D = load("res://assets/characters/Knight.glb").instantiate()
+	Villager.dress_model(gero, Villager.ROLES["¢"])
+	var ledger := gero.find_child("Ledger", true, false) as MeshInstance3D
+	check(ledger != null and ledger.mesh != null, "Clerk Gero holds a book")
+	check(not (gero.find_child("Badge_Shield", true, false) as Node3D).visible, "Clerk Gero carries no shield")
+	gero.free()
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

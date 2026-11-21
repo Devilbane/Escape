@@ -215,7 +215,7 @@ var village_talk := VillageTalk.new(self)
 var village_worries := VillageWorries.new(self)
 ## Small talk, rumours and stories in the village (see VillageRumours).
 var village_rumours := VillageRumours.new(self)
-## Zecher Fritz's drinking songs at the tavern (see DrinkingSongs).
+## Fritz's drinking songs at the tavern (see DrinkingSongs).
 var drinking_songs := DrinkingSongs.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
@@ -3150,12 +3150,13 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
-## Whether the view is inside a self-built house: the hero stands in one, or the furnisher looks
-## into one (see HouseSketcher.view_storey). There is no weather in there.
+## Whether the view is inside a self-built house: the hero stands in one or down in its cellar
+## (see CellarView), or the furnisher looks into one (see HouseSketcher.view_storey). There is
+## no weather in there.
 func _under_roof() -> bool:
 	if not level is Outdoor or player == null:
 		return false
-	if house_sketcher != null and house_sketcher.view_storey != HouseSketcher.NO_VIEW:
+	if house_sketcher != null and (house_sketcher.view_storey != HouseSketcher.NO_VIEW or house_sketcher.cellar_view.active):
 		return true
 	return (level as Outdoor).is_sheltered(player.global_position)
 
@@ -3202,6 +3203,9 @@ func _show_weather() -> void:
 	elif winter_fog:
 		even = float(seen.mist) * WINTER_EVEN
 	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
+	if _clouds.visible and camera != null:
+		var view := get_viewport().get_visible_rect().size
+		_clouds.set_hero(camera.unproject_position(player.global_position + Vector3(0, 0.9, 0)) / view)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
@@ -7287,7 +7291,8 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
-	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
+	# A few steps on the hollow wooden boards of the house stairs (see StairSteps).
+	tween.parallel().tween_callback(func(): StairSteps.flight(player, up))
 	tween.tween_callback(func():
 		player.global_position = to
 		player.velocity = Vector3.ZERO
@@ -7660,6 +7665,7 @@ func _process(delta: float) -> void:
 			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),
 			"zutatenbord": Lang.t("Dagegenlaufen, um ans Zutatenbord zu gehen"),
 			Bookshelf.KIND: Lang.t("Dagegenlaufen, um Bücher ins Regal zu stellen oder zu nehmen"),
+			WeaponRack.KIND: Lang.t("Dagegenlaufen, um Waffen in den Ständer zu stellen oder zu nehmen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
@@ -8273,7 +8279,8 @@ func _win_trophy(kind: String) -> void:
 		house_furnisher.refresh_books()
 
 
-## Puts as many books on the bookshelf of the house as the hero keeps there.
+## Puts as many books on the bookshelf of the house as the hero keeps there, and the weapons kept
+## on the weapon racks of the self-built house.
 func refresh_bookshelf() -> void:
 	if level != null and level.is_home:
 		Bookshelf.refresh(level, HomeStores.total(home_stores, HomeStores.BOOKS))

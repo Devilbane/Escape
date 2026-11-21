@@ -25,8 +25,21 @@ uniform vec2 shelter_size = vec2(1.0);
 uniform float shelter_shift = 2.0;
 const float SHELTER_SCALE = 16.0;
 
-// Whether world spot `p` lies inside a built house, under its top.
+// The awnings over the town's dining tables (see SnowCover.set_awnings): the ground each one
+// covers (x/z of two opposite corners) and how high it stands. Nothing under one takes snow,
+// so the benches, the table and the paving under the cloth stay clear to the awning's edge.
+uniform vec4 awnings[8];
+uniform float awning_tops[8];
+uniform int awning_count = 0;
+
+// Whether world spot `p` lies inside a built house, under its top, or under an awning.
 bool snow_sheltered(vec3 p) {
+	for (int i = 0; i < awning_count; i++) {
+		vec4 r = awnings[i];
+		if (p.x > r.x && p.x < r.z && p.z > r.y && p.z < r.w && p.y < awning_tops[i]) {
+			return true;
+		}
+	}
 	if (!shelter_on) {
 		return false;
 	}

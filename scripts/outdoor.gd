@@ -70,7 +70,8 @@ extends Level
 ##      wooden crates lie close by (see Crate).
 ##   @  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
-##      with his covered cart on the tile north of him.
+##      with his living wagon on the tile north of him and the one west of
+##      that (see MerchantWagon).
 ##   ?  plain grass, where a chest lies buried; a treasure map from a
 ##      bottle marks it (see TreasureMaps)
 ##   >  a boulder at the forest's edge with a hidden cave beneath it; a
@@ -197,9 +198,10 @@ const CHAPEL_PARTS := [
 const CHAPEL_HALF := Vector2(12, 12)
 ## The wall lamps beside the door (kit metres, measured from doorway_01 and wall_01): the door
 ## opening is 4 wide around x = 0 and its jambs reach out to 2.5, so the lamps stand 3.5 either side of
-## the middle (x), at 5.5 high (y) on the front wall's face, flush with it (z = 11 + the wall's 1).
+## the middle (x), at 8.8 high (y, up from 5.5 by 60%, towards the top of the door frame) on the
+## front wall's face, flush with it (z = 11 + the wall's 1).
 const TEMPLE_LAMP_X := [-3.5, 3.5]
-const TEMPLE_LAMP_Y := 5.5
+const TEMPLE_LAMP_Y := 8.8
 const TEMPLE_LAMP_Z := 12.0
 const CHAPEL_EAVES := 16.0
 const CHAPEL_GABLE_HEIGHT := 13.0
@@ -344,6 +346,9 @@ var _inside := false
 ## Whether the hero stands inside a house (built or their own), seeing out only
 ## through windows and open doors (see hero_sees). Set each frame.
 var hero_indoors := false
+## The dug cells (Rect2 of x, z) of the house cellar the hero is down in, empty while they are
+## not: from down there they see only what is in the cellar (see CellarView, hero_sees).
+var hero_cellar: Array = []
 var _inside_view := InsideView.new()
 var _entered_once := false
 var _marker: Node3D
@@ -739,6 +744,7 @@ func build() -> void:
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
 	snow.set_shelter(shelters, width, height, TILE)
+	snow.set_awnings(meals.awnings)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
@@ -1422,8 +1428,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			# A little ivy up the basin's outside, a bit of it over the rim.
 			var ivy_rng := RandomNumberGenerator.new()
 			ivy_rng.seed = hash("%s|brunnen|%s" % [level_name, c])
-			AgedStone.grow_basin_ivy(pos, 1.55, 1.0, ivy_rng, _ivy, 3)
-			spots.well.append(pos + Vector3(0, 0, 2.6))
+			AgedStone.grow_basin_ivy(pos, VillageFountain.RIM_RADIUS - 0.12, VillageFountain.RIM_TOP, ivy_rng, _ivy, 3)
+			# Where the villagers fetch water: by the rim, between the bench in front and a tree.
+			spots.well.append(pos + Vector3(1, 0, 1).normalized() * (VillageFountain.STEP_RADIUS + 0.7))
 		"x":
 			_build_bench(c)
 		TownMeals.LETTER:
@@ -1670,6 +1677,11 @@ func _build_bench(c: Vector2i) -> void:
 			if cell_char(Vector2i(x, y)) == "F":
 				to = cell_to_world(Vector2i(x, y)) - pos
 	var rot := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
+	if is_equal_approx(to.length(), TILE):
+		# Right beside the fountain: out to the far side of its tile, in line with the apple trees
+		# round it (AppleTree.TRUNK_OUT), so benches and trees stand in a square about the fountain
+		# with room to walk round its rim.
+		pos -= to.normalized() * AppleTree.TRUNK_OUT
 	_put("bench", pos, rot, Seats.BENCH_SCALE)
 	# Blocked where the bench is drawn: a long, narrow box turned with it, so
 	# the hero can walk right up to the seat (see Seats).
@@ -3320,14 +3332,14 @@ func _build_house() -> void:
 				_door_cell = c
 			_build_house_walls(c)
 			if ch == "B":
-				_place("bed_decorated", cell_to_world(c), 0.0)
+				CosyBed.build(self, cell_to_world(c), 0.0)
 				_add_solid(cell_to_world(c), Vector3(3.2, 1.5, 3.2))
 				stations.append({"kind": "bett", "cell": c, "pos": cell_to_world(c), "rot": 0.0, "used": false,
 						"spot": pillow_spot(cell_to_world(c), 0.0)})
 				home_spot = cell_to_world(c + Vector2i(0, 1))
 				fox_beds.append(home_spot + Vector3(1.2, 0, -0.6))
 			elif ch == "L":
-				_place("chest", cell_to_world(c), _back_to_wall(c))
+				FittedChest.place(self, "oak", cell_to_world(c), _back_to_wall(c))
 				_add_solid(cell_to_world(c), Vector3(2.4, 1.5, 2.4))
 				stations.append({"kind": "lager", "cell": c, "pos": cell_to_world(c), "used": false})
 	_build_house_pillars()
@@ -4103,8 +4115,11 @@ func is_sheltered(pos: Vector3) -> bool:
 
 
 ## Inside a built house or their own village house the hero sees out only
-## through its windows and open doors (see InsideView); outside, everything shows.
+## through its windows and open doors (see InsideView); down in a house cellar only
+## what is in the cellar (see hero_cellar); outside, everything shows.
 func hero_sees(pos: Vector3) -> bool:
+	if not hero_cellar.is_empty():
+		return CellarView.in_cells(hero_cellar, pos)
 	if player == null or not hero_indoors:
 		return true
 	return has_line_of_sight(player.global_position, pos)
@@ -4367,6 +4382,7 @@ func _wanderer_arrives() -> void:
 	v.station = station
 	stations.append(station)
 	wanderer = v
+	_send_raven(v)
 
 
 func _wanderer_leaves() -> void:
@@ -4380,89 +4396,41 @@ func _wanderer_leaves() -> void:
 	for shape in _cart_shapes:
 		shape.queue_free()
 	_cart_shapes.clear()
-	var cart_cell := _wanderer_cell + CART_OFFSET
-	astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
+	for c: Vector2i in MerchantWagon.CELLS:
+		var cart_cell := _wanderer_cell + CART_OFFSET + c
+		astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
 
 
-## Zarek's covered cart: a wooden box on two big wheels under a hooped
-## canvas cover in his colours, its shaft resting on the ground, a lantern on
-## a pole, and a few crates and sacks unloaded beside it.
+## Zarek's home on wheels (see MerchantWagon), on the cart's cell and the one
+## in front of it, with a few crates and a sack unloaded beside it, a sparkle
+## of far-off magic over it, and his raven (see MerchantRaven).
 func _build_cart(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
-	_cart = Node3D.new()
+	_cart = MerchantWagon.build(_rng)
 	_cart.position = pos
 	add_child(_cart)
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.42, 0.28, 0.16)
-	wood.roughness = 0.9
-	var canvas := StandardMaterial3D.new()
-	canvas.albedo_color = Color(0.5, 0.3, 0.66)
-	canvas.roughness = 1.0
-	canvas.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var iron := StandardMaterial3D.new()
-	iron.albedo_color = Color(0.18, 0.18, 0.2)
-	iron.metallic = 0.6
-	iron.roughness = 0.5
-	var body := _cart_part(BoxMesh.new(), wood, Vector3(0, 1.15, 0))
-	(body.mesh as BoxMesh).size = Vector3(3.0, 0.7, 1.7)
-	# The canvas: half a cylinder lying along the cart.
-	var cover := _cart_part(CylinderMesh.new(), canvas, Vector3(0, 1.5, 0))
-	var tube: CylinderMesh = cover.mesh
-	tube.top_radius = 0.9
-	tube.bottom_radius = 0.9
-	tube.height = 2.9
-	tube.radial_segments = 20
-	# Lying along the cart: only its upper half shows above the box.
-	cover.rotation.z = PI * 0.5
-	for side in [-1.0, 1.0]:
-		var wheel := _cart_part(CylinderMesh.new(), wood, Vector3(0.4, 0.62, side * 0.95))
-		var disc: CylinderMesh = wheel.mesh
-		disc.top_radius = 0.62
-		disc.bottom_radius = 0.62
-		disc.height = 0.14
-		disc.radial_segments = 16
-		wheel.rotation.x = PI * 0.5
-		var rim := _cart_part(TorusMesh.new(), iron, Vector3(0.4, 0.62, side * 1.03))
-		var ring: TorusMesh = rim.mesh
-		ring.inner_radius = 0.56
-		ring.outer_radius = 0.66
-		rim.rotation.x = PI * 0.5
-	var shaft := _cart_part(BoxMesh.new(), wood, Vector3(-2.2, 0.6, 0))
-	(shaft.mesh as BoxMesh).size = Vector3(1.8, 0.12, 0.9)
-	shaft.rotation.z = -0.45
-	# A lantern on a pole at the front corner, with a warm, slightly violet glow.
-	var pole := _cart_part(BoxMesh.new(), wood, Vector3(-1.3, 1.6, 1.0))
-	(pole.mesh as BoxMesh).size = Vector3(0.1, 3.2, 0.1)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(1.0, 0.8, 0.55)
-	glass.emission_enabled = true
-	glass.emission = Color(1.0, 0.7, 0.45)
-	glass.emission_energy_multiplier = 4.0
-	var lamp := _cart_part(BoxMesh.new(), glass, Vector3(-1.3, 3.0, 1.0))
-	(lamp.mesh as BoxMesh).size = Vector3(0.3, 0.4, 0.3)
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.72, 0.62)
-	light.light_energy = 2.4
-	light.omni_range = 9.0
-	light.position = Vector3(-1.3, 2.9, 1.4)
-	_cart.add_child(light)
+	MerchantWagon.kindle(_cart)
 	var sparkle := Effects.make_sparkles(Color(0.8, 0.6, 1.0))
-	sparkle.position = Vector3(0, 2.6, 0)
+	sparkle.position = Vector3(-0.8, 3.0, 0)
 	_cart.add_child(sparkle)
 	for i in 2:
 		var prop: String = ["crate_A_big", "sack"][i]
-		_put(prop, Vector3(1.9, 0, -0.4 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
-	_cart_shapes.append(_add_box(_walls_body, pos + Vector3(0, 1.0, 0), Vector3(3.9, 2.0, 2.2)))
-	astar.set_point_solid(cell, true)
+		_put(prop, Vector3(2.4, 0, 0.2 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
+	for solid: Array in MerchantWagon.SOLIDS:
+		_cart_shapes.append(_add_box(_walls_body, pos + (solid[0] as Vector3), solid[1]))
+	for c: Vector2i in MerchantWagon.CELLS:
+		astar.set_point_solid(cell + c, true)
 
 
-func _cart_part(mesh: Mesh, mat: Material, at: Vector3) -> MeshInstance3D:
-	var part := MeshInstance3D.new()
-	part.mesh = mesh
-	part.material_override = mat
-	part.position = at
-	_cart.add_child(part)
-	return part
+## The merchant's raven, flying between his shoulder and its spots on the wagon.
+func _send_raven(merchant: Node3D) -> void:
+	var perches: Array[Vector3] = []
+	for p: Vector3 in _cart.get_meta("perches", []):
+		perches.append(_cart.global_transform * p)
+	var raven := MerchantRaven.new()
+	raven.name = "MerchantRaven"
+	_cart.add_child(raven)
+	raven.setup(self, merchant, perches, day)
 
 
 ## Nightfall: the dead get their spots on the paths beside the graves.

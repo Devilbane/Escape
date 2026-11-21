@@ -1,4 +1,4 @@
-"""Builds the tune Zecher Fritz sings his drinking songs to (see scripts/drinking_songs.gd):
+"""Builds the tune Fritz sings his drinking songs to (see scripts/drinking_songs.gd):
 four sung phrases, hum_0 to hum_3, one for each line of a verse, so a whole verse is one
 little folk tune in G major, three beats to the bar, one sung syllable for every syllable
 of a line ("Der Krug ist leer, der Wirt ist taub": eight syllables, eight notes).

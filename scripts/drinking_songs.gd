@@ -1,6 +1,6 @@
 class_name DrinkingSongs
 extends RefCounted
-## Zecher Fritz sings drinking songs at the tavern. In the evening and at
+## Fritz sings drinking songs at the tavern. In the evening and at
 ## night he strikes up a verse every minute or so, by day only now and then.
 ## A verse is four lines, sung one after another like any other line
 ## (Villager.sing, so they go into the event log with his name), each to its

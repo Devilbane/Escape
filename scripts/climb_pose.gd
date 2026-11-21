@@ -9,7 +9,8 @@ extends RefCounted
 ##
 ## A pose is angles in degrees, all "positive = forward / upward / bending":
 ##   hips_y: the hips' drop in metres (negative = lower);  spine, chest, head: lean forward;
-##   arm: raise of both arms forward (180 = straight up);  elbow: bend of both elbows;
+##   arm: raise of both arms forward (180 = straight up);  elbow: bend of both elbows
+##   (arm_l, arm_r, elbow_l, elbow_r: one arm's own, over arm and elbow);
 ##   hip_l, hip_r: leg raised forward;  knee_l, knee_r: knee bent (shin folded back).
 
 const PHASE_ORDER := ["stand", "crouch", "reach", "hang", "pull", "knee", "kneel"]
@@ -108,10 +109,12 @@ static func apply(sk: Skeleton3D, base: Dictionary, pose: Dictionary) -> void:
 	turn.call("spine", Vector3.RIGHT, angle.call("spine"))
 	turn.call("chest", Vector3.RIGHT, angle.call("chest"))
 	turn.call("head", Vector3.RIGHT, angle.call("head"))
-	turn.call("ua_l", Vector3.BACK, -angle.call("arm"))
-	turn.call("ua_r", Vector3.BACK, angle.call("arm"))
-	turn.call("la_l", Vector3.BACK, -angle.call("elbow"))
-	turn.call("la_r", Vector3.BACK, angle.call("elbow"))
+	# Each arm may have its own angle (arm_l, elbow_l, ...: a ladder climb, see LadderPose).
+	var side := func(k: String, s: String) -> float: return deg_to_rad(float(pose.get(k + s, pose.get(k, 0.0))))
+	turn.call("ua_l", Vector3.BACK, -side.call("arm", "_l"))
+	turn.call("ua_r", Vector3.BACK, side.call("arm", "_r"))
+	turn.call("la_l", Vector3.BACK, -side.call("elbow", "_l"))
+	turn.call("la_r", Vector3.BACK, side.call("elbow", "_r"))
 	turn.call("ul_l", Vector3.RIGHT, -angle.call("hip_l"))
 	turn.call("ul_r", Vector3.RIGHT, -angle.call("hip_r"))
 	turn.call("ll_l", Vector3.RIGHT, angle.call("knee_l"))

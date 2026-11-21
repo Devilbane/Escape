@@ -144,3 +144,6 @@ owner (the licence terms are those of the sellers); each keeps the name of the s
 
 Graveyard gate (gate_open_0, gate_open_1, gate_close_0): synthesised from noise and resonances by
 tools/make_gate_sounds.py, our own work, no third-party material (public domain, CC0).
+
+Wooden stair steps (stair_up_0 to stair_up_5, stair_down_0 to stair_down_5): made from scratch
+(noise, wood resonances and a stick-slip creak) by tools/make_stair_sounds.py. Our own work.

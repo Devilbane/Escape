@@ -1,7 +1,7 @@
 class_name FogClouds
 extends MeshInstance3D
-## Large, soft fog clouds drifting over the open air in fog weather (see
-## Weather and shaders/fog_clouds.gdshader). One full-screen pass with a tiling
+## Large, soft fog clouds floating in the air a few metres above the open ground in fog weather
+## (see Weather and shaders/fog_clouds.gdshader), opening up around the hero (set_hero). One full-screen pass with a tiling
 ## noise texture: no particles. The pass draws first among all see-through
 ## things (PRIORITY), so labels, bubbles and particles are never covered.
 ## Only ground decals that lie under the fog draw before it (UNDER_FOG).
@@ -62,6 +62,11 @@ func set_look(strength: float, haze: Color, even := 0.0) -> void:
 	_mat.set_shader_parameter("even", even)
 	_mat.set_shader_parameter("strength", strength)
 	_mat.set_shader_parameter("haze", Vector3(haze.r, haze.g, haze.b))
+
+
+## Where the hero is on screen (0 to 1), so the clouds in the air open up around them.
+func set_hero(uv: Vector2) -> void:
+	_mat.set_shader_parameter("hero_uv", uv)
 
 
 func strength() -> float:

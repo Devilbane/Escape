@@ -11,6 +11,13 @@ extends Node
 ## mine, crystal, fire, ancient halls, the spire, the ruined Sternhall courtyard, which sounds like a cave and has no birds). The hero's own house has a quiet
 ## hearth fire and nothing else; other rooms and houses have none: there the old
 ## cave air (Game._ambience) keeps playing.
+##
+## A cellar sounds like one: a house's cellar on the open ground (see HouseFloors),
+## the cellar storey of the hero's town house and a building's cellar (the bank's
+## vault) play the still, damp cellar loop (low room tone, a muffled rumble from
+## outside, drips on stone, built by tools/make_cellar_sounds.py). Going down a
+## cellar's stairs fades it in step by step as the hero sinks below the ground,
+## and the outdoor loops fade to a faint OUTSIDE share of themselves.
 
 ## Seconds a loop takes to fade in or out.
 const FADE := 3.0
@@ -27,10 +34,19 @@ const LOOPS := {
 	"amb_mine_0": -4.0, "amb_mine_1": -4.0,
 	"amb_magic_0": -4.0, "amb_magic_1": -4.0,
 	"amb_astral_0": -4.0, "amb_astral_1": -4.0,
+	"amb_cellar": -12.0,
 }
 ## How strong the hearth's crackle is inside the hero's own house (0 to 1): a soft
 ## fire in the next corner, and the only sound there (the old cave air rests).
 const HOME_FIRE := 0.8
+## The loop of a cellar.
+const CELLAR := "amb_cellar"
+## How much of the world above is still heard down in a cellar (0 to 1): the
+## open-air loops, and in the town house the hearth upstairs.
+const OUTSIDE := 0.15
+## How deep (in metres below the ground) the hero must be in a built house's cellar
+## to hear only the cellar: above it the outdoors and the cellar blend.
+const CELLAR_DEEP := 1.8
 ## How much of the washy, echoing night-woods loop (Enchanted Forest, with its reverb baked in)
 ## stays in the night woods (0 to 1). The rest is replaced by the drier daytime woods bed
 ## (`amb_forest_deep`) so the night sounds less reverberant. Lower it for less reverb.
@@ -110,6 +126,40 @@ static func nearness(level: Level, pos: Vector3) -> Dictionary:
 	return near
 
 
+## How far down a built house's cellar `pos` is, from 0 (on the ground, or not
+## in a cellar) to 1 (CELLAR_DEEP or more below it): halfway down the stairs the
+## cellar and the outdoors blend.
+static func cellar_depth(floors: HouseFloors, pos: Vector3) -> float:
+	if floors == null or pos.y >= 0.0 or not floors.covers(pos):
+		return 0.0
+	if floors.storey_at(pos) != HouseFloors.CELLAR:
+		return 0.0
+	return clampf(-pos.y / CELLAR_DEEP, 0.0, 1.0)
+
+
+## The open-air `mix` heard from a cellar `depth` deep (0 to 1): the outdoors
+## fades to OUTSIDE of itself while the cellar loop rises.
+static func cellar_mix(mix: Dictionary, depth: float) -> Dictionary:
+	if depth <= 0.0:
+		return mix
+	var out := {}
+	for sound in mix:
+		out[sound] = float(mix[sound]) * lerpf(1.0, OUTSIDE, depth)
+	out[CELLAR] = maxf(float(out.get(CELLAR, 0.0)), depth)
+	return out
+
+
+## Whether a floor below ground, from the headers of its map, is a building's
+## cellar with no loop of its own (the bank's vault): it sounds like a cellar.
+static func cellar_floor(building: String, lair: bool, floor_name: String) -> bool:
+	return building != "" and not lair and floor_name == "cellar"
+
+
+## The same, for a loaded floor.
+static func is_cellar_floor(level: Level) -> bool:
+	return cellar_floor(level.building, level.lair, level.floor_name)
+
+
 ## What each loop should be at this moment, for the place Game is showing.
 static func wanted(game: Node) -> Dictionary:
 	var level: Level = game.level
@@ -118,17 +168,23 @@ static func wanted(game: Node) -> Dictionary:
 	if level is Outdoor:
 		if game.player == null:
 			return {}
-		var village: bool = level._in_village(level.world_to_cell(game.player.global_position))
-		return outdoor_mix(village, DayNight.is_night(game.day_hour), nearness(level, game.player.global_position), float(game._weather_look.rain))
+		var pos: Vector3 = game.player.global_position
+		var village: bool = level._in_village(level.world_to_cell(pos))
+		var mix := outdoor_mix(village, DayNight.is_night(game.day_hour), nearness(level, pos), float(game._weather_look.rain))
+		return cellar_mix(mix, cellar_depth(level.house_floors, pos))
 	if level.is_home:
+		if game.player != null and level.storey_of(level.world_to_cell(game.player.global_position)) < 0:
+			return {CELLAR: 1.0, "amb_fire_camp": HOME_FIRE * OUTSIDE}
 		return {"amb_fire_camp": HOME_FIRE}
+	if is_cellar_floor(level):
+		return {CELLAR: 1.0}
 	var loop := dungeon_loop(level.theme, level.wall_style, level.lair, level.building, level.level_name)
 	return {loop: 1.0} if loop != "" else {}
 
 
 ## Whether the floor below ground has a loop of its own (so the old cave air can rest).
 static func covers_dungeon(level: Level) -> bool:
-	return level != null and not level is Outdoor and (level.is_home or dungeon_loop(level.theme, level.wall_style, level.lair, level.building, level.level_name) != "")
+	return level != null and not level is Outdoor and (level.is_home or is_cellar_floor(level) or dungeon_loop(level.theme, level.wall_style, level.lair, level.building, level.level_name) != "")
 
 
 ## Called every frame by Game: fades every loop to its strength.

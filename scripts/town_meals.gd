@@ -74,6 +74,8 @@ const POST_Z := 1.8
 const EAVE := 2.55
 const RIDGE := 3.25
 const OVERHANG := 0.25
+## How far inside the cloth's hem the snow still drifts in under a canopy (metres).
+const AWNING_DRIFT := 0.15
 ## The cloth's stripes, how wide each is, and the scalloped edge hanging from the eaves.
 const CLOTH := [Color(0.88, 0.82, 0.68), Color(0.68, 0.2, 0.16)]
 const STRIPE := 0.55
@@ -143,6 +145,8 @@ var _flame_mat: StandardMaterial3D
 var _cloth_mat: StandardMaterial3D
 ## The tiles under the canopies, where no snow settles (see Outdoor's sky mask).
 var roofed: Array[Vector2i] = []
+## What each canopy covers, for the snow (see SnowCover.set_awnings): [x0, z0, x1, z1, top].
+var awnings: Array = []
 ## The ivy-covered poles, ropes and little lamps framing the eating area (see MealGarland).
 var garland := MealGarland.new()
 
@@ -259,8 +263,13 @@ func _build_canopy(level: Outdoor, node: Node3D, c: Vector2i) -> void:
 	for sx in [-1.0, 1.0]:
 		for sz in [-1.0, 1.0]:
 			level._add_solid(node.position + Vector3(sx * POST_X, 0, sz * POST_Z), Vector3(0.22, EAVE, 0.22))
-	# No snow settles on the ground under the cloth (see SnowCover.set_sky_mask).
+	# No snow settles on the ground under the cloth (see SnowCover.set_sky_mask), nor on the
+	# benches and the table: the cloth's own outline keeps it off (see SnowCover.set_awnings). A
+	# hand's breadth inside its hem, so a little snow still drifts in at the edges.
 	roofed.append(c)
+	var p := node.position
+	var reach := Vector2(POST_X + OVERHANG - AWNING_DRIFT, POST_Z + OVERHANG - AWNING_DRIFT)
+	awnings.append([p.x - reach.x, p.z - reach.y, p.x + reach.x, p.z + reach.y, RIDGE + 0.2])
 
 
 ## The canopy's cloth: two slopes from the eaves up to the ridge in stripes

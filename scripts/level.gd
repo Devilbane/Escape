@@ -1432,7 +1432,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			_build_shrine(c)
 		"B":
 			var bed_rot := _facing_room(c)
-			_add_fitted_solid(_place("bed_decorated", pos, bed_rot), pos, 1.5, Vector2(3.2, 3.2))
+			# The hero's own bed at home is the cosy one; inns and dungeons keep the plain cot.
+			var bed_model := CosyBed.build(self, pos, bed_rot) if is_home else _place("bed_decorated", pos, bed_rot)
+			_add_fitted_solid(bed_model, pos, 1.5, Vector2(3.2, 3.2))
 			stations.append({"kind": "bett", "cell": c, "pos": pos, "rot": bed_rot, "used": false, "spot": pillow_spot(pos, bed_rot)})
 			if is_home or inn:
 				bed_side = cell_to_world(_open_side(c))

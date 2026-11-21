@@ -15,6 +15,9 @@ extends Node3D
 ## (on the stairs between the two the view stays as it was, so it never flickers).
 const BELOW := -0.5
 const LEAVE := -0.2
+## How far the earth reaches down behind the cellar's walls from the rim (see _earth_mesh):
+## deeper than any wall stops under the ground.
+const SKIRT := 0.4
 ## Metres of earth round the cellar, beyond what the camera ever shows.
 const REACH := 160.0
 ## Seconds between looks for things that came or went up on the surface.
@@ -314,7 +317,31 @@ func _earth_mesh(low: Vector2, high: Vector2) -> ArrayMesh:
 				_quad(st, Vector2(x, y), Vector2(x + cell, y + cell))
 			x += cell
 		y += cell
+	# A skirt of earth down from the rim behind every cellar wall: under a cellar ceiling
+	# (hidden down here) the wall stops a little under the ground, and through the gap
+	# between it and this floor's edge the sky showed as a white line along the rim.
+	for r: Rect2 in pit:
+		var corners: Array[Vector2] = [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+		for i in 4:
+			var a: Vector2 = corners[i]
+			var b: Vector2 = corners[(i + 1) % 4]
+			var beyond := (a + b) * 0.5 + ((a + b) * 0.5 - r.get_center()).normalized() * cell * 0.5
+			var open := false
+			for other: Rect2 in pit:
+				if other.has_point(beyond):
+					open = true
+					break
+			if not open:
+				_skirt(st, a, b)
 	return st.commit()
+
+
+## A strip of earth hanging SKIRT metres down from the rim between `a` and `b`, seen from both sides.
+static func _skirt(st: SurfaceTool, a: Vector2, b: Vector2) -> void:
+	var p := [Vector3(a.x, 0, a.y), Vector3(b.x, 0, b.y), Vector3(b.x, -SKIRT, b.y), Vector3(a.x, -SKIRT, a.y)]
+	for i in [0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2]:
+		st.set_uv(Vector2(p[i].x, p[i].z))
+		st.add_vertex(p[i])
 
 
 static func _quad(st: SurfaceTool, a: Vector2, b: Vector2) -> void:

@@ -113,7 +113,7 @@ const ROLES := {
 	"µ": {"name": "Raumausstatterin Ilse", "model": "Rogue", "show": [], "sex": "female", "hair": {"style": "natural", "color": "ginger"},
 		"colors": [Color(0.35, 0.55, 0.5), Color(0.4, 0.32, 0.26), Color(0.8, 0.65, 0.35)], "plan": "stay", "work": "Idle",
 		"lines": ["Ein Haus ist erst ein Heim, wenn ein Bett darin steht.", "Betten, Truhen, Regale, Kamine: Ich liefere alles bis an Euer Grundstück.", "Stellt die Möbel im Bauplan auf, mit \"Einrichten\"."]},
-	"¢": {"name": "Amtmann Gero", "model": "Knight", "show": [], "tool": "book",
+	"¢": {"name": "Amtmann Gero", "model": "Rogue", "show": [], "tool": "book", "hair": {"style": "short", "color": "auburn"},
 		"colors": [Color(0.55, 0.45, 0.35), Color(0.3, 0.3, 0.38), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
 		"lines": ["Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.", "Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.", "Die Gebühr richtet sich nach der Größe des Landes."]},
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],

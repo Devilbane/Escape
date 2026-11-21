@@ -54,7 +54,26 @@ func _initialize() -> void:
 			dye = str(dye)
 			check(not dyes.has(dye), "%s has the same hair colour as %s" % [info.name, dyes.get(dye, "")])
 			dyes[dye] = info.name
-	check(dyes.size() >= 2, "both bare-headed knights are checked")
+	check(dyes.size() >= 1, "the bare-headed knights are checked")
+	# Herald Konrad and Clerk Gero stand side by side: not the same model with the same hair.
+	var konrad: Dictionary = Villager.ROLES["K"]
+	var gero: Dictionary = Villager.ROLES["¢"]
+	check(konrad.model != gero.model or TownsfolkLook.look_for("K", konrad).dye != TownsfolkLook.look_for("¢", gero).dye, "Konrad and Gero do not look like twins")
+	# In the game the clothes get GearLook's shared outfit material, the head too: a skin tone and a
+	# hair dye must still land on this one head (they were lost to the shared material).
+	var herald: Node3D = load("res://assets/characters/Knight.glb").instantiate()
+	var other: Node3D = load("res://assets/characters/Knight.glb").instantiate()
+	for m in [herald, other]:
+		Villager.dress_model(m, konrad)
+		GearLook.dress_body(m, "outfit")
+	TownsfolkLook.apply(herald, konrad, TownsfolkLook.look_for("K", konrad))
+	var head := herald.find_child("Knight_Head", true, false) as MeshInstance3D
+	var plain := head.material_override as StandardMaterial3D
+	check(plain != null and plain.detail_enabled and plain.detail_albedo == TownsfolkLook.dye_texture("black"), "Konrad's hair is dyed over the outfit material")
+	check(plain != null and plain.albedo_color.is_equal_approx(TownsfolkLook.BROWN), "Konrad's skin tone lands on his head")
+	check((other.find_child("Knight_Head", true, false) as MeshInstance3D).get_active_material(0) != plain, "the dye stays on his own head")
+	herald.free()
+	other.free()
 	var dyed: Image = TownsfolkLook.dye_texture("black").get_image()
 	var patch := HairLook.HAIR_UV.get_center() * dyed.get_width()
 	check(dyed.get_pixelv(Vector2i(patch)).a == 1.0 and dyed.get_pixel(0, dyed.get_height() - 1).a == 0.0, "the dye covers only the hair")

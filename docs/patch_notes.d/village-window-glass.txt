@@ -1,0 +1,1 @@
+- Arched windows on village buildings (gables, towers, tavern) now show glass instead of stone, and light up at night.

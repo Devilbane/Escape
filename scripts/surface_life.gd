@@ -132,18 +132,18 @@ const PATCHES := ["dirt", "moss", "lichen"]
 ## first time autumn comes (see set_autumn), in batches like the rest of the litter, and hidden after.
 ## To stay cheap with so many, they lie in clusters: CLUSTER_KINDS ready-made clusters of
 ## CLUSTER_LEAVES leaves each (see _cluster_mesh), every one turned and mixed at random.
-const FALLEN := {FOREST: 44.0, GRAVEYARD: 36.0, HOLLOW: 32.0, VILLAGE: 10.0, PASS: 12.0}
+const FALLEN := {FOREST: 220.0, GRAVEYARD: 180.0, HOLLOW: 160.0, VILLAGE: 350.0, PASS: 60.0}
 const CLUSTER_KINDS := 6
-const CLUSTER_LEAVES := 8
+const CLUSTER_LEAVES := 20
 ## How far a cluster's leaves lie from its middle (metres).
-const CLUSTER_SPREAD := 0.45
+const CLUSTER_SPREAD := 0.75
 const FALLEN_EDGE := 1.6
 ## On a path (its verges), the paved square, under trees and rocks and on the forest floor at
 ## its edge, fewer of them.
-const FALLEN_KINDS := {"path": 0.4, "square": 0.12, "under": 0.8, "edge": 0.6}
+const FALLEN_KINDS := {"path": 0.4, "square": 0.6, "under": 0.8, "edge": 0.6}
 ## Their size (metres): the shape of the ivy's leaves (AgedStone.leaf_material), a little smaller.
 const FALLEN_SIZE := Vector2(0.3, 0.48)
-const FALLEN_CAP := 96000
+const FALLEN_CAP := 700000
 const FALLEN_TREES := "#TdrgtpN"
 
 var level: Level
@@ -230,7 +230,8 @@ func _drop_leaves() -> void:
 				n *= FALLEN_KINDS.edge
 			elif not GROUND.contains(ch):
 				continue
-			if _beside_trees(c):
+			# The village lies as thick everywhere as the woods round it do at their edge.
+			if biome_of(c) != VILLAGE and _beside_trees(c):
 				n *= FALLEN_EDGE
 			n /= CLUSTER_LEAVES
 			var count := int(n) + (1 if rng.randf() < n - int(n) else 0)
@@ -238,7 +239,8 @@ func _drop_leaves() -> void:
 				if fallen_total >= FALLEN_CAP:
 					break
 				var spot := _litter_spot(c, ch, rng)
-				if spot.x == INF:
+				# Not over the temple glass's light on the grass.
+				if spot.x == INF or _on_bare_ground(spot, CLUSTER_SPREAD + 0.2):
 					continue
 				var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.85, 1.15))
 				var t := Transform3D(basis, spot + Vector3(0, rng.randf_range(0.008, 0.016), 0))
@@ -292,7 +294,7 @@ static func _cluster_mesh(kind: int) -> Mesh:
 		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2)) \
 				* Basis(Vector3.FORWARD, rng.randf_range(-0.2, 0.2))
 		var col := fallen_colour(rng)
-		var mid := Vector3(at.x, 0.003 * k, at.y)
+		var mid := Vector3(at.x, 0.0015 * k, at.y)
 		var pts: Array[Vector3] = []
 		for q: Vector2 in corners:
 			pts.append(mid + b * Vector3(q.x * size, 0.0, q.y * size))
@@ -667,6 +669,17 @@ func litter_on_path_middles() -> int:
 		for e in _cell_litter[c]:
 			var o: Vector3 = e[2]
 			if absf(o.x - mid.x) < PATH_VERGE and absf(o.z - mid.z) < PATH_VERGE:
+				count += 1
+	return count
+
+
+## How many clusters of fallen leaves lie over ground kept bare (the temple glass's light), for
+## the tests: none should.
+func fallen_on_bare_ground() -> int:
+	var count := 0
+	for c: Vector2i in _cell_litter:
+		for e in _cell_litter[c]:
+			if e[4] == "fallen" and _on_bare_ground(e[2], CLUSTER_SPREAD):
 				count += 1
 	return count
 

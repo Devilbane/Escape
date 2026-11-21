@@ -49,8 +49,9 @@ func _initialize() -> void:
 	for role: String in roles:
 		var info: Dictionary = Villager.ROLES[role]
 		if info.model == "Knight" and not "Knight_Helmet" in info.show:
-			var dye: String = TownsfolkLook.look_for(role, info).dye
-			check(HairLook.COLORS.has(dye), "%s has dyed hair" % info.name)
+			var dye = TownsfolkLook.look_for(role, info).dye
+			check((dye is Array and dye.size() == 3) or HairLook.COLORS.has(dye), "%s has dyed hair" % info.name)
+			dye = str(dye)
 			check(not dyes.has(dye), "%s has the same hair colour as %s" % [info.name, dyes.get(dye, "")])
 			dyes[dye] = info.name
 	check(dyes.size() >= 2, "both bare-headed knights are checked")

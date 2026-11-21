@@ -66,7 +66,8 @@ const SKIN_ROSY := Color(0.97, 0.85, 0.88)
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
 ## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; tool: something held in place of the model's own
-## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer); lines:
+## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer; "book": a closed book in the
+## left hand, the clerk's ledger); lines:
 ## what they say, one after another.
 const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
@@ -112,7 +113,7 @@ const ROLES := {
 	"µ": {"name": "Raumausstatterin Ilse", "model": "Rogue", "show": [], "sex": "female", "hair": {"style": "natural", "color": "ginger"},
 		"colors": [Color(0.35, 0.55, 0.5), Color(0.4, 0.32, 0.26), Color(0.8, 0.65, 0.35)], "plan": "stay", "work": "Idle",
 		"lines": ["Ein Haus ist erst ein Heim, wenn ein Bett darin steht.", "Betten, Truhen, Regale, Kamine: Ich liefere alles bis an Euer Grundstück.", "Stellt die Möbel im Bauplan auf, mit \"Einrichten\"."]},
-	"¢": {"name": "Amtmann Gero", "model": "Knight", "show": ["Badge_Shield"],
+	"¢": {"name": "Amtmann Gero", "model": "Knight", "show": [], "tool": "book",
 		"colors": [Color(0.55, 0.45, 0.35), Color(0.3, 0.3, 0.38), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
 		"lines": ["Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.", "Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.", "Die Gebühr richtet sich nach der Größe des Landes."]},
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
@@ -568,6 +569,31 @@ static func dress_model(model: Node3D, info: Dictionary) -> void:
 			var hammer := VillageProps.smith_hammer(axe.get_parent())
 			hammer.name = "SmithHammer"
 			hammer.transform = axe.transform
+	elif info.get("tool", "") == "book":
+		# The clerk's ledger, the Mage's closed book, in the left hand where a shield would be.
+		var hand: Node3D = model.find_child("handslot_l", true, false)
+		if hand and hand.find_child("Ledger", false, false) == null:
+			var book := MeshInstance3D.new()
+			book.name = "Ledger"
+			_book_source()
+			book.mesh = _book_mesh
+			book.transform = _book_at
+			hand.add_child(book)
+
+
+static var _book_mesh: Mesh
+static var _book_at: Transform3D
+
+
+## The closed book out of the Mage model (its mesh, and where it sits in the hand), read once.
+static func _book_source() -> void:
+	if _book_mesh != null:
+		return
+	var mage: Node3D = load("res://assets/characters/Mage.glb").instantiate()
+	var found: MeshInstance3D = mage.find_child("Spellbook", true, false)
+	_book_mesh = found.mesh
+	_book_at = found.transform
+	mage.free()
 
 
 func play(anim_name: String, blend := 0.25) -> void:

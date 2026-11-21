@@ -309,8 +309,9 @@ func hero_near() -> bool:
 	return _plot.grow(NEAR_CELLS).has_point(cell)
 
 
-## Whether `pos` lies in the hero's own house: over their plot, and under its roof, down in
-## its cellar or up on an upper storey or the roof. With `on_floor` it must also have
+## Whether `pos` lies in the hero's own house: anywhere on their plot (on the ground floor,
+## whatever walls or roof stand there), down in its cellar, or up on an upper storey or the
+## roof. With `on_floor` it must also have
 ## something to stand on there as the house is built now: a dug cellar cell below the
 ## ground, a built slab or roof under an upper storey (see _covered). A saved game made
 ## there wakes up at that spot (see Game._built_house_spot).
@@ -327,7 +328,9 @@ func holds(pos: Vector3, on_floor := false) -> bool:
 			return true
 		var up := floori((pos.y + 0.2) / HouseSketch.STOREY_HEIGHT)
 		return up <= 0 or int(_covered.get(HouseFloors.cell_of(pos), -2)) >= up - 1
-	return (game.level as Outdoor).is_sheltered(pos)
+	# On the ground of the plot: a house with an open doorway or no roof yet (which keeps
+	# no weather out, see HouseGround.shelter) is still the hero's home.
+	return true
 
 
 ## Whether the blueprint button shows: one of the two building tools is open,

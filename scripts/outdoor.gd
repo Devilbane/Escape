@@ -144,7 +144,7 @@ const UNDERGROWTH_SPACING := 1.8
 ## The share of undergrowth bushes that keep their leaves in autumn: the rest have shed them
 ## (see undergrowth_shed), so the forest edge is not lined with heaps of red and gold leaves, and
 ## the fallen leaves lie spread over the ground instead (see SurfaceLife.set_autumn).
-const UNDERGROWTH_AUTUMN_KEEP := 0.3
+const UNDERGROWTH_AUTUMN_KEEP := 0.15
 ## How deep into the forest its gaps are filled with smaller pines (tiles, see _fill_forest_gaps).
 const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
@@ -265,6 +265,8 @@ var _tree_at := Vector3.ZERO
 var _tree_crown := 0.0
 ## Where the undergrowth bushes stand, each Vector4(x, y, z, radius) (see _grow_undergrowth).
 var undergrowth_bushes: Array[Vector4] = []
+## Where the village's shrubs stand (see _plant_bushes).
+var shrubs: Array[Vector3] = []
 ## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
 var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
@@ -421,8 +423,8 @@ var ivy: Node3D
 ## _build_wall_collision): low bushes of the ivy's leaves, turning with the seasons as the ivy does.
 var undergrowth: Node3D
 var _undergrowth := {"xforms": [], "colours": []}
-## The undergrowth bushes that shed their leaves in autumn (hidden then, see
-## UNDERGROWTH_AUTUMN_KEEP); the rest of the year they grow as the others do.
+## The undergrowth bushes and village shrubs that shed their leaves in autumn (hidden then, see
+## UNDERGROWTH_AUTUMN_KEEP and SHRUB_AUTUMN_KEEP); the rest of the year they grow as the others do.
 var undergrowth_shed: Node3D
 var _undergrowth_shed := {"xforms": [], "colours": []}
 var nests: Array[Vector3] = []
@@ -451,6 +453,11 @@ const VILLAGE_REACH := 6
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
+## The share of these shrubs that keep their leaves in autumn (the rest shed them, see
+## undergrowth_shed), and fewer still within SHRUB_TEMPLE_REACH tiles of the temple.
+const SHRUB_AUTUMN_KEEP := 0.5
+const SHRUB_TEMPLE_KEEP := 0.25
+const SHRUB_TEMPLE_REACH := 3
 ## The graveyard (see _age_graveyard): ivy patches on the crypt, how much of
 ## the fence has ivy on its low wall, how many graves have a grave light (a
 ## small lantern with a candle, lit at night), and where the light stands.
@@ -2017,10 +2024,8 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
-			# Which bushes shed their leaves in autumn: dice of their own (from the spot), so the
-			# bushes' looks stay as they were.
-			var keeps := float(posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), 1000)) / 1000.0 < UNDERGROWTH_AUTUMN_KEEP
-			var radius := AgedStone.grow_bush(at, rng, _undergrowth if keeps else _undergrowth_shed)
+			# Most of them shed their leaves in autumn (see _keeps_leaves).
+			var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
 			undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
 
 
@@ -3077,9 +3082,40 @@ func _plant_bushes() -> void:
 			var side := Vector3(-toward.z, 0, toward.x)
 			for k in count:
 				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
-				if _paved_at(at) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+				# Never over the temple glass's light on the grass (bare_ground), a full bush's
+				# width (AgedStone.grow_bush) away.
+				if _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
 					continue
-				AgedStone.grow_bush(at, rng, _ivy)
+				shrubs.append(at)
+				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
+				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed)
+
+
+## Whether a spot on the ground lies on or within `radius` of ground kept bare (bare_ground).
+func on_bare_ground(at: Vector3, radius: float) -> bool:
+	var p := Vector2(at.x, at.z)
+	for outline: PackedVector2Array in bare_ground:
+		if Geometry2D.is_point_in_polygon(p, outline):
+			return true
+		for i in outline.size():
+			if p.distance_to(Geometry2D.get_closest_point_to_segment(p, outline[i], outline[(i + 1) % outline.size()])) < radius:
+				return true
+	return false
+
+
+## Whether a bush at `at` keeps its leaves in autumn, `keep` being the share that do: dice of its
+## own (from the spot), so the bushes' looks stay as they were.
+static func _keeps_leaves(at: Vector3, keep: float) -> bool:
+	return float(posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), 1000)) / 1000.0 < keep
+
+
+## Whether a tile within `reach` tiles of `c` carries the map letter `ch`.
+func _near_letter(c: Vector2i, ch: String, reach: int) -> bool:
+	for dy in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			if cell_char(c + Vector2i(dx, dy)) == ch:
+				return true
+	return false
 
 
 ## Whether the ground at a spot is paved (the square or a paved way).

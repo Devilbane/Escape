@@ -29,6 +29,10 @@ const DARK := Color(0.58, 0.4, 0.31)
 const DEEP := Color(0.5, 0.34, 0.26)
 const SUNBURNT := Color(0.9, 0.66, 0.5)
 
+## A dark chestnut brown, root, middle and tip, for a painted-on hair dye (see LOOKS): darker
+## than HairLook's "natural", which reads as copper next to a fair face.
+const CHESTNUT := [Color(0.12, 0.06, 0.035), Color(0.3, 0.16, 0.085), Color(0.48, 0.29, 0.16)]
+
 ## The frames, by kind: a pair of round lenses, square ones, half-moon reading glasses and a single
 ## monocle on its chain.
 const GLASSES := ["round", "square", "half", "monocle"]
@@ -38,7 +42,7 @@ const SILVER := Color(0.74, 0.76, 0.8)
 
 ## skin: tone; glasses: kind or none; frame: its colour; hat: the colour of the hat, helmet or cape
 ## (the third of the role's colours when it is not given); hair: haircut and colour of a Rogue
-## model whose role names none; dye: a hair colour (a key of HairLook.COLORS) for a model whose hair
+## model whose role names none; dye: a hair colour (a key of HairLook.COLORS, or its own root, middle and tip) for a model whose hair
 ## is painted into its texture (the Knight), so two of them with bare heads do not look alike.
 const LOOKS := {
 	"0": {"skin": PALE},
@@ -51,7 +55,7 @@ const LOOKS := {
 	"8": {"skin": ASHEN, "glasses": "monocle", "frame": GOLD, "hat": Color(0.22, 0.2, 0.46)},
 	"9": {"skin": FAIR},
 	"K": {"skin": BROWN, "dye": "black"},
-	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON, "dye": "silver"},
+	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON, "dye": CHESTNUT},
 	"µ": {"skin": Color(0.98, 0.8, 0.7), "glasses": "round", "frame": SILVER},
 	"O": {"skin": DARK},
 	"G": {"skin": Color(0.72, 0.52, 0.4)},
@@ -92,7 +96,7 @@ static func apply(model: Node3D, info: Dictionary, look: Dictionary) -> void:
 	if look.is_empty():
 		return
 	_tint_skin(model, info, look.skin)
-	if look.get("dye", "") != "":
+	if str(look.get("dye", "")) != "":
 		_dye_hair(model, look.dye)
 	if look.hat != null:
 		_dye_hat(model, info, look.hat)
@@ -124,7 +128,7 @@ static func _tint_skin(model: Node3D, info: Dictionary, tone: Color) -> void:
 ## Dyes the hair painted into the head's texture (and the eyebrows, painted in the same spot) with
 ## a hair colour of HairLook: a detail layer over the hair's patch of the texture, so the texture
 ## itself is never read back. Root colour at the bottom of the patch, tips at the top.
-static func _dye_hair(model: Node3D, colour: String) -> void:
+static func _dye_hair(model: Node3D, colour: Variant) -> void:
 	for mi: MeshInstance3D in model.find_children("*_Head", "MeshInstance3D", true, false):
 		var mat := mi.material_override if mi.material_override != null else mi.get_active_material(0)
 		if not mat is StandardMaterial3D:
@@ -142,11 +146,12 @@ static var _dyes := {}
 
 ## A texture as big as the head's atlas in small: clear everywhere but the hair's patch
 ## (HairLook.HAIR_UV), which holds the colour's root-to-tip gradient.
-static func dye_texture(colour: String) -> Texture2D:
-	if _dyes.has(colour):
-		return _dyes[colour]
+static func dye_texture(colour: Variant) -> Texture2D:
+	var key := str(colour)
+	if _dyes.has(key):
+		return _dyes[key]
 	const SIZE := 64
-	var shades: Array = HairLook.COLORS.get(colour, HairLook.COLORS.natural)
+	var shades: Array = colour if colour is Array else HairLook.COLORS.get(colour, HairLook.COLORS.natural)
 	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	var patch := Rect2i(HairLook.HAIR_UV.position * SIZE, HairLook.HAIR_UV.size * SIZE)
@@ -156,7 +161,7 @@ static func dye_texture(colour: String) -> Texture2D:
 		for x in range(patch.position.x, patch.end.x):
 			img.set_pixel(x, y, c)
 	var tex := ImageTexture.create_from_image(img)
-	_dyes[colour] = tex
+	_dyes[key] = tex
 	return tex
 
 

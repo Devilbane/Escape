@@ -89,13 +89,21 @@ func _run() -> void:
 	# Its looks: blossom in spring, apples on the model, bare in winter.
 	check(_parts(old, spring + 2 * year, "blossom") > 0, "a grown tree blossoms in spring")
 	check(_parts({"planted": spring}, spring, "blossom") == 0, "a seedling does not blossom")
-	check(_parts(old, summer, "apples") == AppleTree.apples(old, summer), "the apples hang on the model")
+	check(_parts(old, summer, "apples") == AppleTree.apples(old, summer) * AppleTree.HANGING, "the apples hang on the model, more than a picking brings in")
 	check(_parts(old, winter, "leaves") == 0 and _parts(old, summer, "leaves") > 0, "leaves in summer, bare in winter")
 	check(_parts(old, winter, "limbs") > _parts({"planted": winter}, winter, "limbs"), "a grown tree has branches")
 	check(_parts(old, summer, "limbs") >= 60 and _parts(old, summer, "leaves") >= 40, "a full-grown tree has plenty of branches, all in leaf (%d limbs, %d clumps)" % [_parts(old, summer, "limbs"), _parts(old, summer, "leaves")])
 	check(_parts(old, summer, "single_leaves") >= 30 * _parts(old, summer, "leaves"), "the clumps are made of single leaves, not balls (%d leaves)" % _parts(old, summer, "single_leaves"))
+	for when in [summer, autumn]:
+		var crown := Node3D.new()
+		AppleTree.build(crown, old, when)
+		var leaves := crown.get_node("Leaves") as MeshInstance3D
+		var tris := (leaves.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+		check(tris == 2 * int(crown.get_meta("single_leaves")), "the crown is leaves only, no ball inside a clump (%d triangles for %d leaves)" % [tris, crown.get_meta("single_leaves")])
+		crown.free()
 	var model := Node3D.new()
 	AppleTree.build(model, old, summer)
+	check(model.has_node("Ground") and not model.has_node("Soil"), "the tree stands in a patch of grass ringed with stones, not on a disc of earth")
 	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())
 	model.free()
 

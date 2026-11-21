@@ -288,3 +288,4 @@ click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pi
 forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
 autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushes shed their leaves in autumn, and fallen leaves in the ivy's autumn colours lie spread over the ground
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone
+wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)

@@ -33,7 +33,8 @@ func _initialize() -> void:
 	# Registered while the map is open.
 	var level := _build()
 	var trees := _trees(level)
-	check(_trees_over(level, by_forest) > 0, "trees stand at the edge of the forest plot while it is free")
+	# The forest's spruces are slim: they stand at its edge, their branches not always over it.
+	check(_trees_over(level, by_forest, 1.0) > 0, "trees stand at the edge of the forest plot while it is free")
 	check(_props_near(level, by_boulder) > 0, "a boulder stands at the edge of its plot while it is free")
 	level.clear_plot(by_forest)
 	level.clear_plot(by_boulder)
@@ -78,7 +79,7 @@ func _build() -> Outdoor:
 	return level
 
 
-## A free 3 x 3 plot with a tile of `letter` right beside it.
+## A free 3 x 3 plot with a tile of `letter` right beside one of its sides.
 func _free_plot(level: Outdoor, letter: String) -> Rect2i:
 	for y in range(1, level.height - 4):
 		for x in range(1, level.width - 4):
@@ -87,7 +88,9 @@ func _free_plot(level: Outdoor, letter: String) -> Rect2i:
 				continue
 			for by in range(r.position.y - 1, r.end.y + 1):
 				for bx in range(r.position.x - 1, r.end.x + 1):
-					if level.cell_char(Vector2i(bx, by)) == letter:
+					# Beside a side, not only at a corner, so what stands there comes close.
+					var corner := (bx == r.position.x - 1 or bx == r.end.x) and (by == r.position.y - 1 or by == r.end.y)
+					if level.cell_char(Vector2i(bx, by)) == letter and not corner:
 						return r
 	return Rect2i()
 
@@ -109,12 +112,12 @@ func _trees(level: Outdoor) -> int:
 	return count
 
 
-## How many drawn trees come too close to the plot.
-func _trees_over(level: Outdoor, rect: Rect2i) -> int:
+## How many drawn trees come too close to the plot (or, ferns aside, within `more` metres of that).
+func _trees_over(level: Outdoor, rect: Rect2i, more := 0.0) -> int:
 	var count := 0
 	for key in level._plants:
 		for i in level._plants[key].size():
-			if _near(level, rect, (level._plants[key][i] as Transform3D).origin, level._plant_reach[key][i]):
+			if (more == 0.0 or not (key[0] as String).begins_with("fern:")) and _near(level, rect, (level._plants[key][i] as Transform3D).origin, level._plant_reach[key][i] + more):
 				count += 1
 	return count
 

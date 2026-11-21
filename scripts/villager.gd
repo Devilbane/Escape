@@ -36,11 +36,11 @@ const BUMP_COOLDOWN := 45.0
 ## bump hit him instead of her shop. Small enough for a path past a stall,
 ## big enough that the two bodies never overlap.
 const PERSONAL_SPACE := 1.3
-## Villagers who walk about keep at least this far from one another (metres, centre to
-## centre): never less than PASSING_SPACE, and their two radii times BODY_GAP, so there is
-## always a visible gap between two bodies.
+## Villagers keep at least this far from one another (metres, centre to centre): never less
+## than PASSING_SPACE, and their two radii plus BODY_GAP, a clear stretch of ground between
+## the two bodies that is plainly seen, walking, standing, gathering or waiting alike.
 const PASSING_SPACE := 0.8
-const BODY_GAP := 1.15
+const BODY_GAP := 0.5
 ## They slide apart at up to EASE_SPEED m/s (spread over the physics ticks, never a jump),
 ## and a walker bends its way away from anyone within AWARE times that space.
 const EASE_SPEED := 1.6
@@ -275,6 +275,8 @@ var _news := 0
 ## Night has fallen, and whether the villager is inside their house asleep
 ## (hidden, and nobody to talk to or trade with until morning).
 var night := false
+## Seconds until a child puts its pumpkin on or takes it off (see _mind_pumpkin); -1 before the first look.
+var _pumpkin_clock := -1.0
 var at_home := false
 ## The room this villager takes up (metres, see Footprint): half a body width.
 var radius := 0.5
@@ -468,6 +470,35 @@ const SPRING_LINES := [
 	"Die Pelze kommen zurück in die Truhe.",
 	"Hörst du das Tropfen? Der Winter ist vorbei.",
 ]
+
+
+## In autumn a child puts a pumpkin on its head now and then, keeps it on for a while and takes it
+## off again (see PumpkinHat); out of autumn, and at night, it stays off. `step`: seconds since the
+## last look.
+func _mind_pumpkin(step: float) -> void:
+	if not role in PumpkinHat.WEARERS or _model == null:
+		return
+	var on := PumpkinHat.worn(_model)
+	if not Weather.is_autumn(level.season_day) or night:
+		if on:
+			PumpkinHat.take_off(_model)
+			_head_top = -1.0
+		_pumpkin_clock = -1.0
+		return
+	if _pumpkin_clock < 0.0:
+		# The first autumn day (or morning): some time before the first pumpkin, now soon, now late.
+		_pumpkin_clock = _rng.randf_range(0.0, PumpkinHat.OFF_TIME.y)
+	_pumpkin_clock -= step
+	if _pumpkin_clock > 0.0:
+		return
+	if on:
+		PumpkinHat.take_off(_model)
+		_pumpkin_clock = _rng.randf_range(PumpkinHat.OFF_TIME.x, PumpkinHat.OFF_TIME.y)
+	else:
+		PumpkinHat.put_on(_model, visible)
+		_pumpkin_clock = _rng.randf_range(PumpkinHat.ON_TIME.x, PumpkinHat.ON_TIME.y)
+	# A bird perches on top of the pumpkin, or on the hair again (see _top_of_head).
+	_head_top = -1.0
 
 
 ## Puts the winter clothes on or takes them off, when the village's wardrobe (Outdoor.winter_wear)
@@ -1672,12 +1703,13 @@ func _spot_taken(c: Vector2i) -> bool:
 
 ## How much room this villager leaves the other one (centre to centre).
 func _space_for(o: Villager) -> float:
+	var gap := maxf(PASSING_SPACE, radius + o.radius + BODY_GAP)
 	if o.keeps_spot():
-		return PERSONAL_SPACE
+		return maxf(PERSONAL_SPACE, gap)
 	# Two in a chat stand a conversation apart, not shoulder to shoulder.
 	if chat_partner == o and in_chat_place() and o.in_chat_place():
-		return CHAT_GAP * 0.85
-	return maxf(PASSING_SPACE, (radius + o.radius) * BODY_GAP)
+		return maxf(CHAT_GAP * 0.85, gap)
+	return gap
 
 
 ## The villagers within NEAR metres, looked up again every few physics ticks only: the village
@@ -1715,7 +1747,9 @@ func _keep_apart(delta: float) -> void:
 		if not is_instance_valid(other):
 			continue
 		var o: Villager = other
-		if o.at_home or (_mixing_with(o) and not (in_chat_place() and o.in_chat_place())):
+		# Only one still walking up to a chat partner may come near them: a pair standing in
+		# their chat, or tied to each other but not chatting, keeps the gap like anyone else.
+		if o.at_home or (_mixing_with(o) and (heading_to_chat() or o.heading_to_chat())):
 			continue
 		var away := global_position - o.global_position
 		away.y = 0.0
@@ -1859,6 +1893,7 @@ func _physics_process(delta: float) -> void:
 	if _wear_check <= 0.0:
 		_wear_check = 1.0
 		update_wear()
+		_mind_pumpkin(1.0)
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
 	_leave_prints()
@@ -2067,7 +2102,7 @@ func _move_to(point: Vector3) -> bool:
 ## Whether a point is too close to someone else who keeps their spot.
 func _crowds_spot(point: Vector3) -> bool:
 	for o: Villager in level.people():
-		if o != self and o.keeps_spot() and not o.at_home and Vector2(point.x - o.global_position.x, point.z - o.global_position.z).length() < PERSONAL_SPACE:
+		if o != self and o.keeps_spot() and not o.at_home and Vector2(point.x - o.global_position.x, point.z - o.global_position.z).length() < _space_for(o):
 			return true
 	return false
 

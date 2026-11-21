@@ -106,7 +106,8 @@ func _test() -> void:
 
 	# A click on the bench from a few steps away: the hero walks there and sits.
 	await _beside(seat)
-	p.global_position = Seats.stand_spot(seat, lv, p.radius) + Seats.front(seat) * 5.0
+	# A few steps off along the bench (in front of it stands the fountain).
+	p.global_position = Seats.stand_spot(seat, lv, p.radius) + Seats.front(seat).cross(Vector3.UP) * 3.0
 	await _wait(3)
 	game._click(seat.pos)
 	for i in 300:

@@ -204,7 +204,12 @@ func _run() -> void:
 	pippi._kid = null
 	lvl.set_hour(23.0)
 	game.day_hour = 23.0
-	await _wait(60 * 40)
+	# They walk all the way to their door (the mason's house, the nearest), which
+	# takes a child's legs a good while: wait until both are in, or give up.
+	for i in 150:
+		if pip.at_home and pippi.at_home:
+			break
+		await _wait(60)
 	check(pip.at_home and pippi.at_home, "the children go to bed at night")
 	check(not KidPlay.can_join(pip) and not KidPlay.can_join(pippi), "nobody joins a game at night")
 	_finish()

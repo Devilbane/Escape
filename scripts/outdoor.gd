@@ -70,7 +70,8 @@ extends Level
 ##      wooden crates lie close by (see Crate).
 ##   @  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
-##      with his covered cart on the tile north of him.
+##      with his living wagon on the tile north of him and the one west of
+##      that (see MerchantWagon).
 ##   ?  plain grass, where a chest lies buried; a treasure map from a
 ##      bottle marks it (see TreasureMaps)
 ##   >  a boulder at the forest's edge with a hidden cave beneath it; a
@@ -145,16 +146,23 @@ const UNDERGROWTH_SPACING := 1.8
 ## (see undergrowth_shed), so the forest edge is not lined with heaps of red and gold leaves, and
 ## the fallen leaves lie spread over the ground instead (see SurfaceLife.set_autumn).
 const UNDERGROWTH_AUTUMN_KEEP := 0.15
+## How closely the undergrowth's strip is looked over for bare floor (metres, see _grow_undergrowth).
+const UNDERGROWTH_CHECK := 0.5
 ## How deep into the forest its gaps are filled with smaller pines (tiles, see _fill_forest_gaps).
 const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
 const UNDERGROWTH_DEPTH := 2.0
-## A trial stand of spruces (see Fern.needle_tree_mesh): every tree of the forest in these tiles of
-## Die Freiheit, the wood west of the road from the crypt down past the pond, is a spruce.
+## The forest's living trees are spruces (see Fern.needle_tree_mesh, _plant_tree). In these tiles of
+## Die Freiheit, the wood west of the road from the crypt down past the pond, every tree is one.
 const SPRUCE_MAP := "Die Freiheit"
 const SPRUCE_PATCH := Rect2i(0, 14, 14, 26)
 ## How much of a spruce's reach hides the ground (see CROWN).
 const SPRUCE_CROWN := 0.95
+## How far off (metres, to the middle of a SPRUCE_CHUNK batch) spruces are drawn frond by frond;
+## further off they are the far model of fewer, broader fronds (see Fern.needle_tree_mesh).
+const SPRUCE_NEAR := 20.0
+## The spruces' batches (tiles square), smaller than GROUND_CHUNK.
+const SPRUCE_CHUNK := 4
 ## Ferns (see Fern.fern_mesh) in the shade along the forest's edge: how many a forest tile beside
 ## open ground tries for, how far apart they stay and how big they grow (times the model).
 const FERN_TRIES := 7
@@ -264,6 +272,11 @@ var fern_count := 0
 ## Where the last tree _build_tree planted stands, and how far its crown reaches.
 var _tree_at := Vector3.ZERO
 var _tree_crown := 0.0
+## Whether the last tree _plant_tree planted was a spruce, and how big (see _spruce_size).
+var _last_spruce := false
+var _last_spruce_size := 1.0
+## Whether _build_tree is planting a tree of the forest (not one on its own, a "T" tile).
+var _in_forest := false
 ## Where the undergrowth bushes stand, each Vector4(x, y, z, radius) (see _grow_undergrowth).
 var undergrowth_bushes: Array[Vector4] = []
 ## Where the village's shrubs stand (see _plant_bushes).
@@ -460,6 +473,13 @@ const LANE_PATCHES := 3
 ## Dirt paths this close to a village building (tiles) are cobbled like the
 ## square, and shrubs grow on the grass beside the buildings.
 const VILLAGE_REACH := 6
+## Where the stonemason's yard of stone blocks lies, from the tile he stands on: to the
+## right of his house (as you face its door), past the paved way from the door, so
+## neither the doorway nor the way is blocked.
+const MASON_YARD := Vector2i(2, -2)
+## How far the yard sits east within its tile, clear of the paved way's edge. The pile
+## and its solid stay inside the tile, so villagers walking round it are not caught.
+const MASON_YARD_SHIFT := 0.4
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
@@ -545,7 +565,7 @@ var day := 0
 ## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
 ## and the flowers in the gardens go by.
 var season_day := 0
-## The apple trees round the fountain (see AppleTree.plant_round_fountains).
+## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
@@ -667,6 +687,8 @@ func build() -> void:
 	_plant_bushes()
 	# The ivy-covered poles and ropes with their lamps round the dining tables (see MealGarland).
 	meals.garland.build(self, meals.tables, _ivy)
+	# The braziers that warm the diners in winter (see MealBraziers).
+	meals.braziers.build(self, meals.tables)
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -681,6 +703,8 @@ func build() -> void:
 		WallFoot.apply(wall_foot, day)
 	# Apple trees round the fountain, between the benches (before the birds take the square's spots).
 	square_trees = AppleTree.plant_round_fountains(self)
+	# And more in the gardens round the houses.
+	square_trees.append_array(AppleTree.plant_in_village(self))
 	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
@@ -1123,7 +1147,9 @@ func _plant(name: String, pos: Vector3, rot: float, s: float) -> float:
 	var reach := _reach_of(name, s)
 	if on_plot(pos, reach):
 		return -1.0
-	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
+	# Spruces in smaller batches, so each one turns into its far model at about its own distance.
+	var chunk := (SPRUCE_CHUNK if name.begins_with("spruce:") else GROUND_CHUNK) * TILE
+	var patch := Vector2i(floori(pos.x / chunk), floori(pos.z / chunk))
 	var key := [name, patch]
 	if not _plants.has(key):
 		_plants[key] = []
@@ -1148,13 +1174,23 @@ func _spruce_of(at: Vector3) -> int:
 	return posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), Fern.NEEDLE_LOOKS.size())
 
 
-## Plants a forest tree (see _plant), or in the trial stand a spruce in its place: the dice for
-## the tree are thrown all the same, so the rest of the map grows as before. A smaller tree (a
-## "medium" one, filling a gap) is a smaller spruce.
+## Plants a tree (see _plant), or a spruce in its place: every living tree of the forest is a
+## spruce, and so is a pine standing on its own (a "T" tile); in the spruces' first stand every tree
+## is. The dice for the tree are thrown all the same, so the rest of the map grows as before. A
+## smaller tree (a "medium" one, filling a gap) is a smaller spruce. Tells _last_spruce whether it
+## was a spruce.
 func _plant_tree(name: String, pos: Vector3, rot: float, s: float) -> float:
-	if not in_spruce_patch(pos):
+	_last_spruce = in_spruce_patch(pos) or name.begins_with("tree_pine") or (_in_forest and not name.begins_with("tree_dead"))
+	if not _last_spruce:
 		return _plant(name, pos, rot, s)
-	return _plant("spruce:%d" % _spruce_of(pos), pos, rot, _spruce_grow(pos) * (0.8 if name.ends_with("medium") else 1.0))
+	_last_spruce_size = _spruce_size(name, pos)
+	return _plant("spruce:%d" % _spruce_of(pos), pos, rot, _last_spruce_size)
+
+
+## How big the spruce is that stands in for tree `name` at a spot (its model's size times this): a
+## little smaller for a "medium" tree.
+func _spruce_size(name: String, at: Vector3) -> float:
+	return _spruce_grow(at) * (0.8 if name.ends_with("medium") else 1.0)
 
 
 ## How much bigger or smaller than its model the spruce at a spot grows, so no two stand alike.
@@ -1223,6 +1259,20 @@ func _draw_plants(key: Array) -> void:
 			# Its thousands of fronds are drawn once, without shadow; a plain stand-in of the same
 			# outline casts the shadow (see Fern.needle_shadow_mesh), drawn in every shadow map.
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# Up close frond by frond, further off the far model with the same outline.
+			mmi.visibility_range_end = SPRUCE_NEAR
+			var far_mm := MultiMesh.new()
+			far_mm.transform_format = MultiMesh.TRANSFORM_3D
+			far_mm.mesh = Fern.needle_tree_mesh(int(name.get_slice(":", 1)), true)
+			far_mm.instance_count = mm.instance_count
+			for i in mm.instance_count:
+				far_mm.set_instance_transform(i, mm.get_instance_transform(i))
+			var far := MultiMeshInstance3D.new()
+			far.multimesh = far_mm
+			far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			far.visibility_range_begin = SPRUCE_NEAR
+			add_child(far)
+			_plant_batches[key].append(far)
 			var shade := MultiMesh.new()
 			shade.transform_format = MultiMesh.TRANSFORM_3D
 			shade.mesh = Fern.needle_shadow_mesh(int(name.get_slice(":", 1)))
@@ -1401,8 +1451,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			# A little ivy up the basin's outside, a bit of it over the rim.
 			var ivy_rng := RandomNumberGenerator.new()
 			ivy_rng.seed = hash("%s|brunnen|%s" % [level_name, c])
-			AgedStone.grow_basin_ivy(pos, 1.55, 1.0, ivy_rng, _ivy, 3)
-			spots.well.append(pos + Vector3(0, 0, 2.6))
+			AgedStone.grow_basin_ivy(pos, VillageFountain.RIM_RADIUS - 0.12, VillageFountain.RIM_TOP, ivy_rng, _ivy, 3)
+			# Where the villagers fetch water: by the rim, between the bench in front and a tree.
+			spots.well.append(pos + Vector3(1, 0, 1).normalized() * (VillageFountain.STEP_RADIUS + 0.7))
 		"x":
 			_build_bench(c)
 		TownMeals.LETTER:
@@ -1649,6 +1700,11 @@ func _build_bench(c: Vector2i) -> void:
 			if cell_char(Vector2i(x, y)) == "F":
 				to = cell_to_world(Vector2i(x, y)) - pos
 	var rot := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
+	if is_equal_approx(to.length(), TILE):
+		# Right beside the fountain: out to the far side of its tile, in line with the apple trees
+		# round it (AppleTree.TRUNK_OUT), so benches and trees stand in a square about the fountain
+		# with room to walk round its rim.
+		pos -= to.normalized() * AppleTree.TRUNK_OUT
 	_put("bench", pos, rot, Seats.BENCH_SCALE)
 	# Blocked where the bench is drawn: a long, narrow box turned with it, so
 	# the hero can walk right up to the seat (see Seats).
@@ -1738,6 +1794,7 @@ func _build_temple_lamps(chapel: Node3D) -> void:
 ## how far it reaches (metres), or -1 when it would stand over a building plot.
 func _build_tree(pos: Vector3, single := false) -> float:
 	var near_crypt := pos.distance_to(cell_to_world(start_cell)) < 13.0 * TILE
+	_in_forest = not single
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
 	var at := pos + _jitter(0.9 if not single else 0.3)
@@ -1764,11 +1821,12 @@ func _build_tree(pos: Vector3, single := false) -> float:
 		height = 1.2 * scale_of
 	if reach < 0.0:
 		return reach
-	if in_spruce_patch(at):
-		height = Fern.needle_height(_spruce_of(at)) * _spruce_grow(at)
+	var spruce := _last_spruce
+	if spruce:
+		height = Fern.needle_height(_spruce_of(at)) * _last_spruce_size
 		leafy = false
 	# A spruce's low branches bend down to the ground and hide it nearly all the way out.
-	_tree_crown = reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN if height > 0.0 else DEAD_CROWN)
+	_tree_crown = reach * (SPRUCE_CROWN if spruce else CROWN if height > 0.0 else DEAD_CROWN)
 	if height > 0.0 and not near_crypt:
 		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
 	return reach
@@ -1911,7 +1969,7 @@ func _fill_forest_gaps() -> void:
 				if reach >= 0.0:
 					if not forest_trees.has(c):
 						forest_trees[c] = []
-					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN)})
+					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if _last_spruce else CROWN)})
 
 
 ## What looks walkable is walkable, and what blocks looks blocked. The forest does not stop the
@@ -2035,9 +2093,35 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
-			# Most of them shed their leaves in autumn (see _keeps_leaves).
-			var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
-			undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
+			_undergrowth_bush(at, rng)
+	# A spruce's crown is narrow: where the floor still shows between the crowns and the bushes
+	# near the open side, one more bush, as close to it as the strip lets it grow.
+	var radii: Array[float] = []
+	for b in undergrowth_bushes.slice(undergrowth_bushes.size() - placed.size()):
+		radii.append(b.w)
+	for iy in ceili(block.size.y / UNDERGROWTH_CHECK):
+		for ix in ceili(block.size.x / UNDERGROWTH_CHECK):
+			var at := Vector3(block.position.x + (ix + 0.5) * UNDERGROWTH_CHECK, 0.0, block.position.y + (iy + 0.5) * UNDERGROWTH_CHECK)
+			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5):
+				continue
+			var covered := false
+			for i in placed.size():
+				if Vector2(placed[i].x - at.x, placed[i].z - at.z).length() < radii[i] + 0.3:
+					covered = true
+					break
+			if covered:
+				continue
+			var spot := Vector3(clampf(at.x, inner.position.x, inner.end.x), 0.0, clampf(at.z, inner.position.y, inner.end.y))
+			placed.append(spot)
+			radii.append(_undergrowth_bush(spot, rng))
+
+
+## One bush of the undergrowth at `at` (see _grow_undergrowth); returns its radius.
+func _undergrowth_bush(at: Vector3, rng: RandomNumberGenerator) -> float:
+	# Most of them shed their leaves in autumn (see _keeps_leaves).
+	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
+	undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
+	return radius
 
 
 ## Whether the mountain of the dragon's lair stands over a tile (no tree grows there).
@@ -3522,7 +3606,7 @@ func _spawn_villagers() -> void:
 			elif ch == "Z":
 				_build_barber_shop(c + Vector2i(0, -1))
 			elif ch == "S":
-				_build_stone_yard(c + Vector2i(0, -1))
+				_build_stone_yard(c + MASON_YARD)
 				_build_quarry(v, c)
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
@@ -3575,10 +3659,11 @@ func _build_barber_shop(cell: Vector2i) -> void:
 	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 
 
-## The stonemason's yard on the tile behind him: blocks of carved stone
-## stacked up for sale, a rough block on the trestle and a sign.
+## The stonemason's yard beside his house, to its right as you face the door
+## (MASON_YARD): blocks of carved stone stacked up for sale and a sign. It stays
+## off the doorway and off the paved way that runs from the door to the road.
 func _build_stone_yard(cell: Vector2i) -> void:
-	var pos := cell_to_world(cell)
+	var pos := cell_to_world(cell) + Vector3(MASON_YARD_SHIFT, 0, 0)
 	# [offset of the block's bottom middle, turned to lie along z, shade]
 	var heap := [
 		[Vector3(-0.9, 0, -0.6), false, 0], [Vector3(0.75, 0, -0.6), false, 1],
@@ -3590,7 +3675,8 @@ func _build_stone_yard(cell: Vector2i) -> void:
 		block.position = pos + part[0]
 		block.rotation.y = PI * 0.5 if part[1] else _rng.randf_range(-0.05, 0.05)
 		add_child(block)
-	_add_solid(pos + Vector3(0.2, 0, 0), Vector3(3.4, StoneBlock.HEIGHT * 2.0, 2.6))
+	# Just round the blocks (x -1.7 to 1.55, z -1.0 to 1.0), so it stays inside the tile.
+	_add_solid(pos + Vector3(-0.075, 0, 0), Vector3(3.3, StoneBlock.HEIGHT * 2.0, 2.2))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Steinmetz"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "stone")
 	WeatheredProps.weather_plain(board)
@@ -4173,6 +4259,8 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 		return
 	winter_wear = on
 	_wear_known = true
+	# The braziers round the dining tables burn all winter.
+	meals.braziers.set_winter(on, first or at_once)
 	for v in villagers:
 		v.update_wear(first or at_once)
 
@@ -4403,6 +4491,7 @@ func _wanderer_arrives() -> void:
 	v.station = station
 	stations.append(station)
 	wanderer = v
+	_send_raven(v)
 
 
 func _wanderer_leaves() -> void:
@@ -4416,89 +4505,41 @@ func _wanderer_leaves() -> void:
 	for shape in _cart_shapes:
 		shape.queue_free()
 	_cart_shapes.clear()
-	var cart_cell := _wanderer_cell + CART_OFFSET
-	astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
+	for c: Vector2i in MerchantWagon.CELLS:
+		var cart_cell := _wanderer_cell + CART_OFFSET + c
+		astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
 
 
-## Zarek's covered cart: a wooden box on two big wheels under a hooped
-## canvas cover in his colours, its shaft resting on the ground, a lantern on
-## a pole, and a few crates and sacks unloaded beside it.
+## Zarek's home on wheels (see MerchantWagon), on the cart's cell and the one
+## in front of it, with a few crates and a sack unloaded beside it, a sparkle
+## of far-off magic over it, and his raven (see MerchantRaven).
 func _build_cart(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
-	_cart = Node3D.new()
+	_cart = MerchantWagon.build(_rng)
 	_cart.position = pos
 	add_child(_cart)
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.42, 0.28, 0.16)
-	wood.roughness = 0.9
-	var canvas := StandardMaterial3D.new()
-	canvas.albedo_color = Color(0.5, 0.3, 0.66)
-	canvas.roughness = 1.0
-	canvas.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var iron := StandardMaterial3D.new()
-	iron.albedo_color = Color(0.18, 0.18, 0.2)
-	iron.metallic = 0.6
-	iron.roughness = 0.5
-	var body := _cart_part(BoxMesh.new(), wood, Vector3(0, 1.15, 0))
-	(body.mesh as BoxMesh).size = Vector3(3.0, 0.7, 1.7)
-	# The canvas: half a cylinder lying along the cart.
-	var cover := _cart_part(CylinderMesh.new(), canvas, Vector3(0, 1.5, 0))
-	var tube: CylinderMesh = cover.mesh
-	tube.top_radius = 0.9
-	tube.bottom_radius = 0.9
-	tube.height = 2.9
-	tube.radial_segments = 20
-	# Lying along the cart: only its upper half shows above the box.
-	cover.rotation.z = PI * 0.5
-	for side in [-1.0, 1.0]:
-		var wheel := _cart_part(CylinderMesh.new(), wood, Vector3(0.4, 0.62, side * 0.95))
-		var disc: CylinderMesh = wheel.mesh
-		disc.top_radius = 0.62
-		disc.bottom_radius = 0.62
-		disc.height = 0.14
-		disc.radial_segments = 16
-		wheel.rotation.x = PI * 0.5
-		var rim := _cart_part(TorusMesh.new(), iron, Vector3(0.4, 0.62, side * 1.03))
-		var ring: TorusMesh = rim.mesh
-		ring.inner_radius = 0.56
-		ring.outer_radius = 0.66
-		rim.rotation.x = PI * 0.5
-	var shaft := _cart_part(BoxMesh.new(), wood, Vector3(-2.2, 0.6, 0))
-	(shaft.mesh as BoxMesh).size = Vector3(1.8, 0.12, 0.9)
-	shaft.rotation.z = -0.45
-	# A lantern on a pole at the front corner, with a warm, slightly violet glow.
-	var pole := _cart_part(BoxMesh.new(), wood, Vector3(-1.3, 1.6, 1.0))
-	(pole.mesh as BoxMesh).size = Vector3(0.1, 3.2, 0.1)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(1.0, 0.8, 0.55)
-	glass.emission_enabled = true
-	glass.emission = Color(1.0, 0.7, 0.45)
-	glass.emission_energy_multiplier = 4.0
-	var lamp := _cart_part(BoxMesh.new(), glass, Vector3(-1.3, 3.0, 1.0))
-	(lamp.mesh as BoxMesh).size = Vector3(0.3, 0.4, 0.3)
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.72, 0.62)
-	light.light_energy = 2.4
-	light.omni_range = 9.0
-	light.position = Vector3(-1.3, 2.9, 1.4)
-	_cart.add_child(light)
+	MerchantWagon.kindle(_cart)
 	var sparkle := Effects.make_sparkles(Color(0.8, 0.6, 1.0))
-	sparkle.position = Vector3(0, 2.6, 0)
+	sparkle.position = Vector3(-0.8, 3.0, 0)
 	_cart.add_child(sparkle)
 	for i in 2:
 		var prop: String = ["crate_A_big", "sack"][i]
-		_put(prop, Vector3(1.9, 0, -0.4 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
-	_cart_shapes.append(_add_box(_walls_body, pos + Vector3(0, 1.0, 0), Vector3(3.9, 2.0, 2.2)))
-	astar.set_point_solid(cell, true)
+		_put(prop, Vector3(2.4, 0, 0.2 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
+	for solid: Array in MerchantWagon.SOLIDS:
+		_cart_shapes.append(_add_box(_walls_body, pos + (solid[0] as Vector3), solid[1]))
+	for c: Vector2i in MerchantWagon.CELLS:
+		astar.set_point_solid(cell + c, true)
 
 
-func _cart_part(mesh: Mesh, mat: Material, at: Vector3) -> MeshInstance3D:
-	var part := MeshInstance3D.new()
-	part.mesh = mesh
-	part.material_override = mat
-	part.position = at
-	_cart.add_child(part)
-	return part
+## The merchant's raven, flying between his shoulder and its spots on the wagon.
+func _send_raven(merchant: Node3D) -> void:
+	var perches: Array[Vector3] = []
+	for p: Vector3 in _cart.get_meta("perches", []):
+		perches.append(_cart.global_transform * p)
+	var raven := MerchantRaven.new()
+	raven.name = "MerchantRaven"
+	_cart.add_child(raven)
+	raven.setup(self, merchant, perches, day)
 
 
 ## Nightfall: the dead get their spots on the paths beside the graves.

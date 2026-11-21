@@ -3105,20 +3105,16 @@ func _end_pit_climb(out: bool) -> void:
 ## hero stands at its foot), "top" (where he steps off at the top), "edge" (a
 ## point on the edge it leans on) and "push" (the flat direction from foot to top).
 const LADDER_GROUP := "house_ladders"
-## How near the foot or the top the hero must be to step onto a ladder, and how
-## fast he climbs it (m/s up the rungs, and across onto the rungs or off them).
+## How near the foot or the top the hero must be to step onto a ladder.
 const LADDER_REACH := 0.75
-const LADDER_CLIMB_SPEED := 1.6
-const LADDER_STEP_SPEED := 1.4
-## Where the hero's feet are on the rungs: this far before the edge it leans on.
-const LADDER_ON := 0.5
-## The path of the climb (feet), with the time each point is reached; the
-## time so far, or -1 when not on a ladder.
-var _ladder_path: Array[Vector3] = []
-var _ladder_times: Array[float] = []
+## The climb (see LadderPose): its keys, the time so far (-1 when not on a ladder),
+## the ladder's edge, push and foot height, and the sideways offset the hero started at.
+var _ladder_keys: Array = []
 var _ladder_t := -1.0
+var _ladder_edge := Vector3.ZERO
 var _ladder_push := Vector3.ZERO
-var _ladder_rungs := 0.0
+var _ladder_low := 0.0
+var _ladder_aside := 0.0
 
 
 ## Steps onto a ladder: walking at its foot towards it climbs up, walking at its
@@ -3131,14 +3127,10 @@ func _try_ladder(dir: Vector3) -> bool:
 		var foot: Vector3 = ladder.get_meta("foot")
 		var top: Vector3 = ladder.get_meta("top")
 		var push: Vector3 = ladder.get_meta("push")
-		var rungs: Vector3 = (ladder.get_meta("edge") as Vector3) - push * LADDER_ON
-		var on_low := Vector3(rungs.x, foot.y, rungs.z)
-		var on_high := Vector3(rungs.x, top.y, rungs.z)
-		if _near(foot) and flat.dot(push) > 0.6:
-			_start_ladder([global_position, on_low, on_high, top], push)
-			return true
-		if _near(top) and flat.dot(-push) > 0.6:
-			_start_ladder([global_position, on_high, on_low, foot], push)
+		var edge: Vector3 = ladder.get_meta("edge")
+		var up := _near(foot) and flat.dot(push) > 0.6
+		if up or (_near(top) and flat.dot(-push) > 0.6):
+			_start_ladder(edge, push, foot.y, top.y, up)
 			return true
 	return false
 
@@ -3149,20 +3141,15 @@ func _near(spot: Vector3) -> bool:
 	return absf(at.y - spot.y) < 0.45 and Vector2(at.x - spot.x, at.z - spot.z).length() < LADDER_REACH
 
 
-func _start_ladder(points: Array, push: Vector3) -> void:
-	_ladder_path.clear()
-	_ladder_times.clear()
-	var t := 0.0
-	for i in points.size():
-		if i > 0:
-			var leg: Vector3 = points[i] - points[i - 1]
-			var flat := Vector2(leg.x, leg.z).length()
-			t += maxf(absf(leg.y) / LADDER_CLIMB_SPEED, flat / LADDER_STEP_SPEED) + 0.05
-		_ladder_path.append(points[i])
-		_ladder_times.append(t)
-	_ladder_t = 0.0
+func _start_ladder(edge: Vector3, push: Vector3, low: float, high: float, up: bool) -> void:
+	_ladder_edge = Vector3(edge.x, 0, edge.z)
 	_ladder_push = push
-	_ladder_rungs = 0.0
+	_ladder_low = low
+	var from := global_position - _ladder_edge
+	var forward := from.dot(push)
+	_ladder_aside = from.dot(Vector3(-push.z, 0, push.x))
+	_ladder_keys = LadderPose.up_keys(high - low, forward) if up else LadderPose.down_keys(high - low, forward)
+	_ladder_t = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
 	face(push)
@@ -3178,42 +3165,30 @@ func _start_ladder(points: Array, push: Vector3) -> void:
 	train("geschick", 0.2)
 
 
-## One step of a ladder climb: the hero is carried along the path, hand over
-## hand and foot over foot on the rungs.
+## Where the climb puts the hero's feet: `state` from LadderPose.at.
+func _ladder_spot(state: Dictionary) -> Vector3:
+	var side := Vector3(-_ladder_push.z, 0, _ladder_push.x)
+	return _ladder_edge + _ladder_push * float(state.forward) + side * _ladder_aside * float(state.side) \
+		+ Vector3(0, _ladder_low + float(state.height), 0)
+
+
+## One step of a ladder climb: the hero is carried along the climb, hand over
+## hand and foot over foot on the rungs (see LadderPose).
 func _ladder_step(delta: float) -> void:
 	velocity = Vector3.ZERO
 	_ladder_t += delta
-	var end: float = _ladder_times.back()
-	var i := 1
-	while i < _ladder_times.size() - 1 and _ladder_times[i] < _ladder_t:
-		i += 1
-	var span := maxf(0.001, _ladder_times[i] - _ladder_times[i - 1])
-	var u := clampf((_ladder_t - _ladder_times[i - 1]) / span, 0.0, 1.0)
-	var before := global_position
-	global_position = _ladder_path[i - 1].lerp(_ladder_path[i], u)
-	_ladder_rungs += absf(global_position.y - before.y)
+	var state := LadderPose.at(_ladder_keys, _ladder_t)
+	global_position = _ladder_spot(state)
 	face(_ladder_push)
 	if _skeleton != null:
-		ClimbPose.apply(_skeleton, _pit_base, ladder_pose(_ladder_rungs))
-	if _ladder_t >= end:
+		ClimbPose.apply(_skeleton, _pit_base, state.pose)
+	if _ladder_t >= LadderPose.length(_ladder_keys):
 		_end_ladder()
-
-
-## The pose on a ladder after climbing `metres` of it: arms up at the rails, a
-## knee raised to the next rung, left and right taking turns every rung.
-static func ladder_pose(metres: float) -> Dictionary:
-	var swing := sin(metres / 0.3 * PI)
-	return {
-		"spine": 6.0, "head": -10.0,
-		"arm": 150.0 + 12.0 * swing, "elbow": 45.0 - 15.0 * swing,
-		"hip_l": 35.0 + 30.0 * swing, "hip_r": 35.0 - 30.0 * swing,
-		"knee_l": 55.0 + 35.0 * maxf(0.0, swing), "knee_r": 55.0 + 35.0 * maxf(0.0, -swing),
-	}
 
 
 func _end_ladder() -> void:
 	_ladder_t = -1.0
-	global_position = _ladder_path.back() + Vector3(0, 0.02, 0)
+	global_position = _ladder_spot(LadderPose.at(_ladder_keys, LadderPose.length(_ladder_keys))) + Vector3(0, 0.02, 0)
 	reset_physics_interpolation()
 	if _skeleton != null:
 		ClimbPose.apply(_skeleton, _pit_base, {})

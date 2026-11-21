@@ -218,6 +218,7 @@ village_bell.gd | 120 | fixed | passfail | village's warning bell (tools/make_be
 village_talk.gd | 120 | fixed | passfail | villagers talking to each other (see VillageTalk):
 town_meals.gd | 300 | free | passfail | Shared meals: the townsfolk come one by one, sit at the tables on the square, talk and leave
 meal_garland.gd | 200 | free | passfail | Dining-area frame: tall ivy poles and ropes with lamps round the tables, lit at night, clear of every path
+meal_braziers.gd | 200 | free | passfail | Winter braziers by the dining tables: only in winter, lit, clear of seats and paths
 villager_post.gd | 120 | fixed | passfail | villager windows stay shut during an alarm or away from the post (VillagerPost)
 wall_caps.gd | 120 | fixed | passfail | wall caps (WallCaps): every dungeon wall that touches a room gets
 war_horn.gd | 120 | fixed | passfail | village's alarm horn (tools/make_horn_sounds.py,
@@ -289,3 +290,4 @@ forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walka
 autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushes shed their leaves in autumn, and fallen leaves in the ivy's autumn colours lie spread over the ground
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone
 wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
+house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot

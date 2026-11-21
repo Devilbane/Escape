@@ -106,6 +106,17 @@ func _run() -> void:
 	check(model.has_node("Ground") and not model.has_node("Soil"), "the tree stands in a patch of grass ringed with stones, not on a disc of earth")
 	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())
 	model.free()
+	# In autumn a share of the leaves is still green among the turned ones.
+	var fall := Node3D.new()
+	AppleTree.build(fall, old, autumn)
+	var colours: PackedColorArray = (fall.get_node("Leaves") as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	var green := 0
+	for i in range(0, colours.size(), 6):
+		if colours[i].g > colours[i].r:
+			green += 1
+	var share := float(green) / float(colours.size() / 6)
+	check(share > 0.2 and share < 0.45, "some leaves stay green in autumn (%d%%)" % roundi(share * 100))
+	fall.free()
 
 	# In the game: a plot, a seedling bought from Ilse and planted in the garden.
 	game.hero_name = "Apple test"
@@ -113,6 +124,18 @@ func _run() -> void:
 	game.load_level(game._outdoor_index(), false)
 	game.state = game.State.PLAYING
 	var level: Outdoor = game.level
+	# The village's apple trees: round the fountain and more in the gardens, none in a doorway or
+	# beside a path.
+	var gardens := level.square_trees.filter(func(t): return t.get("garden", false))
+	check(gardens.size() >= 6, "apple trees grow in the village's gardens (%d)" % gardens.size())
+	for t in gardens:
+		var c: Vector2i = t.cell
+		check(level.near_village(c) and level.cell_char(c) == ".", "a garden tree stands on the village's grass (%s)" % c)
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				check(".#_§".contains(level.cell_char(c + Vector2i(dx, dy))), "nothing but grass round a garden tree (%s)" % c)
+		var at: Vector3 = (t.node as Node3D).position
+		check(not level._entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < AppleTree.DOOR_CLEAR), "no garden tree in front of a door (%s)" % c)
 	var found := Rect2i()
 	for y in range(level.height - 4):
 		for x in range(level.grid[y].length() - 4):

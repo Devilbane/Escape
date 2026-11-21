@@ -284,6 +284,8 @@ func refresh() -> void:
 ## How many map cells round the plot the hero may stand for the blueprint
 ## button to work ("on or near the plot").
 const NEAR_CELLS := 4
+## Above this height (metres) the hero stands on an upper storey or a roof of a house.
+const UP_HIGH := 1.0
 
 
 ## Whether the hero stands on their plot or within NEAR_CELLS of it.
@@ -292,6 +294,27 @@ func hero_near() -> bool:
 		return false
 	var cell: Vector2i = game.level.world_to_cell(game.player.global_position)
 	return _plot.grow(NEAR_CELLS).has_point(cell)
+
+
+## Whether `pos` lies in the hero's own house: over their plot, and under its roof, down in
+## its cellar or up on an upper storey or the roof. With `on_floor` it must also have
+## something to stand on there as the house is built now: a dug cellar cell below the
+## ground, a built slab or roof under an upper storey (see _covered). A saved game made
+## there wakes up at that spot (see Game._built_house_spot).
+func holds(pos: Vector3, on_floor := false) -> bool:
+	if plan == null or game == null or game.level == null or not game.level is Outdoor:
+		return false
+	if not _plot.has_point(game.level.world_to_cell(pos)):
+		return false
+	if pos.y < CellarView.BELOW:
+		var floors: HouseFloors = game.level.house_floors
+		return floors != null and floors.node_at(pos).z == HouseFloors.CELLAR
+	if pos.y > UP_HIGH:
+		if not on_floor:
+			return true
+		var up := floori((pos.y + 0.2) / HouseSketch.STOREY_HEIGHT)
+		return up <= 0 or int(_covered.get(HouseFloors.cell_of(pos), -2)) >= up - 1
+	return (game.level as Outdoor).is_sheltered(pos)
 
 
 ## Whether the blueprint button shows: one of the two building tools is open,

@@ -67,7 +67,8 @@ func _run() -> void:
 	game.state = game.State.PLAYING
 	await _wait(10)
 	var level: Outdoor = game.level
-	check(level.square_trees.size() == 4, "four apple trees round the fountain (%d)" % level.square_trees.size())
+	var round_fountain := level.square_trees.filter(func(t): return not t.get("garden", false))
+	check(round_fountain.size() == 4, "four apple trees round the fountain (%d)" % round_fountain.size())
 	var fountain := Vector3.ZERO
 	for y in level.height:
 		for x in level.width:
@@ -79,6 +80,15 @@ func _run() -> void:
 		await _shot("square_" + season, fountain + Vector3(10, 11, 17), fountain)
 	await _season(_first(Weather.SUMMER))
 	await _shot("square_close", fountain + Vector3(-7, 3.5, 9), fountain + Vector3(-3, 2.5, 3))
+	# The apple trees in the village's gardens, from above, and one close in autumn.
+	await _shot("village_summer", fountain + Vector3(0, 34, 30), fountain + Vector3(0, 0, -6))
+	await _season(_first(Weather.AUTUMN))
+	await _shot("village_autumn", fountain + Vector3(0, 34, 30), fountain + Vector3(0, 0, -6))
+	var gardens := level.square_trees.filter(func(t): return t.get("garden", false))
+	if not gardens.is_empty():
+		var tree: Vector3 = (gardens[0].node as Node3D).position
+		await _shot("garden_tree_autumn", tree + Vector3(5, 3.5, 7), tree + Vector3(0, 3, 0))
+	await _season(_first(Weather.SUMMER))
 	# A garden: one tree of each stage.
 	var found := Rect2i()
 	for y in range(level.height - 5):

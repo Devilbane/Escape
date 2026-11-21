@@ -1,0 +1,1 @@
+- The stonemason's pile of stone blocks no longer blocks his front door: it now stands to the right of his house.

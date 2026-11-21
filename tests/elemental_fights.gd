@@ -79,12 +79,18 @@ func _has(name: String) -> bool:
 	return false
 
 
+## The life _heal gives the hero. A hit can train the hero's constitution up a level, and then
+## the hero's stats are worked out anew (Player.refresh_stats): max_hp drops back to the hero's
+## own, and hp with it. So "hurt" means "below this", never "below max_hp".
+const HEALED := 500
+
+
 ## A hero with plenty of life, standing and ready to be hurt.
 func _heal() -> void:
 	game.player.dead = false
 	game.player.frozen = false
-	game.player.max_hp = 500
-	game.player.hp = 500
+	game.player.max_hp = HEALED
+	game.player.hp = HEALED
 	game.player._invulnerable = 0.0
 	game.player._down = 0.0
 	game.player._regen_pause = 0.0
@@ -155,9 +161,9 @@ func _process(_delta: float) -> bool:
 				check(current.ward_left > 0.0, "%s: the ward is up" % c[0])
 			else:
 				# A shot that flew into the hero is gone, but it hurt them.
-				check(seen or game.player.hp < game.player.max_hp, "%s: %s leaves a %s" % [c[0], c[1], c[3]])
+				check(seen or game.player.hp < HEALED, "%s: %s leaves a %s" % [c[0], c[1], c[3]])
 			if c[1] in ["slam", "quake"]:
-				check(game.player.hp < game.player.max_hp, "%s: standing in the ring hurts" % c[1])
+				check(game.player.hp < HEALED, "%s: standing in the ring hurts" % c[1])
 			stage += 1
 			stage_frames = 0
 		return false

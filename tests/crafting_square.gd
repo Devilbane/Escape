@@ -65,7 +65,8 @@ func _run() -> void:
 		for y in lvl.height:
 			for x in lvl.width:
 				if lvl.cell_char(Vector2i(x, y)) == "F":
-					fountain = Vector2i(x, y) + Vector2i(0, 1)
+					# The paved cell south-east of it (the benches stand beside it, the trees off its corners).
+					fountain = Vector2i(x, y) + Vector2i(1, 1)
 		for s in benches.values() + [square_chest]:
 			var stand: Vector2i = s.cell + Vector2i(1, 0)
 			check(not lvl.astar.is_point_solid(stand) and lvl.astar.get_id_path(fountain, stand).size() > 0, "the %s can be reached from the square" % s.get("craft", "chest"))

@@ -1,0 +1,1 @@
+- Fog clouds no longer open up around your hero; the fog now lies evenly over everything.

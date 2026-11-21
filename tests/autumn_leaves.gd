@@ -63,7 +63,7 @@ func _run() -> void:
 	print("fallen leaves: %d, laid in %d ms (litter %d)" % [life.fallen_total, took, life.litter_total])
 	check(not lvl.undergrowth_shed.visible and lvl.undergrowth.visible, "in autumn most undergrowth has shed its leaves")
 	check(life.fallen != null and life.fallen.visible, "in autumn fallen leaves lie on the ground")
-	check(life.fallen_total > 150000 and life.fallen_total <= SurfaceLife.FALLEN_CAP, "thousands of fallen leaves, within the cap (%d)" % life.fallen_total)
+	check(life.fallen_total > 150000 and life.fallen_total <= SurfaceLife.FALLEN_CAP, "hundreds of thousands of fallen leaves, within the cap (%d)" % life.fallen_total)
 	var batches := 0
 	for mmi: MultiMeshInstance3D in life.fallen.get_children():
 		batches += 1

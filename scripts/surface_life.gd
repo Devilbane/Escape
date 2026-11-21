@@ -132,7 +132,7 @@ const PATCHES := ["dirt", "moss", "lichen"]
 ## first time autumn comes (see set_autumn), in batches like the rest of the litter, and hidden after.
 ## To stay cheap with so many, they lie in clusters: CLUSTER_KINDS ready-made clusters of
 ## CLUSTER_LEAVES leaves each (see _cluster_mesh), every one turned and mixed at random.
-const FALLEN := {FOREST: 220.0, GRAVEYARD: 180.0, HOLLOW: 160.0, VILLAGE: 50.0, PASS: 60.0}
+const FALLEN := {FOREST: 220.0, GRAVEYARD: 180.0, HOLLOW: 160.0, VILLAGE: 350.0, PASS: 60.0}
 const CLUSTER_KINDS := 6
 const CLUSTER_LEAVES := 20
 ## How far a cluster's leaves lie from its middle (metres).
@@ -140,10 +140,10 @@ const CLUSTER_SPREAD := 0.75
 const FALLEN_EDGE := 1.6
 ## On a path (its verges), the paved square, under trees and rocks and on the forest floor at
 ## its edge, fewer of them.
-const FALLEN_KINDS := {"path": 0.4, "square": 0.12, "under": 0.8, "edge": 0.6}
+const FALLEN_KINDS := {"path": 0.4, "square": 0.6, "under": 0.8, "edge": 0.6}
 ## Their size (metres): the shape of the ivy's leaves (AgedStone.leaf_material), a little smaller.
 const FALLEN_SIZE := Vector2(0.3, 0.48)
-const FALLEN_CAP := 400000
+const FALLEN_CAP := 700000
 const FALLEN_TREES := "#TdrgtpN"
 
 var level: Level
@@ -230,7 +230,8 @@ func _drop_leaves() -> void:
 				n *= FALLEN_KINDS.edge
 			elif not GROUND.contains(ch):
 				continue
-			if _beside_trees(c):
+			# The village lies as thick everywhere as the woods round it do at their edge.
+			if biome_of(c) != VILLAGE and _beside_trees(c):
 				n *= FALLEN_EDGE
 			n /= CLUSTER_LEAVES
 			var count := int(n) + (1 if rng.randf() < n - int(n) else 0)

@@ -92,6 +92,8 @@ const DOOR_HEIGHT := 2.4
 const JAMB := 0.35
 const SILL := 0.9
 const WINDOW_TOP := 1.9
+## How high the timber lintel over a built window is.
+const WINDOW_LINTEL := 0.2
 const GRID_COLOR := Color(0.7, 0.85, 1.0, 0.35)
 const WALL_COLOR := Color(0.55, 0.75, 1.0, 0.4)
 const DOOR_COLOR := Color(1.0, 0.8, 0.4, 0.55)
@@ -185,8 +187,16 @@ var fade_storey := 99
 var _guns := Node3D.new()
 ## The door leaves of every built door and gate, by "plot|piece key".
 var doors := {}
+## The shutters of built windows, by "plot|piece key" (see BuiltShutters).
+var shutters := {}
+## The cells inside the house being drawn (see HouseGround.inside_cells), so a
+## window knows which face of its wall is the outside.
+var _inside_now := {}
+var _new_shutters: BuiltShutters
 ## The leaf _solid_piece just made, for _redraw to hang.
 var _new_door: BuiltDoor
+## Which side of the wall being drawn is the outside (see _outside_of).
+var _outside := 1.0
 ## Down in a cellar the surface hides and the cellar sits in earth (see CellarView).
 var cellar_view := CellarView.new()
 
@@ -1270,6 +1280,7 @@ func _redraw() -> void:
 		if is_instance_valid(doors[k]):
 			was[k] = doors[k].state()
 	doors.clear()
+	shutters.clear()
 	_clear(_built)
 	_clear(_solid)
 	for gun in _guns.get_children():
@@ -1295,16 +1306,21 @@ func _redraw() -> void:
 		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
 		if _has_floors(house):
 			floored.append(house)
+		_inside_now = HouseGround.inside_cells(house) if house.count(HouseSketch.WINDOW) > 0 else {}
 		for key in house.pieces:
 			var p := HouseSketch.parts_of(key)
 			var piece: Dictionary = house.pieces[key]
 			if piece.state != HouseSketch.SKETCH and not HouseSketch.CELL_KINDS.has(piece.kind):
+				_outside = _outside_of(p[1], p[2], p[3])
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 				_lift = 0.0
 				if _new_door != null:
 					_hang_door(_new_door, house, key, deed.rect == _plot, was)
 					_new_door = null
+				if _new_shutters != null:
+					_hang_shutters(_new_shutters, house, key, deed.rect == _plot)
+					_new_shutters = null
 		_solid_cellar(house, holes, ceilinged)
 		_solid_above(house)
 		_solid_ballistae(house)
@@ -1895,11 +1911,7 @@ func _solid_piece_parts(mid: Vector3, flat: Vector3, along_x: bool, kind: String
 		HouseSketch.DOOR:
 			_solid_doorway(mid, along_x, stone, demolish)
 		HouseSketch.WINDOW:
-			_solid_box(mid + Vector3(0, SILL * 0.5, 0), flat + Vector3(0, SILL, 0), stone)
-			_solid_box(mid + Vector3(0, (WINDOW_TOP + WALL_HEIGHT) * 0.5, 0), flat + Vector3(0, WALL_HEIGHT - WINDOW_TOP, 0), stone)
-			_visual_box(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat * 0.5 + Vector3(0, WINDOW_TOP - SILL, 0), _solid_material(GLASS_COLOR))
-			# The pane itself stops the hero too: a window is no way through.
-			_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, WINDOW_TOP - SILL, 0))
+			_solid_window(mid, flat, along_x, stone, demolish)
 		_:
 			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
 	if kind == HouseSketch.WALL or kind == HouseSketch.DOOR:
@@ -1942,6 +1954,116 @@ func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool
 	var sill_top: float = HouseSketch.FLOOR_RISE + FACE_GAP
 	_visual_box(mid + Vector3(0, sill_top * 0.5, 0), _along(axis, across, opening, sill_top, jamb_deep + 0.1), stone)
 	_new_door = _door_leaf(mid, along_x, Vector2(opening - 0.12, DOOR_HEIGHT - 0.02), false, demolish)
+
+
+## A window in a house wall, framed like a doorway (see _solid_doorway): stone
+## jambs from the floor to the wall's top, stone under the sill and over the
+## lintel, a timber lintel and casing of the stair boards round the opening, a
+## sill board that juts out on the outside, a pane with a cross of glazing bars,
+## and a pair of shutters on the outside face (see BuiltShutters).
+func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, demolish: bool) -> void:
+	var axis := Vector3.RIGHT if along_x else Vector3.BACK
+	var across := Vector3.BACK if along_x else Vector3.RIGHT
+	var wood: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood()
+	var opening := HouseSketch.CELL - 2.0 * JAMB
+	var jamb_long := JAMB + THICK * 0.5
+	var jamb_deep := THICK + 0.1
+	var high := WINDOW_TOP - SILL
+	for sign_ in [-1.0, 1.0]:
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+	# The wall under the sill and over the lintel, between the jambs.
+	_solid_box(mid + Vector3(0, SILL * 0.5, 0), _along(axis, across, opening, SILL, THICK), stone)
+	var beam := WINDOW_LINTEL
+	var over := WINDOW_TOP + beam
+	_solid_box(mid + Vector3(0, (over + WALL_HEIGHT) * 0.5, 0), _along(axis, across, opening, WALL_HEIGHT - over, THICK), stone)
+	# The lintel: a beam over the opening, its ends resting on the jambs.
+	_visual_box(mid + Vector3(0, WINDOW_TOP + beam * 0.5, 0), _along(axis, across, opening + 0.5, beam, jamb_deep + 0.06), wood)
+	# The casing: boards lining the opening's sides, and the sill board, jutting
+	# out a little on the outside so rain runs off.
+	for sign_ in [-1.0, 1.0]:
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 - 0.03) + Vector3(0, SILL + high * 0.5, 0)
+		_visual_box(at, _along(axis, across, 0.06, high, jamb_deep + 0.02), wood)
+	var sill_deep := jamb_deep + 0.1
+	_visual_box(mid + across * _outside * 0.05 + Vector3(0, SILL + 0.03, 0), _along(axis, across, opening + 0.2, 0.06, sill_deep), wood)
+	# The pane and its glazing bars: one upright and one across, on both faces.
+	# The glass is the villagers' panes: dark by day, lit in the evening until
+	# bedtime (see WindowLights). Shut shutters cover the glow.
+	var glass: Material = _solid_material(GLASS_COLOR)
+	if not demolish and game != null and game.level is Outdoor:
+		glass = (game.level as Outdoor)._house_glass()
+	_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, opening - 0.1, high, 0.03), glass)
+	_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, 0.05, high, 0.06), wood)
+	_visual_box(mid + Vector3(0, SILL + high * 0.55, 0), _along(axis, across, opening - 0.1, 0.05, 0.06), wood)
+	# The pane itself stops the hero too: a window is no way through.
+	_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, high, 0))
+	var shutters_at := mid + across * _outside * (jamb_deep * 0.5 + 0.07) + Vector3(0, SILL + 0.07, 0)
+	_new_shutters = _shutter_pair(shutters_at, along_x, Vector2(opening - 0.04, high - 0.04), demolish)
+
+
+## Which way from the wall on an edge the outside lies, along +z for an edge
+## along x and along +x for one along z: +1 or -1. A window's shutters and sill
+## board go on that side. When both sides or neither lie inside the house
+## (see _inside_now), it is +1.
+func _outside_of(x: int, y: int, orient: String) -> float:
+	var sides := HouseSketch.cells_beside(x, y, orient)
+	if _inside_now.has(sides[1]) and not _inside_now.has(sides[0]):
+		return -1.0
+	return 1.0
+
+
+## The pair of shutters standing at `at` on a window's outside face (see BuiltShutters).
+func _shutter_pair(at: Vector3, along_x: bool, opening: Vector2, demolish: bool) -> BuiltShutters:
+	var pair := BuiltShutters.new()
+	if demolish:
+		pair.tint = DEMOLISH_COLOR
+	pair.setup(opening)
+	pair.position = at + Vector3(0, _lift, 0)
+	# The node's +z points out of the house.
+	if along_x:
+		pair.rotation.y = 0.0 if _outside > 0.0 else PI
+	else:
+		pair.rotation.y = PI * 0.5 if _outside > 0.0 else -PI * 0.5
+	_solid.add_child(pair)
+	return pair
+
+
+## Hands new shutters their owner and whether they are shut (kept in the plan).
+func _hang_shutters(pair: BuiltShutters, house: HouseSketch, key: String, own: bool) -> void:
+	pair.own = own
+	if house.shut.has(key):
+		pair.shut = true
+		pair.closed = 1.0
+		pair._pose()
+	if own:
+		pair.on_change = func(on: bool) -> void:
+			if plan == null or not plan.pieces.has(key):
+				return
+			if on:
+				plan.shut[key] = true
+			else:
+				plan.shut.erase(key)
+			plan.save(game.hero_name)
+	shutters["%s|%s" % [house.plot, key]] = pair
+
+
+## The hero's own window shutters nearest `point` within `reach` (metres, along
+## the ground and about one storey up or down), or null.
+func shutters_near(point: Vector3, reach := 1.8) -> BuiltShutters:
+	var best: BuiltShutters = null
+	var best_d := reach
+	for k in shutters:
+		var pair: BuiltShutters = shutters[k]
+		if not is_instance_valid(pair) or not pair.is_inside_tree() or not pair.own:
+			continue
+		var at := pair.global_position
+		if point.y - at.y > 1.0 or at.y - point.y > 2.0:
+			continue
+		var dist := Vector2(point.x - at.x, point.z - at.z).length()
+		if dist < best_d:
+			best_d = dist
+			best = pair
+	return best
 
 
 ## A box `long` along the wall, `high` tall and `deep` through it.

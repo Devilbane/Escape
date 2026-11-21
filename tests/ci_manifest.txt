@@ -6,6 +6,7 @@ tile_letters.gd | 60 | free | pass | Map letters (no two things share a letter)
 monster_families.gd | 60 | free | pass | Monster families (every map names who lives there, every monster fits)
 furniture_spacing.gd | 60 | free | pass | Furniture spacing (no two chests or boards side by side)
 chest_facing.gd | 60 | free | pass | Chests rest their back on the wall and open towards the room
+fitted_chest.gd | 120 | free | passfail | Chests with metal fittings: three styles, kit size, lid swings up, loot chests by worth
 entrance_textures.gd | 120 | free | pass | Dungeon entrances are aged and textured
 merchant_placement.gd | 60 | free | pass | Merchants stand in the open middle of their room
 furniture_stuck.gd | 300 | fixed | passfail | Furniture blocks only where it is drawn (nobody gets stuck on it)

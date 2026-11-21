@@ -3150,12 +3150,13 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
-## Whether the view is inside a self-built house: the hero stands in one, or the furnisher looks
-## into one (see HouseSketcher.view_storey). There is no weather in there.
+## Whether the view is inside a self-built house: the hero stands in one or down in its cellar
+## (see CellarView), or the furnisher looks into one (see HouseSketcher.view_storey). There is
+## no weather in there.
 func _under_roof() -> bool:
 	if not level is Outdoor or player == null:
 		return false
-	if house_sketcher != null and house_sketcher.view_storey != HouseSketcher.NO_VIEW:
+	if house_sketcher != null and (house_sketcher.view_storey != HouseSketcher.NO_VIEW or house_sketcher.cellar_view.active):
 		return true
 	return (level as Outdoor).is_sheltered(player.global_position)
 

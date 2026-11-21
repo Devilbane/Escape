@@ -266,6 +266,7 @@ house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug 
 house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
 house_ladder.gd | 120 | fixed | passfail | House ladder: one cell against a slab or pit wall, built after it, the hero climbs up and down it
 bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
+cellar_view.gd | 120 | fixed | passfail | Cellar view: down in a cellar the surface hides and earth surrounds it, climbing out brings it back
 house_looks_shots.gd | 120 | fixed | passfail | House looks: stone walls, flagstone and plank floors, stair-board walls
 storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
 house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes

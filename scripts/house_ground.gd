@@ -36,7 +36,7 @@ static func inside_cells(house: HouseSketch, covering: Array = COVERING) -> Dict
 		if not _stands(piece):
 			continue
 		var p := HouseSketch.parts_of(key)
-		if piece.kind in covering:
+		if piece.kind in covering and piece.get("surface", "") != HouseSketch.BURIED:
 			if piece.kind == HouseSketch.UPSTAIRS:
 				for c: Vector2i in HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2):
 					out[c] = true

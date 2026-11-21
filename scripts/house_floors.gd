@@ -44,7 +44,8 @@ func _init(houses: Array = []) -> void:
 	for house: HouseSketch in houses:
 		var n := house.nodes()
 		var first := cell_of(house.node_world(0, 0) + Vector3(0.1, 0, 0.1))
-		_areas.append(Rect2i(first - Vector2i(MARGIN, MARGIN), n + Vector2i(MARGIN, MARGIN) * 2))
+		var own := house.floors_area if house.floors_area.size != Vector2i.ZERO else Rect2i(Vector2i.ZERO, n)
+		_areas.append(Rect2i(first + own.position - Vector2i(MARGIN, MARGIN), own.size + Vector2i(MARGIN, MARGIN) * 2))
 		for key in house.pieces:
 			var piece: Dictionary = house.pieces[key]
 			if piece.state == HouseSketch.SKETCH:
@@ -94,13 +95,14 @@ static func centre(cell: Vector2i) -> Vector3:
 	return Vector3((cell.x + 0.5) * HouseSketch.CELL - Level.TILE * 0.5, 0.0, (cell.y + 0.5) * HouseSketch.CELL - Level.TILE * 0.5)
 
 
-## Whether a world point lies on the floors (inside a plot or its margin).
+## Whether a world point lies on the floors (inside a plot or its margin, or down in a
+## dug cell).
 func covers(pos: Vector3) -> bool:
 	var c := cell_of(pos)
 	for area in _areas:
 		if area.has_point(c):
 			return true
-	return false
+	return pos.y < 0.0 and _nodes.has(Vector3i(c.x, c.y, CELLAR))
 
 
 ## How high the floor of `node` lies under the world point `pos` (x and z).

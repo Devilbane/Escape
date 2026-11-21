@@ -199,6 +199,21 @@ var _new_door: BuiltDoor
 var _outside := 1.0
 ## Down in a cellar the surface hides and the cellar sits in earth (see CellarView).
 var cellar_view := CellarView.new()
+## The forgotten mine under the woods (see LostMine): shown only while the hero is down in a
+## cellar, as it all lies under the ground. Its buried cells' walls and floors (_deep_walls;
+## they stop the light like the houses' walls) and what lies about down there (_deep_props).
+## The mine never changes, so it is drawn once (see _draw_mine), with the walls of its open
+## shaft and the hut's floor in _mine_open (always shown) and its floors and ceilings in
+## _mine_body; _mine_cache keeps what the houses' drawing collects from it.
+var deep := Node3D.new()
+var _deep_walls := Node3D.new()
+var _deep_props: Node3D = null
+var _mine_open := Node3D.new()
+var _mine_body := StaticBody3D.new()
+var _mine_cache := {}
+## Where the next drawn box goes: the houses' own pieces, or the mine's.
+var _into: Node3D = _solid
+var _open_into: Node3D = _solid
 
 
 func _ready() -> void:
@@ -210,6 +225,13 @@ func _ready() -> void:
 	add_child(_body)
 	add_child(_ghost)
 	add_child(_guns)
+	_deep_walls.set_meta(LightShadows.WALL, true)
+	deep.add_child(_deep_walls)
+	_mine_open.set_meta(LightShadows.WALL, true)
+	add_child(_mine_open)
+	add_child(_mine_body)
+	deep.visible = false
+	add_child(deep)
 	cellar_view.game = game
 	add_child(cellar_view)
 	_grid.visible = false
@@ -227,6 +249,10 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_update_fade()
+	if deep.visible != cellar_view.active:
+		deep.visible = cellar_view.active
+	if cellar_view.active and game.player != null and LostMine.holds(game.player.global_position):
+		LostMine.entered(game)
 	if active:
 		if _frame_pending:
 			_frame_pending = false
@@ -1301,16 +1327,29 @@ func _redraw() -> void:
 	var floored := []
 	var ceilinged := []
 	var built_ground := []
+	var buried := []
 	var shelters := {}
 	own_shelter = {}
 	_covered.clear()
 	_fade_state = ""
+	# Every registered plot's house, and the forgotten mine with its empty hut (see LostMine).
+	var houses: Array = []
 	for deed in Plots.all():
-		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
-		if _has_floors(house):
+		houses.append([plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect), deed.rect == _plot])
+	var mine := LostMine.sketch()
+	houses.append([mine, false])
+	for entry: Array in houses:
+		var house: HouseSketch = entry[0]
+		var own: bool = entry[1]
+		if house == mine or _has_floors(house):
 			floored.append(house)
-		_inside_now = HouseGround.inside_cells(house) if house.count(HouseSketch.WINDOW) > 0 else {}
-		for key in house.pieces:
+		# The mine's hundreds of dug cells are drawn once (see _draw_mine): only its hut's pieces here.
+		var keys: Array = LostMine.surface_keys() if house == mine else house.pieces.keys()
+		if house == mine:
+			_inside_now = LostMine.hut_inside()
+		else:
+			_inside_now = HouseGround.inside_cells(house) if house.count(HouseSketch.WINDOW) > 0 else {}
+		for key in keys:
 			var p := HouseSketch.parts_of(key)
 			var piece: Dictionary = house.pieces[key]
 			if piece.state != HouseSketch.SKETCH and not HouseSketch.CELL_KINDS.has(piece.kind):
@@ -1319,12 +1358,21 @@ func _redraw() -> void:
 				_solid_piece(house, [p[1], p[2], p[3]], piece.kind, piece.state == HouseSketch.DEMOLISH)
 				_lift = 0.0
 				if _new_door != null:
-					_hang_door(_new_door, house, key, deed.rect == _plot, was)
+					_hang_door(_new_door, house, key, own, was)
 					_new_door = null
 				if _new_shutters != null:
-					_hang_shutters(_new_shutters, house, key, deed.rect == _plot)
+					_hang_shutters(_new_shutters, house, key, own)
 					_new_shutters = null
-		_solid_cellar(house, holes, ceilinged)
+		if house == mine:
+			_draw_mine()
+			holes.append_array(_mine_cache.holes)
+			ceilinged.append_array(_mine_cache.ceilinged)
+			buried.append_array(_mine_cache.buried)
+			built_ground.append_array(_mine_cache.ground)
+			shelters.merge(_mine_cache.shelter, true)
+			_solid_above(house, keys)
+			continue
+		_solid_cellar(house, holes, ceilinged, buried)
 		_solid_above(house)
 		_solid_ballistae(house)
 		built_ground.append_array(HouseGround.rects(house))
@@ -1333,8 +1381,13 @@ func _redraw() -> void:
 		if house == plan:
 			own_shelter = shelter
 	(game.level as Outdoor).shelters = shelters
-	game.level.set_floor_holes(holes, ceilinged)
+	game.level.set_floor_holes(holes, ceilinged, buried)
 	cellar_view.holes = holes
+	if _deep_props == null:
+		_deep_props = Node3D.new()
+		_deep_props.name = "LostMine"
+		deep.add_child(_deep_props)
+		LostMine.build(game.level, _deep_props)
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
 	if (game.level as Outdoor).surface_life != null:
 		(game.level as Outdoor).surface_life.set_built(built_ground)
@@ -1377,6 +1430,25 @@ func _redraw() -> void:
 				_lift = p[0] * HouseSketch.STOREY_HEIGHT
 				_segment(_built, [p[1], p[2], p[3]], kind, Color(0, 0, 0, 0))
 				_lift = 0.0
+
+
+## The forgotten mine's cellar (see LostMine), drawn the first time only: it never changes.
+## What the houses' drawing collects from a cellar goes into _mine_cache.
+func _draw_mine() -> void:
+	if not _mine_cache.is_empty():
+		return
+	var mine := LostMine.sketch()
+	var keep_body := _body
+	_body = _mine_body
+	_open_into = _mine_open
+	var holes := []
+	var ceilinged := []
+	var buried := []
+	_solid_cellar(mine, holes, ceilinged, buried)
+	_open_into = _solid
+	_into = _solid
+	_body = keep_body
+	_mine_cache = {"holes": holes, "ceilinged": ceilinged, "buried": buried, "ground": HouseGround.rects(mine), "shelter": HouseGround.shelter(mine)}
 
 
 ## The built ballistae of a house: they stand and shoot (see HouseBallista), and
@@ -1435,8 +1507,10 @@ static func _has_floors(house: HouseSketch) -> bool:
 ## The cellar of a house: the ground opens over every built cell, the pit gets
 ## a floor, walls and stairs, and `holes` collects the open cells (Rect2 in
 ## world x/z) so the map can cut its ground there; `ceilinged` collects those of
-## them a cellar ceiling closes again.
-func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> void:
+## them a cellar ceiling closes again, and `buried` those of them that lie under
+## whole ground (a ceiling of earth, HouseSketch.BURIED): their walls and floors are
+## drawn into the mine's own layer (see deep).
+func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = [], buried: Array = []) -> void:
 	var open := {}
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
@@ -1451,12 +1525,16 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 	# The dug cells a cellar ceiling closes: their walls stop under it, so the wall's top
 	# never lies in the ceiling's top face and flickers through the ground floor.
 	var roofed := {}
+	var earthed := {}
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
 		if piece.state != HouseSketch.SKETCH and piece.kind == HouseSketch.COVER:
 			var p := HouseSketch.parts_of(key)
 			roofed[Vector2i(p[1], p[2])] = true
+			if piece.get("surface", "") == HouseSketch.BURIED:
+				earthed[Vector2i(p[1], p[2])] = true
 	for c: Vector2i in open:
+		_into = _deep_walls if earthed.has(c) else _open_into
 		var piece: Dictionary = open[c]
 		var demolish: bool = piece.state == HouseSketch.DEMOLISH
 		var corner := house.node_world(c.x, c.y)
@@ -1491,6 +1569,7 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			# panel or in a corner: those edges stay sharp (a rounded top edge showed as
 			# a bright line along the rim).
 			_visual_box(at, size, wall_mat, [Vector3.DOWN, Vector3.UP, -axis, axis])
+	_into = _open_into
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
 		if piece.state == HouseSketch.SKETCH:
@@ -1499,9 +1578,16 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 		if piece.kind == HouseSketch.STAIRS:
 			_ramp(house, p[1], p[2], p[3], piece.state == HouseSketch.DEMOLISH)
 		elif piece.kind == HouseSketch.COVER and open.has(Vector2i(p[1], p[2])):
-			_cellar_ceiling(house, p[1], p[2], piece)
 			var corner := house.node_world(p[1], p[2])
-			ceilinged.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
+			var cell := Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL)
+			ceilinged.append(cell)
+			if earthed.has(Vector2i(p[1], p[2])):
+				# Whole ground on top: nothing to draw, only the ground's top to walk on.
+				var thick := HouseSketch.COVER_THICK
+				_collide(house.cell_world(p[1], p[2]) + Vector3(0, -thick * 0.5, 0), Vector3(HouseSketch.CELL, thick, HouseSketch.CELL))
+				buried.append(cell)
+			else:
+				_cellar_ceiling(house, p[1], p[2], piece)
 		elif piece.kind == HouseSketch.COVER and house.hole_key(p[1], p[2]) == "":
 			_ground_floor(house, p[1], p[2], piece)
 
@@ -1546,8 +1632,8 @@ func _ground_floor(house: HouseSketch, x: int, y: int, piece: Dictionary) -> voi
 
 ## The floors, roofs and stairs up of a house. Everything is solid: a slab
 ## carries the hero (a flat roof too), a saddle roof only keeps the rain out.
-func _solid_above(house: HouseSketch) -> void:
-	for key in house.pieces:
+func _solid_above(house: HouseSketch, keys: Array = []) -> void:
+	for key in keys if not keys.is_empty() else house.pieces.keys():
 		var piece: Dictionary = house.pieces[key]
 		if piece.state == HouseSketch.SKETCH:
 			continue
@@ -1788,6 +1874,8 @@ func _wall_material(surface: String, demolish: bool) -> Material:
 			return HouseLooks.temple_stone()
 		"wood":
 			return HouseLooks.stair_wood()
+		LostMine.ROCK:
+			return LostMine.rock_material()
 	return BareEarth.material()
 
 
@@ -1804,7 +1892,7 @@ func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool)
 		"wood":
 			var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size)
 			boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
-			_solid.add_child(boards)
+			_into.add_child(boards)
 		_:
 			_visual_box(middle, size, BareEarth.material())
 
@@ -2201,7 +2289,7 @@ func _visual_box(at: Vector3, size: Vector3, mat: Material, hidden: Array = []) 
 	m.material_override = mat
 	m.position = at + Vector3(0, _lift, 0)
 	m.set_meta("ymin", at.y + _lift - size.y * 0.5)
-	_solid.add_child(m)
+	_into.add_child(m)
 
 
 ## The faces of a stone box that lie against something (see StoneLook.rounded_box):

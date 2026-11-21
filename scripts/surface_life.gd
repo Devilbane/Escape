@@ -164,6 +164,8 @@ var _batches := {}
 var _cell_litter := {}
 ## Litter lifted away from loot right now: "multimesh_id:index" -> entry.
 var _lifted := {}
+## How many of the lifted pieces lie round loot (not in a dug hole or a built house).
+var _round_loot := 0
 var _loot_timer := 0.0
 ## The dug cells (Rect2 on the ground plane, see Outdoor.set_floor_holes): no litter lies there.
 var _holes: Array = []
@@ -648,6 +650,7 @@ func _clear_around_loot() -> void:
 					var o: Vector3 = e[2]
 					if Vector2(o.x - at.x, o.z - at.z).length() < LOOT_CLEAR:
 						near["%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]] = e
+	_round_loot = near.size()
 	for r: Rect2 in _holes + _built:
 		var lo := level.world_to_cell(Vector3(r.position.x, 0, r.position.y))
 		var hi := level.world_to_cell(Vector3(r.end.x, 0, r.end.y))
@@ -684,9 +687,10 @@ func set_built(ground: Array) -> void:
 		_clear_around_loot()
 
 
-## How many pieces of litter are lifted away from loot right now.
+## How many pieces of litter are lifted away from loot right now (what lies in a dug hole or a
+## built house, such as the forgotten mine's hut, does not count).
 func lifted_count() -> int:
-	return _lifted.size()
+	return _round_loot
 
 
 ## Whether any piece of litter lies within `radius` of a spot (and is not lifted away).

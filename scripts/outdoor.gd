@@ -132,6 +132,19 @@ const GRAVES := ["grave_A", "grave_B", "gravestone", "gravemarker_A", "gravemark
 const PROP_SCALE := 6.0
 ## How far from the open ground trees still grow (in tiles).
 const FOREST_DEPTH := 4
+## How much of a tree's reach its crown covers on the ground, seen from above; a dead tree's bare
+## branches hide far less.
+const CROWN := 0.8
+const DEAD_CROWN := 0.35
+## How far into a forest tile the hero may walk on the leaves in front of its tree (metres):
+## less than half a tile, so even a forest one tile thick stays shut.
+const FOREST_MARGIN := 1.5
+## Undergrowth bushes on the blocked forest floor stand at least this far apart (metres).
+const UNDERGROWTH_SPACING := 1.8
+## How deep into the forest its gaps are filled with smaller pines (tiles, see _fill_forest_gaps).
+const FILL_DEPTH := 3
+## How far behind a block's open side its undergrowth grows (metres).
+const UNDERGROWTH_DEPTH := 2.0
 ## Ground pieces are this many tiles across. Each piece is lit by the
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
@@ -224,6 +237,14 @@ var villagers: Array = []
 ## Every living tree of the woods, for the birds and squirrels in them (see
 ## WoodsLife): where it stands and how tall it is.
 var _wood_trees: Array = []
+## The trees on each forest tile near the open ground, each {"at", "crown"}: where it stands and
+## how far round it its crown hides the ground (metres, see _build_forest).
+var forest_trees := {}
+## Where the last tree _build_tree planted stands, and how far its crown reaches.
+var _tree_at := Vector3.ZERO
+var _tree_crown := 0.0
+## Where the undergrowth bushes stand, each Vector4(x, y, z, radius) (see _grow_undergrowth).
+var undergrowth_bushes: Array[Vector4] = []
 ## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
 var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
@@ -376,6 +397,10 @@ var _ivy := {"xforms": [], "colours": []}
 ## All the leaves, stems and grapes of the village (AgedStone.ivy_node), dressed for the season
 ## (see set_season).
 var ivy: Node3D
+## The undergrowth on the forest floor that stays blocked between the edge trees (see
+## _build_wall_collision): low bushes of the ivy's leaves, turning with the seasons as the ivy does.
+var undergrowth: Node3D
+var _undergrowth := {"xforms": [], "colours": []}
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -628,6 +653,11 @@ func build() -> void:
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
+	if not _undergrowth.xforms.is_empty():
+		undergrowth = AgedStone.ivy_node(_undergrowth)
+		undergrowth.name = "Undergrowth"
+		add_child(undergrowth)
+		IvySeasons.apply(undergrowth, day)
 	_build_rock_collision()
 	_setup_astar()
 	meals.garland.block(self)
@@ -1566,6 +1596,7 @@ func _build_tree(pos: Vector3, single := false) -> float:
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
 	var at := pos + _jitter(0.9 if not single else 0.3)
+	_tree_at = at
 	# How tall it stands (metres), for the woods' wildlife (see WoodsLife).
 	var height := 0.0
 	var leafy := false
@@ -1588,6 +1619,7 @@ func _build_tree(pos: Vector3, single := false) -> float:
 		height = 1.2 * scale_of
 	if reach < 0.0:
 		return reach
+	_tree_crown = reach * (CROWN if height > 0.0 else DEAD_CROWN)
 	if height > 0.0 and not near_crypt:
 		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
 	return reach
@@ -1686,21 +1718,184 @@ func _build_woods_life() -> void:
 
 ## Trees on every forest tile close to the open ground. Further in there
 ## is only the dark forest floor, which the camera never gets to see much of.
+## The gaps the dice leave just behind the edge are filled (see _fill_forest_gaps).
 func _build_forest() -> void:
 	for y in range(-2, height + 2):
 		for x in range(-2, width + 2):
 			var c := Vector2i(x, y)
 			if cell_char(c) != "#":
 				continue
-			if _lair_mountain_at != Vector3.INF:
-				var rel := cell_to_world(c) - _lair_mountain_at
-				if LairMountain.covers(rel.x, rel.z):
-					continue
+			if under_lair_mountain(c):
+				continue
 			var depth := _forest_depth(c)
 			if depth > FOREST_DEPTH:
 				continue
 			if _rng.randf() < [1.0, 1.0, 0.9, 0.75, 0.6][depth]:
-				_build_tree(cell_to_world(c))
+				if _build_tree(cell_to_world(c)) >= 0.0:
+					forest_trees[c] = [{"at": _tree_at, "crown": _tree_crown}]
+	_fill_forest_gaps()
+
+
+## The forest floor just behind the edge trees, where the camera looks in between their crowns, is
+## no clearing to walk into: wherever no crown hides it, a smaller pine fills the gap. Own dice, so
+## the rest of the map comes out as before.
+func _fill_forest_gaps() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "waldluecken")
+	for y in range(-2, height + 2):
+		for x in range(-2, width + 2):
+			var c := Vector2i(x, y)
+			if cell_char(c) != "#":
+				continue
+			var depth := _forest_depth(c)
+			if depth < 2 or depth > FILL_DEPTH:
+				continue
+			if under_lair_mountain(c):
+				continue
+			for spot: Vector2 in [Vector2(0, 0), Vector2(-1.2, -1.2), Vector2(1.2, -1.2), Vector2(-1.2, 1.2), Vector2(1.2, 1.2)]:
+				var gap := cell_to_world(c) + Vector3(spot.x, 0.0, spot.y)
+				var at := gap + Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.4, 0.4))
+				if under_crown(c, gap):
+					continue
+				var pine: String = ["tree_pine_orange_medium", "tree_pine_yellow_medium", "tree_pine_orange_medium"][rng.randi() % 3]
+				var reach := _plant(pine, at, rng.randf() * TAU, rng.randf_range(0.8, 1.05))
+				if reach >= 0.0:
+					if not forest_trees.has(c):
+						forest_trees[c] = []
+					forest_trees[c].append({"at": at, "crown": reach * CROWN})
+
+
+## What looks walkable is walkable, and what blocks looks blocked. The forest does not stop the
+## hero at the edge of its tiles but where its trees stand: on each side of a forest tile that
+## faces walkable ground the block starts at the front of the tree's crown (see forest_block),
+## so the leaves in front of and between the edge trees can be walked on. The forest floor that
+## still blocks and is not hidden under a crown gets undergrowth (see _grow_undergrowth).
+func _build_wall_collision() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "unterholz")
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "#" or not _beside_forest_edge(c):
+				continue
+			var tile := _tile_rect(c)
+			var block := forest_block(c)
+			_add_block(block)
+			# Where two forest tiles meet only at a corner between two open tiles, both keep
+			# their corner, so the forest stays shut there as it was.
+			for corner: Vector2i in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+				if cell_char(c + corner) != "#":
+					continue
+				var x0 := tile.position.x if corner.x < 0 else block.end.x
+				var x1 := block.position.x if corner.x < 0 else tile.end.x
+				var z0 := tile.position.y if corner.y < 0 else block.end.y
+				var z1 := block.position.y if corner.y < 0 else tile.end.y
+				if x1 - x0 > 0.01 and z1 - z0 > 0.01:
+					_add_block(Rect2(x0, z0, x1 - x0, z1 - z0))
+			if _beside_walkable(c) and not under_lair_mountain(c):
+				_grow_undergrowth(c, block, rng)
+
+
+## Whether a forest tile has anything but forest round it (the tiles the hero can come up to).
+func _beside_forest_edge(c: Vector2i) -> bool:
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if cell_char(c + Vector2i(dx, dy)) != "#":
+				return true
+	return false
+
+
+## Whether a tile has walkable ground beside it, on a side or a corner.
+func _beside_walkable(c: Vector2i) -> bool:
+	for dy in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			if WALK.contains(cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
+
+
+## A tile's ground (x, z), in metres.
+func _tile_rect(c: Vector2i) -> Rect2:
+	var p := cell_to_world(c)
+	return Rect2(p.x - TILE * 0.5, p.z - TILE * 0.5, TILE, TILE)
+
+
+func _add_block(r: Rect2) -> void:
+	var mid := r.get_center()
+	_add_box(_walls_body, Vector3(mid.x, 2.0, mid.y), Vector3(r.size.x, 4.0, r.size.y))
+
+
+## The ground of a forest tile that stops the hero (x, z, in metres): the whole tile, pulled back
+## on each side that faces walkable ground to the front of its trees' crowns, by FOREST_MARGIN at
+## most (by all of it on a tile without a tree, whose undergrowth then shows where the block
+## starts). Under the lair's mountain the rock blocks the whole tile.
+func forest_block(c: Vector2i) -> Rect2:
+	var r := _tile_rect(c)
+	if under_lair_mountain(c):
+		return r
+	var lo := r.end
+	var hi := r.position
+	for tree: Dictionary in forest_trees.get(c, []):
+		var at: Vector3 = tree.at
+		lo = lo.min(Vector2(at.x, at.z) - Vector2.ONE * float(tree.crown))
+		hi = hi.max(Vector2(at.x, at.z) + Vector2.ONE * float(tree.crown))
+	var a := r.position
+	var b := r.end
+	if WALK.contains(cell_char(c + Vector2i(-1, 0))):
+		a.x = clampf(lo.x, r.position.x, r.position.x + FOREST_MARGIN)
+	if WALK.contains(cell_char(c + Vector2i(1, 0))):
+		b.x = clampf(hi.x, r.end.x - FOREST_MARGIN, r.end.x)
+	if WALK.contains(cell_char(c + Vector2i(0, -1))):
+		a.y = clampf(lo.y, r.position.y, r.position.y + FOREST_MARGIN)
+	if WALK.contains(cell_char(c + Vector2i(0, 1))):
+		b.y = clampf(hi.y, r.end.y - FOREST_MARGIN, r.end.y)
+	return Rect2(a, b - a)
+
+
+## Whether a spot on the ground lies under the crown of a forest tree on tile `c` or round it.
+func under_crown(c: Vector2i, at: Vector3) -> bool:
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			for tree: Dictionary in forest_trees.get(c + Vector2i(dx, dy), []):
+				if Vector2(at.x - tree.at.x, at.z - tree.at.z).length() < float(tree.crown):
+					return true
+	return false
+
+
+## Whether a spot in a forest tile's block lies within UNDERGROWTH_DEPTH of a side that faces
+## walkable ground (further in, the trees and the filled gaps behind them hide the floor).
+func _near_open_face(c: Vector2i, block: Rect2, at: Vector3) -> bool:
+	return (WALK.contains(cell_char(c + Vector2i(-1, 0))) and at.x - block.position.x < UNDERGROWTH_DEPTH) \
+			or (WALK.contains(cell_char(c + Vector2i(1, 0))) and block.end.x - at.x < UNDERGROWTH_DEPTH) \
+			or (WALK.contains(cell_char(c + Vector2i(0, -1))) and at.z - block.position.y < UNDERGROWTH_DEPTH) \
+			or (WALK.contains(cell_char(c + Vector2i(0, 1))) and block.end.y - at.z < UNDERGROWTH_DEPTH)
+
+
+## Low bushes on the part of a forest tile's block that no crown hides, so the leaf-strewn floor
+## there no longer looks like a way in.
+func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) -> void:
+	var inner := block.grow(-0.5)
+	if inner.size.x <= 0.0 or inner.size.y <= 0.0:
+		return
+	var steps := Vector2i(maxi(1, ceili(inner.size.x)), maxi(1, ceili(inner.size.y)))
+	var placed: Array[Vector3] = []
+	for iy in steps.y + 1:
+		for ix in steps.x + 1:
+			var at := Vector3(inner.position.x + inner.size.x * ix / steps.x, 0.0, inner.position.y + inner.size.y * iy / steps.y)
+			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
+					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
+				continue
+			placed.append(at)
+			var radius := AgedStone.grow_bush(at, rng, _undergrowth)
+			undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
+
+
+## Whether the mountain of the dragon's lair stands over a tile (no tree grows there).
+func under_lair_mountain(c: Vector2i) -> bool:
+	if _lair_mountain_at == Vector3.INF:
+		return false
+	var rel := cell_to_world(c) - _lair_mountain_at
+	return LairMountain.covers(rel.x, rel.z)
 
 
 ## How many tiles from the nearest open ground (up to FOREST_DEPTH + 1).
@@ -3723,6 +3918,7 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
+	IvySeasons.apply(undergrowth, day_of_season)
 	AppleTree.dress(square_trees, day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
 	var at := IvySeasons.stage(day_of_season)

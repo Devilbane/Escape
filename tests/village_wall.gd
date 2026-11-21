@@ -102,7 +102,7 @@ func _run() -> void:
 	check(brick.mend(5000.0) and brick.hp == 1000 and not brick._label.visible, "a mended brick is whole and shows no number")
 
 	# The villagers shut the gates when a slime is near, and open them later.
-	var slime := _slime(lvl, west.global_position + Vector3(-16, 0, 0))
+	var slime := _slime(lvl, west.global_position + Vector3(-(VillageWall.WATCH_RANGE - 4.0), 0, 0))
 	slime._awake = false
 	wall.tick(lvl, 1.1)
 	check(wall.shut_wanted, "a slime near the gate has the villagers shut it")
@@ -175,9 +175,13 @@ func _run() -> void:
 	for v in lvl.villagers:
 		v._start("idle", 30.0)
 	check(not wall.is_inside(lvl.world_to_cell(farmer.global_position)) and wall.is_inside(lvl.world_to_cell(west.global_position + Vector3(8, 0, 0))), "the wall tells inside from outside")
-	slime2.global_position = west.global_position + Vector3(-20.0, 0, 0)
+	# Far out in the fields a slime raises no alarm yet; at the village's edge it does.
+	slime2.global_position = west.global_position + Vector3(-(VillageWall.WATCH_RANGE + 8.0), 0, 0)
 	slime2.dead = false
 	slime2._awake = false
+	wall.tick(lvl, 1.1)
+	check(not wall.shut_wanted, "a slime far from the village raises no alarm")
+	slime2.global_position = west.global_position + Vector3(-(VillageWall.WATCH_RANGE - 4.0), 0, 0)
 	wall.tick(lvl, 1.1)
 	check(wall.shut_wanted and not west.shut, "the gate waits for the villager outside")
 	check(farmer._task == "walk", "a villager outside is called in")

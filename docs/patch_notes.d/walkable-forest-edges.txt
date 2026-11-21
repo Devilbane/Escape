@@ -1,0 +1,1 @@
+- The leaf-covered floor at the edge of the woods is no longer an invisible wall: you can walk right up to the trees, the gaps behind them are filled with trees, and where the forest still blocks, undergrowth shows it

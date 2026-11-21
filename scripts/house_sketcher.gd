@@ -163,6 +163,9 @@ var storey := 0
 var _lift := 0.0
 ## The wall piece being built and where its wall runs on (see _hidden_faces).
 var _piece_run := {}
+## How far the garden wall piece being built reaches past its first and its last
+## node (negative: it stops short of it), see _fence_run.
+var _fence_ends := Vector2(FENCE_THICK * 0.5, FENCE_THICK * 0.5)
 ## Built roof cells by ground cell on the 2 m lattice: the highest storey whose ceiling is there.
 var _covered := {}
 var _fade_state := ""
@@ -1455,8 +1458,20 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			# fine light line).
 			var side := Vector3(step.x, 0, step.y) * (HouseSketch.CELL * 0.5)
 			var high := minf(tall, HouseSketch.DEPTH - RIM_SINK)
-			var size := Vector3(RIM_THICK, high, HouseSketch.CELL + RIM_THICK) if step.x != 0 else Vector3(HouseSketch.CELL + RIM_THICK, high, RIM_THICK)
-			_visual_box(middle + side + Vector3(0, -HouseSketch.DEPTH + high * 0.5, 0), size, wall_mat)
+			# Panels along one wall meet end to end, never overlapping: two faces in one
+			# place flicker (z-fighting). At a corner the wall along x fills the corner
+			# and the one along z stops at its face (see _lining_reach).
+			var along := Vector2i(step.y, step.x).abs()
+			var reach_lo := _lining_reach(open, c, step, -along)
+			var reach_hi := _lining_reach(open, c, step, along)
+			var length := HouseSketch.CELL + reach_lo + reach_hi
+			var axis := Vector3(along.x, 0, along.y)
+			var size := Vector3(RIM_THICK, high, length) if step.x != 0 else Vector3(length, high, RIM_THICK)
+			var at := middle + side + axis * ((reach_hi - reach_lo) * 0.5) + Vector3(0, -HouseSketch.DEPTH + high * 0.5, 0)
+			# Its top lies under the ground (or the ceiling) and its ends against the next
+			# panel or in a corner: those edges stay sharp (a rounded top edge showed as
+			# a bright line along the rim).
+			_visual_box(at, size, wall_mat, [Vector3.DOWN, Vector3.UP, -axis, axis])
 	for key in house.pieces:
 		var piece: Dictionary = house.pieces[key]
 		if piece.state == HouseSketch.SKETCH:
@@ -1470,6 +1485,17 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = []) -> v
 			ceilinged.append(Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL))
 		elif piece.kind == HouseSketch.COVER and house.hole_key(p[1], p[2]) == "":
 			_ground_floor(house, p[1], p[2], piece)
+
+
+## How far the cellar wall of open cell `c` on its side `step` reaches past the
+## cell's edge towards `toward`: not at all where the wall runs on in line (the
+## next panel starts there), half its thickness out where the wall along x turns a
+## corner (it fills the corner), and half its thickness short where a wall along
+## z meets one along x (it stops at that wall's face).
+func _lining_reach(open: Dictionary, c: Vector2i, step: Vector2i, toward: Vector2i) -> float:
+	if open.has(c + toward) and not open.has(c + toward + step):
+		return 0.0
+	return RIM_THICK * 0.5 if step.x == 0 else -RIM_THICK * 0.5
 
 
 ## The cellar ceiling over a dug cell: a floor of the pen's planks or of
@@ -1796,8 +1822,68 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 		"before": house.has_piece(edge[0] - step.x, edge[1] - step.y, orient, storey),
 		"after": house.has_piece(edge[0] + step.x, edge[1] + step.y, orient, storey),
 		"above": house.has_piece(edge[0], edge[1], orient, storey + 1)}
+	if HouseSketch.FENCE_KINDS.has(kind):
+		_fence_run(house, edge, storey, axis, a)
 	_solid_piece_parts(mid, flat, along_x, kind, demolish, stone)
 	_piece_run = {}
+
+
+## Where a garden wall piece on `edge` starts and ends along `axis` (from its node
+## `a`), so that no two stone garden walls overlap: two boxes sharing a face's
+## place flicker through each other (z-fighting). A wall that runs on into the
+## next garden wall piece (or a gate) stops at the node between them; at a free
+## end it reaches half its thickness past the node. Where two stone garden walls
+## meet at a corner the one along x fills the corner and the one along z stops
+## at its face; where one runs on past the node, the one that ends there stops
+## at its face. Also fills _piece_run for the rounded edges (see _hidden_faces).
+func _fence_run(house: HouseSketch, edge: Array, storey: int, axis: Vector3, a: Vector3) -> void:
+	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
+	var half := FENCE_THICK * 0.5
+	var ends := []
+	var across := HouseSketch.ORIENT_Y if along_x else HouseSketch.ORIENT_X
+	var step := Vector2i(1, 0) if along_x else Vector2i(0, 1)
+	var side := Vector2i(0, 1) if along_x else Vector2i(1, 0)
+	for end: int in [0, 1]:
+		var node: Vector2i = Vector2i(edge[0], edge[1]) + step * end
+		# The next piece in line past this node, and the walls across it there.
+		var next: Vector2i = node if end == 1 else node - step
+		var runs_on := _fence_on(house, next.x, next.y, edge[2], storey, false)
+		var runs_on_stone := _fence_on(house, next.x, next.y, edge[2], storey, true)
+		var cross_before := _fence_on(house, node.x - side.x, node.y - side.y, across, storey, true)
+		var cross_after := _fence_on(house, node.x, node.y, across, storey, true)
+		var through := cross_before and cross_after
+		var reach := half
+		if along_x:
+			if runs_on_stone:
+				reach = 0.0
+			elif through:
+				reach = -half
+			elif runs_on:
+				reach = 0.0
+		elif through:
+			reach = -half
+		elif cross_before or cross_after:
+			reach = 0.0 if runs_on_stone else -half
+		elif runs_on:
+			reach = 0.0
+		ends.append(reach)
+	_fence_ends = Vector2(ends[0], ends[1])
+	var lo := a.dot(axis) - _fence_ends.x
+	_piece_run = {"axis": axis, "lo": lo, "hi": a.dot(axis) + HouseSketch.CELL + _fence_ends.y,
+		"before": _fence_ends.x < half, "after": _fence_ends.y < half, "above": false}
+
+
+## Whether a built (or to be taken down) garden wall piece stands on the edge
+## (x, y, orient) of `storey`: a stone one only with `stone_only`, else any kind,
+## gates included.
+func _fence_on(house: HouseSketch, x: int, y: int, orient: String, storey: int, stone_only: bool) -> bool:
+	var key := HouseSketch.key_of(x, y, orient, storey)
+	if not house.pieces.has(key):
+		return false
+	var piece: Dictionary = house.pieces[key]
+	if piece.state == HouseSketch.SKETCH:
+		return false
+	return piece.kind == HouseSketch.STONE_FENCE if stone_only else HouseSketch.FENCE_KINDS.has(piece.kind)
 
 
 func _solid_piece_parts(mid: Vector3, flat: Vector3, along_x: bool, kind: String, demolish: bool, stone: Material) -> void:
@@ -1946,8 +2032,15 @@ func _solid_fence(mid: Vector3, along_x: bool, kind: String, demolish: bool) -> 
 		return
 	match kind:
 		HouseSketch.STONE_FENCE:
+			# Drawn with its ends as _fence_run worked them out, so it never overlaps the
+			# next wall; it stops the hero over the whole cell and its corners, seamless.
 			var flat := Vector3(HouseSketch.CELL + FENCE_THICK, high, FENCE_THICK) if along_x else Vector3(FENCE_THICK, high, HouseSketch.CELL + FENCE_THICK)
-			_solid_box(mid + Vector3(0, high * 0.5, 0), flat, _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.temple_stone())
+			_collide(mid + Vector3(0, high * 0.5, 0), flat)
+			var length := HouseSketch.CELL + _fence_ends.x + _fence_ends.y
+			var shift := (_fence_ends.y - _fence_ends.x) * 0.5
+			var drawn := Vector3(length, high, FENCE_THICK) if along_x else Vector3(FENCE_THICK, high, length)
+			var centre := mid + (Vector3(shift, 0, 0) if along_x else Vector3(0, 0, shift))
+			_visual_box(centre + Vector3(0, high * 0.5, 0), drawn, _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.temple_stone())
 		HouseSketch.WOOD_FENCE:
 			var boards := Vector3(HouseSketch.CELL, high - 0.1, 0.1) if along_x else Vector3(0.1, high - 0.1, HouseSketch.CELL)
 			_solid_box(mid + Vector3(0, (high - 0.1) * 0.5, 0), boards, _solid_material(DEMOLISH_COLOR if demolish else PLANK_COLOR))
@@ -1968,12 +2061,14 @@ func _solid_box(at: Vector3, size: Vector3, mat: Material) -> void:
 	_collide(at, size)
 
 
-func _visual_box(at: Vector3, size: Vector3, mat: Material) -> void:
+## `hidden`: the faces of a stone box that lie against something (see
+## _hidden_faces, which works them out when none are given).
+func _visual_box(at: Vector3, size: Vector3, mat: Material, hidden: Array = []) -> void:
 	var m := MeshInstance3D.new()
 	if mat == HouseLooks.temple_stone() and mat is ShaderMaterial:
 		# Stone walls get their outer edges rounded off (see StoneLook), but not
 		# where they stand on something or butt against the next piece.
-		m.mesh = StoneLook.rounded_box(size, _hidden_faces(at, size))
+		m.mesh = StoneLook.rounded_box(size, hidden if not hidden.is_empty() else _hidden_faces(at, size))
 	else:
 		var box := BoxMesh.new()
 		box.size = size
@@ -1990,11 +2085,6 @@ func _visual_box(at: Vector3, size: Vector3, mat: Material) -> void:
 func _hidden_faces(at: Vector3, size: Vector3) -> Array:
 	var hidden: Array = [Vector3.DOWN]
 	if _piece_run.is_empty():
-		# A cellar's lining: thin panels that meet end to end round the pit.
-		if size.x < 0.15:
-			hidden.append_array([Vector3.BACK, Vector3.FORWARD])
-		elif size.z < 0.15:
-			hidden.append_array([Vector3.RIGHT, Vector3.LEFT])
 		return hidden
 	var axis: Vector3 = _piece_run["axis"]
 	if _piece_run["above"] and absf(at.y + size.y * 0.5 - WALL_HEIGHT) < 0.02:

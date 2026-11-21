@@ -1,0 +1,1 @@
+- Garden walls and stone cellar walls no longer flicker where their pieces meet, and the cellar rim lost its bright line.

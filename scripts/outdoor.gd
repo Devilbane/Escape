@@ -3259,7 +3259,7 @@ func _build_house() -> void:
 				_door_cell = c
 			_build_house_walls(c)
 			if ch == "B":
-				_place("bed_decorated", cell_to_world(c), 0.0)
+				CosyBed.build(self, cell_to_world(c), 0.0)
 				_add_solid(cell_to_world(c), Vector3(3.2, 1.5, 3.2))
 				stations.append({"kind": "bett", "cell": c, "pos": cell_to_world(c), "rot": 0.0, "used": false,
 						"spot": pillow_spot(cell_to_world(c), 0.0)})

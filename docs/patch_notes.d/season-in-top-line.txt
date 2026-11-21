@@ -1,0 +1,1 @@
+- The top line of the screen now names the season next to the time.

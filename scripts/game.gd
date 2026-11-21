@@ -2854,8 +2854,8 @@ func _clock_text() -> String:
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
-	if Weather.is_winter(season_day()):
-		text += ", " + Lang.t("Winter")
+	# The season, always (see Seasons): it follows the real calendar, a week each.
+	text += ", " + Lang.t(Seasons.WORDS[Weather.season(season_day())])
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
 	# At night the clock names tonight's moon (see Moon).
@@ -2973,6 +2973,8 @@ func _new_day(quiet := false) -> void:
 
 ## How many hours after the first morning of a season the villagers talk about it.
 const SEASON_TALK_HOURS := 3.0
+## How far winter fog by day is smoothed towards one even haze (0 patchy banks, 1 even haze).
+const WINTER_EVEN := 0.45
 
 
 ## The season day the seasons are on: the real calendar's (see Seasons), moved by season_shift.
@@ -3192,8 +3194,13 @@ func _show_weather() -> void:
 	dusty.mist = Weather.dusty_mist(seen, day_hour) * (1.0 - _shelter)
 	var winter_fog := Weather.is_winter(season_day()) and _shelter < 0.5
 	var haze := Weather.fog_haze(_env.fog_light_color, float(seen.mist), winter_fog)
-	# One even haze at night and over the winter snow; patchy clouds only by day.
-	var even := float(seen.mist) if (winter_fog or DayNight.glow_at(day_hour) > 0.5) else 0.0
+	# One even haze at night. Over the winter snow the banks stay, only softened (WINTER_EVEN), so
+	# winter fog still drifts in clouds; by day elsewhere the clouds are fully patchy.
+	var even := 0.0
+	if DayNight.glow_at(day_hour) > 0.5:
+		even = float(seen.mist)
+	elif winter_fog:
+		even = float(seen.mist) * WINTER_EVEN
 	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.

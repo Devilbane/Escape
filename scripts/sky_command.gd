@@ -149,9 +149,7 @@ const SEASON_WORDS := {
 	"winter": Weather.WINTER,
 }
 ## The German name of each season, for the confirmation (translated by Lang).
-const SEASON_NAMES := {
-	Weather.SPRING: "Frühling", Weather.SUMMER: "Sommer", Weather.AUTUMN: "Herbst", Weather.WINTER: "Winter",
-}
+const SEASON_NAMES := Seasons.WORDS
 const SEASON_HELP := "Jahreszeit wechseln: season:spring, season:summer, season:autumn oder season:winter."
 
 

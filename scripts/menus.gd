@@ -959,7 +959,7 @@ func _build_character() -> void:
 	_character_row(grid, wheel, "", Lang.t("Leben"), "%d / %d   %+.1f/s" % [p.hp, p.max_hp, p.life_regen()], Color(1.0, 0.55, 0.5))
 	# The injury a rescue left, always a row so the window keeps its shape.
 	_character_row(grid, wheel, CharacterPage.INJURY, Lang.t("Verletzung"),
-			Lang.t(Injury.KINDS[p.injury].name) if p.injury != "" else Lang.t("keine"),
+			Injury.title(p.injury, p.injury_severity) if p.injury != "" else Lang.t("keine"),
 			Color(1.0, 0.55, 0.5) if p.injury != "" else TradeWindow.GREY)
 	for id in Training.ATTRIBUTES:
 		if not id in Training.MAIN_ATTRIBUTES:
@@ -3774,16 +3774,24 @@ func _healing_entries() -> Array:
 		now = {"title": Lang.t("Derzeit"), "name": Injury.title(p.injury, p.injury_severity), "subtitle": Lang.t("Verletzung"), "icon": "kind:herb",
 				"lines": [[Injury.effect_text(p.injury, p.injury_severity), TradeWindow.RED], [Injury.how_to_heal(p.injury, p.injury_severity), TradeWindow.GREY]]}
 		can = Injury.heals_at_village(p) and Payment.can_pay(game, price)
-		if not Injury.heals_at_village(p):
-			lines.append([Lang.t("Diese Wunde heilt nur am fernen, vergessenen Schrein."), TradeWindow.ORANGE])
+		if p.injury_severity == Injury.GRAVE:
+			lines.append([Lang.t("Eine bleibende Verletzung verlangt eine hohe Gabe. Ihr ferner, vergessener Schrein heilt sie umsonst."), TradeWindow.ORANGE])
 	else:
 		lines.append([Lang.t("Du bist unverletzt."), TradeWindow.GREY])
 	if Blessing.mercy(p) > 0.0:
 		lines.append([Lang.t("Dein Segen macht die Heilung billiger."), TradeWindow.GREEN])
 	return [{"key": "heal:prayer", "icon": god.icon, "name": Lang.t("Gebet an Mirenna"),
-			"price": Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price, "price_ok": Payment.can_pay(game, price),
+			"price": prayer_price_text(p, price), "price_ok": not Injury.heals_at_village(p) or Payment.can_pay(game, price),
 			"button": button, "action": _pray_for_healing.bind(price), "enabled": can,
 			"detail": {"subtitle": Lang.t(god.title), "lines": lines}, "compare": now}]
+
+
+## The prayer's price label: what it costs, or a dash when there is nothing
+## to heal (an unusable prayer never reads "free").
+static func prayer_price_text(p: Player, price: int) -> String:
+	if not Injury.heals_at_village(p):
+		return "—"
+	return Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price
 
 
 func _pray_for_healing(price: int) -> void:

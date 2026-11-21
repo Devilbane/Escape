@@ -16,9 +16,10 @@ extends RefCounted
 ##
 ## Minor and serious injuries mend with nights of sleep in a bed, an inn or a
 ## camp, or at once by a prayer at the healing goddess's altar in the village
-## temple for an offering. A grave one never mends by itself and the village
-## altar cannot help: only a pilgrimage to the distant forgotten shrine does
-## (see pilgrimage_heal). A hero carries one injury at a time; a worse one
+## temple for an offering. A grave one never mends by itself: the village altar
+## lifts it only for a high offering (her blessing takes at most GRAVE_MERCY off
+## it), and a pilgrimage to the distant forgotten shrine lifts it for free (see
+## pilgrimage_heal). A hero carries one injury at a time; a worse one
 ## replaces a milder one. All numbers live in TUNING and the chances below.
 
 const LEG := "leg"
@@ -44,12 +45,12 @@ const SEVERITIES := [MINOR, SERIOUS, GRAVE]
 ##   speed   share of the base speed lost
 ##   drop    points of Intelligenz (head) or levels of every skill (scars) lost
 ##   nights  nights of rest to mend it (0: never by rest)
-##   price   what a prayer at the village altar costs (copper); grave: none
+##   price   what a prayer at the village altar costs (copper)
 ##   run     whether a broken leg still allows running
 const TUNING := {
 	MINOR: {"hp": 2, "speed": 0.05, "drop": 1, "nights": 3, "price": 40, "run": true},
 	SERIOUS: {"hp": 4, "speed": 0.10, "drop": 2, "nights": 7, "price": 120, "run": false},
-	GRAVE: {"hp": 6, "speed": 0.20, "drop": 3, "nights": 0, "price": 0, "run": false},
+	GRAVE: {"hp": 6, "speed": 0.20, "drop": 3, "nights": 0, "price": 400, "run": false},
 }
 ## The chances (summing to 1) of each severity: when an ordinary foe, a fall,
 ## poison or fire felled the hero, and when a boss did (see Enemy.is_level_boss).
@@ -57,9 +58,12 @@ const CHANCES := {
 	"normal": {MINOR: 0.65, SERIOUS: 0.28, GRAVE: 0.07},
 	"boss": {MINOR: 0.0, SERIOUS: 0.40, GRAVE: 0.60},
 }
+## The most a blessing's mercy takes off the price of a grave injury, so the
+## free pilgrimage stays worth the road.
+const GRAVE_MERCY := 0.5
 const SEVERITY_NAMES := {MINOR: "leicht", SERIOUS: "schwer", GRAVE: "bleibend"}
 
-const LORE := "Wer bewusstlos gerettet wird, trägt eine Verletzung davon: ein gebrochenes Bein (kein Springen, später auch kein Rennen), einen gebrochenen Arm (kein Schild), eine Kopfwunde (weniger Intelligenz) oder tiefe Narben (alle Fertigkeiten schwächer). Leichte und schwere heilen nach einigen Nächten im Bett; schwere heilt auch ein Gebet am Altar der Heilgöttin Mirenna im Dorftempel. Gegen eine bleibende Verletzung hilft nur eine Pilgerreise zum fernen, vergessenen Schrein. Nach einem Bosskampf ist die Verletzung meist schwer oder bleibend."
+const LORE := "Wer bewusstlos gerettet wird, trägt eine Verletzung davon: ein gebrochenes Bein (kein Springen, später auch kein Rennen), einen gebrochenen Arm (kein Schild), eine Kopfwunde (weniger Intelligenz) oder tiefe Narben (alle Fertigkeiten schwächer). Leichte und schwere heilen nach einigen Nächten im Bett oder durch ein Gebet am Altar der Heilgöttin Mirenna im Dorftempel. Eine bleibende heilt nie von selbst: Mirennas Altar nimmt sie nur gegen eine hohe Gabe, ihr ferner, vergessener Schrein umsonst. Nach einem Bosskampf ist die Verletzung meist schwer oder bleibend."
 
 
 ## The severity a rescue leaves, by what felled the hero: `roll` (0 to 1) picks
@@ -140,9 +144,10 @@ static func heal(hero: Player) -> void:
 	hero.refresh_stats()
 
 
-## Whether the village temple's altar can heal it: not a grave injury.
+## Whether the village temple's altar can heal it: any injury, a grave one
+## for a high offering.
 static func heals_at_village(hero: Player) -> bool:
-	return hero.injury != "" and hero.injury_severity != GRAVE
+	return hero.injury != ""
 
 
 ## The pilgrimage's end: the hero prays at the forgotten, ruined shrine in the
@@ -156,12 +161,15 @@ static func pilgrimage_heal(hero: Player) -> bool:
 
 
 ## What the goddess asks for at the village altar, after the blessing's mercy
-## (see Blessing.mercy).
+## (see Blessing.mercy; at most GRAVE_MERCY off a grave injury).
 static func prayer_price(hero: Player) -> int:
 	if not heals_at_village(hero):
 		return 0
 	var base := float(tuning(hero.injury_severity).price) * float(KINDS[hero.injury].long)
-	return roundi(base * (1.0 - Blessing.mercy(hero)))
+	var mercy := Blessing.mercy(hero)
+	if hero.injury_severity == GRAVE:
+		mercy = minf(mercy, GRAVE_MERCY)
+	return roundi(base * (1.0 - mercy))
 
 
 # --- What an injury does -------------------------------------------------------
@@ -223,7 +231,7 @@ static func effect_text(kind: String, severity: String) -> String:
 static func how_to_heal(kind: String, severity: String) -> String:
 	var need := nights(kind, severity)
 	if need <= 0:
-		return Lang.t("Heilt nicht von selbst. Nur eine Pilgerreise zum fernen, vergessenen Schrein heilt sie.")
+		return Lang.t("Heilt nicht von selbst. Ein Gebet im Tempel heilt sie gegen eine hohe Gabe, der ferne, vergessene Schrein umsonst.")
 	return Lang.t("Heilt nach %d Nächten im Bett, oder durch ein Gebet im Tempel.") % need
 
 

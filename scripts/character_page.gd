@@ -476,12 +476,12 @@ func injury_details() -> Dictionary:
 		return {"title": Lang.t("Verletzung"),
 			"lines": [Lang.t("Du bist unverletzt."),
 				Lang.t("Wer bewusstlos gerettet wird, trägt eine Verletzung davon: nach einem Bosskampf meist eine schwere.")],
-			"note": Lang.t("Leichte und schwere Verletzungen heilen im Bett, schwere auch am Altar im Tempel. Eine bleibende heilt nur am fernen Schrein.")}
+			"note": Lang.t("Leichte und schwere Verletzungen heilen im Bett oder am Altar im Tempel. Eine bleibende heilt am Altar nur gegen eine hohe Gabe, am fernen Schrein umsonst.")}
 	var lines := Injury.effect_lines(player.injury, player.injury_severity) + [Injury.how_to_heal(player.injury, player.injury_severity)]
 	if Injury.nights_left(player) > 0:
 		lines.append(Lang.t("Nächte Ruhe noch: %d") % Injury.nights_left(player))
 	return {"title": Injury.title(player.injury, player.injury_severity), "lines": lines,
-		"note": Lang.t("Heilgöttin Mirenna im Dorftempel heilt schwere Verletzungen gegen eine Gabe, eine bleibende nur der ferne, vergessene Schrein.")}
+		"note": Lang.t("Heilgöttin Mirenna im Dorftempel heilt Verletzungen gegen eine Gabe, eine bleibende gegen eine hohe. Ihr ferner, vergessener Schrein heilt sie umsonst.")}
 
 
 ## The blessing and what it gives now, or how to get one.

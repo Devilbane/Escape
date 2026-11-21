@@ -212,6 +212,8 @@ static func grained_mesh(mesh: Mesh) -> Mesh:
 				u2.resize(count)
 				for i in count:
 					u2[i] = uvs[order[i]]
+				if uv_slot == Mesh.ARRAY_TEX_UV:
+					_whole_panes(u2)
 				flat[uv_slot] = u2
 		var cols := PackedColorArray()
 		cols.resize(count)
@@ -230,6 +232,26 @@ static func grained_mesh(mesh: Mesh) -> Mesh:
 		out.surface_set_material(out.get_surface_count() - 1, mat)
 	_grained[key] = out
 	return out
+
+
+## The KayKit window panes are fans whose middle sits on the window's spot of
+## the palette (KIT_WINDOW_UV, where the glow mask shines) and whose rim runs
+## down the palette's grey strip below it. Only a small patch round the spot
+## counts as glass, so the rest of a big pane (the arched ones in the gables
+## and towers) was taken for wall and laid in stone. Every triangle of such a
+## fan gets the spot's own colour instead: the whole pane is glass, and glows
+## at night.
+const KIT_WINDOW_UV := Vector2(0.8162, 0.2923)
+
+
+static func _whole_panes(uvs: PackedVector2Array) -> void:
+	for t in range(0, uvs.size() - 2, 3):
+		for k in 3:
+			if uvs[t + k].distance_to(KIT_WINDOW_UV) < 0.004:
+				uvs[t] = KIT_WINDOW_UV
+				uvs[t + 1] = KIT_WINDOW_UV
+				uvs[t + 2] = KIT_WINDOW_UV
+				break
 
 
 ## The way the grain runs on a triangle: along the longer of its two edges

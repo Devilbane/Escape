@@ -4,6 +4,7 @@ extends RefCounted
 ## and not a cut-out. They stand on the open ground just outside the water (never on the pond
 ## tiles, which turn into ice walkable in winter) and keep their straw colour all year; snow
 ## wear caps of snow while snow lies (see set_snow), growing with the snow and melting with it.
+## Here and there a few rounded stones lie at the water's edge, some half sunk in the shallows.
 
 ## The caps of snow on the cattail heads and the tips of the stems, or null without reeds.
 var snow_caps: MultiMeshInstance3D
@@ -24,6 +25,7 @@ static func grow(level: Outdoor, ponds: Array) -> PondReeds:
 	rng.seed = hash(level.level_name + "schilf")
 	var stems: Array[Transform3D] = []
 	var heads: Array[Transform3D] = []
+	var stones: Array[Transform3D] = []
 	var half := Level.TILE * 0.5
 	for w: Dictionary in ponds:
 		var cell: Vector2i = w.cell
@@ -32,6 +34,16 @@ static func grow(level: Outdoor, ponds: Array) -> PondReeds:
 			if water.has(next) or not level.is_open(next) or level.cell_char(next) != ".":
 				continue
 			var along := Vector3(dir.y, 0, dir.x)
+			# Stones on about half the stretches of bank, in twos and threes.
+			if rng.randf() < 0.5:
+				var lump: Vector3 = w.pos + Vector3(dir.x, 0, dir.y) * (half + rng.randf_range(-0.4, 0.3)) \
+						+ along * rng.randf_range(-half * 0.8, half * 0.8)
+				for k in rng.randi_range(1, 3):
+					var size := rng.randf_range(0.12, 0.34)
+					var p := lump + Vector3(rng.randf_range(-0.45, 0.45), 0, rng.randf_range(-0.45, 0.45))
+					var turn := Basis.from_euler(Vector3(rng.randf_range(-0.3, 0.3), rng.randf() * TAU, rng.randf_range(-0.3, 0.3)))
+					var shape := turn.scaled(Vector3(size * rng.randf_range(1.0, 1.5), size * rng.randf_range(0.45, 0.7), size))
+					stones.append(Transform3D(shape, p + Vector3(0, size * 0.12, 0)))
 			var count := int(Level.TILE * CLUMPS_PER_METRE * rng.randf_range(0.6, 1.4))
 			for i in count:
 				# Hugging the water's edge, a little outside it, spread along the bank.
@@ -48,6 +60,7 @@ static func grow(level: Outdoor, ponds: Array) -> PondReeds:
 						heads.append(Transform3D(lean, p + lean * Vector3(0, tall * 0.85, 0)))
 	_spawn(level, stems, 0.025, 1.0, Color(0.5, 0.52, 0.25), true)
 	_spawn(level, heads, 0.06, 0.32, Color(0.36, 0.22, 0.12), false)
+	_lay_stones(level, stones)
 	# A cap of snow on every head, and a smaller one on the tip of every stem.
 	for t in heads:
 		reeds._full.append(Transform3D(t.basis, t.origin + t.basis * Vector3(0, 0.17, 0)))
@@ -113,4 +126,35 @@ static func _spawn(level: Node3D, list: Array[Transform3D], radius: float, lengt
 	node.name = "PondReeds"
 	node.multimesh = multi
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	level.add_child(node)
+
+
+## The stones at the water's edge: squashed, rounded lumps of grey stone, damp and dark below.
+static func _lay_stones(level: Node3D, list: Array[Transform3D]) -> void:
+	if list.is_empty():
+		return
+	var ball := SphereMesh.new()
+	ball.radius = 1.0
+	ball.height = 2.0
+	ball.radial_segments = 7
+	ball.rings = 4
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.46, 0.45, 0.41)
+	mat.roughness = 0.85
+	mat.vertex_color_use_as_albedo = true
+	ball.material = mat
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = true
+	multi.mesh = ball
+	multi.instance_count = list.size()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = list.size()
+	for i in list.size():
+		multi.set_instance_transform(i, list[i])
+		var shade := rng.randf_range(0.75, 1.1)
+		multi.set_instance_color(i, Color(shade, shade * rng.randf_range(0.96, 1.02), shade * rng.randf_range(0.9, 1.0)))
+	var node := MultiMeshInstance3D.new()
+	node.name = "PondStones"
+	node.multimesh = multi
 	level.add_child(node)

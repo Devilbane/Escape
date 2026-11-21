@@ -13,6 +13,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/cobbles.gdshaderinc"
+#include "res://shaders/shore.gdshaderinc"
 
 uniform sampler2D ground_mask : filter_linear, repeat_disable;
 // Scree in the mountains (see Mountains): one pixel per tile, red 1 where
@@ -34,6 +35,12 @@ uniform vec3 water : source_color = vec3(0.16, 0.30, 0.38);
 uniform float ice : hint_range(0.0, 1.0) = 0.0;
 uniform vec3 ice_holes[4];
 uniform vec3 ice_color : source_color = vec3(0.62, 0.76, 0.82);
+// The ponds' shore (shore_mask, see shore.gdshaderinc) gives the water its curves, the shallows
+// and the deep middle, and the muddy, sandy bank. The colours of those:
+uniform vec3 shallow_water : source_color = vec3(0.20, 0.30, 0.27);
+uniform vec3 deep_water : source_color = vec3(0.06, 0.16, 0.20);
+uniform vec3 mud : source_color = vec3(0.24, 0.20, 0.14);
+uniform vec3 sand : source_color = vec3(0.52, 0.46, 0.33);
 uniform vec3 paving : source_color = vec3(0.50, 0.47, 0.43);
 // The graveyard (x0, z0, x1, z1 in metres): its paving is old, sunk and
 // overgrown, and fallen leaves lie on its turf. Empty by default.
@@ -201,6 +208,11 @@ void fragment() {
 	// strip of bare grass shows round the ice where the snow leaves the pond tiles clear.
 	float reach = 0.16 * smoothstep(0.0, 0.5, ice);
 	float wet = smoothstep(0.5 - reach, 0.62 - reach, m.b + (n - 0.5) * 0.15);
+	// Metres from the nearest bank (plus over the water), meandering a little about the tiles' edge.
+	float shore = shore_at(uv, p);
+	if (shore_on) {
+		wet = smoothstep(-0.05, 0.05, shore + reach * 4.0);
+	}
 
 	float h = 0.0;
 	float hg;
@@ -245,6 +257,29 @@ void fragment() {
 	}
 	float rough = 0.95;
 	float wet_ice = 0.0;
+	// The bank: dark wet mud at the water's edge, pale sand and pebbles in places a step up, and
+	// lusher grass a little further back. Paths and paving keep their own look.
+	float bank = shore_on ? smoothstep(-1.4 - 1.2 * fbm2(p * 0.4 + 31.0), -0.25, shore) * (1.0 - wet) : 0.0;
+	bank *= (1.0 - path) * (1.0 - square) * (1.0 - wood * 0.6);
+	if (bank > 0.001) {
+		float muddy = smoothstep(-1.0, -0.2, shore);
+		float sandy = smoothstep(0.45, 0.65, fbm2(p * 0.35 + 21.0)) * (1.0 - muddy * 0.7);
+		vec3 ground = mix(mud * (0.8 + 0.4 * noise(p * 9.0)), sand * (0.85 + 0.25 * noise(p * 14.0)), sandy);
+		// Pebbles washed up along the edge.
+		vec4 pc = cells(p * 5.0, 1.0);
+		float pebble = (1.0 - smoothstep(0.18, 0.26, pc.x)) * step(0.55, pc.z) * band(5.0, px);
+		ground = mix(ground, vec3(0.45, 0.43, 0.4) * (0.7 + 0.5 * pc.w), pebble * (0.4 + 0.6 * sandy));
+		// Ragged tufts of grass still reach down into the mud.
+		float tuft = smoothstep(0.5, 0.7, fbm2(p * 1.8 + 9.0)) * (1.0 - muddy);
+		col = mix(col, mix(ground, col, tuft), bank);
+		h = mix(h, 0.003 * pebble + 0.001 * noise(p * 20.0), bank);
+		rough = mix(rough, mix(0.9, 0.55, muddy * (1.0 - sandy)), bank);
+	}
+	if (shore_on) {
+		// Grass grows lush and dark a little back from the water.
+		float lush = smoothstep(-4.0, -2.0, shore) * (1.0 - smoothstep(-1.6, -0.6, shore)) * (1.0 - path) * (1.0 - square);
+		col = mix(col, col * vec3(0.8, 0.95, 0.75), lush * 0.6);
+	}
 	if (square > 0.001) {
 		float hc;
 		vec3 c = cobbles(p, px, old, paving, hc);
@@ -257,10 +292,32 @@ void fragment() {
 		float ripple = noise(p * 2.0 + vec2(TIME * 0.15, TIME * 0.1)) + 0.5 * noise(p * 5.0 - vec2(TIME * 0.2, 0.0));
 		vec3 pond = water * (0.85 + 0.15 * sin(TIME * 0.8 + p.x * 0.7 + p.y * 0.4));
 		pond *= 0.9 + 0.2 * fbm2(p * 0.6);
+		float depth = clamp((m.b - 0.5) * 2.0, 0.0, 1.0);
+		if (shore_on) {
+			// Clear shallows over sand and pebbles at the edge, darkening to the deep middle.
+			float deep = smoothstep(0.0, 3.2, shore + (fbm2(p * 0.3 + 5.0) - 0.5) * 1.4);
+			vec4 sc = cells(p * 3.5, 1.0);
+			float stone = (1.0 - smoothstep(0.2, 0.35, sc.x)) * step(0.5, sc.z) * band(3.5, px);
+			vec3 bed = mix(sand * (0.7 + 0.2 * fbm2(p * 1.3)), vec3(0.34, 0.33, 0.29), stone * 0.5);
+			vec3 shallows = mix(bed, shallow_water, 0.35 + 0.65 * smoothstep(0.0, 1.2, shore));
+			pond = mix(shallows, deep_water, deep) * (0.92 + 0.08 * sin(TIME * 0.8 + p.x * 0.7 + p.y * 0.4));
+			pond *= 0.93 + 0.14 * fbm2(p * 0.6);
+			// A faint bright line where the water laps at the bank.
+			float lap = 1.0 - smoothstep(0.0, 0.12, abs(shore - 0.06 - 0.04 * sin(TIME * 1.3 + p.x * 1.7)));
+			pond += vec3(0.06) * lap;
+			// Lily pads in a few clusters on the calmer water a few steps out.
+			vec2 lq = p * 0.9 + vec2(noise(p * 0.5), noise(p * 0.5 + 3.0)) * 0.6;
+			vec4 lc = cells(lq, 0.9);
+			float cluster = smoothstep(0.55, 0.7, fbm2(p * 0.22 + 44.0));
+			float pad_zone = smoothstep(0.7, 1.5, shore) * (1.0 - smoothstep(2.6, 3.6, shore)) * cluster * step(0.35, lc.z);
+			float pad = (1.0 - smoothstep(0.2, 0.23, lc.x * (0.75 + 0.5 * lc.w))) * pad_zone;
+			vec3 leaf = vec3(0.17, 0.31, 0.12) * (0.8 + 0.4 * noise(p * 6.0));
+			pond = mix(pond, leaf, pad * 0.9);
+			depth = clamp(shore / 2.5, 0.0, 1.0);
+		}
 		float frozen = 0.0;
 		if (ice > 0.001) {
 			// Ice grows from the banks inward, ragged where it meets the open water.
-			float depth = clamp((m.b - 0.5) * 2.0, 0.0, 1.0);
 			float edge = depth * 0.6 + (fbm2(p * 0.9 + 11.0) - 0.5) * 0.3;
 			frozen = smoothstep(edge, edge + 0.1, ice * 1.15);
 			float opening = 0.0;

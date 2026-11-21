@@ -11,6 +11,7 @@ render_mode cull_back;
 // is no snow below the roof line.
 
 #include "res://shaders/snow.gdshaderinc"
+#include "res://shaders/shore.gdshaderinc"
 
 // Where a roof stands over the ground: R is 1 on those tiles.
 uniform sampler2D sky_mask : filter_linear, repeat_disable;
@@ -49,6 +50,11 @@ void fragment() {
 	// Melted round fires, the forge and smoking chimneys. Open water and ice stay bare (G of the
 	// mask marks the pond tiles, only at ground level).
 	float pond = texture(sky_mask, uv).g * (1.0 - step(0.3, world_pos.y));
+	if (shore_on) {
+		// The shore's own curves (see shore.gdshaderinc), and as far out as the ice reaches past
+		// them (meadow.gdshader), so no strip of bare bank shows between the snow and the ice.
+		pond = step(-0.5, shore_at(uv, xz)) * (1.0 - step(0.3, world_pos.y));
+	}
 	float dug = 0.0;
 	if (holes_on && world_pos.y < 0.3) {
 		vec2 hole_uv = (xz + vec2(0.5 * tile)) / (grid_size * tile);

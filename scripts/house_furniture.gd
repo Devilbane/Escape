@@ -3,7 +3,8 @@ extends RefCounted
 ## The furniture of a hero's self-built house (see HouseSketch): what they bought from the
 ## interior furnisher in the village (Raumausstatterin Ilse, see Menus._build_furnisher) and
 ## where it stands. The same pieces as in the old town houses, working the same way: a bed to
-## sleep in, the storage chest, the bookshelf, a fireplace, a trophy stand, the workshop's
+## sleep in, the storage chest, the bookshelf, a fireplace, a trophy stand, a weapon rack (see
+## WeaponRack), the workshop's
 ## workbench and the three crafting benches of the crafting square.
 ##
 ## A piece is bought into the hero's furniture store ("owned", not the bag) and then put down
@@ -34,6 +35,8 @@ const KINDS := {
 		"text": "Ein Kamin aus Feldsteinen mit Rauchfang. Das Feuer knistert und wärmt den Raum mit seinem Licht."},
 	"trophaeen": {"icon": "kind:shield", "name": "Trophäenständer", "price": 150, "size": Vector2i(1, 1), "station": "trophaeen",
 		"text": "Eine Regalwand aus Holz mit kleinen Fächern für die Trophäen mächtiger Gegner. Jede Trophäe darauf gibt +1 Leben, wie die Trophäenwand."},
+	WeaponRack.KIND: {"icon": "kind:sword", "name": "Waffenständer", "price": 175, "size": Vector2i(2, 1), "station": WeaponRack.KIND,
+		"text": "Bewahre deine Waffen darin auf oder nimm sie heraus. Die schönsten stehen gut sichtbar in den Halterungen, die seltensten zuerst."},
 	"werkbank": {"icon": "kind:hammer", "name": "Werkbank", "price": 125, "size": Vector2i(1, 1), "station": "hauswerkbank",
 		"text": "Eisenbarren werden zu Wurfmessern, abgenutzte Ausrüstung wird geflickt, und Handwerk während du weg bist geht schneller."},
 	"feinbank": {"icon": "kind:ring", "name": "Werkbank des Feinschmieds", "price": 250, "size": Vector2i(2, 1), "station": "werkbank", "bench": "+",
@@ -73,14 +76,14 @@ const KINDS := {
 const GROWTH := ["planted", "picked"]
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
-	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen"]],
+	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen", WeaponRack.KIND]],
 	["werkbaenke", "Werkbänke", "kind:hammer_anvil", ["werkbank", "feinbank", "schleifrad", "alchemie"]],
 	["wand", "Licht und Wandschmuck", "kind:torch", ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]],
 	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
 	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill", AppleTree.KIND]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist."
 
 ## The floor a piece stands on, by storey (see HouseSketch: cellar, ground floor, upper floor).
 const FLOORS := {-1: -HouseSketch.DEPTH, 0: 0.0, 1: HouseSketch.STOREY_HEIGHT}

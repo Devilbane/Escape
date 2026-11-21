@@ -100,7 +100,8 @@ func _run() -> void:
 		check(HomeStores.store_of(id) == HomeStores.METAL, "%s goes in the steel-banded chest" % id)
 	for id in ["baerlauch", "steinpilz", "barsch", "mondblume", "drachenblut", "drachenschuppe", "apfel", "wurst"]:
 		check(HomeStores.store_of(id) == HomeStores.PANTRY, "%s goes on the ingredient board" % id)
-	for id in ["schwert", "fackel", "steinblock", "wassereimer", "brief", "wurfmesser"]:
+	check(HomeStores.store_of("schwert") == HomeStores.WEAPONS, "a sword goes in the weapon rack")
+	for id in ["fackel", "steinblock", "wassereimer", "brief", "wurfmesser"]:
 		check(HomeStores.store_of(id) == "", "%s goes in neither" % id)
 	for id in Crafting.INGREDIENTS:
 		check(HomeStores.store_of(id) != "", "the ingredient %s has a store" % id)

@@ -20,7 +20,8 @@ extends RefCounted
 ##
 ## His donkey pulls it (see MerchantDonkey): while the wagon is parked she
 ## rests in front of the shafts, unharnessed, nibbling at a heap of hay, with
-## her collar hung on a shaft tip and a bucket of water beside her.
+## her collar hung on a shaft tip, a bucket of water beside her and a
+## lantern on her tethering stake.
 ##
 ## Local frame: the origin is the centre of the cart's cell on the ground,
 ## +x the back (east, where Zarek stands), -x the front with the porch and
@@ -39,6 +40,7 @@ const SOLIDS := [[Vector3(-0.85, 1.25, 0), Vector3(4.8, 2.5, 2.5)], [Vector3(-4.
 const DONKEY_AT := Vector3(-7.0, 0, 0.3)
 const DONKEY_YAW := -PI * 0.5 + 0.3
 const HAY_AT := Vector3(-8.45, 0, 0.8)
+const STAKE_AT := Vector3(-6.2, 0, 1.75)
 
 ## The body: front and back wall, floor and top rail, and its half width at
 ## the floor and at the top (the sides flare out like a Reading wagon's).
@@ -726,6 +728,10 @@ func _donkey_corner() -> void:
 		_ring("iron", 0.17 + y * 0.08, 0.012, bucket + Vector3(0, y, 0), Basis.IDENTITY, 14)
 	_rod("tin", 0.01, 0.17, bucket + Vector3(0, 0.3, 0), Basis.IDENTITY, 12)
 	_ring("rope", 0.19, 0.01, bucket + Vector3(0, 0.36, 0), Basis(Vector3.FORWARD, 1.2), 12)
+	# A tethering stake with a lantern on its hook, so she is seen at night.
+	_rod("wood_b", 1.5, 0.045, STAKE_AT + Vector3(0, 0.75, 0), Basis.IDENTITY, 6)
+	_rod_between("iron", STAKE_AT + Vector3(0, 1.42, 0), STAKE_AT + Vector3(0.22, 1.42, 0), 0.015, 4)
+	_lantern(STAKE_AT + Vector3(0.2, 1.42, 0), 0.25)
 	# The collar, propped upright against the near shaft's tip: a padded
 	# leather ring with two brass hames and a red cloth pad.
 	var tip := Vector3(FRONT - 2.5, 0.0, 0.66)
@@ -753,6 +759,12 @@ func _lights(root: Node3D) -> void:
 	porch.omni_range = 4.5
 	porch.position = Vector3(FRONT_EAVE + 0.35, FLOOR + 0.6, HALF_LOW)
 	root.add_child(porch)
+	var donkey := OmniLight3D.new()
+	donkey.light_color = Color(1.0, 0.75, 0.5)
+	donkey.light_energy = 1.4
+	donkey.omni_range = 5.0
+	donkey.position = STAKE_AT + Vector3(0.2, 1.0, 0)
+	root.add_child(donkey)
 	var smoke := ChimneySmoke.make()
 	smoke.position = Vector3(FRONT + 0.75, MerchantWagon.roof_at(-0.55) + 1.05, -0.55)
 	root.add_child(smoke)

@@ -149,6 +149,8 @@ const UNDERGROWTH_DEPTH := 2.0
 ## Die Freiheit, the wood west of the road from the crypt down past the pond, is a spruce.
 const SPRUCE_MAP := "Die Freiheit"
 const SPRUCE_PATCH := Rect2i(0, 14, 14, 26)
+## How much of a spruce's reach hides the ground (see CROWN).
+const SPRUCE_CROWN := 0.95
 ## Ferns (see Fern.fern_mesh) in the shade along the forest's edge: how many a forest tile beside
 ## open ground tries for, how far apart they stay and how big they grow (times the model).
 const FERN_TRIES := 7
@@ -1179,6 +1181,21 @@ func _draw_plants(key: Array) -> void:
 		mmi.multimesh = mm
 		if name.begins_with("tree"):
 			mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
+		elif name.begins_with("spruce:"):
+			# Its thousands of fronds are drawn once, without shadow; a plain stand-in of the same
+			# outline casts the shadow (see Fern.needle_shadow_mesh), drawn in every shadow map.
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var shade := MultiMesh.new()
+			shade.transform_format = MultiMesh.TRANSFORM_3D
+			shade.mesh = Fern.needle_shadow_mesh(int(name.get_slice(":", 1)))
+			shade.instance_count = mm.instance_count
+			for i in mm.instance_count:
+				shade.set_instance_transform(i, mm.get_instance_transform(i))
+			var caster := MultiMeshInstance3D.new()
+			caster.multimesh = shade
+			caster.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			add_child(caster)
+			_plant_batches[key].append(caster)
 		elif name.begins_with("fern:"):
 			# Small (their materials come with the mesh): from further off they are lost in the
 			# floor anyway, and their shadows in the trees'.
@@ -1712,7 +1729,8 @@ func _build_tree(pos: Vector3, single := false) -> float:
 	if in_spruce_patch(at):
 		height = Fern.needle_height(_spruce_of(at)) * _spruce_grow(at)
 		leafy = false
-	_tree_crown = reach * (CROWN if height > 0.0 else DEAD_CROWN)
+	# A spruce's low branches bend down to the ground and hide it nearly all the way out.
+	_tree_crown = reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN if height > 0.0 else DEAD_CROWN)
 	if height > 0.0 and not near_crypt:
 		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
 	return reach
@@ -1855,7 +1873,7 @@ func _fill_forest_gaps() -> void:
 				if reach >= 0.0:
 					if not forest_trees.has(c):
 						forest_trees[c] = []
-					forest_trees[c].append({"at": at, "crown": reach * CROWN})
+					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN)})
 
 
 ## What looks walkable is walkable, and what blocks looks blocked. The forest does not stop the

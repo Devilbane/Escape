@@ -9,7 +9,7 @@ extends RefCounted
 ## The needle tree is stacked from the same fern (see needle_tree): each tier is TIER_FERNS ferns
 ## on top of each other, each turned a little further so their fronds fill the circle evenly; the
 ## next tier sits higher and is a bit smaller, and in the top tier the fronds bend upwards and
-## close into the tree's tip. A wooden trunk runs up the middle and shows below the lowest tier.
+## close into the tree's tip. A wooden trunk runs up the middle, hidden above by the needles, and shows below the lowest tier.
 ##
 ## A frond is a card: a strip of a few flat quads following the frond's arch, wearing a picture of
 ## the stem and its leaflets painted once in code (see frond_texture), cut out where the picture
@@ -32,11 +32,13 @@ const SHADE_LEAF := 0.74
 ## The fern's green (its leaflets' tips; the picture darkens the rest), and the needle tree's: a
 ## dark, blue-tinged green that stays all year. Then the needle tree's bark.
 const FERN_GREEN := Color(0.46, 0.72, 0.24)
-const NEEDLE_GREEN := Color(0.16, 0.4, 0.29)
+const NEEDLE_GREEN := Color(0.2, 0.5, 0.37)
 const BARK := Color(0.32, 0.22, 0.15)
 ## The needle tree: ferns in a tier, and how many tiers.
 const TIER_FERNS := 4
 const TIERS := 19
+## How tall each step of a needle tree's shadow stand-in is (m, see needle_shadow_mesh).
+const SHADOW_STEP := 0.45
 ## The needle tree: its height and how far its lowest branches reach (m).
 const HEIGHT := 7.0
 const REACH := 1.25
@@ -85,6 +87,43 @@ static func needle_tree_mesh(variant := 0) -> ArrayMesh:
 	return _cache[key]
 
 
+## A stand-in for a needle tree `variant` that only casts its shadow: a lathe round its trunk that
+## follows how far its branches reach at each height, a couple of hundred triangles instead of
+## thousands (every shadow map draws every tree again).
+static func needle_shadow_mesh(variant := 0) -> ArrayMesh:
+	var key := "needle shadow:%d" % variant
+	if not _cache.has(key):
+		var tree := needle_tree_mesh(variant)
+		var verts: PackedVector3Array = tree.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var top := tree.get_aabb().end.y
+		var bins := maxi(4, ceili(top / SHADOW_STEP))
+		var reach := PackedFloat32Array()
+		reach.resize(bins + 1)
+		for v in verts:
+			var i := clampi(roundi(v.y / top * bins), 0, bins)
+			reach[i] = maxf(reach[i], Vector2(v.x, v.z).length())
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var sides := 8
+		for i in bins:
+			# The leafy part fills in; most of the reach is solid needles, the very tips are not.
+			var r0 := reach[i] * 0.8
+			var r1 := reach[i + 1] * 0.8
+			var y0 := top * i / bins
+			var y1 := top * (i + 1) / bins
+			for k in sides:
+				var a0 := TAU * k / sides
+				var a1 := TAU * (k + 1) / sides
+				var p := [Vector3(cos(a0) * r0, y0, sin(a0) * r0), Vector3(cos(a1) * r0, y0, sin(a1) * r0),
+						Vector3(cos(a1) * r1, y1, sin(a1) * r1), Vector3(cos(a0) * r1, y1, sin(a0) * r1)]
+				for j in [0, 2, 1, 0, 3, 2]:
+					st.set_normal(Vector3(p[j].x, 0, p[j].z).normalized())
+					st.add_vertex(p[j])
+		st.set_material(bark_material())
+		_cache[key] = st.commit()
+	return _cache[key]
+
+
 ## How tall a needle tree `variant` stands (metres).
 static func needle_height(variant: int) -> float:
 	return needle_tree_mesh(variant).get_aabb().end.y
@@ -116,6 +155,9 @@ static func material(needles: bool) -> StandardMaterial3D:
 		m.alpha_scissor_threshold = 0.4
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		m.roughness = 0.9
+		# A needle tree is too dense to be lit leaf by leaf: its own shadow would turn it black
+		# inside. It takes no shadows; its lower tiers are darker in their colour instead.
+		m.disable_receive_shadows = needles
 		_mats[needles] = m
 	return _mats[needles]
 
@@ -195,7 +237,7 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 	var apex := HEIGHT * 0.9 * tall
 	var last := apex - REACH_TOP * lerpf(1.0, tall, 0.5)
 	var ratio := pow((apex - last) / (apex - foot), 1.0 / (TIERS - 1))
-	_cone(trunk, Vector3.ZERO, Vector3(0, last + 0.75, 0), 0.17 * lerpf(1.0, tall * full, 0.6), 0.015, BARK)
+	_cone(trunk, Vector3.ZERO, Vector3(0, last * 0.7, 0), 0.17 * lerpf(1.0, tall * full, 0.6), 0.015, BARK)
 	var colour := NEEDLE_GREEN
 	for tier in TIERS:
 		var t := float(tier) / (TIERS - 1)
@@ -215,11 +257,11 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 			# Each fern of the tier turned a little further, so the fronds fill the circle evenly.
 			var spin := turn + TAU / FRONDS * float(k) / TIER_FERNS
 			var xf := Transform3D(Basis(Vector3.UP, spin), Vector3(0, y + k * 0.06 * size, 0))
-			_rosette(st, rng, xf, FRONDS, size, rise, droop, colour, 0.1 * size, true)
+			_rosette(st, rng, xf, FRONDS, size, rise, droop, colour * lerpf(0.72, 1.05, t), 0.1 * size, true)
 	# The leader: a thin shoot above the last tier with a few short fronds spreading round it.
 	for k in 4:
 		var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(0, last + 0.12 + k * 0.14, 0))
-		_rosette(st, rng, xf, 6, 0.42 - k * 0.08, 0.7, 0.2 - k * 0.15, colour, 0.0, true)
+		_rosette(st, rng, xf, 6, 0.42 - k * 0.08, 0.7, 0.2 - k * 0.15, colour * 1.05, 0.0, true)
 
 
 ## Adds a rosette of `count` fronds `size` long round `xf`'s origin to `st`. `rise` lifts the

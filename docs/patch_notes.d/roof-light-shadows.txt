@@ -1,0 +1,1 @@
+- A lamp or torch on a roof no longer throws a second shadow of the house onto the ground: its light stays a pool on the roof.

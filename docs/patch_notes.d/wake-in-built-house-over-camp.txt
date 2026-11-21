@@ -1,0 +1,1 @@
+- Fixed: logging out in your built house now brings you back there even if a camp still stands elsewhere, and anywhere on your plot counts.

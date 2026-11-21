@@ -42,6 +42,10 @@ const NO_SHADOW := &"no_wall_shadow"
 const WALL := &"blocks_light"
 ## The render layer of walls: the only thing point lights take shadows from.
 const WALL_LAYER := 1 << 17
+## The render layer of a lifted roof (see lift): it is not drawn, and only point
+## lights take shadows from it, so the lamps of a house stay inside it while the
+## hero looks in from above, and the moon still shines in.
+const LID_LAYER := 1 << 16
 ## Shadow biases tuned for the thin walls of a built house (0.2 m).
 const BIAS := 0.04
 const NORMAL_BIAS := 0.6
@@ -75,7 +79,7 @@ func _on_node_added(node: Node) -> void:
 		light.shadow_enabled = false
 		light.shadow_bias = BIAS
 		light.shadow_normal_bias = NORMAL_BIAS
-		light.shadow_caster_mask = WALL_LAYER
+		light.shadow_caster_mask = WALL_LAYER | LID_LAYER
 
 
 func _process(delta: float) -> void:
@@ -167,6 +171,34 @@ func _fade(step: float) -> void:
 ## Whether a light is picked to cast shadows (its shadows may still be fading in).
 func casts(light: Light3D) -> bool:
 	return _picked.has(light.get_instance_id())
+
+
+## Lifts a roof or upper storey of a built house off while the hero is under it
+## (`lifted`), or puts it back: lifted, it is not drawn and the moon shines in,
+## but it still stops the light of the house's lamps, torches and fireplace, so
+## they do not shine out over the walls onto the trees around.
+static func lift(node: Node, lifted: bool) -> void:
+	if node.get_meta(&"lifted", false) == lifted:
+		return
+	node.set_meta(&"lifted", lifted)
+	var parts: Array = node.find_children("*", "GeometryInstance3D", true, false)
+	if node is GeometryInstance3D:
+		parts.append(node)
+	for part: GeometryInstance3D in parts:
+		if lifted:
+			part.set_meta(&"drawn_as", [part.layers, part.cast_shadow])
+			part.layers = LID_LAYER
+			part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		elif part.has_meta(&"drawn_as"):
+			var was: Array = part.get_meta(&"drawn_as")
+			part.layers = was[0]
+			part.cast_shadow = was[1]
+			part.remove_meta(&"drawn_as")
+
+
+## Whether a roof or storey is lifted off (see lift).
+static func lifted(node: Node) -> bool:
+	return node.get_meta(&"lifted", false)
 
 
 ## Whether a drawn thing is part of a wall: it or one of its parents carries WALL.

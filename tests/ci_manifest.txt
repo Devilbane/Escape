@@ -294,3 +294,4 @@ autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushe
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone
 wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
 house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
+house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere

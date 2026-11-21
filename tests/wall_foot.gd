@@ -76,7 +76,7 @@ func _box_house() -> void:
 ## A fringe with every kind, dressed for each season.
 func _seasons() -> void:
 	var grown := {}
-	for kind: String in WallFoot.KINDS:
+	for kind: String in ["grass", "flower", "stone"]:
 		grown[kind] = {"xforms": [], "colours": []}
 		for i in 60:
 			grown[kind].xforms.append(Transform3D(Basis(), Vector3(i * 0.3, 0, 0)))

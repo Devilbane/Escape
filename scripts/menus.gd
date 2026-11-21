@@ -3766,7 +3766,7 @@ func _healing_entries() -> Array:
 	var p: Player = game.player
 	var god: Dictionary = Blessing.GODS[Blessing.HEALER]
 	var price := Injury.prayer_price(p)
-	var lines := [[Lang.t("Mirenna nimmt leichte und schwere Verletzungen von dir. Eine bleibende heilt nur ihr ferner, vergessener Schrein."), TradeWindow.BLUE]]
+	var lines := [[Lang.t("Mirenna nimmt Verletzungen von dir, auch die, die nie von selbst heilen."), TradeWindow.BLUE]]
 	var now := {"title": Lang.t("Derzeit"), "name": Lang.t("Keine Verletzung"), "subtitle": Lang.t("Verletzung"), "icon": "kind:herb", "lines": []}
 	var can := false
 	var button := Lang.t("Beten")
@@ -3774,8 +3774,8 @@ func _healing_entries() -> Array:
 		now = {"title": Lang.t("Derzeit"), "name": Injury.title(p.injury, p.injury_severity), "subtitle": Lang.t("Verletzung"), "icon": "kind:herb",
 				"lines": [[Injury.effect_text(p.injury, p.injury_severity), TradeWindow.RED], [Injury.how_to_heal(p.injury, p.injury_severity), TradeWindow.GREY]]}
 		can = Injury.heals_at_village(p) and Payment.can_pay(game, price)
-		if not Injury.heals_at_village(p):
-			lines.append([Lang.t("Diese Wunde heilt nur am fernen, vergessenen Schrein."), TradeWindow.ORANGE])
+		if p.injury_severity == Injury.GRAVE:
+			lines.append([Lang.t("Eine bleibende Verletzung verlangt eine hohe Gabe. Ihr ferner, vergessener Schrein heilt sie umsonst."), TradeWindow.ORANGE])
 	else:
 		lines.append([Lang.t("Du bist unverletzt."), TradeWindow.GREY])
 	if Blessing.mercy(p) > 0.0:
@@ -3786,13 +3786,11 @@ func _healing_entries() -> Array:
 			"detail": {"subtitle": Lang.t(god.title), "lines": lines}, "compare": now}]
 
 
-## The prayer's price label: what it costs, or why there is none. A prayer that
-## cannot help (no injury, or a lasting one) never reads "free".
+## The prayer's price label: what it costs, or a dash when there is nothing
+## to heal (an unusable prayer never reads "free").
 static func prayer_price_text(p: Player, price: int) -> String:
-	if p.injury == "":
-		return "—"
 	if not Injury.heals_at_village(p):
-		return Lang.t("Nur am Schrein")
+		return "—"
 	return Lang.t("Umsonst") if price == 0 else Lang.t("%d Kupfer") % price
 
 

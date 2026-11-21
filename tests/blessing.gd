@@ -164,7 +164,8 @@ func _test_injury() -> void:
 	for i in 30:
 		Injury.rest(p)
 	check(p.injury == Injury.HEAD, "rest never heals a grave injury")
-	check(not Injury.heals_at_village(p), "the village altar cannot heal a grave injury")
+	check(Injury.heals_at_village(p) and Injury.prayer_price(p) == roundi(Injury.TUNING.grave.price * Injury.KINDS.head.long), "the village altar heals a grave injury for a high offering")
+	check(Injury.prayer_price(p) > roundi(Injury.TUNING.serious.price * Injury.KINDS.head.long), "a grave injury costs more than a serious one")
 	var saved := Injury.for_save(p)
 	Injury.load_from(p, {})
 	check(p.injury == "", "an old save has no injury")
@@ -193,9 +194,15 @@ func _test_injury() -> void:
 	check(p.injury == "", "a prayer heals a minor broken arm")
 	Injury.give(p, Injury.ARM, Injury.GRAVE)
 	row = game.menus._healing_entries()[0]
-	check(not row.enabled and row.price == Lang.t("Nur am Schrein"), "a lasting broken arm: the row says it heals only at the shrine, not that it is free")
-	game.menus._pray_for_healing(0)
-	check(p.injury == Injury.ARM, "the village altar leaves a grave injury alone")
+	var grave_price := Injury.prayer_price(p)
+	check(grave_price == roundi(Injury.TUNING.grave.price * Injury.KINDS.arm.long * (1.0 - Injury.GRAVE_MERCY)), "Mirenna's blessing takes at most half off a grave injury")
+	check(row.enabled and row.price == Lang.t("%d Kupfer") % grave_price, "a lasting broken arm: the prayer row is usable and shows its high price")
+	game.coins = 0
+	game.menus._pray_for_healing(grave_price)
+	check(p.injury == Injury.ARM, "without the copper the grave injury stays")
+	game.coins = 1000
+	game.menus._pray_for_healing(grave_price)
+	check(p.injury == "", "a prayer with the high offering heals a lasting broken arm")
 	game.menus.close()
 	Injury.heal(p)
 

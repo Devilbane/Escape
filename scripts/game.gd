@@ -3150,12 +3150,13 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
-## Whether the view is inside a self-built house: the hero stands in one, or the furnisher looks
-## into one (see HouseSketcher.view_storey). There is no weather in there.
+## Whether the view is inside a self-built house: the hero stands in one or down in its cellar
+## (see CellarView), or the furnisher looks into one (see HouseSketcher.view_storey). There is
+## no weather in there.
 func _under_roof() -> bool:
 	if not level is Outdoor or player == null:
 		return false
-	if house_sketcher != null and house_sketcher.view_storey != HouseSketcher.NO_VIEW:
+	if house_sketcher != null and (house_sketcher.view_storey != HouseSketcher.NO_VIEW or house_sketcher.cellar_view.active):
 		return true
 	return (level as Outdoor).is_sheltered(player.global_position)
 
@@ -3202,6 +3203,9 @@ func _show_weather() -> void:
 	elif winter_fog:
 		even = float(seen.mist) * WINTER_EVEN
 	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
+	if _clouds.visible and camera != null:
+		var view := get_viewport().get_visible_rect().size
+		_clouds.set_hero(camera.unproject_position(player.global_position + Vector3(0, 0.9, 0)) / view)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3

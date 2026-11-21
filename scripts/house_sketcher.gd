@@ -184,6 +184,8 @@ var _guns := Node3D.new()
 var doors := {}
 ## The leaf _solid_piece just made, for _redraw to hang.
 var _new_door: BuiltDoor
+## Down in a cellar the surface hides and the cellar sits in earth (see CellarView).
+var cellar_view := CellarView.new()
 
 
 func _ready() -> void:
@@ -195,6 +197,8 @@ func _ready() -> void:
 	add_child(_body)
 	add_child(_ghost)
 	add_child(_guns)
+	cellar_view.game = game
+	add_child(cellar_view)
 	_grid.visible = false
 	add_child(_grid)
 	_build_bar()
@@ -1285,6 +1289,7 @@ func _redraw() -> void:
 			own_shelter = shelter
 	(game.level as Outdoor).shelters = shelters
 	game.level.set_floor_holes(holes, ceilinged)
+	cellar_view.holes = holes
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
 	if (game.level as Outdoor).surface_life != null:
 		(game.level as Outdoor).surface_life.set_built(built_ground)
@@ -1622,7 +1627,7 @@ func _cover(house: HouseSketch, x: int, y: int, level: int) -> void:
 ## storeys over their head fade away while they stand under a roof, and come
 ## back when they step out or climb onto the roof.
 func _update_fade() -> void:
-	if game == null or game.player == null or (_covered.is_empty() and _fade_state == "" and view_storey == NO_VIEW):
+	if game == null or game.player == null or (_covered.is_empty() and _fade_state == "" and view_storey == NO_VIEW and not cellar_view.active):
 		return
 	var pos: Vector3 = game.player.global_position
 	var level := -1 if pos.y < -0.5 else clampi(floori((pos.y + 0.2) / HouseSketch.STOREY_HEIGHT), 0, HouseSketch.MAX_STOREY + 1)
@@ -1634,6 +1639,10 @@ func _update_fade() -> void:
 				inside = true
 	if view_storey != NO_VIEW:
 		level = view_storey
+		inside = true
+	elif cellar_view.active:
+		# Down in a cellar nothing of the house above shows (see CellarView).
+		level = -1
 		inside = true
 	fade_storey = level if inside else 99
 	var state := "%d:%s" % [level, inside]

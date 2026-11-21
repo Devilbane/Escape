@@ -141,6 +141,10 @@ const DEAD_CROWN := 0.35
 const FOREST_MARGIN := 1.5
 ## Undergrowth bushes on the blocked forest floor stand at least this far apart (metres).
 const UNDERGROWTH_SPACING := 1.8
+## The share of undergrowth bushes that keep their leaves in autumn: the rest have shed them
+## (see undergrowth_shed), so the forest edge is not lined with heaps of red and gold leaves, and
+## the fallen leaves lie spread over the ground instead (see SurfaceLife.set_autumn).
+const UNDERGROWTH_AUTUMN_KEEP := 0.3
 ## How deep into the forest its gaps are filled with smaller pines (tiles, see _fill_forest_gaps).
 const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
@@ -417,6 +421,10 @@ var ivy: Node3D
 ## _build_wall_collision): low bushes of the ivy's leaves, turning with the seasons as the ivy does.
 var undergrowth: Node3D
 var _undergrowth := {"xforms": [], "colours": []}
+## The undergrowth bushes that shed their leaves in autumn (hidden then, see
+## UNDERGROWTH_AUTUMN_KEEP); the rest of the year they grow as the others do.
+var undergrowth_shed: Node3D
+var _undergrowth_shed := {"xforms": [], "colours": []}
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -675,6 +683,11 @@ func build() -> void:
 		undergrowth.name = "Undergrowth"
 		add_child(undergrowth)
 		IvySeasons.apply(undergrowth, day)
+	if not _undergrowth_shed.xforms.is_empty():
+		undergrowth_shed = AgedStone.ivy_node(_undergrowth_shed)
+		undergrowth_shed.name = "UndergrowthShed"
+		add_child(undergrowth_shed)
+		IvySeasons.apply(undergrowth_shed, day)
 	_build_rock_collision()
 	_setup_astar()
 	meals.garland.block(self)
@@ -687,6 +700,7 @@ func build() -> void:
 	_build_woods_life()
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	surface_life = SurfaceLife.new(self)
+	surface_life.set_autumn(Weather.is_autumn(season_day))
 	add_child(surface_life)
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
@@ -1997,7 +2011,10 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
-			var radius := AgedStone.grow_bush(at, rng, _undergrowth)
+			# Which bushes shed their leaves in autumn: dice of their own (from the spot), so the
+			# bushes' looks stay as they were.
+			var keeps := float(posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), 1000)) / 1000.0 < UNDERGROWTH_AUTUMN_KEEP
+			var radius := AgedStone.grow_bush(at, rng, _undergrowth if keeps else _undergrowth_shed)
 			undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
 
 
@@ -4030,6 +4047,13 @@ func set_season(day_of_season: int) -> void:
 	season_day = day_of_season
 	IvySeasons.apply(ivy, day_of_season)
 	IvySeasons.apply(undergrowth, day_of_season)
+	IvySeasons.apply(undergrowth_shed, day_of_season)
+	# In autumn most undergrowth has shed its leaves, and they lie spread over the ground.
+	var autumn := Weather.is_autumn(day_of_season)
+	if undergrowth_shed != null:
+		undergrowth_shed.visible = not autumn
+	if surface_life != null:
+		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
 	var at := IvySeasons.stage(day_of_season)

@@ -133,11 +133,37 @@ func _run() -> void:
 		game._snap_camera()
 		await _wait(60)
 		await _shot("cellar_after_corner")
+	# Things come and go up on the surface while the hero is down there (an effect spent, a
+	# footprint gone): the view forgets what was freed, and climbing out never hangs. (Its books
+	# once held the freed nodes themselves, and walking them on the way out went round for ever.)
+	var spot := plan.node_world(0, 0) + Vector3(-6, 0, -6)
+	for round in 40:
+		var made := []
+		for i in 150:
+			var thing := MeshInstance3D.new()
+			game.level.add_child(thing)
+			thing.global_position = spot + Vector3(i % 10, 0, i / 10)
+			made.append(thing)
+		view._hide_surface()
+		for i in range(0, made.size(), 2):
+			made[i].free()
+	view._hide_surface()
+	var freed := 0
+	for id in view._hidden:
+		if not id is int or instance_from_id(id) == null:
+			freed += 1
+	check(freed == 0, "the view keeps nothing that was freed (%d)" % freed)
+	for thing in game.level.get_children():
+		if thing is MeshInstance3D and thing.mesh == null:
+			thing.queue_free()
+	await _wait(2)
 	# Back up on the ground everything shows again.
+	var left_at := Time.get_ticks_msec()
 	game.player.global_position = plan.node_world(0, 0) + Vector3(-3, 0, -3)
 	game._snap_camera()
 	await _wait(20)
 	check(not view.active, "out of the cellar the view is off")
+	check(Time.get_ticks_msec() - left_at < 10000, "climbing out takes no time at all (%d ms)" % (Time.get_ticks_msec() - left_at))
 	# (The pictures turn the clock to noon, and lamps and candles go out by themselves then.)
 	if shots == "":
 		check(_shown(surface) == surface.size(), "the surface shows again (%d of %d)" % [_shown(surface), surface.size()])

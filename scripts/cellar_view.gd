@@ -33,10 +33,13 @@ var active := false
 var pit: Array = []
 ## The cellar's outline round all its cells (x, z).
 var _outline := Rect2()
-## The things up on the surface this view has hidden, to show again.
+## The things up on the surface this view has hidden, to show again, by instance id.
+## Never keyed by the nodes themselves: things are freed while hidden (a spent effect, a
+## footprint), and walking a Dictionary with freed objects among its keys can go round
+## for ever in Godot (the game froze climbing out of a cellar). An id outlives its node.
 var _hidden := {}
 ## Hidden things that show or hide themselves (monsters out of the fog, a candle at dusk): they
-## are hidden again every frame, not only every TICK.
+## are hidden again every frame, not only every TICK. By instance id, as _hidden.
 var _restless := {}
 var _earth: Node3D = null
 var _tick := 0.0
@@ -68,8 +71,9 @@ func _process(delta: float) -> void:
 		_tick = TICK
 		_hide_surface()
 		return
-	for node in _restless:
-		if is_instance_valid(node) and node.visible and _hidden.has(node):
+	for id: int in _restless:
+		var node := instance_from_id(id) as Node3D
+		if node != null and node.visible and _hidden.has(id):
 			node.visible = false
 
 
@@ -145,8 +149,9 @@ func _leave() -> void:
 	pit = []
 	if is_instance_valid(game.level) and game.level is Outdoor:
 		(game.level as Outdoor).hero_cellar = []
-	for node in _hidden:
-		if is_instance_valid(node):
+	for id: int in _hidden:
+		var node := instance_from_id(id) as Node3D
+		if node != null:
 			node.visible = true
 	_hidden.clear()
 	_restless.clear()
@@ -175,21 +180,23 @@ func _hide_surface() -> void:
 		if below and node is VisualInstance3D:
 			var box: AABB = node.global_transform * (node as VisualInstance3D).get_aabb()
 			below = _outline.grow(0.5).encloses(Rect2(box.position.x, box.position.z, box.size.x, box.size.z))
+		var id := node.get_instance_id()
 		if below:
-			if _hidden.has(node):
-				_hidden.erase(node)
-				_restless.erase(node)
+			if _hidden.has(id):
+				_hidden.erase(id)
+				_restless.erase(id)
 				node.visible = true
 		elif node.visible:
 			node.visible = false
 			# A scripted thing may show itself again; anything else that did is watched from now on.
-			if _hidden.has(node) or node.get_script() != null:
-				_restless[node] = true
-			_hidden[node] = true
-	for node in _restless.keys():
-		if not is_instance_valid(node):
-			_restless.erase(node)
-			_hidden.erase(node)
+			if _hidden.has(id) or node.get_script() != null:
+				_restless[id] = true
+			_hidden[id] = true
+	# Forget what was freed meanwhile, so the books stay as small as what is still there.
+	for id: int in _hidden.keys():
+		if instance_from_id(id) == null:
+			_hidden.erase(id)
+			_restless.erase(id)
 
 
 ## The earth round the cellar: a wide floor of earth at ground height with the cellar's

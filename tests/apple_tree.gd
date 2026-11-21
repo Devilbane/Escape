@@ -42,7 +42,7 @@ func _first(season: String) -> int:
 	return -1
 
 
-## How many of a part (see AppleTree.build: "apples", "leaves", "blossom", "limbs") the tree of
+## How many of a part (see AppleTree.build: "apples", "leaves" (clumps), "single_leaves", "blossom", "limbs") the tree of
 ## `piece` has on `day`.
 func _parts(piece: Dictionary, day: int, part: String) -> int:
 	var model := Node3D.new()
@@ -93,6 +93,7 @@ func _run() -> void:
 	check(_parts(old, winter, "leaves") == 0 and _parts(old, summer, "leaves") > 0, "leaves in summer, bare in winter")
 	check(_parts(old, winter, "limbs") > _parts({"planted": winter}, winter, "limbs"), "a grown tree has branches")
 	check(_parts(old, summer, "limbs") >= 60 and _parts(old, summer, "leaves") >= 40, "a full-grown tree has plenty of branches, all in leaf (%d limbs, %d clumps)" % [_parts(old, summer, "limbs"), _parts(old, summer, "leaves")])
+	check(_parts(old, summer, "single_leaves") >= 30 * _parts(old, summer, "leaves"), "the clumps are made of single leaves, not balls (%d leaves)" % _parts(old, summer, "single_leaves"))
 	var model := Node3D.new()
 	AppleTree.build(model, old, summer)
 	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())

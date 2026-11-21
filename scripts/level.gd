@@ -1840,6 +1840,14 @@ const FOUNTAIN_BOWL_WATER := 2.3
 ## looked after and only a little weathered.
 func _build_fountain(c: Vector2i) -> void:
 	var pos := cell_to_world(c)
+	if outdoor:
+		# The village's fountain is larger and round, with a goddess on top (see VillageFountain).
+		VillageFountain.build(self, pos)
+		_light_spots.append(pos)
+		# Bigger than its tile: running into its rim anywhere drinks.
+		stations.append({"kind": "brunnen", "cell": c, "pos": pos, "used": false, "touch": VillageFountain.RIM_RADIUS + 0.7})
+		fishing_waters.append({"water": "brunnen", "pos": pos, "reach": VillageFountain.WATER_RADIUS, "round": true, "surface": VillageFountain.WATER})
+		return
 	var decay := 0.25 if outdoor or is_home else 1.0
 	var old := decay > 0.5
 	var stone := _decayed_stone(Color(0.56, 0.54, 0.5) if not old else Color(0.5, 0.48, 0.43), decay)

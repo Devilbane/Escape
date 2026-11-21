@@ -240,15 +240,19 @@ static func plant_round_fountains(level: Node3D) -> Array:
 ## More apple trees in the village, in the gardens: on grass in the village (Outdoor.near_village)
 ## within GARDEN_REACH tiles of a building, with nothing but grass, buildings or the village wall
 ## round the tile (no path, square, door or prop beside it, so no walker's way or doorway is
-## blocked), no door or bush close by, and at least TREE_SPACING tiles from the next tree.
+## blocked), no door or bush close by, not on or beside Zarek's camp (Outdoor.merchant_camp),
+## and at least TREE_SPACING tiles from the next tree.
 ## Returned as [{node, cell, look, garden}] like plant_round_fountains (see dress).
 static func plant_in_village(level: Node3D) -> Array:
 	var out := []
 	var taken: Array[Vector2i] = []
+	var camp: Array[Vector2i] = []
+	if level.has_method("merchant_camp"):
+		camp = level.merchant_camp()
 	for y in level.height:
 		for x in level.width:
 			var c := Vector2i(x, y)
-			if not _garden_cell(level, c) or taken.any(func(t: Vector2i): return maxi(absi(t.x - c.x), absi(t.y - c.y)) < TREE_SPACING):
+			if not _garden_cell(level, c) or camp.any(func(t: Vector2i): return maxi(absi(t.x - c.x), absi(t.y - c.y)) <= 1) or taken.any(func(t: Vector2i): return maxi(absi(t.x - c.x), absi(t.y - c.y)) < TREE_SPACING):
 				continue
 			var pos: Vector3 = level.cell_to_world(c)
 			if level._entrances.any(func(e): return Vector2((e.door as Vector3).x - pos.x, (e.door as Vector3).z - pos.z).length() < DOOR_CLEAR) \

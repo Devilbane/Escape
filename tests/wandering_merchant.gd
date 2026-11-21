@@ -149,6 +149,7 @@ func _in_the_village() -> void:
 	check(level._cart != null and level.astar.is_point_solid(_cart_cell()), "his cart stands behind him")
 	var square: Vector2i = level.world_to_cell(level.spots.square[0])
 	check(level.grid_path(square, level._wanderer_cell).size() > 1, "the way from the square to him is open")
+	_camp(level)
 	check(not level.wanderer.goes_to_bed(), "he does not go to bed")
 	# Past midnight he is still there: the day only turns at dawn.
 	level.set_hour(2.0)
@@ -157,6 +158,7 @@ func _in_the_village() -> void:
 	level.set_hour(5.5)
 	check(level.wanderer == null and _station().is_empty(), "at dawn he is gone")
 	check(level._cart == null and not level.astar.is_point_solid(_cart_cell()), "at dawn his cart is gone")
+	check(not level.astar.is_point_solid(_cart_cell() + Vector2i(-2, 0)), "and his donkey with it")
 	# The next night is not his.
 	level.day = 2
 	level.set_hour(22.0)
@@ -166,6 +168,37 @@ func _in_the_village() -> void:
 	game.day_hour = 23.0
 	game.load_level(game._outdoor_index(), false)
 	check(game.level.wanderer != null, "a game loaded on his night finds him there")
+
+
+## His donkey rests in front of the wagon, and the whole camp stands on open
+## grass: none of it on a path, the square or a paved way to a door, and no
+## garden tree on it or beside it.
+func _camp(level: Outdoor) -> void:
+	var donkey := level._cart.find_child("MerchantDonkey", false, false) as MerchantDonkey if level._cart else null
+	check(donkey != null, "his donkey is with the wagon")
+	if donkey:
+		check(donkey.find_child("Model", false, false) != null, "the donkey has her model")
+		check(["Eating", "Idle", "Idle_Headlow"].has(donkey.mood()), "the donkey rests, eats or looks about (%s)" % donkey.mood())
+		check(donkey.position.x < MerchantWagon.FRONT - 2.55, "the donkey stands in front of the shaft tips")
+	check(level.astar.is_point_solid(_cart_cell() + Vector2i(-2, 0)), "the donkey's tile is taken while she is there")
+	var camp := level.merchant_camp()
+	check(camp.size() == 1 + MerchantWagon.CELLS.size(), "the camp is his pitch, the wagon and the donkey")
+	for c in camp:
+		check(".@".contains(level.cell_char(c)), "the camp stands on grass, not on %s at %s" % [level.cell_char(c), c])
+	var origin := level.cell_to_world(_cart_cell())
+	var blocked := {}
+	for solid: Array in MerchantWagon.SOLIDS:
+		var at: Vector3 = solid[0]
+		var size: Vector3 = solid[1]
+		for i in 9:
+			for j in 9:
+				var p := origin + at + Vector3((i / 8.0 - 0.5) * size.x, 0, (j / 8.0 - 0.5) * size.z)
+				if not ".@".contains(level.cell_char(level.world_to_cell(p))) or level._paved_at(p):
+					blocked[level.world_to_cell(p)] = true
+	check(blocked.is_empty(), "the wagon and the donkey block no path or paved way (they stand on %s)" % [blocked.keys()])
+	for t: Dictionary in level.square_trees:
+		var tc: Vector2i = t.cell
+		check(not camp.any(func(c: Vector2i): return maxi(absi(c.x - tc.x), absi(c.y - tc.y)) <= 1), "no apple tree grows in the camp (%s)" % tc)
 
 
 ## He sells tonight's wares and buys nothing.

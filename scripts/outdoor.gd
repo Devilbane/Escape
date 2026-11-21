@@ -71,7 +71,8 @@ extends Level
 ##   @  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
 ##      with his living wagon on the tile north of him and the one west of
-##      that (see MerchantWagon).
+##      that, and his donkey resting on the tile west of those (see
+##      MerchantWagon). Give it open grass, clear of every path and paved way.
 ##   ?  plain grass, where a chest lies buried; a treasure map from a
 ##      bottle marks it (see TreasureMaps)
 ##   >  a boulder at the forest's edge with a hidden cave beneath it; a
@@ -4606,6 +4607,19 @@ func _wanderer_leaves() -> void:
 	for c: Vector2i in MerchantWagon.CELLS:
 		var cart_cell := _wanderer_cell + CART_OFFSET + c
 		astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
+
+
+## The tiles Zarek's camp takes on his nights (his pitch, his wagon and his
+## donkey, see MerchantWagon.CELLS), empty when the map has no pitch. Nothing
+## is planted on them or right beside them (see AppleTree.plant_in_village).
+func merchant_camp() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if _wanderer_cell.x < 0:
+		return out
+	out.append(_wanderer_cell)
+	for c: Vector2i in MerchantWagon.CELLS:
+		out.append(_wanderer_cell + CART_OFFSET + c)
+	return out
 
 
 ## Zarek's home on wheels (see MerchantWagon), on the cart's cell and the one

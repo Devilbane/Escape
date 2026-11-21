@@ -18,15 +18,29 @@ extends RefCounted
 ## Everything is built from simple shapes, merged into one mesh per
 ## material (a dozen or so draws for the whole wagon).
 ##
+## His donkey pulls it (see MerchantDonkey): while the wagon is parked she
+## rests in front of the shafts, unharnessed, nibbling at a heap of hay, with
+## her collar hung on a shaft tip, a bucket of water beside her and a
+## lantern on her tethering stake.
+##
 ## Local frame: the origin is the centre of the cart's cell on the ground,
 ## +x the back (east, where Zarek stands), -x the front with the porch and
 ## the shafts, +z the side that faces the way up to him.
 
-## The cells it stands on, from the cart's cell: its own and the one in front.
-const CELLS: Array[Vector2i] = [Vector2i(0, 0), Vector2i(-1, 0)]
-## Its solid parts (centre, size): the body with its wheels and rack, and the
-## porch with the steps and the shafts lying on the ground.
-const SOLIDS := [[Vector3(-0.85, 1.25, 0), Vector3(4.8, 2.5, 2.5)], [Vector3(-4.3, 0.5, 0), Vector3(2.0, 1.0, 1.5)]]
+## The cells it stands on, from the cart's cell: its own, the one in front
+## and the donkey's, in front of that.
+const CELLS: Array[Vector2i] = [Vector2i(0, 0), Vector2i(-1, 0), Vector2i(-2, 0)]
+## Its solid parts (centre, size): the body with its wheels and rack, the
+## porch with the steps and the shafts lying on the ground, and the donkey
+## with her hay.
+const SOLIDS := [[Vector3(-0.85, 1.25, 0), Vector3(4.8, 2.5, 2.5)], [Vector3(-4.3, 0.5, 0), Vector3(2.0, 1.0, 1.5)],
+		[Vector3(-7.4, 0.7, 0.4), Vector3(2.8, 1.4, 1.3)]]
+## Where the donkey stands (local) and which way she faces (yaw; 0 faces +z):
+## past the shaft tips, her head turned away from the wagon and down to the hay.
+const DONKEY_AT := Vector3(-7.0, 0, 0.3)
+const DONKEY_YAW := -PI * 0.5 + 0.3
+const HAY_AT := Vector3(-8.45, 0, 0.8)
+const STAKE_AT := Vector3(-6.2, 0, 1.75)
 
 ## The body: front and back wall, floor and top rail, and its half width at
 ## the floor and at the top (the sides flare out like a Reading wagon's).
@@ -72,6 +86,8 @@ const MATS := {
 	"wicker": [Color(0.6, 0.46, 0.26), 0.95, 0.0, 0.0],
 	"leaf": [Color(0.22, 0.4, 0.18), 0.9, 0.0, 0.0],
 	"flower": [Color(0.85, 0.3, 0.3), 0.8, 0.0, 0.0],
+	"leather": [Color(0.3, 0.17, 0.1), 0.7, 0.0, 0.0],
+	"hay": [Color(0.74, 0.62, 0.32), 1.0, 0.0, 0.0],
 }
 const WOODS := ["wood_a", "wood_b", "wood_c"]
 ## The sides of a turned part.
@@ -97,8 +113,14 @@ static func build(rng: RandomNumberGenerator) -> Node3D:
 	kit._porch()
 	kit._rack()
 	kit._hangings()
+	kit._donkey_corner()
 	kit._commit(root)
 	kit._lights(root)
+	var donkey := MerchantDonkey.new()
+	donkey.name = "MerchantDonkey"
+	donkey.position = DONKEY_AT
+	donkey.rotation.y = DONKEY_YAW
+	root.add_child(donkey)
 	root.set_meta("perches", kit.perches)
 	return root
 
@@ -682,6 +704,46 @@ func _kettle(hook: Vector3) -> void:
 	_rod_between("iron", at + Vector3(0.07, 0.17, 0), hook, 0.006, 3)
 
 
+## The donkey's corner in front of the shafts: a heap of hay for her to
+## nibble, a wooden bucket of water, and her padded collar with its brass
+## hames hung over the tip of the near shaft, ready for the road.
+func _donkey_corner() -> void:
+	for i in 7:
+		var a := TAU * i / 7.0 + _rng.randf() * 0.4
+		var r := 0.0 if i == 0 else _rng.randf_range(0.22, 0.36)
+		_ball("hay", _rng.randf_range(0.24, 0.32), HAY_AT + Vector3(cos(a) * r, 0.1, sin(a) * r), Vector3(1.3, 0.7, 1.15))
+	_ball("hay", 0.26, HAY_AT + Vector3(0.05, 0.3, -0.03), Vector3(1.2, 0.6, 1.1))
+	# Loose stalks sticking out of the heap and strewn round it.
+	for i in 16:
+		var a := _rng.randf() * TAU
+		var r := _rng.randf_range(0.25, 0.7)
+		var p := HAY_AT + Vector3(cos(a) * r, 0.03 + _rng.randf() * 0.12, sin(a) * r)
+		var d := Vector3(cos(a + _rng.randf_range(-0.8, 0.8)), _rng.randf_range(-0.1, 0.35), sin(a + _rng.randf_range(-0.8, 0.8))) * 0.18
+		_rod_between("hay", p - d, p + d, 0.008, 4)
+	# The bucket: staves in a ring, two iron hoops, a rope handle, water inside.
+	var bucket := Vector3(-6.75, 0, 1.25)
+	_lathe("wood_b", [Vector2(0, 0), Vector2(0.17, 0), Vector2(0.2, 0.36), Vector2(0.18, 0.36), Vector2(0.15, 0.04), Vector2(0, 0.04)],
+		Transform3D(Basis.IDENTITY, bucket), 12)
+	for y: float in [0.08, 0.28]:
+		_ring("iron", 0.17 + y * 0.08, 0.012, bucket + Vector3(0, y, 0), Basis.IDENTITY, 14)
+	_rod("tin", 0.01, 0.17, bucket + Vector3(0, 0.3, 0), Basis.IDENTITY, 12)
+	_ring("rope", 0.19, 0.01, bucket + Vector3(0, 0.36, 0), Basis(Vector3.FORWARD, 1.2), 12)
+	# A tethering stake with a lantern on its hook, so she is seen at night.
+	_rod("wood_b", 1.5, 0.045, STAKE_AT + Vector3(0, 0.75, 0), Basis.IDENTITY, 6)
+	_rod_between("iron", STAKE_AT + Vector3(0, 1.42, 0), STAKE_AT + Vector3(0.22, 1.42, 0), 0.015, 4)
+	_lantern(STAKE_AT + Vector3(0.2, 1.42, 0), 0.25)
+	# The collar, propped upright against the near shaft's tip: a padded
+	# leather ring with two brass hames and a red cloth pad.
+	var tip := Vector3(FRONT - 2.5, 0.0, 0.66)
+	var lean := Basis(Vector3.UP, 0.3) * Basis(Vector3.FORWARD, 0.0) * Basis(Vector3.RIGHT, -0.35)
+	var at := tip + Vector3(0.05, 0.36, 0.22)
+	_ring("leather", 0.25, 0.07, at, lean * Basis(Vector3.RIGHT, PI * 0.5), 16)
+	_ring("cloth", 0.2, 0.035, at + lean * Vector3(0, 0, -0.03), lean * Basis(Vector3.RIGHT, PI * 0.5), 14)
+	for s: float in [-1.0, 1.0]:
+		_rod("brass", 0.46, 0.022, at + lean * Vector3(s * 0.28, 0.05, 0.03), lean * Basis(Vector3.FORWARD, s * 0.2), 6)
+		_ball("brass", 0.035, at + lean * Vector3(s * 0.24, 0.3, 0.03))
+
+
 ## The lights: the big lantern on the crane by the merchant, the porch
 ## lantern and the glow from the windows; smoke from the stovepipe.
 func _lights(root: Node3D) -> void:
@@ -697,6 +759,12 @@ func _lights(root: Node3D) -> void:
 	porch.omni_range = 4.5
 	porch.position = Vector3(FRONT_EAVE + 0.35, FLOOR + 0.6, HALF_LOW)
 	root.add_child(porch)
+	var donkey := OmniLight3D.new()
+	donkey.light_color = Color(1.0, 0.75, 0.5)
+	donkey.light_energy = 1.4
+	donkey.omni_range = 5.0
+	donkey.position = STAKE_AT + Vector3(0.2, 1.0, 0)
+	root.add_child(donkey)
 	var smoke := ChimneySmoke.make()
 	smoke.position = Vector3(FRONT + 0.75, MerchantWagon.roof_at(-0.55) + 1.05, -0.55)
 	root.add_child(smoke)

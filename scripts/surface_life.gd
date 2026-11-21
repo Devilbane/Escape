@@ -125,6 +125,20 @@ const SIZES := {
 }
 const PATCHES := ["dirt", "moss", "lichen"]
 
+## Autumn spreads fallen leaves over the ground, in the colours the ivy and the trees turn
+## (IvySeasons.AUTUMN_COLOURS), while most undergrowth bushes have shed theirs (see
+## Outdoor.UNDERGROWTH_AUTUMN_KEEP). How many lie on one tile, on average, by part of the map;
+## tiles beside the forest or a tree get FALLEN_EDGE times as many. They are only laid the first
+## time autumn comes (see set_autumn), in batches like the rest of the litter, and hidden after.
+const FALLEN := {FOREST: 11.0, GRAVEYARD: 9.0, HOLLOW: 8.0, VILLAGE: 2.5, PASS: 3.0}
+const FALLEN_EDGE := 1.6
+## On a path (its verges), the paved square, under trees and rocks and on the forest floor at
+## its edge, fewer of them.
+const FALLEN_KINDS := {"path": 0.4, "square": 0.12, "under": 0.8, "edge": 0.6}
+const FALLEN_SIZE := Vector2(0.24, 0.4)
+const FALLEN_CAP := 24000
+const FALLEN_TREES := "#TdrgtpN"
+
 var level: Level
 var _rng := RandomNumberGenerator.new()
 ## The part of the map each tile belongs to, row by row.
@@ -146,6 +160,10 @@ var _time := 0.0
 ## How much litter lies in each part of the map (for the tests).
 var litter_by_biome := {}
 var litter_total := 0
+## The fallen autumn leaves (see FALLEN), once laid, and how many.
+var fallen: Node3D
+var fallen_total := 0
+var _autumn := false
 
 static var _textures := {}
 static var _meshes := {}
@@ -163,6 +181,118 @@ func _ready() -> void:
 	_scatter_litter()
 	_flush_batches()
 	_place_creatures()
+	if _autumn:
+		_drop_leaves()
+
+
+## Autumn or not: in autumn the fallen leaves lie on the ground (laid the first time).
+func set_autumn(on: bool) -> void:
+	if on == _autumn and (fallen != null or not on):
+		return
+	_autumn = on
+	if on and fallen == null and is_inside_tree():
+		_drop_leaves()
+	if fallen != null:
+		fallen.visible = on
+
+
+## Lays the fallen autumn leaves (see FALLEN), with dice of their own so the rest of the litter
+## and the creatures stay as they were.
+func _drop_leaves() -> void:
+	fallen = Node3D.new()
+	fallen.name = "FallenLeaves"
+	add_child(fallen)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level.level_name + ":fallen")
+	var batches := {}
+	for y in level.height:
+		for x in level.width:
+			var c := Vector2i(x, y)
+			var ch := level.cell_char(c)
+			var n: float = FALLEN.get(biome_of(c), 0.0)
+			if ch == "" or n <= 0.0:
+				continue
+			if PATH.contains(ch):
+				n *= FALLEN_KINDS.path
+			elif SQUARE.contains(ch):
+				n *= FALLEN_KINDS.square
+			elif UNDER.contains(ch):
+				n *= FALLEN_KINDS.under
+			elif ch == "#" and _beside_ground(c):
+				# The forest's own floor at its edge, where the shed undergrowth stood.
+				n *= FALLEN_KINDS.edge
+			elif not GROUND.contains(ch):
+				continue
+			if _beside_trees(c):
+				n *= FALLEN_EDGE
+			var count := int(n) + (1 if rng.randf() < n - int(n) else 0)
+			for i in count:
+				if fallen_total >= FALLEN_CAP:
+					break
+				var spot := _litter_spot(c, ch, rng)
+				if spot.x == INF:
+					continue
+				var s := rng.randf_range(FALLEN_SIZE.x, FALLEN_SIZE.y)
+				var basis := Basis(Vector3.UP, rng.randf() * TAU) \
+						* Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25)) * Basis(Vector3.FORWARD, rng.randf_range(-0.2, 0.2))
+				var t := Transform3D(basis.scaled(Vector3(s, s, s * 0.7)), spot + Vector3(0, rng.randf_range(0.014, 0.026), 0))
+				var col := fallen_colour(rng)
+				var key := Vector2i(floori(c.x / float(CHUNK)), floori(c.y / float(CHUNK)))
+				if not batches.has(key):
+					batches[key] = []
+				batches[key].append([t, col, c])
+				fallen_total += 1
+	for key: Vector2i in batches:
+		var items: Array = batches[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = _mesh("leaf")
+		mm.instance_count = items.size()
+		for i in items.size():
+			mm.set_instance_transform(i, items[i][0])
+			mm.set_instance_color(i, items[i][1])
+			var c: Vector2i = items[i][2]
+			if not _cell_litter.has(c):
+				_cell_litter[c] = []
+			_cell_litter[c].append([mm, i, (items[i][0] as Transform3D).origin, items[i][0], "fallen"])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "Fallen_%d_%d" % [key.x, key.y]
+		mmi.multimesh = mm
+		mmi.material_override = _litter_material("leaf")
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.visibility_range_end = DRAW_RANGE
+		fallen.add_child(mmi)
+	# None under loot, in a dug hole or inside a built house.
+	_clear_around_loot()
+
+
+## A fallen leaf's colour: one the ivy and the trees turn in autumn, a little darker or lighter.
+static func fallen_colour(rng: RandomNumberGenerator) -> Color:
+	var col: Color = IvySeasons.AUTUMN_COLOURS[rng.randi() % IvySeasons.AUTUMN_COLOURS.size()]
+	col = col * rng.randf_range(0.78, 1.05)
+	col.a = 1.0
+	return col
+
+
+## Whether walkable ground lies on a tile beside `c`.
+func _beside_ground(c: Vector2i) -> bool:
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch := level.cell_char(c + Vector2i(dx, dy))
+			if ch != "" and GROUND.contains(ch):
+				return true
+	return false
+
+
+## Whether the forest or a tree stands on a tile beside `c` (or on it).
+func _beside_trees(c: Vector2i) -> bool:
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var ch := level.cell_char(c + Vector2i(dx, dy))
+			if ch != "" and FALLEN_TREES.contains(ch):
+				return true
+	return false
 
 
 # --- Parts of the map ---------------------------------------------------------
@@ -258,10 +388,12 @@ func _scatter_litter() -> void:
 
 ## A spot on a tile for a piece of litter, or INF when none fits. On a path,
 ## only on its verges; under a tree or rock, around its foot.
-func _litter_spot(c: Vector2i, ch: String) -> Vector3:
+func _litter_spot(c: Vector2i, ch: String, rng: RandomNumberGenerator = null) -> Vector3:
+	if rng == null:
+		rng = _rng
 	var p := level.cell_to_world(c)
 	for attempt in 4:
-		var off := Vector2(_rng.randf_range(-1.9, 1.9), _rng.randf_range(-1.9, 1.9))
+		var off := Vector2(rng.randf_range(-1.9, 1.9), rng.randf_range(-1.9, 1.9))
 		if PATH.contains(ch) and not _on_verge(c, off):
 			continue
 		if UNDER.contains(ch) and off.length() < 1.0:

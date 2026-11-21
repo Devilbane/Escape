@@ -1,1 +1,1 @@
-- The temple's healing prayer no longer shows as free when it cannot help: a lasting injury now reads "Shrine only", and the character page shows how bad an injury is.
+- The temple can now heal a lasting injury too, for a high offering (Mirenna's blessing takes at most half off). Her distant shrine in the wasteland still heals it for free, and the character page shows how bad an injury is.

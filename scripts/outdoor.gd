@@ -149,6 +149,20 @@ const UNDERGROWTH_AUTUMN_KEEP := 0.3
 const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
 const UNDERGROWTH_DEPTH := 2.0
+## A trial stand of spruces (see Fern.needle_tree_mesh): every tree of the forest in these tiles of
+## Die Freiheit, the wood west of the road from the crypt down past the pond, is a spruce.
+const SPRUCE_MAP := "Die Freiheit"
+const SPRUCE_PATCH := Rect2i(0, 14, 14, 26)
+## How much of a spruce's reach hides the ground (see CROWN).
+const SPRUCE_CROWN := 0.95
+## Ferns (see Fern.fern_mesh) in the shade along the forest's edge: how many a forest tile beside
+## open ground tries for, how far apart they stay and how big they grow (times the model).
+const FERN_TRIES := 7
+const FERN_SPACING := 1.0
+const FERN_SCALE := Vector2(0.45, 0.75)
+const FERN_VARIANTS := 4
+## How far off a batch of ferns is still drawn (metres).
+const FERN_SEEN := 60.0
 ## Ground pieces are this many tiles across. Each piece is lit by the
 ## lanterns near it only, so many lanterns can burn at once.
 const GROUND_CHUNK := 12
@@ -244,6 +258,8 @@ var _wood_trees: Array = []
 ## The trees on each forest tile near the open ground, each {"at", "crown"}: where it stands and
 ## how far round it its crown hides the ground (metres, see _build_forest).
 var forest_trees := {}
+## How many ferns grow along the forest's edge (see _grow_ferns).
+var fern_count := 0
 ## Where the last tree _build_tree planted stands, and how far its crown reaches.
 var _tree_at := Vector3.ZERO
 var _tree_crown := 0.0
@@ -661,6 +677,7 @@ func build() -> void:
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
+	_grow_ferns()
 	if not _undergrowth.xforms.is_empty():
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"
@@ -1097,6 +1114,59 @@ func _flush_plants() -> void:
 		_draw_plants(key)
 
 
+## Whether a spot lies in the trial stand of spruces (see SPRUCE_PATCH).
+func in_spruce_patch(at: Vector3) -> bool:
+	return level_name == SPRUCE_MAP and SPRUCE_PATCH.has_point(world_to_cell(at))
+
+
+## Which of the spruces (see Fern.NEEDLE_LOOKS) stands at a spot: the same one every time.
+func _spruce_of(at: Vector3) -> int:
+	return posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), Fern.NEEDLE_LOOKS.size())
+
+
+## Plants a forest tree (see _plant), or in the trial stand a spruce in its place: the dice for
+## the tree are thrown all the same, so the rest of the map grows as before. A smaller tree (a
+## "medium" one, filling a gap) is a smaller spruce.
+func _plant_tree(name: String, pos: Vector3, rot: float, s: float) -> float:
+	if not in_spruce_patch(pos):
+		return _plant(name, pos, rot, s)
+	return _plant("spruce:%d" % _spruce_of(pos), pos, rot, _spruce_grow(pos) * (0.8 if name.ends_with("medium") else 1.0))
+
+
+## How much bigger or smaller than its model the spruce at a spot grows, so no two stand alike.
+func _spruce_grow(at: Vector3) -> float:
+	return 0.85 + 0.3 * float(posmod(hash(Vector2i(roundi(at.z * 10.0), roundi(at.x * 10.0))), 100)) / 100.0
+
+
+## Ferns in the shade along the forest's edge: on the forest floor in front of and between the
+## edge trees, where the crowns hang over it, and on the undergrowth's strip, never on a building
+## plot, a bush or each other. Own dice, so the rest of the map comes out as before.
+func _grow_ferns() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "farne")
+	var placed: Array[Vector3] = []
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "#" or not _beside_walkable(c) or under_lair_mountain(c):
+				continue
+			var tile := _tile_rect(c)
+			for i in FERN_TRIES:
+				var at := Vector3(rng.randf_range(tile.position.x, tile.end.x), 0.0, rng.randf_range(tile.position.y, tile.end.y))
+				var size := rng.randf_range(FERN_SCALE.x, FERN_SCALE.y)
+				var turn := rng.randf() * TAU
+				var variant := rng.randi() % FERN_VARIANTS
+				# Only where it is shady: under a crown, or on the edge's own strip of floor.
+				if not (under_crown(c, at) or _near_open_face(c, forest_block(c), at)):
+					continue
+				if placed.any(func(f: Vector3): return f.distance_to(at) < FERN_SPACING) \
+						or undergrowth_bushes.any(func(b: Vector4): return Vector2(b.x - at.x, b.z - at.z).length() < b.w + 0.3):
+					continue
+				if _plant("fern:%d" % variant, at, turn, size) >= 0.0:
+					placed.append(at)
+	fern_count = placed.size()
+
+
 ## One batch of trees (see _plant), drawn again after some were cleared away.
 func _draw_plants(key: Array) -> void:
 	for node in _plant_batches.get(key, []):
@@ -1107,9 +1177,13 @@ func _draw_plants(key: Array) -> void:
 		return
 	var name: String = key[0]
 	if not _plant_parts.has(name):
-		var scene: Node3D = load(_model_path(name)).instantiate()
-		_plant_parts[name] = _meshes_of(scene, Transform3D())
-		scene.free()
+		var made := _made_plant(name)
+		if made:
+			_plant_parts[name] = [[made, Transform3D()]]
+		else:
+			var scene: Node3D = load(_model_path(name)).instantiate()
+			_plant_parts[name] = _meshes_of(scene, Transform3D())
+			scene.free()
 	for part in _plant_parts[name]:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -1121,6 +1195,26 @@ func _draw_plants(key: Array) -> void:
 		mmi.multimesh = mm
 		if name.begins_with("tree"):
 			mmi.material_override = _tree_material((part[0] as Mesh).surface_get_material(0))
+		elif name.begins_with("spruce:"):
+			# Its thousands of fronds are drawn once, without shadow; a plain stand-in of the same
+			# outline casts the shadow (see Fern.needle_shadow_mesh), drawn in every shadow map.
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var shade := MultiMesh.new()
+			shade.transform_format = MultiMesh.TRANSFORM_3D
+			shade.mesh = Fern.needle_shadow_mesh(int(name.get_slice(":", 1)))
+			shade.instance_count = mm.instance_count
+			for i in mm.instance_count:
+				shade.set_instance_transform(i, mm.get_instance_transform(i))
+			var caster := MultiMeshInstance3D.new()
+			caster.multimesh = shade
+			caster.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			add_child(caster)
+			_plant_batches[key].append(caster)
+		elif name.begins_with("fern:"):
+			# Small (their materials come with the mesh): from further off they are lost in the
+			# floor anyway, and their shadows in the trees'.
+			mmi.visibility_range_end = FERN_SEEN
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
 		_plant_batches[key].append(mmi)
 
@@ -1138,8 +1232,21 @@ func _meshes_of(node: Node, xform: Transform3D) -> Array:
 	return found
 
 
+## A plant built in code instead of loaded ("spruce:<variant>", "fern:<variant>", see Fern), or
+## null for a model of the kits.
+func _made_plant(name: String) -> ArrayMesh:
+	if name.begins_with("spruce:"):
+		return Fern.needle_tree_mesh(int(name.get_slice(":", 1)))
+	if name.begins_with("fern:"):
+		return Fern.fern_mesh(int(name.get_slice(":", 1)))
+	return null
+
+
 ## The size of a model, measured once.
 func _aabb_of(name: String) -> AABB:
+	var made := _made_plant(name)
+	if made:
+		return made.get_aabb()
 	if not _aabbs.has(name):
 		var scene: Node3D = load(_model_path(name)).instantiate()
 		var box := AABB()
@@ -1616,24 +1723,28 @@ func _build_tree(pos: Vector3, single := false) -> float:
 	var leafy := false
 	var reach := 0.0
 	if near_crypt and roll < 0.45:
-		reach = _plant(["tree_dead_large", "tree_dead_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(1.2, 1.6))
+		reach = _plant_tree(["tree_dead_large", "tree_dead_medium"][_rng.randi() % 2], at, rot, _rng.randf_range(1.2, 1.6))
 	elif roll < 0.35 or (near_crypt and roll < 0.8):
 		var scale_of := _rng.randf_range(0.9, 1.25)
 		var pine: String = ["tree_pine_orange_large", "tree_pine_yellow_large", "tree_pine_orange_medium", "tree_pine_yellow_medium"][_rng.randi() % 4]
-		reach = _plant(pine, at, rot, scale_of)
+		reach = _plant_tree(pine, at, rot, scale_of)
 		height = (6.9 if pine.ends_with("large") else 5.4) * scale_of
 	elif roll < 0.75 or single:
 		var scale_of := _rng.randf_range(5.5, 7.5)
-		reach = _plant(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, scale_of)
+		reach = _plant_tree(["tree_single_A", "tree_single_B"][_rng.randi() % 2], at, rot, scale_of)
 		height = 1.1 * scale_of
 		leafy = true
 	else:
 		var scale_of := _rng.randf_range(3.0, 3.8)
-		reach = _plant(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, scale_of)
+		reach = _plant_tree(["trees_A_medium", "trees_B_medium"][_rng.randi() % 2], at, rot, scale_of)
 		height = 1.2 * scale_of
 	if reach < 0.0:
 		return reach
-	_tree_crown = reach * (CROWN if height > 0.0 else DEAD_CROWN)
+	if in_spruce_patch(at):
+		height = Fern.needle_height(_spruce_of(at)) * _spruce_grow(at)
+		leafy = false
+	# A spruce's low branches bend down to the ground and hide it nearly all the way out.
+	_tree_crown = reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN if height > 0.0 else DEAD_CROWN)
 	if height > 0.0 and not near_crypt:
 		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
 	return reach
@@ -1772,11 +1883,11 @@ func _fill_forest_gaps() -> void:
 				if under_crown(c, gap):
 					continue
 				var pine: String = ["tree_pine_orange_medium", "tree_pine_yellow_medium", "tree_pine_orange_medium"][rng.randi() % 3]
-				var reach := _plant(pine, at, rng.randf() * TAU, rng.randf_range(0.8, 1.05))
+				var reach := _plant_tree(pine, at, rng.randf() * TAU, rng.randf_range(0.8, 1.05))
 				if reach >= 0.0:
 					if not forest_trees.has(c):
 						forest_trees[c] = []
-					forest_trees[c].append({"at": at, "crown": reach * CROWN})
+					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN)})
 
 
 ## What looks walkable is walkable, and what blocks looks blocked. The forest does not stop the

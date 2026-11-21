@@ -48,6 +48,8 @@ const AUTUMN_LEAVES := [Color(0.7, 0.4, 0.12), Color(0.72, 0.56, 0.18), Color(0.
 const BLOSSOM := [Color(0.98, 0.96, 0.94), Color(0.98, 0.84, 0.88), Color(0.96, 0.74, 0.8)]
 const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
 const BARK := Color(0.33, 0.24, 0.17)
+## Single leaves on a full-sized clump of leaves (fewer on a smaller one).
+const LEAVES_PER_CLUMP := 46
 
 ## The shape of the tree at each stage: the trunk's height and thickness, how many limbs fork
 ## off its top, how far they reach and lean out, how many times they fork again (see _grow), and
@@ -61,7 +63,6 @@ const SHAPES := [
 
 static var _balls := {}
 static var _mats := {}
-static var _dapple: NoiseTexture2D
 
 
 ## The length of a season in season days.
@@ -292,7 +293,7 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 			# The lower and inner clumps lie in the crown's shade.
 			var shade := clampf((c[0].y - low) / maxf(high - low, 0.1), 0.0, 1.0)
 			var size: float = c[1]
-			parts.blob(c[0], Vector3(1.12, 0.88, 1.12) * size, rng.randf() * TAU, colour * lerpf(0.7, 1.08, shade) * rng.randf_range(0.92, 1.06))
+			parts.clump(rng, c[0], Vector3(1.12, 0.88, 1.12) * size, colour * lerpf(0.7, 1.08, shade) * rng.randf_range(0.92, 1.06), autumn_mix(rng, season))
 	# Blossom in spring, on a tree old enough to bear: on the outside of the clumps.
 	var blossoms := 0
 	if season == Weather.SPRING and grown >= YOUNG:
@@ -311,6 +312,7 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 	parts.finish(root)
 	root.set_meta("apples", n)
 	root.set_meta("leaves", clumps.size())
+	root.set_meta("single_leaves", parts.leaves_made)
 	root.set_meta("blossom", blossoms)
 	root.set_meta("limbs", parts.limbs)
 	var thick: float = maxf(shape.thick * 2.4, 0.2) + 0.1
@@ -348,6 +350,14 @@ static func _grow(parts: _Parts, rng: RandomNumberGenerator, from: Vector3, dir:
 		_grow(parts, rng, end, child, length * rng.randf_range(0.6, 0.72), r * 0.64, depth - 1, tips, forks, bare)
 
 
+## In autumn a clump's leaves are not all one colour: the colours to pick from leaf by leaf (an
+## empty list the rest of the year).
+static func autumn_mix(rng: RandomNumberGenerator, season: String) -> Array:
+	if season != Weather.AUTUMN:
+		return []
+	return [AUTUMN_LEAVES[rng.randi() % AUTUMN_LEAVES.size()], AUTUMN_LEAVES[rng.randi() % AUTUMN_LEAVES.size()]]
+
+
 ## A point on the skin of a clump of leaves of radius `r` (scaled like the clumps), leaning
 ## towards `towards` (a direction: outwards, up or down).
 static func _on_clump(rng: RandomNumberGenerator, r: float, towards: Vector3) -> Vector3:
@@ -363,6 +373,7 @@ class _Parts:
 	var flowers := SurfaceTool.new()
 	var fruit := SurfaceTool.new()
 	var limbs := 0
+	var leaves_made := 0
 	var _used := {}
 
 	func _init() -> void:
@@ -391,9 +402,39 @@ class _Parts:
 		limbs += 1
 		_used[bark] = true
 
-	## A clump of leaves: a low round ball, scaled and turned.
-	func blob(at: Vector3, scale: Vector3, turn: float, colour: Color) -> void:
-		_ball(leaves, at, scale, turn, colour, AppleTree._ball_arrays(12))
+	## A clump of leaves round `at`, `scale` across (its radii): a small dark core in its shade, so
+	## no light shows through the crown's heart, and LEAVES_PER_CLUMP single leaves all over it,
+	## each a pointed oval on a short stalk turned its own way, a little lighter at its tip. In
+	## autumn the leaves take their colours from `mix` one by one.
+	func clump(rng: RandomNumberGenerator, at: Vector3, scale: Vector3, colour: Color, mix: Array) -> void:
+		_ball(leaves, at, scale * 0.62, rng.randf() * TAU, colour * 0.55, AppleTree._ball_arrays(6))
+		var count := roundi(AppleTree.LEAVES_PER_CLUMP * clampf(scale.x / 0.42, 0.35, 1.3))
+		for i in count:
+			# Most leaves near the clump's skin, a few further in.
+			var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+			var foot := at + d * scale * rng.randf_range(0.6, 1.02)
+			var tint: Color = colour if mix.is_empty() else (mix[rng.randi() % mix.size()] as Color).lerp(colour, 0.35)
+			leaf(foot, d, scale.x * rng.randf_range(0.42, 0.58), rng.randf() * TAU, tint * rng.randf_range(0.85, 1.12))
+		leaves_made += count
+
+	## One leaf at `foot` on the outside of a clump (`out`: the way out of it), `size` long.
+	func leaf(foot: Vector3, out: Vector3, size: float, turn: float, colour: Color) -> void:
+		# The leaf's line: outwards, tipped round `out` by `turn` and drooping a little.
+		var side := out.cross(Vector3.UP if absf(out.y) < 0.9 else Vector3.RIGHT).normalized()
+		var along := (out * 0.55 + side.rotated(out, turn) * 0.75 + Vector3.DOWN * 0.25).normalized()
+		var across := along.cross(out).normalized()
+		var tip := foot + along * size
+		var mid := foot + along * size * 0.45
+		var wide := size * 0.27
+		var fold := out * size * 0.06
+		var tip_colour := colour.lightened(0.12)
+		var shades := [[foot, colour], [mid + across * wide + fold, colour], [tip, tip_colour], [mid - across * wide + fold, colour]]
+		for j in [0, 1, 2, 0, 2, 3]:
+			leaves.set_color(shades[j][1])
+			# Lit as the clump is, from its middle outwards: soft, not every leaf its own glint.
+			leaves.set_normal(out)
+			leaves.add_vertex(shades[j][0])
+		_used[leaves] = true
 
 	func blossom(at: Vector3, r: float, colour: Color) -> void:
 		_ball(flowers, at, Vector3.ONE * r, 0.0, colour, AppleTree._ball_arrays(5))
@@ -414,8 +455,8 @@ class _Parts:
 
 	## Puts the meshes into `root`, each named for what it is.
 	func finish(root: Node3D) -> void:
-		var named := [[bark, "Bark", AppleTree._vertex_mat(0.9, false)], [leaves, "Leaves", AppleTree._vertex_mat(0.95, true)],
-				[flowers, "Blossom", AppleTree._vertex_mat(0.7, false)], [fruit, "Apples", AppleTree._vertex_mat(0.4, false)]]
+		var named := [[bark, "Bark", AppleTree._vertex_mat(0.9)], [leaves, "Leaves", AppleTree._leaf_mat()],
+				[flowers, "Blossom", AppleTree._vertex_mat(0.7)], [fruit, "Apples", AppleTree._vertex_mat(0.4)]]
 		for part in named:
 			if not _used.has(part[0]):
 				continue
@@ -438,30 +479,24 @@ static func _ball_arrays(sides: int) -> Array:
 	return _balls[sides]
 
 
-## A material that takes its colour from the vertices; the leaves' with a soft dapple of light and
-## shade over them, so a clump reads as leaves and not as a smooth ball. Shared by all trees.
-static func _vertex_mat(roughness: float, dappled: bool) -> StandardMaterial3D:
-	var key := "%.2f:%s" % [roughness, dappled]
+## The leaves' material: colours from the vertices, both sides of every leaf drawn. Shared.
+static func _leaf_mat() -> StandardMaterial3D:
+	if not _mats.has("leaf"):
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.roughness = 0.85
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mats["leaf"] = m
+	return _mats["leaf"]
+
+
+## A material that takes its colour from the vertices. Shared by all trees.
+static func _vertex_mat(roughness: float) -> StandardMaterial3D:
+	var key := "%.2f" % roughness
 	if _mats.has(key):
 		return _mats[key]
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
 	m.roughness = roughness
-	if dappled:
-		if _dapple == null:
-			var noise := FastNoiseLite.new()
-			noise.noise_type = FastNoiseLite.TYPE_CELLULAR
-			noise.frequency = 0.09
-			_dapple = NoiseTexture2D.new()
-			_dapple.width = 128
-			_dapple.height = 128
-			_dapple.seamless = true
-			_dapple.noise = noise
-			_dapple.color_ramp = Gradient.new()
-			_dapple.color_ramp.set_color(0, Color(0.62, 0.66, 0.6))
-			_dapple.color_ramp.set_color(1, Color(1.0, 1.0, 0.96))
-		m.albedo_texture = _dapple
-		m.uv1_triplanar = true
-		m.uv1_scale = Vector3.ONE * 1.6
 	_mats[key] = m
 	return m

@@ -103,7 +103,9 @@ func _near(level: Outdoor, rect: Rect2i, at: Vector3, reach: float) -> bool:
 func _trees(level: Outdoor) -> int:
 	var count := 0
 	for key in level._plants:
-		count += level._plants[key].size()
+		# The ferns on the forest floor are no trees (and many grow along a plot's edge).
+		if not (key[0] as String).begins_with("fern:"):
+			count += level._plants[key].size()
 	return count
 
 

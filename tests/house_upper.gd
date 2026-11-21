@@ -105,13 +105,19 @@ func _process(_delta: float) -> bool:
 	check(roof_nodes.size() > 0, "roof pieces are tagged for fading")
 	game.player.global_position = plan.cell_world(0, 0) + Vector3(0, 0.1, 0)
 	sketcher._update_fade()
-	check(roof_nodes.all(func(n): return n.visible), "far from the house the roof is drawn")
+	check(roof_nodes.all(func(n): return not LightShadows.lifted(n)), "far from the house the roof is drawn")
 	game.player.global_position = plan.cell_world(4, 2) + Vector3(0, 0.1, 0)
 	sketcher._update_fade()
-	check(roof_nodes.all(func(n): return not n.visible), "under the roof the roof fades away")
+	check(roof_nodes.all(func(n): return LightShadows.lifted(n)), "under the roof the roof fades away")
+	var lid_parts: Array = []
+	for n in roof_nodes:
+		lid_parts.append_array(n.find_children("*", "GeometryInstance3D", true, false))
+		if n is GeometryInstance3D:
+			lid_parts.append(n)
+	check(not lid_parts.is_empty() and lid_parts.all(func(g): return g.layers == LightShadows.LID_LAYER and g.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY), "a lifted roof is not drawn but still holds in the house's own light")
 	game.player.global_position = plan.cell_world(4, 2) + Vector3(0, HouseSketch.STOREY_HEIGHT + 0.1, 0)
 	sketcher._update_fade()
-	check(roof_nodes.any(func(n): return n.visible), "up on the slab the slab is drawn again")
+	check(roof_nodes.any(func(n): return not LightShadows.lifted(n)), "up on the slab the slab is drawn again")
 	print("PASS: house upper floors" if failures == 0 else "FAILED: %d" % failures)
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())

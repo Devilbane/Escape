@@ -1717,7 +1717,7 @@ func _update_fade() -> void:
 	var limit := (level * HouseSketch.STOREY_HEIGHT + WALL_HEIGHT - 0.05) if level >= 0 else -0.05
 	for node in _solid.get_children():
 		if node.has_meta("ymin"):
-			node.visible = not (inside and float(node.get_meta("ymin")) >= limit)
+			LightShadows.lift(node, inside and float(node.get_meta("ymin")) >= limit)
 	for gun: Node3D in _guns.get_children():
 		gun.visible = not (inside and gun.position.y >= limit)
 

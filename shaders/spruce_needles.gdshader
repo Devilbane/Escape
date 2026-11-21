@@ -12,14 +12,14 @@ shader_type spatial;
 // - some ferns are dark all through, some have fronds of three different greens,
 // - and the whole tree leans a little greener or bluer.
 //
-// The wind stirs the branches very gently: each frond's outer part sways a few centimetres, more
+// The wind stirs the branches gently: each frond's outer part sways up to about ten centimetres, more
 // towards its tip, the trunk and the branches' roots stay put. Every branch has its own beat, so
 // the crown ripples instead of rocking as one.
 render_mode cull_disabled, shadows_disabled;
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 // How far a branch tip one metre out from the trunk sways (metres).
-uniform float sway = 0.035;
+uniform float sway = 0.08;
 // The spruce's greens, from fresh to a dark blue-green.
 uniform vec3 green_1 : source_color = vec3(0.38, 0.68, 0.3);
 uniform vec3 green_2 : source_color = vec3(0.27, 0.6, 0.34);

@@ -283,4 +283,5 @@ house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike no
 light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
 click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top
 forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
+autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushes shed their leaves in autumn, and fallen leaves in the ivy's autumn colours lie spread over the ground
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone

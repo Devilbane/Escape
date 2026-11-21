@@ -2994,6 +2994,9 @@ func _new_day(quiet := false) -> void:
 
 ## How many hours after the first morning of a season the villagers talk about it.
 const SEASON_TALK_HOURS := 3.0
+## How much quieter thunder is in a house (under a roof) and down in a cellar, in dB.
+const THUNDER_INDOORS_DB := -8.0
+const THUNDER_CELLAR_DB := -16.0
 ## How far winter fog by day is smoothed towards one even haze (0 patchy banks, 1 even haze).
 const WINTER_EVEN := 0.45
 
@@ -3236,9 +3239,6 @@ func _show_weather() -> void:
 	elif winter_fog:
 		even = float(seen.mist) * WINTER_EVEN
 	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
-	if _clouds.visible and camera != null:
-		var view := get_viewport().get_visible_rect().size
-		_clouds.set_hero(camera.unproject_position(player.global_position + Vector3(0, 0.9, 0)) / view)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
@@ -3251,9 +3251,13 @@ func _show_weather() -> void:
 ## Lightning struck (see Outdoor.strike): the sky flashes, and the thunder
 ## follows, later and softer the farther away it was.
 func _on_lightning(at: Vector3) -> void:
-	_flash = 1.0
+	# The flash is dimmed under a roof (see _shelter in _tick_clock); down in a cellar it does not
+	# reach at all, and the thunder only rumbles through, muffled.
+	var cellar := level is Outdoor and not (level as Outdoor).hero_cellar.is_empty()
+	_flash = 0.0 if cellar else 1.0
 	var far: float = level._flat_distance(player.global_position, at) if player else 0.0
-	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08)
+	var muffle := THUNDER_CELLAR_DB if cellar else THUNDER_INDOORS_DB * _shelter
+	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08 + muffle)
 
 
 # --- Flow -------------------------------------------------------------------

@@ -356,6 +356,8 @@ var hero_indoors := false
 ## The dug cells (Rect2 of x, z) of the house cellar the hero is down in, empty while they are
 ## not: from down there they see only what is in the cellar (see CellarView, hero_sees).
 var hero_cellar: Array = []
+## Every cell of every house cellar (Rect2 of x, z, see set_floor_holes): no lightning strikes there.
+var _cellar_holes: Array = []
 var _inside_view := InsideView.new()
 var _entered_once := false
 var _marker: Node3D
@@ -964,6 +966,7 @@ const HOLE_CELL := 2.0
 ## `floored` are the holes closed over by a cellar ceiling (see HouseSketch.COVER):
 ## still cut open, but litter, snow and dropped things lie on them as on the ground.
 func set_floor_holes(holes: Array, floored: Array = []) -> void:
+	_cellar_holes = holes.duplicate()
 	if _floor_slabs.get_parent() == null:
 		_walls_body.add_child(_floor_slabs)
 	# Taken out of the body at once and freed at the end of the frame, never freed right away:
@@ -5201,8 +5204,13 @@ func weather_foes_alive() -> int:
 ## A stroke of lightning. Mostly it hits one of the rocks, and may leave a
 ## lump of thunder ore glowing beside it; otherwise it strikes somewhere in
 ## the woods near the hero. Returns where it struck.
+## How many other spots a stroke tries when the first lies under cover (see open_sky).
+const STRIKE_TRIES := 12
+
+
 func strike() -> Vector3:
-	var at: Vector3 = (player.global_position if player else Vector3.ZERO) + Vector3(randf_range(-30, 30), 0, randf_range(-24, 24))
+	var near: Vector3 = player.global_position if player else Vector3.ZERO
+	var at: Vector3 = near + Vector3(randf_range(-30, 30), 0, randf_range(-24, 24))
 	var ore_spot := Vector2i(-1, -1)
 	# Now and then it seeks a creature about, instead of a rock (see LightningStrike).
 	var seek = LightningStrike.pick_target(self, player) if player and randf() < LightningStrike.SEEK_CHANCE else null
@@ -5217,6 +5225,16 @@ func strike() -> Vector3:
 					ore_spot = rock + d
 					break
 	at.y = 0.0
+	# Never into a house, under a roof or down into a cellar: it strikes the open ground nearby
+	# instead, and if none is found, this stroke stays up in the clouds.
+	for i in STRIKE_TRIES:
+		if open_sky(at):
+			break
+		ore_spot = Vector2i(-1, -1)
+		at = near + Vector3(randf_range(-30, 30), 0, randf_range(-24, 24))
+		at.y = 0.0
+	if not open_sky(at):
+		return Vector3.INF
 	_show_bolt(at)
 	lightning.emit(at)
 	Events.scare("blitz")
@@ -5228,6 +5246,15 @@ func strike() -> Vector3:
 		if player and _flat_distance(player.global_position, pos) < ORE_NOTICE_RANGE:
 			notice.emit(Lang.t("Der Blitz schlägt in einen Felsen ein! Daneben glimmt Donnererz."), 3.5)
 	return at
+
+
+## Whether `pos` lies under the open sky: not in a house (the hero's own or a built one), not
+## under a roof and not in a house cellar. Lightning only strikes there (see strike).
+func open_sky(pos: Vector3) -> bool:
+	var ground := Vector3(pos.x, 0.5, pos.z)
+	if _in_house(world_to_cell(ground)) or is_sheltered(ground):
+		return false
+	return not CellarView.in_cells(_cellar_holes, Vector3(pos.x, 0.0, pos.z))
 
 
 ## A bright bolt from the sky down to where lightning struck: a hard zig-zag with a few forks

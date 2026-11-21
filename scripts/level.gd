@@ -2552,6 +2552,35 @@ static func pillow_spot(pos: Vector3, rot: float) -> Vector3:
 	return pos + Basis(Vector3.UP, rot) * PILLOW
 
 
+## A sleeper lies on the mattress with the cheek on the pillows. LIE_HEAD is where the head ends up,
+## from the bed's origin: on the front half of the pillows, a little left of the middle the way the
+## sleeper lies curled on the side. LIE_REACH is how far the head is from the body's origin when
+## lying (Lie_Down, Lie_Idle) at body scale 1, and LIE_TILT how far the body leans back so the head
+## end rests up on the pillows and not on the sheet in front of them (radians, see lie_tilt).
+const LIE_HEAD := Vector3(-0.135, 0.0, -0.65)
+const LIE_REACH := Vector3(0.065, 0.0, -0.65)
+const LIE_TILT := deg_to_rad(8.0)
+## How high a bed's mattress is: the body lies on it.
+const MATTRESS_HEIGHT := 0.83
+
+
+## Where a sleeper of `body_scale` lies in a bed at `pos` turned by `rot`: the origin of the body,
+## its feet towards the bed's foot, so that the head rests on the pillows (see LIE_HEAD).
+static func lie_spot(pos: Vector3, rot: float, body_scale := 1.0) -> Vector3:
+	return pos + Basis(Vector3.UP, rot) * (LIE_HEAD - LIE_REACH * body_scale) + Vector3(0, MATTRESS_HEIGHT, 0)
+
+
+## Leans a lying body's model (`model`, turned by rotation.y to face the bed's foot) back by
+## LIE_TILT so the head end rests up on the pillows, or upright again with `lying` false; over
+## `time` seconds in physics ticks, or at once with 0.
+static func lie_tilt(model: Node3D, lying: bool, time := 0.0) -> void:
+	var to := LIE_TILT if lying else 0.0
+	if time <= 0.0:
+		model.rotation.x = to
+		return
+	model.create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS).tween_property(model, "rotation:x", to, time)
+
+
 ## The station a click uses: one with a "spot" (bed, workbench) only when the click's ray (from
 ## the camera at `from`, along `dir`) passes within SPOT_RADIUS of it, else the nearest other one
 ## within `max_distance` of the clicked floor point. {} when none.

@@ -4952,11 +4952,13 @@ func _float_snooze_letter(i: int) -> void:
 	tween.tween_callback(label.queue_free)
 
 
-## How high the mattress of the bed lies, and how far from the bed's middle
-## towards its foot the hero stands before lying down. Lying down falls
-## backwards, so this puts the body in the middle of the bed.
-const BED_MATTRESS_HEIGHT := 0.83
-const BED_LIE_OFFSET := 0.65
+## How high the mattress of the bed lies (see Level.lie_spot, where the hero lies).
+const BED_MATTRESS_HEIGHT := Level.MATTRESS_HEIGHT
+
+
+## Where the hero lies in `bed`: on the mattress with the head on the pillows.
+func _bed_lie_spot(bed: Dictionary) -> Vector3:
+	return Level.lie_spot(bed.pos, bed.get("rot", 0.0), player.body_scale())
 
 
 ## The bed the hero just ran into: the closest one in the level.
@@ -4987,7 +4989,9 @@ func _lie_down_at_camp(tween: Tween) -> void:
 	tween.tween_callback(func():
 		# Lying down falls backwards, so face the foot of the bedroll.
 		player.face(foot)
-		player.play("Lie_Down", 0.15))
+		player.play("Lie_Down", 0.15)
+		# Settling down, the head comes to rest up on the pillows.
+		player.lean_on_pillow(true, 0.9))
 
 
 ## A game saved asleep at a camp starts there: the hero lies on the bedroll
@@ -5032,12 +5036,12 @@ func _wake_at_camp(data: Dictionary, done: Callable) -> bool:
 	return true
 
 
-## A little hop up onto the mattress, then the hero lies down on their back
-## with the head on the pillow and the feet towards the foot of the bed.
+## A little hop up onto the mattress, then the hero lies down with the head
+## on the pillows and the feet towards the foot of the bed (see Level.lie_spot).
 func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
 	var rot: float = bed.get("rot", 0.0)
 	var foot := Vector3(sin(rot), 0.0, cos(rot))
-	var spot: Vector3 = bed.pos + foot * BED_LIE_OFFSET + Vector3(0, BED_MATTRESS_HEIGHT, 0)
+	var spot := _bed_lie_spot(bed)
 	var from := player.global_position
 	player.velocity = Vector3.ZERO
 	player.face(spot - from)
@@ -5047,7 +5051,9 @@ func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
 	tween.tween_callback(func():
 		# Lying down falls backwards, so face the foot of the bed.
 		player.face(foot)
-		player.play("Lie_Down", 0.15))
+		player.play("Lie_Down", 0.15)
+		# Settling down, the head comes to rest up on the pillows.
+		player.lean_on_pillow(true, 0.9))
 
 
 # --- Waking up -----------------------------------------------------------------
@@ -5098,7 +5104,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	state = State.TRANSITION
 	var rot: float = bed.get("rot", 0.0)
 	var foot := Vector3(sin(rot), 0.0, cos(rot))
-	var lie: Vector3 = bed.pos + foot * BED_LIE_OFFSET + Vector3(0, BED_MATTRESS_HEIGHT, 0)
+	var lie := _bed_lie_spot(bed)
 	var floor_spot := _bedside(bed, foot)
 	player.frozen = true
 	player.path.clear()
@@ -5107,6 +5113,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	player.reset_physics_interpolation()
 	player.face(foot)
 	player.lie_asleep()
+	player.lean_on_pillow(true)
 	var fox_wakes := false
 	if is_instance_valid(pet) and pet.kind == "fuchs":
 		var basket := level.fox_bed_near(bed.pos)

@@ -1,0 +1,1 @@
+- Fog drifts in distinct clouds with clear lanes between them again, and lightning no longer leaves a dark circle on the ground.

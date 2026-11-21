@@ -4762,19 +4762,6 @@ func _show_bolt(at: Vector3) -> void:
 	var sparks := Effects.make_sparkles(Color(0.8, 0.9, 1.0), true)
 	sparks.position = at + Vector3(0, 0.5, 0)
 	add_child(sparks)
-	# A scorch mark where it hit, fading over a while.
-	var scorch := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.3
-	disc.bottom_radius = 1.3
-	disc.height = 0.02
-	scorch.mesh = disc
-	var burnt := StandardMaterial3D.new()
-	burnt.albedo_color = Color(0.03, 0.03, 0.03, 0.65)
-	burnt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	scorch.material_override = burnt
-	scorch.position = at + Vector3(0, 0.03, 0)
-	add_child(scorch)
 	# The bolt flickers: on, dark for a blink, on again (see LightningBolt.FLASHES), then fades.
 	var tween := create_tween()
 	for i in LightningBolt.FLASHES.size():
@@ -4789,10 +4776,6 @@ func _show_bolt(at: Vector3) -> void:
 	tween.tween_callback(bolt.queue_free)
 	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)
-	var fade := create_tween()
-	fade.tween_interval(8.0)
-	fade.tween_property(burnt, "albedo_color:a", 0.0, 12.0)
-	fade.tween_callback(scorch.queue_free)
 
 
 ## How many lumps of thunder ore lie about right now.

@@ -281,8 +281,6 @@ var edge_fillers := 0
 ## Whether the last tree _plant_tree planted was a spruce, and how big (see _spruce_size).
 var _last_spruce := false
 var _last_spruce_size := 1.0
-## Whether _build_tree is planting a tree of the forest (not one on its own, a "T" tile).
-var _in_forest := false
 ## Where the undergrowth bushes stand, each Vector4(x, y, z, radius) (see _grow_undergrowth).
 var undergrowth_bushes: Array[Vector4] = []
 ## Where the village's shrubs stand (see _plant_bushes).
@@ -301,6 +299,8 @@ var farm_animals: Array[FarmAnimal] = []
 var village_alarm := VillageAlarm.new()
 ## The shared lunch and dinner at the tables on the square (see TownMeals).
 var meals := TownMeals.new()
+## Idle townsfolk resting on the benches round the fountain (see BenchRest).
+var bench_rest := BenchRest.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -713,6 +713,8 @@ func build() -> void:
 	square_trees = AppleTree.plant_round_fountains(self)
 	# And more in the gardens round the houses.
 	square_trees.append_array(AppleTree.plant_in_village(self))
+	# And one in each grass pocket framed by paths.
+	square_trees.append_array(AppleTree.plant_in_pockets(self, square_trees))
 	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
@@ -1190,13 +1192,12 @@ func _spruce_of(at: Vector3) -> int:
 	return posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), Fern.NEEDLE_LOOKS.size())
 
 
-## Plants a tree (see _plant), or a spruce in its place: every living tree of the forest is a
-## spruce, and so is a pine standing on its own (a "T" tile); in the spruces' first stand every tree
-## is. The dice for the tree are thrown all the same, so the rest of the map grows as before. A
+## Plants a tree (see _plant), or a spruce in its place: every living tree, in the forest or on
+## its own (a "T" tile), is a spruce, and in the spruces' first stand every tree is. The dice for the tree are thrown all the same, so the rest of the map grows as before. A
 ## smaller tree (a "medium" one, filling a gap) is a smaller spruce. Tells _last_spruce whether it
 ## was a spruce.
 func _plant_tree(name: String, pos: Vector3, rot: float, s: float) -> float:
-	_last_spruce = in_spruce_patch(pos) or name.begins_with("tree_pine") or (_in_forest and not name.begins_with("tree_dead"))
+	_last_spruce = in_spruce_patch(pos) or not name.begins_with("tree_dead")
 	if not _last_spruce:
 		return _plant(name, pos, rot, s)
 	_last_spruce_size = _spruce_size(name, pos)
@@ -1810,7 +1811,6 @@ func _build_temple_lamps(chapel: Node3D) -> void:
 ## how far it reaches (metres), or -1 when it would stand over a building plot.
 func _build_tree(pos: Vector3, single := false) -> float:
 	var near_crypt := pos.distance_to(cell_to_world(start_cell)) < 13.0 * TILE
-	_in_forest = not single
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
 	var at := pos + _jitter(0.9 if not single else 0.3)
@@ -1840,7 +1840,8 @@ func _build_tree(pos: Vector3, single := false) -> float:
 	var spruce := _last_spruce
 	if spruce:
 		height = Fern.needle_height(_spruce_of(at)) * _last_spruce_size
-		leafy = false
+		# Squirrels live in spruces too (see WoodsLife: "leafy" is a tree they can climb).
+		leafy = true
 	# A spruce's low branches bend down to the ground and hide it nearly all the way out.
 	_tree_crown = reach * (SPRUCE_CROWN if spruce else CROWN if height > 0.0 else DEAD_CROWN)
 	if height > 0.0 and not near_crypt:
@@ -4367,6 +4368,7 @@ func _process(delta: float) -> void:
 	village_alarm.tick(self, delta)
 	village_wall.tick(self, delta)
 	meals.tick(self, delta)
+	bench_rest.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

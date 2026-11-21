@@ -46,6 +46,7 @@ fountain.gd | 120 | fixed | pass | Refuge fountain gives 5 life per drink test
 bloated_belly.gd | 120 | fixed | pass | Drinking too much at the village fountain swells the belly test
 village_run.gd | 120 | free | pass | The protected run from the crypt to the village (two minutes, ends at the village)
 seats.gd | 200 | fixed | passfail | Sitting on the benches of the market square test
+bench_rest.gd | 200 | free | passfail | Idle townsfolk now and then rest on the fountain benches, one to a bench, and get up again
 graveyard_start.gd | 120 | free | pass | Graveyard start after the escape test
 looted_containers.gd | 120 | free | pass | Looted containers stay empty test
 splash_attack.gd | 300 | fixed | pass | Hero strikes back at attackers test
@@ -293,3 +294,4 @@ autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushe
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone
 wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
 house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
+house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere

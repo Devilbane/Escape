@@ -768,6 +768,8 @@ func _setup_world() -> void:
 	moon.light_color = Color(0.82, 0.84, 0.9)
 	moon.light_energy = 0.28
 	moon.shadow_enabled = true
+	# A lifted roof still holds in the light of the house's own lamps, but not the moon's (see LightShadows.lift).
+	moon.shadow_caster_mask = 0xFFFFF & ~LightShadows.LID_LAYER
 	# Shadows reach all the way to the camera's far plane, so the mountains'
 	# shadows are always fully drawn instead of building up (or fading in)
 	# as the hero walks towards them. The camera hangs about 27 m from the hero, so the
@@ -1922,6 +1924,13 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == AppleTree.STATION:
 		player.face(s.pos - player.global_position)
 		AppleTree.pick(self, s)
+	elif s.kind == Seats.KIND and level is Outdoor and level.bench_rest.taken(s):
+		# Someone from the village rests there already (see BenchRest).
+		player.face(s.pos - player.global_position)
+		var taken_text := Lang.t("Auf dieser Bank sitzt schon jemand.")
+		# Once per push against it, not every bump of a held key.
+		if _message.text != taken_text or _message.modulate.a < 0.05:
+			show_message(taken_text, read_time(taken_text))
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
@@ -4234,14 +4243,16 @@ func _wake_place(data: Dictionary) -> Dictionary:
 		# Saved in the bed of an inn on the way: the hero wakes up there,
 		# not back home, so the long road need not be walked again.
 		pass
+	elif not _built_spot_of(data).is_empty() and _outdoor_index() >= 0:
+		# Saved inside the hero's own self-built house or on its plot (any storey, its cellar or
+		# its roof): the hero logs back in at that very spot (see _built_house_spot), even when a
+		# camp still stands somewhere else in the open air.
+		index = _outdoor_index()
+		built = _built_spot_of(data)
+		camp_at = {}
 	elif not camp_at.is_empty():
 		# Saved at a camp: the hero wakes up by its fire, wherever it was.
 		pass
-	elif not _built_spot_of(data).is_empty() and _outdoor_index() >= 0:
-		# Saved inside the hero's own self-built house (any storey, its cellar or its roof):
-		# the hero logs back in at that very spot (see _built_house_spot).
-		index = _outdoor_index()
-		built = _built_spot_of(data)
 	elif escaped and home_claimed and own_house > 0 and interiors.has("^"):
 		# The hero's own town house is the place to come back to: every
 		# load wakes up beside its bed, wherever the game was saved.
@@ -4276,8 +4287,8 @@ func _go_to_wake_place(place: Dictionary) -> void:
 		player.global_position = level.home_spot
 
 
-## Where the hero stands in their own self-built house (see HouseSketcher.holds): on any
-## storey, down in its cellar or up on its roof, as {"pos": [x, y, z], "facing": angle};
+## Where the hero stands in their own self-built house or on its plot (see HouseSketcher.holds):
+## on any storey, down in its cellar or up on its roof, as {"pos": [x, y, z], "facing": angle};
 ## {} anywhere else. The saved game keeps it, so the hero logs back in there.
 func _built_house_spot() -> Dictionary:
 	if not level is Outdoor or house_sketcher == null or player == null or not house_sketcher.holds(player.global_position):

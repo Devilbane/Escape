@@ -134,6 +134,7 @@ const PARTS := [
 	preload("res://scripts/lang/event_log.gd"),
 	preload("res://scripts/lang/hero_chat.gd"),
 	preload("res://scripts/lang/seats.gd"),
+	preload("res://scripts/lang/bench_rest.gd"),
 	preload("res://scripts/lang/home_run.gd"),
 	preload("res://scripts/lang/dragon_hoard.gd"),
 	preload("res://scripts/lang/launcher.gd"),

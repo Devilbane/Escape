@@ -768,6 +768,8 @@ func _setup_world() -> void:
 	moon.light_color = Color(0.82, 0.84, 0.9)
 	moon.light_energy = 0.28
 	moon.shadow_enabled = true
+	# A lifted roof still holds in the light of the house's own lamps, but not the moon's (see LightShadows.lift).
+	moon.shadow_caster_mask = 0xFFFFF & ~LightShadows.LID_LAYER
 	# Shadows reach all the way to the camera's far plane, so the mountains'
 	# shadows are always fully drawn instead of building up (or fading in)
 	# as the hero walks towards them. The camera hangs about 27 m from the hero, so the

@@ -5,6 +5,7 @@ extends SceneTree
 ## - outside autumn every bush grows and no fallen leaves are laid (nothing to pay for);
 ## - in autumn only about UNDERGROWTH_AUTUMN_KEEP of the bushes keep their leaves, and thousands of
 ##   fallen leaves lie about, all in the ivy's autumn colours (IvySeasons.AUTUMN_COLOURS);
+## - leaves heap up along the walls, the buildings and the edges of the paving;
 ## - no shrub and no fallen leaves lie over the temple glass's light on the grass, in any season;
 ## - they lie on the open ground and the forest's edge, never on the middle of a path, and are drawn
 ##   in batches with a draw range;
@@ -78,6 +79,7 @@ func _run() -> void:
 	check(life.fallen_on_bare_ground() == 0, "no fallen leaves hide the temple glass's light on the grass (%d)" % life.fallen_on_bare_ground())
 	var on_light := lvl.shrubs.filter(func(at: Vector3): return lvl.on_bare_ground(at, 1.5)).size()
 	check(not lvl.bare_ground.is_empty() and on_light == 0, "no shrub stands on the temple glass's light on the grass (%d)" % on_light)
+	check(life.drifted > 1000, "the wind heaps leaves up along the walls and the edges of the paving (%d clusters)" % life.drifted)
 	check(life.litter_on_path_middles() == 0, "no fallen leaf lies on the middle of a path")
 	var count := life.fallen_total
 	lvl.set_season(autumn + 1)

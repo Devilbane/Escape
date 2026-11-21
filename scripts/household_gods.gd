@@ -117,57 +117,8 @@ static func active(game: Node) -> String:
 # --- The shrine -----------------------------------------------------------------
 
 ## Builds the shrine of `goddess` into `root` (its front towards +z, its back on the cell's back
-## edge, on the floor): a stone plinth with a niche under a little gabled roof, and on it the
-## goddess with her wings spread and a gilt halo, two candles at her feet. Returns its solids
-## ({at, size}, local, as HouseFurnisher.build_piece notes them).
+## edge, on the floor): a marble aedicula on a walnut foot with a carved relief, gilt filigree
+## and a lapis niche, and in it the goddess with gilt wings and a halo (see ShrineLook). Returns
+## its solids ({at, size}, local, as HouseFurnisher.build_piece notes them).
 static func build_shrine(root: Node3D, goddess: String) -> Array:
-	var info: Dictionary = GODDESSES.get(goddess, GODDESSES.values()[0])
-	var stone := HomeStoreFurniture._mat(Color(0.4, 0.38, 0.36), 0.85)
-	var pale := HomeStoreFurniture._mat(Color(0.55, 0.52, 0.48), 0.8)
-	var marble := HomeStoreFurniture._mat(info.statue, 0.35)
-	var gilt := HomeStoreFurniture._mat(info.wings, 0.3, 0.75)
-	var z := -0.45
-	var shrine := Node3D.new()
-	shrine.name = "Shrine"
-	root.add_child(shrine)
-	# The plinth with a moulding at its top and foot.
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._box(Vector3(1.15, 0.1, 0.85)), pale, Vector3(0, 0.05, z))
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._box(Vector3(1.05, 0.7, 0.75)), stone, Vector3(0, 0.45, z))
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._box(Vector3(1.15, 0.08, 0.85)), pale, Vector3(0, 0.84, z))
-	# The niche: a back wall, two pillars, a lintel and a gabled roof.
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._box(Vector3(1.05, 1.2, 0.1)), stone, Vector3(0, 1.48, z - 0.33))
-	for side: float in [-1.0, 1.0]:
-		HomeStoreFurniture._add(shrine, HomeStoreFurniture._cylinder(0.055, 0.065, 1.1), pale, Vector3(side * 0.44, 1.43, z + 0.28))
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._box(Vector3(1.15, 0.1, 0.8)), pale, Vector3(0, 2.03, z))
-	var roof := PrismMesh.new()
-	roof.size = Vector3(1.3, 0.32, 0.9)
-	HomeStoreFurniture._add(shrine, roof, stone, Vector3(0, 2.24, z))
-	# The goddess on a round pedestal: a long robe, shoulders, a head, her wings and a halo.
-	var foot := 0.88
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._cylinder(0.15, 0.17, 0.1), pale, Vector3(0, foot + 0.05, z))
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._cylinder(0.07, 0.15, 0.5), marble, Vector3(0, foot + 0.35, z))
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._cylinder(0.05, 0.08, 0.14), marble, Vector3(0, foot + 0.67, z))
-	HomeStoreFurniture._add(shrine, HomeStoreFurniture._sphere(0.075), marble, Vector3(0, foot + 0.8, z))
-	for side: float in [-1.0, 1.0]:
-		var wing := HomeStoreFurniture._add(shrine, HomeStoreFurniture._sphere(0.22), gilt, Vector3(side * 0.17, foot + 0.6, z - 0.08))
-		wing.scale = Vector3(0.18, 1.25, 0.6)
-		wing.rotation = Vector3(0, side * 0.35, -side * 0.45)
-	var halo := TorusMesh.new()
-	halo.inner_radius = 0.1
-	halo.outer_radius = 0.125
-	var ring := HomeStoreFurniture._add(shrine, halo, gilt, Vector3(0, foot + 0.82, z - 0.1))
-	ring.rotation.x = PI * 0.5
-	# Two votive candles at her feet.
-	var wax := HomeStoreFurniture._mat(Color(0.95, 0.92, 0.82), 0.6)
-	for side: float in [-1.0, 1.0]:
-		HomeStoreFurniture._add(shrine, HomeStoreFurniture._cylinder(0.03, 0.03, 0.12), wax, Vector3(side * 0.32, foot + 0.06, z + 0.22))
-		var flame := HomeStoreFurniture._add(shrine, HomeStoreFurniture._sphere(0.018), HomeStoreFurniture._mat(Color(1.0, 0.8, 0.35), 1.0), Vector3(side * 0.32, foot + 0.15, z + 0.22))
-		var glow := StandardMaterial3D.new()
-		glow.albedo_color = Color(1.0, 0.75, 0.3)
-		glow.emission_enabled = true
-		glow.emission = Color(1.0, 0.7, 0.25)
-		glow.emission_energy_multiplier = 3.0
-		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		flame.material_override = glow
-		flame.scale = Vector3(1, 1.8, 1)
-	return [{"at": Vector3(0, 0, z), "size": Vector3(1.2, 2.4, 0.9)}]
+	return ShrineLook.build(root, GODDESSES.get(goddess, GODDESSES.values()[0]))

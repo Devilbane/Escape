@@ -145,6 +145,14 @@ const FALLEN_KINDS := {"path": 0.4, "square": 0.6, "under": 0.8, "edge": 0.6}
 const FALLEN_SIZE := Vector2(0.3, 0.48)
 const FALLEN_CAP := 700000
 const FALLEN_TREES := "#TdrgtpN"
+## Leaves the wind heaps up along walls, buildings and the edges of paving (see _drift_spots): how
+## many clusters on a side in the woods (in proportion to FALLEN elsewhere), and how far from the
+## tile's middle the strip lies (metres; a tile is 4 m across, so it reaches past the tile's edge to
+## the foot of a wall standing back on its own tile; what lies under the wall is not seen).
+const DRIFT_CLUSTERS := 5.0
+const DRIFT_BAND := Vector2(1.35, 3.0)
+## Letters of the ground itself (open, paved, under a tree, water, the forest): anything else stands.
+const LYING := GROUND + PATH + SQUARE + UNDER + WATER + "#"
 
 var level: Level
 var _rng := RandomNumberGenerator.new()
@@ -170,6 +178,8 @@ var litter_total := 0
 ## The fallen autumn leaves (see FALLEN), once laid, and how many.
 var fallen: Node3D
 var fallen_total := 0
+## How many clusters of them the wind heaped up along walls and paving (see _drift_spots).
+var drifted := 0
 var _autumn := false
 
 static var _textures := {}
@@ -235,10 +245,16 @@ func _drop_leaves() -> void:
 				n *= FALLEN_EDGE
 			n /= CLUSTER_LEAVES
 			var count := int(n) + (1 if rng.randf() < n - int(n) else 0)
+			var spots: Array[Vector3] = []
 			for i in count:
+				spots.append(_litter_spot(c, ch, rng))
+			if ch != "#":
+				var drift := _drift_spots(c, ch, rng)
+				drifted += drift.size()
+				spots.append_array(drift)
+			for spot in spots:
 				if fallen_total >= FALLEN_CAP:
 					break
-				var spot := _litter_spot(c, ch, rng)
 				# Not over the temple glass's light on the grass.
 				if spot.x == INF or _on_bare_ground(spot, CLUSTER_SPREAD + 0.2):
 					continue
@@ -332,6 +348,34 @@ static func fallen_colour(rng: RandomNumberGenerator) -> Color:
 	col = col * rng.randf_range(0.78, 1.05)
 	col.a = 1.0
 	return col
+
+
+## Where the wind heaps up fallen leaves on tile `c` (map letter `ch`): along each side that meets
+## a building, a wall or anything else standing (DRIFT_CLUSTERS a side), and on open ground along
+## the edge of a path or the paved square. The clusters lie in a strip at the tile's edge, reaching a
+## little past it to the foot of the wall.
+func _drift_spots(c: Vector2i, ch: String, rng: RandomNumberGenerator) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var per_side: float = DRIFT_CLUSTERS * float(FALLEN.get(biome_of(c), 0.0)) / float(FALLEN[FOREST])
+	var paved := PATH.contains(ch) or SQUARE.contains(ch)
+	var mid := level.cell_to_world(c)
+	for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var next := level.cell_char(c + d)
+		if next == "":
+			continue
+		var standing := not LYING.contains(next)
+		var paving := not paved and (PATH.contains(next) or SQUARE.contains(next))
+		if not standing and not paving:
+			continue
+		var count := int(per_side) + (1 if rng.randf() < per_side - int(per_side) else 0)
+		for i in count:
+			# Out to the wall's foot; on the open ground only up to the paving's edge.
+			# Thickest against the wall itself.
+			var across := lerpf(DRIFT_BAND.x, DRIFT_BAND.y if standing else TILE * 0.48, sqrt(rng.randf()))
+			var along := rng.randf_range(-TILE * 0.48, TILE * 0.48)
+			var off := Vector2(d) * across + Vector2(-d.y, d.x) * along
+			out.append(mid + Vector3(off.x, 0, off.y))
+	return out
 
 
 ## Whether walkable ground lies on a tile beside `c`.

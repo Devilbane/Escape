@@ -674,6 +674,8 @@ func build() -> void:
 	_plant_bushes()
 	# The ivy-covered poles and ropes with their lamps round the dining tables (see MealGarland).
 	meals.garland.build(self, meals.tables, _ivy)
+	# The braziers that warm the diners in winter (see MealBraziers).
+	meals.braziers.build(self, meals.tables)
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -4153,6 +4155,8 @@ func set_winter_wear(on: bool, at_once := false) -> void:
 		return
 	winter_wear = on
 	_wear_known = true
+	# The braziers round the dining tables burn all winter.
+	meals.braziers.set_winter(on, first or at_once)
 	for v in villagers:
 		v.update_wear(first or at_once)
 

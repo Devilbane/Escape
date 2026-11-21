@@ -47,6 +47,10 @@ const LEAF := {"spring": Color(0.4, 0.64, 0.24), "summer": Color(0.2, 0.44, 0.15
 const AUTUMN_LEAVES := [Color(0.7, 0.4, 0.12), Color(0.72, 0.56, 0.18), Color(0.54, 0.22, 0.1), Color(0.46, 0.44, 0.16), Color(0.62, 0.3, 0.1)]
 const BLOSSOM := [Color(0.98, 0.96, 0.94), Color(0.98, 0.84, 0.88), Color(0.96, 0.74, 0.8)]
 const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
+## The unripened side of an apple, and how many apples hang on the model for each one a picking
+## brings in.
+const APPLE_GREEN := Color(0.56, 0.7, 0.16)
+const HANGING := 5
 const BARK := Color(0.33, 0.24, 0.17)
 ## Single leaves on a full-sized clump of leaves (fewer on a smaller one).
 const LEAVES_PER_CLUMP := 62
@@ -307,13 +311,17 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 				var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() + Vector3(0, 0.4, 0))
 				parts.blossom(at, shape.clump * 0.13, BLOSSOM[rng.randi() % BLOSSOM.size()])
 				blossoms += 1
-	# The apples, hanging on the outside and the underside of the outer clumps.
-	var n := apples(piece, day)
+	# The apples, hanging on the outside and the underside of the outer clumps: more than a
+	# picking brings in (HANGING times as many), so the tree looks laden.
+	var n := apples(piece, day) * HANGING
 	var outer := clumps.slice(0, maxi(1, tips.size())) if not clumps.is_empty() else [[centre, shape.clump]]
 	for i in n:
 		var c: Array = outer[(i * 7 + 3) % outer.size()]
-		var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() * Vector3(1, 0, 1) + Vector3(0, -0.5, 0))
-		parts.apple(at, 0.14 if grown == MATURE else 0.11, APPLE_COLOUR * rng.randf_range(0.86, 1.12))
+		# Just outside the clump's leaves, where they show.
+		var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() * Vector3(1, 0, 1) + Vector3(0, -0.5, 0)) * 1.18
+		# Red on the side the sun ripened, green on the other.
+		var sunny := (Vector3(rng.randf_range(-1, 1), rng.randf_range(0.2, 1.0), rng.randf_range(-1, 1))).normalized()
+		parts.apple(at, 0.14 if grown == MATURE else 0.11, APPLE_COLOUR * rng.randf_range(0.86, 1.12), APPLE_GREEN * rng.randf_range(0.9, 1.08), sunny, rng.randf_range(-0.35, 0.35))
 	parts.finish(root)
 	root.set_meta("apples", n)
 	root.set_meta("leaves", clumps.size())
@@ -483,8 +491,19 @@ class _Parts:
 	func blossom(at: Vector3, r: float, colour: Color) -> void:
 		_ball(flowers, at, Vector3.ONE * r, 0.0, colour, AppleTree._ball_arrays(5))
 
-	func apple(at: Vector3, r: float, colour: Color) -> void:
-		_ball(fruit, at, Vector3(1.0, 0.92, 1.0) * r, 0.0, colour, AppleTree._ball_arrays(7))
+	## An apple: red on the side that faces `sunny`, turning through a blush to green on the
+	## other; `split` moves where the red gives way (more red or more green).
+	func apple(at: Vector3, r: float, red: Color, green: Color, sunny: Vector3, split: float) -> void:
+		var arrays := AppleTree._ball_arrays(8)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var scale := Vector3(1.0, 0.92, 1.0) * r
+		for i in arrays[Mesh.ARRAY_INDEX] as PackedInt32Array:
+			var ripe := smoothstep(-0.55, 0.45, normals[i].dot(sunny) + split)
+			fruit.set_color(green.lerp(red, ripe))
+			fruit.set_normal((normals[i] / scale).normalized())
+			fruit.add_vertex(at + verts[i] * scale)
+		_used[fruit] = true
 
 	func _ball(st: SurfaceTool, at: Vector3, scale: Vector3, turn: float, colour: Color, arrays: Array) -> void:
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]

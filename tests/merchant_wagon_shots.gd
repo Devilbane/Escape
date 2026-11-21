@@ -56,7 +56,7 @@ func _run() -> void:
 			"wagon_close": [Vector3(-0.9, 2.0, 4.2), Vector3(-1.1, 1.6, 0.5)],
 			"porch": [Vector3(-6.5, 2.4, 3.6), Vector3(-3.2, 1.5, 0)],
 			"merchant": [Vector3(5.8, 2.6, 8.8), Vector3(1.2, 1.4, 2.6)],
-			"raven": [Vector3(0.2, 4.6, 3.2), Vector3(0.6, 3.6, 0.3)],
+			"raven": [Vector3.ZERO, Vector3.FORWARD],
 			"raven_on_hat": [Vector3.ZERO, Vector3.FORWARD],
 			"top": [Vector3(4.5, 9.0, 8.0), Vector3(-1, 1, 0.5)]}
 		for name: String in views:
@@ -65,19 +65,16 @@ func _run() -> void:
 			root.add_child(cam)
 			cam.global_position = cart + (views[name][0] as Vector3)
 			cam.look_at(cart + (views[name][1] as Vector3))
-			if name == "raven_on_hat":
+			if name.begins_with("raven"):
+				# Close on the raven, sat on the porch rail or on the merchant's hat.
 				var raven: Node3D = game.level.find_child("MerchantRaven", true, false)
-				raven.call("_take_off")
-				raven.set("_spot", -1)
+				raven.set("_spot", -1 if name == "raven_on_hat" else 1)
 				raven.set("_flying", 0.0)
 				raven.set("_sit", 60.0)
-				cam.global_position = lvl.wanderer.global_position + Vector3(2.5, 2.4, 3.2)
-				cam.look_at(lvl.wanderer.global_position + Vector3(0.3, 1.5, 0))
-			if name == "raven":
-				# Close on the raven, wherever it sits just now.
-				var raven: Node3D = game.level.find_child("MerchantRaven", true, false)
-				cam.global_position = raven.global_position + Vector3(1.4, 0.5, 2.0)
-				cam.look_at(raven.global_position + Vector3(0, 0.15, 0))
+				await _wait(2)
+				var at := raven.global_position
+				cam.global_position = at + (Vector3(1.6, 0.7, 2.4) if name == "raven_on_hat" else Vector3(-0.3, 0.35, 1.3))
+				cam.look_at(at + Vector3(0, 0.1, 0))
 			cam.make_current()
 			await _wait(8)
 			root.get_texture().get_image().save_png(shots.path_join(name + ".png"))

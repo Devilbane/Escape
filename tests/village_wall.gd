@@ -278,7 +278,8 @@ func _run() -> void:
 	# At night he gets up for a hurt wall, and sleeps again once it is whole.
 	lvl.night = true
 	mason.set_night(true, true)
-	check(mason.at_home, "the mason sleeps at night while the wall is whole")
+	var why := "job %s, threat %s at %s, eaten %s, task %s, alarm %s, shut %s" % [wall.job(lvl), mason.threat, mason.threat.global_position.distance_to(mason.global_position) if mason.threat else -1.0, mason.eaten, mason._task, lvl.village_alarm.raised, wall.shut_wanted]
+	check(mason.at_home, "the mason sleeps at night while the wall is whole (%s)" % why)
 	brick.hurt(300)
 	check(wall.job(lvl) != null, "a hurt brick is work at night")
 	check(mason.can_mend(), "the sleeping mason may be called out for the wall")

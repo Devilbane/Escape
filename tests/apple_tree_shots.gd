@@ -67,7 +67,7 @@ func _run() -> void:
 	game.state = game.State.PLAYING
 	await _wait(10)
 	var level: Outdoor = game.level
-	var round_fountain := level.square_trees.filter(func(t): return not t.get("garden", false))
+	var round_fountain := level.square_trees.filter(func(t): return not t.get("garden", false) and not t.get("pocket", false))
 	check(round_fountain.size() == 4, "four apple trees round the fountain (%d)" % round_fountain.size())
 	var fountain := Vector3.ZERO
 	for y in level.height:

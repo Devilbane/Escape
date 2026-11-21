@@ -1,5 +1,6 @@
 extends SceneTree
-## Headless test: villagers piled onto one spot come apart and walk on (see Villager._keep_apart):
+## Headless test: villagers piled onto one spot come apart and walk on (see Villager._keep_apart),
+## always with a clearly visible gap (Villager.BODY_GAP) between their bodies:
 ## - several villagers standing exactly on each other, all facing the same way, separate;
 ## - several sent to the very same target do not stay in a clump, and each one gets there;
 ## - a clump that is walked on to different goals ends up spread out.
@@ -36,15 +37,19 @@ func _wait(n: int) -> void:
 		await physics_frame
 
 
-## The smallest distance between any two of the group, flat.
+## The narrowest clear gap between the bodies of any two of the group, flat (centre distance
+## less both radii).
 func _closest(group: Array) -> float:
 	var best := INF
 	for i in group.size():
 		for j in range(i + 1, group.size()):
-			var a: Vector3 = group[i].global_position
-			var b: Vector3 = group[j].global_position
-			best = minf(best, Vector2(a.x - b.x, a.z - b.z).length())
+			best = minf(best, _gap(group[i], group[j]))
 	return best
+
+
+func _gap(a: Villager, b: Villager) -> float:
+	var d := Vector2(a.global_position.x - b.global_position.x, a.global_position.z - b.global_position.z).length()
+	return d - a.radius - b.radius
 
 
 func _walkers(lvl: Outdoor, n: int) -> Array:
@@ -79,7 +84,8 @@ func _run() -> void:
 		v.rotation.y = 0.0
 		v.chat_partner = null
 	await _wait(240)
-	var room := Villager.PASSING_SPACE * 0.9
+	# A clearly visible stretch of ground between any two bodies.
+	var room := Villager.BODY_GAP * 0.8
 	check(_closest(group) >= room, "four villagers piled on one spot stand apart within 4 s (closest %.2f)" % _closest(group))
 
 	# 1b. The same on one spot with the footprint pass off: the villagers' own pushing has to do it,
@@ -141,8 +147,7 @@ func _run() -> void:
 	third._start("idle", 600.0)
 	third.global_position = spot
 	await _wait(600)
-	check(Vector2(third.global_position.x - pair[0].global_position.x, third.global_position.z - pair[0].global_position.z).length() >= room \
-		and Vector2(third.global_position.x - pair[1].global_position.x, third.global_position.z - pair[1].global_position.z).length() >= room, \
+	check(_gap(third, pair[0]) >= room and _gap(third, pair[1]) >= room, \
 		"a villager squeezed between two chatting ones gets free (%s)" % third.global_position)
 	for v: Villager in pair:
 		v.leave_chat()

@@ -146,16 +146,23 @@ const UNDERGROWTH_SPACING := 1.8
 ## (see undergrowth_shed), so the forest edge is not lined with heaps of red and gold leaves, and
 ## the fallen leaves lie spread over the ground instead (see SurfaceLife.set_autumn).
 const UNDERGROWTH_AUTUMN_KEEP := 0.15
+## How closely the undergrowth's strip is looked over for bare floor (metres, see _grow_undergrowth).
+const UNDERGROWTH_CHECK := 0.5
 ## How deep into the forest its gaps are filled with smaller pines (tiles, see _fill_forest_gaps).
 const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
 const UNDERGROWTH_DEPTH := 2.0
-## A trial stand of spruces (see Fern.needle_tree_mesh): every tree of the forest in these tiles of
-## Die Freiheit, the wood west of the road from the crypt down past the pond, is a spruce.
+## The forest's living trees are spruces (see Fern.needle_tree_mesh, _plant_tree). In these tiles of
+## Die Freiheit, the wood west of the road from the crypt down past the pond, every tree is one.
 const SPRUCE_MAP := "Die Freiheit"
 const SPRUCE_PATCH := Rect2i(0, 14, 14, 26)
 ## How much of a spruce's reach hides the ground (see CROWN).
 const SPRUCE_CROWN := 0.95
+## How far off (metres, to the middle of a SPRUCE_CHUNK batch) spruces are drawn frond by frond;
+## further off they are the far model of fewer, broader fronds (see Fern.needle_tree_mesh).
+const SPRUCE_NEAR := 20.0
+## The spruces' batches (tiles square), smaller than GROUND_CHUNK.
+const SPRUCE_CHUNK := 4
 ## Ferns (see Fern.fern_mesh) in the shade along the forest's edge: how many a forest tile beside
 ## open ground tries for, how far apart they stay and how big they grow (times the model).
 const FERN_TRIES := 7
@@ -265,6 +272,11 @@ var fern_count := 0
 ## Where the last tree _build_tree planted stands, and how far its crown reaches.
 var _tree_at := Vector3.ZERO
 var _tree_crown := 0.0
+## Whether the last tree _plant_tree planted was a spruce, and how big (see _spruce_size).
+var _last_spruce := false
+var _last_spruce_size := 1.0
+## Whether _build_tree is planting a tree of the forest (not one on its own, a "T" tile).
+var _in_forest := false
 ## Where the undergrowth bushes stand, each Vector4(x, y, z, radius) (see _grow_undergrowth).
 var undergrowth_bushes: Array[Vector4] = []
 ## Where the village's shrubs stand (see _plant_bushes).
@@ -1112,7 +1124,9 @@ func _plant(name: String, pos: Vector3, rot: float, s: float) -> float:
 	var reach := _reach_of(name, s)
 	if on_plot(pos, reach):
 		return -1.0
-	var patch := Vector2i(floori(pos.x / (GROUND_CHUNK * TILE)), floori(pos.z / (GROUND_CHUNK * TILE)))
+	# Spruces in smaller batches, so each one turns into its far model at about its own distance.
+	var chunk := (SPRUCE_CHUNK if name.begins_with("spruce:") else GROUND_CHUNK) * TILE
+	var patch := Vector2i(floori(pos.x / chunk), floori(pos.z / chunk))
 	var key := [name, patch]
 	if not _plants.has(key):
 		_plants[key] = []
@@ -1137,13 +1151,23 @@ func _spruce_of(at: Vector3) -> int:
 	return posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), Fern.NEEDLE_LOOKS.size())
 
 
-## Plants a forest tree (see _plant), or in the trial stand a spruce in its place: the dice for
-## the tree are thrown all the same, so the rest of the map grows as before. A smaller tree (a
-## "medium" one, filling a gap) is a smaller spruce.
+## Plants a tree (see _plant), or a spruce in its place: every living tree of the forest is a
+## spruce, and so is a pine standing on its own (a "T" tile); in the spruces' first stand every tree
+## is. The dice for the tree are thrown all the same, so the rest of the map grows as before. A
+## smaller tree (a "medium" one, filling a gap) is a smaller spruce. Tells _last_spruce whether it
+## was a spruce.
 func _plant_tree(name: String, pos: Vector3, rot: float, s: float) -> float:
-	if not in_spruce_patch(pos):
+	_last_spruce = in_spruce_patch(pos) or name.begins_with("tree_pine") or (_in_forest and not name.begins_with("tree_dead"))
+	if not _last_spruce:
 		return _plant(name, pos, rot, s)
-	return _plant("spruce:%d" % _spruce_of(pos), pos, rot, _spruce_grow(pos) * (0.8 if name.ends_with("medium") else 1.0))
+	_last_spruce_size = _spruce_size(name, pos)
+	return _plant("spruce:%d" % _spruce_of(pos), pos, rot, _last_spruce_size)
+
+
+## How big the spruce is that stands in for tree `name` at a spot (its model's size times this): a
+## little smaller for a "medium" tree.
+func _spruce_size(name: String, at: Vector3) -> float:
+	return _spruce_grow(at) * (0.8 if name.ends_with("medium") else 1.0)
 
 
 ## How much bigger or smaller than its model the spruce at a spot grows, so no two stand alike.
@@ -1212,6 +1236,20 @@ func _draw_plants(key: Array) -> void:
 			# Its thousands of fronds are drawn once, without shadow; a plain stand-in of the same
 			# outline casts the shadow (see Fern.needle_shadow_mesh), drawn in every shadow map.
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# Up close frond by frond, further off the far model with the same outline.
+			mmi.visibility_range_end = SPRUCE_NEAR
+			var far_mm := MultiMesh.new()
+			far_mm.transform_format = MultiMesh.TRANSFORM_3D
+			far_mm.mesh = Fern.needle_tree_mesh(int(name.get_slice(":", 1)), true)
+			far_mm.instance_count = mm.instance_count
+			for i in mm.instance_count:
+				far_mm.set_instance_transform(i, mm.get_instance_transform(i))
+			var far := MultiMeshInstance3D.new()
+			far.multimesh = far_mm
+			far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			far.visibility_range_begin = SPRUCE_NEAR
+			add_child(far)
+			_plant_batches[key].append(far)
 			var shade := MultiMesh.new()
 			shade.transform_format = MultiMesh.TRANSFORM_3D
 			shade.mesh = Fern.needle_shadow_mesh(int(name.get_slice(":", 1)))
@@ -1733,6 +1771,7 @@ func _build_temple_lamps(chapel: Node3D) -> void:
 ## how far it reaches (metres), or -1 when it would stand over a building plot.
 func _build_tree(pos: Vector3, single := false) -> float:
 	var near_crypt := pos.distance_to(cell_to_world(start_cell)) < 13.0 * TILE
+	_in_forest = not single
 	var roll := _rng.randf()
 	var rot := _rng.randf() * TAU
 	var at := pos + _jitter(0.9 if not single else 0.3)
@@ -1759,11 +1798,12 @@ func _build_tree(pos: Vector3, single := false) -> float:
 		height = 1.2 * scale_of
 	if reach < 0.0:
 		return reach
-	if in_spruce_patch(at):
-		height = Fern.needle_height(_spruce_of(at)) * _spruce_grow(at)
+	var spruce := _last_spruce
+	if spruce:
+		height = Fern.needle_height(_spruce_of(at)) * _last_spruce_size
 		leafy = false
 	# A spruce's low branches bend down to the ground and hide it nearly all the way out.
-	_tree_crown = reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN if height > 0.0 else DEAD_CROWN)
+	_tree_crown = reach * (SPRUCE_CROWN if spruce else CROWN if height > 0.0 else DEAD_CROWN)
 	if height > 0.0 and not near_crypt:
 		_wood_trees.append({"pos": Vector3(at.x, 0.0, at.z), "height": height, "leafy": leafy})
 	return reach
@@ -1906,7 +1946,7 @@ func _fill_forest_gaps() -> void:
 				if reach >= 0.0:
 					if not forest_trees.has(c):
 						forest_trees[c] = []
-					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if in_spruce_patch(at) else CROWN)})
+					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if _last_spruce else CROWN)})
 
 
 ## What looks walkable is walkable, and what blocks looks blocked. The forest does not stop the
@@ -2030,9 +2070,35 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
-			# Most of them shed their leaves in autumn (see _keeps_leaves).
-			var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
-			undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
+			_undergrowth_bush(at, rng)
+	# A spruce's crown is narrow: where the floor still shows between the crowns and the bushes
+	# near the open side, one more bush, as close to it as the strip lets it grow.
+	var radii: Array[float] = []
+	for b in undergrowth_bushes.slice(undergrowth_bushes.size() - placed.size()):
+		radii.append(b.w)
+	for iy in ceili(block.size.y / UNDERGROWTH_CHECK):
+		for ix in ceili(block.size.x / UNDERGROWTH_CHECK):
+			var at := Vector3(block.position.x + (ix + 0.5) * UNDERGROWTH_CHECK, 0.0, block.position.y + (iy + 0.5) * UNDERGROWTH_CHECK)
+			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5):
+				continue
+			var covered := false
+			for i in placed.size():
+				if Vector2(placed[i].x - at.x, placed[i].z - at.z).length() < radii[i] + 0.3:
+					covered = true
+					break
+			if covered:
+				continue
+			var spot := Vector3(clampf(at.x, inner.position.x, inner.end.x), 0.0, clampf(at.z, inner.position.y, inner.end.y))
+			placed.append(spot)
+			radii.append(_undergrowth_bush(spot, rng))
+
+
+## One bush of the undergrowth at `at` (see _grow_undergrowth); returns its radius.
+func _undergrowth_bush(at: Vector3, rng: RandomNumberGenerator) -> float:
+	# Most of them shed their leaves in autumn (see _keeps_leaves).
+	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
+	undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
+	return radius
 
 
 ## Whether the mountain of the dragon's lair stands over a tile (no tree grows there).

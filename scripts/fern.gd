@@ -24,6 +24,13 @@ const PAIRS := 9
 ## Quads along a fern's frond and along a needle tree's (whose fronds are shorter and many).
 const SEGMENTS := 5
 const LIGHT_SEGMENTS := 3
+## The far needle tree's fronds (see needle_tree_mesh): fewer segments, and broader, so fewer of
+## them (FAR_TIERS tiers of FAR_TIER_FERNS ferns of FAR_FRONDS fronds) still close the crown.
+const FAR_SEGMENTS := 2
+const FAR_WIDTH := 0.55
+const FAR_TIERS := 19
+const FAR_TIER_FERNS := 1
+const FAR_FRONDS := 10
 ## The frond picture's size in pixels: across and along the frond.
 const TEXTURE_SIZE := Vector2i(64, 256)
 ## How bright the picture is, times the vertex colour: the stem, a leaflet at its foot and tip.
@@ -47,6 +54,8 @@ const REACH_TOP := 1.2
 ## The needle trees' looks: how tall (times HEIGHT) and how full (times REACH) each variant is.
 const NEEDLE_LOOKS := [Vector2(1.0, 1.0), Vector2(0.75, 1.1), Vector2(1.1, 1.25)]
 
+const NEEDLE_SHADER := preload("res://shaders/spruce_needles.gdshader")
+
 static var _cache := {}
 static var _mats := {}
 static var _bark_mat: StandardMaterial3D
@@ -69,9 +78,10 @@ static func fern_mesh(variant := 0) -> ArrayMesh:
 
 
 ## A needle tree as a shared mesh. Each `variant` has its own height and
-## fullness (see NEEDLE_LOOKS), so a stand of them never looks copied.
-static func needle_tree_mesh(variant := 0) -> ArrayMesh:
-	var key := "needle:%d" % variant
+## fullness (see NEEDLE_LOOKS), so a stand of them never looks copied. The `far` one, for trees
+## further off than the eye can count fronds, has the same outline from far fewer, broader fronds.
+static func needle_tree_mesh(variant := 0, far := false) -> ArrayMesh:
+	var key := ("needle far:%d" if far else "needle:%d") % variant
 	if not _cache.has(key):
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -80,7 +90,7 @@ static func needle_tree_mesh(variant := 0) -> ArrayMesh:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(key)
 		var look: Vector2 = NEEDLE_LOOKS[posmod(variant, NEEDLE_LOOKS.size())]
-		needle_tree(st, trunk, rng, look.x, look.y)
+		needle_tree(st, trunk, rng, look.x, look.y, far)
 		st.set_material(material(true))
 		trunk.set_material(bark_material())
 		_cache[key] = trunk.commit(st.commit())
@@ -145,20 +155,24 @@ static func triangles(mesh: ArrayMesh) -> int:
 
 
 ## The fronds' material: the frond picture (the needle tree's with broader leaflets), cut out where
-## it is empty, times the vertex colours; both sides drawn. Shared.
-static func material(needles: bool) -> StandardMaterial3D:
+## it is empty, times the vertex colours; both sides drawn. The needle tree's sways gently in the
+## wind and takes no shadows (see spruce_needles.gdshader). Shared.
+static func material(needles: bool) -> Material:
 	if not _mats.has(needles):
-		var m := StandardMaterial3D.new()
-		m.vertex_color_use_as_albedo = true
-		m.albedo_texture = frond_texture(needles)
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		m.alpha_scissor_threshold = 0.4
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		m.roughness = 0.9
-		# A needle tree is too dense to be lit leaf by leaf: its own shadow would turn it black
-		# inside. It takes no shadows; its lower tiers are darker in their colour instead.
-		m.disable_receive_shadows = needles
-		_mats[needles] = m
+		if needles:
+			var sm := ShaderMaterial.new()
+			sm.shader = NEEDLE_SHADER
+			sm.set_shader_parameter("albedo_tex", frond_texture(true))
+			_mats[needles] = sm
+		else:
+			var m := StandardMaterial3D.new()
+			m.vertex_color_use_as_albedo = true
+			m.albedo_texture = frond_texture(false)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			m.alpha_scissor_threshold = 0.4
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.roughness = 0.9
+			_mats[needles] = m
 	return _mats[needles]
 
 
@@ -227,7 +241,9 @@ static func _inside(p: Vector2, a: Vector2, b: Vector2, c: Vector2) -> float:
 
 ## Adds a needle tree to `st`: the trunk, then TIERS tiers of TIER_FERNS ferns each, higher and
 ## smaller going up, the top tier's fronds bent upwards into the tip.
-static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGenerator, tall := 1.0, full := 1.0) -> void:
+static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGenerator, tall := 1.0, full := 1.0, far := false) -> void:
+	var tiers := FAR_TIERS if far else TIERS
+	var ferns := FAR_TIER_FERNS if far else TIER_FERNS
 	# The shape of a real spruce: a slim cone about three times as tall as it is wide, its sides
 	# straight from the lowest branches near the ground up to a pointed leader.
 	var foot := 0.55
@@ -236,11 +252,11 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 	# equally thick from the lowest tier to the top.
 	var apex := HEIGHT * 0.9 * tall
 	var last := apex - REACH_TOP * lerpf(1.0, tall, 0.5)
-	var ratio := pow((apex - last) / (apex - foot), 1.0 / (TIERS - 1))
+	var ratio := pow((apex - last) / (apex - foot), 1.0 / (tiers - 1))
 	_cone(trunk, Vector3.ZERO, Vector3(0, last * 0.7, 0), 0.17 * lerpf(1.0, tall * full, 0.6), 0.015, BARK)
 	var colour := NEEDLE_GREEN
-	for tier in TIERS:
-		var t := float(tier) / (TIERS - 1)
+	for tier in tiers:
+		var t := float(tier) / (tiers - 1)
 		# Halfway between even steps and steps in proportion to the reach: the narrow top has fewer
 		# fronds round it, so its tiers need not crowd as close as the reach alone would put them.
 		var below := lerpf((apex - foot) * pow(ratio, tier), lerpf(apex - foot, REACH_TOP, t), 0.5)
@@ -248,44 +264,44 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 		var reach := REACH * full * lerpf(1.0, tall, 0.5) * below / (apex - foot)
 		# Low branches bend down towards the ground, the middle ones stand out level, the top ones
 		# angle up and spread round the leader.
-		var top := tier == TIERS - 1
+		var top := tier == tiers - 1
 		var rise := 0.55 if top else lerpf(-0.25, 0.25, t)
 		var droop := 0.4 if top else lerpf(2.1, 1.1, t)
 		var size := reach * lerpf(1.1, 1.3, t) + 0.06
 		var turn := rng.randf() * TAU
-		for k in TIER_FERNS:
+		for k in ferns:
 			# Each fern of the tier turned a little further, so the fronds fill the circle evenly.
-			var spin := turn + TAU / FRONDS * float(k) / TIER_FERNS
+			var spin := turn + TAU / FRONDS * float(k) / ferns
 			var xf := Transform3D(Basis(Vector3.UP, spin), Vector3(0, y + k * 0.06 * size, 0))
-			_rosette(st, rng, xf, FRONDS, size, rise, droop, colour * lerpf(0.72, 1.05, t), 0.1 * size, true)
+			_rosette(st, rng, xf, FAR_FRONDS if far else FRONDS, size, rise, droop, colour * lerpf(0.72, 1.05, t), 0.1 * size, true, far)
 	# The leader: a thin shoot above the last tier with a few short fronds spreading round it.
-	for k in 4:
+	for k in (2 if far else 4):
 		var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(0, last + 0.12 + k * 0.14, 0))
-		_rosette(st, rng, xf, 6, 0.42 - k * 0.08, 0.7, 0.2 - k * 0.15, colour * 1.05, 0.0, true)
+		_rosette(st, rng, xf, 6, 0.42 - k * 0.08, 0.7, 0.2 - k * 0.15, colour * 1.05, 0.0, true, far)
 
 
 ## Adds a rosette of `count` fronds `size` long round `xf`'s origin to `st`. `rise` lifts the
 ## fronds' start (0: they leave the middle at the fern's usual angle, 1: nearly straight up) and
 ## `droop` sets how far they arch over (negative: they curl up and in). `hub` is how far out from
 ## the middle the fronds start.
-static func _rosette(st: SurfaceTool, rng: RandomNumberGenerator, xf: Transform3D, count: int, size: float, rise: float, droop: float, colour: Color, hub: float, light := false) -> void:
+static func _rosette(st: SurfaceTool, rng: RandomNumberGenerator, xf: Transform3D, count: int, size: float, rise: float, droop: float, colour: Color, hub: float, light := false, far := false) -> void:
 	for i in count:
 		var a := TAU * i / count + rng.randf_range(-0.12, 0.12)
 		var lift := lerpf(deg_to_rad(rng.randf_range(55.0, 70.0)), deg_to_rad(82.0), rise)
 		var arch := droop if droop != 0.0 else rng.randf_range(1.3, 1.7)
 		var length := size * rng.randf_range(0.85, 1.1)
-		_frond(st, xf, a, lift, arch, length, hub, colour, light)
+		_frond(st, xf, a, lift, arch, length, hub, colour, light, far)
 
 
 ## One frond: from near the middle out along `a` (round the up axis), leaving at `lift` above the
 ## ground and bending down by `arch` (radians over its length): a card of SEGMENTS quads (a
-## `light` frond, the needle tree's, LIGHT_SEGMENTS) as wide as its leaflets reach, wearing the
+## `light` frond, the needle tree's, LIGHT_SEGMENTS, a `far` one FAR_SEGMENTS and broader) as wide as its leaflets reach, wearing the
 ## frond picture. A fern's card is folded a little along its stem, as a real frond is.
-static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch: float, length: float, hub: float, colour: Color, light := false) -> void:
+static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch: float, length: float, hub: float, colour: Color, light := false, far := false) -> void:
 	var out := Vector3(cos(a), 0, sin(a))
 	var side := Vector3(-sin(a), 0, cos(a))
-	var steps := LIGHT_SEGMENTS if light else SEGMENTS
-	var half := length * 0.32
+	var steps := FAR_SEGMENTS if far else LIGHT_SEGMENTS if light else SEGMENTS
+	var half := length * (FAR_WIDTH if far else 0.32)
 	var points := []
 	var p := out * hub
 	points.append(p)

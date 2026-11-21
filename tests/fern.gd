@@ -1,8 +1,9 @@
 extends SceneTree
 ## Ferns and spruces (see Fern): a fern is a low rosette, the spruce a slim cone about three times
-## as tall as it is wide in several sizes, both light enough to draw by the hundred. In Die
-## Freiheit the trial stand west of the road is all spruces, and ferns grow in the shade along the
-## forest's edge, on forest tiles only and never on a building plot.
+## as tall as it is wide in several sizes, both light enough to draw by the hundred, with a far model
+## of the same outline that is much lighter still. In Die Freiheit the forest is spruces, no pine is left, the
+## stand west of the road is all spruces, and ferns grow in the shade along the forest's edge, on
+## forest tiles only and never on a building plot.
 
 var failures := 0
 var game: Node
@@ -52,6 +53,10 @@ func _run() -> void:
 		check(b.position.y > -0.01, "spruce %d stays above the ground (%.2f)" % [v, b.position.y])
 		check(_triangles(tree) <= 4500, "spruce %d is light to draw (%d triangles)" % [v, _triangles(tree)])
 		heights.append(Fern.needle_height(v))
+		var far := Fern.needle_tree_mesh(v, true)
+		var fb := far.get_aabb()
+		check(absf(fb.size.y - b.size.y) < 0.4 and absf(fb.size.x - b.size.x) < 0.6, "far spruce %d has the same outline (%s, %s)" % [v, fb.size, b.size])
+		check(_triangles(far) * 4 <= _triangles(tree), "far spruce %d is much lighter (%d triangles)" % [v, _triangles(far)])
 	check(heights.max() - heights.min() > 1.5, "the spruces differ in height (%s)" % [heights])
 
 	# In Die Freiheit.
@@ -61,6 +66,7 @@ func _run() -> void:
 	check(level.level_name == Outdoor.SPRUCE_MAP, "the open-air map is Die Freiheit")
 	var spruces := 0
 	var others := 0
+	var pines := 0
 	var ferns := 0
 	for key in level._plants:
 		var name: String = key[0]
@@ -71,10 +77,12 @@ func _run() -> void:
 				check(level.cell_char(level.world_to_cell(at)) == "#", "a fern grows on the forest floor (%s)" % at)
 			elif name.begins_with("spruce:"):
 				spruces += 1
-				check(level.in_spruce_patch(at), "spruces only in the trial stand (%s)" % at)
+			elif name.begins_with("tree_pine"):
+				pines += 1
 			elif level.in_spruce_patch(at) and name.begins_with("tree"):
 				others += 1
-	check(spruces >= 15, "the trial stand has spruces (%d)" % spruces)
+	check(spruces >= 2500, "the forests are full of spruces (%d)" % spruces)
+	check(pines == 0, "no pine is left (%d)" % pines)
 	check(others == 0, "every tree of the stand is a spruce (%d others)" % others)
 	check(ferns >= 60 and ferns == level.fern_count, "ferns grow along the forest's edge (%d)" % ferns)
 	print("ferns: %d, spruces: %d" % [ferns, spruces])

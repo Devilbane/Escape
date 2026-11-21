@@ -3150,6 +3150,18 @@ func set_weather(kind: String, hours := -1.0) -> void:
 	weather_hours = hours if hours > 0.0 else Weather.spell(_weather_rng, weather)
 
 
+## The warm dust motes that drift in the lamplight around the hero (see Effects.make_dust) belong
+## to the dungeon. Up on the open-air map, house cellars included, they are put out: in the dark
+## there they read as snowflakes.
+func _place_dust(at: Vector3) -> void:
+	var dust := get_node("Dust") as CPUParticles3D
+	dust.global_position = at + Vector3(0, 2.0, 0)
+	var show := level != null and not level.outdoor
+	if dust.visible != show:
+		dust.visible = show
+		dust.emitting = show
+
+
 ## Whether the view is inside a self-built house: the hero stands in one or down in its cellar
 ## (see CellarView), or the furnisher looks into one (see HouseSketcher.view_storey). There is
 ## no weather in there.
@@ -7649,8 +7661,7 @@ func _process(delta: float) -> void:
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
 	_place_hp_bar()
-	var dust := get_node("Dust") as Node3D
-	dust.global_position = drawn + Vector3(0, 2.0, 0)
+	_place_dust(drawn)
 	_steer_by_mouse(delta)
 	home_run.tick()
 	update_home_button()

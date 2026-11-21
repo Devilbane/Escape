@@ -142,6 +142,8 @@ func _fog() -> void:
 	check(game._clouds.visible and game._clouds.strength() > 0.8, "fog clouds drift over the open air")
 	check(game._clouds._mat.render_priority < 0, "the clouds draw before every label and particle")
 	check(game._mist.emitting and not game._rain.emitting, "mist drifts, and no rain falls in fog")
+	game._place_dust(game.player.global_position)
+	check(not game.get_node("Dust").visible, "no dust motes drift in the open air (they read as snowflakes)")
 	check(_kinds() == ["fog_wraith", "schleim"], "in fog the fog wraiths and slimes get their spots")
 	_call_out()
 	check(game.level.weather_foes_alive() > 0, "fog wraiths drift among the dead trees")

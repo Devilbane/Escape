@@ -56,7 +56,7 @@ const BARK := Color(0.33, 0.24, 0.17)
 const LEAVES_PER_CLUMP := 62
 ## The grass round a tree's foot: its radius for a seedling, and how much wider each stage.
 const PATCH_RADIUS := 0.55
-const PATCH_GROWS := 0.15
+const PATCH_GROWS := 0.2
 const GRASS := Color(0.3, 0.5, 0.17)
 const GRASS_TIP := Color(0.48, 0.66, 0.26)
 const STONES := [Color(0.42, 0.4, 0.36), Color(0.36, 0.35, 0.33), Color(0.47, 0.43, 0.37), Color(0.32, 0.32, 0.31), Color(0.4, 0.37, 0.32)]
@@ -66,9 +66,9 @@ const STONES := [Color(0.42, 0.4, 0.36), Color(0.36, 0.35, 0.33), Color(0.47, 0.
 ## the size of a clump of leaves at a twig's end.
 const SHAPES := [
 	{"trunk": 0.3, "thick": 0.012, "limbs": 3, "reach": 0.18, "spread": 0.9, "depth": 0, "clump": 0.07},
-	{"trunk": 0.9, "thick": 0.03, "limbs": 3, "reach": 0.45, "spread": 0.8, "depth": 1, "clump": 0.13},
-	{"trunk": 1.3, "thick": 0.085, "limbs": 4, "reach": 0.85, "spread": 0.8, "depth": 2, "clump": 0.28},
-	{"trunk": 1.8, "thick": 0.17, "limbs": 5, "reach": 1.15, "spread": 0.8, "depth": 3, "clump": 0.38},
+	{"trunk": 1.15, "thick": 0.035, "limbs": 3, "reach": 0.58, "spread": 0.8, "depth": 1, "clump": 0.16},
+	{"trunk": 2.05, "thick": 0.11, "limbs": 4, "reach": 1.2, "spread": 0.8, "depth": 2, "clump": 0.36},
+	{"trunk": 2.85, "thick": 0.22, "limbs": 5, "reach": 1.65, "spread": 0.8, "depth": 3, "clump": 0.5},
 ]
 
 static var _balls := {}
@@ -321,7 +321,7 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 		var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() * Vector3(1, 0, 1) + Vector3(0, -0.5, 0)) * 1.18
 		# Red on the side the sun ripened, green on the other.
 		var sunny := (Vector3(rng.randf_range(-1, 1), rng.randf_range(0.2, 1.0), rng.randf_range(-1, 1))).normalized()
-		parts.apple(at, 0.14 if grown == MATURE else 0.11, APPLE_COLOUR * rng.randf_range(0.86, 1.12), APPLE_GREEN * rng.randf_range(0.9, 1.08), sunny, rng.randf_range(-0.35, 0.35))
+		parts.apple(at, 0.17 if grown == MATURE else 0.13, APPLE_COLOUR * rng.randf_range(0.86, 1.12), APPLE_GREEN * rng.randf_range(0.9, 1.08), sunny, rng.randf_range(-0.35, 0.35))
 	parts.finish(root)
 	root.set_meta("apples", n)
 	root.set_meta("leaves", clumps.size())

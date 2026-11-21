@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Temple altar heals lasting injuries for a high offering; Give the wolf hollow's pond a natural lake shape and shore; Show the season in the HUD's top line | Shipped this week: Draw fog as distinct clouds again; drop the lightning scorch circle (+49 more)
+Escape! dev status | Working on: Temple altar heals lasting injuries for a high offering; Give the wolf hollow's pond a natural lake shape and shore | Shipped this week: Show the season in the HUD's top line; Draw fog as distinct clouds again; drop the lightning scorch circle (+48 more)

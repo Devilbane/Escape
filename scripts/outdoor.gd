@@ -4266,6 +4266,12 @@ func is_sheltered(pos: Vector3) -> bool:
 	return HouseGround.sheltered(shelters, pos)
 
 
+## Whether the hero is under cover: in a house (their own or a built one) or down in a house
+## cellar (see hero_cellar). The open air's night life (the glowworms) stays out of there.
+func hero_under_cover() -> bool:
+	return hero_indoors or not hero_cellar.is_empty()
+
+
 ## Inside a built house or their own village house the hero sees out only
 ## through its windows and open doors (see InsideView); down in a house cellar only
 ## what is in the cellar (see hero_cellar); outside, everything shows.
@@ -4370,7 +4376,7 @@ func _process(delta: float) -> void:
 	hero_indoors = inside or is_sheltered(player.global_position)
 	_inside_view.tick(self, delta)
 	if glowworms and hour >= 0.0:
-		glowworms.tick(delta, player.global_position, hour, inside)
+		glowworms.tick(delta, player.global_position, hour, hero_under_cover())
 	_mind_the_wild(delta)
 	_whisper_from_holes(delta)
 	_mind_the_night(delta)

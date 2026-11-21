@@ -358,9 +358,12 @@ static func timber_material(colour: Color) -> ShaderMaterial:
 
 ## Every triangle a building shows, in world space: corners, normal, area.
 ## The building must be in the scene tree already.
-static func triangles(node: Node3D) -> Array:
+static func triangles(node: Node3D, with_self := false) -> Array:
 	var out: Array = []
-	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+	var meshes: Array = node.find_children("*", "MeshInstance3D", true, false)
+	if with_self and node is MeshInstance3D:
+		meshes.push_front(node)
+	for mi: MeshInstance3D in meshes:
 		if mi.mesh == null:
 			continue
 		var xf := mi.global_transform

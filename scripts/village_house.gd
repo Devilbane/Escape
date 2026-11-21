@@ -58,37 +58,13 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material) ->
 	var d := clampf(room.y - 1.4 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.5)
 	var ridge := rng.randf_range(2.6, 3.4)
 	var door_x: float = [-1.0, 0.0, 1.0][rng.randi() % 3] * (w * 0.5 - 1.2)
-	var parts := {}
-	var top := PLINTH + GROUND
-	var eaves := top + UPPER
-	# Stone plinth, stone ground floor and the jutting upper floor.
-	_box(parts, "stone", Vector3(0, PLINTH * 0.5, 0), Vector3(w + 0.1, PLINTH, d + 0.1))
-	_box(parts, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d))
 	var uw := w + JETTY * 2.0
 	var ud := d + JETTY * 2.0
-	_box(parts, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
-	# The upper floor rests on a band of oak beams.
-	_beams(parts, uw, ud, top)
-	# The floor beams of the jetty poking out under the upper floor.
-	for i in range(1, int(uw / 1.1)):
-		var x := -uw * 0.5 + i * uw / int(uw / 1.1)
-		_box(parts, "timber", Vector3(x, top - 0.12, d * 0.5 + JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
-		_box(parts, "timber", Vector3(x, top - 0.12, -d * 0.5 - JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
-	# Door, windows with shutters.
-	_door(parts, Vector3(door_x, PLINTH, d * 0.5))
-	for x: float in _window_spots(w, door_x):
-		_window(parts, Vector3(x, PLINTH + 1.6, d * 0.5), 0.0)
-	for x: float in _window_spots(uw, INF):
-		_window(parts, Vector3(x, top + 1.3, ud * 0.5), 0.0)
-	for side: float in [-1.0, 1.0]:
-		_window(parts, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
-		_window(parts, Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
-	# The roof, its gables and the chimney.
-	_gables(parts, uw, ud, eaves, ridge)
-	_roof(parts, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)
 	var cx := rng.randf_range(-0.3, 0.3) * uw
-	_box(parts, "stone", Vector3(cx, eaves + ridge * 0.6, -ud * 0.22), Vector3(0.8, ridge * 1.2 + 0.8, 0.8))
-	_box(parts, "timber", Vector3(cx, eaves + ridge * 1.2 + 0.45, -ud * 0.22), Vector3(0.95, 0.12, 0.95))
+	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx}
+	var parts := {}
+	_shape(shape, parts, parts, parts, parts)
+	var eaves := PLINTH + GROUND + UPPER
 
 	var house := Node3D.new()
 	house.name = "House"
@@ -98,9 +74,151 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material) ->
 	house.set_meta("chimney", Vector3(cx, eaves + ridge * 1.2 + 0.55, -ud * 0.22))
 	house.set_meta("windows", _panes.duplicate())
 	house.set_meta("window_outs", _outs.duplicate())
-	house.add_child(_mesh_of(parts, _materials(rng, glass)))
+	shape["mats"] = _materials(rng, glass)
+	var body := _mesh_of(parts, shape.mats)
+	house.add_child(body)
+	shape["body"] = body
+	# What it is made of, so it can be built again hollow (see hollow and WalkIn).
+	house.set_meta("shape", shape)
 	_hang_door(house, Vector3(door_x, PLINTH, d * 0.5))
 	return house
+
+
+## The pieces of a house of the size in `shape` (see build), each into the parts of its group:
+## `low` the ground floor's back and side walls and its plinth, `front` its front wall with the
+## door and the windows in it, `up` the upper floor, the roof and the chimney, `step` the stone
+## step before the door. All four the same dictionary builds the solid house as it always was;
+## kept apart they make a house one can walk into (see hollow).
+static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Dictionary, step: Dictionary) -> void:
+	var w: float = shape.w
+	var d: float = shape.d
+	var ridge: float = shape.ridge
+	var door_x: float = shape.door_x
+	var cx: float = shape.cx
+	var top := PLINTH + GROUND
+	var eaves := top + UPPER
+	# Stone plinth, stone ground floor and the jutting upper floor.
+	_box(low, "stone", Vector3(0, PLINTH * 0.5, 0), Vector3(w + 0.1, PLINTH, d + 0.1))
+	if low == front:
+		_box(low, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d))
+	else:
+		# Hollow: no lid (the floor above is its ceiling), and the front wall has a doorway.
+		_box(low, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d), Basis(), 2.0, [0, 4])
+		_face(front, "plaster", Vector3(-w * 0.5, PLINTH, d * 0.5), Vector3.RIGHT, Vector3.UP, Vector2(w, GROUND),
+				Rect2(door_x + w * 0.5 - HouseDoor.WIDTH * 0.5, 0.0, HouseDoor.WIDTH, HouseDoor.HEIGHT))
+	var uw := w + JETTY * 2.0
+	var ud := d + JETTY * 2.0
+	_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
+	# The upper floor rests on a band of oak beams.
+	_beams(up, uw, ud, top)
+	# The floor beams of the jetty poking out under the upper floor.
+	for i in range(1, int(uw / 1.1)):
+		var x := -uw * 0.5 + i * uw / int(uw / 1.1)
+		_box(up, "timber", Vector3(x, top - 0.12, d * 0.5 + JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
+		_box(up, "timber", Vector3(x, top - 0.12, -d * 0.5 - JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
+	# Door, windows with shutters.
+	_door(front, Vector3(door_x, PLINTH, d * 0.5), step)
+	for x: float in _window_spots(w, door_x):
+		_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), 0.0)
+	for x: float in _window_spots(uw, INF):
+		_window(up, Vector3(x, top + 1.3, ud * 0.5), 0.0)
+	for side: float in [-1.0, 1.0]:
+		_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
+		_window(low, Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
+	# The roof, its gables and the chimney.
+	_gables(up, uw, ud, eaves, ridge)
+	_roof(up, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)
+	_box(up, "stone", Vector3(cx, eaves + ridge * 0.6, -ud * 0.22), Vector3(0.8, ridge * 1.2 + 0.8, 0.8))
+	_box(up, "timber", Vector3(cx, eaves + ridge * 1.2 + 0.45, -ud * 0.22), Vector3(0.95, 0.12, 0.95))
+
+
+## How far the walls of a hollow house reach in from their outer faces (metres).
+const WALL_THICK := 0.2
+## How high the boards of a hollow house's floor lie over its plinth (clear of the plinth's top).
+const FLOOR_LIFT := 0.02
+
+
+## Builds a house made by `build` again as one that can be walked into, looking from outside
+## exactly as before: the same pieces, now in four meshes (see _shape) so the upper floor with the
+## roof and the front wall can be hidden while the hero is inside, and a fifth mesh for the room
+## itself: boards on the floor, the inner faces of the walls, their tops, the doorway's sides and
+## the windows seen from inside. The house must already be dressed (ivy, snow, see
+## Outdoor._dress_building), which reads the solid mesh. Returns the new meshes by group
+## ("low", "front", "up", "inside"); the plain dark panel behind the door is gone, the doorway
+## now opens into the room.
+static func hollow(house: Node3D) -> Dictionary:
+	var shape: Dictionary = house.get_meta("shape")
+	var mats: Dictionary = shape.mats.duplicate()
+	mats["floor"] = _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5))
+	_panes = []
+	_outs = []
+	var groups := {"low": {}, "front": {}, "up": {}, "inside": {}}
+	_shape(shape, groups.low, groups.front, groups.up, groups.low)
+	_room(shape, groups.inside, groups.front)
+	var body: MeshInstance3D = shape.body
+	var out := {}
+	for key: String in groups:
+		var mi := _mesh_of(groups[key], mats)
+		mi.name = "Walk" + key.capitalize()
+		house.add_child(mi)
+		out[key] = mi
+	house.remove_child(body)
+	body.queue_free()
+	shape.erase("body")
+	var door: HouseDoor = house.get_meta("door_leaf")
+	var recess := door.get_node_or_null("Recess")
+	if recess:
+		door.remove_child(recess)
+		recess.queue_free()
+	return out
+
+
+## The room inside a hollow house (see hollow): into `parts` the floor boards and the inner faces
+## of the back and side walls, into `front` what belongs to the front wall (its inner face with the
+## doorway, the doorway's sides and lintel, the windows' inner panes), so it hides with it.
+static func _room(shape: Dictionary, parts: Dictionary, front: Dictionary) -> void:
+	var w: float = shape.w
+	var d: float = shape.d
+	var door_x: float = shape.door_x
+	var t := WALL_THICK
+	var top := PLINTH + GROUND
+	var half := HouseDoor.WIDTH * 0.5
+	# The boards: over the whole ground floor, so the doorway gets a threshold.
+	_face(parts, "floor", Vector3(-w * 0.5, PLINTH + FLOOR_LIFT, d * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, d))
+	# The inner faces of the walls, each turned to the room.
+	_face(parts, "plaster", Vector3(-w * 0.5 + t, PLINTH, -d * 0.5 + t), Vector3.RIGHT, Vector3.UP, Vector2(w - t * 2.0, GROUND))
+	_face(parts, "plaster", Vector3(-w * 0.5 + t, PLINTH, d * 0.5 - t), Vector3.FORWARD, Vector3.UP, Vector2(d - t * 2.0, GROUND))
+	_face(parts, "plaster", Vector3(w * 0.5 - t, PLINTH, -d * 0.5 + t), Vector3.BACK, Vector3.UP, Vector2(d - t * 2.0, GROUND))
+	var right := w * 0.5 - t
+	_face(front, "plaster", Vector3(right, PLINTH, d * 0.5 - t), Vector3.LEFT, Vector3.UP, Vector2(w - t * 2.0, GROUND),
+			Rect2(right - door_x - half, 0.0, HouseDoor.WIDTH, HouseDoor.HEIGHT))
+	# The tops of the walls, seen from above once the floor above is hidden.
+	_face(parts, "plaster", Vector3(-w * 0.5, top, -d * 0.5 + t), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, t))
+	_face(parts, "plaster", Vector3(-w * 0.5, top, d * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, d - t * 2.0))
+	_face(parts, "plaster", Vector3(w * 0.5 - t, top, d * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, d - t * 2.0))
+	_face(front, "plaster", Vector3(-w * 0.5, top, d * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, t))
+	# The doorway's sides and the underside of its lintel, through the thickness of the wall.
+	_face(front, "plaster", Vector3(door_x - half, PLINTH, d * 0.5), Vector3.FORWARD, Vector3.UP, Vector2(t, HouseDoor.HEIGHT))
+	_face(front, "plaster", Vector3(door_x + half, PLINTH, d * 0.5 - t), Vector3.BACK, Vector3.UP, Vector2(t, HouseDoor.HEIGHT))
+	_face(front, "plaster", Vector3(door_x - half, PLINTH + HouseDoor.HEIGHT, d * 0.5 - t), Vector3.RIGHT, Vector3.BACK, Vector2(HouseDoor.WIDTH, t))
+	# The windows from inside: the pane (lit with the one outside, see WindowLights) and a sill.
+	for x: float in _window_spots(w, door_x):
+		_inner_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), Vector3(x, PLINTH + 1.6, d * 0.5 - t), 0.0)
+	for side: float in [-1.0, 1.0]:
+		_inner_window(parts, Vector3(side * w * 0.5, PLINTH + 1.6, 0), Vector3(side * (w * 0.5 - t), PLINTH + 1.6, 0), side * PI * 0.5)
+
+
+## A window seen from inside: the pane of the window outside at `outer`, on the inner face at
+## `inner`, facing into the room, with a wooden frame and a sill under it.
+static func _inner_window(parts: Dictionary, outer: Vector3, inner: Vector3, turn: float) -> void:
+	_pane_key = WindowLights.key(outer)
+	var b := Basis(Vector3.UP, turn)
+	var into := b * Vector3(0, 0, -1)
+	_box(parts, "glass", inner + into * 0.02, Vector3(0.8, 0.9, 0.04), b)
+	_box(parts, "timber", inner + into * 0.04 - Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.14), b)
+	_box(parts, "timber", inner + into * 0.03 + Vector3(0, 0.5, 0), Vector3(1.0, 0.08, 0.08), b)
+	for s: float in [-1.0, 1.0]:
+		_box(parts, "timber", inner + into * 0.03 + b * Vector3(s * 0.46, 0, 0), Vector3(0.08, 1.0, 0.08), b)
 
 
 ## A narrow town house for a row of them along a lane (see
@@ -232,11 +350,12 @@ const DOOR_POST := 0.66
 ## A plank door under a beam, with a step of stone before it. The plank itself
 ## is not part of the house's mesh: it is a HouseDoor that swings open (see
 ## _hang_door).
-static func _door(parts: Dictionary, at: Vector3) -> void:
+static func _door(parts: Dictionary, at: Vector3, step = null) -> void:
 	_box(parts, "timber", at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
 	for s: float in [-1.0, 1.0]:
 		_box(parts, "timber", at + Vector3(s * DOOR_POST, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
-	_box(parts, "stone", Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
+	var step_parts: Dictionary = parts if step == null else step
+	_box(step_parts, "stone", Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
 
 
 ## Hangs the plank door of the doorway at `at` on its hinge (the left side) and
@@ -336,7 +455,7 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 
 ## A box into the surface for `key`: centre, size, turn. Its texture is laid
 ## by metres, so a long beam shows a long grain and not a stretched one.
-static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3, basis := Basis(), tile := 2.0) -> void:
+static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3, basis := Basis(), tile := 2.0, skip: Array = []) -> void:
 	var st := _tool(parts, key)
 	var h := size * 0.5
 	# Each face: its normal and the two axes across it.
@@ -345,7 +464,10 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		[Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0)], [Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 1, 0)],
 		[Vector3(0, 1, 0), Vector3(1, 0, 0), Vector3(0, 0, -1)], [Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)],
 	]
-	for f: Array in faces:
+	for fi in faces.size():
+		if skip.has(fi):
+			continue
+		var f: Array = faces[fi]
 		var n: Vector3 = f[0]
 		var u: Vector3 = f[1]
 		var v: Vector3 = f[2]
@@ -364,6 +486,32 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 			st.set_normal(basis * n)
 			st.set_uv(_uv(key, uvs[k], center, tile))
 			st.add_vertex(center + basis * corners[k])
+
+
+## A flat rectangle into the surface for `key`: from its corner `corner` it runs `size.x` metres
+## along `u` and `size.y` along `v`, and faces u x v (the way a face of _box with the same axes
+## faces). Laid out like a face of _box, so its texture lines up with a box face in the same spot.
+## `hole` (metres from the corner, along u and v) is left open: a doorway.
+static func _face(parts: Dictionary, key: String, corner: Vector3, u: Vector3, v: Vector3, size: Vector2, hole := Rect2()) -> void:
+	var rects: Array[Rect2] = []
+	if hole.size == Vector2.ZERO:
+		rects.append(Rect2(Vector2.ZERO, size))
+	else:
+		rects.append(Rect2(0.0, 0.0, hole.position.x, size.y))
+		rects.append(Rect2(hole.end.x, 0.0, size.x - hole.end.x, size.y))
+		rects.append(Rect2(hole.position.x, hole.end.y, hole.size.x, size.y - hole.end.y))
+		rects.append(Rect2(hole.position.x, 0.0, hole.size.x, hole.position.y))
+	var st := _tool(parts, key)
+	var n := u.cross(v)
+	for r: Rect2 in rects:
+		if r.size.x <= 0.001 or r.size.y <= 0.001:
+			continue
+		var uvs := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+		for k in [0, 2, 1, 0, 3, 2]:
+			var m: Vector2 = uvs[k]
+			st.set_normal(n)
+			st.set_uv(_uv(key, m, corner, 2.0))
+			st.add_vertex(corner + u * m.x + v * m.y)
 
 
 ## Texture coordinates for a spot on a face, `m` metres from its corner.

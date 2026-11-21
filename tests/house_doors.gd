@@ -52,7 +52,9 @@ func _run() -> void:
 
 	var houses := lvl.get_children().filter(func(c): return c.has_meta("door_leaf"))
 	check(houses.size() > 0, "the village has houses with doors")
-	check(lvl.house_doors.size() == houses.size(), "every house door is known to the village (%d of %d)" % [lvl.house_doors.size(), houses.size()])
+	# The temple's door, once it opens (see WalkIn), swings like a house door too.
+	var temple_doors := lvl.house_doors.filter(func(d): return is_instance_valid(d) and d.name == "TempleDoor").size()
+	check(lvl.house_doors.size() - temple_doors == houses.size(), "every house door is known to the village (%d of %d)" % [lvl.house_doors.size() - temple_doors, houses.size()])
 	for d: HouseDoor in lvl.house_doors:
 		check(d.openness() == 0.0, "a door is shut at first")
 

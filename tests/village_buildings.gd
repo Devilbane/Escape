@@ -108,13 +108,15 @@ func _run() -> void:
 		var area := _block_area(lvl, house.get_meta("block"))
 		check(area.grow(0.3).encloses(Rect2(box.position.x, box.position.z, box.size.x, box.size.z)), "a house stays inside its block")
 		check(box.size.y > 6.0 and box.size.y < 14.0, "a house has two floors and a roof (%.1f m high)" % box.size.y)
-		var mesh: Mesh = (house.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+		# A house one walks into (see WalkIn) is built of several meshes: its floors, front and room.
 		var glass := false
-		for i in mesh.get_surface_count():
-			if mesh.surface_get_material(i) == lvl._house_glass():
-				glass = true
-			elif not _textured(mesh.surface_get_material(i)):
-				check(false, "every part of a house is textured")
+		for mi: MeshInstance3D in house.find_children("Walk*", "MeshInstance3D", true, false) if house.has_node("WalkLow") else [house.find_children("*", "MeshInstance3D", true, false)[0]]:
+			var mesh: Mesh = mi.mesh
+			for i in mesh.get_surface_count():
+				if mesh.surface_get_material(i) == lvl._house_glass():
+					glass = true
+				elif not _textured(mesh.surface_get_material(i)):
+					check(false, "every part of a house is textured")
 		check(glass, "a house has windows")
 		looks["%.2f" % box.size.x + "/%.2f" % box.size.y] = true
 	check(looks.size() > 1, "the houses do not all look the same")
@@ -132,7 +134,8 @@ func _run() -> void:
 		var dark := 0
 		for mi: MeshInstance3D in chapel.find_children("*", "MeshInstance3D", true, false):
 			for i in mi.mesh.get_surface_count():
-				if mi.get_surface_override_material(i) == null:
+				# The temple's own furniture (see WalkInFurniture) wears one material over all.
+				if mi.get_surface_override_material(i) == null and mi.material_override == null:
 					dark += 1
 		check(dark == 0, "every piece of the chapel has the kit's textures")
 		check(lvl.doors.has("s") and not lvl.astar.is_point_solid(lvl.world_to_cell(lvl.doors["s"])), "the square in front of the chapel door is free")
@@ -223,6 +226,13 @@ func _check_aged(lvl: Outdoor) -> void:
 		check(near_door == 0, "no ivy grows over a door (%d leaves)" % near_door)
 		# Old ivy on the houses that stand away from the square: up to the
 		# eaves (VillageHouse's upper floor ends at 6.1 m) and on to the roof.
+		# The leaves on the floor above and the front of a house one walks into hang in their own
+		# meshes (they hide while the hero is inside, see WalkIn.split_ivy).
+		var leaves: Array = lvl._ivy.xforms.duplicate()
+		if lvl.walk_in != null:
+			for rec: Dictionary in lvl.walk_in.buildings:
+				for group: String in ["ivy_up", "ivy_front"]:
+					leaves.append_array(rec[group].get("xforms", []))
 		var standalone := 0
 		for house: Node3D in lvl.get_children().filter(func(c): return c.has_meta("village_house") and c.has_meta("block")):
 			var block: Rect2i = house.get_meta("block")
@@ -232,8 +242,8 @@ func _check_aged(lvl: Outdoor) -> void:
 			var area := _block_area(lvl, block).grow(1.0)
 			var high := 0
 			var on_roof := 0
-			for i in lvl._ivy.xforms.size():
-				var xf: Transform3D = lvl._ivy.xforms[i]
+			for i in leaves.size():
+				var xf: Transform3D = leaves[i]
 				if not area.has_point(Vector2(xf.origin.x, xf.origin.z)):
 					continue
 				if xf.origin.y > VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER - 0.6:
@@ -247,8 +257,8 @@ func _check_aged(lvl: Outdoor) -> void:
 			var on_glass := 0
 			for w: Vector3 in house.get_meta("windows", []):
 				var pane: Vector3 = house.global_transform * w - lvl.global_position
-				for i in lvl._ivy.xforms.size():
-					var d: Vector3 = (lvl._ivy.xforms[i] as Transform3D).origin - pane
+				for i in leaves.size():
+					var d: Vector3 = (leaves[i] as Transform3D).origin - pane
 					if absf(d.y) < 0.25 and Vector2(d.x, d.z).length() < 0.3:
 						on_glass += 1
 			check(on_glass == 0, "ivy leaves the windows of a standalone house clear (%d leaves)" % on_glass)

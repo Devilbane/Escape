@@ -6288,13 +6288,13 @@ func can_reach(a: Vector3, b: Vector3) -> bool:
 		return false # On another floor: the cellar under a room, the storey above.
 	if door_between(a, b) or tall_stone_between(a, b):
 		return false
-	for f in built_floors:
+	for f in built_floors + fixed_floors:
 		var fy: float = f.y
 		if (a.y + 0.5 - fy) * (b.y + 0.5 - fy) < 0.0 and ((f.rect as Rect2).has_point(Vector2(a.x, a.z)) or (f.rect as Rect2).has_point(Vector2(b.x, b.z))):
 			return false # A floor, a cellar ceiling or a roof lies between them.
 	var from := Vector2(a.x, a.z)
 	var to := Vector2(b.x, b.z)
-	for w in reach_walls:
+	for w in reach_walls + fixed_walls:
 		if a.y < float(w.y) - 1.0 or a.y > float(w.y) + REACH_WALL_HEIGHT:
 			continue # On another storey: this wall is not in the way.
 		var door = w.get("door")
@@ -6322,6 +6322,12 @@ var built_windows: Array = []
 ## in world x/z, "y": the height of the boards}. A cellar ceiling, an upper
 ## floor's slab and a roof all hide what is under them from what is above.
 var built_floors: Array = []
+## The same for the village's own buildings one can walk into (see WalkIn), which stand for good:
+## kept apart from the built houses' lists, which HouseSketcher fills afresh. A wall may carry its
+## own height ("h", metres); without it it is a built house's.
+var fixed_walls: Array = []
+var fixed_windows: Array = []
+var fixed_floors: Array = []
 ## How high above the feet one looks from (see has_line_of_sight) and where a
 ## blow lands (see blow_blocked), for the walls and floors of built houses.
 const EYE_HEIGHT := 1.5
@@ -6334,12 +6340,12 @@ const BLOW_HEIGHT := 1.0
 ## between its foot and its top. Open doorways, garden walls and railings let
 ## everything through. Off the open-air map nothing is built, so this is false.
 func built_between(a: Vector3, b: Vector3, glass := false) -> bool:
-	if reach_walls.is_empty() and built_floors.is_empty():
+	if reach_walls.is_empty() and built_floors.is_empty() and fixed_walls.is_empty() and fixed_floors.is_empty():
 		return false
 	var from := Vector2(a.x, a.z)
 	var to := Vector2(b.x, b.z)
 	var span := from.distance_to(to)
-	for list in ([reach_walls, built_windows] if glass else [reach_walls]):
+	for list in ([reach_walls, built_windows, fixed_walls, fixed_windows] if glass else [reach_walls, fixed_walls]):
 		for w in list:
 			var door = w.get("door")
 			if door != null and (not is_instance_valid(door) or door.is_open()):
@@ -6348,9 +6354,9 @@ func built_between(a: Vector3, b: Vector3, glass := false) -> bool:
 			if hit == null:
 				continue
 			var y := a.y if span < 0.001 else lerpf(a.y, b.y, from.distance_to(hit) / span)
-			if y >= float(w.y) - 0.3 and y <= float(w.y) + HouseSketcher.WALL_HEIGHT:
+			if y >= float(w.y) - 0.3 and y <= float(w.y) + float(w.get("h", HouseSketcher.WALL_HEIGHT)):
 				return true
-	for f in built_floors:
+	for f in built_floors + fixed_floors:
 		var fy: float = f.y
 		if (a.y - fy) * (b.y - fy) >= 0.0:
 			continue # Both above the boards, or both below them.

@@ -709,6 +709,8 @@ func build() -> void:
 	square_trees = AppleTree.plant_round_fountains(self)
 	# And more in the gardens round the houses.
 	square_trees.append_array(AppleTree.plant_in_village(self))
+	# And one in each grass pocket framed by paths.
+	square_trees.append_array(AppleTree.plant_in_pockets(self, square_trees))
 	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []

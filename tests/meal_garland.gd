@@ -75,10 +75,15 @@ func _test() -> void:
 		check(light.visible and light.light_energy > 0.5, "a garland light burns at night")
 		check(light.has_meta(LightShadows.NO_SHADOW), "a garland light never casts shadows")
 		check(light.omni_range >= LightShadows.MIN_RANGE, "a garland light reaches the ground")
+	check(float(g.halo_mat.get_shader_parameter("glow")) > 0.9 and float(g.pool_mat.get_shader_parameter("glow")) > 0.9, "every globe throws its own soft light at night")
+	var halos: MeshInstance3D = village.find_child("Halos", true, false)
+	check(halos != null and halos.mesh.get_faces().size() == g.lamps.size() * 6, "one halo round every globe")
+	check(g.lights.size() <= MealGarland.LIGHTS, "the globes' own light costs no real lights")
 	check(meals.lights_up(g.lights[0].global_position, 3.0), "the garland counts as light at night")
 	meals.set_glow(0.0)
 	for light in g.lights:
 		check(not light.visible, "a garland light is out by day")
+	check(float(g.halo_mat.get_shader_parameter("glow")) == 0.0 and float(g.pool_mat.get_shader_parameter("glow")) == 0.0, "the globes throw no light by day")
 	_paths(village, meals, g)
 
 

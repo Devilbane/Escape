@@ -99,6 +99,28 @@ func set_shelter(shelters: Dictionary, width: int, height: int, tile: float) -> 
 	_param("shelter_shift", tile * 0.5)
 
 
+## How many awnings the shader knows (see set_awnings).
+const AWNING_MAX := 8
+
+
+## Keeps the snow off what stands under an open awning (the canopies over the town's dining tables,
+## see TownMeals.awnings): each entry is the ground it covers (x/z of its north-west and south-east
+## corner) and, in its last value, how high it stands. The sky mask works per tile and blurs at its
+## edges, so a bench poking out towards a tile's corner still took snow; this follows the cloth.
+func set_awnings(list: Array) -> void:
+	var rects := PackedVector4Array()
+	var tops := PackedFloat32Array()
+	for a: Array in list.slice(0, AWNING_MAX):
+		rects.append(Vector4(a[0], a[1], a[2], a[3]))
+		tops.append(a[4])
+	while rects.size() < AWNING_MAX:
+		rects.append(Vector4.ZERO)
+		tops.append(-1000.0)
+	_param("awnings", rects)
+	_param("awning_tops", tops)
+	_param("awning_count", mini(list.size(), AWNING_MAX))
+
+
 ## Where something burns: no snow settles within the radius (w) round each point (xyz), so fires,
 ## the forge's coals and its chimney, and the smoking chimneys stay clear. At most WARM_MAX.
 func set_warm(spots: Array[Vector4]) -> void:
@@ -238,7 +260,8 @@ func _cutout_for(gi: GeometryInstance3D) -> ShaderMaterial:
 		# Leaves that hold snow on their upper rims too (the ivy, see IvySeasons.SNOW_CLING).
 		m.set_shader_parameter("cling", float(base.get_meta("snow_cling", 0.0)))
 		# Copy what the others know so far.
-		for param: String in ["amount", "daylight", "moon_glow", "warm", "warm_count", "shelter_mask", "shelter_on", "shelter_size", "shelter_shift"]:
+		for param: String in ["amount", "daylight", "moon_glow", "warm", "warm_count", "shelter_mask", "shelter_on", "shelter_size", "shelter_shift",
+				"awnings", "awning_tops", "awning_count"]:
 			m.set_shader_parameter(param, material.get_shader_parameter(param))
 		_cutouts[key] = m
 		_all.append(m)

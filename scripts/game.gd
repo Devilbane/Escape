@@ -7287,7 +7287,8 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
-	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
+	# A few steps on the hollow wooden boards of the house stairs (see StairSteps).
+	tween.parallel().tween_callback(func(): StairSteps.flight(player, up))
 	tween.tween_callback(func():
 		player.global_position = to
 		player.velocity = Vector3.ZERO
@@ -7660,6 +7661,7 @@ func _process(delta: float) -> void:
 			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),
 			"zutatenbord": Lang.t("Dagegenlaufen, um ans Zutatenbord zu gehen"),
 			Bookshelf.KIND: Lang.t("Dagegenlaufen, um Bücher ins Regal zu stellen oder zu nehmen"),
+			WeaponRack.KIND: Lang.t("Dagegenlaufen, um Waffen in den Ständer zu stellen oder zu nehmen"),
 			"haendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else Lang.t("Dagegenlaufen, um mit dem Händler zu handeln"),
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
@@ -8273,7 +8275,8 @@ func _win_trophy(kind: String) -> void:
 		house_furnisher.refresh_books()
 
 
-## Puts as many books on the bookshelf of the house as the hero keeps there.
+## Puts as many books on the bookshelf of the house as the hero keeps there, and the weapons kept
+## on the weapon racks of the self-built house.
 func refresh_bookshelf() -> void:
 	if level != null and level.is_home:
 		Bookshelf.refresh(level, HomeStores.total(home_stores, HomeStores.BOOKS))

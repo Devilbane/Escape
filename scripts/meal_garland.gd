@@ -18,8 +18,13 @@ extends RefCounted
 ## it (block). The tiles inside the frame stay open, and between the blocked
 ## tiles round it there is a way in on every side.
 ##
-## Light: the globes glow by themselves (an emissive MultiMesh, no light each);
-## a few soft lights (LIGHTS) hang along the ropes and light the ground. They are
+## Light: the globes glow by themselves (an emissive MultiMesh, no light each),
+## and each throws its own soft light round it without costing a real light: a
+## halo of warm light in the air and on the ivy round the globe (HALO), and a
+## small pool of light on the ground below it (POOL), all of them in two meshes
+## with one additive material each (see _add_glow, as WindowSpill does for the
+## windows). A few soft lights (LIGHTS) hang along the ropes and light the
+## ground and the people walking under them. They are
 ## out in the open, far from any wall, so they never cast shadows (they keep out
 ## of LightShadows' budget, see LightShadows.NO_SHADOW).
 
@@ -47,6 +52,13 @@ const GLOBE_RADIUS := 0.07
 const GLASS := Color(0.86, 0.68, 0.38)
 const GLOW_COLOUR := Color(1.0, 0.72, 0.38)
 const GLOBE_GLOW := 3.2
+## Each globe's own soft light: the halo round it (its size across, metres, and
+## strength) and the pool on the ground below it (its radius and strength).
+## Neighbouring pools overlap into a soft band of light along the rope.
+const HALO := 1.1
+const HALO_STRENGTH := 0.55
+const POOL := 1.35
+const POOL_STRENGTH := 0.11
 ## The soft lights along the ropes: how many round the frame, how bright, how far they reach.
 const LIGHTS := 6
 const LIGHT_ENERGY := 1.15
@@ -74,6 +86,9 @@ var lamps: Array[Vector3] = []
 var leaf_count := 0
 var _globes: MultiMeshInstance3D
 var _globe_mat: StandardMaterial3D
+## The halos' and the pools' additive materials (their "glow" follows set_glow).
+var halo_mat: ShaderMaterial
+var pool_mat: ShaderMaterial
 ## The frame's corners: x/z of the north-west and south-east corner.
 var _min := Vector2.ZERO
 var _max := Vector2.ZERO
@@ -131,6 +146,7 @@ func build(level: Node3D, tables: Array, leaves: Dictionary) -> void:
 	var frame := b.finish(node)
 	frame.name = "Poles"
 	_add_globes(node, globes)
+	_add_glow(node)
 	_add_lights(node, tops)
 	leaf_count = leaves.xforms.size() - first
 
@@ -291,6 +307,98 @@ func _add_globes(node: Node3D, globes: Array[Transform3D]) -> void:
 	node.add_child(_globes)
 
 
+## A halo turned to the camera, soft and round, its middle bright: one quad per
+## globe, the corner's offset from the globe in UV2 (see _add_glow).
+const HALO_SHADER := """
+shader_type spatial;
+render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec3 colour : source_color = vec3(1.0, 0.72, 0.38);
+uniform float glow = 0.0;
+uniform float strength = 0.5;
+void vertex() {
+	// Turned to the camera round the globe's middle (VERTEX), stretched by the corner's offset.
+	VERTEX += (INV_VIEW_MATRIX[0].xyz * UV2.x + INV_VIEW_MATRIX[1].xyz * UV2.y);
+}
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float d = clamp(1.0 - length(p), 0.0, 1.0);
+	ALBEDO = colour * (d * d * 0.7 + pow(d, 6.0) * 0.8) * glow * strength;
+}
+"""
+
+## A round pool of light lying on the ground, brightest under the globe.
+const POOL_SHADER := """
+shader_type spatial;
+render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
+uniform vec3 colour : source_color = vec3(1.0, 0.72, 0.38);
+uniform float glow = 0.0;
+uniform float strength = 0.1;
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float d = clamp(1.0 - dot(p, p), 0.0, 1.0);
+	ALBEDO = colour * d * d * glow * strength;
+}
+"""
+
+
+## Each globe's own soft light: the halos in one mesh, the pools on the ground in another.
+func _add_glow(node: Node3D) -> void:
+	if lamps.is_empty():
+		return
+	var corners := [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]
+	var order := [0, 1, 2, 0, 2, 3]
+	var halo_v := PackedVector3Array()
+	var halo_uv := PackedVector2Array()
+	var halo_off := PackedVector2Array()
+	var pool_v := PackedVector3Array()
+	var pool_uv := PackedVector2Array()
+	for at in lamps:
+		for k: int in order:
+			var c: Vector2 = corners[k]
+			halo_v.append(at)
+			halo_uv.append((c + Vector2.ONE) * 0.5)
+			halo_off.append(c * HALO * 0.5)
+			pool_v.append(Vector3(at.x + c.x * POOL, 0.05, at.z + c.y * POOL))
+			pool_uv.append((c + Vector2.ONE) * 0.5)
+	halo_mat = _glow_material(HALO_SHADER, HALO_STRENGTH)
+	pool_mat = _glow_material(POOL_SHADER, POOL_STRENGTH)
+	var halo := _glow_mesh(halo_v, halo_uv, halo_off, halo_mat, "Halos")
+	# The halos are moved in the shader: keep them from being culled while a globe's middle is off screen.
+	halo.extra_cull_margin = HALO
+	node.add_child(halo)
+	node.add_child(_glow_mesh(pool_v, pool_uv, PackedVector2Array(), pool_mat, "Pools"))
+
+
+static func _glow_material(code: String, strength: float) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = code
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("colour", Vector3(GLOW_COLOUR.r, GLOW_COLOUR.g, GLOW_COLOUR.b))
+	mat.set_shader_parameter("strength", strength)
+	mat.set_shader_parameter("glow", 0.0)
+	return mat
+
+
+static func _glow_mesh(verts: PackedVector3Array, uvs: PackedVector2Array, offsets: PackedVector2Array, mat: Material, label: String) -> MeshInstance3D:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	if not offsets.is_empty():
+		arrays[Mesh.ARRAY_TEX_UV2] = offsets
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mi := MeshInstance3D.new()
+	mi.name = label
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Light, not a thing: snow never settles on it.
+	mi.set_meta("no_snow", true)
+	return mi
+
+
 ## LIGHTS soft lights spread evenly round the frame, just under the ropes.
 func _add_lights(node: Node3D, tops: Array[Vector3]) -> void:
 	var spans: Array = []
@@ -356,6 +464,9 @@ func set_glow(glow: float) -> void:
 		light.visible = lit > 0.01
 	if _globe_mat:
 		_globe_mat.emission_energy_multiplier = GLOBE_GLOW * lit
+	for mat in [halo_mat, pool_mat]:
+		if mat:
+			mat.set_shader_parameter("glow", lit)
 
 
 ## Whether one of the soft lights lights `pos` within `reach` metres.

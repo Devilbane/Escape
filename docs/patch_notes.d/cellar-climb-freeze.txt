@@ -1,0 +1,1 @@
+- Fixed a freeze when climbing out of a house cellar after spending a while down there.

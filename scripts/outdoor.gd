@@ -332,6 +332,9 @@ var _inside := false
 ## Whether the hero stands inside a house (built or their own), seeing out only
 ## through windows and open doors (see hero_sees). Set each frame.
 var hero_indoors := false
+## The dug cells (Rect2 of x, z) of the house cellar the hero is down in, empty while they are
+## not: from down there they see only what is in the cellar (see CellarView, hero_sees).
+var hero_cellar: Array = []
 var _inside_view := InsideView.new()
 var _entered_once := false
 var _marker: Node3D
@@ -4037,8 +4040,11 @@ func is_sheltered(pos: Vector3) -> bool:
 
 
 ## Inside a built house or their own village house the hero sees out only
-## through its windows and open doors (see InsideView); outside, everything shows.
+## through its windows and open doors (see InsideView); down in a house cellar only
+## what is in the cellar (see hero_cellar); outside, everything shows.
 func hero_sees(pos: Vector3) -> bool:
+	if not hero_cellar.is_empty():
+		return CellarView.in_cells(hero_cellar, pos)
 	if player == null or not hero_indoors:
 		return true
 	return has_line_of_sight(player.global_position, pos)

@@ -2365,6 +2365,17 @@ func keep_task(time: float) -> void:
 	_task_time = maxf(_task_time, time)
 
 
+## Leans back onto a bed's pillows (`lying`) or upright again, over `time` seconds (see
+## Level.lie_tilt, VillageBeds).
+func lean_on_pillow(lying: bool, time := 0.0) -> void:
+	Level.lie_tilt(_model, lying, time)
+
+
+## How big the body is (where it lies in a bed, see Level.lie_spot).
+func body_scale() -> float:
+	return _model.scale.x
+
+
 ## Winds the playing animation on to its end (lying in bed already, see VillageBeds).
 func anim_to_end() -> void:
 	var anim := _anim.get_animation(_current_anim)

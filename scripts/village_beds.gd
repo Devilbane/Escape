@@ -14,10 +14,6 @@ extends RefCounted
 ## With WalkIn.houses off there are no houses to walk into, `enter` says no and the villagers
 ## vanish at the door as they always did.
 
-## How far the body lies from the bed's middle towards its foot, and how high the mattress is (the
-## hero lies the same way, see Game.BED_LIE_OFFSET).
-const LIE_OFFSET := 0.65
-const MATTRESS := 0.83
 ## Seconds: the hop onto the bed or down from it, climbing the ladder up or down, and how long the
 ## getting up takes.
 const HOP_TIME := 0.45
@@ -74,17 +70,18 @@ static func _settle(v: Villager) -> void:
 		v.visible = false
 		trip.step = "upstairs"
 	else:
-		v.global_position = _lie_spot(bed)
+		v.global_position = _lie_spot(v, bed)
 		v.rotation.y = float(bed.rot)
 		v.play("Lie_Down", 0.0)
 		v.anim_to_end()
+		v.lean_on_pillow(true)
 		trip.step = "asleep"
 	v.reset_physics_interpolation()
 
 
-static func _lie_spot(bed: Dictionary) -> Vector3:
-	var rot: float = bed.rot
-	return (bed.pos as Vector3) + Vector3(sin(rot), 0.0, cos(rot)) * LIE_OFFSET + Vector3(0, MATTRESS, 0)
+## Where the villager lies, the head on the pillows (the hero lies the same way, see Level.lie_spot).
+static func _lie_spot(v: Villager, bed: Dictionary) -> Vector3:
+	return Level.lie_spot(bed.pos, float(bed.rot), v.body_scale())
 
 
 ## One physics tick of the way to bed or out of the house.
@@ -111,13 +108,14 @@ static func step(v: Villager, delta: float) -> void:
 		"hop":
 			trip.t = float(trip.t) + delta
 			var k := minf(1.0, trip.t / HOP_TIME)
-			var spot := _lie_spot(trip.bed)
+			var spot := _lie_spot(v, trip.bed)
 			v.global_position = (trip.from as Vector3).lerp(spot, k) + Vector3(0, sin(k * PI) * 0.5, 0)
 			v.play("Idle", 0.1)
 			if k >= 1.0:
 				# Lying down falls backwards: face the foot of the bed.
 				v.rotation.y = float(trip.bed.rot)
 				v.play("Lie_Down", 0.15)
+				v.lean_on_pillow(true, 0.9)
 				trip.step = "asleep"
 		"asleep":
 			pass
@@ -165,6 +163,7 @@ static func rise(v: Villager) -> bool:
 	match String(trip.step):
 		"asleep", "hop":
 			v.play("Lie_StandUp", 0.2)
+			v.lean_on_pillow(false, 0.4)
 			trip.step = "rise"
 		"upstairs", "climb":
 			v.visible = true
@@ -194,6 +193,7 @@ static func leave_at_once(v: Villager) -> void:
 	v.global_position = walk_in.door_points(trip.house)[0]
 	v.reset_physics_interpolation()
 	v.visible = true
+	v.lean_on_pillow(false)
 	v.play("Idle", 0.1)
 	_free(trip)
 	v.bed_trip = {}

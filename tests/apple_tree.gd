@@ -94,6 +94,13 @@ func _run() -> void:
 	check(_parts(old, winter, "limbs") > _parts({"planted": winter}, winter, "limbs"), "a grown tree has branches")
 	check(_parts(old, summer, "limbs") >= 60 and _parts(old, summer, "leaves") >= 40, "a full-grown tree has plenty of branches, all in leaf (%d limbs, %d clumps)" % [_parts(old, summer, "limbs"), _parts(old, summer, "leaves")])
 	check(_parts(old, summer, "single_leaves") >= 30 * _parts(old, summer, "leaves"), "the clumps are made of single leaves, not balls (%d leaves)" % _parts(old, summer, "single_leaves"))
+	for when in [summer, autumn]:
+		var crown := Node3D.new()
+		AppleTree.build(crown, old, when)
+		var leaves := crown.get_node("Leaves") as MeshInstance3D
+		var tris := (leaves.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+		check(tris == 2 * int(crown.get_meta("single_leaves")), "the crown is leaves only, no ball inside a clump (%d triangles for %d leaves)" % [tris, crown.get_meta("single_leaves")])
+		crown.free()
 	var model := Node3D.new()
 	AppleTree.build(model, old, summer)
 	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())

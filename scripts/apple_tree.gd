@@ -49,7 +49,7 @@ const BLOSSOM := [Color(0.98, 0.96, 0.94), Color(0.98, 0.84, 0.88), Color(0.96, 
 const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
 const BARK := Color(0.33, 0.24, 0.17)
 ## Single leaves on a full-sized clump of leaves (fewer on a smaller one).
-const LEAVES_PER_CLUMP := 46
+const LEAVES_PER_CLUMP := 62
 
 ## The shape of the tree at each stage: the trunk's height and thickness, how many limbs fork
 ## off its top, how far they reach and lean out, how many times they fork again (see _grow), and
@@ -402,19 +402,20 @@ class _Parts:
 		limbs += 1
 		_used[bark] = true
 
-	## A clump of leaves round `at`, `scale` across (its radii): a small dark core in its shade, so
-	## no light shows through the crown's heart, and LEAVES_PER_CLUMP single leaves all over it,
-	## each a pointed oval on a short stalk turned its own way, a little lighter at its tip. In
-	## autumn the leaves take their colours from `mix` one by one.
+	## A clump of leaves round `at`, `scale` across (its radii): LEAVES_PER_CLUMP single leaves all
+	## through it, each a pointed oval turned its own way, a little lighter at its tip. Most sit near
+	## the clump's skin; those further in lie in its shade and are darker, so no light shows through
+	## the crown's heart (no solid core: in autumn a core showed as a brown ball). In autumn the
+	## leaves take their colours from `mix` one by one.
 	func clump(rng: RandomNumberGenerator, at: Vector3, scale: Vector3, colour: Color, mix: Array) -> void:
-		_ball(leaves, at, scale * 0.62, rng.randf() * TAU, colour * 0.55, AppleTree._ball_arrays(6))
 		var count := roundi(AppleTree.LEAVES_PER_CLUMP * clampf(scale.x / 0.42, 0.35, 1.3))
 		for i in count:
-			# Most leaves near the clump's skin, a few further in.
 			var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
-			var foot := at + d * scale * rng.randf_range(0.6, 1.02)
+			var depth := sqrt(rng.randf_range(0.06, 1.0))
+			var foot := at + d * scale * depth * 1.02
 			var tint: Color = colour if mix.is_empty() else (mix[rng.randi() % mix.size()] as Color).lerp(colour, 0.35)
-			leaf(foot, d, scale.x * rng.randf_range(0.42, 0.58), rng.randf() * TAU, tint * rng.randf_range(0.85, 1.12))
+			tint *= lerpf(0.6, 1.0, depth) * rng.randf_range(0.88, 1.1)
+			leaf(foot, d, scale.x * rng.randf_range(0.42, 0.58), rng.randf() * TAU, tint)
 		leaves_made += count
 
 	## One leaf at `foot` on the outside of a clump (`out`: the way out of it), `size` long.

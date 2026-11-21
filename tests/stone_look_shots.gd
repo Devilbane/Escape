@@ -131,6 +131,20 @@ func _build_house() -> void:
 		if m.material_override == HouseLooks.temple_stone():
 			walls += 1
 	check(walls > 20, "walls, garden walls and stone cellar walls are stone (%d)" % walls)
+	# The stone cellar's wall panels meet end to end and in the corners without
+	# overlapping: two faces in one place flicker (z-fighting).
+	var lining: Array[AABB] = []
+	for m: MeshInstance3D in sketcher._solid.find_children("*", "MeshInstance3D", false, false):
+		if not m.is_queued_for_deletion() and m.material_override == HouseLooks.temple_stone() and (m.global_transform * m.mesh.get_aabb()).end.y < 0.0:
+			lining.append(m.global_transform * m.mesh.get_aabb())
+	check(lining.size() == 8, "the 2x2 cellar has eight wall panels (%d)" % lining.size())
+	var overlaps := 0
+	for i in lining.size():
+		for j in range(i + 1, lining.size()):
+			var cut := lining[i].intersection(lining[j])
+			if cut.size.x > 0.005 and cut.size.z > 0.005 and cut.size.y > 0.005:
+				overlaps += 1
+	check(overlaps == 0, "no two cellar wall panels overlap (%d do)" % overlaps)
 	var mid := plan.node_world(n.x / 2, n.y / 2)
 	game.player.global_position = mid + Vector3(0, 0, Level.TILE * 4)
 	if _wanted("own_house"):

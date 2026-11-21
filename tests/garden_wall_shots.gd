@@ -80,6 +80,22 @@ func _run() -> void:
 			break
 	check(plan.open_pieces() == 0, "the house and the garden are built")
 	check(plan.count(HouseSketch.GATE, HouseSketch.BUILT) == 2, "both gates stand")
+	# The stone garden wall's pieces meet end to end and at the corner without
+	# overlapping: two faces in one place flicker (z-fighting).
+	await _wait(2)
+	var stones: Array[AABB] = []
+	for m: MeshInstance3D in sketcher._solid.find_children("*", "MeshInstance3D", false, false):
+		var box := m.global_transform * m.mesh.get_aabb()
+		if not m.is_queued_for_deletion() and m.material_override == HouseLooks.temple_stone() and absf(box.size.y - HouseSketch.FENCE_HEIGHT) < 0.01:
+			stones.append(box)
+	check(stones.size() >= n.x + n.y - 1, "the stone garden wall is built (%d pieces)" % stones.size())
+	var overlaps := 0
+	for i in stones.size():
+		for j in range(i + 1, stones.size()):
+			var cut := stones[i].intersection(stones[j])
+			if cut.size.x > 0.005 and cut.size.z > 0.005 and cut.size.y > 0.005:
+				overlaps += 1
+	check(overlaps == 0, "no two stone garden wall pieces overlap (%d do)" % overlaps)
 	var mid := plan.node_world(n.x / 2, n.y / 2)
 	game.player.global_position = mid + Vector3(0, 0, Level.TILE * 3)
 	await _shot("garden_built", mid + Vector3(9, 11, 14), mid)

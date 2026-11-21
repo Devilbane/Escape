@@ -1440,7 +1440,9 @@ func _build_content(c: Vector2i, ch: String) -> void:
 		"N":
 			_build_companion_corner(c)
 		"L":
-			_add_fitted_solid(_place("chest", pos, _back_to_wall(c, _facing_room(c))), pos, 1.5)
+			# The storage chest: the ornate brass one in the hero's own home, iron-banded oak elsewhere.
+			var store := FittedChest.place(self, "brass" if is_home else "oak", pos, _back_to_wall(c, _facing_room(c)))
+			_add_fitted_solid(store, pos, 1.5)
 			stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 		"m":
 			HomeStoreFurniture.build_metal_chest(self, c)
@@ -1641,15 +1643,18 @@ func _build_coin(pos: Vector3) -> void:
 
 ## An epic chest ("&", see ElderLair) holds a piece of the epic tier and a
 ## heap of gold, and glows violet.
+## Its fittings show how rich it is (see FittedChest): iron-banded oak for an
+## everyday chest, dark reinforced steel for the reward behind a puzzle gate or
+## in a secret room, ornate brass for an epic one.
 func _build_chest(c: Vector2i, epic := false) -> void:
 	var pos := cell_to_world(c)
 	# Back to the wall, lid towards the room.
 	var rot := _back_to_wall(c)
-	var chest := _place("chest_gold", pos, rot)
+	var chest := FittedChest.place(self, chest_style(c, epic), pos, rot, true)
 	_add_fitted_solid(chest, pos, 1.5, Vector2(2.0, 2.0))
 	var obj := _add_interactable("Schatztruhe", pos, pos + Vector3(0, 2.6, 0), c, false)
-	obj.lid = chest.find_child("chest_gold_lid", true, false)
-	obj.shine = CoinShine.add_to_chest(chest)
+	obj.lid = FittedChest.lid_of(chest)
+	obj.shine = chest.get_meta("glints")
 	if epic:
 		var epic_rng := RandomNumberGenerator.new()
 		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
@@ -1673,6 +1678,15 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 		obj.loot = {"gold": int(TIERS[reward].gold), "item": loot_item(loot_rng, tier_rank(reward), HeroLevel.place_level(self) + 1)}
 		return
 	obj.loot = {"gold": 5, "item": loot_item(loot_rng, 0, HeroLevel.place_level(self))}
+
+
+## The look of the loot chest on tile `c` (a style of FittedChest).
+func chest_style(c: Vector2i, epic := false) -> String:
+	if epic:
+		return "brass"
+	if _in_secret_room(c) or _behind_gate(c):
+		return "dark"
+	return "oak"
 
 
 ## How rich the chest behind a puzzle's iron gate is (a key of TIERS).

@@ -49,17 +49,18 @@ const BLOSSOM := [Color(0.98, 0.96, 0.94), Color(0.98, 0.84, 0.88), Color(0.96, 
 const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
 const BARK := Color(0.33, 0.24, 0.17)
 
-## The sizes by stage: trunk height and thickness, where a young plant's leaves sit, the crown's
-## radius, the size of a clump of leaves, and the strong limbs of a grown tree.
-const TRUNK := [0.45, 1.1, 1.2, 1.7]
-const THICK := [0.012, 0.035, 0.08, 0.16]
-const CROWN_AT := [0.5, 1.25, 0.0, 0.0]
-const CROWN := [0.12, 0.35, 0.95, 1.7]
-const BLOB := [0.07, 0.2, 0.4, 0.6]
-const SCAFFOLDS := [0, 0, 3, 5]
-const BLOBS := [3, 5, 9, 14]
+## The shape of the tree at each stage: the trunk's height and thickness, how many limbs fork
+## off its top, how far they reach and lean out, how many times they fork again (see _grow), and
+## the size of a clump of leaves at a twig's end.
+const SHAPES := [
+	{"trunk": 0.3, "thick": 0.012, "limbs": 3, "reach": 0.18, "spread": 0.9, "depth": 0, "clump": 0.07},
+	{"trunk": 0.9, "thick": 0.03, "limbs": 3, "reach": 0.45, "spread": 0.8, "depth": 1, "clump": 0.13},
+	{"trunk": 1.3, "thick": 0.085, "limbs": 4, "reach": 0.85, "spread": 0.8, "depth": 2, "clump": 0.28},
+	{"trunk": 1.8, "thick": 0.17, "limbs": 5, "reach": 1.15, "spread": 0.8, "depth": 3, "clump": 0.38},
+]
 
 static var _balls := {}
+static var _mats := {}
 static var _dapple: NoiseTexture2D
 
 
@@ -175,7 +176,7 @@ static func _own_piece(furnisher: HouseFurnisher, station: Dictionary) -> Dictio
 ## to the village). A grown-up tree, planted long ago.
 const VILLAGE_TREE := {"planted": -100000}
 ## Their size against a garden tree's.
-const VILLAGE_SCALE := 1.15
+const VILLAGE_SCALE := 1.0
 ## Round the fountain: the cells between the benches.
 const ROUND_FOUNTAIN := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
 ## How far the trunk stands out of the cell's middle along each axis, away from the fountain (m).
@@ -228,133 +229,239 @@ static func dress(trees: Array, day: int) -> void:
 
 ## Builds the tree of `piece` as it looks on `day` into `root` (on the ground, middle at the
 ## origin) and returns its solids ({at, size}, local): the trunk.
+##
+## A grown tree is a real skeleton of tapering, bending limbs: the trunk forks into strong limbs,
+## each limb into branches and each branch into twigs (see _grow), and every twig ends in a clump
+## of leaves, so the crown is full and its branches show only between the clumps. All the bark is
+## one mesh, all the leaves one, the blossom and the apples one each (see _Parts), so a tree costs
+## a handful of draw calls however many branches it has. The model notes how many apples, clumps,
+## blossoms and limbs it has in the metas "apples", "leaves", "blossom" and "limbs".
 static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 	var grown := stage(piece, day)
 	var season := Weather.season(day)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("apple tree:%s" % root.position.snapped(Vector3.ONE * 0.1))
-	var bark := HomeStoreFurniture._mat(BARK, 0.9)
+	var parts := _Parts.new()
 	# A ring of dug earth round its foot.
-	var soil := HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.45 + grown * 0.1, 0.5 + grown * 0.1, 0.04), HomeStoreFurniture._mat(Color(0.22, 0.15, 0.1), 0.95), Vector3(0, 0.02, 0))
+	var soil := HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.4 + grown * 0.1, 0.45 + grown * 0.1, 0.04), HomeStoreFurniture._mat(Color(0.22, 0.15, 0.1), 0.95), Vector3(0, 0.02, 0))
 	soil.name = "Soil"
+	var shape: Dictionary = SHAPES[grown]
 	if grown <= SAPLING:
 		# The stake it is tied to, with a band of bast round both.
-		var stake_h: float = TRUNK[grown] + 0.25
+		var stake_h: float = shape.trunk + 0.25
 		HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.018, 0.022, stake_h), HomeStoreFurniture._mat(Color(0.6, 0.48, 0.3), 0.85), Vector3(0.09, stake_h * 0.5, 0))
-		HomeStoreFurniture._add(root, HomeStoreFurniture._box(Vector3(0.14, 0.03, 0.05)), HomeStoreFurniture._mat(Color(0.78, 0.68, 0.42), 0.9), Vector3(0.045, TRUNK[grown] * 0.7, 0))
-	# The trunk, leaning a little.
-	var top := Vector3(rng.randf_range(-0.06, 0.06) * grown, TRUNK[grown], rng.randf_range(-0.06, 0.06) * grown)
-	_limb(root, Vector3.ZERO, top, THICK[grown], bark)
-	# The crown: clumps of leaves ([middle, radius]), on a grown tree at the ends of its limbs.
+		HomeStoreFurniture._add(root, HomeStoreFurniture._box(Vector3(0.14, 0.03, 0.05)), HomeStoreFurniture._mat(Color(0.78, 0.68, 0.42), 0.9), Vector3(0.045, shape.trunk * 0.7, 0))
+	# The skeleton: the trunk, and from its top the limbs, branches and twigs.
+	var tips := []
+	var forks := []
+	var top := Vector3(rng.randf_range(-0.05, 0.05), shape.trunk, rng.randf_range(-0.05, 0.05)) * Vector3(grown, 1, grown)
+	var trunk_mid := top * 0.5 + Vector3(rng.randf_range(-0.04, 0.04), 0, rng.randf_range(-0.04, 0.04)) * grown
+	# A little flare where it meets the ground.
+	parts.limb(Vector3.ZERO, Vector3(0, 0.2, 0) * minf(1.0, shape.trunk), shape.thick * 1.45, shape.thick * 1.05, BARK)
+	parts.limb(Vector3.ZERO, trunk_mid, shape.thick, shape.thick * 0.88, BARK)
+	parts.limb(trunk_mid, top, shape.thick * 0.88, shape.thick * 0.76, BARK)
+	var limbs: int = shape.limbs
+	var spin := rng.randf() * TAU
+	for k in limbs:
+		var a: float = spin + TAU * k / limbs + rng.randf_range(-0.3, 0.3)
+		var out: float = shape.spread * rng.randf_range(0.85, 1.15)
+		var dir := Vector3(cos(a) * out, 1.0, sin(a) * out).normalized()
+		_grow(parts, rng, top, dir, shape.reach * rng.randf_range(0.85, 1.1), shape.thick * 0.62, shape.depth, tips, forks, season == Weather.WINTER)
+	if grown >= YOUNG:
+		# A leader straight up the middle, so the crown has a top.
+		_grow(parts, rng, top, Vector3(rng.randf_range(-0.15, 0.15), 1, rng.randf_range(-0.15, 0.15)).normalized(), shape.reach * 0.8, shape.thick * 0.5, shape.depth - 1, tips, forks, season == Weather.WINTER)
+	# The crown's middle, and how far it reaches.
+	var centre := Vector3.ZERO
+	for t in tips:
+		centre += t
+	centre /= maxf(1.0, tips.size())
+	# The leaves: a clump at every twig's end, and a few more over the forks inside so no light
+	# shows through the heart of the crown. Autumn lets a few fall already; winter all.
 	var clumps := []
-	var centre := top + Vector3(0, CROWN[grown] * 0.6, 0)
-	if grown <= SAPLING:
-		for i in BLOBS[grown]:
-			var a: float = TAU * i / BLOBS[grown] + rng.randf_range(-0.3, 0.3)
-			var out: float = CROWN[grown] * rng.randf_range(0.5, 1.0)
-			clumps.append([top + Vector3(cos(a) * out, CROWN_AT[grown] - TRUNK[grown] + rng.randf_range(-0.1, 0.3) * CROWN[grown], sin(a) * out), BLOB[grown]])
-	else:
-		# A few strong limbs out and up from the top of the trunk, each forking into branches
-		# that end in a clump of leaves on the skin of the crown (wider than it is high).
-		var radii := Vector3(CROWN[grown], CROWN[grown] * 0.7, CROWN[grown])
-		var limbs: int = SCAFFOLDS[grown]
-		for k in limbs:
-			var a: float = TAU * k / limbs + rng.randf_range(-0.35, 0.35)
-			var fork := top + Vector3(cos(a) * radii.x * 0.45, radii.y * rng.randf_range(0.5, 0.8), sin(a) * radii.z * 0.45)
-			_limb(root, top, fork, THICK[grown] * 0.62, bark)
-			for j in 3:
-				var b := a + (j - 1) * 0.55 + rng.randf_range(-0.2, 0.2)
-				var dir := Vector3(cos(b), rng.randf_range(-0.25, 0.85), sin(b)).normalized()
-				var end := centre + dir * radii * rng.randf_range(0.62, 0.86)
-				_limb(root, fork, end, THICK[grown] * 0.3, bark)
-				clumps.append([end, BLOB[grown] * rng.randf_range(0.8, 1.12)])
-				if season == Weather.WINTER:
-					# Bare twigs where the leaves were.
-					for t in 3:
-						var twig: Vector3 = end + (dir + Vector3(rng.randf_range(-0.7, 0.7), rng.randf_range(0.0, 0.8), rng.randf_range(-0.7, 0.7))) * BLOB[grown] * 0.75
-						_limb(root, end, twig, THICK[grown] * 0.12, bark)
-		# The top of the crown and its heart, so no light shows through the middle.
-		clumps.append([centre + Vector3(0, radii.y * 0.62, 0), BLOB[grown] * 1.1])
-		clumps.append([centre + Vector3(0, radii.y * 0.1, 0), BLOB[grown] * 1.2])
 	if season != Weather.WINTER:
-		var low: float = centre.y - CROWN[grown]
+		for t in tips:
+			if season == Weather.AUTUMN and rng.randf() < 0.12:
+				continue
+			clumps.append([t + Vector3(0, shape.clump * 0.25, 0), shape.clump * rng.randf_range(0.85, 1.15)])
+		for f in forks:
+			clumps.append([f + (f - centre).normalized() * shape.clump * 0.2 + Vector3(0, shape.clump * 0.3, 0), shape.clump * rng.randf_range(0.95, 1.25)])
+		var low: float = centre.y - shape.reach * 1.2
+		var high: float = centre.y + shape.reach
 		for c in clumps:
 			var colour: Color = AUTUMN_LEAVES[rng.randi() % AUTUMN_LEAVES.size()] if season == Weather.AUTUMN else LEAF.get(season, LEAF.summer)
-			# The lower clumps lie in the crown's shade.
-			var shade := clampf((c[0].y - low) / maxf(CROWN[grown] * 1.6, 0.1), 0.0, 1.0)
-			var blob := HomeStoreFurniture._add(root, _ball(1.0, 14), _leaf_mat(colour * lerpf(0.72, 1.08, shade) * rng.randf_range(0.92, 1.06)), c[0])
-			blob.scale = Vector3(1.12, 0.86, 1.12) * c[1]
-			blob.rotation.y = rng.randf() * TAU
-			blob.name = "Leaves"
-	# Blossom in spring, on a tree old enough to bear: on the outside of the crown.
+			# The lower and inner clumps lie in the crown's shade.
+			var shade := clampf((c[0].y - low) / maxf(high - low, 0.1), 0.0, 1.0)
+			var size: float = c[1]
+			parts.blob(c[0], Vector3(1.12, 0.88, 1.12) * size, rng.randf() * TAU, colour * lerpf(0.7, 1.08, shade) * rng.randf_range(0.92, 1.06))
+	# Blossom in spring, on a tree old enough to bear: on the outside of the clumps.
+	var blossoms := 0
 	if season == Weather.SPRING and grown >= YOUNG:
-		for i in clumps.size() * 7:
-			var c: Array = clumps[rng.randi() % clumps.size()]
-			var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() + Vector3(0, 0.3, 0))
-			var b := HomeStoreFurniture._add(root, _ball(BLOB[grown] * 0.13, 6), HomeStoreFurniture._mat(BLOSSOM[rng.randi() % BLOSSOM.size()], 0.7), at)
-			b.name = "Blossom"
-	# The apples, hanging on the outside and the underside of the crown.
+		for c in clumps:
+			for i in 9:
+				var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() + Vector3(0, 0.4, 0))
+				parts.blossom(at, shape.clump * 0.13, BLOSSOM[rng.randi() % BLOSSOM.size()])
+				blossoms += 1
+	# The apples, hanging on the outside and the underside of the outer clumps.
 	var n := apples(piece, day)
-	var outer := clumps.slice(0, maxi(1, clumps.size() - 2)) if grown >= YOUNG else clumps
+	var outer := clumps.slice(0, maxi(1, tips.size())) if not clumps.is_empty() else [[centre, shape.clump]]
 	for i in n:
-		var c: Array = outer[(i * 5 + 2) % outer.size()]
-		var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() * Vector3(1, 0, 1) + Vector3(0, -0.45, 0))
-		var apple := HomeStoreFurniture._add(root, _ball(0.12 if grown == MATURE else 0.09, 8), HomeStoreFurniture._mat(APPLE_COLOUR * rng.randf_range(0.88, 1.12), 0.4), at)
-		apple.name = "Apple"
-	var thick: float = maxf(THICK[grown] * 2.0, 0.2) + 0.1
-	return [{"at": Vector3.ZERO, "size": Vector3(thick, maxf(TRUNK[grown], 0.6), thick)}]
+		var c: Array = outer[(i * 7 + 3) % outer.size()]
+		var at: Vector3 = c[0] + _on_clump(rng, c[1], (c[0] - centre).normalized() * Vector3(1, 0, 1) + Vector3(0, -0.5, 0))
+		parts.apple(at, 0.14 if grown == MATURE else 0.11, APPLE_COLOUR * rng.randf_range(0.86, 1.12))
+	parts.finish(root)
+	root.set_meta("apples", n)
+	root.set_meta("leaves", clumps.size())
+	root.set_meta("blossom", blossoms)
+	root.set_meta("limbs", parts.limbs)
+	var thick: float = maxf(shape.thick * 2.4, 0.2) + 0.1
+	return [{"at": Vector3.ZERO, "size": Vector3(thick, maxf(shape.trunk, 0.6), thick)}]
+
+
+## One limb from `from` along `dir`, `length` long and `r` thick at its foot: two segments with a
+## little bend, then (while `depth` lasts) two or three thinner, shorter limbs forking off its end,
+## spread round it and leaning outwards and up. A limb with no more depth is a twig: its end goes
+## into `tips`, and the ends of the limbs that forked into `forks`. Bare in winter, every twig
+## shows two little shoots at its end.
+static func _grow(parts: _Parts, rng: RandomNumberGenerator, from: Vector3, dir: Vector3, length: float, r: float, depth: int, tips: Array, forks: Array, bare: bool) -> void:
+	var bend := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.3, 0.5), rng.randf_range(-1, 1)) * 0.22
+	var mid := from + dir * length * 0.5
+	var end := mid + (dir + bend).normalized() * length * 0.5
+	parts.limb(from, mid, r, r * 0.84, BARK)
+	parts.limb(mid, end, r * 0.84, r * 0.68, BARK)
+	if depth <= 0:
+		tips.append(end)
+		if bare:
+			for s in 2:
+				var shoot := (dir + Vector3(rng.randf_range(-0.8, 0.8), rng.randf_range(0.2, 0.9), rng.randf_range(-0.8, 0.8))).normalized()
+				parts.limb(end, end + shoot * length * 0.35, r * 0.5, r * 0.2, BARK)
+		return
+	forks.append(end)
+	var out := (dir + bend).normalized()
+	var children := 3 if depth >= 2 or rng.randf() < 0.45 else 2
+	var spin := rng.randf() * TAU
+	for k in children:
+		# Turn away from the parent's line round a ring, keeping a pull upwards and outwards.
+		var side := out.cross(Vector3.UP if absf(out.y) < 0.95 else Vector3.RIGHT).normalized()
+		var round_axis := side.rotated(out, spin + TAU * k / children)
+		var child := out.rotated(round_axis, deg_to_rad(rng.randf_range(28.0, 48.0)))
+		child = (child + Vector3(out.x, 0, out.z) * 0.25 + Vector3(0, 0.12, 0)).normalized()
+		_grow(parts, rng, end, child, length * rng.randf_range(0.6, 0.72), r * 0.64, depth - 1, tips, forks, bare)
 
 
 ## A point on the skin of a clump of leaves of radius `r` (scaled like the clumps), leaning
 ## towards `towards` (a direction: outwards, up or down).
 static func _on_clump(rng: RandomNumberGenerator, r: float, towards: Vector3) -> Vector3:
 	var d := (Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() + towards * 0.9).normalized()
-	return Vector3(d.x * 1.12, d.y * 0.86, d.z * 1.12) * r * 0.97
+	return Vector3(d.x * 1.12, d.y * 0.88, d.z * 1.12) * r * 0.97
 
 
-## A leafy material of `colour`: a soft dapple of light and shade over it, so a clump reads as
-## leaves and not as a smooth ball.
-static func _leaf_mat(colour: Color) -> StandardMaterial3D:
-	var m := HomeStoreFurniture._mat(colour, 0.95)
-	if _dapple == null:
-		var noise := FastNoiseLite.new()
-		noise.noise_type = FastNoiseLite.TYPE_CELLULAR
-		noise.frequency = 0.09
-		_dapple = NoiseTexture2D.new()
-		_dapple.width = 128
-		_dapple.height = 128
-		_dapple.seamless = true
-		_dapple.noise = noise
-		_dapple.color_ramp = Gradient.new()
-		_dapple.color_ramp.set_color(0, Color(0.62, 0.66, 0.6))
-		_dapple.color_ramp.set_color(1, Color(1.12, 1.12, 1.05).clamp())
-	m.albedo_texture = _dapple
-	m.uv1_triplanar = true
-	m.uv1_scale = Vector3.ONE * 1.6
-	return m
+## The tree's meshes as they are built: the bark, the leaves, the blossom and the apples, each
+## one mesh with the colours in its vertices.
+class _Parts:
+	var bark := SurfaceTool.new()
+	var leaves := SurfaceTool.new()
+	var flowers := SurfaceTool.new()
+	var fruit := SurfaceTool.new()
+	var limbs := 0
+	var _used := {}
+
+	func _init() -> void:
+		for st in [bark, leaves, flowers, fruit]:
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	## A tapering round limb from `from` to `to`, `r0` thick at its foot and `r1` at its end.
+	func limb(from: Vector3, to: Vector3, r0: float, r1: float, colour: Color) -> void:
+		var axis := to - from
+		if axis.length() < 0.005:
+			return
+		var up := axis.normalized()
+		var side := up.cross(Vector3.UP if absf(up.y) < 0.95 else Vector3.RIGHT).normalized()
+		var other := up.cross(side)
+		var sides := 7 if r0 > 0.05 else 5
+		for i in sides:
+			var a0 := TAU * i / sides
+			var a1 := TAU * (i + 1) / sides
+			var n0 := side * cos(a0) + other * sin(a0)
+			var n1 := side * cos(a1) + other * sin(a1)
+			var quad := [[from + n0 * r0, n0], [from + n1 * r0, n1], [to + n1 * r1, n1], [to + n0 * r1, n0]]
+			for j in [0, 2, 1, 0, 3, 2]:
+				bark.set_color(colour * (0.9 + 0.1 * n0.y))
+				bark.set_normal(quad[j][1])
+				bark.add_vertex(quad[j][0])
+		limbs += 1
+		_used[bark] = true
+
+	## A clump of leaves: a low round ball, scaled and turned.
+	func blob(at: Vector3, scale: Vector3, turn: float, colour: Color) -> void:
+		_ball(leaves, at, scale, turn, colour, AppleTree._ball_arrays(12))
+
+	func blossom(at: Vector3, r: float, colour: Color) -> void:
+		_ball(flowers, at, Vector3.ONE * r, 0.0, colour, AppleTree._ball_arrays(5))
+
+	func apple(at: Vector3, r: float, colour: Color) -> void:
+		_ball(fruit, at, Vector3(1.0, 0.92, 1.0) * r, 0.0, colour, AppleTree._ball_arrays(7))
+
+	func _ball(st: SurfaceTool, at: Vector3, scale: Vector3, turn: float, colour: Color, arrays: Array) -> void:
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var b := Basis(Vector3.UP, turn)
+		for i in index:
+			st.set_color(colour)
+			st.set_normal((b * (normals[i] / scale)).normalized())
+			st.add_vertex(at + b * (verts[i] * scale))
+		_used[st] = true
+
+	## Puts the meshes into `root`, each named for what it is.
+	func finish(root: Node3D) -> void:
+		var named := [[bark, "Bark", AppleTree._vertex_mat(0.9, false)], [leaves, "Leaves", AppleTree._vertex_mat(0.95, true)],
+				[flowers, "Blossom", AppleTree._vertex_mat(0.7, false)], [fruit, "Apples", AppleTree._vertex_mat(0.4, false)]]
+		for part in named:
+			if not _used.has(part[0]):
+				continue
+			var mi := MeshInstance3D.new()
+			mi.name = part[1]
+			mi.mesh = (part[0] as SurfaceTool).commit()
+			mi.material_override = part[2]
+			root.add_child(mi)
 
 
-## A low sphere of `radius` with `sides` segments round (shared: a tree has many).
-static func _ball(radius: float, sides: int) -> SphereMesh:
-	var key := "%.3f:%d" % [radius, sides]
-	if not _balls.has(key):
+## The vertices, normals and triangles of a low ball of radius 1 with `sides` segments round.
+static func _ball_arrays(sides: int) -> Array:
+	if not _balls.has(sides):
 		var mesh := SphereMesh.new()
-		mesh.radius = radius
-		mesh.height = radius * 2.0
+		mesh.radius = 1.0
+		mesh.height = 2.0
 		mesh.radial_segments = sides
 		mesh.rings = maxi(3, sides / 2)
-		_balls[key] = mesh
-	return _balls[key]
+		_balls[sides] = mesh.get_mesh_arrays()
+	return _balls[sides]
 
 
-## A round limb of bark from `from` to `to`, `r` thick at its foot.
-static func _limb(root: Node3D, from: Vector3, to: Vector3, r: float, mat: Material) -> void:
-	var length := from.distance_to(to)
-	if length < 0.01:
-		return
-	var mesh := HomeStoreFurniture._cylinder(r * 0.6, r, length)
-	mesh.radial_segments = 8
-	mesh.rings = 1
-	var limb := HomeStoreFurniture._add(root, mesh, mat, (from + to) * 0.5)
-	limb.basis = Basis(Quaternion(Vector3.UP, (to - from).normalized()))
-	limb.name = "Limb"
+## A material that takes its colour from the vertices; the leaves' with a soft dapple of light and
+## shade over them, so a clump reads as leaves and not as a smooth ball. Shared by all trees.
+static func _vertex_mat(roughness: float, dappled: bool) -> StandardMaterial3D:
+	var key := "%.2f:%s" % [roughness, dappled]
+	if _mats.has(key):
+		return _mats[key]
+	var m := StandardMaterial3D.new()
+	m.vertex_color_use_as_albedo = true
+	m.roughness = roughness
+	if dappled:
+		if _dapple == null:
+			var noise := FastNoiseLite.new()
+			noise.noise_type = FastNoiseLite.TYPE_CELLULAR
+			noise.frequency = 0.09
+			_dapple = NoiseTexture2D.new()
+			_dapple.width = 128
+			_dapple.height = 128
+			_dapple.seamless = true
+			_dapple.noise = noise
+			_dapple.color_ramp = Gradient.new()
+			_dapple.color_ramp.set_color(0, Color(0.62, 0.66, 0.6))
+			_dapple.color_ramp.set_color(1, Color(1.0, 1.0, 0.96))
+		m.albedo_texture = _dapple
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3.ONE * 1.6
+	_mats[key] = m
+	return m

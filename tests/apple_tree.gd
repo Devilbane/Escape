@@ -42,11 +42,12 @@ func _first(season: String) -> int:
 	return -1
 
 
-## How many parts of a name the tree of `piece` has on `day`.
+## How many of a part (see AppleTree.build: "apples", "leaves", "blossom", "limbs") the tree of
+## `piece` has on `day`.
 func _parts(piece: Dictionary, day: int, part: String) -> int:
 	var model := Node3D.new()
 	AppleTree.build(model, piece, day)
-	var n := model.find_children(part + "*", "MeshInstance3D", true, false).size()
+	var n: int = model.get_meta(part, 0)
 	model.free()
 	return n
 
@@ -86,11 +87,16 @@ func _run() -> void:
 	check(AppleTree.apples(picked, autumn) > 0, "it bears again in autumn")
 	check(AppleTree.days_to_fruit({"planted": summer}, summer) == 4 * season, "a seedling says when it first bears")
 	# Its looks: blossom in spring, apples on the model, bare in winter.
-	check(_parts(old, spring + 2 * year, "Blossom") > 0, "a grown tree blossoms in spring")
-	check(_parts({"planted": spring}, spring, "Blossom") == 0, "a seedling does not blossom")
-	check(_parts(old, summer, "Apple") == AppleTree.apples(old, summer), "the apples hang on the model")
-	check(_parts(old, winter, "Leaves") == 0 and _parts(old, summer, "Leaves") > 0, "leaves in summer, bare in winter")
-	check(_parts(old, winter, "Limb") > _parts({"planted": winter}, winter, "Limb"), "a grown tree has branches")
+	check(_parts(old, spring + 2 * year, "blossom") > 0, "a grown tree blossoms in spring")
+	check(_parts({"planted": spring}, spring, "blossom") == 0, "a seedling does not blossom")
+	check(_parts(old, summer, "apples") == AppleTree.apples(old, summer), "the apples hang on the model")
+	check(_parts(old, winter, "leaves") == 0 and _parts(old, summer, "leaves") > 0, "leaves in summer, bare in winter")
+	check(_parts(old, winter, "limbs") > _parts({"planted": winter}, winter, "limbs"), "a grown tree has branches")
+	check(_parts(old, summer, "limbs") >= 60 and _parts(old, summer, "leaves") >= 40, "a full-grown tree has plenty of branches, all in leaf (%d limbs, %d clumps)" % [_parts(old, summer, "limbs"), _parts(old, summer, "leaves")])
+	var model := Node3D.new()
+	AppleTree.build(model, old, summer)
+	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())
+	model.free()
 
 	# In the game: a plot, a seedling bought from Ilse and planted in the garden.
 	game.hero_name = "Apple test"

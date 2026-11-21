@@ -16,6 +16,10 @@ extends RefCounted
 ## stairs or on another piece. Picked up again, it goes back into the store. The garden pieces
 ## (flowers, garden torches and lamps, the grill, the apple tree; "garden" in KINDS) are the other way round: they
 ## stand only outdoors, on the plot's ground floor where no roof is built (see garden_problem).
+## The garden's lights ("roof" in KINDS: the garden torch and the lamp) may also stand up on a
+## flat roof, under the open sky: on the roof over the ground floor (storey 1, among the
+## railings and ballistae) or on the one over the upper floor (ROOF_STOREY, up a ladder; see
+## roof_problem). A pitched roof holds nothing.
 ##
 ## Pure data, kept in Storage apart from the saved games like the house plan.
 
@@ -62,10 +66,10 @@ const KINDS := {
 		"text": "Ein Beet voller Blumen, mit Feldsteinen eingefasst. Es blüht bunt im Sommer, golden im Herbst und ruht im Winter."},
 	"blumenkuebel": {"icon": "kind:flower", "name": "Blumenkübel", "price": 30, "size": Vector2i(1, 1), "station": "", "garden": true,
 		"text": "Ein Holzkübel mit Eisenreifen und einem Strauß Blumen darin, die mit den Jahreszeiten gehen."},
-	"gartenfackel": {"icon": "kind:torch", "name": "Gartenfackel", "price": 30, "size": Vector2i(1, 1), "station": "", "garden": true, "light": true,
-		"text": "Eine Fackel auf einem hohen Stab. Sie erhellt den Garten, und nachts sieht man dich in ihrem Licht."},
-	"gartenlaterne": {"icon": "kind:flame", "name": "Gartenlaterne", "price": 80, "size": Vector2i(1, 1), "station": "", "garden": true, "light": true,
-		"text": "Eine Laterne an einem Pfosten, wie die im Dorf. Ihr ruhiges Licht erhellt den Garten."},
+	"gartenfackel": {"icon": "kind:torch", "name": "Gartenfackel", "price": 30, "size": Vector2i(1, 1), "station": "", "garden": true, "roof": true, "light": true,
+		"text": "Eine Fackel auf einem hohen Stab. Sie erhellt den Garten oder ein Flachdach, und nachts sieht man dich in ihrem Licht."},
+	"gartenlaterne": {"icon": "kind:flame", "name": "Gartenlaterne", "price": 80, "size": Vector2i(1, 1), "station": "", "garden": true, "roof": true, "light": true,
+		"text": "Eine Laterne an einem Pfosten, wie die im Dorf. Ihr ruhiges Licht erhellt den Garten oder ein Flachdach."},
 	"grill": {"icon": "kind:sausage", "name": "Grill", "price": 120, "size": Vector2i(1, 1), "station": GardenDecor.GRILL, "garden": true, "light": true,
 		"text": "Ein gemauerter Grill mit Eisenrost über glühender Kohle. Dagegenlaufen grillt Wildfleisch oder einen Barsch aus deinem Beutel: Essen gibt Leben zurück."},
 	AppleTree.KIND: {"icon": "kind:sapling", "name": "Apfelbaum-Setzling", "price": 60, "size": Vector2i(1, 1), "station": AppleTree.STATION, "garden": true,
@@ -83,10 +87,14 @@ const SECTIONS := [
 	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill", AppleTree.KIND]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
 
-## The floor a piece stands on, by storey (see HouseSketch: cellar, ground floor, upper floor).
-const FLOORS := {-1: -HouseSketch.DEPTH, 0: 0.0, 1: HouseSketch.STOREY_HEIGHT}
+## The flat roof over the upper floor (the top of a slab of HouseSketch.MAX_STOREY): only the
+## roof lights stand there.
+const ROOF_STOREY := HouseSketch.MAX_STOREY + 1
+## The floor a piece stands on, by storey (see HouseSketch: cellar, ground floor, upper floor,
+## the roof over it).
+const FLOORS := {-1: -HouseSketch.DEPTH, 0: 0.0, 1: HouseSketch.STOREY_HEIGHT, ROOF_STOREY: ROOF_STOREY * HouseSketch.STOREY_HEIGHT}
 
 static var _books := {}
 static var _loaded := false
@@ -263,6 +271,45 @@ static func garden_problem(house: HouseSketch, storey: int, c: Vector2i) -> Stri
 	return ""
 
 
+## Whether a kind may also stand on a flat roof (a garden torch, a lamp).
+static func on_roof(kind: String) -> bool:
+	return bool(KINDS.get(kind, {}).get("roof", false))
+
+
+## Why a cell of a storey above the ground is no flat roof for a roof light, or "": "outside" the
+## plot, "storey", "no flat roof" (no built slab under it: a pitched roof or nothing), "roof" (a
+## built roof over it: that is indoors, the upper floor), "stairs" (where stairs or a ladder
+## arrive, or a ladder stands), "taken" (a ballista stands there).
+static func roof_problem(house: HouseSketch, storey: int, c: Vector2i) -> String:
+	if not house.cell_in_plot(c.x, c.y):
+		return "outside"
+	if storey < 1 or storey > ROOF_STOREY:
+		return "storey"
+	var slab := house.slab_at(c.x, c.y, storey - 1)
+	if slab.get("kind", "") != HouseSketch.SLAB or not _built(slab):
+		return "no flat roof"
+	if storey <= HouseSketch.MAX_STOREY and _built(house.pieces.get(house.roof_key(c.x, c.y, storey), {})):
+		return "roof"
+	if (storey == 1 and _stairs_arrive(house).has(c)) or not house.ladders_to(c.x, c.y, storey - 1).is_empty():
+		return "stairs"
+	if storey <= HouseSketch.MAX_STOREY:
+		if house.ladder_key(c.x, c.y, storey) != "":
+			return "stairs"
+		if not house.ballista_at(c.x, c.y, storey).is_empty():
+			return "taken"
+	return ""
+
+
+## Why a cell is no place for a piece of a kind on a storey, or "" (see floor_problem,
+## garden_problem and roof_problem).
+static func spot_problem(house: HouseSketch, kind: String, storey: int, c: Vector2i) -> String:
+	if not in_garden(kind):
+		return floor_problem(house, storey, c)
+	if storey > 0 and on_roof(kind):
+		return roof_problem(house, storey, c)
+	return garden_problem(house, storey, c)
+
+
 ## The upper floor's cells where stairs up arrive: they stay free.
 static func _stairs_arrive(house: HouseSketch) -> Dictionary:
 	var out := {}
@@ -342,7 +389,7 @@ func problem(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot:
 		return "kind"
 	var spots := cells(kind, x, y, rot)
 	for c: Vector2i in spots:
-		var why := garden_problem(house, storey, c) if in_garden(kind) else floor_problem(house, storey, c)
+		var why := spot_problem(house, kind, storey, c)
 		if why != "":
 			return why
 	if on_wall(kind):
@@ -449,4 +496,8 @@ static func reason(why: String) -> String:
 			return Lang.t("Das gehört an eine Wand: Zeig auf eine gebaute Wand im Haus.")
 		"none":
 			return Lang.t("Davon hast du keins mehr zum Aufstellen.")
+		"no flat roof":
+			return Lang.t("Hier ist kein gebautes Flachdach: Auf einem Spitzdach steht nichts.")
+		"storey":
+			return Lang.t("Auf dieser Ebene steht das nicht.")
 	return Lang.t("Das geht hier nicht.")

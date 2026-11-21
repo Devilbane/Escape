@@ -40,7 +40,7 @@ const PAINTING_HEIGHT := 1.55
 const PAINTINGS := ["res://assets/house/painting_mountains.jpg", "res://assets/house/painting_lake.jpg",
 	"res://assets/house/painting_dragon.jpg"]
 const PICK_UP := "aufheben"
-const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
+const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss", HouseFurniture.ROOF_STOREY: "auf dem Dach"}
 const KIND_BUTTON := Vector2(130, 32)
 const STATUS_WIDTH := 880.0
 const OK_COLOR := Color(0.4, 0.95, 0.4, 0.45)
@@ -551,8 +551,9 @@ func _first_waiting() -> String:
 
 func select(next: String) -> void:
 	tool = next
-	# Garden pieces stand only outdoors on the ground floor's level: the tool shows it.
-	if HouseFurniture.in_garden(next) and storey != 0:
+	# Garden pieces stand only outdoors on the ground floor's level: the tool shows it. The roof
+	# lights may stay on a level above, where flat roofs are.
+	if HouseFurniture.in_garden(next) and storey != 0 and not (HouseFurniture.on_roof(next) and storey > 0):
 		storey = 0
 		game.house_sketcher.view_storey = storey
 	_clear_ghost()
@@ -575,10 +576,27 @@ func turn() -> void:
 
 
 func cycle_level() -> void:
-	storey = {0: 1, 1: -1, -1: 0}[storey]
+	storey = next_level(storey, plan())
 	game.house_sketcher.view_storey = storey
 	_clear_ghost()
 	_update_bar()
+
+
+## The level after `from` in the level button's round: ground floor, upper floor, the roof over
+## the upper floor (only once a slab is built up there), cellar.
+static func next_level(from: int, house: HouseSketch) -> int:
+	if from == 1 and house != null and _has_top_roof(house):
+		return HouseFurniture.ROOF_STOREY
+	return {0: 1, 1: -1, HouseFurniture.ROOF_STOREY: -1, -1: 0}.get(from, 0)
+
+
+## Whether a slab is built over the upper floor anywhere: a flat roof up there.
+static func _has_top_roof(house: HouseSketch) -> bool:
+	for key in house.pieces:
+		var p: Dictionary = house.pieces[key]
+		if p.kind == HouseSketch.SLAB and p.state == HouseSketch.BUILT and HouseSketch.parts_of(key)[0] == HouseSketch.MAX_STOREY:
+			return true
+	return false
 
 
 ## Keys and mouse buttons while the tool is open. Returns whether the event was used.

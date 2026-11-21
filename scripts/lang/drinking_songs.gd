@@ -1,5 +1,5 @@
 extends RefCounted
-## English texts: Zecher Fritz sings drinking songs at the tavern (see DrinkingSongs). Merged into Lang.EN (see Lang.PARTS).
+## English texts: Fritz sings drinking songs at the tavern (see DrinkingSongs). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
 	"Der Krug ist leer, der Wirt ist taub,": "The mug is dry, the landlord's deaf,",

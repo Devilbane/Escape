@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give the wooden house stairs their own footsteps; Give cellars their own ambient sound; Autumn: village leaves as thick as the woods round it (+1 more) | Shipped this week: Apple trees: taller, grass and stone ring at the foot, red-and-green apples (+49 more)
+Escape! dev status | Working on: Give the wooden house stairs their own footsteps; Give cellars their own ambient sound | Shipped this week: Autumn: village leaves as thick as the woods round it; Give Clerk Gero chestnut brown hair (+48 more)

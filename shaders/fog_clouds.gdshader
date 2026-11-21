@@ -33,12 +33,15 @@ void fragment() {
 	vec2 p = world.xz;
 	// A big, slow layer and a smaller, faster one: they slide against each
 	// other, which gives the clouds depth and keeps them from looking printed.
-	float big = texture(noise_tex, p * 0.012 + drift * 0.6).r;
-	float small = texture(noise_tex, p * 0.031 + drift * 1.0 + vec2(0.37, 0.71)).r;
+	float big = texture(noise_tex, p * 0.026 + drift * 0.6).r;
+	float small = texture(noise_tex, p * 0.06 + drift * 1.0 + vec2(0.37, 0.71)).r;
 	float c = big * 0.72 + small * 0.28 + breathe;
-	// Soft, irregular edges: a wide ramp from clear to cloud.
+	// Distinct banks: a short ramp from clear air into the cloud, and a denser core deeper
+	// inside, so the fog lies in thick drifts with clear lanes between them.
 	float lo = 1.0 - coverage - 0.12;
-	float body = smoothstep(lo, lo + 0.3, c);
+	float edge = smoothstep(lo, lo + 0.12, c);
+	float core = smoothstep(lo + 0.18, lo + 0.42, c);
+	float body = edge * 0.5 + core * 0.65;
 	// An even haze keeps only a faint swell of the noise and fills the gaps.
 	body = mix(body, 0.8 + 0.2 * c, even);
 	// Ground-hugging: thick at the feet, thin higher up.
@@ -47,5 +50,5 @@ void fragment() {
 	float reach = 1.0 - smoothstep(max_distance * 0.7, max_distance, length(view.xyz));
 	ALBEDO = haze;
 	// An even haze covers everything, so it is lighter than patchy clouds.
-	ALPHA = clamp(body * low * reach * strength * 0.8 * mix(1.0, 0.6, even), 0.0, 0.85);
+	ALPHA = clamp(body * low * reach * strength * 0.8 * mix(1.0, 0.6, even), 0.0, 0.9);
 }

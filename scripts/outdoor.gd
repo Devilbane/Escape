@@ -408,6 +408,9 @@ var flyover: DragonFlyover
 var _entrances: Array = []
 var _ground_img: Image
 var _ground_tex: ImageTexture
+## How far each spot lies from the pond banks (see _build_shore and pond_shore_at).
+var _shore_img: Image
+var _shore_tex: ImageTexture
 var _village_near := {}
 ## What the dressing found for each building (see _dress_building), kept
 ## for the session.
@@ -683,6 +686,7 @@ func build() -> void:
 				roofed.append(Vector2i(sx, sy))
 	roofed.append_array(meals.roofed)
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
+	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
 	snow.set_shelter(shelters, width, height, TILE)
 	_floor_shape = CollisionShape3D.new()
@@ -741,6 +745,11 @@ func _build_ground() -> void:
 	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
 	mat.set_shader_parameter("tile", TILE)
+	_shore_img = _build_shore()
+	_shore_tex = ImageTexture.create_from_image(_shore_img)
+	mat.set_shader_parameter("shore_mask", _shore_tex)
+	mat.set_shader_parameter("shore_reach", SHORE_REACH)
+	mat.set_shader_parameter("shore_on", true)
 	# The graveyard's paving is older than the village's (see _pave_graveyard).
 	if fence.size != Vector2i.ZERO:
 		mat.set_shader_parameter("old_paving", Vector4((fence.position.x - 0.5) * TILE, (fence.position.y - 0.5) * TILE,
@@ -757,6 +766,101 @@ func _build_ground() -> void:
 			piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			piece.position = Vector3((cx - 0.5) * TILE + size * 0.5, 0, (cy - 0.5) * TILE + size * 0.5)
 			add_child(piece)
+
+
+## Pixels per tile of the shore picture, and how far from the bank (metres) it tells apart.
+const SHORE_PX := 4
+const SHORE_REACH := 8.0
+
+
+## The ponds' shore as one picture over the whole map, SHORE_PX pixels to a tile: how far each
+## spot lies from the nearest bank, 0.5 on the bank itself, more out over the water and less on
+## dry land (0 from SHORE_REACH away). The ground shader draws the water, the shallows, the muddy
+## bank and the depth from it, so the shore runs round the pond tiles in soft curves (and only a
+## little noise away from where they stop the hero), never along their square corners.
+func _build_shore() -> Image:
+	var img := Image.create(width * SHORE_PX, height * SHORE_PX, false, Image.FORMAT_RH)
+	var water := {}
+	for y in height:
+		for x in width:
+			if "~;".contains(cell_char(Vector2i(x, y))):
+				water[Vector2i(x, y)] = true
+	if water.is_empty():
+		return img
+	# Each pond on its own: the tiles that touch, and a margin round them.
+	var seen := {}
+	var areas: Array[Rect2i] = []
+	for start: Vector2i in water:
+		if seen.has(start):
+			continue
+		var box := Rect2i(start, Vector2i.ONE)
+		var queue: Array[Vector2i] = [start]
+		seen[start] = true
+		while not queue.is_empty():
+			var at: Vector2i = queue.pop_back()
+			box = box.expand(at).expand(at + Vector2i.ONE)
+			for dir: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if water.has(at + dir) and not seen.has(at + dir):
+					seen[at + dir] = true
+					queue.append(at + dir)
+		areas.append(box.grow(3))
+	var raw := {}
+	for box in areas:
+		for py in range(box.position.y * SHORE_PX, box.end.y * SHORE_PX):
+			for px in range(box.position.x * SHORE_PX, box.end.x * SHORE_PX):
+				var spot := Vector2((px + 0.5) / SHORE_PX - 0.5, (py + 0.5) / SHORE_PX - 0.5) * TILE
+				raw[Vector2i(px, py)] = _shore_distance(spot, water)
+	# Softened twice, so the bays round off as well as the points.
+	for _round in 2:
+		var soft := {}
+		for at: Vector2i in raw:
+			var sum := 0.0
+			var count := 0
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var v = raw.get(at + Vector2i(dx, dy))
+					if v != null:
+						sum += v
+						count += 1
+			soft[at] = sum / count
+		raw = soft
+	for at: Vector2i in raw:
+		if at.x >= 0 and at.y >= 0 and at.x < img.get_width() and at.y < img.get_height():
+			img.set_pixel(at.x, at.y, Color(clampf(0.5 + raw[at] / (2.0 * SHORE_REACH), 0.0, 1.0), 0, 0))
+	return img
+
+
+## How far `spot` (world x and z) lies from the nearest bank in metres: plus over the water,
+## minus on land, the pond tiles in `water`.
+func _shore_distance(spot: Vector2, water: Dictionary) -> float:
+	var cell := Vector2i(floori(spot.x / TILE + 0.5), floori(spot.y / TILE + 0.5))
+	var wet := water.has(cell)
+	var best := SHORE_REACH
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var other := cell + Vector2i(dx, dy)
+			if water.has(other) == wet:
+				continue
+			var near := Vector2(clampf(spot.x, (other.x - 0.5) * TILE, (other.x + 0.5) * TILE),
+					clampf(spot.y, (other.y - 0.5) * TILE, (other.y + 0.5) * TILE))
+			best = minf(best, spot.distance_to(near))
+	return best if wet else -best
+
+
+## How far `pos` lies from the nearest pond bank as the ground draws it, in metres: plus over
+## the water, minus on dry land (see _build_shore; without the shader's bit of noise).
+func pond_shore_at(pos: Vector3) -> float:
+	if _shore_img == null:
+		return -SHORE_REACH
+	var f := Vector2(pos.x / TILE + 0.5, pos.z / TILE + 0.5) * SHORE_PX - Vector2(0.5, 0.5)
+	var i := Vector2i(floori(f.x), floori(f.y))
+	var t := f - Vector2(i)
+	var w := _shore_img.get_width() - 1
+	var h := _shore_img.get_height() - 1
+	var at := func(x: int, y: int) -> float: return _shore_img.get_pixel(clampi(x, 0, w), clampi(y, 0, h)).r
+	var v: float = lerpf(lerpf(at.call(i.x, i.y), at.call(i.x + 1, i.y), t.x),
+			lerpf(at.call(i.x, i.y + 1), at.call(i.x + 1, i.y + 1), t.x), t.y)
+	return (v - 0.5) * 2.0 * SHORE_REACH
 
 
 ## How far the slab round the holes reaches beyond the map (metres), and how
@@ -4762,19 +4866,6 @@ func _show_bolt(at: Vector3) -> void:
 	var sparks := Effects.make_sparkles(Color(0.8, 0.9, 1.0), true)
 	sparks.position = at + Vector3(0, 0.5, 0)
 	add_child(sparks)
-	# A scorch mark where it hit, fading over a while.
-	var scorch := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = 1.3
-	disc.bottom_radius = 1.3
-	disc.height = 0.02
-	scorch.mesh = disc
-	var burnt := StandardMaterial3D.new()
-	burnt.albedo_color = Color(0.03, 0.03, 0.03, 0.65)
-	burnt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	scorch.material_override = burnt
-	scorch.position = at + Vector3(0, 0.03, 0)
-	add_child(scorch)
 	# The bolt flickers: on, dark for a blink, on again (see LightningBolt.FLASHES), then fades.
 	var tween := create_tween()
 	for i in LightningBolt.FLASHES.size():
@@ -4789,10 +4880,6 @@ func _show_bolt(at: Vector3) -> void:
 	tween.tween_callback(bolt.queue_free)
 	tween.tween_property(glow, "light_energy", 0.0, 1.0)
 	tween.tween_callback(glow.queue_free)
-	var fade := create_tween()
-	fade.tween_interval(8.0)
-	fade.tween_property(burnt, "albedo_color:a", 0.0, 12.0)
-	fade.tween_callback(scorch.queue_free)
 
 
 ## How many lumps of thunder ore lie about right now.

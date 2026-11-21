@@ -14,6 +14,10 @@ extends RefCounted
 
 ## Real days from 1970-01-01 to Monday 2026-11-16, the first day of an autumn.
 const AUTUMN_MONDAY := 20773
+## The German name of each season (translated by Lang), for the HUD's top line and the season command.
+const WORDS := {
+	Weather.SPRING: "Frühling", Weather.SUMMER: "Sommer", Weather.AUTUMN: "Herbst", Weather.WINTER: "Winter",
+}
 ## The season day the tests' clock stands on (see above).
 const TEST_DAY := 0
 

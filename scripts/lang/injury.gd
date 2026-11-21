@@ -2,8 +2,8 @@ extends RefCounted
 ## English texts: the injury a rescue leaves and the healing goddess's altar (see Injury). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"Wer bewusstlos gerettet wird, trägt eine Verletzung davon: ein gebrochenes Bein (kein Springen, später auch kein Rennen), einen gebrochenen Arm (kein Schild), eine Kopfwunde (weniger Intelligenz) oder tiefe Narben (alle Fertigkeiten schwächer). Leichte und schwere heilen nach einigen Nächten im Bett; schwere heilt auch ein Gebet am Altar der Heilgöttin Mirenna im Dorftempel. Gegen eine bleibende Verletzung hilft nur eine Pilgerreise zum fernen, vergessenen Schrein. Nach einem Bosskampf ist die Verletzung meist schwer oder bleibend.":
-		"Whoever is rescued unconscious carries an injury: a broken leg (no jumping, later no running either), a broken arm (no shield), a head wound (less Intelligence) or deep scars (all skills weaker). Minor and serious ones heal after some nights in bed; a prayer at the altar of the healing goddess Mirenna in the village temple also heals serious ones. Only a pilgrimage to the distant, forgotten shrine helps against a lasting injury. After a boss fight the injury is usually serious or lasting.",
+	"Wer bewusstlos gerettet wird, trägt eine Verletzung davon: ein gebrochenes Bein (kein Springen, später auch kein Rennen), einen gebrochenen Arm (kein Schild), eine Kopfwunde (weniger Intelligenz) oder tiefe Narben (alle Fertigkeiten schwächer). Leichte und schwere heilen nach einigen Nächten im Bett oder durch ein Gebet am Altar der Heilgöttin Mirenna im Dorftempel. Eine bleibende heilt nie von selbst: Mirennas Altar nimmt sie nur gegen eine hohe Gabe, ihr ferner, vergessener Schrein umsonst. Nach einem Bosskampf ist die Verletzung meist schwer oder bleibend.":
+		"Whoever is rescued unconscious carries an injury: a broken leg (no jumping, later no running either), a broken arm (no shield), a head wound (less Intelligence) or deep scars (all skills weaker). Minor and serious ones heal after some nights in bed or by a prayer at the altar of the healing goddess Mirenna in the village temple. A lasting one never heals by itself: Mirenna's altar lifts it only for a high offering, her distant, forgotten shrine for free. After a boss fight the injury is usually serious or lasting.",
 	"Gebrochenes Bein": "Broken leg",
 	"Gebrochener Arm": "Broken arm",
 	"Kopfwunde": "Head wound",
@@ -17,9 +17,7 @@ const EN := {
 	"Intelligenz −%d": "Intelligence −%d",
 	"Alle Fertigkeiten −%d": "All skills −%d",
 	"Dein Bein erlaubt keinen Sprung!": "Your leg will not let you jump!",
-	"Heilt nicht von selbst. Nur eine Pilgerreise zum fernen, vergessenen Schrein heilt sie.": "Never heals by itself. Only a pilgrimage to the distant, forgotten shrine heals it.",
 	"Heilt nach %d Nächten im Bett, oder durch ein Gebet im Tempel.": "Heals after %d nights in bed, or by a prayer in the temple.",
-	"Diese Wunde heilt nur am fernen, vergessenen Schrein.": "This wound heals only at the distant, forgotten shrine.",
 	"Verletzung: %s (%s)": "Injury: %s (%s)",
 	"Deine Verletzung ist verheilt.": "Your injury has healed.",
 	"Verletzung": "Injury",
@@ -27,13 +25,14 @@ const EN := {
 	"Keine Verletzung": "No injury",
 	"Du bist unverletzt.": "You are unhurt.",
 	"Wer bewusstlos gerettet wird, trägt eine Verletzung davon: nach einem Bosskampf meist eine schwere.": "Whoever is rescued unconscious carries an injury, usually a serious one after a boss fight.",
-	"Leichte und schwere Verletzungen heilen im Bett, schwere auch am Altar im Tempel. Eine bleibende heilt nur am fernen Schrein.": "Minor and serious injuries heal in bed, serious ones also at the temple altar. A lasting one heals only at the distant shrine.",
+	"Leichte und schwere Verletzungen heilen im Bett oder am Altar im Tempel. Eine bleibende heilt am Altar nur gegen eine hohe Gabe, am fernen Schrein umsonst.": "Minor and serious injuries heal in bed or at the temple altar. A lasting one heals at the altar only for a high offering, at the distant shrine for free.",
 	"Nächte Ruhe noch: %d": "Nights of rest left: %d",
-	"Heilgöttin Mirenna im Dorftempel heilt schwere Verletzungen gegen eine Gabe, eine bleibende nur der ferne, vergessene Schrein.": "The healing goddess Mirenna in the village temple heals serious injuries for an offering; a lasting one only the distant, forgotten shrine.",
 	"Heilung": "Healing",
 	"Beten": "Pray",
 	"Gebet an Mirenna": "Prayer to Mirenna",
-	"Mirenna nimmt Verletzungen von dir, auch die, die nie von selbst heilen.": "Mirenna takes injuries from you, even those that never heal by themselves.",
+	"Eine bleibende Verletzung verlangt eine hohe Gabe. Ihr ferner, vergessener Schrein heilt sie umsonst.": "A lasting injury asks for a high offering. Her distant, forgotten shrine heals it for free.",
+	"Heilt nicht von selbst. Ein Gebet im Tempel heilt sie gegen eine hohe Gabe, der ferne, vergessene Schrein umsonst.": "Never heals by itself. A prayer in the temple heals it for a high offering, the distant, forgotten shrine for free.",
+	"Heilgöttin Mirenna im Dorftempel heilt Verletzungen gegen eine Gabe, eine bleibende gegen eine hohe. Ihr ferner, vergessener Schrein heilt sie umsonst.": "The healing goddess Mirenna in the village temple heals injuries for an offering, a lasting one for a high one. Her distant, forgotten shrine heals it for free.",
 	"Dein Segen macht die Heilung billiger.": "Your blessing makes healing cheaper.",
 	"Du betest zu Mirenna. Deine Verletzung ist verschwunden.": "You pray to Mirenna. Your injury is gone.",
 }

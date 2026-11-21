@@ -149,6 +149,8 @@ var roofed: Array[Vector2i] = []
 var awnings: Array = []
 ## The ivy-covered poles, ropes and little lamps framing the eating area (see MealGarland).
 var garland := MealGarland.new()
+## The braziers that warm the guests in winter (see MealBraziers).
+var braziers := MealBraziers.new()
 
 
 func _init() -> void:
@@ -334,6 +336,7 @@ func set_glow(glow: float) -> void:
 	for flame in _flames:
 		flame.visible = lit > 0.01
 	garland.set_glow(glow)
+	braziers.set_glow(glow)
 
 
 ## Whether a table's burning lantern lights `pos` within `reach` metres (see Outdoor.is_lit).
@@ -341,7 +344,7 @@ func lights_up(pos: Vector3, reach: float) -> bool:
 	for light in lights:
 		if light.visible and Vector2(pos.x - light.global_position.x, pos.z - light.global_position.z).length() < reach:
 			return true
-	return garland.lights_up(pos, reach)
+	return garland.lights_up(pos, reach) or braziers.lights_up(pos, reach)
 
 
 ## Fades the cloth while the hero is near a table, so the diners under it stay in view.

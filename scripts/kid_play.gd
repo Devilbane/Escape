@@ -19,8 +19,9 @@ extends RefCounted
 const ARENA := 5.0
 ## How far from the child's home tile the play may begin (tiles).
 const HOME_RANGE := 14
-## The chaser has caught the other within this distance (metres).
-const CATCH := 1.0
+## The chaser has caught the other within this distance (metres): just beyond the room two
+## children keep from each other (see Villager._space_for), so a catch never needs a touch.
+const CATCH := 1.35
 ## Nobody runs or flips closer to the hero than this (metres), and no trick begins this near.
 const HERO_ROOM := 1.6
 const HERO_ROOM_TRICK := 2.8
@@ -338,12 +339,32 @@ func _start_trick() -> void:
 	_clock = 1.5
 
 
-## Whether the whole way a trick covers is open ground.
+## Whether the whole way a trick covers is open ground, clear of the other child and of the
+## way the other's own trick takes, so the two never tumble into each other.
 func _clear_way(dir: Vector3, dist: float) -> bool:
 	for i in 5:
-		if not _fits(v.global_position + dir * dist * (i + 1) / 5.0, HERO_ROOM_TRICK * 0.6):
+		var point := v.global_position + dir * dist * (i + 1) / 5.0
+		if not _fits(point, HERO_ROOM_TRICK * 0.6) or _near_pal(point):
 			return false
 	return true
+
+
+## Whether a point is inside the room the other child keeps, where it stands now or anywhere
+## along the trick it is doing.
+func _near_pal(point: Vector3) -> bool:
+	if pal == null or not is_instance_valid(pal):
+		return false
+	var room: float = v._space_for(pal)
+	var spots: Array[Vector3] = [pal.global_position]
+	var other: KidPlay = pal._kid
+	if other != null and other.phase == "trick" and other.trick != "":
+		var reach := float(TRICKS[other.trick].dist)
+		for i in 5:
+			spots.append(other._trick_from + other._trick_dir * reach * (i + 1) / 5.0)
+	for s: Vector3 in spots:
+		if Vector2(point.x - s.x, point.z - s.z).length() < room:
+			return true
+	return false
 
 
 func _do_trick(delta: float) -> void:

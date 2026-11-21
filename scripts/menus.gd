@@ -2664,7 +2664,8 @@ func _build_furnisher() -> void:
 			var price: int = game.trader_price(int(info.price))
 			var size: Vector2i = info.size
 			var lines := [[Lang.t(info.text), TradeWindow.BLUE],
-					[Lang.t("Hängt an einer Wand.") if HouseFurniture.on_wall(kind) else Lang.t("Steht im Garten, unter freiem Himmel.") if HouseFurniture.in_garden(kind) \
+					[Lang.t("Hängt an einer Wand.") if HouseFurniture.on_wall(kind) else Lang.t("Steht im Garten oder auf einem Flachdach, unter freiem Himmel.") if HouseFurniture.on_roof(kind) \
+						else Lang.t("Steht im Garten, unter freiem Himmel.") if HouseFurniture.in_garden(kind) \
 						else Lang.t("Braucht %d x %d Felder Boden.") % [size.x, size.y], TradeWindow.GREY]]
 			# A shrine: what its household goddess gives while the hero is at home (see HouseholdGods).
 			var goddess := HouseholdGods.of_kind(kind)

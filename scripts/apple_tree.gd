@@ -50,6 +50,12 @@ const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
 const BARK := Color(0.33, 0.24, 0.17)
 ## Single leaves on a full-sized clump of leaves (fewer on a smaller one).
 const LEAVES_PER_CLUMP := 62
+## The grass round a tree's foot: its radius for a seedling, and how much wider each stage.
+const PATCH_RADIUS := 0.55
+const PATCH_GROWS := 0.15
+const GRASS := Color(0.3, 0.5, 0.17)
+const GRASS_TIP := Color(0.48, 0.66, 0.26)
+const STONES := [Color(0.42, 0.4, 0.36), Color(0.36, 0.35, 0.33), Color(0.47, 0.43, 0.37), Color(0.32, 0.32, 0.31), Color(0.4, 0.37, 0.32)]
 
 ## The shape of the tree at each stage: the trunk's height and thickness, how many limbs fork
 ## off its top, how far they reach and lean out, how many times they fork again (see _grow), and
@@ -243,9 +249,8 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("apple tree:%s" % root.position.snapped(Vector3.ONE * 0.1))
 	var parts := _Parts.new()
-	# A ring of dug earth round its foot.
-	var soil := HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.4 + grown * 0.1, 0.45 + grown * 0.1, 0.04), HomeStoreFurniture._mat(Color(0.22, 0.15, 0.1), 0.95), Vector3(0, 0.02, 0))
-	soil.name = "Soil"
+	# Round its foot a patch of grass, bordered by a ring of small field stones.
+	parts.patch(rng, PATCH_RADIUS + grown * PATCH_GROWS)
 	var shape: Dictionary = SHAPES[grown]
 	if grown <= SAPLING:
 		# The stake it is tied to, with a band of bast round both.
@@ -372,12 +377,13 @@ class _Parts:
 	var leaves := SurfaceTool.new()
 	var flowers := SurfaceTool.new()
 	var fruit := SurfaceTool.new()
+	var ground := SurfaceTool.new()
 	var limbs := 0
 	var leaves_made := 0
 	var _used := {}
 
 	func _init() -> void:
-		for st in [bark, leaves, flowers, fruit]:
+		for st in [bark, leaves, flowers, fruit, ground]:
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	## A tapering round limb from `from` to `to`, `r0` thick at its foot and `r1` at its end.
@@ -401,6 +407,43 @@ class _Parts:
 				bark.add_vertex(quad[j][0])
 		limbs += 1
 		_used[bark] = true
+
+	## The ground round the tree's foot, `radius` across: a flat disc of grass a shade richer than
+	## the meadow, thick with short tufts of blades, and round its edge a ring of small, rounded
+	## field stones, each its own size, shape and grey, set close but not in a perfect line.
+	func patch(rng: RandomNumberGenerator, radius: float) -> void:
+		var sides := 20
+		for k in sides:
+			var a0 := TAU * k / sides
+			var a1 := TAU * (k + 1) / sides
+			for v in [Vector3.ZERO, Vector3(cos(a1), 0, sin(a1)) * radius, Vector3(cos(a0), 0, sin(a0)) * radius]:
+				ground.set_color(AppleTree.GRASS)
+				ground.set_normal(Vector3.UP)
+				ground.add_vertex(v + Vector3(0, 0.012, 0))
+		# Tufts of grass all over it (not under the trunk).
+		var tufts := roundi(110 * radius * radius)
+		for i in tufts:
+			var r := sqrt(rng.randf_range(0.04, 0.92)) * radius
+			var at := Vector3.RIGHT.rotated(Vector3.UP, rng.randf() * TAU) * r
+			for b in 3:
+				var turn := rng.randf() * TAU
+				var lean := Vector3(cos(turn), 0, sin(turn)) * rng.randf_range(0.01, 0.04)
+				var side := Vector3(-sin(turn), 0, cos(turn)) * 0.012
+				var tip := at + lean + Vector3(0, rng.randf_range(0.05, 0.11), 0)
+				for v in [[at - side, AppleTree.GRASS], [at + side, AppleTree.GRASS], [tip, AppleTree.GRASS_TIP]]:
+					ground.set_color(v[1])
+					ground.set_normal(Vector3.UP)
+					ground.add_vertex(v[0] + Vector3(0, 0.012, 0))
+		# The stones round the edge.
+		var arrays := AppleTree._ball_arrays(6)
+		var around := 0.0
+		while around < TAU - 0.05:
+			var size := rng.randf_range(0.055, 0.09)
+			var at := Vector3.RIGHT.rotated(Vector3.UP, around) * (radius + rng.randf_range(-0.02, 0.03))
+			var colour: Color = AppleTree.STONES[rng.randi() % AppleTree.STONES.size()] * rng.randf_range(0.9, 1.08)
+			_ball(ground, at + Vector3(0, size * 0.25, 0), Vector3(size * rng.randf_range(1.0, 1.4), size * rng.randf_range(0.55, 0.75), size * rng.randf_range(0.85, 1.15)), rng.randf() * TAU, colour, arrays)
+			around += (size * 1.7) / radius
+		_used[ground] = true
 
 	## A clump of leaves round `at`, `scale` across (its radii): LEAVES_PER_CLUMP single leaves all
 	## through it, each a pointed oval turned its own way, a little lighter at its tip. Most sit near
@@ -457,7 +500,8 @@ class _Parts:
 	## Puts the meshes into `root`, each named for what it is.
 	func finish(root: Node3D) -> void:
 		var named := [[bark, "Bark", AppleTree._vertex_mat(0.9)], [leaves, "Leaves", AppleTree._leaf_mat()],
-				[flowers, "Blossom", AppleTree._vertex_mat(0.7)], [fruit, "Apples", AppleTree._vertex_mat(0.4)]]
+				[flowers, "Blossom", AppleTree._vertex_mat(0.7)], [fruit, "Apples", AppleTree._vertex_mat(0.4)],
+				[ground, "Ground", AppleTree._leaf_mat()]]
 		for part in named:
 			if not _used.has(part[0]):
 				continue

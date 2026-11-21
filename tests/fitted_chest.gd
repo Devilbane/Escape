@@ -40,7 +40,7 @@ func _check_styles() -> void:
 			check(absf(foot.position.y) < 0.01, what + " stands on the floor")
 			# Wood and metal on body and lid, gold only in a loot chest.
 			var body := chest.get_node(FittedChest.BODY) as MeshInstance3D
-			check(body.mesh.get_surface_count() == (3 if gold else 2), what + ": body has wood, metal%s" % (" and gold" if gold else ""))
+			check(body.mesh.get_surface_count() == (4 if gold else 2), what + ": body has wood, metal%s" % (", gold and jewels" if gold else ""))
 			check((lid as MeshInstance3D).mesh.get_surface_count() == 2, what + ": lid has wood and metal")
 			check(chest.has_meta("glints") == gold, what + ": glints only over gold")
 			if gold:

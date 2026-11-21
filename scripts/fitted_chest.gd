@@ -52,7 +52,11 @@ const STYLES := {
 }
 ## The gold heaped in a loot chest, and the gems among it.
 const GOLD := Color(1.0, 0.76, 0.3)
-const GEMS := [Color(0.85, 0.1, 0.15), Color(0.15, 0.35, 0.95), Color(0.1, 0.75, 0.35)]
+## Ruby, sapphire, emerald, amethyst, topaz and a clear diamond.
+const GEMS := [Color(0.9, 0.08, 0.15), Color(0.15, 0.35, 1.0), Color(0.1, 0.8, 0.35), Color(0.65, 0.2, 0.9),
+		Color(1.0, 0.62, 0.1), Color(0.85, 0.95, 1.0)]
+## How far in from the outside of the chest the gold reaches (the boards' thickness and a little).
+const GOLD_INSET := 0.06
 ## How many slats the curve of a lid is built from.
 const SLATS := 7
 
@@ -61,6 +65,7 @@ static var _built := {}
 static var _wood: StandardMaterial3D
 static var _metal: StandardMaterial3D
 static var _gold: StandardMaterial3D
+static var _jewel: ShaderMaterial
 static var _grain: Texture2D
 
 
@@ -85,7 +90,7 @@ static func place(parent: Node, style: String, pos: Vector3, rot_y := 0.0, gold 
 	root.add_child(lid)
 	parent.add_child(root)
 	if gold:
-		var glints := CoinShine.make(built[2], 5, 0.9)
+		var glints := CoinShine.make(built[2], CoinShine.MAX_GLINTS, 0.9)
 		Effects.start_cold(glints)
 		root.add_child(glints)
 		root.set_meta("glints", glints)
@@ -158,6 +163,26 @@ static func _materials() -> void:
 	_gold.emission_enabled = true
 	_gold.emission = GOLD
 	_gold.emission_energy_multiplier = 0.15
+	# The jewels: bright, glossy and glowing in their own colour, each glimmering on its own beat.
+	var shader := Shader.new()
+	shader.code = """shader_type spatial;
+render_mode specular_schlick_ggx;
+varying vec3 spot;
+void vertex() {
+	spot = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	ALBEDO = COLOR.rgb;
+	ROUGHNESS = 0.08;
+	METALLIC = 0.15;
+	SPECULAR = 1.0;
+	float beat = sin(TIME * 2.6 + spot.x * 7.0 + spot.z * 5.0 + COLOR.r * 6.0);
+	float flash = pow(max(beat, 0.0), 8.0);
+	EMISSION = COLOR.rgb * (0.35 + 0.25 * beat) + vec3(flash * 0.9);
+}
+"""
+	_jewel = ShaderMaterial.new()
+	_jewel.shader = shader
 
 
 ## A pale picture of wood grain, tinted by each board's colour: long wavy lines along u, a knot
@@ -412,29 +437,92 @@ static func _lock(b: Part, look: Dictionary, style: String, at: Vector3) -> void
 			b.metal(c + Vector3(0, -0.005, PROUD * 0.6), Vector3(0.016, 0.05, 0.004), hole)
 
 
-## A heap of coins in a loot chest with a few gems among them; returns where its glints may blink.
+## The gold in a loot chest: poured in up to the walls, a little higher in the middle and lumpy
+## with coins, with jewels sticking out of it. Returns where its glints may blink (on coins and
+## jewels alike).
 static func _build_gold(b: Part, look: Dictionary) -> PackedVector3Array:
-	var top := float(look.feet) + BODY_HEIGHT - 0.02
-	var high := minf(0.28, float(look.rise) + RIM - 0.08)
+	var top := float(look.feet) + BODY_HEIGHT
+	var hx := WIDTH * 0.5 - GOLD_INSET
+	var hz := DEPTH * 0.5 - GOLD_INSET
+	# Level with the rim at the walls, rising to a low hump in the middle.
+	var hump := minf(0.16, float(look.rise) * 0.55)
+	var height := func(x: float, z: float) -> float:
+		var nx := x / hx
+		var nz := z / hz
+		var middle := clampf(1.0 - (nx * nx * 0.8 + nz * nz), 0.0, 1.0)
+		var lumps := sin(x * 13.0 + z * 4.0) * cos(z * 11.0 - x * 3.0) + 0.6 * sin(x * 23.0 - z * 19.0)
+		return top + 0.015 + hump * middle * middle * (3.0 - 2.0 * middle) + lumps * 0.012
+	b.bed(-hx, hx, -hz, hz, height, GOLD)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2024
-	b.heap(Vector3(0, top, 0.02), Vector3(WIDTH * 0.44, high, DEPTH * 0.38), GOLD)
 	var points := PackedVector3Array()
-	for i in 70:
-		var u := rng.randf_range(-0.95, 0.95)
-		var v := rng.randf_range(-0.9, 0.9)
-		if u * u + v * v > 1.0:
-			continue
-		var lift := high * sqrt(maxf(0.0, 1.0 - u * u - v * v)) * 0.95 + 0.01
-		var p := Vector3(u * WIDTH * 0.44, top + lift, 0.02 + v * DEPTH * 0.38)
-		var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.1, 0.6))
-		b.coin(p, tilt, 0.055, GOLD.lightened(rng.randf_range(0.0, 0.12)))
-		if i % 3 == 0:
-			points.append(p + Vector3.UP * 0.02)
-	for i in GEMS.size():
-		var p := Vector3((i - 1) * 0.34, top + high * 0.72, rng.randf_range(-0.12, 0.18))
-		b.gem(p, 0.05, GEMS[i])
+	# Loose coins all over, lying every which way; some stand on edge.
+	for i in 150:
+		var x := rng.randf_range(-hx + 0.04, hx - 0.04)
+		var z := rng.randf_range(-hz + 0.04, hz - 0.04)
+		var y: float = height.call(x, z) + 0.008
+		var lean := rng.randf_range(0.05, 0.5) if rng.randf() > 0.08 else rng.randf_range(1.1, 1.4)
+		var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), lean)
+		b.coin(Vector3(x, y, z), tilt, rng.randf_range(0.045, 0.06), GOLD.lightened(rng.randf_range(0.0, 0.15)))
+		if i % 12 == 0:
+			points.append(Vector3(x, y + 0.02, z))
+	# Jewels half sunk in the gold, tilted, spread so no two touch.
+	var spots := [Vector2(-0.5, -0.2), Vector2(-0.18, 0.28), Vector2(0.12, -0.12), Vector2(0.46, 0.22),
+			Vector2(-0.38, 0.33), Vector2(0.3, -0.33), Vector2(-0.02, 0.05), Vector2(0.58, -0.05),
+			Vector2(-0.6, 0.12), Vector2(0.2, 0.36)]
+	for i in spots.size():
+		var at: Vector2 = spots[i]
+		var r := rng.randf_range(0.045, 0.07) if i % 3 != 0 else rng.randf_range(0.075, 0.095)
+		var p := Vector3(at.x, height.call(at.x, at.y) + r * 0.55, at.y)
+		var turn := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.2, 0.7))
+		b.gem(p, r, GEMS[i % GEMS.size()], turn)
+		points.append(p + Vector3.UP * r * 0.5)
 	return points
+
+
+## A field of heights over x0..x1, z0..z1 given by `height`, with a skirt down its sides so no gap
+## shows against the boards.
+static func _bed(st: SurfaceTool, x0: float, x1: float, z0: float, z1: float, height: Callable, colour: Color) -> void:
+	var nx := 24
+	var nz := 18
+	var dx := (x1 - x0) / nx
+	var dz := (z1 - z0) / nz
+	var at := func(i: int, k: int) -> Vector3:
+		var x := x0 + dx * i
+		var z := z0 + dz * k
+		return Vector3(x, height.call(x, z), z)
+	var normal := func(p: Vector3) -> Vector3:
+		var e := 0.02
+		var sx: float = height.call(p.x + e, p.z) - height.call(p.x - e, p.z)
+		var sz: float = height.call(p.x, p.z + e) - height.call(p.x, p.z - e)
+		return Vector3(-sx, 2.0 * e, -sz).normalized()
+	for k in nz:
+		for i in nx:
+			var quad := [at.call(i, k), at.call(i + 1, k), at.call(i + 1, k + 1), at.call(i, k + 1)]
+			for idx: int in [0, 1, 2, 0, 2, 3]:
+				var p: Vector3 = quad[idx]
+				# A lighter or deeper gold here and there, as heaped coins catch the light.
+				st.set_color(colour.lightened(clampf(_lump(p * 3.0) * 0.12, 0.0, 0.12)).darkened(clampf(-_lump(p * 5.0) * 0.18, 0.0, 0.15)))
+				st.set_normal(normal.call(p))
+				st.add_vertex(p)
+	# The skirt: straight down from each edge.
+	st.set_color(colour.darkened(0.3))
+	var drop := 0.12
+	var edges := []
+	for i in nx:
+		edges.append([at.call(i + 1, 0), at.call(i, 0), Vector3(0, 0, -1)])
+		edges.append([at.call(i, nz), at.call(i + 1, nz), Vector3(0, 0, 1)])
+	for k in nz:
+		edges.append([at.call(0, k), at.call(0, k + 1), Vector3(-1, 0, 0)])
+		edges.append([at.call(nx, k + 1), at.call(nx, k), Vector3(1, 0, 0)])
+	for e: Array in edges:
+		var a: Vector3 = e[0]
+		var c: Vector3 = e[1]
+		var quad := [a, c, Vector3(c.x, c.y - drop, c.z), Vector3(a.x, a.y - drop, a.z)]
+		st.set_normal(e[2])
+		# Both ways round: it is only ever seen from outside, but which side that is is easy to get wrong.
+		for idx: int in [0, 2, 1, 0, 3, 2, 0, 1, 2, 0, 2, 3]:
+			st.add_vertex(quad[idx])
 
 
 # ---------------------------------------------------------------------------------------------
@@ -561,10 +649,11 @@ class Part:
 	var _wood := SurfaceTool.new()
 	var _metal := SurfaceTool.new()
 	var _gold := SurfaceTool.new()
+	var _jewels := SurfaceTool.new()
 	var _has_gold := false
 
 	func _init() -> void:
-		for st: SurfaceTool in [_wood, _metal, _gold]:
+		for st: SurfaceTool in [_wood, _metal, _gold, _jewels]:
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	## A board of wood, its grain along axis `grain` (0 x, 1 y, 2 z) of its own box.
@@ -591,16 +680,17 @@ class Part:
 	func arch(x0: float, x1: float, arc: Vector2, half: float, rim: float, colour: Color, inset: float) -> void:
 		FittedChest._arch(_wood, x0, x1, arc, half, rim, colour, inset)
 
-	func heap(at: Vector3, radii: Vector3, colour: Color) -> void:
-		_has_gold = true
-		FittedChest._ball(_gold, at, radii, colour, true)
-
 	func coin(at: Vector3, basis: Basis, r: float, colour: Color) -> void:
 		_has_gold = true
 		FittedChest._cylinder(_gold, at - basis.y * 0.006, at + basis.y * 0.006, r, colour, 10)
 
-	func gem(at: Vector3, r: float, colour: Color) -> void:
-		FittedChest._gem(_metal, at, r, colour)
+	func gem(at: Vector3, r: float, colour: Color, basis := Basis.IDENTITY) -> void:
+		FittedChest._gem(_jewels, at, r, colour, basis)
+
+	## Gold poured into the chest up to its walls: a field of heights over the inside.
+	func bed(x0: float, x1: float, z0: float, z1: float, height: Callable, colour: Color) -> void:
+		_has_gold = true
+		FittedChest._bed(_gold, x0, x1, z0, z1, height, colour)
 
 	func commit() -> ArrayMesh:
 		var mesh := ArrayMesh.new()
@@ -611,6 +701,8 @@ class Part:
 		if _has_gold:
 			_gold.commit(mesh)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, FittedChest._gold)
+			_jewels.commit(mesh)
+			mesh.surface_set_material(mesh.get_surface_count() - 1, FittedChest._jewel)
 		return mesh
 
 
@@ -730,14 +822,14 @@ static func _sphere_dir(a: float, b: float) -> Vector3:
 
 
 ## A cut gem: two pyramids base to base, the top one flat.
-static func _gem(st: SurfaceTool, at: Vector3, r: float, colour: Color) -> void:
+static func _gem(st: SurfaceTool, at: Vector3, r: float, colour: Color, turn := Basis.IDENTITY) -> void:
 	var sides := 6
-	var top := at + Vector3.UP * r * 0.35
-	var bottom := at - Vector3.UP * r * 0.9
+	var top := at + turn * Vector3.UP * r * 0.35
+	var bottom := at - turn * Vector3.UP * r * 0.9
 	st.set_color(colour)
 	for i in sides:
-		var p0 := at + Vector3(cos(TAU * i / sides), 0, sin(TAU * i / sides)) * r
-		var p1 := at + Vector3(cos(TAU * (i + 1) / sides), 0, sin(TAU * (i + 1) / sides)) * r
+		var p0 := at + turn * Vector3(cos(TAU * i / sides), 0, sin(TAU * i / sides)) * r
+		var p1 := at + turn * Vector3(cos(TAU * (i + 1) / sides), 0, sin(TAU * (i + 1) / sides)) * r
 		var t0 := top + (p0 - at) * 0.55
 		var t1 := top + (p1 - at) * 0.55
 		for tri: Array in [[p0, t1, p1], [p0, t0, t1], [top, t1, t0], [p0, p1, bottom]]:

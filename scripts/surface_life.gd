@@ -127,16 +127,23 @@ const PATCHES := ["dirt", "moss", "lichen"]
 
 ## Autumn spreads fallen leaves over the ground, in the colours the ivy and the trees turn
 ## (IvySeasons.AUTUMN_COLOURS), while most undergrowth bushes have shed theirs (see
-## Outdoor.UNDERGROWTH_AUTUMN_KEEP). How many lie on one tile, on average, by part of the map;
-## tiles beside the forest or a tree get FALLEN_EDGE times as many. They are only laid the first
-## time autumn comes (see set_autumn), in batches like the rest of the litter, and hidden after.
-const FALLEN := {FOREST: 11.0, GRAVEYARD: 9.0, HOLLOW: 8.0, VILLAGE: 2.5, PASS: 3.0}
+## Outdoor.UNDERGROWTH_AUTUMN_KEEP). How many leaves lie on one tile, on average, by part of the
+## map; tiles beside the forest or a tree get FALLEN_EDGE times as many. They are only laid the
+## first time autumn comes (see set_autumn), in batches like the rest of the litter, and hidden after.
+## To stay cheap with so many, they lie in clusters: CLUSTER_KINDS ready-made clusters of
+## CLUSTER_LEAVES leaves each (see _cluster_mesh), every one turned and mixed at random.
+const FALLEN := {FOREST: 44.0, GRAVEYARD: 36.0, HOLLOW: 32.0, VILLAGE: 10.0, PASS: 12.0}
+const CLUSTER_KINDS := 6
+const CLUSTER_LEAVES := 8
+## How far a cluster's leaves lie from its middle (metres).
+const CLUSTER_SPREAD := 0.45
 const FALLEN_EDGE := 1.6
 ## On a path (its verges), the paved square, under trees and rocks and on the forest floor at
 ## its edge, fewer of them.
 const FALLEN_KINDS := {"path": 0.4, "square": 0.12, "under": 0.8, "edge": 0.6}
-const FALLEN_SIZE := Vector2(0.24, 0.4)
-const FALLEN_CAP := 24000
+## Their size (metres): the shape of the ivy's leaves (AgedStone.leaf_material), a little smaller.
+const FALLEN_SIZE := Vector2(0.3, 0.48)
+const FALLEN_CAP := 96000
 const FALLEN_TREES := "#TdrgtpN"
 
 var level: Level
@@ -225,6 +232,7 @@ func _drop_leaves() -> void:
 				continue
 			if _beside_trees(c):
 				n *= FALLEN_EDGE
+			n /= CLUSTER_LEAVES
 			var count := int(n) + (1 if rng.randf() < n - int(n) else 0)
 			for i in count:
 				if fallen_total >= FALLEN_CAP:
@@ -232,22 +240,21 @@ func _drop_leaves() -> void:
 				var spot := _litter_spot(c, ch, rng)
 				if spot.x == INF:
 					continue
-				var s := rng.randf_range(FALLEN_SIZE.x, FALLEN_SIZE.y)
-				var basis := Basis(Vector3.UP, rng.randf() * TAU) \
-						* Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25)) * Basis(Vector3.FORWARD, rng.randf_range(-0.2, 0.2))
-				var t := Transform3D(basis.scaled(Vector3(s, s, s * 0.7)), spot + Vector3(0, rng.randf_range(0.014, 0.026), 0))
-				var col := fallen_colour(rng)
-				var key := Vector2i(floori(c.x / float(CHUNK)), floori(c.y / float(CHUNK)))
+				var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.85, 1.15))
+				var t := Transform3D(basis, spot + Vector3(0, rng.randf_range(0.008, 0.016), 0))
+				var shade := rng.randf_range(0.82, 1.05)
+				var kind := rng.randi() % CLUSTER_KINDS
+				var key := Vector3i(floori(c.x / float(CHUNK)), floori(c.y / float(CHUNK)), kind)
 				if not batches.has(key):
 					batches[key] = []
-				batches[key].append([t, col, c])
-				fallen_total += 1
-	for key: Vector2i in batches:
+				batches[key].append([t, Color(shade, shade, shade), c])
+				fallen_total += CLUSTER_LEAVES
+	for key: Vector3i in batches:
 		var items: Array = batches[key]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
-		mm.mesh = _mesh("leaf")
+		mm.mesh = _cluster_mesh(key.z)
 		mm.instance_count = items.size()
 		for i in items.size():
 			mm.set_instance_transform(i, items[i][0])
@@ -257,14 +264,64 @@ func _drop_leaves() -> void:
 				_cell_litter[c] = []
 			_cell_litter[c].append([mm, i, (items[i][0] as Transform3D).origin, items[i][0], "fallen"])
 		var mmi := MultiMeshInstance3D.new()
-		mmi.name = "Fallen_%d_%d" % [key.x, key.y]
+		mmi.name = "Fallen_%d_%d_%d" % [key.x, key.y, key.z]
 		mmi.multimesh = mm
-		mmi.material_override = _litter_material("leaf")
+		mmi.material_override = _fallen_material()
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi.visibility_range_end = DRAW_RANGE
 		fallen.add_child(mmi)
 	# None under loot, in a dug hole or inside a built house.
 	_clear_around_loot()
+
+
+## One of the ready-made clusters of fallen leaves (`kind` < CLUSTER_KINDS): CLUSTER_LEAVES ivy
+## leaves lying flat round the middle, each turned, a little tilted and in its own autumn colour
+## (the instance colour only shades the whole cluster), the later ones lying a hair higher.
+static func _cluster_mesh(kind: int) -> Mesh:
+	var key := "fallen_%d" % kind
+	if _meshes.has(key):
+		return _meshes[key]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7700 + kind
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var corners := [Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(0.5, 0.5), Vector2(-0.5, 0.5)]
+	for k in CLUSTER_LEAVES:
+		var at := Vector2.from_angle(rng.randf() * TAU) * CLUSTER_SPREAD * sqrt(rng.randf())
+		var size := rng.randf_range(FALLEN_SIZE.x, FALLEN_SIZE.y)
+		var b := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, rng.randf_range(-0.2, 0.2)) \
+				* Basis(Vector3.FORWARD, rng.randf_range(-0.2, 0.2))
+		var col := fallen_colour(rng)
+		var mid := Vector3(at.x, 0.003 * k, at.y)
+		var pts: Array[Vector3] = []
+		for q: Vector2 in corners:
+			pts.append(mid + b * Vector3(q.x * size, 0.0, q.y * size))
+		var normal := b * Vector3.UP
+		for i: int in [0, 1, 2, 0, 2, 3]:
+			st.set_color(col)
+			st.set_normal(normal)
+			st.set_uv(corners[i] + Vector2(0.5, 0.5))
+			st.add_vertex(pts[i])
+	var mesh := st.commit()
+	_meshes[key] = mesh
+	return mesh
+
+
+## The fallen leaves' material: the ivy's five-lobed leaf (AgedStone.leaf_material), lying matt
+## on the ground.
+func _fallen_material() -> Material:
+	if _materials.has("fallen"):
+		return _materials.fallen
+	var ivy := AgedStone.leaf_material()
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ivy.albedo_texture
+	m.vertex_color_use_as_albedo = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 0.9
+	_materials.fallen = m
+	return m
 
 
 ## A fallen leaf's colour: one the ivy and the trees turn in autumn, a little darker or lighter.

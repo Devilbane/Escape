@@ -2351,6 +2351,27 @@ func door_in_reach() -> BuiltDoor:
 	return house_sketcher.door_near(player.global_position)
 
 
+## The shutters of one of the hero's own windows within reach, when no door,
+## crate, stone block or backpack claims the E key; else null.
+func shutters_in_reach() -> BuiltShutters:
+	if house_sketcher == null or player == null or level == null or not level is Outdoor:
+		return null
+	if door_in_reach() != null or level.crate_in_reach(player) != null or level.stone_in_reach(player) != null \
+			or level.pack_in_reach(player) != null:
+		return null
+	return house_sketcher.shutters_near(player.global_position)
+
+
+## E at one of the hero's windows opens or shuts its shutters. Returns "" or why not.
+func window_action(pair: BuiltShutters) -> String:
+	if not player.can_act():
+		return Lang.t("Gerade nicht.")
+	player.face(pair.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	pair.toggle()
+	return ""
+
+
 ## E at a door opens or shuts it; Shift+E locks or unlocks the hero's own.
 ## Returns "" or why not.
 func door_action(door: BuiltDoor, lock: bool) -> String:
@@ -7776,6 +7797,9 @@ func _process(delta: float) -> void:
 					else Lang.t("E: Tür öffnen oder schließen   Umschalt+E: abschließen"))
 		else:
 			_prompt.text = _hint("door", Lang.t("E: Tür öffnen oder schließen"))
+	elif _prompt.text == "" and shutters_in_reach() != null:
+		_prompt.text = _hint("shutters", Lang.t("E: Fensterläden schließen") if not shutters_in_reach().shut
+				else Lang.t("E: Fensterläden öffnen"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
@@ -8026,6 +8050,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						var door := door_in_reach()
 						if door != null:
 							why_not = door_action(door, event.shift_pressed)
+						elif shutters_in_reach() != null:
+							why_not = window_action(shutters_in_reach())
 						elif level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
 							why_not = take_stone()
 						elif level.crate_in_reach(player) == null and level.pack_in_reach(player) != null:

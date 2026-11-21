@@ -166,6 +166,8 @@ var ceiling_surface := "wood"
 var fence_material := "stone"
 ## The built doors and gates the owner locked (piece key -> true; see BuiltDoor).
 var locked := {}
+## The built windows whose shutters are shut (piece key -> true; see BuiltShutters).
+var shut := {}
 var _undo: Array = []
 var _redo: Array = []
 
@@ -1226,6 +1228,8 @@ func build_next() -> Dictionary:
 			pieces[chosen].state = BUILT
 		if kind != DOOR and kind != GATE:
 			locked.erase(chosen)
+		if kind != WINDOW:
+			shut.erase(chosen)
 		var p := parts_of(chosen)
 		result = {"edge": [p[1], p[2], p[3]], "kind": kind, "did": "built"}
 	# What was done cannot be undone with the plan's undo.
@@ -1306,6 +1310,11 @@ static func of(hero: String, on_plot: Rect2i) -> HouseSketch:
 			for key in raw_locked:
 				if s.pieces.has(str(key)) and s.pieces[str(key)].kind in [DOOR, GATE]:
 					s.locked[str(key)] = true
+		var raw_shut = saved.get("shut", [])
+		if raw_shut is Array:
+			for key in raw_shut:
+				if s.pieces.has(str(key)) and s.pieces[str(key)].kind == WINDOW:
+					s.shut[str(key)] = true
 		s.ceiling_surface = str(saved.get("ceiling", "wood"))
 		if not CEILINGS.has(s.ceiling_surface):
 			s.ceiling_surface = "wood"
@@ -1326,10 +1335,14 @@ func save(hero: String) -> void:
 			raw[key] = [p.kind, p.state, p.into]
 		else:
 			raw[key] = [p.kind, p.state]
-	var shut := []
+	var bolted := []
 	for key in locked:
 		if pieces.has(key) and pieces[key].kind in [DOOR, GATE]:
-			shut.append(key)
+			bolted.append(key)
+	var shutters := []
+	for key in shut:
+		if pieces.has(key) and pieces[key].kind == WINDOW:
+			shutters.append(key)
 	_books[Homes.deed_name(hero)] = {"pieces": raw, "ordered": ordered, "stock": stock, "floor": floor_surface, "wall": wall_surface,
-			"ceiling": ceiling_surface, "fence": fence_material, "locked": shut}
+			"ceiling": ceiling_surface, "fence": fence_material, "locked": bolted, "shut": shutters}
 	Storage.write(RECORD, {"houses": _books})

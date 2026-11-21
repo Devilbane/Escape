@@ -33,7 +33,8 @@ const EN := {
 	"Heilung": "Healing",
 	"Beten": "Pray",
 	"Gebet an Mirenna": "Prayer to Mirenna",
-	"Mirenna nimmt Verletzungen von dir, auch die, die nie von selbst heilen.": "Mirenna takes injuries from you, even those that never heal by themselves.",
+	"Mirenna nimmt leichte und schwere Verletzungen von dir. Eine bleibende heilt nur ihr ferner, vergessener Schrein.": "Mirenna takes minor and serious injuries from you. A lasting one heals only at her distant, forgotten shrine.",
+	"Nur am Schrein": "Shrine only",
 	"Dein Segen macht die Heilung billiger.": "Your blessing makes healing cheaper.",
 	"Du betest zu Mirenna. Deine Verletzung ist verschwunden.": "You pray to Mirenna. Your injury is gone.",
 }

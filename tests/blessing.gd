@@ -179,9 +179,21 @@ func _test_injury() -> void:
 	check(Injury.prayer_price(p) < price, "Mirenna's blessing makes healing cheaper")
 	game.coins = 1000
 	game.menus.open("tempel")
+	var row: Dictionary = game.menus._healing_entries()[0]
+	var shown: String = Lang.t("Umsonst") if Injury.prayer_price(p) == 0 else Lang.t("%d Kupfer") % Injury.prayer_price(p)
+	check(row.enabled and row.price == shown, "a serious injury: the prayer row is usable and shows its price")
 	game.menus._pray_for_healing(Injury.prayer_price(p))
 	check(p.injury == "", "a prayer at the village altar heals a serious injury")
+	row = game.menus._healing_entries()[0]
+	check(not row.enabled and row.price != Lang.t("Umsonst"), "unhurt: the prayer row is off and never reads free")
+	Injury.give(p, Injury.ARM, Injury.MINOR)
+	row = game.menus._healing_entries()[0]
+	check(row.enabled, "a minor broken arm: the prayer row is usable")
+	game.menus._pray_for_healing(Injury.prayer_price(p))
+	check(p.injury == "", "a prayer heals a minor broken arm")
 	Injury.give(p, Injury.ARM, Injury.GRAVE)
+	row = game.menus._healing_entries()[0]
+	check(not row.enabled and row.price == Lang.t("Nur am Schrein"), "a lasting broken arm: the row says it heals only at the shrine, not that it is free")
 	game.menus._pray_for_healing(0)
 	check(p.injury == Injury.ARM, "the village altar leaves a grave injury alone")
 	game.menus.close()

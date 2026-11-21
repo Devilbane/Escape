@@ -89,7 +89,7 @@ func _run() -> void:
 	# Its looks: blossom in spring, apples on the model, bare in winter.
 	check(_parts(old, spring + 2 * year, "blossom") > 0, "a grown tree blossoms in spring")
 	check(_parts({"planted": spring}, spring, "blossom") == 0, "a seedling does not blossom")
-	check(_parts(old, summer, "apples") == AppleTree.apples(old, summer), "the apples hang on the model")
+	check(_parts(old, summer, "apples") == AppleTree.apples(old, summer) * AppleTree.HANGING, "the apples hang on the model, more than a picking brings in")
 	check(_parts(old, winter, "leaves") == 0 and _parts(old, summer, "leaves") > 0, "leaves in summer, bare in winter")
 	check(_parts(old, winter, "limbs") > _parts({"planted": winter}, winter, "limbs"), "a grown tree has branches")
 	check(_parts(old, summer, "limbs") >= 60 and _parts(old, summer, "leaves") >= 40, "a full-grown tree has plenty of branches, all in leaf (%d limbs, %d clumps)" % [_parts(old, summer, "limbs"), _parts(old, summer, "leaves")])
@@ -103,6 +103,7 @@ func _run() -> void:
 		crown.free()
 	var model := Node3D.new()
 	AppleTree.build(model, old, summer)
+	check(model.has_node("Ground") and not model.has_node("Soil"), "the tree stands in a patch of grass ringed with stones, not on a disc of earth")
 	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())
 	model.free()
 

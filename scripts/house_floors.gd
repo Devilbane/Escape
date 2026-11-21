@@ -138,6 +138,16 @@ func node_at(pos: Vector3) -> Vector3i:
 	return best
 
 
+## The built stairs a body at `pos` stands on: {"step": the way the flight leads (Vector2i),
+## "rise": what it climbs that way, negative going down to a cellar}. Empty off the stairs.
+func stairs_at(pos: Vector3) -> Dictionary:
+	var node := node_at(pos)
+	var info: Dictionary = _nodes.get(node, {})
+	if not info.has("step"):
+		return {}
+	return {"step": info.step, "rise": info.rise}
+
+
 ## The storey a body at `pos` stands on (GROUND off the floors).
 func storey_at(pos: Vector3) -> int:
 	var node := node_at(pos)

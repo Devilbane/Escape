@@ -7288,7 +7288,8 @@ func _take_stairs(to: Vector3, up: bool, storey: int) -> void:
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_property(player, "global_position", player.global_position + Vector3(0, 1.0 if up else -0.6, -0.8 if up else 0.4), 0.45)
 	tween.parallel().tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.45)
-	tween.parallel().tween_callback(func(): Sfx.play(player, "step_%d" % (randi() % 6), -14.0))
+	# A few steps on the hollow wooden boards of the house stairs (see StairSteps).
+	tween.parallel().tween_callback(func(): StairSteps.flight(player, up))
 	tween.tween_callback(func():
 		player.global_position = to
 		player.velocity = Vector3.ZERO

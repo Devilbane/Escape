@@ -1247,7 +1247,13 @@ func _footsteps(ground_speed: float) -> void:
 					# is only a very soft touch, barely to be heard: a brush of
 					# cloth on hard floors, a hushed step on anything softer.
 					var ground := Surfaces.step_ground(level, global_position)
-					if sneak and Surfaces.hard(ground):
+					# The stairs built into a house are hollow wooden boards: they boom and
+					# creak, a little differently up than down (see StairSteps).
+					var stairs := StairSteps.on_stairs(level.house_floors, global_position, velocity)
+					if stairs != 0:
+						var stair_db := -26.0 if sneak else (-17.0 if walk else -14.0)
+						Sfx.play(self, StairSteps.sound(stairs > 0), stair_db + StairSteps.LIFT_DB)
+					elif sneak and Surfaces.hard(ground):
 						Sfx.play(self, "sneak_%d" % (randi() % 4), -22.0)
 					else:
 						var step_db := -26.0 if sneak else (-17.0 if walk else -14.0)

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Temple altar heals lasting injuries for a high offering | Shipped this week: Give the wolf hollow's pond a natural lake shape and shore; Show the season in the HUD's top line (+48 more)
+Escape! dev status | Shipped this week: Temple altar heals lasting injuries for a high offering; Give the wolf hollow's pond a natural lake shape and shore (+48 more)

@@ -1,7 +1,8 @@
 shader_type spatial;
-// Large, soft fog clouds that drift over the open air. The clouds are two
-// layers of tiling noise read in world space (so they stay put in the world
-// while the camera moves), hug the ground, and leave clear gaps between them.
+// Large, soft fog clouds that float in the air over the open ground. Each of three thin layers
+// a few metres up is two layers of tiling noise read in world space (so the clouds stay put in
+// the world while the camera moves), with clear gaps between the banks; under them only a thin
+// haze lies on the ground, and around the hero the clouds open up.
 // Drawn at the lowest render priority of all see-through things: every label
 // (damage numbers, speech bubbles, news) and every particle is drawn after
 // the clouds and so stays exactly as readable as without them.
@@ -19,9 +20,27 @@ uniform vec2 drift = vec2(0.0);
 uniform float even = 0.0;
 uniform float breathe = 0.0;
 uniform float max_distance = 90.0;
+// The hero on screen (0 to 1) and how far around them (a share of the screen's height) the
+// clouds in the air thin out, so a cloud never hides the hero.
+uniform vec2 hero_uv = vec2(0.5);
+uniform float hero_clear = 0.13;
+// The heights of the cloud layers above the ground, and the thin haze left on the ground.
+uniform vec3 layers = vec3(2.4, 3.3, 4.3);
+uniform float ground_haze = 0.18;
 
 void vertex() {
 	POSITION = vec4(VERTEX.xy * 2.0, 0.0, 1.0);
+}
+
+// How thick a cloud is at a point of its layer: banks with a short edge and a denser core.
+float cloud(vec2 p, float shift) {
+	float big = texture(noise_tex, p * 0.026 + drift * 0.6 + vec2(shift, shift * 0.6)).r;
+	float small = texture(noise_tex, p * 0.06 + drift * 1.0 + vec2(0.37 + shift, 0.71)).r;
+	float c = big * 0.72 + small * 0.28 + breathe;
+	float lo = 1.0 - coverage - 0.12;
+	float edge = smoothstep(lo, lo + 0.14, c);
+	float core = smoothstep(lo + 0.18, lo + 0.42, c);
+	return mix(edge * 0.5 + core * 0.65, 0.8 + 0.2 * c, even);
 }
 
 void fragment() {
@@ -30,25 +49,28 @@ void fragment() {
 	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
 	view.xyz /= view.w;
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz;
-	vec2 p = world.xz;
-	// A big, slow layer and a smaller, faster one: they slide against each
-	// other, which gives the clouds depth and keeps them from looking printed.
-	float big = texture(noise_tex, p * 0.026 + drift * 0.6).r;
-	float small = texture(noise_tex, p * 0.06 + drift * 1.0 + vec2(0.37, 0.71)).r;
-	float c = big * 0.72 + small * 0.28 + breathe;
-	// Distinct banks: a short ramp from clear air into the cloud, and a denser core deeper
-	// inside, so the fog lies in thick drifts with clear lanes between them.
-	float lo = 1.0 - coverage - 0.12;
-	float edge = smoothstep(lo, lo + 0.12, c);
-	float core = smoothstep(lo + 0.18, lo + 0.42, c);
-	float body = edge * 0.5 + core * 0.65;
-	// An even haze keeps only a faint swell of the noise and fills the gaps.
-	body = mix(body, 0.8 + 0.2 * c, even);
-	// Ground-hugging: thick at the feet, thin higher up.
+	vec3 cam = CAMERA_POSITION_WORLD;
+	// The clouds float in the air: a few thin layers above the ground. The view ray meets each
+	// layer above whatever it hits, so tall things (trees, roofs) stand up through the clouds,
+	// and the layers slide against the ground and each other as the camera moves.
+	vec2 aspect = vec2(VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, 1.0);
+	float open = smoothstep(hero_clear * 0.55, hero_clear, length((SCREEN_UV - hero_uv) * aspect));
+	float alpha = 0.0;
+	for (int i = 2; i >= 0; i--) {
+		float h = layers[i];
+		if (cam.y <= h || world.y >= h) {
+			continue;
+		}
+		vec3 q = mix(cam, world, (cam.y - h) / (cam.y - world.y));
+		float a = cloud(q.xz, float(i) * 0.29) * 0.45 * open;
+		alpha += (1.0 - alpha) * a;
+	}
+	// Under the clouds only a thin haze lies on the ground.
 	float low = exp(-max(world.y, 0.0) * 0.3);
+	alpha += (1.0 - alpha) * ground_haze * low * mix(1.0, 3.0, even);
 	// Nothing on the sky or far away.
 	float reach = 1.0 - smoothstep(max_distance * 0.7, max_distance, length(view.xyz));
 	ALBEDO = haze;
 	// An even haze covers everything, so it is lighter than patchy clouds.
-	ALPHA = clamp(body * low * reach * strength * 0.8 * mix(1.0, 0.6, even), 0.0, 0.9);
+	ALPHA = clamp(alpha * reach * strength * mix(1.0, 0.6, even), 0.0, 0.9);
 }

@@ -113,7 +113,7 @@ const ROLES := {
 	"µ": {"name": "Raumausstatterin Ilse", "model": "Rogue", "show": [], "sex": "female", "hair": {"style": "natural", "color": "ginger"},
 		"colors": [Color(0.35, 0.55, 0.5), Color(0.4, 0.32, 0.26), Color(0.8, 0.65, 0.35)], "plan": "stay", "work": "Idle",
 		"lines": ["Ein Haus ist erst ein Heim, wenn ein Bett darin steht.", "Betten, Truhen, Regale, Kamine: Ich liefere alles bis an Euer Grundstück.", "Stellt die Möbel im Bauplan auf, mit \"Einrichten\"."]},
-	"¢": {"name": "Amtmann Gero", "model": "Knight", "show": [], "tool": "book",
+	"¢": {"name": "Amtmann Gero", "model": "Rogue", "show": [], "tool": "book", "hair": {"style": "short", "color": "auburn"},
 		"colors": [Color(0.55, 0.45, 0.35), Color(0.3, 0.3, 0.38), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
 		"lines": ["Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.", "Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.", "Die Gebühr richtet sich nach der Größe des Landes."]},
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
@@ -1614,7 +1614,9 @@ func _next_task() -> void:
 			var on_shift := role == "3" and WoodcutterShift.at_work(level.hour)
 			var on_break := role == "3" and WoodcutterShift.on_break(level.hour)
 			if _task in ["work", "sit"] and (on_break or (not on_shift and _rng.randf() < 0.35)):
-				_walk_to(_errand(), WALK_SPEED, "idle")
+				# Now and then a rest on a bench by the fountain instead (see BenchRest).
+				if not _rest_on_bench():
+					_walk_to(_errand(), WALK_SPEED, "idle")
 			elif level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "sit" if _info.plan == "sit" else "work")
 			else:
@@ -1630,7 +1632,7 @@ func _next_task() -> void:
 		"stroll":
 			if _task == "walk":
 				_start("work", _rng.randf_range(4.0, 9.0))
-			else:
+			elif not _rest_on_bench():
 				_walk_to(_nearby(4), WALK_SPEED * 0.7, "work")
 		"wander":
 			# In the snow the children are off to play far more often.
@@ -1654,6 +1656,18 @@ func _next_task() -> void:
 				_walk_to(houses[_rng.randi() % houses.size()] if not houses.is_empty() else _nearby(6), WALK_SPEED, "idle")
 			else:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+
+
+## Now and then, with nothing to do, off to sit on a free bench by the fountain
+## for a while (see BenchRest). True when they go.
+func _rest_on_bench() -> bool:
+	if not can_go_to_meal():
+		return false
+	var seat := level.bench_rest.offer(level, self)
+	if seat.is_empty():
+		return false
+	go_to_meal(seat)
+	return true
 
 
 ## A free tile beside the friend (see "pal" in ROLES), or INF when they are
@@ -2458,7 +2472,7 @@ func _hide_inside(inside: bool, at_the_door := false) -> void:
 ## Who drops their work to hear the herald: not the shopkeeper at her
 ## stall, the elder or the woodcutter out in the woods.
 func comes_to_listen() -> bool:
-	return not night and _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not dines()
+	return not night and _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not _on_seat()
 
 
 func gather_at(spot: Vector3, speaker: Vector3) -> void:
@@ -2885,24 +2899,40 @@ func can_go_to_meal() -> bool:
 	return _task in ["work", "idle", "sit"]
 
 
-## Walks to `seat` (handed out by TownMeals) to sit down and eat.
+## Walks to `seat` (handed out by TownMeals) to sit down and eat, or to a bench
+## by the fountain for a rest (see BenchRest): the same steps, without the food.
 func go_to_meal(seat: Dictionary) -> void:
 	meal_seat = seat
 	_meal_step = "going"
 	_meal_clock = 0.0
-	_walk_to(seat.stand, WALK_SPEED, "dine")
+	_walk_to(seat.get("walk_to", seat.stand), WALK_SPEED, "dine")
 
 
-## Whether we are at a meal or on the way to one.
-func dines() -> bool:
+## Whether we are on a seat (at a meal or on a bench) or on the way to one.
+func _on_seat() -> bool:
 	if meal_seat.is_empty():
 		return false
 	return _task == "dine" or (_task == "walk" and get_meta("then", "") == "dine")
 
 
+## Whether we are at a meal or on the way to one.
+func dines() -> bool:
+	return _on_seat() and not meal_seat.get("rest", false)
+
+
+## Whether we rest on a bench by the fountain or are on the way to one (see BenchRest).
+func rests() -> bool:
+	return _on_seat() and meal_seat.get("rest", false)
+
+
 ## Whether we sit at the table and eat (not still on the way, nor getting up).
 func seated_at_meal() -> bool:
-	return _task == "dine" and _meal_step == "seated"
+	return _task == "dine" and _meal_step == "seated" and not meal_seat.get("rest", false)
+
+
+## Whether we sit on a bench by the fountain (not still on the way, nor getting up).
+func seated_on_bench() -> bool:
+	return _task == "dine" and _meal_step == "seated" and meal_seat.get("rest", false)
 
 
 ## The meal is over for us: up from the bench and back to the day's plan.
@@ -2914,7 +2944,7 @@ func leave_meal() -> void:
 		hush()
 		_current_anim = "Sit_Chair_StandUp"
 		_anim.play("Sit_Chair_StandUp", 0.2)
-	elif dines():
+	elif _on_seat():
 		forget_meal()
 		_path.clear()
 		_start("idle", _rng.randf_range(0.5, 1.5))

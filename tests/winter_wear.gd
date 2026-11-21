@@ -25,11 +25,12 @@ func _initialize() -> void:
 	var clerk := WinterWear.look_for("¢", Villager.ROLES["¢"])
 	check(herald.fur != clerk.fur and herald.hat != clerk.hat, "Herald Konrad and Clerk Gero wear different furs and hats")
 	# The clerk holds his ledger, not a shield.
-	var gero: Node3D = load("res://assets/characters/Knight.glb").instantiate()
+	var gero: Node3D = load("res://assets/characters/%s.glb" % Villager.ROLES["¢"].model).instantiate()
 	Villager.dress_model(gero, Villager.ROLES["¢"])
 	var ledger := gero.find_child("Ledger", true, false) as MeshInstance3D
 	check(ledger != null and ledger.mesh != null, "Clerk Gero holds a book")
-	check(not (gero.find_child("Badge_Shield", true, false) as Node3D).visible, "Clerk Gero carries no shield")
+	for part: Node3D in gero.find_children("*Shield*", "Node3D", true, false):
+		check(not part.visible, "Clerk Gero carries no shield")
 	gero.free()
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)

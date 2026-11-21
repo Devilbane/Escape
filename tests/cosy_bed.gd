@@ -58,6 +58,29 @@ func _run() -> void:
 	check(bed.get_node_or_null("Bedding") != null and bed.get_node_or_null("FurThrow") != null, "it is made: bedding and a fur throw")
 	space.queue_free()
 
+	# Asleep in a bed, turned any way, the hero's head rests on the pillows: over them, not on
+	# the sheet in front of them, and up at their height.
+	var hero: Player = game.player
+	for rot: float in [0.0, PI * 0.5, PI]:
+		var at := Vector3(40, 0, 40)
+		hero.global_position = Level.lie_spot(at, rot, hero.body_scale())
+		hero.face(Vector3(sin(rot), 0, cos(rot)))
+		hero.lie_asleep()
+		hero.lean_on_pillow(true)
+		hero._anim.advance(1.0)
+		# The bones (and the head slot on them) follow the pose on the next frames.
+		await process_frame
+		await process_frame
+		var head := (hero.find_child("HeadSlot", true, false) as Node3D).global_position
+		var pillow := Level.pillow_spot(at, rot)
+		var along := Basis(Vector3.UP, rot).inverse() * (head - pillow)
+		check(along.z < 0.55 and along.z > -0.3, "turned %.1f the head lies over the pillows, not in front of them (%.2f)" % [rot, along.z])
+		check(absf(along.x) < 0.3, "turned %.1f the head lies across the middle of the pillows (%.2f)" % [rot, along.x])
+		check(head.y > pillow.y, "turned %.1f the head rests up on the pillows (%.2f)" % [rot, head.y - pillow.y])
+	hero.get_up_from_bed()
+	hero.lean_on_pillow(false)
+	check(is_zero_approx(hero._model.rotation.x), "up again, the hero stands upright")
+
 	# The town house has the cosy bed, a station where it was.
 	game.hero_name = HERO
 	game.escaped = true

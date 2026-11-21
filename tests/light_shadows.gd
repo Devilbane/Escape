@@ -145,9 +145,9 @@ func _run() -> void:
 	check(torch_light != null and torch_light.shadow_opacity == 1.0, "until they are whole")
 	# Only walls stop light: point lights take shadows from the wall layer alone, the built
 	# house and dungeon wall pieces are on it, the torch's bracket, lamps and the hero are not.
-	check(torch_light != null and torch_light.shadow_caster_mask == LightShadows.WALL_LAYER, "a torch takes shadows from walls only")
+	check(torch_light != null and torch_light.shadow_caster_mask == LightShadows.WALL_LAYER | LightShadows.LID_LAYER, "a torch takes shadows from walls (and lifted roofs) only")
 	var lamp: OmniLight3D = level._lamps[0]
-	check(lamp.shadow_caster_mask == LightShadows.WALL_LAYER, "so does a street lamp")
+	check(lamp.shadow_caster_mask == LightShadows.WALL_LAYER | LightShadows.LID_LAYER, "so does a street lamp")
 	var house_walls := 0
 	for m: MeshInstance3D in game.house_sketcher._solid.find_children("*", "MeshInstance3D", false, false):
 		if m.layers & LightShadows.WALL_LAYER:
@@ -208,6 +208,9 @@ func _run() -> void:
 		await _shot("torch_side", mid + Vector3(2.4, 1.8, -0.2), mid + Vector3(0, 1.6, -0.85))
 		# Behind the north wall, outside: the torch's light stays in.
 		await _shot("outside_north", mid + Vector3(0, 5, -9), mid + Vector3(0, 0, -2))
+		# From further out, the hero inside: the roof is lifted off for the hero, but the light
+		# still does not spill out over the walls onto the ground and trees around.
+		await _shot("hero_inside_wide", mid + Vector3(-10, 9, -14), mid + Vector3(0, 0, 1))
 		var temple_lamp := level.find_child("TempleLamp0", false, false) as Node3D
 		if temple_lamp != null:
 			var front := Vector3(sin(temple_lamp.rotation.y), 0, cos(temple_lamp.rotation.y))

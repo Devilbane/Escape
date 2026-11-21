@@ -11,6 +11,9 @@ class_name Seats
 ## hero who keeps pushing into the bench after standing up is not sat down
 ## again until they let go (see Player.still_getting_up).
 ##
+## Townsfolk with nothing to do rest on the benches by the fountain now and
+## then (see BenchRest); a bench someone sits on does not seat the hero.
+##
 ## A new kind of seat (a stool, a chair) only needs its model, a collision box
 ## that fits it, and a station from Seats.station with its own size.
 

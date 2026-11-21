@@ -77,12 +77,12 @@ func _run() -> void:
 				check(level.cell_char(level.world_to_cell(at)) == "#", "a fern grows on the forest floor (%s)" % at)
 			elif name.begins_with("spruce:"):
 				spruces += 1
-			elif name.begins_with("tree_pine"):
+			elif name.begins_with("tree_pine") or name.begins_with("tree_single") or name.begins_with("trees_"):
 				pines += 1
 			elif level.in_spruce_patch(at) and name.begins_with("tree"):
 				others += 1
 	check(spruces >= 2500, "the forests are full of spruces (%d)" % spruces)
-	check(pines == 0, "no pine is left (%d)" % pines)
+	check(pines == 0, "no pine or kit leaf tree is left, only spruces (%d)" % pines)
 	check(others == 0, "every tree of the stand is a spruce (%d others)" % others)
 	check(ferns >= 60 and ferns == level.fern_count, "ferns grow along the forest's edge (%d)" % ferns)
 	check(level.edge_fillers >= 50, "spruces close the gaps along the forest's edge (%d)" % level.edge_fillers)

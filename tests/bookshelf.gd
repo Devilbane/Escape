@@ -136,6 +136,21 @@ func _run() -> void:
 	game.refresh_bookshelf()
 	check(_standing(lvl) == Bookshelf.CAPACITY, "a full shelf shows %d books" % Bookshelf.CAPACITY)
 	check(_plaque(lvl) == Bookshelf.plaque_text(Bookshelf.CAPACITY + 30), "and its plaque counts them all")
+	# A handmade shelf: turned posts, and every book bound, each in one mesh that is built once.
+	var shelf_node := lvl.get_node(Bookshelf.NODE)
+	check(shelf_node.get_children().filter(func(n): return n.name.begins_with("Post")).size() == 2, "the shelf stands on two turned posts")
+	var bindings := {}
+	for i in Bookshelf.CAPACITY:
+		var look := Bookshelf.book_look(i)
+		bindings[look.binding] = true
+		check(look == Bookshelf.book_look(i), "book %d looks the same every time" % i)
+	check(bindings.size() == Bookshelf.BINDINGS.size(), "a full shelf shows every kind of binding: %s" % [bindings.keys()])
+	var first := lvl.get_node(Bookshelf.NODE + "/" + Bookshelf.BOOKS_NODE + "/Book0") as MeshInstance3D
+	check(first != null and first.mesh.get_surface_count() <= 2, "a book is one mesh of at most two surfaces")
+	var mesh_before: Mesh = first.mesh if first != null else null
+	game.refresh_bookshelf()
+	var again := lvl.get_node(Bookshelf.NODE + "/" + Bookshelf.BOOKS_NODE + "/Book0") as MeshInstance3D
+	check(again != null and again.mesh == mesh_before, "a book's mesh is kept, not built again when the shelf fills")
 
 	# Kept in the saved game, and on the shelf when the house is entered again.
 	check(game.save_game(), "the game saves")

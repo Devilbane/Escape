@@ -1,6 +1,6 @@
 class_name SongSheet
 extends Control
-## The words of Zecher Fritz's drinking song in a comic speech bubble over
+## The words of Fritz's drinking song in a comic speech bubble over
 ## his head (see DrinkingSongs), so the player can sing along.
 ##
 ## The whole verse shows at once. The line he sings right now is marked with

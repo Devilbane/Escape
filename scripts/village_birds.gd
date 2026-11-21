@@ -804,7 +804,7 @@ func _mind_feeding(delta: float, night: bool) -> void:
 		end_feeding()
 
 
-## Zecher Fritz while he stands frozen on the market square (see FrozenFritz), or null.
+## Fritz while he stands frozen on the market square (see FrozenFritz), or null.
 func _frozen_one() -> Node3D:
 	var people = level.get("villagers")
 	for v in (people if people is Array else []):

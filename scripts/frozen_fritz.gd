@@ -1,6 +1,6 @@
 class_name FrozenFritz
 extends Node3D
-## Zecher Fritz in the snow. When the snow lies thick (see Outdoor.snow, SnowCover) he leaves the
+## Fritz in the snow. When the snow lies thick (see Outdoor.snow, SnowCover) he leaves the
 ## tavern for the market square and freezes solid there in the middle of a toast, his mug
 ## raised: an icy blue tint, snow on his head, shoulders, arm and mug, a sheet of ice under his
 ## boots and icicles hanging from the raised arm and the mug. Frozen, he cannot sing (see

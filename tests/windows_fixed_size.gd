@@ -20,7 +20,7 @@ var shots := OS.get_environment("SHOTS")
 
 ## The windows and the villager each belongs to (for the goodwill line).
 const KINDS := {
-	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "buecherregal": "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
+	"inventar": "", "lager": "", "metalltruhe": "", "zutatenbord": "", "buecherregal": "", WeaponRack.KIND: "", "tresor": "", "bank": "", "haendler": "6", "schmied": "1",
 	"steinmetz": "S", "barbier": "Z", "tempel": "O", "wanderhaendler": "", "werkbank": "", "hauswerkbank": "",
 	"ausbau": "", "aushang": "", "trophaeen": "", "charakter": "", "gefaehrten": "", "umhangschrank": "", "wunsch": "",
 	"kampfstil": "", "kompendium": "", "karte": "", "auftraege": "", "mitspielen": "",
@@ -127,7 +127,7 @@ func _fill(full: bool) -> void:
 	# Both stores full of every kind they take, a long count at home too.
 	for metal in Forge.FINE:
 		game.bars[metal] = 99
-	for store in [HomeStores.METAL, HomeStores.PANTRY]:
+	for store in [HomeStores.METAL, HomeStores.PANTRY, HomeStores.WEAPONS]:
 		for kind in HomeStores.kinds(store):
 			game.home_stores[store][kind] = 99999
 	for id in Quests.ALL:
@@ -257,8 +257,9 @@ func _work(kind: String, where: String) -> void:
 				_step = "taking"
 				menus._take(0)
 				await _same(kind, where)
-		"metalltruhe", "zutatenbord", "buecherregal":
-			var store := HomeStores.METAL if kind == "metalltruhe" else HomeStores.BOOKS if kind == "buecherregal" else HomeStores.PANTRY
+		"metalltruhe", "zutatenbord", "buecherregal", WeaponRack.KIND:
+			var store := HomeStores.METAL if kind == "metalltruhe" else HomeStores.BOOKS if kind == "buecherregal" \
+					else HomeStores.WEAPONS if kind == WeaponRack.KIND else HomeStores.PANTRY
 			var ids := HomeStores.shown(game, store)
 			if not ids.is_empty():
 				_step = "storing one"

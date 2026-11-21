@@ -86,7 +86,9 @@ func _process(_delta: float) -> bool:
 				if s.enemy != null:
 					risen.append(s.enemy)
 			# Far from the graveyard, so any skeleton on the hunt gives up.
-			game.player.global_position = _villager("0").global_position + Vector3(2, 0, 2)
+			# By the elder's own spot, not where he is now: asleep in a house one walks into,
+			# and a hero indoors sees nobody out in the street.
+			game.player.global_position = game.level.cell_to_world(_villager("0").home) + Vector3(2, 0, 2)
 			wait = 2
 			stage = 4
 		4:
@@ -142,7 +144,8 @@ func _load_at_night() -> void:
 			check(mat.emission_operator == BaseMaterial3D.EMISSION_OP_MULTIPLY, "only the window panes glow, not the whole building")
 	for v in game.level.villagers:
 		if v.goes_to_bed():
-			check(v.at_home and not v.visible, "%s is asleep at home in a game loaded at night" % v.display_name)
+			# Out of sight, or asleep in a bed of a house one walks into (see VillageBeds).
+			check(v.at_home and (not v.visible or v.bed_trip.get("step") == "asleep"), "%s is asleep at home in a game loaded at night" % v.display_name)
 			check(v.station.used, "nobody trades with %s at night" % v.display_name)
 		else:
 			check(v.visible and not v.at_home, "%s stays up at night" % v.display_name)
@@ -173,6 +176,11 @@ func _at_night() -> void:
 	# Nightfall on the street: a villager walks home instead of vanishing.
 	game.day_hour = 12.0
 	game.level.set_hour(12.0)
+	# Getting up and walking out of a house one walks into takes a while (tests/walk_in.gd):
+	# here the morning is over at once.
+	for v in game.level.villagers:
+		if not v.bed_trip.is_empty():
+			v.out_of_bed()
 	var mira := _villager("6")
 	check(mira != null and mira.visible and not mira.at_home, "the shopkeeper is back by day")
 	# Back at her stall first: she woke up at the door she went in by.

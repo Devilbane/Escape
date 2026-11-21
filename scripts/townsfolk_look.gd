@@ -11,6 +11,8 @@ extends RefCounted
 ## low-poly shapes of WinterWear and hung from the head bone, so they move with the head.
 
 const TAG := "Glasses"
+## Marks a head that wears its own plain material (see _own_head).
+const OWN_HEAD := "own_head"
 ## Where the eyes are in the skeleton's rest space: the same on every model (measured from renders of
 ## the Rogue, Mage and Knight faces), while the head's box differs from model to model.
 const EYE_Y := 1.585
@@ -28,10 +30,6 @@ const BROWN := Color(0.68, 0.48, 0.36)
 const DARK := Color(0.58, 0.4, 0.31)
 const DEEP := Color(0.5, 0.34, 0.26)
 const SUNBURNT := Color(0.9, 0.66, 0.5)
-
-## A deep auburn red, root, middle and tip, for a painted-on hair dye (see LOOKS): darker and
-## redder than HairLook's "ginger", so Clerk Gero's hair is his own in the whole village.
-const AUBURN := [Color(0.2, 0.04, 0.03), Color(0.48, 0.12, 0.07), Color(0.7, 0.28, 0.16)]
 
 ## The frames, by kind: a pair of round lenses, square ones, half-moon reading glasses and a single
 ## monocle on its chain.
@@ -55,7 +53,7 @@ const LOOKS := {
 	"8": {"skin": ASHEN, "glasses": "monocle", "frame": GOLD, "hat": Color(0.22, 0.2, 0.46)},
 	"9": {"skin": FAIR},
 	"K": {"skin": BROWN, "dye": "black"},
-	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON, "dye": AUBURN},
+	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON},
 	"µ": {"skin": Color(0.98, 0.8, 0.7), "glasses": "round", "frame": SILVER},
 	"O": {"skin": DARK},
 	"G": {"skin": Color(0.72, 0.52, 0.4)},
@@ -95,7 +93,7 @@ static func look_for(role: String, info: Dictionary) -> Dictionary:
 static func apply(model: Node3D, info: Dictionary, look: Dictionary) -> void:
 	if look.is_empty():
 		return
-	_tint_skin(model, info, look.skin)
+	_tint_skin(model, info, look.skin, str(look.get("dye", "")) != "")
 	if str(look.get("dye", "")) != "":
 		_dye_hair(model, look.dye)
 	if look.hat != null:
@@ -113,16 +111,45 @@ static func hair_of(info: Dictionary, look: Dictionary) -> Dictionary:
 	return HairLook.checked(info.get("hair", HairLook.DEFAULT))
 
 
-static func _tint_skin(model: Node3D, info: Dictionary, tone: Color) -> void:
+## A head that shares GearLook's outfit material with its look-alikes keeps sharing it (one material
+## for many heads, see tests/surface_detail.gd), unless its hair is dyed: then it gets its own.
+static func _tint_skin(model: Node3D, info: Dictionary, tone: Color, dyed := false) -> void:
 	if info.model == "Rogue":
 		HairLook.tint_skin(model, tone)
 		return
 	for mi: MeshInstance3D in model.find_children("*_Head", "MeshInstance3D", true, false):
-		var mat := mi.get_active_material(0)
-		if mat is StandardMaterial3D:
-			var dyed: StandardMaterial3D = mat.duplicate()
-			dyed.albedo_color = dyed.albedo_color * tone
-			mi.material_override = dyed
+		var own: StandardMaterial3D = _own_head(mi) if dyed or mi.has_meta(OWN_HEAD) else null
+		if own != null:
+			own.albedo_color = own.albedo_color * tone
+		elif mi.get_active_material(0) is StandardMaterial3D:
+			var plain: StandardMaterial3D = mi.get_active_material(0).duplicate()
+			plain.albedo_color = plain.albedo_color * tone
+			mi.material_override = plain
+
+
+## The head's own plain material, made once: GearLook.dress_body gives every head of the same
+## texture and dye one shared shader material (cloth grain is not wanted on a face anyway), so a
+## skin tone or a hair dye set on that would land on every such head, or on none. Null for a head
+## with no plain material to start from.
+static func _own_head(mi: MeshInstance3D) -> StandardMaterial3D:
+	if mi.has_meta(OWN_HEAD):
+		return mi.material_override as StandardMaterial3D
+	var active := mi.get_active_material(0)
+	var plain: StandardMaterial3D = null
+	if active is StandardMaterial3D:
+		plain = (active as StandardMaterial3D).duplicate()
+	elif mi.mesh != null and mi.mesh.surface_get_material(0) is StandardMaterial3D:
+		plain = mi.mesh.surface_get_material(0).duplicate()
+		var dye = (active as ShaderMaterial).get_shader_parameter("dye") if active is ShaderMaterial else null
+		if dye is Color:
+			plain.albedo_color = dye
+		elif dye is Vector3:
+			plain.albedo_color = Color(dye.x, dye.y, dye.z)
+	if plain == null:
+		return null
+	mi.material_override = plain
+	mi.set_meta(OWN_HEAD, true)
+	return plain
 
 
 ## Dyes the hair painted into the head's texture (and the eyebrows, painted in the same spot) with
@@ -130,15 +157,13 @@ static func _tint_skin(model: Node3D, info: Dictionary, tone: Color) -> void:
 ## itself is never read back. Root colour at the bottom of the patch, tips at the top.
 static func _dye_hair(model: Node3D, colour: Variant) -> void:
 	for mi: MeshInstance3D in model.find_children("*_Head", "MeshInstance3D", true, false):
-		var mat := mi.material_override if mi.material_override != null else mi.get_active_material(0)
-		if not mat is StandardMaterial3D:
+		var dyed := _own_head(mi)
+		if dyed == null:
 			continue
-		var dyed: StandardMaterial3D = mat if mi.material_override == mat else mat.duplicate()
 		dyed.detail_enabled = true
 		dyed.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MIX
 		dyed.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
 		dyed.detail_albedo = dye_texture(colour)
-		mi.material_override = dyed
 
 
 static var _dyes := {}

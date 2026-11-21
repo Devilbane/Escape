@@ -201,6 +201,10 @@ const TREE_SPACING := 3
 const DOOR_CLEAR := 4.0
 ## The tiles that frame a grass pocket (see plant_in_pockets): paths and the paved square.
 const PAVED := [",", ":", "\\"]
+## A pocket's four tiles, from its top left one.
+const POCKET_TILES: Array[Vector2i] = [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1), Vector2i.ONE]
+## How far the trunk steps aside along each axis from a lamp post on one of the pocket's tiles (m).
+const POCKET_LAMP_STEP := 0.8
 
 
 ## Plants the apple trees round every fountain of `level` (an Outdoor) on paved square cells and
@@ -262,7 +266,7 @@ static func plant_in_village(level: Node3D) -> Array:
 	return out
 
 
-## One more in each grass pocket of the village: a block of 2x2 grass tiles framed by paths or the
+## One more in each grass pocket of the village: a block of 2x2 grass tiles (one may hold a lamp post) framed by paths or the
 ## paved square on at least three of its sides (no prop, bush or door in it). The tree stands at the
 ## pocket's middle, the corner the four tiles share, so the walkers' ways through the tiles' middles
 ## stay open. Returned as [{node, cell, look, pocket}] like plant_in_village (see dress).
@@ -274,6 +278,10 @@ static func plant_in_pockets(level: Node3D, others: Array) -> Array:
 			if not _pocket(level, c):
 				continue
 			var pos: Vector3 = (level.cell_to_world(c) + level.cell_to_world(c + Vector2i.ONE)) * 0.5
+			# A lamp post on one of its tiles: the trunk steps aside, away from it.
+			for d: Vector2i in POCKET_TILES:
+				if level.cell_char(c + d) == "l":
+					pos -= Vector3(d.x * 2 - 1, 0, d.y * 2 - 1) * POCKET_LAMP_STEP
 			if (others + out).any(func(t): return Vector2((t.node as Node3D).position.x - pos.x, (t.node as Node3D).position.z - pos.z).length() < TREE_SPACING * 4.0) \
 					or level._entrances.any(func(e): return Vector2((e.door as Vector3).x - pos.x, (e.door as Vector3).z - pos.z).length() < DOOR_CLEAR) \
 					or level.shrubs.any(func(s: Vector3): return Vector2(s.x - pos.x, s.z - pos.z).length() < 1.5):
@@ -289,11 +297,20 @@ static func plant_in_pockets(level: Node3D, others: Array) -> Array:
 	return out
 
 
-## Whether the 2x2 tiles from `c` (its top left) are a grass pocket (see plant_in_pockets).
+## Whether the 2x2 tiles from `c` (its top left) are a grass pocket (see plant_in_pockets): grass,
+## with at most one lamp post.
 static func _pocket(level: Node3D, c: Vector2i) -> bool:
-	for d: Vector2i in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1), Vector2i.ONE]:
-		if level.cell_char(c + d) != "." or not level.near_village(c + d):
+	var lamps := 0
+	for d: Vector2i in POCKET_TILES:
+		var ch: String = level.cell_char(c + d)
+		if ch == "l":
+			lamps += 1
+		elif ch != ".":
 			return false
+		if not level.near_village(c + d):
+			return false
+	if lamps > 1:
+		return false
 	# The four sides, two tiles each: west, east, north, south.
 	var sides := [[Vector2i(-1, 0), Vector2i(-1, 1)], [Vector2i(2, 0), Vector2i(2, 1)], [Vector2i(0, -1), Vector2i(1, -1)], [Vector2i(0, 2), Vector2i(1, 2)]]
 	var framed := 0

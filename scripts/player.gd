@@ -662,10 +662,22 @@ func lie_asleep() -> void:
 	set_asleep(true)
 
 
+## Leans back so the head rests up on a bed's pillows (`lying`), or upright
+## again, over `time` seconds (see Level.lie_tilt).
+func lean_on_pillow(lying: bool, time := 0.0) -> void:
+	Level.lie_tilt(_model, lying, time)
+
+
+## How big the body is (the woman's is a little smaller, see BodyLook.scale_of).
+func body_scale() -> float:
+	return _model.scale.x
+
+
 ## Opens the eyes and gets up from lying on the back, the way a knocked-down
 ## hero does (GET_UP_ANIM, GET_UP_TIME seconds).
 func get_up_from_bed() -> void:
 	set_asleep(false)
+	lean_on_pillow(false, 0.4)
 	_current_anim = ""
 	play(GET_UP_ANIM, 0.3)
 	_anim.speed_scale = GET_UP_SPEED

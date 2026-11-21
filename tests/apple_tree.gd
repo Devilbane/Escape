@@ -142,9 +142,9 @@ func _run() -> void:
 	for t in pockets:
 		var c: Vector2i = t.cell
 		for d: Vector2i in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1), Vector2i.ONE]:
-			check(level.cell_char(c + d) == ".", "a pocket tree stands on grass (%s)" % (c + d))
+			check(level.cell_char(c + d) in [".", "l"], "a pocket tree stands on grass (%s)" % (c + d))
 		var mid: Vector3 = (level.cell_to_world(c) + level.cell_to_world(c + Vector2i.ONE)) * 0.5
-		check((t.node as Node3D).position.distance_to(mid) < 0.01, "the pocket tree stands at the pocket's middle (%s)" % c)
+		check((t.node as Node3D).position.distance_to(mid) < AppleTree.POCKET_LAMP_STEP * 1.5, "the pocket tree stands at the pocket's middle (%s)" % c)
 	var found := Rect2i()
 	for y in range(level.height - 4):
 		for x in range(level.grid[y].length() - 4):

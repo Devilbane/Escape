@@ -29,9 +29,9 @@ const DARK := Color(0.58, 0.4, 0.31)
 const DEEP := Color(0.5, 0.34, 0.26)
 const SUNBURNT := Color(0.9, 0.66, 0.5)
 
-## A dark chestnut brown, root, middle and tip, for a painted-on hair dye (see LOOKS): darker
-## than HairLook's "natural", which reads as copper next to a fair face.
-const CHESTNUT := [Color(0.12, 0.06, 0.035), Color(0.3, 0.16, 0.085), Color(0.48, 0.29, 0.16)]
+## A deep auburn red, root, middle and tip, for a painted-on hair dye (see LOOKS): darker and
+## redder than HairLook's "ginger", so Clerk Gero's hair is his own in the whole village.
+const AUBURN := [Color(0.2, 0.04, 0.03), Color(0.48, 0.12, 0.07), Color(0.7, 0.28, 0.16)]
 
 ## The frames, by kind: a pair of round lenses, square ones, half-moon reading glasses and a single
 ## monocle on its chain.
@@ -55,7 +55,7 @@ const LOOKS := {
 	"8": {"skin": ASHEN, "glasses": "monocle", "frame": GOLD, "hat": Color(0.22, 0.2, 0.46)},
 	"9": {"skin": FAIR},
 	"K": {"skin": BROWN, "dye": "black"},
-	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON, "dye": CHESTNUT},
+	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON, "dye": AUBURN},
 	"µ": {"skin": Color(0.98, 0.8, 0.7), "glasses": "round", "frame": SILVER},
 	"O": {"skin": DARK},
 	"G": {"skin": Color(0.72, 0.52, 0.4)},

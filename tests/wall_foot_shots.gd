@@ -122,7 +122,12 @@ func _run() -> void:
 		if shots == "":
 			continue
 		if places.is_empty():
-			_pick_places(lvl)
+			# The house on the open lawn, from its west, east and north (its front is mostly door).
+			for spot: Array in [["h", Vector3(-4.8, 0, -6.0), Vector3.LEFT], ["h", Vector3(2.8, 0, -6.5), Vector3.RIGHT], ["h", Vector3(-1.0, 0, -9.2), Vector3.FORWARD]]:
+				if lvl.doors.has(spot[0]):
+					places.append([(lvl.doors[spot[0]] as Vector3) + (spot[1] as Vector3), spot[2]])
+			if places.is_empty():
+				_pick_places(lvl)
 			# And the dragon's lair out in the country, in the wild look.
 			if lvl.doors.has("E"):
 				places.append([(lvl.doors["E"] as Vector3) - Vector3(2.5, 0, 2.0), Vector3.BACK])

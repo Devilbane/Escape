@@ -1,0 +1,1 @@
+- Village street lamps no longer stand in the middle of paths: the lamp by the smithy and two others moved to the path's edge.

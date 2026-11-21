@@ -65,6 +65,14 @@ func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Ar
 	material.set_shader_parameter("tile", tile)
 
 
+## Gives the snow the ponds' shore (see Outdoor._build_shore), so it stops where the water
+## and the ice begin in the same curves as the ground draws them, not along the pond tiles.
+func set_shore(mask: Texture2D, reach: float) -> void:
+	material.set_shader_parameter("shore_mask", mask)
+	material.set_shader_parameter("shore_reach", reach)
+	material.set_shader_parameter("shore_on", mask != null)
+
+
 ## Keeps the snow off the cellars the hero has dug: `mask` has a pixel for each 2 m cell of the
 ## map (null when nothing is dug).
 func set_holes(mask: Texture2D) -> void:

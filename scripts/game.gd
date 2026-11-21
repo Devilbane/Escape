@@ -1926,7 +1926,7 @@ func _use_station(s: Dictionary) -> void:
 		var taken_text := Lang.t("Auf dieser Bank sitzt schon jemand.")
 		# Once per push against it, not every bump of a held key.
 		if _message.text != taken_text or _message.modulate.a < 0.05:
-			show_message(taken_text)
+			show_message(taken_text, read_time(taken_text))
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:

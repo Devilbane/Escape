@@ -727,6 +727,7 @@ func build() -> void:
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
 	snow.set_shelter(shelters, width, height, TILE)
+	snow.set_awnings(meals.awnings)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)

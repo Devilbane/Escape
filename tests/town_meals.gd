@@ -89,6 +89,17 @@ func _canopies(village: Outdoor, meals: TownMeals) -> void:
 	for t: Vector3 in meals.tables:
 		var c := village.world_to_cell(t)
 		check(meals.roofed.has(c), "the canopy covers its table's tile")
+	# The snow keeps off the whole of every bench (the sky mask's tiles blur at their corners).
+	check(meals.awnings.size() == meals.tables.size(), "every canopy keeps the snow off what stands under it")
+	var reach := Vector2(Seats.BENCH_SIZE.x * TownMeals.BENCH_STRETCH, Seats.BENCH_SIZE.z) * 0.5
+	for i in meals.tables.size():
+		var t: Vector3 = meals.tables[i]
+		var a: Array = meals.awnings[i] if i < meals.awnings.size() else [0, 0, 0, 0, 0]
+		for side in [-1.0, 1.0]:
+			var b := Vector2(t.x, t.z + side * TownMeals.BENCH_OFF)
+			check(a[0] < b.x - reach.x and a[2] > b.x + reach.x and a[1] < b.y - reach.y and a[3] > b.y + reach.y,
+					"a table's bench lies wholly under its canopy's snow shelter")
+		check(a[4] > TownMeals.EAVE, "the snow shelter reaches up to the cloth")
 	var node: Node3D = null
 	for child in village.get_children():
 		if child.name.begins_with("MealTable"):

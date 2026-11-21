@@ -1,0 +1,1 @@
+- Fog now floats as clouds in the air above the ground: trees and roofs rise through them, and they open up around the hero.

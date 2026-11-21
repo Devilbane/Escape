@@ -36,15 +36,10 @@ const TEXTURE_SIZE := Vector2i(64, 256)
 ## How bright the picture is, times the vertex colour: the stem, a leaflet at its foot and tip.
 const SHADE_STEM := 0.58
 const SHADE_LEAF := 0.74
-## The fern's green (its leaflets' tips; the picture darkens the rest), and the needle tree's: a
-## dark, blue-tinged green that stays all year. Then the needle tree's bark.
+## The fern's green (its leaflets' tips; the picture darkens the rest). Then the needle tree's bark.
 const FERN_GREEN := Color(0.46, 0.72, 0.24)
-const NEEDLE_GREEN := Color(0.2, 0.5, 0.37)
-## The needle tree's two greens: every frond's colour lies between them (see _needle_tint), whole
-## patches of branches leaning to a fresher green and others to a dark blue-green, so one tree is
-## never one flat colour.
-const NEEDLE_LIGHT := Color(0.24, 0.53, 0.3)
-const NEEDLE_BLUE := Color(0.1, 0.36, 0.4)
+## The needle tree's colours are the shader's (see spruce_needles.gdshader): its fronds carry only
+## their brightness, and which fern and which frond of it they belong to.
 ## How bright a needle tree's lowest and its top tier are (times its colour).
 const NEEDLE_FOOT_SHADE := 0.72
 const NEEDLE_TOP_SHADE := 1.0
@@ -266,7 +261,8 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 	var last := apex - REACH_TOP * lerpf(1.0, tall, 0.5)
 	var ratio := pow((apex - last) / (apex - foot), 1.0 / (tiers - 1))
 	_cone(trunk, Vector3.ZERO, Vector3(0, last * 0.7, 0), 0.17 * lerpf(1.0, tall * full, 0.6), 0.015, BARK)
-	var colour := NEEDLE_GREEN
+	# Only the brightness: the shader gives the colour.
+	var colour := Color.WHITE
 	for tier in tiers:
 		var t := float(tier) / (tiers - 1)
 		# Halfway between even steps and steps in proportion to the reach: the narrow top has fewer
@@ -297,25 +293,31 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 ## `droop` sets how far they arch over (negative: they curl up and in). `hub` is how far out from
 ## the middle the fronds start.
 static func _rosette(st: SurfaceTool, rng: RandomNumberGenerator, xf: Transform3D, count: int, size: float, rise: float, droop: float, colour: Color, hub: float, light := false, far := false) -> void:
+	# Which fern this is (see spruce_needles.gdshader), the same every time it is built.
+	var fern := _unit([xf.origin.y, xf.basis.x])
 	for i in count:
 		var a := TAU * i / count + rng.randf_range(-0.12, 0.12)
 		var lift := lerpf(deg_to_rad(rng.randf_range(55.0, 70.0)), deg_to_rad(82.0), rise)
 		var arch := droop if droop != 0.0 else rng.randf_range(1.3, 1.7)
 		var length := size * rng.randf_range(0.85, 1.1)
-		_frond(st, xf, a, lift, arch, length, hub, colour, light, far)
+		# And which way round the trunk the frond points (0 to 1 for a full turn).
+		var round := xf.basis * Vector3(cos(a), 0, sin(a))
+		_frond(st, xf, a, lift, arch, length, hub, colour, light, far, Vector2(fern, fposmod(atan2(round.z, round.x) / TAU, 1.0)))
 
 
 ## One frond: from near the middle out along `a` (round the up axis), leaving at `lift` above the
 ## ground and bending down by `arch` (radians over its length): a card of SEGMENTS quads (a
 ## `light` frond, the needle tree's, LIGHT_SEGMENTS, a `far` one FAR_SEGMENTS and broader) as wide as its leaflets reach, wearing the
-## frond picture. A fern's card is folded a little along its stem, as a real frond is.
-static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch: float, length: float, hub: float, colour: Color, light := false, far := false) -> void:
+## frond picture. A fern's card is folded a little along its stem, as a real frond is. `ids` tell
+## the needle tree's shader which fern it is and which way round the trunk the frond points (0 to 1 each).
+static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch: float, length: float, hub: float, colour: Color, light := false, far := false, ids := Vector2.ZERO) -> void:
 	var out := Vector3(cos(a), 0, sin(a))
 	var side := Vector3(-sin(a), 0, cos(a))
 	var steps := FAR_SEGMENTS if far else LIGHT_SEGMENTS if light else SEGMENTS
 	var half := length * (FAR_WIDTH if far else 0.32)
 	if light:
-		colour = _needle_tint(colour, xf * (out * (hub + length * 0.5)))
+		# Each frond a little brighter or darker than its neighbours.
+		colour = Color.WHITE * colour.v * lerpf(0.94, 1.06, _unit([ids.x, a]))
 	var points := []
 	var p := out * hub
 	points.append(p)
@@ -336,32 +338,19 @@ static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch
 		var mid0 := a0 + fold
 		var mid1 := a1 + fold
 		if light:
-			_card(st, xf, colour, [a0 - side * half, Vector2(0, v0)], [a0 + side * half, Vector2(1, v0)], [a1 + side * half, Vector2(1, v1)], [a1 - side * half, Vector2(0, v1)])
+			_card(st, xf, colour, ids, [a0 - side * half, Vector2(0, v0)], [a0 + side * half, Vector2(1, v0)], [a1 + side * half, Vector2(1, v1)], [a1 - side * half, Vector2(0, v1)])
 		else:
-			_card(st, xf, colour, [a0 - side * half, Vector2(0, v0)], [mid0, Vector2(0.5, v0)], [mid1, Vector2(0.5, v1)], [a1 - side * half, Vector2(0, v1)])
-			_card(st, xf, colour, [mid0, Vector2(0.5, v0)], [a0 + side * half, Vector2(1, v0)], [a1 + side * half, Vector2(1, v1)], [mid1, Vector2(0.5, v1)])
+			_card(st, xf, colour, ids, [a0 - side * half, Vector2(0, v0)], [mid0, Vector2(0.5, v0)], [mid1, Vector2(0.5, v1)], [a1 - side * half, Vector2(0, v1)])
+			_card(st, xf, colour, ids, [mid0, Vector2(0.5, v0)], [a0 + side * half, Vector2(1, v0)], [a1 + side * half, Vector2(1, v1)], [mid1, Vector2(0.5, v1)])
 
 
-## A needle tree's frond `colour` (the tier's green) tinted for where the frond reaches, `at`: whole
-## patches of branches lean towards NEEDLE_BLUE, others towards NEEDLE_LIGHT, and each frond differs a little
-## from its neighbours in hue and brightness. The same frond always gets the same tint.
-static func _needle_tint(colour: Color, at: Vector3) -> Color:
-	var round_trunk := atan2(at.z, at.x)
-	# Patches: slow waves round the trunk and up it, a few to a tree.
-	var patch := 0.5 + 0.3 * sin(round_trunk * 2.0 + at.y * 0.9) + 0.2 * sin(round_trunk * 3.0 - at.y * 1.7 + 1.3)
-	# And each frond on its own.
-	var h := hash(Vector3i(roundi(at.x * 20.0), roundi(at.y * 20.0), roundi(at.z * 20.0)))
-	var own := float(h & 0xffff) / 65535.0
-	var own2 := float((h >> 16) & 0xffff) / 65535.0
-	var blue := clampf(0.45 + (patch - 0.5) * 1.6 + (own - 0.5) * 0.6, 0.0, 1.0)
-	var shade := colour.v / NEEDLE_GREEN.v
-	var tint := NEEDLE_LIGHT.lerp(NEEDLE_BLUE, blue) * shade * lerpf(0.92, 1.1, own2)
-	tint.a = colour.a
-	return tint
+## A number from 0 to 1 that the same `key` always gives.
+static func _unit(key: Variant) -> float:
+	return float(hash(key) & 0xffff) / 65535.0
 
 
-## A quad of a frond's card, its corners [position, uv] in order round it.
-static func _card(st: SurfaceTool, xf: Transform3D, colour: Color, c0: Array, c1: Array, c2: Array, c3: Array) -> void:
+## A quad of a frond's card, its corners [position, uv] in order round it, `ids` in its second uv.
+static func _card(st: SurfaceTool, xf: Transform3D, colour: Color, ids: Vector2, c0: Array, c1: Array, c2: Array, c3: Array) -> void:
 	var n: Vector3 = (xf.basis * ((c1[0] as Vector3) - (c0[0] as Vector3)).cross((c3[0] as Vector3) - (c0[0] as Vector3))).normalized()
 	if n.y < 0.0:
 		n = -n
@@ -371,6 +360,7 @@ static func _card(st: SurfaceTool, xf: Transform3D, colour: Color, c0: Array, c1
 		st.set_color(colour)
 		st.set_normal(n)
 		st.set_uv(c[1])
+		st.set_uv2(ids)
 		st.add_vertex(xf * (c[0] as Vector3))
 
 

@@ -1920,6 +1920,13 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == AppleTree.STATION:
 		player.face(s.pos - player.global_position)
 		AppleTree.pick(self, s)
+	elif s.kind == Seats.KIND and level is Outdoor and level.bench_rest.taken(s):
+		# Someone from the village rests there already (see BenchRest).
+		player.face(s.pos - player.global_position)
+		var taken_text := Lang.t("Auf dieser Bank sitzt schon jemand.")
+		# Once per push against it, not every bump of a held key.
+		if _message.text != taken_text or _message.modulate.a < 0.05:
+			show_message(taken_text, read_time(taken_text))
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:
@@ -2349,6 +2356,27 @@ func door_in_reach() -> BuiltDoor:
 	if level.crate_in_reach(player) != null or level.stone_in_reach(player) != null or level.pack_in_reach(player) != null:
 		return null
 	return house_sketcher.door_near(player.global_position)
+
+
+## The shutters of one of the hero's own windows within reach, when no door,
+## crate, stone block or backpack claims the E key; else null.
+func shutters_in_reach() -> BuiltShutters:
+	if house_sketcher == null or player == null or level == null or not level is Outdoor:
+		return null
+	if door_in_reach() != null or level.crate_in_reach(player) != null or level.stone_in_reach(player) != null \
+			or level.pack_in_reach(player) != null:
+		return null
+	return house_sketcher.shutters_near(player.global_position)
+
+
+## E at one of the hero's windows opens or shuts its shutters. Returns "" or why not.
+func window_action(pair: BuiltShutters) -> String:
+	if not player.can_act():
+		return Lang.t("Gerade nicht.")
+	player.face(pair.global_position - player.global_position)
+	player.play_once("Interact", 0.3)
+	pair.toggle()
+	return ""
 
 
 ## E at a door opens or shuts it; Shift+E locks or unlocks the hero's own.
@@ -2973,6 +3001,9 @@ func _new_day(quiet := false) -> void:
 
 ## How many hours after the first morning of a season the villagers talk about it.
 const SEASON_TALK_HOURS := 3.0
+## How much quieter thunder is in a house (under a roof) and down in a cellar, in dB.
+const THUNDER_INDOORS_DB := -8.0
+const THUNDER_CELLAR_DB := -16.0
 ## How far winter fog by day is smoothed towards one even haze (0 patchy banks, 1 even haze).
 const WINTER_EVEN := 0.45
 
@@ -3215,9 +3246,6 @@ func _show_weather() -> void:
 	elif winter_fog:
 		even = float(seen.mist) * WINTER_EVEN
 	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
-	if _clouds.visible and camera != null:
-		var view := get_viewport().get_visible_rect().size
-		_clouds.set_hero(camera.unproject_position(player.global_position + Vector3(0, 0.9, 0)) / view)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
@@ -3230,9 +3258,13 @@ func _show_weather() -> void:
 ## Lightning struck (see Outdoor.strike): the sky flashes, and the thunder
 ## follows, later and softer the farther away it was.
 func _on_lightning(at: Vector3) -> void:
-	_flash = 1.0
+	# The flash is dimmed under a roof (see _shelter in _tick_clock); down in a cellar it does not
+	# reach at all, and the thunder only rumbles through, muffled.
+	var cellar := level is Outdoor and not (level as Outdoor).hero_cellar.is_empty()
+	_flash = 0.0 if cellar else 1.0
 	var far: float = level._flat_distance(player.global_position, at) if player else 0.0
-	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08)
+	var muffle := THUNDER_CELLAR_DB if cellar else THUNDER_INDOORS_DB * _shelter
+	Sfx.play_after(self, clampf(far / 40.0, 0.15, 1.5), "thunder", -1.0 - far * 0.08 + muffle)
 
 
 # --- Flow -------------------------------------------------------------------
@@ -7776,6 +7808,9 @@ func _process(delta: float) -> void:
 					else Lang.t("E: Tür öffnen oder schließen   Umschalt+E: abschließen"))
 		else:
 			_prompt.text = _hint("door", Lang.t("E: Tür öffnen oder schließen"))
+	elif _prompt.text == "" and shutters_in_reach() != null:
+		_prompt.text = _hint("shutters", Lang.t("E: Fensterläden schließen") if not shutters_in_reach().shut
+				else Lang.t("E: Fensterläden öffnen"))
 	elif _prompt.text == "" and level.crate_in_reach(player) != null:
 		_prompt.text = _hint("crate", Lang.t("E oder Klick: Kiste aufheben"))
 	elif _prompt.text == "" and _drag_stone != null:
@@ -8026,6 +8061,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						var door := door_in_reach()
 						if door != null:
 							why_not = door_action(door, event.shift_pressed)
+						elif shutters_in_reach() != null:
+							why_not = window_action(shutters_in_reach())
 						elif level.crate_in_reach(player) == null and level.stone_in_reach(player) != null:
 							why_not = take_stone()
 						elif level.crate_in_reach(player) == null and level.pack_in_reach(player) != null:

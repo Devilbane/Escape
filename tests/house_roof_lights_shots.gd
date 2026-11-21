@@ -94,6 +94,17 @@ func _run() -> void:
 	game.player.global_position = plan.cell_world(5, 5)
 	await _shot("roof_day", mid + Vector3(9, 10, 14), mid)
 	await _shot("roof_close", plan.cell_world(2, 2) + Vector3(4, 7.5, 7), plan.cell_world(2, 2) + Vector3(0, 3.5, 0))
+	# From above in the afternoon, by the east edge of the house: the lamp lights its roof, and
+	# the ground beside the house shows the house's one shadow, from the sun.
+	var edge := plan.cell_world(4, 2)
+	game.day_hour = 16.5
+	await _wait(30)
+	await _shot("roof_edge_day", edge + Vector3(0, 16, 1.5), edge)
+	game.day_hour = 22.5
+	await _wait(30)
+	await _shot("roof_edge_night", edge + Vector3(0, 16, 1.5), edge)
+	game.day_hour = 12.0
+	await _wait(10)
 	game.day_hour = 22.5
 	await _wait(30)
 	await _shot("roof_night", mid + Vector3(9, 10, 14), mid)

@@ -225,6 +225,14 @@ func _roof_lights(plan: HouseSketch, level: Outdoor, furnisher: HouseFurnisher) 
 	check(after.placed.any(func(p): return p.kind == "gartenlaterne" and p.storey == 1 and p.x == 1 and p.y == 1), "the lamp stands on the house's roof")
 	check(after.placed.any(func(p): return p.kind == "gartenfackel" and p.storey == top and p.x == 2 and p.y == 1), "the torch stands on the top roof")
 	game.house_sketcher.refresh()
+	# A light up on a roof ends above the ground: no second, lamp-made shadow of the house below it.
+	var roof_lights := 0
+	for light: OmniLight3D in furnisher._pieces.find_children("*", "OmniLight3D", true, false):
+		if light.global_position.y > HouseSketch.STOREY_HEIGHT:
+			roof_lights += 1
+			check(light.omni_range < light.global_position.y, "a roof light stays off the ground (reach %.1f at %.1f m)" % [light.omni_range, light.global_position.y])
+	check(roof_lights == 2, "two lights burn on the roofs (%d)" % roof_lights)
+	check(HouseFurnisher.roof_reach(GardenDecor.LAMP_RANGE, 0, 2.4) == GardenDecor.LAMP_RANGE, "a garden light keeps its reach")
 	level.night = true
 	check(level.is_lit(HouseFurniture.centre(plan, "gartenlaterne", 1, 1, 1, 0) + Vector3(1.0, 0, 0)), "at night the roof lamp lights the roof")
 	level.night = false

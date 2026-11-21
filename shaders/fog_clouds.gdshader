@@ -2,7 +2,7 @@ shader_type spatial;
 // Large, soft fog clouds that float in the air over the open ground. Each of three thin layers
 // a few metres up is two layers of tiling noise read in world space (so the clouds stay put in
 // the world while the camera moves), with clear gaps between the banks; under them only a thin
-// haze lies on the ground, and around the hero the clouds open up.
+// haze lies on the ground. The clouds stay as they are around the hero too.
 // Drawn at the lowest render priority of all see-through things: every label
 // (damage numbers, speech bubbles, news) and every particle is drawn after
 // the clouds and so stays exactly as readable as without them.
@@ -20,10 +20,6 @@ uniform vec2 drift = vec2(0.0);
 uniform float even = 0.0;
 uniform float breathe = 0.0;
 uniform float max_distance = 90.0;
-// The hero on screen (0 to 1) and how far around them (a share of the screen's height) the
-// clouds in the air thin out, so a cloud never hides the hero.
-uniform vec2 hero_uv = vec2(0.5);
-uniform float hero_clear = 0.13;
 // The heights of the cloud layers above the ground, and the thin haze left on the ground.
 uniform vec3 layers = vec3(2.4, 3.3, 4.3);
 uniform float ground_haze = 0.18;
@@ -53,8 +49,6 @@ void fragment() {
 	// The clouds float in the air: a few thin layers above the ground. The view ray meets each
 	// layer above whatever it hits, so tall things (trees, roofs) stand up through the clouds,
 	// and the layers slide against the ground and each other as the camera moves.
-	vec2 aspect = vec2(VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, 1.0);
-	float open = smoothstep(hero_clear * 0.55, hero_clear, length((SCREEN_UV - hero_uv) * aspect));
 	float alpha = 0.0;
 	for (int i = 2; i >= 0; i--) {
 		float h = layers[i];
@@ -62,7 +56,7 @@ void fragment() {
 			continue;
 		}
 		vec3 q = mix(cam, world, (cam.y - h) / (cam.y - world.y));
-		float a = cloud(q.xz, float(i) * 0.29) * 0.45 * open;
+		float a = cloud(q.xz, float(i) * 0.29) * 0.45;
 		alpha += (1.0 - alpha) * a;
 	}
 	// Under the clouds only a thin haze lies on the ground.

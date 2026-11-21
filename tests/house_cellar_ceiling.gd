@@ -222,6 +222,15 @@ func _checks() -> void:
 	check(Vector2(spot.x - covered.x, spot.z - covered.z).length() < 1.0, "a thing dropped on the ceiling stays there")
 
 
+## The map tiles of this test's plot.
+func _plot_tiles() -> Array:
+	var out := []
+	for y in range(plan.plot.position.y, plan.plot.end.y):
+		for x in range(plan.plot.position.x, plan.plot.end.x):
+			out.append(Vector2i(x, y))
+	return out
+
+
 ## No two built pieces of different looks lie with their tops in one plane over the same
 ## spot: such faces flicker through each other (z-fighting), as a cellar wall's top did
 ## through the ceiling over it, and a door's lintel on its jambs.
@@ -232,6 +241,9 @@ func _no_flicker() -> void:
 		if not m is MeshInstance3D or not (m as MeshInstance3D).global_basis.is_equal_approx(Basis()):
 			continue
 		var box: AABB = (m as MeshInstance3D).global_transform * (m as MeshInstance3D).get_aabb()
+		# Only this test's own house (the forgotten mine's hut stands on the map too, see LostMine).
+		if not game.level.world_to_cell(box.get_center()) in _plot_tiles():
+			continue
 		boxes.append([box, (m as MeshInstance3D).material_override, m.name])
 	var clashes := []
 	for i in boxes.size():

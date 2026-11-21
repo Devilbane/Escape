@@ -964,8 +964,10 @@ const HOLE_CELL := 2.0
 ## before. Walkable floors inside the holes are the cellar's own business.
 ## `floored` are the holes closed over by a cellar ceiling (see HouseSketch.COVER):
 ## still cut open, but litter, snow and dropped things lie on them as on the ground.
-func set_floor_holes(holes: Array, floored: Array = []) -> void:
-	_cellar_holes = holes.duplicate()
+## `buried` are the holes under whole ground (HouseSketch.BURIED, the forgotten mine's
+## tunnels, see LostMine): only the ground's thick slab is taken out under them; the
+## ground is drawn and snowed on there as anywhere.
+func set_floor_holes(holes: Array, floored: Array = [], buried: Array = []) -> void:
 	if _floor_slabs.get_parent() == null:
 		_walls_body.add_child(_floor_slabs)
 	# Taken out of the body at once and freed at the end of the frame, never freed right away:
@@ -980,6 +982,11 @@ func set_floor_holes(holes: Array, floored: Array = []) -> void:
 	var closed := {}
 	for r: Rect2 in floored:
 		closed[Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))] = true
+	var whole := {}
+	for r: Rect2 in buried:
+		whole[Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))] = true
+	# Open to the sky (see open_sky): not where whole ground lies over a hole.
+	_cellar_holes = holes.filter(func(r: Rect2) -> bool: return not whole.has(Vector2i(roundi((r.position.x + TILE * 0.5) / HOLE_CELL), roundi((r.position.y + TILE * 0.5) / HOLE_CELL))))
 	# Where the cellar lies open to the sky, and the cells nothing may lie on. The snow's mask is 1
 	# on an open cell and half on a closed one: snow lies on the ceiling but not in the cellar under it.
 	var snow_mask := Image.create(width * 2, height * 2, false, Image.FORMAT_R8)
@@ -1000,12 +1007,12 @@ func set_floor_holes(holes: Array, floored: Array = []) -> void:
 				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
 				if not closed.has(Vector2i(x, y)):
 					open_lattice[Vector2i(x, y)] = true
-				if x >= 0 and y >= 0 and x < width * 2 and y < height * 2:
+				if x >= 0 and y >= 0 and x < width * 2 and y < height * 2 and not whole.has(Vector2i(x, y)):
 					mask.set_pixel(x, y, Color(1, 0, 0, 1))
 					snow_mask.set_pixel(x, y, Color(0.5 if closed.has(Vector2i(x, y)) else 1.0, 0, 0, 1))
 	if _ground_mat != null:
 		_ground_mat.set_shader_parameter("hole_mask", ImageTexture.create_from_image(mask))
-		_ground_mat.set_shader_parameter("holes_on", not lattice.is_empty())
+		_ground_mat.set_shader_parameter("holes_on", lattice.size() > whole.size())
 	# Nothing lies in a hole: the litter on it is lifted away, and what the hero dropped there moves
 	# to the nearest whole ground.
 	if surface_life != null:
@@ -1013,7 +1020,7 @@ func set_floor_holes(holes: Array, floored: Array = []) -> void:
 	_move_pickups_out(open_lattice)
 	# The snow keeps off the dug squares too (a cellar ceiling gets snow like the ground).
 	if snow != null:
-		snow.set_holes(ImageTexture.create_from_image(snow_mask) if not lattice.is_empty() else null)
+		snow.set_holes(ImageTexture.create_from_image(snow_mask) if lattice.size() > whole.size() else null)
 	if lattice.is_empty():
 		plane.plane = Plane(Vector3.UP, 0.0)
 		return

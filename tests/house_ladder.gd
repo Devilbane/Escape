@@ -129,7 +129,8 @@ func _process(_delta: float) -> bool:
 				e.queue_free()
 		return false
 	if frames == 30:
-		var ladders: Array = root.get_tree().get_nodes_in_group(Player.LADDER_GROUP)
+		# (The forgotten mine's ladder stands in its shaft, see LostMine: not this house's.)
+		var ladders: Array = root.get_tree().get_nodes_in_group(Player.LADDER_GROUP).filter(func(l): return not LostMine.holds(l.get_meta("foot")))
 		check(ladders.size() == 2, "two built ladders stand on the map (%d)" % ladders.size())
 		for l: Node3D in ladders:
 			if (l.get_meta("top") as Vector3).y > 1.0:

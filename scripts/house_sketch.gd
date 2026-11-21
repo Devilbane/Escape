@@ -62,6 +62,10 @@ const CELLAR_KINDS := [DIG, STAIRS]
 const COVER := "cover"
 const COVER_ORIENT := "f"
 const CEILINGS := ["wood", "stone"]
+## A ceiling of earth (the forgotten mine's, see LostMine; no hero builds one): the dug cell
+## lies under whole ground, grass or forest on top, with nothing of it to see from up there.
+## The ground stays solid over it, only no longer one thick slab down to the cellar's floor.
+const BURIED := "earth"
 ## How thick the cellar ceiling is: its top is the ground, so the cellar keeps
 ## DEPTH - COVER_THICK of headroom under it, more than the hero is tall (Player.tall).
 const COVER_THICK := 0.15
@@ -162,6 +166,10 @@ var floor_surface := ""
 var wall_surface := ""
 ## What the next cellar ceiling is made of (see CEILINGS).
 var ceiling_surface := "wood"
+## Where companions find floors round this house (see HouseFloors), in its own cells: the
+## whole plot when empty. The forgotten mine (see LostMine) keeps it to its hut, so the woods
+## and the meadow over its tunnels stay the open map's.
+var floors_area := Rect2i()
 ## What the next garden walls are made of: "stone" or "wood" (see fence_kind).
 var fence_material := "stone"
 ## The built doors and gates the owner locked (piece key -> true; see BuiltDoor).

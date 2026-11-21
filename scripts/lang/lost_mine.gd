@@ -1,0 +1,17 @@
+extends RefCounted
+## English texts: the forgotten silver mine under the woods (see LostMine). Merged into Lang.EN (see Lang.PARTS).
+
+const EN := {
+	"Die vergessene Silbergrube: Unter der leeren Steigerhütte am Waldrand südlich des Dorfteichs führt eine Leiter in die Stollen, die zwölf Bergleute unter dem Wald gruben und dann verließen. Die Seiten des Steigerbuchs erzählen, warum.": "The forgotten silver mine: under the empty foreman's hut at the edge of the woods south of the village pond, a ladder leads down into the tunnels twelve miners dug under the forest and then left. The pages of the foreman's log tell why.",
+	"Du steigst in eine vergessene Silbergrube hinab. Irgendwo hier unten liegen die Seiten eines Steigerbuchs.": "You climb down into a forgotten silver mine. Somewhere down here lie the pages of a foreman's log.",
+	"Steigerbuch, erster Tag: Unter dem Wald südlich des Dorfteichs haben wir Silber gefunden. Zwölf Mann, gutes Grubenholz und eine Hütte über dem Schacht. Wir werden reich, sagt Jorin. (Steiger Aldo Brenner)": "Foreman's log, first day: under the woods south of the village pond we struck silver. Twelve men, good pit timber and a hut over the shaft. We'll be rich, says Jorin. (Foreman Aldo Brenner)",
+	"Steigerbuch, vierzigster Tag: Nachts klopft es im Fels. Drei Schläge, dann Stille. Die Männer sagen, das ist das Wasser. Wasser zählt nicht bis drei.": "Foreman's log, day forty: at night something knocks in the rock. Three blows, then silence. The men say it is the water. Water does not count to three.",
+	"Steigerbuch, zweiundfünfzigster Tag: Die Ader führt nach Westen, tiefer als jede Karte. Hinter dem Silber ist der Fels behauen, glatt wie Tempelstein. Jemand hat hier vor uns gegraben, lange vor dem Dorf.": "Foreman's log, day fifty-two: the vein runs west, deeper than any map. Beyond the silver the rock is hewn, smooth as temple stone. Someone dug here before us, long before the village.",
+	"Steigerbuch, sechzigster Tag: Der Oststollen ist eingebrochen. Jorin und Matthes waren dahinter. Wir graben seit zwei Tagen. Das Klopfen ist lauter als unsere Hacken.": "Foreman's log, day sixty: the east drift has caved in. Jorin and Matthes were behind it. We have been digging for two days. The knocking is louder than our picks.",
+	"Steigerbuch, einundsiebzigster Tag: Nur noch vier von uns. Wir haben eine Nische für die Göttin der Tiefe ausgehauen und Kerzen entzündet. Sie antwortet nicht. Das Tor antwortet.": "Foreman's log, day seventy-one: only four of us left. We cut a niche for the goddess of the deep and lit candles. She does not answer. The gate does.",
+	"Letzter Eintrag: Ich habe das Tor am Ende der alten Gänge mit Eisen verkeilt und die Männer heimgeschickt. Wer dies findet: Öffne es nicht, ehe du weißt, wer auf der anderen Seite klopft. (A. Brenner)": "Last entry: I wedged the gate at the end of the old passages shut with iron and sent the men home. Whoever finds this: do not open it before you know who knocks on the other side. (A. Brenner)",
+	"Ein steinernes Tor, alt wie der Berg, mit eisernen Keilen verschlossen. Es rührt sich nicht. Von der anderen Seite klopft es dreimal.": "A stone gate as old as the mountain, wedged shut with iron. It does not move. From the other side, something knocks three times.",
+	"Das Tor ist fest verschlossen. Noch.": "The gate is shut fast. For now.",
+	"Dagegenlaufen, um die Seite des Steigerbuchs zu lesen": "Run into it to read the page of the foreman's log",
+	"Dagegenlaufen, um das Tor zu untersuchen": "Run into it to examine the gate",
+}

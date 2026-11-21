@@ -1853,6 +1853,8 @@ func _use_station(s: Dictionary) -> void:
 		level.stern.use(s, player)
 	elif s.kind in [AshSpire.BOOK, AshSpire.CACHE, AshSpire.ANVIL, AshSpire.HATCH, AshSpire.PRISONER]:
 		AshSpire.use(self, s)
+	elif LostMine.KINDS.has(s.kind):
+		LostMine.use(self, s)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)
@@ -2911,6 +2913,7 @@ func _tick_clock(delta: float) -> void:
 		ice_cover = Weather.ice(ice_cover, snow_cover, weather, delta)
 	if level.outdoor:
 		DayNight.apply(_env, _moon, day_hour)
+		_mine_dark = move_toward(_mine_dark, 1.0 if _in_lost_mine() else 0.0, delta / MINE_FADE)
 		_moonlight()
 		_weather_look = Weather.ease_look(_weather_look, Weather.look(weather), delta)
 		_shelter = move_toward(_shelter, 1.0 if _under_roof() else 0.0, delta / SHELTER_FADE)
@@ -2944,9 +2947,11 @@ func _tick_clock(delta: float) -> void:
 ## dusk and dawn look the same whatever the moon.
 func _moonlight() -> void:
 	var bright := _night_light()
-	# The hero's lantern shrinks to a small pool as the night darkens.
+	# The hero's lantern shrinks to a small pool as the night darkens (not down in the mine:
+	# there it shines as in a dungeon).
 	if player:
-		player.set_night_dim(1.0 - bright)
+		player.set_night_dim((1.0 - bright) * (1.0 - _mine_dark))
+	bright *= lerpf(1.0, MINE_LIGHT, _mine_dark)
 	if bright >= 1.0:
 		return
 	_moon.light_energy *= bright
@@ -3184,6 +3189,19 @@ func _place_dust(at: Vector3) -> void:
 	if dust.visible != show:
 		dust.visible = show
 		dust.emitting = show
+
+
+## Down in the forgotten mine (see LostMine) no daylight reaches: its lamps and the hero's
+## lantern light it, as at night. _mine_dark eases from 0 (up on the ground) to 1 (down there)
+## over MINE_FADE seconds; down there the light is MINE_LIGHT of what it is outside.
+var _mine_dark := 0.0
+const MINE_LIGHT := 0.15
+const MINE_FADE := 1.2
+
+
+func _in_lost_mine() -> bool:
+	return level is Outdoor and player != null and house_sketcher != null and house_sketcher.cellar_view.active \
+			and LostMine.holds(player.global_position)
 
 
 ## Whether the view is inside a self-built house: the hero stands in one or down in its cellar
@@ -7788,7 +7806,7 @@ func _process(delta: float) -> void:
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
-		}.get(station.kind, AshSpire.prompt(station.kind)))
+		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and door_in_reach() != null:

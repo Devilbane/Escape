@@ -33,6 +33,9 @@ var active := false
 var pit: Array = []
 ## The cellar's outline round all its cells (x, z).
 var _outline := Rect2()
+## Whether the cellar is a house's (at most SMALL_PIT cells), not a whole mine's.
+var _small_pit := true
+const SMALL_PIT := 64
 ## The things up on the surface this view has hidden, to show again, by instance id.
 ## Never keyed by the nodes themselves: things are freed while hidden (a spent effect, a
 ## footprint), and walking a Dictionary with freed objects among its keys can go round
@@ -93,26 +96,67 @@ func _wanted() -> bool:
 	return not pit_at(pos).is_empty()
 
 
-## The dug cells of the cellar at `pos`: every hole joined to the one under it.
+## The dug cells of the cellar at `pos`: every hole joined to the one under it (on a side
+## or a corner). The holes lie on the 2 m lattice (see lattice_of), so the cells are looked
+## up by their place: a cellar of hundreds of cells (the forgotten mine, see LostMine) is
+## found as fast as a small one.
 func pit_at(pos: Vector3) -> Array:
-	var start := -1
-	for i in holes.size():
-		if (holes[i] as Rect2).grow(0.3).has_point(Vector2(pos.x, pos.z)):
-			start = i
+	var places := _places(holes)
+	var start := Vector2i.ZERO
+	var inside := false
+	for d: Vector2 in GROWN:
+		var at := lattice_of(Vector2(pos.x, pos.z) + d)
+		if places.has(at):
+			start = at
+			inside = true
 			break
-	if start < 0:
+	if not inside:
 		return []
 	var found := {start: true}
-	var todo := [start]
+	var todo: Array[Vector2i] = [start]
 	while not todo.is_empty():
-		var a: Rect2 = holes[todo.pop_back()]
-		for j in holes.size():
-			if not found.has(j) and a.grow(0.05).intersects(holes[j]):
-				found[j] = true
-				todo.append(j)
+		var a: Vector2i = todo.pop_back()
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var b := a + Vector2i(dx, dy)
+				if not found.has(b) and places.has(b):
+					found[b] = true
+					todo.append(b)
 	var out := []
-	for i in found:
-		out.append(holes[i])
+	for at: Vector2i in found:
+		out.append(holes[places[at]])
+	return out
+
+
+## The 2 m lattice cell (see HouseSketch.CELL) a point (x, z) lies in.
+static func lattice_of(at: Vector2) -> Vector2i:
+	return Vector2i(floori((at.x + Level.TILE * 0.5) / HouseSketch.CELL), floori((at.y + Level.TILE * 0.5) / HouseSketch.CELL))
+
+
+## How far round a cell a point still counts as in it (the rim, see in_cells), as the
+## offsets that find the cells within that reach.
+const RIM := 0.3
+const GROWN: Array[Vector2] = [Vector2.ZERO, Vector2(RIM, 0), Vector2(-RIM, 0), Vector2(0, RIM), Vector2(0, -RIM),
+	Vector2(RIM, RIM), Vector2(-RIM, RIM), Vector2(RIM, -RIM), Vector2(-RIM, -RIM)]
+## The last few lists of cells looked up by place, each as [list, places].
+static var _known: Array = []
+const KNOWN := 4
+
+
+## The places of a list of cells (Rect2 of x, z on the lattice): lattice cell -> index. The
+## last KNOWN lists asked for are kept, so asking again for one of them (the same Array,
+## unchanged in size) is free.
+static func _places(cells: Array) -> Dictionary:
+	for k in _known:
+		if is_same(k[0], cells) and (k[1] as Dictionary).size() == cells.size():
+			return k[1]
+	var out := {}
+	for i in cells.size():
+		var r: Rect2 = cells[i]
+		out[lattice_of(r.position + Vector2(0.01, 0.01))] = i
+	_known.push_front([cells, out])
+	if _known.size() > KNOWN:
+		_known.pop_back()
 	return out
 
 
@@ -124,8 +168,14 @@ func _in_pit(pos: Vector3) -> bool:
 static func in_cells(cells: Array, pos: Vector3) -> bool:
 	if pos.y > 1.0:
 		return false
-	for r: Rect2 in cells:
-		if r.grow(0.3).has_point(Vector2(pos.x, pos.z)):
+	if cells.size() < 24:
+		for r: Rect2 in cells:
+			if r.grow(RIM).has_point(Vector2(pos.x, pos.z)):
+				return true
+		return false
+	var places := _places(cells)
+	for d: Vector2 in GROWN:
+		if places.has(lattice_of(Vector2(pos.x, pos.z) + d)):
 			return true
 	return false
 
@@ -136,6 +186,7 @@ func _enter() -> void:
 	_outline = pit[0]
 	for r: Rect2 in pit:
 		_outline = _outline.merge(r)
+	_small_pit = pit.size() <= SMALL_PIT
 	# Monsters, villagers and animals ask the map what the hero sees (see Outdoor.hero_sees).
 	(game.level as Outdoor).hero_cellar = pit
 	_build_earth()
@@ -176,10 +227,13 @@ func _hide_surface() -> void:
 			continue
 		var node := child as Node3D
 		var below := _in_pit(node.global_position)
-		# A wide patch of ground whose middle happens to lie in the cellar is still surface.
+		# A wide patch of ground whose middle happens to lie in the cellar is still surface, and so
+		# is one whose middle lies over a long cellar's tunnels (the forgotten mine, see LostMine):
+		# what lies on the ground up there never reaches down below it.
 		if below and node is VisualInstance3D:
 			var box: AABB = node.global_transform * (node as VisualInstance3D).get_aabb()
-			below = _outline.grow(0.5).encloses(Rect2(box.position.x, box.position.z, box.size.x, box.size.z))
+			below = _outline.grow(0.5).encloses(Rect2(box.position.x, box.position.z, box.size.x, box.size.z)) \
+					and (_small_pit or box.position.y < -0.5)
 		var id := node.get_instance_id()
 		if below:
 			if _hidden.has(id):
@@ -249,16 +303,13 @@ func _earth_mesh(low: Vector2, high: Vector2) -> ArrayMesh:
 	_quad(st, Vector2(high.x, low.y), Vector2(far_high.x, high.y))
 	# ... and inside it every cell that is not dug.
 	var cell := HouseSketch.CELL
+	var places := _places(pit)
 	var y := low.y
 	while y < high.y - 0.01:
 		var x := low.x
 		while x < high.x - 0.01:
 			var centre := Vector2(x + cell * 0.5, y + cell * 0.5)
-			var dug := false
-			for r: Rect2 in pit:
-				if r.has_point(centre):
-					dug = true
-					break
+			var dug := places.has(lattice_of(centre))
 			if not dug:
 				_quad(st, Vector2(x, y), Vector2(x + cell, y + cell))
 			x += cell
@@ -338,11 +389,7 @@ func _hanging_roots(rng: RandomNumberGenerator) -> void:
 			var edge_mid := r.get_center() + dir * (HouseSketch.CELL * 0.5)
 			# Only a rim that has earth beyond it (no other dug cell).
 			var beyond := edge_mid + dir * 0.3
-			var open := false
-			for o: Rect2 in pit:
-				if o.has_point(beyond):
-					open = true
-					break
+			var open := _places(pit).has(lattice_of(beyond))
 			if open or rng.randf() > 0.6:
 				continue
 			var along := Vector2(-dir.y, dir.x)

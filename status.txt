@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Fix the freeze climbing out of a house cellar; No dust motes on the surface map or in house cellars | Shipped this week: Spruce branches sway a little more in the wind; Grass, flowers and mossy stones at the foot of buildings (+48 more)
+Escape! dev status | Working on: Stop garden and cellar walls flickering where their pieces meet; Fix the freeze climbing out of a house cellar | Shipped this week: No dust motes on the surface map or in house cellars; Spruce branches sway a little more in the wind (+48 more)

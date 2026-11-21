@@ -17,3 +17,7 @@ Sheep.glb   "Sheep" from "Farm Animals Pack" (2018) by Quaternius, also CC0
             (https://opengameart.org/content/lowpoly-animated-farm-animal-pack).
             The pack's sheep only has an Idle and a Jump; its Walk, Gallop and Eating
             were made for the game by turning the bones (tools/build_sheep.gd).
+
+Donkey.glb  "Donkey" from "Ultimate Animated Animals" (July 2021) by Quaternius, CC0 like the
+            others (the wandering merchant's donkey). Converted to .glb the same way, keeping
+            only Idle, Idle_Headlow and Eating.

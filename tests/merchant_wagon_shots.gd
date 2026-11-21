@@ -1,8 +1,8 @@
 extends SceneTree
-## Screenshots of the wandering merchant's living wagon and his raven (see MerchantWagon, MerchantRaven)
-## on his night: from the way up to him, close on the hangings, the porch, the back with the lantern, and
-## from above. Run with: SHOTS=<folder> godot -s tests/merchant_wagon_shots.gd (needs a display); without
-## SHOTS it only puts him up.
+## Screenshots of the wandering merchant's living wagon, his raven and his donkey (see MerchantWagon,
+## MerchantRaven, MerchantDonkey) on his night: from the way up to him, close on the hangings, the porch,
+## the back with the lantern, the donkey at her hay, and from above. Run with:
+## SHOTS=<folder> godot -s tests/merchant_wagon_shots.gd (needs a display); without SHOTS it only puts him up.
 
 var game: Node
 var frames := 0
@@ -58,6 +58,7 @@ func _run() -> void:
 			"merchant": [Vector3(5.8, 2.6, 8.8), Vector3(1.2, 1.4, 2.6)],
 			"raven": [Vector3.ZERO, Vector3.FORWARD],
 			"raven_on_hat": [Vector3.ZERO, Vector3.FORWARD],
+			"donkey": [Vector3(-7.5, 2.4, 8.0), Vector3(-7.5, 0.8, 0)],
 			"top": [Vector3(4.5, 9.0, 8.0), Vector3(-1, 1, 0.5)]}
 		for name: String in views:
 			var cam := Camera3D.new()

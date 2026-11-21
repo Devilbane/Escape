@@ -40,6 +40,18 @@ const SHADE_LEAF := 0.74
 ## dark, blue-tinged green that stays all year. Then the needle tree's bark.
 const FERN_GREEN := Color(0.46, 0.72, 0.24)
 const NEEDLE_GREEN := Color(0.2, 0.5, 0.37)
+## The needle tree's two greens: every frond's colour lies between them (see _needle_tint), whole
+## patches of branches leaning to a fresher green and others to a dark blue-green, so one tree is
+## never one flat colour.
+const NEEDLE_LIGHT := Color(0.24, 0.53, 0.3)
+const NEEDLE_BLUE := Color(0.1, 0.36, 0.4)
+## How bright a needle tree's lowest and its top tier are (times its colour).
+const NEEDLE_FOOT_SHADE := 0.72
+const NEEDLE_TOP_SHADE := 1.0
+## The leader's short fronds point up into the light: a shade darker, or the tip glows.
+const NEEDLE_LEADER_SHADE := 0.8
+## How bright the needle tree's leaflet tips are in its picture (the fern's are white, 1.0).
+const NEEDLE_TIP_SHADE := 0.85
 const BARK := Color(0.32, 0.22, 0.15)
 ## The needle tree: ferns in a tier, and how many tiers.
 const TIER_FERNS := 4
@@ -217,7 +229,7 @@ static func frond_texture(needles: bool) -> ImageTexture:
 			for l in leaflets:
 				var b := _inside(p, l[0], l[1], l[2])
 				if b >= 0.0:
-					var shade := lerpf(SHADE_LEAF, 1.0, b)
+					var shade := lerpf(SHADE_LEAF, NEEDLE_TIP_SHADE if needles else 1.0, b)
 					img.set_pixel(px, py, Color(shade, shade, shade, 1.0))
 					break
 	img.generate_mipmaps()
@@ -273,11 +285,11 @@ static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGe
 			# Each fern of the tier turned a little further, so the fronds fill the circle evenly.
 			var spin := turn + TAU / FRONDS * float(k) / ferns
 			var xf := Transform3D(Basis(Vector3.UP, spin), Vector3(0, y + k * 0.06 * size, 0))
-			_rosette(st, rng, xf, FAR_FRONDS if far else FRONDS, size, rise, droop, colour * lerpf(0.72, 1.05, t), 0.1 * size, true, far)
+			_rosette(st, rng, xf, FAR_FRONDS if far else FRONDS, size, rise, droop, colour * lerpf(NEEDLE_FOOT_SHADE, NEEDLE_TOP_SHADE, t), 0.1 * size, true, far)
 	# The leader: a thin shoot above the last tier with a few short fronds spreading round it.
 	for k in (2 if far else 4):
 		var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(0, last + 0.12 + k * 0.14, 0))
-		_rosette(st, rng, xf, 6, 0.42 - k * 0.08, 0.7, 0.2 - k * 0.15, colour * 1.05, 0.0, true, far)
+		_rosette(st, rng, xf, 6, 0.42 - k * 0.08, 0.7, 0.2 - k * 0.15, colour * NEEDLE_LEADER_SHADE, 0.0, true, far)
 
 
 ## Adds a rosette of `count` fronds `size` long round `xf`'s origin to `st`. `rise` lifts the
@@ -302,6 +314,8 @@ static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch
 	var side := Vector3(-sin(a), 0, cos(a))
 	var steps := FAR_SEGMENTS if far else LIGHT_SEGMENTS if light else SEGMENTS
 	var half := length * (FAR_WIDTH if far else 0.32)
+	if light:
+		colour = _needle_tint(colour, xf * (out * (hub + length * 0.5)))
 	var points := []
 	var p := out * hub
 	points.append(p)
@@ -326,6 +340,24 @@ static func _frond(st: SurfaceTool, xf: Transform3D, a: float, lift: float, arch
 		else:
 			_card(st, xf, colour, [a0 - side * half, Vector2(0, v0)], [mid0, Vector2(0.5, v0)], [mid1, Vector2(0.5, v1)], [a1 - side * half, Vector2(0, v1)])
 			_card(st, xf, colour, [mid0, Vector2(0.5, v0)], [a0 + side * half, Vector2(1, v0)], [a1 + side * half, Vector2(1, v1)], [mid1, Vector2(0.5, v1)])
+
+
+## A needle tree's frond `colour` (the tier's green) tinted for where the frond reaches, `at`: whole
+## patches of branches lean towards NEEDLE_BLUE, others towards NEEDLE_LIGHT, and each frond differs a little
+## from its neighbours in hue and brightness. The same frond always gets the same tint.
+static func _needle_tint(colour: Color, at: Vector3) -> Color:
+	var round_trunk := atan2(at.z, at.x)
+	# Patches: slow waves round the trunk and up it, a few to a tree.
+	var patch := 0.5 + 0.3 * sin(round_trunk * 2.0 + at.y * 0.9) + 0.2 * sin(round_trunk * 3.0 - at.y * 1.7 + 1.3)
+	# And each frond on its own.
+	var h := hash(Vector3i(roundi(at.x * 20.0), roundi(at.y * 20.0), roundi(at.z * 20.0)))
+	var own := float(h & 0xffff) / 65535.0
+	var own2 := float((h >> 16) & 0xffff) / 65535.0
+	var blue := clampf(0.45 + (patch - 0.5) * 1.6 + (own - 0.5) * 0.6, 0.0, 1.0)
+	var shade := colour.v / NEEDLE_GREEN.v
+	var tint := NEEDLE_LIGHT.lerp(NEEDLE_BLUE, blue) * shade * lerpf(0.92, 1.1, own2)
+	tint.a = colour.a
+	return tint
 
 
 ## A quad of a frond's card, its corners [position, uv] in order round it.

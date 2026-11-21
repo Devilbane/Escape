@@ -1,8 +1,8 @@
 extends SceneTree
 ## Screenshots of the grass, flowers and mossy stones at the foot of the village's buildings
 ## (WallFoot), for each look and season: close views of the stretches of wall foot where most grows
-## (picked once, from the first look, so every look is seen at the same places) and the game's own
-## view over the first of them.
+## (picked once, from the first look, so every look is seen at the same places), the dragon's lair
+## (its entrance wears the wild look) and the game's own view over the first of them.
 ## Run with: SHOTS=<folder> [LOOKS=sparse,mossy] [SEASONS=summer,winter] godot -s tests/wall_foot_shots.gd
 ## (needs a display); without SHOTS it only builds the village and checks there is a fringe.
 
@@ -123,6 +123,9 @@ func _run() -> void:
 			continue
 		if places.is_empty():
 			_pick_places(lvl)
+			# And the dragon's lair out in the country, in the wild look.
+			if lvl.doors.has("E"):
+				places.append([(lvl.doors["E"] as Vector3) - Vector3(2.5, 0, 2.0), Vector3.BACK])
 		for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):
 			layer.visible = false
 		for season: String in _list("SEASONS", SEASONS.keys()):

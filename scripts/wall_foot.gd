@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## Along the bottom edge of every outer wall that stands on the ground (AgedStone.walls), now and
 ## then a small clump grows: a few tufts of grass, sometimes a flower or two, sometimes a stone
-## with moss on its top. LOOKS says how often and what mix (one look is used, LOOK). Never in front
+## with moss on its top. LOOKS says how often and what mix: LOOK in the village, WILD (denser and
+## taller) out in the country (see look_for). Never in front
 ## of a door, never on the temple glass's light, and only the stones on paving or a path's stones
 ## (the caller's `open` test decides where the ground is free).
 ##
@@ -28,12 +29,17 @@ const LOOKS := {
 			"stone": 0.1, "stones": Vector2i(1, 1), "reach": 0.6, "size": 1.05, "stone_size": 1.0},
 	"mossy": {"step": 0.9, "chance": 0.6, "grass": Vector2i(1, 2), "flower": 0.1, "flowers": Vector2i(1, 2),
 			"stone": 0.9, "stones": Vector2i(2, 4), "reach": 0.55, "size": 0.95, "stone_size": 1.3},
+	"village": {"step": 0.85, "chance": 0.6, "grass": Vector2i(1, 3), "flower": 0.5, "flowers": Vector2i(1, 4),
+			"stone": 0.55, "stones": Vector2i(1, 3), "reach": 0.55, "size": 1.0, "stone_size": 1.2},
 	"overgrown": {"step": 0.5, "chance": 0.85, "grass": Vector2i(3, 6), "flower": 0.5, "flowers": Vector2i(1, 3),
 			"stone": 0.35, "stones": Vector2i(1, 2), "reach": 0.7, "size": 1.25, "stone_size": 1.1},
 }
-## The look the village uses.
-const LOOK := "mossy"
+## The look of the village's buildings (mossy stones and meadow flowers, mixed), and the wilder one
+## of the buildings out in the country (the crypt, the graveyard's wall, the dragon's lair).
+const LOOK := "village"
+const WILD := "overgrown"
 static var look := LOOK
+static var wild := WILD
 ## Only walls whose foot is this close to the ground (metres) grow a fringe.
 const FOOT := 0.15
 ## Room left clear in front of a door (metres from the spot before it).
@@ -64,6 +70,11 @@ const MOSS := Color(0.3, 0.44, 0.16)
 const KINDS := ["grass", "flower", "stone"]
 
 static var _meshes := {}
+
+
+## The look for a building in the village or, `in_village` false, out in the country.
+static func look_for(in_village: bool) -> String:
+	return look if in_village else wild
 
 
 ## Grows the fringe of one building (its triangles `tris`, see AgedStone.triangles, standing on

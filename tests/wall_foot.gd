@@ -141,7 +141,7 @@ func _village() -> void:
 			for xf: Transform3D in child.get_meta("grown")[0]:
 				counts[kind] = int(counts.get(kind, 0)) + 1
 				var p := xf.origin
-				if kind != "stone":
+				if kind != "stone" and not lvl._in_forecourt(p):
 					check(not lvl._paved_at(p), "no %s on paving at %s" % [kind, p])
 				check(lvl._fringe_ground(p, true), "the %s at %s grows on open ground, outside every building" % [kind, p])
 				for e: Dictionary in lvl._entrances:
@@ -150,8 +150,16 @@ func _village() -> void:
 		for kind: String in WallFoot.KINDS:
 			check(int(counts.get(kind, 0)) > 20, "the village grows %s at its walls' feet (%d)" % [kind, int(counts.get(kind, 0))])
 			check(int(counts.get(kind, 0)) <= WallFoot.CAP, "at most %d of %s" % [WallFoot.CAP, kind])
+		# Out in the country, the dragon's lair wears the wild look at the foot of its arch.
+		if lvl.doors.has("E"):
+			var near := 0
+			for child in lvl.wall_foot.get_children():
+				for xf: Transform3D in child.get_meta("grown")[0]:
+					if xf.origin.distance_to(lvl.doors["E"]) < 8.0:
+						near += 1
+			check(near > 10, "the lair's entrance is overgrown at its foot (%d pieces)" % near)
 		# Cheap: a batch per kind and stretch of village, not one per building.
-		check(lvl.wall_foot.get_child_count() < 80, "the fringe is drawn in few batches (%d)" % lvl.wall_foot.get_child_count())
+		check(lvl.wall_foot.get_child_count() < 100, "the fringe is drawn in few batches (%d)" % lvl.wall_foot.get_child_count())
 		print("fringe: %s in %d batches" % [counts, lvl.wall_foot.get_child_count()])
 	game.delete_save(game.save_path())
 	if failures == 0:

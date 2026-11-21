@@ -674,7 +674,7 @@ func build() -> void:
 		add_child(ivy)
 		IvySeasons.apply(ivy, day)
 	# Grass, flowers and mossy stones at the foot of the buildings (see WallFoot).
-	WallFoot.keep_open(_fringe, _fringe_ground)
+	WallFoot.keep_open(_fringe, func(at: Vector3, stone: bool) -> bool: return _fringe_ground(at, stone or _in_forecourt(at)))
 	if not _fringe.is_empty():
 		wall_foot = WallFoot.node(_fringe)
 		add_child(wall_foot)
@@ -2315,8 +2315,11 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	add_child(hole)
 	for i in 2:
 		_age_ruin(_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3))
+	var lair_parts: Array = [arch]
 	for side in [-1.0, 1.0]:
-		_age_ruin(_put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9))
+		var column := _put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
+		_age_ruin(column)
+		lair_parts.append(column)
 		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
 	# The mountain the lair is dug into, rising behind the arch, and a few
 	# boulders fallen from it at its foot either side.
@@ -2347,6 +2350,8 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	gate_snow(gate_parts, "lair")
 	arch.set_meta("block", block)
 	doors["E"] = front + Vector3(0, 0, 2.0)
+	# Overgrown at the foot of its arch and columns, but not in the way down.
+	_wild_fringe(lair_parts, front + Vector3(0, 0, -1.0), [front, doors["E"]])
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
@@ -2881,7 +2886,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var foot_rng := RandomNumberGenerator.new()
 		foot_rng.seed = hash(key + "fuss")
 		var fringe := {}
-		WallFoot.grow(tris, middle + offset, ground, doors_at, foot_rng, fringe, func(at: Vector3, stone: bool) -> bool: return _fringe_ground(at - offset, stone))
+		WallFoot.grow(tris, middle + offset, ground, doors_at, foot_rng, fringe, func(at: Vector3, stone: bool) -> bool: return _fringe_ground(at - offset, stone), WallFoot.look_for(_in_village(world_to_cell(middle))))
 		for kind: String in fringe:
 			var xforms: Array = fringe[kind].xforms
 			for i in xforms.size():
@@ -2923,6 +2928,33 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 	nest.position = done.nest
 	add_child(nest)
 	nests.append(done.nest)
+
+
+## Whether `at` lies on the forecourt of an entrance out in the country (see _wild_fringe).
+func _in_forecourt(at: Vector3) -> bool:
+	var c := world_to_cell(at)
+	return _forecourts.any(func(f): return (f.block as Rect2i).grow(1).has_point(c))
+
+
+## Grass, flowers and stones at the foot of a few pieces out in the country (an entrance's arch and
+## columns, standing round `middle`), in the wild look (see WallFoot.look_for); `door_spots` stay clear.
+## Abandoned and overgrown, the grass comes up through its paving too.
+func _wild_fringe(parts: Array, middle: Vector3, door_spots: Array) -> void:
+	var offset := global_position
+	var tris: Array = []
+	for part: Node3D in parts:
+		tris.append_array(AgedStone.triangles(part, true))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s|%s|wild" % [level_name, middle])
+	var fringe := {}
+	WallFoot.grow(tris, middle + offset, offset.y, door_spots.map(func(d: Vector3): return d + offset), rng, fringe,
+			func(at: Vector3, _stone: bool) -> bool: return _fringe_ground(at - offset, true), WallFoot.look_for(false))
+	for kind: String in fringe:
+		if not _fringe.has(kind):
+			_fringe[kind] = {"xforms": [], "colours": []}
+		for i in fringe[kind].xforms.size():
+			_fringe[kind].xforms.append((fringe[kind].xforms[i] as Transform3D).translated(-offset))
+			_fringe[kind].colours.append(fringe[kind].colours[i])
 
 
 ## Whether grass, flowers or a stone may grow at the foot of a wall at `at` (see WallFoot): on open

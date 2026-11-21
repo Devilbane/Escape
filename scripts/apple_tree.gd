@@ -44,6 +44,8 @@ const LEARN := "Apfelbäume: Bei Raumausstatterin Ilse kaufst du einen Setzling 
 
 ## Leaves by season, blossom and apple colours, bark.
 const LEAF := {"spring": Color(0.4, 0.64, 0.24), "summer": Color(0.2, 0.44, 0.15)}
+## How many of the leaves are still green in autumn, among the turned ones.
+const AUTUMN_GREEN := 0.3
 const AUTUMN_LEAVES := [Color(0.7, 0.4, 0.12), Color(0.72, 0.56, 0.18), Color(0.54, 0.22, 0.1), Color(0.46, 0.44, 0.16), Color(0.62, 0.3, 0.1)]
 const BLOSSOM := [Color(0.98, 0.96, 0.94), Color(0.98, 0.84, 0.88), Color(0.96, 0.74, 0.8)]
 const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
@@ -192,6 +194,11 @@ const VILLAGE_SCALE := 1.0
 const ROUND_FOUNTAIN := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
 ## How far the trunk stands out of the cell's middle along each axis, away from the fountain (m).
 const TRUNK_OUT := 1.1
+## The gardens' apple trees (see plant_in_village): within this many tiles of a building, this many
+## tiles apart at least, and this far from any door (m).
+const GARDEN_REACH := 3
+const TREE_SPACING := 3
+const DOOR_CLEAR := 4.0
 
 
 ## Plants the apple trees round every fountain of `level` (an Outdoor) on paved square cells and
@@ -222,6 +229,51 @@ static func plant_round_fountains(level: Node3D) -> Array:
 				level.spots.market.erase(pos)
 				out.append({"node": node, "cell": c, "look": ""})
 	return out
+
+
+## More apple trees in the village, in the gardens: on grass in the village (Outdoor.near_village)
+## within GARDEN_REACH tiles of a building, with nothing but grass, buildings or the village wall
+## round the tile (no path, square, door or prop beside it, so no walker's way or doorway is
+## blocked), no door or bush close by, and at least TREE_SPACING tiles from the next tree.
+## Returned as [{node, cell, look, garden}] like plant_round_fountains (see dress).
+static func plant_in_village(level: Node3D) -> Array:
+	var out := []
+	var taken: Array[Vector2i] = []
+	for y in level.height:
+		for x in level.width:
+			var c := Vector2i(x, y)
+			if not _garden_cell(level, c) or taken.any(func(t: Vector2i): return maxi(absi(t.x - c.x), absi(t.y - c.y)) < TREE_SPACING):
+				continue
+			var pos: Vector3 = level.cell_to_world(c)
+			if level._entrances.any(func(e): return Vector2((e.door as Vector3).x - pos.x, (e.door as Vector3).z - pos.z).length() < DOOR_CLEAR) \
+					or level.shrubs.any(func(s: Vector3): return Vector2(s.x - pos.x, s.z - pos.z).length() < 1.5):
+				continue
+			taken.append(c)
+			var node := Node3D.new()
+			node.name = "VillageAppleTree"
+			node.position = pos
+			node.rotation.y = hash("village apple:%s" % c) % 628 / 100.0
+			node.scale = Vector3.ONE * VILLAGE_SCALE
+			level.add_child(node)
+			level._add_solid(node.position, Vector3(0.5, 2.5, 0.5))
+			out.append({"node": node, "cell": c, "look": "", "garden": true})
+	return out
+
+
+## Whether a tile is garden grass for a village apple tree (see plant_in_village).
+static func _garden_cell(level: Node3D, c: Vector2i) -> bool:
+	if level.cell_char(c) != "." or not level.near_village(c):
+		return false
+	var building := false
+	for dy in range(-GARDEN_REACH, GARDEN_REACH + 1):
+		for dx in range(-GARDEN_REACH, GARDEN_REACH + 1):
+			var ch: String = level.cell_char(c + Vector2i(dx, dy))
+			var beside := absi(dx) <= 1 and absi(dy) <= 1
+			if beside and not (ch == "." or ch == "_" or ch == "§"):
+				return false
+			if not beside and Outdoor.VILLAGE_BLOCKS.contains(ch):
+				building = true
+	return building
 
 
 ## Draws the village's trees again when their look changes on `day` (the season, the apples).
@@ -464,7 +516,11 @@ class _Parts:
 			var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
 			var depth := sqrt(rng.randf_range(0.06, 1.0))
 			var foot := at + d * scale * depth * 1.02
-			var tint: Color = colour if mix.is_empty() else (mix[rng.randi() % mix.size()] as Color).lerp(colour, 0.35)
+			# In autumn most leaves have turned, AUTUMN_GREEN of them are still green.
+			var tint := colour
+			if not mix.is_empty():
+				tint = AppleTree.LEAF.summer * rng.randf_range(0.8, 1.05) if rng.randf() < AppleTree.AUTUMN_GREEN \
+						else (mix[rng.randi() % mix.size()] as Color).lerp(colour, 0.35)
 			tint *= lerpf(0.6, 1.0, depth) * rng.randf_range(0.88, 1.1)
 			leaf(foot, d, scale.x * rng.randf_range(0.42, 0.58), rng.randf() * TAU, tint)
 		leaves_made += count

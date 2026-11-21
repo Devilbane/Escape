@@ -552,7 +552,7 @@ var day := 0
 ## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
 ## and the flowers in the gardens go by.
 var season_day := 0
-## The apple trees round the fountain (see AppleTree.plant_round_fountains).
+## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
@@ -682,6 +682,8 @@ func build() -> void:
 		IvySeasons.apply(ivy, day)
 	# Apple trees round the fountain, between the benches (before the birds take the square's spots).
 	square_trees = AppleTree.plant_round_fountains(self)
+	# And more in the gardens round the houses.
+	square_trees.append_array(AppleTree.plant_in_village(self))
 	AppleTree.dress(square_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []

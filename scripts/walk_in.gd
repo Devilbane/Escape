@@ -240,7 +240,9 @@ func open_temple(chapel: Node3D) -> void:
 			continue
 		if p.position.y >= NAVE_ROOF or p.name == "ChapelPenguin":
 			rec.up.append(p)
-		elif p.position.z >= NAVE_DOOR_Z - 0.5 and absf(p.position.x) < NAVE.end.x:
+		elif p.position.z >= NAVE_DOOR_Z - 0.5 and absf(p.rotation.y) < 0.1:
+			# The front wall: the kit's pieces start at their origin and run along +x, the side
+			# walls (turned a quarter) are left standing.
 			rec["front_pieces"] = rec.get("front_pieces", []) + [p]
 	# The door: door_01 hangs on its left post, the leaf a HouseDoor turns (outwards, into the porch).
 	var door_piece: Node3D = null
@@ -688,5 +690,16 @@ func _mind_fade(rec: Dictionary, delta: float) -> void:
 			meshes.append_array(WallFade._fadeable(p))
 		rec["fade_meshes"] = meshes
 	for m in rec.fade_meshes:
+		if not is_instance_valid(m.mesh):
+			continue
+		if m.get("relief", false):
+			(m.mesh as Node3D).visible = amount < 0.5
+		if m.stone:
+			(m.mesh as GeometryInstance3D).set_instance_shader_parameter("fade", amount)
 		for i in m.plain.size():
-			m.plain[i].albedo_color.a = m.alpha[i] * (1.0 - amount)
+			# Blended, not dithered: a see-through wall reads as glass, and the dither of
+			# WallFade's alpha hash did not show through the kit's bricks. Solid again once
+			# the hero is out, so the wall sorts like any other.
+			var mat: BaseMaterial3D = m.plain[i]
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA if amount > 0.0 else BaseMaterial3D.TRANSPARENCY_DISABLED
+			mat.albedo_color.a = m.alpha[i] * (1.0 - amount)

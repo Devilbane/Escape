@@ -213,6 +213,12 @@ func _run() -> void:
 	check(t_rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible), "its roof and spire are hidden")
 	await _wait(30)
 	check(float(t_rec.fade) > 0.5, "its front wall fades")
+	var see_through: Array = t_rec.get("fade_meshes", []).filter(func(m): return m.stone or not m.plain.is_empty())
+	check(see_through.size() > 0 and see_through.all(func(m): return not m.stone or float((m.mesh as GeometryInstance3D).get_instance_shader_parameter("fade")) > 0.5), "its front wall's stones are see-through (%d)" % see_through.size())
+	var front_plain: Array = []
+	for m in see_through:
+		front_plain.append_array(m.plain)
+	check(front_plain.all(func(mat): return mat.albedo_color.a < 0.5), "and its plain parts too")
 	await _walk(-t_in, 5.0)
 	check(walk_in.hero_in.is_empty(), "and out again (%s)" % hero.global_position)
 	_place(t_way[0] + Vector3(0, 0.2, 6.0))

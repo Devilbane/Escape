@@ -3215,9 +3215,6 @@ func _show_weather() -> void:
 	elif winter_fog:
 		even = float(seen.mist) * WINTER_EVEN
 	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
-	if _clouds.visible and camera != null:
-		var view := get_viewport().get_visible_rect().size
-		_clouds.set_hero(camera.unproject_position(player.global_position + Vector3(0, 0.9, 0)) / view)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3

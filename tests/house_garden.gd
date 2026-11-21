@@ -114,8 +114,14 @@ func _set_up() -> void:
 	furnisher.storey = 1
 	furnisher.enter()
 	var bar_size: Vector2 = furnisher._bar.get_combined_minimum_size()
-	furnisher.select("gartenfackel")
+	furnisher.select("blumenbeet")
 	check(furnisher.storey == 0, "a garden piece switches the tool to the ground floor")
+	furnisher.storey = 1
+	furnisher.select("gartenfackel")
+	check(furnisher.storey == 1, "a roof light keeps the upper level, where flat roofs are")
+	furnisher.storey = -1
+	furnisher.select("gartenfackel")
+	check(furnisher.storey == 0, "a roof light leaves the cellar for the ground floor")
 	# Put them down along the west and north edge of the plot.
 	var spots := [Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2), Vector2i(1, 0), Vector2i(2, 0)]
 	var kinds := ["gartenfackel", "blumenbeet", "gartenlaterne", "grill", "blumenkuebel"]
@@ -125,6 +131,7 @@ func _set_up() -> void:
 		check(HouseFurniture.of(game.hero_name).count(kinds[i]) == 0, "%s stands in the garden at %s" % [kinds[i], spots[i]])
 	check(furnisher._bar.get_combined_minimum_size() == bar_size, "the bar keeps its size as garden pieces go down")
 	furnisher.leave()
+	_roof_lights(plan, level, furnisher)
 	# Lights: the torch, the lamp and the grill's coals light the garden and show the hero at night.
 	check(level.house_lights.size() >= 3, "three garden lights (%d)" % level.house_lights.size())
 	level.night = true
@@ -166,6 +173,67 @@ func _set_up() -> void:
 	var after := HouseFurniture.of(game.hero_name)
 	check(after.count("blumenbeet") == 1 and after.standing("blumenbeet") == 0, "a roof over the flower bed sends it back")
 	check(after.standing("gartenfackel") == 1, "the torch beside it still stands")
+
+
+## Garden torches and lamps also stand on a flat roof, under the open sky: on the slab over the
+## ground floor (the house's roof here) and on one over the upper floor; never on a pitched roof,
+## under a roof, by a ladder or on a ballista; other garden pieces and furniture stay off it.
+func _roof_lights(plan: HouseSketch, level: Outdoor, furnisher: HouseFurnisher) -> void:
+	var top := HouseFurniture.ROOF_STOREY
+	check(HouseFurniture.roof_problem(plan, 1, Vector2i(1, 1)) == "", "the house's flat roof holds a roof light")
+	check(HouseFurniture.roof_problem(plan, 1, Vector2i(0, 0)) == "no flat roof", "no roof light in the air")
+	check(HouseFurniture.reason("no flat roof") != HouseFurniture.reason(""), "a missing flat roof has its own reason")
+	# A room up there (a slab over (2, 1)) is indoors; a pitched roof over (2, 2) holds nothing.
+	plan.pieces[HouseSketch.key_of(2, 1, HouseSketch.CELL_ORIENT, 1)] = {"kind": HouseSketch.SLAB, "state": HouseSketch.BUILT}
+	plan.pieces[HouseSketch.key_of(2, 2, "rx", 1)] = {"kind": HouseSketch.SADDLE, "state": HouseSketch.BUILT}
+	check(HouseFurniture.roof_problem(plan, 1, Vector2i(2, 1)) == "roof", "under the upper floor's roof is indoors")
+	check(HouseFurniture.roof_problem(plan, top, Vector2i(2, 1)) == "", "the flat roof over the upper floor holds a roof light")
+	check(HouseFurniture.roof_problem(plan, top, Vector2i(2, 2)) == "no flat roof", "nothing stands on a pitched roof")
+	check(HouseFurniture.roof_problem(plan, top, Vector2i(1, 1)) == "no flat roof", "no roof light over an open roof terrace")
+	# A ladder up to the top roof keeps its foot and its top free, and so does a ballista its cell.
+	plan.pieces[HouseSketch.key_of(1, 1, HouseSketch.LADDER_ORIENTS["e"], 1)] = {"kind": HouseSketch.LADDER, "state": HouseSketch.BUILT}
+	check(HouseFurniture.roof_problem(plan, 1, Vector2i(1, 1)) == "stairs", "a ladder's foot stays free")
+	check(HouseFurniture.roof_problem(plan, top, Vector2i(2, 1)) == "stairs", "a ladder's top stays free")
+	plan.pieces.erase(HouseSketch.key_of(1, 1, HouseSketch.LADDER_ORIENTS["e"], 1))
+	plan.pieces[HouseSketch.key_of(1, 2, HouseSketch.BALLISTA_ORIENT, 1)] = {"kind": HouseSketch.BALLISTA, "state": HouseSketch.BUILT}
+	check(HouseFurniture.roof_problem(plan, 1, Vector2i(1, 2)) == "taken", "a ballista's cell is taken")
+	plan.pieces.erase(HouseSketch.key_of(1, 2, HouseSketch.BALLISTA_ORIENT, 1))
+	var store := HouseFurniture.of(game.hero_name)
+	check(store.problem(plan, "blumenbeet", 1, 1, 1, 0) == "garden", "flowers stay off the roof")
+	check(store.problem(plan, "leuchter", 1, 1, 1, 0) == "no roof", "a candle stand stays indoors")
+	check(store.problem(plan, "bett", top, 2, 1, 0) != "", "no bed on the top roof")
+	# The level button reaches the top roof once a slab is built over the upper floor.
+	check(HouseFurnisher.next_level(1, plan) == top and HouseFurnisher.next_level(top, plan) == -1, "the level button reaches the roof")
+	plan.pieces.erase(HouseSketch.key_of(2, 1, HouseSketch.CELL_ORIENT, 1))
+	check(HouseFurnisher.next_level(1, plan) == -1, "no roof level without a slab over the upper floor")
+	plan.pieces[HouseSketch.key_of(2, 1, HouseSketch.CELL_ORIENT, 1)] = {"kind": HouseSketch.SLAB, "state": HouseSketch.BUILT}
+	# Put a lamp on the house's roof and a torch on the top roof with the tool.
+	var bought := HouseFurniture.of(game.hero_name)
+	bought.add("gartenlaterne")
+	bought.add("gartenfackel")
+	bought.save(game.hero_name)
+	furnisher.enter()
+	furnisher.storey = 1
+	furnisher.select("gartenlaterne")
+	furnisher.click(HouseFurniture.centre(plan, "gartenlaterne", 1, 1, 1, 0))
+	furnisher.storey = top
+	furnisher.select("gartenfackel")
+	check(furnisher.storey == top, "a roof light keeps the roof level")
+	furnisher.click(HouseFurniture.centre(plan, "gartenfackel", top, 2, 1, 0))
+	furnisher.leave()
+	var after := HouseFurniture.of(game.hero_name)
+	check(after.placed.any(func(p): return p.kind == "gartenlaterne" and p.storey == 1 and p.x == 1 and p.y == 1), "the lamp stands on the house's roof")
+	check(after.placed.any(func(p): return p.kind == "gartenfackel" and p.storey == top and p.x == 2 and p.y == 1), "the torch stands on the top roof")
+	game.house_sketcher.refresh()
+	level.night = true
+	check(level.is_lit(HouseFurniture.centre(plan, "gartenlaterne", 1, 1, 1, 0) + Vector3(1.0, 0, 0)), "at night the roof lamp lights the roof")
+	level.night = false
+	# Taking the top roof down sends its torch back into the store; the lamp below stays.
+	plan.pieces.erase(HouseSketch.key_of(2, 1, HouseSketch.CELL_ORIENT, 1))
+	plan.pieces.erase(HouseSketch.key_of(2, 2, "rx", 1))
+	game.house_sketcher.refresh()
+	var settled := HouseFurniture.of(game.hero_name)
+	check(settled.count("gartenfackel") == 1 and settled.placed.any(func(p): return p.kind == "gartenlaterne" and p.storey == 1), "a roof taken down sends its light back")
 
 
 func _after_grill() -> void:

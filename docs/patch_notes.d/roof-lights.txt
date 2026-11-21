@@ -1,0 +1,1 @@
+- Garden torches and lamps now also stand on a flat roof: on the roof over the ground floor, or up a ladder on the roof over the upper floor.

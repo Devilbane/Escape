@@ -31,6 +31,8 @@ const SECOND_ROW := [WeaponRack.KIND, "leuchter", "fackel", "bild_berge", "bild_
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 2.4
 const LIGHT_RANGE := 9.0
+## How far over the ground a light on a flat roof stops reaching (see roof_reach).
+const ROOF_CLEARANCE := 0.4
 ## How far the back of the mounted torch's plate lies behind its origin.
 const TORCH_BACK := 0.025
 ## A painting's frame (across, high) and how high its middle hangs (metres).
@@ -345,11 +347,21 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 				var lights := []
 				solids.append_array(GardenDecor.build(root, kind, maxi(_garden_stage, 0), level, lights))
 				for l in lights:
-					_add_light(l[0], Vector3.ZERO, l[1], l[2], l[3])
+					_add_light(l[0], Vector3.ZERO, l[1], roof_reach(l[2], piece.get("storey", 0), l[0].position.y), l[3])
 			elif info.has("goddess"):
 				solids.append_array(HouseholdGods.build_shrine(root, info.goddess))
 	root.set_meta("solids", solids)
 	return station
+
+
+## How far a garden light reaches, standing on a storey with its light `high` over the floor. On
+## a flat roof it ends ROOF_CLEARANCE over the ground: its light stays a pool on the roof, and the
+## house under it casts no second, lamp-made shadow round its foot next to the sun's (the house's
+## walls shade a point light, see LightShadows).
+static func roof_reach(reach: float, storey: int, high: float) -> float:
+	if storey <= 0:
+		return reach
+	return minf(reach, HouseFurniture.FLOORS[storey] + high - ROOF_CLEARANCE)
 
 
 ## A warm light like a wall torch's, a little softer, that flickers. Its place counts as lit at

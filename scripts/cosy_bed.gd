@@ -13,6 +13,9 @@ extends RefCounted
 
 ## The node name of the bed.
 const NODE := "CosyBed"
+## The wool's knit, as colour and as bumps (see wool).
+static var _knit: NoiseTexture2D
+static var _knit_bumps: NoiseTexture2D
 ## The cot's footprint from its origin (metres): the bed from LEFT to RIGHT across, from HEAD (by
 ## the wall) to FOOT along, and the bedside table out to TABLE_EDGE beside its head.
 const LEFT := -0.75
@@ -128,7 +131,8 @@ static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_
 			var colour: Color = PATCHES[(r * 3 + c * 2 + r * c) % PATCHES.size()]
 			var px := cx - (inner + 0.06) * 0.5 + pw * (c + 0.5)
 			var pz := quilt_head + pl * (r + 0.5)
-			Bookshelf._cube(st, Vector3(px, MATTRESS_TOP + 0.04, pz), Vector3(pw - 0.012, 0.05, pl - 0.012), colour)
+			Bookshelf._cube(st, Vector3(px, MATTRESS_TOP + 0.03, pz), Vector3(pw - 0.012, 0.04, pl - 0.012), colour)
+			_puff(st, Vector3(px, MATTRESS_TOP + 0.05, pz), Vector2(pw - 0.012, pl - 0.012), 0.05, colour)
 		# The quilt's sides hang over the mattress's edge, patch by patch.
 		for sx: float in [-1.0, 1.0]:
 			var colour: Color = PATCHES[(r * 5 + (3 if sx > 0 else 0)) % PATCHES.size()]
@@ -136,31 +140,32 @@ static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_
 					Vector3(0.04, 0.26, pl - 0.012), colour.darkened(0.12))
 	# The seams between the patches show as a darker cloth below them.
 	Bookshelf._cube(st, Vector3(cx, MATTRESS_TOP + 0.03, quilt_head + quilt_len * 0.5), Vector3(inner + 0.05, 0.05, quilt_len - 0.01), Color(0.3, 0.16, 0.1))
-	# The sheet folded back over the quilt's top edge.
-	Bookshelf._cube(st, Vector3(cx, MATTRESS_TOP + 0.075, quilt_head + 0.1), Vector3(inner + 0.08, 0.05, 0.22), LINEN)
-	var cloth := StandardMaterial3D.new()
+	# The sheet folded back over the quilt's top edge, a soft roll.
+	Bookshelf._cube(st, Vector3(cx, MATTRESS_TOP + 0.07, quilt_head + 0.1), Vector3(inner + 0.08, 0.04, 0.22), LINEN)
+	_puff(st, Vector3(cx, MATTRESS_TOP + 0.09, quilt_head + 0.1), Vector2(inner + 0.08, 0.22), 0.04, LINEN)
+	var cloth := wool(Color(0.9, 0.9, 0.9), 0.3)
 	cloth.vertex_color_use_as_albedo = true
-	cloth.roughness = 0.95
 	var bedding := MeshInstance3D.new()
 	bedding.name = "Bedding"
 	bedding.mesh = st.commit()
 	bedding.material_override = cloth
 	root.add_child(bedding)
 	# Two plump pillows round the spot a click uses, a little cushion in front of them.
-	var linen := HomeStoreFurniture._mat(LINEN, 0.95)
+	var linen := wool(LINEN.darkened(0.12), 0.4)
 	var pillow := Level.PILLOW
+	var plump := _soft(0.5, 16, 8)
 	for sx: float in [-1.0, 1.0]:
-		var p := HomeStoreFurniture._add(root, _soft(0.5), linen, Vector3(cx + sx * inner * 0.24, pillow.y - 0.04, pillow.z - 0.04 + sx * 0.03))
-		p.scale = Vector3(0.56, 0.36, 0.5)
+		var p := HomeStoreFurniture._add(root, plump, linen, Vector3(cx + sx * inner * 0.24, pillow.y - 0.02, pillow.z - 0.04 + sx * 0.03))
+		p.scale = Vector3(0.58, 0.42, 0.5)
 		p.rotation = Vector3(-0.35, sx * 0.08, sx * 0.05)
-	var cushion := HomeStoreFurniture._add(root, _soft(0.5), HomeStoreFurniture._mat(PATCHES[0], 0.95), Vector3(cx + 0.18, pillow.y - 0.02, pillow.z + 0.36))
-	cushion.scale = Vector3(0.42, 0.18, 0.34)
+	var cushion := HomeStoreFurniture._add(root, plump, wool(PATCHES[0], 0.6), Vector3(cx + 0.18, pillow.y + 0.01, pillow.z + 0.36))
+	cushion.scale = Vector3(0.42, 0.24, 0.34)
 	cushion.rotation = Vector3(-0.5, 0.35, 0.1)
 	# A fur throw over the foot of the bed, spilling over one side: soft overlapping folds of hide,
 	# darker underneath, lighter where the hair lies on top.
-	var fur := HomeStoreFurniture._mat(FUR, 1.0)
-	var tips := HomeStoreFurniture._mat(FUR_TIPS, 1.0)
-	var lump_mesh := _soft(0.5)
+	var fur := wool(FUR, 1.0)
+	var tips := wool(FUR_TIPS, 1.0)
+	var lump_mesh := _soft(0.5, 14, 7)
 	var throw_z := foot_z - 0.5
 	var top := MATTRESS_TOP + 0.06
 	var throw := Node3D.new()
@@ -171,20 +176,89 @@ static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_
 		var x := cx - inner * 0.42 + inner * 0.9 * k / (folds - 1.0)
 		var fold := HomeStoreFurniture._add(throw, lump_mesh, fur if k % 2 == 0 else tips,
 				Vector3(x, top + 0.01 * (k % 2), throw_z + 0.05 * sin(k * 2.2)))
-		fold.scale = Vector3(0.5, 0.12, 0.62 + 0.06 * cos(k * 1.7))
+		fold.scale = Vector3(0.5, 0.17, 0.62 + 0.06 * cos(k * 1.7))
+	# Tufts of long hair along its edges.
+	var tuft := _soft(0.5, 8, 4)
+	for k in 12:
+		var x := cx - inner * 0.5 + inner * (k + 0.5) / 12.0
+		for sz: float in [-1.0, 1.0]:
+			var t := HomeStoreFurniture._add(throw, tuft, tips if (k + int(sz > 0.0)) % 2 == 0 else fur,
+					Vector3(x, top + 0.02, throw_z + sz * (0.31 + 0.025 * sin(k * 2.7))))
+			t.scale = Vector3(0.11, 0.08, 0.12)
 	for k in 2:
 		var hang := HomeStoreFurniture._add(throw, lump_mesh, fur, Vector3(cx + inner * 0.5 + 0.05, top - 0.17, throw_z - 0.14 + 0.3 * k))
 		hang.scale = Vector3(0.07, 0.4, 0.32)
 
 
 ## A soft rounded shape (a sphere to squash into a pillow or a fold of fur).
-static func _soft(radius: float) -> SphereMesh:
+static func _soft(radius: float, sides := 12, rings := 6) -> SphereMesh:
 	var mesh := SphereMesh.new()
 	mesh.radius = radius
 	mesh.height = radius * 2.0
-	mesh.radial_segments = 12
-	mesh.rings = 6
+	mesh.radial_segments = sides
+	mesh.rings = rings
 	return mesh
+
+
+## A puffed-up top of `size` (across, along) round `centre`: it bulges `puff` high in the middle
+## like a wadded quilt square, and is level with `centre` at its edges.
+static func _puff(st: SurfaceTool, centre: Vector3, size: Vector2, puff: float, colour: Color, steps := 4) -> void:
+	st.set_color(colour)
+	var at := func(i: int, j: int) -> Vector3:
+		var u := float(i) / steps
+		var v := float(j) / steps
+		return centre + Vector3((u - 0.5) * size.x, puff * sin(PI * u) * sin(PI * v), (v - 0.5) * size.y)
+	var normal := func(i: int, j: int) -> Vector3:
+		var u := float(i) / steps
+		var v := float(j) / steps
+		var du := puff * PI * cos(PI * u) * sin(PI * v) / size.x
+		var dv := puff * PI * sin(PI * u) * cos(PI * v) / size.y
+		return Vector3(-du, 1.0, -dv).normalized()
+	for i in steps:
+		for j in steps:
+			for k: Vector2i in [Vector2i(0, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(0, 0), Vector2i(1, 0), Vector2i(1, 1)]:
+				st.set_normal(normal.call(i + k.x, j + k.y))
+				st.add_vertex(at.call(i + k.x, j + k.y))
+
+
+## A soft wool cloth in `tint`: a fine knit of light and dark fibres over it, a bumpy surface and
+## a fuzzy sheen at the edges where the light grazes it. `fuzz` (0..1) is how long the hair is:
+## a little for linen and quilt, all of it for fur. The textures are made once and shared.
+static func wool(tint: Color, fuzz: float) -> StandardMaterial3D:
+	if _knit == null:
+		var noise := FastNoiseLite.new()
+		noise.noise_type = FastNoiseLite.TYPE_CELLULAR
+		noise.frequency = 0.08
+		noise.cellular_return_type = FastNoiseLite.RETURN_DISTANCE2_SUB
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(0.72, 0.72, 0.72))
+		ramp.set_color(1, Color(1, 1, 1))
+		_knit = NoiseTexture2D.new()
+		_knit.width = 128
+		_knit.height = 128
+		_knit.seamless = true
+		_knit.noise = noise
+		_knit.color_ramp = ramp
+		_knit_bumps = NoiseTexture2D.new()
+		_knit_bumps.width = 128
+		_knit_bumps.height = 128
+		_knit_bumps.seamless = true
+		_knit_bumps.as_normal_map = true
+		_knit_bumps.bump_strength = 6.0
+		_knit_bumps.noise = noise
+	var m := StandardMaterial3D.new()
+	m.albedo_color = tint
+	m.albedo_texture = _knit
+	m.normal_enabled = true
+	m.normal_texture = _knit_bumps
+	m.normal_scale = 0.5 + fuzz
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3.ONE * (4.0 - fuzz * 1.5)
+	m.roughness = 1.0
+	m.rim_enabled = true
+	m.rim = 0.1 + 0.3 * fuzz
+	m.rim_tint = 0.8
+	return m
 
 
 ## The bedside table beside the head: a top on four turned legs with a shelf, a candle in a brass

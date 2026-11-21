@@ -190,9 +190,10 @@ const CHAPEL_PARTS := [
 const CHAPEL_HALF := Vector2(12, 12)
 ## The wall lamps beside the door (kit metres, measured from doorway_01 and wall_01): the door
 ## opening is 4 wide around x = 0 and its jambs reach out to 2.5, so the lamps stand 3.5 either side of
-## the middle (x), at 5.5 high (y) on the front wall's face, flush with it (z = 11 + the wall's 1).
+## the middle (x), at 8.8 high (y, up from 5.5 by 60%, towards the top of the door frame) on the
+## front wall's face, flush with it (z = 11 + the wall's 1).
 const TEMPLE_LAMP_X := [-3.5, 3.5]
-const TEMPLE_LAMP_Y := 5.5
+const TEMPLE_LAMP_Y := 8.8
 const TEMPLE_LAMP_Z := 12.0
 const CHAPEL_EAVES := 16.0
 const CHAPEL_GABLE_HEIGHT := 13.0

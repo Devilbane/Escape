@@ -75,6 +75,12 @@ func _run() -> void:
 		check(at.y > 0.3 and at.y < 2.0, "at about head height (%.1f)" % at.y)
 	_settle(lvl, hero, 23.0, true)
 	check(gw.count() == 0, "none indoors")
+	lvl.hero_cellar = [Vector2i(1, 1)]
+	check(lvl.hero_under_cover(), "down in a house cellar the hero is under cover")
+	_settle(lvl, hero, 23.0, lvl.hero_under_cover())
+	check(gw.count() == 0, "none in a house cellar")
+	lvl.hero_cellar = []
+	check(not lvl.hero_under_cover() or lvl.hero_indoors, "out of the cellar the night is open again")
 	_settle(lvl, hero, 23.0)
 	if wild != Vector3.INF:
 		hero.global_position = wild

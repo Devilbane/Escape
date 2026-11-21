@@ -70,7 +70,8 @@ extends Level
 ##      wooden crates lie close by (see Crate).
 ##   @  the wandering merchant's pitch: an empty patch of grass, but on his
 ##      nights (see Wanderer) Zarek stands here from nightfall to dawn,
-##      with his covered cart on the tile north of him.
+##      with his living wagon on the tile north of him and the one west of
+##      that (see MerchantWagon).
 ##   ?  plain grass, where a chest lies buried; a treasure map from a
 ##      bottle marks it (see TreasureMaps)
 ##   >  a boulder at the forest's edge with a hidden cave beneath it; a
@@ -4301,6 +4302,7 @@ func _wanderer_arrives() -> void:
 	v.station = station
 	stations.append(station)
 	wanderer = v
+	_send_raven(v)
 
 
 func _wanderer_leaves() -> void:
@@ -4314,89 +4316,41 @@ func _wanderer_leaves() -> void:
 	for shape in _cart_shapes:
 		shape.queue_free()
 	_cart_shapes.clear()
-	var cart_cell := _wanderer_cell + CART_OFFSET
-	astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
+	for c: Vector2i in MerchantWagon.CELLS:
+		var cart_cell := _wanderer_cell + CART_OFFSET + c
+		astar.set_point_solid(cart_cell, not WALK.contains(cell_char(cart_cell)))
 
 
-## Zarek's covered cart: a wooden box on two big wheels under a hooped
-## canvas cover in his colours, its shaft resting on the ground, a lantern on
-## a pole, and a few crates and sacks unloaded beside it.
+## Zarek's home on wheels (see MerchantWagon), on the cart's cell and the one
+## in front of it, with a few crates and a sack unloaded beside it, a sparkle
+## of far-off magic over it, and his raven (see MerchantRaven).
 func _build_cart(cell: Vector2i) -> void:
 	var pos := cell_to_world(cell)
-	_cart = Node3D.new()
+	_cart = MerchantWagon.build(_rng)
 	_cart.position = pos
 	add_child(_cart)
-	var wood := StandardMaterial3D.new()
-	wood.albedo_color = Color(0.42, 0.28, 0.16)
-	wood.roughness = 0.9
-	var canvas := StandardMaterial3D.new()
-	canvas.albedo_color = Color(0.5, 0.3, 0.66)
-	canvas.roughness = 1.0
-	canvas.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var iron := StandardMaterial3D.new()
-	iron.albedo_color = Color(0.18, 0.18, 0.2)
-	iron.metallic = 0.6
-	iron.roughness = 0.5
-	var body := _cart_part(BoxMesh.new(), wood, Vector3(0, 1.15, 0))
-	(body.mesh as BoxMesh).size = Vector3(3.0, 0.7, 1.7)
-	# The canvas: half a cylinder lying along the cart.
-	var cover := _cart_part(CylinderMesh.new(), canvas, Vector3(0, 1.5, 0))
-	var tube: CylinderMesh = cover.mesh
-	tube.top_radius = 0.9
-	tube.bottom_radius = 0.9
-	tube.height = 2.9
-	tube.radial_segments = 20
-	# Lying along the cart: only its upper half shows above the box.
-	cover.rotation.z = PI * 0.5
-	for side in [-1.0, 1.0]:
-		var wheel := _cart_part(CylinderMesh.new(), wood, Vector3(0.4, 0.62, side * 0.95))
-		var disc: CylinderMesh = wheel.mesh
-		disc.top_radius = 0.62
-		disc.bottom_radius = 0.62
-		disc.height = 0.14
-		disc.radial_segments = 16
-		wheel.rotation.x = PI * 0.5
-		var rim := _cart_part(TorusMesh.new(), iron, Vector3(0.4, 0.62, side * 1.03))
-		var ring: TorusMesh = rim.mesh
-		ring.inner_radius = 0.56
-		ring.outer_radius = 0.66
-		rim.rotation.x = PI * 0.5
-	var shaft := _cart_part(BoxMesh.new(), wood, Vector3(-2.2, 0.6, 0))
-	(shaft.mesh as BoxMesh).size = Vector3(1.8, 0.12, 0.9)
-	shaft.rotation.z = -0.45
-	# A lantern on a pole at the front corner, with a warm, slightly violet glow.
-	var pole := _cart_part(BoxMesh.new(), wood, Vector3(-1.3, 1.6, 1.0))
-	(pole.mesh as BoxMesh).size = Vector3(0.1, 3.2, 0.1)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(1.0, 0.8, 0.55)
-	glass.emission_enabled = true
-	glass.emission = Color(1.0, 0.7, 0.45)
-	glass.emission_energy_multiplier = 4.0
-	var lamp := _cart_part(BoxMesh.new(), glass, Vector3(-1.3, 3.0, 1.0))
-	(lamp.mesh as BoxMesh).size = Vector3(0.3, 0.4, 0.3)
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.72, 0.62)
-	light.light_energy = 2.4
-	light.omni_range = 9.0
-	light.position = Vector3(-1.3, 2.9, 1.4)
-	_cart.add_child(light)
+	MerchantWagon.kindle(_cart)
 	var sparkle := Effects.make_sparkles(Color(0.8, 0.6, 1.0))
-	sparkle.position = Vector3(0, 2.6, 0)
+	sparkle.position = Vector3(-0.8, 3.0, 0)
 	_cart.add_child(sparkle)
 	for i in 2:
 		var prop: String = ["crate_A_big", "sack"][i]
-		_put(prop, Vector3(1.9, 0, -0.4 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
-	_cart_shapes.append(_add_box(_walls_body, pos + Vector3(0, 1.0, 0), Vector3(3.9, 2.0, 2.2)))
-	astar.set_point_solid(cell, true)
+		_put(prop, Vector3(2.4, 0, 0.2 + i * 0.9), _rng.randf() * TAU, PROP_SCALE, _cart)
+	for solid: Array in MerchantWagon.SOLIDS:
+		_cart_shapes.append(_add_box(_walls_body, pos + (solid[0] as Vector3), solid[1]))
+	for c: Vector2i in MerchantWagon.CELLS:
+		astar.set_point_solid(cell + c, true)
 
 
-func _cart_part(mesh: Mesh, mat: Material, at: Vector3) -> MeshInstance3D:
-	var part := MeshInstance3D.new()
-	part.mesh = mesh
-	part.material_override = mat
-	part.position = at
-	_cart.add_child(part)
-	return part
+## The merchant's raven, flying between his shoulder and its spots on the wagon.
+func _send_raven(merchant: Node3D) -> void:
+	var perches: Array[Vector3] = []
+	for p: Vector3 in _cart.get_meta("perches", []):
+		perches.append(_cart.global_transform * p)
+	var raven := MerchantRaven.new()
+	raven.name = "MerchantRaven"
+	_cart.add_child(raven)
+	raven.setup(self, merchant, perches, day)
 
 
 ## Nightfall: the dead get their spots on the paths beside the graves.

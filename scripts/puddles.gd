@@ -377,8 +377,8 @@ func _join_ok(level: Level, s: Dictionary, o: Dictionary) -> bool:
 	if radius > RADIUS.y:
 		return false
 	var at: Vector3 = s.at.lerp(o.at, area_o / (area_s + area_o))
-	# The middle of the puddle stands on open ground itself.
-	if not GROUND.contains(level.cell_char(level.world_to_cell(at))):
+	# The middle of the puddle stands on open ground itself, not beside a pond or the well.
+	if not GROUND.contains(level.cell_char(level.world_to_cell(at))) or _beside(level, level.world_to_cell(at), WET):
 		return false
 	if not _fits(level, at, radius * (REACH_LONG if long else REACH) * 0.7):
 		return false

@@ -14,6 +14,8 @@ extends RefCounted
 ## A third store is the bookshelf ("§", see Bookshelf) on the ground floor, for every book the
 ## hero carries (an item that teaches something, see Items.is_book). It counts them the same way
 ## and shows one book on its shelves for every book kept.
+## A fourth is the weapon rack (see WeaponRack), a piece of furniture for a self-built house, for
+## every weapon (an item for the "waffe" slot): it shows the finest ones kept in its slots.
 ## All three count what they hold, like the pouch: kind -> how many. Coins, bars
 ## and ingredients are counted on the hero too (game.coins, game.iron,
 ## game.bars, the pouch); the bag's items (thunder ore, food) leave the bag
@@ -30,7 +32,8 @@ const METAL := "metall"
 const PANTRY := "zutaten"
 ## The station kinds of the three (see Level and Menus).
 const BOOKS := "buecher"
-const STATIONS := {METAL: "metalltruhe", PANTRY: "zutatenbord", BOOKS: Bookshelf.KIND}
+const WEAPONS := "waffen"
+const STATIONS := {METAL: "metalltruhe", PANTRY: "zutatenbord", BOOKS: Bookshelf.KIND, WEAPONS: WeaponRack.KIND}
 ## The coins in the chest, by this id (no item or ingredient has it).
 const COINS := "muenzen"
 ## Ore and gems keep each piece as it is (its weight, make-up and gems, see
@@ -49,6 +52,9 @@ const LEARN := "In deinem Haus in der Weberzeile stehen neben der Lagertruhe zwe
 ## What the compendium says about the bookshelf, once the hero has opened it.
 const BOOKS_LEARN := "Im Erdgeschoss deines Hauses steht ein Bücherregal. Jedes Buch, das du nicht bei dir tragen willst, kannst du dort einstellen, und das Regal zeigt dir, wie viele Bücher darauf stehen. Es fasst beliebig viel."
 
+## What the compendium says about the weapon rack, once the hero has opened it.
+const WEAPONS_LEARN := "Im Waffenständer deines Hauses bewahrst du Waffen auf, die du nicht bei dir trägst. Die schönsten stehen gut sichtbar in seinen Halterungen, die seltensten zuerst, und ein Schild zeigt, wie viele es sind. Er fasst beliebig viel. Raumausstatterin Ilse am Dorfplatz verkauft ihn."
+
 
 ## The store a kind belongs in, or "" for neither.
 static func store_of(id: String) -> String:
@@ -62,6 +68,8 @@ static func store_of(id: String) -> String:
 			return ""
 		if Items.is_book(id):
 			return BOOKS
+		if item.slot == "waffe":
+			return WEAPONS
 		if item.slot == "erz":
 			return METAL
 		if item.slot == "futter":
@@ -111,7 +119,7 @@ static func stored(game: Node, id: String) -> int:
 	return int(game.home_stores.get(store_of(id), {}).get(id, 0))
 
 
-## How many things lie in a store altogether (the books on the shelf).
+## How many things lie in a store altogether (the books on the shelf, the weapons on the rack).
 static func total(stores: Dictionary, store: String) -> int:
 	var sum := 0
 	var box = stores.get(store, {})
@@ -225,7 +233,7 @@ static func _change_carried(game: Node, id: String, n: int) -> void:
 
 ## The empty stores of a new game.
 static func empty() -> Dictionary:
-	return {METAL: {}, PANTRY: {}, BOOKS: {}, PIECES: {}}
+	return {METAL: {}, PANTRY: {}, BOOKS: {}, WEAPONS: {}, PIECES: {}}
 
 
 ## What is kept in the saved game: only plain values.

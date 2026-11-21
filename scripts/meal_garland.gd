@@ -21,7 +21,8 @@ extends RefCounted
 ## Light: the globes glow by themselves (an emissive MultiMesh, no light each),
 ## and each throws its own soft light round it without costing a real light: a
 ## halo of warm light in the air and on the ivy round the globe (HALO), and a
-## small pool of light on the ground below it (POOL), all of them in two meshes
+## wide, soft pool of light on the ground below every other globe, leaning in
+## over the tables (POOL, POOL_IN), all of them in two meshes
 ## with one additive material each (see _add_glow, as WindowSpill does for the
 ## windows). A few soft lights (LIGHTS) hang along the ropes and light the
 ## ground and the people walking under them. They are
@@ -53,16 +54,22 @@ const GLASS := Color(0.86, 0.68, 0.38)
 const GLOW_COLOUR := Color(1.0, 0.72, 0.38)
 const GLOBE_GLOW := 3.2
 ## Each globe's own soft light: the halo round it (its size across, metres, and
-## strength) and the pool on the ground below it (its radius and strength).
-## Neighbouring pools overlap into a soft band of light along the rope.
+## strength) and the pool on the ground below it (its radius, strength, and how
+## far it leans in towards the tables, metres). One pool for every POOL_EVERY
+## globes: they are wide, so neighbours overlap into a broad, soft pool of light
+## along the rope (not a thin line), and fewer of them keep the overdraw low.
 const HALO := 1.1
 const HALO_STRENGTH := 0.55
-const POOL := 1.35
-const POOL_STRENGTH := 0.11
+const POOL := 3.2
+const POOL_STRENGTH := 0.1
+const POOL_IN := 1.0
+const POOL_EVERY := 2
 ## The soft lights along the ropes: how many round the frame, how bright, how far they reach.
 const LIGHTS := 6
-const LIGHT_ENERGY := 1.15
-const LIGHT_RANGE := 7.0
+const LIGHT_ENERGY := 1.3
+const LIGHT_RANGE := 8.5
+## How quickly the soft lights fade with distance (lower: a broader, flatter pool).
+const LIGHT_FADE := 0.9
 const LIGHT_COLOUR := Color(1.0, 0.76, 0.5)
 ## The ivy: leaves per metre up a pole (on its vines and between them), per metre
 ## along a rope, how many vines climb each pole, and how often a tendril hangs
@@ -326,7 +333,8 @@ void fragment() {
 }
 """
 
-## A round pool of light lying on the ground, brightest under the globe.
+## A round pool of light lying on the ground: an even glow in the middle that
+## fades softly out to its rim, so overlapping pools blend without seams.
 const POOL_SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
@@ -335,8 +343,8 @@ uniform float glow = 0.0;
 uniform float strength = 0.1;
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
-	float d = clamp(1.0 - dot(p, p), 0.0, 1.0);
-	ALBEDO = colour * d * d * glow * strength;
+	float d = smoothstep(1.0, 0.0, length(p));
+	ALBEDO = colour * d * glow * strength;
 }
 """
 
@@ -352,14 +360,18 @@ func _add_glow(node: Node3D) -> void:
 	var halo_off := PackedVector2Array()
 	var pool_v := PackedVector3Array()
 	var pool_uv := PackedVector2Array()
-	for at in lamps:
+	for i in lamps.size():
+		var at := lamps[i]
+		var pool := i % POOL_EVERY == 0
+		var mid := Vector2(at.x, at.z) + _inward(at) * POOL_IN
 		for k: int in order:
 			var c: Vector2 = corners[k]
 			halo_v.append(at)
 			halo_uv.append((c + Vector2.ONE) * 0.5)
 			halo_off.append(c * HALO * 0.5)
-			pool_v.append(Vector3(at.x + c.x * POOL, 0.05, at.z + c.y * POOL))
-			pool_uv.append((c + Vector2.ONE) * 0.5)
+			if pool:
+				pool_v.append(Vector3(mid.x + c.x * POOL, 0.05, mid.y + c.y * POOL))
+				pool_uv.append((c + Vector2.ONE) * 0.5)
 	halo_mat = _glow_material(HALO_SHADER, HALO_STRENGTH)
 	pool_mat = _glow_material(POOL_SHADER, POOL_STRENGTH)
 	var halo := _glow_mesh(halo_v, halo_uv, halo_off, halo_mat, "Halos")
@@ -367,6 +379,19 @@ func _add_glow(node: Node3D) -> void:
 	halo.extra_cull_margin = HALO
 	node.add_child(halo)
 	node.add_child(_glow_mesh(pool_v, pool_uv, PackedVector2Array(), pool_mat, "Pools"))
+
+
+## The way in from the side of the frame nearest `at`, towards the tables (flat, unit length).
+func _inward(at: Vector3) -> Vector2:
+	var sides := {
+		Vector2.RIGHT: at.x - _min.x, Vector2.LEFT: _max.x - at.x,
+		Vector2.DOWN: at.z - _min.y, Vector2.UP: _max.y - at.z,
+	}
+	var best := Vector2.RIGHT
+	for dir: Vector2 in sides:
+		if sides[dir] < sides[best]:
+			best = dir
+	return best
 
 
 static func _glow_material(code: String, strength: float) -> ShaderMaterial:
@@ -419,7 +444,7 @@ func _add_lights(node: Node3D, tops: Array[Vector3]) -> void:
 		light.light_color = LIGHT_COLOUR
 		light.light_energy = 0.0
 		light.omni_range = LIGHT_RANGE
-		light.omni_attenuation = 1.3
+		light.omni_attenuation = LIGHT_FADE
 		light.position = at
 		light.visible = false
 		# Out in the open: no wall to stop it, so it never takes a shadow-casting slot.

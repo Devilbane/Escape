@@ -1389,8 +1389,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			# A little ivy up the basin's outside, a bit of it over the rim.
 			var ivy_rng := RandomNumberGenerator.new()
 			ivy_rng.seed = hash("%s|brunnen|%s" % [level_name, c])
-			AgedStone.grow_basin_ivy(pos, 1.55, 1.0, ivy_rng, _ivy, 3)
-			spots.well.append(pos + Vector3(0, 0, 2.6))
+			AgedStone.grow_basin_ivy(pos, VillageFountain.RIM_RADIUS - 0.12, VillageFountain.RIM_TOP, ivy_rng, _ivy, 3)
+			# Where the villagers fetch water: by the rim, between the bench in front and a tree.
+			spots.well.append(pos + Vector3(1, 0, 1).normalized() * (VillageFountain.STEP_RADIUS + 0.7))
 		"x":
 			_build_bench(c)
 		TownMeals.LETTER:
@@ -1637,6 +1638,11 @@ func _build_bench(c: Vector2i) -> void:
 			if cell_char(Vector2i(x, y)) == "F":
 				to = cell_to_world(Vector2i(x, y)) - pos
 	var rot := atan2(to.x, to.z) if to.length() > 0.1 else 0.0
+	if is_equal_approx(to.length(), TILE):
+		# Right beside the fountain: out to the far side of its tile, in line with the apple trees
+		# round it (AppleTree.TRUNK_OUT), so benches and trees stand in a square about the fountain
+		# with room to walk round its rim.
+		pos -= to.normalized() * AppleTree.TRUNK_OUT
 	_put("bench", pos, rot, Seats.BENCH_SCALE)
 	# Blocked where the bench is drawn: a long, narrow box turned with it, so
 	# the hero can walk right up to the seat (see Seats).

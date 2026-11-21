@@ -120,8 +120,22 @@ func _run() -> void:
 			blocked += 1
 	check(near_pip >= 5, "she spends time with Pip (%d of 240 checks)" % near_pip)
 	check(near_goats >= 10, "she is at the goats (%d)" % near_goats)
-	# She walks to the geese on 40% of her trips and which way she goes follows the dice, so a
-	# couple of checks near the geese is enough to show she does go there.
+	# She walks to the geese on 40% of her trips (the dice are checked above: both spots come up),
+	# but four minutes hold only three or four trips, so whether one of them went to the geese is
+	# luck. When none did, the roll for the geese is given to her, and she must get there.
+	if near_geese < 2:
+		# Pip sits this one out, or he pulls her into a game on the way.
+		for kid: Villager in [pip, pippi]:
+			if kid._kid != null and kid._kid.active:
+				kid._kid.stop()
+		pip._start("sit", 90.0)
+		pippi._walk_to(VillageFarm.herd_spot(lvl, "pippi", 0.0), Villager.WALK_SPEED * 1.4, "work")
+		for step in 60:
+			await _wait(60)
+			for a: FarmAnimal in geese:
+				if _flat(pippi.global_position, a.global_position) < 7.0:
+					near_geese += 1
+					break
 	check(near_geese >= 2, "she is at the geese (%d)" % near_geese)
 	check(blocked == 0, "she never stands in a doorway or a gate (%d)" % blocked)
 

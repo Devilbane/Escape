@@ -1,9 +1,9 @@
 class_name HomeStoreFurniture
 extends RefCounted
 ## The furniture of the two special stores of a home (see HomeStores), built
-## from the dungeon kit's chest and simple shapes when the home is built:
-##   m  the steel-banded chest: the plain chest under broad bands of dark
-##      steel, studded with rivets, with a heavy lock plate on its front.
+## from simple shapes when the home is built:
+##   m  the steel-banded chest: the dark reinforced chest of FittedChest,
+##      framed in angle steel, studded, with a padlock on its front.
 ##   h  the ingredient board: an oak board on the wall with three shelves,
 ##      phials and flasks of coloured brews, jars with lids, bundles of herbs
 ##      hanging from a rail at the top and a bucket of water on the floor.
@@ -11,14 +11,7 @@ extends RefCounted
 ## Level._back_to_wall), is solid where it stands and is a station the hero
 ## runs into to open its window.
 
-const STEEL := Color(0.52, 0.54, 0.58)
-const RIVET := Color(0.55, 0.57, 0.6)
 const OAK := Color(0.5, 0.35, 0.24)
-## How thick the bands are, and how far they stand off the wood.
-const BAND := 0.14
-const BAND_OFF := 0.035
-## The share of the chest's height that is its body, below the lid.
-const BODY := 0.58
 ## The brews in the phials and flasks (alpha: how clear the glass is).
 const BREWS := [Color(0.3, 0.8, 0.4, 0.75), Color(0.75, 0.15, 0.2, 0.8), Color(0.35, 0.5, 0.95, 0.75),
 		Color(0.9, 0.6, 0.15, 0.75), Color(0.7, 0.3, 0.85, 0.75)]
@@ -30,7 +23,7 @@ const SHELF_DEPTH := 0.7
 const SHELVES := [0.95, 1.65, 2.35]
 
 
-## The steel-banded chest on tile `c`.
+## The steel-banded chest on tile `c`: the dark reinforced chest (see FittedChest).
 static func build_metal_chest(level: Level, c: Vector2i) -> Node3D:
 	var pos := level.cell_to_world(c)
 	var pivot := Node3D.new()
@@ -38,37 +31,7 @@ static func build_metal_chest(level: Level, c: Vector2i) -> Node3D:
 	pivot.position = pos
 	pivot.rotation.y = level._back_to_wall(c, level._facing_room(c))
 	level.add_child(pivot)
-	var chest := level._place("chest", Vector3.ZERO, 0.0, pivot)
-	# A touch darker and greyer than the plain chest, so the two differ at
-	# a glance even before the bands are seen.
-	_tint(chest, Color(0.62, 0.58, 0.56))
-	var box := Level.footprint(chest, pivot)
-	if box.size.x < 0.05:
-		box = AABB(Vector3(-0.9, 0, -0.6), Vector3(1.8, 1.3, 1.2))
-	var steel := _mat(STEEL, 0.4, 0.55)
-	var rivet := _mat(RIVET, 0.3, 0.9)
-	var mid := box.get_center()
-	var front := box.end.z + BAND_OFF
-	# The body below the rounded lid gets the steel: straps up its front
-	# and back, two rings round it, caps on its corners and rivets.
-	var body := box.size.y * BODY
-	var foot := box.position.y
-	for t: float in [0.18, 0.5, 0.82]:
-		var x := box.position.x + box.size.x * t
-		for sz: float in [-1.0, 1.0]:
-			_add(pivot, _box(Vector3(BAND, body, 0.04)), steel, Vector3(x, foot + body * 0.5, mid.z + sz * (box.size.z * 0.5 + 0.02)))
-		for y: float in [0.25, 0.6]:
-			_add(pivot, _sphere(0.035), rivet, Vector3(x, foot + body * y, front + 0.02))
-	for y: float in [0.1, body - BAND * 0.5]:
-		_add(pivot, _box(Vector3(box.size.x + BAND_OFF * 2.0, BAND, box.size.z + BAND_OFF * 2.0)), steel, Vector3(mid.x, foot + y, mid.z))
-	for sx: float in [-1.0, 1.0]:
-		for sz: float in [-1.0, 1.0]:
-			_add(pivot, _box(Vector3(0.1, body, 0.1)), steel,
-					Vector3(mid.x + sx * (box.size.x * 0.5 + 0.01), foot + body * 0.5, mid.z + sz * (box.size.z * 0.5 + 0.01)))
-	# The lock: a heavy plate with a dark keyhole, where lid meets body.
-	var lock_y := foot + body * 0.82
-	_add(pivot, _box(Vector3(0.34, 0.4, 0.06)), steel, Vector3(mid.x, lock_y, front + 0.04))
-	_add(pivot, _box(Vector3(0.07, 0.14, 0.02)), _mat(Color(0.04, 0.04, 0.05), 0.9), Vector3(mid.x, lock_y - 0.04, front + 0.08))
+	FittedChest.place(pivot, "dark", Vector3.ZERO)
 	level._add_fitted_solid(pivot, pos, 1.5)
 	level.stations.append({"kind": HomeStores.STATIONS[HomeStores.METAL], "cell": c, "pos": pos, "used": false})
 	return pivot
@@ -167,17 +130,6 @@ static func _oak() -> StandardMaterial3D:
 	oak.uv1_triplanar = true
 	oak.uv1_scale = Vector3.ONE * 0.5
 	return oak
-
-
-## Darkens every mesh of a placed piece by `tint` (on copies of its materials).
-static func _tint(node: Node3D, tint: Color) -> void:
-	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
-		for i in mi.get_surface_override_material_count():
-			var mat := mi.get_active_material(i)
-			if mat is BaseMaterial3D:
-				var copy: BaseMaterial3D = mat.duplicate()
-				copy.albedo_color = copy.albedo_color * tint
-				mi.set_surface_override_material(i, copy)
 
 
 static func _mat(color: Color, roughness := 0.7, metallic := 0.0) -> StandardMaterial3D:

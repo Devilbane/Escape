@@ -1,0 +1,1 @@
+- Chests are rebuilt with real metal fittings in three looks: iron-banded oak, dark reinforced steel for the rich loot behind puzzle gates and in secret rooms, and ornate brass for epic chests and the storage chest at home.

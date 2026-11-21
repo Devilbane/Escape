@@ -275,6 +275,8 @@ var _news := 0
 ## Night has fallen, and whether the villager is inside their house asleep
 ## (hidden, and nobody to talk to or trade with until morning).
 var night := false
+## Seconds until a child puts its pumpkin on or takes it off (see _mind_pumpkin); -1 before the first look.
+var _pumpkin_clock := -1.0
 var at_home := false
 ## The room this villager takes up (metres, see Footprint): half a body width.
 var radius := 0.5
@@ -468,6 +470,35 @@ const SPRING_LINES := [
 	"Die Pelze kommen zurück in die Truhe.",
 	"Hörst du das Tropfen? Der Winter ist vorbei.",
 ]
+
+
+## In autumn a child puts a pumpkin on its head now and then, keeps it on for a while and takes it
+## off again (see PumpkinHat); out of autumn, and at night, it stays off. `step`: seconds since the
+## last look.
+func _mind_pumpkin(step: float) -> void:
+	if not role in PumpkinHat.WEARERS or _model == null:
+		return
+	var on := PumpkinHat.worn(_model)
+	if not Weather.is_autumn(level.season_day) or night:
+		if on:
+			PumpkinHat.take_off(_model)
+			_head_top = -1.0
+		_pumpkin_clock = -1.0
+		return
+	if _pumpkin_clock < 0.0:
+		# The first autumn day (or morning): some time before the first pumpkin, now soon, now late.
+		_pumpkin_clock = _rng.randf_range(0.0, PumpkinHat.OFF_TIME.y)
+	_pumpkin_clock -= step
+	if _pumpkin_clock > 0.0:
+		return
+	if on:
+		PumpkinHat.take_off(_model)
+		_pumpkin_clock = _rng.randf_range(PumpkinHat.OFF_TIME.x, PumpkinHat.OFF_TIME.y)
+	else:
+		PumpkinHat.put_on(_model, visible)
+		_pumpkin_clock = _rng.randf_range(PumpkinHat.ON_TIME.x, PumpkinHat.ON_TIME.y)
+	# A bird perches on top of the pumpkin, or on the hair again (see _top_of_head).
+	_head_top = -1.0
 
 
 ## Puts the winter clothes on or takes them off, when the village's wardrobe (Outdoor.winter_wear)
@@ -1862,6 +1893,7 @@ func _physics_process(delta: float) -> void:
 	if _wear_check <= 0.0:
 		_wear_check = 1.0
 		update_wear()
+		_mind_pumpkin(1.0)
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
 	_leave_prints()

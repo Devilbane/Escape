@@ -31,7 +31,8 @@ const CRY := "AAAH!"
 static func pick_target(level: Outdoor, hero: Node3D):
 	var found: Array = []
 	for who in _bodies(level):
-		if _alive(who) and level._flat_distance(hero.global_position, who.global_position) < SEEK_RANGE:
+		if _alive(who) and level._flat_distance(hero.global_position, who.global_position) < SEEK_RANGE \
+				and level.open_sky(who.global_position):
 			found.append(who)
 	if found.is_empty():
 		return null
@@ -43,11 +44,13 @@ static func pick_target(level: Outdoor, hero: Node3D):
 ## Strikes everyone near `at`. Returns how many were struck (the hero too).
 static func hit(level: Outdoor, at: Vector3, hero: Node3D = null) -> int:
 	var n := 0
+	# Whoever stands in a house, under a roof or in a cellar is safe, however close the stroke.
 	for who in _bodies(level):
-		if _alive(who) and level._flat_distance(who.global_position, at) <= HIT_RADIUS:
+		if _alive(who) and level._flat_distance(who.global_position, at) <= HIT_RADIUS and level.open_sky(who.global_position):
 			_strike_one(level, who, at)
 			n += 1
-	if hero and not hero.dead and level._flat_distance(hero.global_position, at) <= HIT_RADIUS:
+	if hero and not hero.dead and level._flat_distance(hero.global_position, at) <= HIT_RADIUS \
+			and level.open_sky(hero.global_position) and not level.hero_under_cover():
 		_strike_one(level, hero, at)
 		n += 1
 	return n

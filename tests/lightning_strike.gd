@@ -90,6 +90,25 @@ func _process(_delta: float) -> bool:
 	LightningStrike.hit(lvl, hero.global_position, hero)
 	check(hero.hp == 1 and not hero.dead, "lightning never fells the hero")
 
+	# Never into a house, under a roof or into a cellar.
+	check(lvl.open_sky(hero.global_position), "the open ground is under the open sky")
+	var p: Vector3 = hero.global_position
+	var roofs: Dictionary = lvl.shelters
+	lvl.shelters = {HouseGround.cell_at(p): 4.0}
+	check(not lvl.open_sky(p), "under the roof of a built house is not")
+	lvl.shelters = roofs
+	lvl._cellar_holes = [Rect2(p.x - 3.0, p.z - 3.0, 6.0, 6.0)]
+	check(not lvl.open_sky(p), "a house cellar is not under the open sky")
+	hero.hp = hero.max_hp
+	hero._invulnerable = 0.0
+	check(LightningStrike.hit(lvl, p, hero) == 0 and hero.hp == hero.max_hp, "a stroke beside the cellar does not reach the hero in it")
+	for i in 40:
+		var at := lvl.strike()
+		check(at == Vector3.INF or lvl.open_sky(at), "every stroke lands under the open sky")
+	lvl._cellar_holes = [Rect2(-100000.0, -100000.0, 200000.0, 200000.0)]
+	check(lvl.strike() == Vector3.INF, "with nowhere open, the stroke stays in the clouds")
+	lvl._cellar_holes = []
+
 	hero.global_position += Vector3(0, 0, 100)
 	hero.hp = hero.max_hp
 	for i in 60:

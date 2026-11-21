@@ -118,7 +118,7 @@ const ROLES := {
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
 		"colors": [Color(0.95, 0.93, 0.85), Color(0.9, 0.88, 0.8), Color(0.95, 0.8, 0.4)], "plan": "work", "work": "Spellcast_Raise",
 		"lines": ["Die Götter haben dich aus der Tiefe geführt.", "Der Tempel steht allen offen, Tag und Nacht.", "Möge das Licht deinen Weg erhellen."]},
-	"G": {"name": "Gildenmeisterin Ragna", "model": "Barbarian", "show": ["Barbarian_Round_Shield", "1H_Axe", "Barbarian_Cape"],
+	"G": {"name": "Gildenmeisterin Ragna", "model": "Barbarian", "show": ["Barbarian_Round_Shield", "1H_Axe", "Barbarian_Cape"], "locks": "dread",
 		"colors": [Color(0.6, 0.25, 0.2), Color(0.3, 0.28, 0.26), Color(0.7, 0.2, 0.15)], "plan": "stay", "work": "Idle",
 		"lines": ["Die Gilde sucht Leute wie dich. Wer aus dem Verlies kommt, ist zäh.", "Bald gibt es Aufträge: Wölfe im Wald, Räuber am Pass.", "Zeig mir deine Narben, dann reden wir."]},
 	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "black"}, "cap": "post",
@@ -379,6 +379,8 @@ func _ready() -> void:
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
+	if _info.get("locks", "") == "dread":
+		Dreadlocks.grow(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).
 	GearLook.dress_body(_model, "outfit")
 	# Their own skin tone, hat colour and glasses (see TownsfolkLook).

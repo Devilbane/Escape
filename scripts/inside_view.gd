@@ -34,5 +34,5 @@ func tick(level: Outdoor, delta: float) -> void:
 			node.set_meta(HIDDEN, true)
 		elif seen and node.has_meta(HIDDEN):
 			node.remove_meta(HIDDEN)
-			# A villager who went home meanwhile stays out of sight.
-			node.visible = not (node is Villager and (node as Villager).at_home)
+			# A villager who went home meanwhile stays out of sight (unless asleep in a bed in view).
+			node.visible = not (node is Villager and (node as Villager).unseen_at_home())

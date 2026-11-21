@@ -282,6 +282,8 @@ var night := false
 ## Seconds until a child puts its pumpkin on or takes it off (see _mind_pumpkin); -1 before the first look.
 var _pumpkin_clock := -1.0
 var at_home := false
+## The way to bed and out again in a house one can walk into, while it lasts (see VillageBeds).
+var bed_trip := {}
 ## The room this villager takes up (metres, see Footprint): half a body width.
 var radius := 0.5
 var _layer := 1
@@ -1928,7 +1930,7 @@ func _physics_process(delta: float) -> void:
 		return
 	match _task:
 		"home":
-			pass
+			VillageBeds.step(self, delta)
 		"fight":
 			_fight(delta)
 			return
@@ -2329,9 +2331,47 @@ func _come_out() -> void:
 	if night or not at_home or not is_instance_valid(self) or level == null:
 		return
 	update_wear(true)
+	# Up out of bed and out of the door first (see VillageBeds), then the day.
+	if VillageBeds.rise(self):
+		return
 	_hide_inside(false, true)
 	_start("idle", _rng.randf_range(0.5, 4.0))
 	_plan_remark()
+
+
+## Out of the door of a house one walks into in the morning (see VillageBeds): the day begins.
+func out_of_bed() -> void:
+	_hide_inside(false)
+	_start("idle", _rng.randf_range(0.5, 4.0))
+	_plan_remark()
+
+
+## Keeps the current task going `time` seconds more (a way to bed, see VillageBeds).
+func keep_task(time: float) -> void:
+	_task_time = maxf(_task_time, time)
+
+
+## Winds the playing animation on to its end (lying in bed already, see VillageBeds).
+func anim_to_end() -> void:
+	var anim := _anim.get_animation(_current_anim)
+	if anim:
+		_anim.seek(anim.length, true)
+
+
+## How far a walking villager gets this tick, the walk playing at the pace of its stride (see Stride).
+func walk_stride(delta: float) -> float:
+	return _stride("Walking_A", WALK_SPEED) * delta
+
+
+## Turns smoothly to the way they walk.
+func face_way(direction: Vector3, delta: float) -> void:
+	_turn_to(direction, delta)
+
+
+## Whether the villager is out of sight at home: gone in through the door, or up the ladder to the
+## floor above. A villager asleep in a bed the hero can see is not (see VillageBeds).
+func unseen_at_home() -> bool:
+	return at_home and VillageBeds.unseen(self)
 
 
 ## Whether the villager walks about with a torch right now: at night, out
@@ -2434,6 +2474,20 @@ func _house_door() -> Vector3:
 func _hide_inside(inside: bool, at_the_door := false) -> void:
 	if eaten and not inside:
 		return # Inside a slime, not at home: morning does not bring them out.
+	if inside and not bed_trip.is_empty():
+		return # On the way to bed already.
+	if not inside:
+		# Called out of a house one walks into in a hurry: straight out of the door.
+		VillageBeds.leave_at_once(self)
+	elif _task == "home" and night and VillageBeds.enter(self, _settling or not at_the_door):
+		# In through the door of a house one walks into, and on to bed (see VillageBeds).
+		at_home = true
+		visible = not VillageBeds.unseen(self)
+		_layer = collision_layer if collision_layer != 0 else _layer
+		collision_layer = 0
+		if station:
+			station.used = true
+		return
 	at_home = inside
 	if at_the_door and not _settling and is_inside_tree() and level != null and level.swing_door_near(global_position):
 		if inside:

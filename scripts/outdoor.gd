@@ -369,6 +369,8 @@ var interiors := {}
 var doors := {}
 ## The swinging plank doors of the village houses (see HouseDoor).
 var house_doors: Array[HouseDoor] = []
+## The village buildings one can walk into: the villagers' houses and the temple (see WalkIn).
+var walk_in: WalkIn
 ## The treasure maps' state (see TreasureMaps): the game hands in its own,
 ## so a map read while the hero is out here shows at once.
 var treasure := {}
@@ -700,6 +702,8 @@ func build() -> void:
 	if not _ivy.xforms.is_empty():
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
+		if walk_in != null:
+			walk_in.plant_ivy(ivy)
 		IvySeasons.apply(ivy, day)
 	# Grass, flowers and mossy stones at the foot of the buildings (see WallFoot).
 	WallFoot.keep_open(_fringe, func(at: Vector3, stone: bool) -> bool: return _fringe_ground(at, stone or _in_forecourt(at)))
@@ -2219,6 +2223,7 @@ func _build_fence(c: Vector2i, gate: bool) -> void:
 
 ## Each block of building tiles gets one building, scaled to fill it.
 func _build_blocks() -> void:
+	walk_in = WalkIn.new(self)
 	var seen := {}
 	for y in height:
 		for x in width:
@@ -2261,6 +2266,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	var node: Node3D
 	if ch == "s":
 		node = _build_chapel(center, rot, room if not turned else Vector2(room.y, room.x))
+		if WalkIn.is_on(ch):
+			walk_in.claim(node, "temple", block)
 	elif ch == "h":
 		node = VillageHouse.build(room if not turned else Vector2(room.y, room.x), _rng, _house_glass())
 		node.position = center
@@ -2270,7 +2277,11 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
 		house_doors.append(node.get_meta("door_leaf"))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
+		if WalkIn.is_on(ch):
+			walk_in.claim(node, "house", block)
 		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
+		if walk_in.has(node):
+			walk_in.open_house(node)
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -2295,7 +2306,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		else:
 			_age_graveyard(node, false)
 	var solid := Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86)
-	_add_solid(center, solid)
+	if not walk_in.has(node):
+		_add_solid(center, solid)
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
 	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
 	doors[ch] = front
@@ -2308,6 +2320,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
 			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
+			if walk_in.has(node):
+				walk_in.open_temple(node)
+				for lamp in find_children("TempleLamp*", "Node3D", false, false):
+					walk_in.add_front(node, lamp)
 		elif ch == "w" or ch == "k":
 			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
 			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
@@ -2335,6 +2351,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		add_child(plume)
 		warm_spots.append(Vector4(plume.position.x, plume.position.y, plume.position.z, 0.8))
 		chimneys.append({"door": front, "smoke": plume})
+		walk_in.add_upper(node, plume)
 	elif ch == "R":
 		# Ivy up the old crypt (never over its door), and no nest on it.
 		# The door is set back into the front, so the spots run back to it.
@@ -3035,20 +3052,26 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 	var cap_node := SnowCaps.node_for(done.get("caps"))
 	if cap_node:
 		add_child(cap_node)
-	_ivy.xforms.append_array(done.leaves.xforms)
-	_ivy.colours.append_array(done.leaves.colours)
-	if done.leaves.has("stems"):
+	# A building one can walk into keeps the ivy up on its upper floor and roof and on its front
+	# wall apart, to hide with them while the hero is inside (see WalkIn); its snow too.
+	var leaves: Dictionary = done.leaves
+	if walk_in != null and walk_in.has(node):
+		leaves = walk_in.split_ivy(node, leaves)
+		walk_in.add_upper(node, cap_node)
+	_ivy.xforms.append_array(leaves.xforms)
+	_ivy.colours.append_array(leaves.colours)
+	if leaves.has("stems"):
 		if not _ivy.has("stems"):
 			_ivy["stems"] = []
 			_ivy["stem_colours"] = []
-		_ivy.stems.append_array(done.leaves.stems)
-		_ivy.stem_colours.append_array(done.leaves.stem_colours)
-	if done.leaves.has("grapes"):
+		_ivy.stems.append_array(leaves.stems)
+		_ivy.stem_colours.append_array(leaves.stem_colours)
+	if leaves.has("grapes"):
 		if not _ivy.has("grapes"):
 			_ivy["grapes"] = []
 			_ivy["grape_colours"] = []
-		_ivy.grapes.append_array(done.leaves.grapes)
-		_ivy.grape_colours.append_array(done.leaves.grape_colours)
+		_ivy.grapes.append_array(leaves.grapes)
+		_ivy.grape_colours.append_array(leaves.grape_colours)
 	if done.nest == Vector3.INF or nests.size() >= MAX_NESTS:
 		return
 	var nest := MeshInstance3D.new()
@@ -3058,6 +3081,8 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 	nest.position = done.nest
 	add_child(nest)
 	nests.append(done.nest)
+	if walk_in != null:
+		walk_in.add_upper(node, nest)
 
 
 ## Whether `at` lies on the forecourt of an entrance out in the country (see _wild_fringe).
@@ -4263,7 +4288,7 @@ func is_lit(pos: Vector3) -> bool:
 
 ## Whether a spot lies inside a self-built house, where no weather reaches (see HouseGround.shelter).
 func is_sheltered(pos: Vector3) -> bool:
-	return HouseGround.sheltered(shelters, pos)
+	return HouseGround.sheltered(shelters, pos) or (walk_in != null and walk_in.covers(pos))
 
 
 ## Whether the hero is under cover: in a house (their own or a built one) or down in a house
@@ -4296,7 +4321,14 @@ func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
 
 func is_opaque(c: Vector2i) -> bool:
 	var ch := cell_char(c)
-	return ch == "#" or ch == "=" or ch == "I" or BLOCK_CHARS.contains(ch)
+	return ch == "#" or ch == "=" or ch == "I" or (BLOCK_CHARS.contains(ch) and not (walk_in != null and walk_in.opens(c)))
+
+
+## A building one can walk into stops a reaching hand with its walls, not its whole block (see WalkIn).
+func _blocks_reach(c: Vector2i) -> bool:
+	if walk_in != null and walk_in.opens(c):
+		return false
+	return super(c)
 
 
 ## Winter clothes on (or off). Whoever is out of sight changes at once; the rest change as they go
@@ -4373,6 +4405,8 @@ func _process(delta: float) -> void:
 			_marker = null
 	if inside:
 		_house_fade.update(self, player, get_viewport().get_camera_3d())
+	if walk_in != null:
+		walk_in.tick(player, delta)
 	hero_indoors = inside or is_sheltered(player.global_position)
 	_inside_view.tick(self, delta)
 	if glowworms and hour >= 0.0:

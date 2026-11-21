@@ -57,7 +57,8 @@ const TABLE_LEG := [Vector2(0.0, 0.0), Vector2(0.04, 0.0), Vector2(0.05, 0.05), 
 
 ## The bed at `pos`, turned by `rot` (its foot towards +z), under `parent`. No solid and no station:
 ## the caller adds them as it did for the cot.
-static func build(parent: Node, pos: Vector3, rot: float) -> Node3D:
+## Without `table` the bed stands alone (the villagers' beds side by side, see WalkIn).
+static func build(parent: Node, pos: Vector3, rot: float, table := true) -> Node3D:
 	var root := Node3D.new()
 	root.name = NODE
 	root.position = pos
@@ -94,7 +95,8 @@ static func build(parent: Node, pos: Vector3, rot: float) -> Node3D:
 	HomeStoreFurniture._add(root, HomeStoreFurniture._box(Vector3(inner + 0.04, 0.08, 0.1)), wood, Vector3(cx, 0.96, foot_z))
 	_spindles(root, turned, cx, inner, foot_z, 0.72, 0.92, 3)
 	_bedding(root, cx, inner, head_z, foot_z)
-	_table(root, turned, wood)
+	if table:
+		_table(root, turned, wood)
 	return root
 
 

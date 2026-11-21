@@ -1052,9 +1052,22 @@ func revive(at: Vector3, heal := true) -> void:
 ## that far from its middle, instead of waiting a whole tile away.
 func walk_to(target: Vector3, stop_short := 0.0) -> void:
 	stand_up()
+	path.clear()
+	# Into, out of or about a village building one can walk into (see WalkIn): through its door.
+	var walk_in = level.get("walk_in")
+	if walk_in != null:
+		var way: Array[Vector3] = walk_in.route(global_position, target)
+		if not way.is_empty():
+			path = way
+			if stop_short > 0.0:
+				var before: Vector3 = path[-2] if path.size() >= 2 else global_position
+				var away := before - target
+				away.y = 0.0
+				if away.length() > stop_short:
+					path[-1] = target + away.normalized() * stop_short
+			return
 	var from := level.set_out_cell(global_position)
 	var to := level.world_to_cell(target)
-	path.clear()
 	# Standing beside a piece of furniture on its tile: first step off it.
 	var steps := level.grid_path(from, to)
 	if from == level.world_to_cell(global_position) or steps.is_empty():

@@ -459,8 +459,9 @@ const VILLAGE_REACH := 6
 ## right of his house (as you face its door), past the paved way from the door, so
 ## neither the doorway nor the way is blocked.
 const MASON_YARD := Vector2i(2, -2)
-## How far the yard sits east within its tile, clear of the paved way's edge.
-const MASON_YARD_SHIFT := 1.0
+## How far the yard sits east within its tile, clear of the paved way's edge. The pile
+## and its solid stay inside the tile, so villagers walking round it are not caught.
+const MASON_YARD_SHIFT := 0.4
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
@@ -3511,7 +3512,8 @@ func _build_stone_yard(cell: Vector2i) -> void:
 		block.position = pos + part[0]
 		block.rotation.y = PI * 0.5 if part[1] else _rng.randf_range(-0.05, 0.05)
 		add_child(block)
-	_add_solid(pos + Vector3(0.2, 0, 0), Vector3(3.4, StoneBlock.HEIGHT * 2.0, 2.6))
+	# Just round the blocks (x -1.7 to 1.55, z -1.0 to 1.0), so it stays inside the tile.
+	_add_solid(pos + Vector3(-0.075, 0, 0), Vector3(3.3, StoneBlock.HEIGHT * 2.0, 2.2))
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Steinmetz"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "stone")
 	WeatheredProps.weather_plain(board)

@@ -1,0 +1,1 @@
+- Ladders: the hero now climbs hand over hand, pulls up onto the roof over the edge and hops off the last rungs on the way down.

@@ -165,6 +165,10 @@ const NIGHT_OWLS := ["4", "5", "O", "%"]
 ## the drinker on his bench and the wandering merchant by his lantern-hung
 ## cart (their plans). Thieves and bandits are no villagers and go dark.
 const UNLIT_PLANS := ["sit", "stay"]
+## Who turns to face the hero coming near (metres): the mayor, and Clerk Gero at his post, who
+## otherwise stood with his back to the street, the way he last walked in.
+const FACES_HERO := ["0", "¢"]
+const FACE_HERO_WITHIN := 8.0
 ## The torch's light: warm, flickering, a few tiles around the bearer.
 ## Without shadows and only while someone is out, to stay cheap in the
 ## browser (a handful of villagers at most).
@@ -1968,7 +1972,8 @@ func _physics_process(delta: float) -> void:
 			_listen_to = Vector3.INF
 			_start("idle", 0.1)
 		_next_task()
-	if role == "0" and hero.global_position.distance_to(global_position) < 8.0:
+	if role in FACES_HERO and (role == "0" or _task == "work") \
+			and hero.global_position.distance_to(global_position) < FACE_HERO_WITHIN:
 		_turn_to(hero.global_position - global_position, delta)
 
 

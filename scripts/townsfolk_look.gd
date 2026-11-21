@@ -93,7 +93,7 @@ static func look_for(role: String, info: Dictionary) -> Dictionary:
 static func apply(model: Node3D, info: Dictionary, look: Dictionary) -> void:
 	if look.is_empty():
 		return
-	_tint_skin(model, info, look.skin)
+	_tint_skin(model, info, look.skin, str(look.get("dye", "")) != "")
 	if str(look.get("dye", "")) != "":
 		_dye_hair(model, look.dye)
 	if look.hat != null:
@@ -111,14 +111,20 @@ static func hair_of(info: Dictionary, look: Dictionary) -> Dictionary:
 	return HairLook.checked(info.get("hair", HairLook.DEFAULT))
 
 
-static func _tint_skin(model: Node3D, info: Dictionary, tone: Color) -> void:
+## A head that shares GearLook's outfit material with its look-alikes keeps sharing it (one material
+## for many heads, see tests/surface_detail.gd), unless its hair is dyed: then it gets its own.
+static func _tint_skin(model: Node3D, info: Dictionary, tone: Color, dyed := false) -> void:
 	if info.model == "Rogue":
 		HairLook.tint_skin(model, tone)
 		return
 	for mi: MeshInstance3D in model.find_children("*_Head", "MeshInstance3D", true, false):
-		var own := _own_head(mi)
+		var own: StandardMaterial3D = _own_head(mi) if dyed or mi.has_meta(OWN_HEAD) else null
 		if own != null:
 			own.albedo_color = own.albedo_color * tone
+		elif mi.get_active_material(0) is StandardMaterial3D:
+			var plain: StandardMaterial3D = mi.get_active_material(0).duplicate()
+			plain.albedo_color = plain.albedo_color * tone
+			mi.material_override = plain
 
 
 ## The head's own plain material, made once: GearLook.dress_body gives every head of the same

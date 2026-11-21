@@ -4166,13 +4166,15 @@ func _apply_save(data: Dictionary) -> void:
 
 ## Where a saved game wakes up, by the hero's state as it is now (escaped,
 ## their own house): {"index": level, "house": town house number inside or 0,
-## "inn": in an inn's bed, "camp": the camp (see Camp.from_save) or {}}.
+## "inn": in an inn's bed, "camp": the camp (see Camp.from_save) or {},
+## "built": the spot in the hero's self-built house (see _built_house_spot) or {}}.
 func _wake_place(data: Dictionary) -> Dictionary:
 	var index := clampi(int(data.get("level", 0)), 0, level_files.size() - 1)
 	var house := 0
 	var own_house := Homes.house_of(hero_name)
 	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
 	var camp_at := Camp.from_save(data.get("camp"))
+	var built := {}
 	if at_inn:
 		# Saved in the bed of an inn on the way: the hero wakes up there,
 		# not back home, so the long road need not be walked again.
@@ -4180,6 +4182,11 @@ func _wake_place(data: Dictionary) -> Dictionary:
 	elif not camp_at.is_empty():
 		# Saved at a camp: the hero wakes up by its fire, wherever it was.
 		pass
+	elif not _built_spot_of(data).is_empty() and _outdoor_index() >= 0:
+		# Saved inside the hero's own self-built house (any storey, its cellar or its roof):
+		# the hero logs back in at that very spot (see _built_house_spot).
+		index = _outdoor_index()
+		built = _built_spot_of(data)
 	elif escaped and home_claimed and own_house > 0 and interiors.has("^"):
 		# The hero's own town house is the place to come back to: every
 		# load wakes up beside its bed, wherever the game was saved.
@@ -4189,7 +4196,7 @@ func _wake_place(data: Dictionary) -> Dictionary:
 		# Out of the dungeon, every load begins in the open air, wherever the
 		# game was saved: on the graveyard, or in the hero's own house.
 		index = _outdoor_index()
-	return {"index": index, "house": house, "inn": at_inn, "camp": {} if at_inn else camp_at}
+	return {"index": index, "house": house, "inn": at_inn, "camp": {} if at_inn else camp_at, "built": built}
 
 
 ## Loads the level of a wake place (see _wake_place) and puts the hero there:
@@ -4205,11 +4212,51 @@ func _go_to_wake_place(place: Dictionary) -> void:
 		player.global_position = camp.stand_spot()
 		player.face(camp.global_position - player.global_position)
 		_snap_camera()
+	elif _put_in_built_house(place.get("built", {})):
+		pass
 	elif (level.is_home or level.inn) and level.bed_side != Vector3.ZERO:
 		player.global_position = level.bed_side
 	elif level is Outdoor and home_claimed and level.home_spot != Vector3.ZERO:
 		# The hero's own house is the place to come back to: next to the bed.
 		player.global_position = level.home_spot
+
+
+## Where the hero stands in their own self-built house (see HouseSketcher.holds): on any
+## storey, down in its cellar or up on its roof, as {"pos": [x, y, z], "facing": angle};
+## {} anywhere else. The saved game keeps it, so the hero logs back in there.
+func _built_house_spot() -> Dictionary:
+	if not level is Outdoor or house_sketcher == null or player == null or not house_sketcher.holds(player.global_position):
+		return {}
+	var at := player.global_position
+	var look := player.facing()
+	return {"pos": [snappedf(at.x, 0.01), snappedf(at.y, 0.01), snappedf(at.z, 0.01)], "facing": snappedf(atan2(look.x, look.z), 0.01)}
+
+
+## The spot in the self-built house a saved game was made at, or {} (also for a broken record).
+static func _built_spot_of(data: Dictionary) -> Dictionary:
+	var spot = data.get("built_house", {})
+	if not spot is Dictionary or not spot.get("pos") is Array or spot.pos.size() != 3:
+		return {}
+	return spot
+
+
+## Puts the hero back at `spot` in their self-built house (see _built_house_spot), once the
+## open air and its houses are built. False (and nothing moves) when there is no such spot,
+## or the house no longer has a floor there (the plot given up, the cellar filled in, the
+## floor above taken down): the hero then wakes up where they would have without it.
+func _put_in_built_house(spot: Dictionary) -> bool:
+	if spot.is_empty() or not level is Outdoor or house_sketcher == null:
+		return false
+	var at := Vector3(float(spot.pos[0]), float(spot.pos[1]), float(spot.pos[2]))
+	if not house_sketcher.holds(at, true):
+		return false
+	player.global_position = at
+	player.velocity = Vector3.ZERO
+	player.reset_physics_interpolation()
+	var turn := float(spot.get("facing", 0.0))
+	player.face(Vector3(sin(turn), 0.0, cos(turn)))
+	_snap_camera()
+	return true
 
 
 func _leave_title(prepare: Callable) -> void:
@@ -4353,6 +4400,9 @@ func hero_record() -> Dictionary:
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover, "ice": ice_cover,
 		"inn": level.inn,
 	}
+	var built := _built_house_spot()
+	if not built.is_empty():
+		data.built_house = built
 	return data
 
 
@@ -5059,10 +5109,13 @@ static func _flat_gap(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
-## Where the hero stands after getting out of `bed`: the open floor beside
-## it (the same spot a load in the hero's own house starts on), or else in
-## front of its foot.
+## Where the hero stands after getting out of `bed`: beside the foot of a bed in
+## a self-built house, the open floor beside it (the same spot a load in the
+## hero's own house starts on), or else in front of its foot.
 func _bedside(bed: Dictionary, foot: Vector3) -> Vector3:
+	# A bed of a self-built house: beside its own foot, on its own storey (see HouseFurnisher).
+	if bed.get("side", Vector3.ZERO) != Vector3.ZERO:
+		return bed.side
 	if level is Outdoor and level.home_spot != Vector3.ZERO:
 		return level.home_spot
 	var cell: Vector2i = bed.get("cell", Vector2i(-1, -1))

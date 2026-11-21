@@ -19,8 +19,10 @@ extends RefCounted
 ## The woodcutter (Villager "3") lends him a hand by day, on a different brick.
 
 const CHECK_EVERY := 1.0
-## How near to a gate a slime sets the villagers shutting it (metres).
-const WATCH_RANGE := 36.0
+## How near to a gate or the wall a slime raises the alarm and sets the
+## villagers shutting the gates (metres): only once it is at the village's edge,
+## a few strides off, not while it is still far out in the fields.
+const WATCH_RANGE := 14.0
 const OPEN_AFTER := 8.0
 ## A slime's blow does this many times its damage to the wall.
 const ACID := 24

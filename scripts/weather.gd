@@ -117,7 +117,7 @@ const STAY_CLEAR := {SPRING: 0.5, SUMMER: 0.65, AUTUMN: 0.15, WINTER: 0.0}
 const LOOKS := {
 	CLEAR: {"sun": 1.0, "amb": 1.0, "sat": 1.0, "fog": 0.0, "rain": 0.0, "mist": 0.0, "snow": 0.0},
 	RAIN: {"sun": 0.5, "amb": 0.85, "sat": 0.8, "fog": 0.006, "rain": 0.55, "mist": 0.0, "snow": 0.0},
-	FOG: {"sun": 0.55, "amb": 1.05, "sat": 0.7, "fog": 0.007, "rain": 0.0, "mist": 1.0, "snow": 0.0},
+	FOG: {"sun": 0.55, "amb": 1.05, "sat": 0.7, "fog": 0.0035, "rain": 0.0, "mist": 1.0, "snow": 0.0},
 	STORM: {"sun": 0.3, "amb": 0.7, "sat": 0.62, "fog": 0.01, "rain": 1.0, "mist": 0.0, "snow": 0.0},
 	SNOW: {"sun": 0.6, "amb": 1.0, "sat": 0.75, "fog": 0.005, "rain": 0.0, "mist": 0.0, "snow": 1.0},
 }

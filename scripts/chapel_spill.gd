@@ -5,7 +5,7 @@ extends RefCounted
 ## and colours, taken from the glass texture), lying on the ground in front of the
 ## window. It starts away from the wall by half as much as the window's sill is high,
 ## ends 72.5% longer than the window is tall (the window's top is the far end) and
-## keeps its colours all along (it only softens at its two ends). Soft coloured rays of the same glass shine from the
+## keeps its colours all along (it only softens at its two ends). A faint, blurred haze of rays of the same glass shines from the
 ## window down to the picture, like light falling through dusty air. One additive mesh for the whole temple, built in
 ## the temple's own metres. Its "glow" parameter is driven with the glass at night
 ## (see Outdoor.set_hour); the temple's windows burn all night. Fog is off for it,
@@ -41,8 +41,8 @@ const SPREAD := 1.3
 ## 1 = top) and sheets along it at these places across the window (0 = left, 1 = right).
 const RIBBONS := [0.1, 0.3, 0.5, 0.7, 0.9]
 const SHEETS := [0.12, 0.37, 0.63, 0.88]
-## How bright the rays are against the picture.
-const RAY_STRENGTH := 0.38
+## How bright the rays are against the picture: a faint haze, not crisp beams.
+const RAY_STRENGTH := 0.5
 ## How bright the picture on the lawn is (the rays have their own strength).
 const PICTURE_DIM := 0.55
 ## How high above the ground the picture lies, in kit metres (the temple is scaled down, so
@@ -71,12 +71,13 @@ void vertex() {
 }
 void fragment() {
 	if (is_ray > 0.5) {
-		// A soft, blurred shaft of the glass's colours, streaky, strongest at the window.
-		vec3 rc = min(textureLod(glass, pic, 3.0).rgb * 1.8, vec3(0.75));
-		float streak = 0.7 + 0.3 * sin(UV.x * 37.0) * sin(UV.x * 17.0 + 1.0);
-		float edge = smoothstep(0.0, 0.15, UV.x) * smoothstep(1.0, 0.85, UV.x);
-		float along = (1.0 - UV.y * 0.55) * smoothstep(1.0, 0.9, UV.y);
-		ALBEDO = rc * streak * edge * along * ray_strength * (is_ray - 0.4) * 1.67 * glow / scale * dim;
+		// A soft haze of the glass's colours, heavily blurred so the colours run into
+		// each other, strongest at the window. Its sides and both ends fade out over a
+		// wide band, so the rays melt into one another instead of showing edges.
+		vec3 rc = min(textureLod(glass, pic, 5.0).rgb * 1.6, vec3(0.6));
+		float edge = smoothstep(0.0, 0.35, UV.x) * smoothstep(1.0, 0.65, UV.x);
+		float along = (1.0 - UV.y * 0.6) * smoothstep(0.0, 0.2, UV.y) * smoothstep(1.0, 0.65, UV.y);
+		ALBEDO = rc * edge * along * ray_strength * (is_ray - 0.4) * 1.67 * glow / scale * dim;
 	} else {
 		vec3 c = texture(glass, pic).rgb;
 		// Fades along the picture from the wall's side (UV.y = 0) to the far end.

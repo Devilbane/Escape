@@ -1920,6 +1920,13 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == AppleTree.STATION:
 		player.face(s.pos - player.global_position)
 		AppleTree.pick(self, s)
+	elif s.kind == Seats.KIND and level is Outdoor and level.bench_rest.taken(s):
+		# Someone from the village rests there already (see BenchRest).
+		player.face(s.pos - player.global_position)
+		var taken_text := Lang.t("Auf dieser Bank sitzt schon jemand.")
+		# Once per push against it, not every bump of a held key.
+		if _message.text != taken_text or _message.modulate.a < 0.05:
+			show_message(taken_text, read_time(taken_text))
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
 	else:

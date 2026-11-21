@@ -301,6 +301,8 @@ var farm_animals: Array[FarmAnimal] = []
 var village_alarm := VillageAlarm.new()
 ## The shared lunch and dinner at the tables on the square (see TownMeals).
 var meals := TownMeals.new()
+## Idle townsfolk resting on the benches round the fountain (see BenchRest).
+var bench_rest := BenchRest.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -4360,6 +4362,7 @@ func _process(delta: float) -> void:
 	village_alarm.tick(self, delta)
 	village_wall.tick(self, delta)
 	meals.tick(self, delta)
+	bench_rest.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

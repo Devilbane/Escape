@@ -454,6 +454,12 @@ const LANE_PATCHES := 3
 ## Dirt paths this close to a village building (tiles) are cobbled like the
 ## square, and shrubs grow on the grass beside the buildings.
 const VILLAGE_REACH := 6
+## Where the stonemason's yard of stone blocks lies, from the tile he stands on: to the
+## right of his house (as you face its door), past the paved way from the door, so
+## neither the doorway nor the way is blocked.
+const MASON_YARD := Vector2i(2, -2)
+## How far the yard sits east within its tile, clear of the paved way's edge.
+const MASON_YARD_SHIFT := 1.0
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
@@ -3429,7 +3435,7 @@ func _spawn_villagers() -> void:
 			elif ch == "Z":
 				_build_barber_shop(c + Vector2i(0, -1))
 			elif ch == "S":
-				_build_stone_yard(c + Vector2i(0, -1))
+				_build_stone_yard(c + MASON_YARD)
 				_build_quarry(v, c)
 			elif ch == "1":
 				_build_forge(c + Vector2i(-1, 0))
@@ -3482,10 +3488,11 @@ func _build_barber_shop(cell: Vector2i) -> void:
 	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
 
 
-## The stonemason's yard on the tile behind him: blocks of carved stone
-## stacked up for sale, a rough block on the trestle and a sign.
+## The stonemason's yard beside his house, to its right as you face the door
+## (MASON_YARD): blocks of carved stone stacked up for sale and a sign. It stays
+## off the doorway and off the paved way that runs from the door to the road.
 func _build_stone_yard(cell: Vector2i) -> void:
-	var pos := cell_to_world(cell)
+	var pos := cell_to_world(cell) + Vector3(MASON_YARD_SHIFT, 0, 0)
 	# [offset of the block's bottom middle, turned to lie along z, shade]
 	var heap := [
 		[Vector3(-0.9, 0, -0.6), false, 0], [Vector3(0.75, 0, -0.6), false, 1],

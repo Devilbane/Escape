@@ -148,6 +148,10 @@ const UNDERGROWTH_SPACING := 1.8
 const UNDERGROWTH_AUTUMN_KEEP := 0.15
 ## How closely the undergrowth's strip is looked over for bare floor (metres, see _grow_undergrowth).
 const UNDERGROWTH_CHECK := 0.5
+## The spruces closing the gaps along the forest's edge (see _close_edge_gaps): how far in from the
+## open side they stand and how far apart they are looked for (metres).
+const EDGE_FILL_DEPTH := 2.3
+const EDGE_FILL_STEP := 1.3
 ## How deep into the forest its gaps are filled with smaller pines (tiles, see _fill_forest_gaps).
 const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
@@ -272,6 +276,8 @@ var fern_count := 0
 ## Where the last tree _build_tree planted stands, and how far its crown reaches.
 var _tree_at := Vector3.ZERO
 var _tree_crown := 0.0
+## How many spruces close the gaps along the forest's edge (see _close_edge_gaps).
+var edge_fillers := 0
 ## Whether the last tree _plant_tree planted was a spruce, and how big (see _spruce_size).
 var _last_spruce := false
 var _last_spruce_size := 1.0
@@ -1941,6 +1947,7 @@ func _build_forest() -> void:
 				if _build_tree(cell_to_world(c)) >= 0.0:
 					forest_trees[c] = [{"at": _tree_at, "crown": _tree_crown}]
 	_fill_forest_gaps()
+	_close_edge_gaps()
 
 
 ## The forest floor just behind the edge trees, where the camera looks in between their crowns, is
@@ -1970,6 +1977,45 @@ func _fill_forest_gaps() -> void:
 					if not forest_trees.has(c):
 						forest_trees[c] = []
 					forest_trees[c].append({"at": at, "crown": reach * (SPRUCE_CROWN if _last_spruce else CROWN)})
+
+
+## Along the forest's edge one spruce stands on each tile, and between two the eye looks through
+## gaps a body could pass, though the forest is shut there. A smaller spruce fills each such gap:
+## on a line EDGE_FILL_DEPTH in from the open side (behind the leaves the hero may walk on, see
+## FOREST_MARGIN), every EDGE_FILL_STEP along it, wherever no crown hides the spot yet. They stand
+## outside forest_trees, so the walkable strip in front stays as wide as before. Own dice.
+func _close_edge_gaps() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(level_name + "randluecken")
+	var placed: Array[Vector4] = []
+	for y in height:
+		for x in width:
+			var c := Vector2i(x, y)
+			if cell_char(c) != "#" or under_lair_mountain(c) or not _beside_walkable(c):
+				continue
+			var tile := _tile_rect(c)
+			for side: Vector2i in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+				if not WALK.contains(cell_char(c + side)):
+					continue
+				var steps := floori(TILE / EDGE_FILL_STEP)
+				for k in steps + 1:
+					var along := (k + 0.5 * float(k == 0) - 0.5 * float(k == steps)) * TILE / steps
+					var at := Vector3.ZERO
+					if side.x != 0:
+						at.x = tile.position.x + EDGE_FILL_DEPTH if side.x < 0 else tile.end.x - EDGE_FILL_DEPTH
+						at.z = tile.position.y + along
+					else:
+						at.z = tile.position.y + EDGE_FILL_DEPTH if side.y < 0 else tile.end.y - EDGE_FILL_DEPTH
+						at.x = tile.position.x + along
+					var cell := world_to_cell(at)
+					if cell_char(cell) != "#" or under_crown(cell, at) \
+							or placed.any(func(f: Vector4): return Vector2(f.x - at.x, f.z - at.z).length() < f.w):
+						continue
+					at += Vector3(rng.randf_range(-0.25, 0.25), 0.0, rng.randf_range(-0.25, 0.25))
+					var reach := _plant_tree("tree_pine_orange_medium", at, rng.randf() * TAU, 1.0)
+					if reach >= 0.0:
+						placed.append(Vector4(at.x, 0.0, at.z, reach * SPRUCE_CROWN))
+	edge_fillers = placed.size()
 
 
 ## What looks walkable is walkable, and what blocks looks blocked. The forest does not stop the

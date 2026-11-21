@@ -1,0 +1,1 @@
+- Spruces now close the see-through gaps along the forest's edge.

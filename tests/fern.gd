@@ -85,7 +85,8 @@ func _run() -> void:
 	check(pines == 0, "no pine is left (%d)" % pines)
 	check(others == 0, "every tree of the stand is a spruce (%d others)" % others)
 	check(ferns >= 60 and ferns == level.fern_count, "ferns grow along the forest's edge (%d)" % ferns)
-	print("ferns: %d, spruces: %d" % [ferns, spruces])
+	check(level.edge_fillers >= 50, "spruces close the gaps along the forest's edge (%d)" % level.edge_fillers)
+	print("ferns: %d, spruces: %d, closing edge gaps: %d" % [ferns, spruces, level.edge_fillers])
 	# A plot clears them.
 	var found := Rect2i()
 	for y in range(level.height - 4):

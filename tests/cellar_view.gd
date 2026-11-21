@@ -118,6 +118,12 @@ func _run() -> void:
 				if r.grow(-0.05).has_point(Vector2(c.x, c.z)):
 					over_pit += 1
 		check(over_pit == 0, "the earth leaves the cellar open (%d faces over it)" % over_pit)
+		# Behind the walls it reaches down below where a wall under a cellar ceiling stops, so
+		# no sky shows through between the two (it showed as a white line along the rim).
+		var deepest := 0.0
+		for f in faces:
+			deepest = minf(deepest, f.y)
+		check(deepest <= -HouseSketcher.CEILING_GAP - 0.1, "the earth reaches down behind the walls (%.2f m)" % deepest)
 	# The pet comes down too and shows.
 	if game.pet != null and is_instance_valid(game.pet):
 		game.pet.global_position = pit_middle + Vector3(1, -HouseSketch.DEPTH + 0.05, 0)

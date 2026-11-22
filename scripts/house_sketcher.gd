@@ -1686,8 +1686,9 @@ func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> v
 	var size := Vector3(HouseSketch.CELL, thick, HouseSketch.CELL)
 	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH, true)
 	_collide(at, size)
-	# The mesh: fades away while the hero is in the cellar below it.
-	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
+	# The mesh: fades away while the hero is in the cellar below it. It went where the cellar is
+	# drawn into (the houses' own pieces, or the bank's and the mine's, see _draw_once).
+	var mesh: Node = _into.get_child(_into.get_child_count() - 1)
 	mesh.set_meta("ymin", 0.0)
 	_cover(house, x, y, HouseSketch.CELLAR_STOREY)
 	_hide_under(house, x, y, -thick * 0.5)
@@ -1701,6 +1702,8 @@ func _ground_floor(house: HouseSketch, x: int, y: int, piece: Dictionary) -> voi
 	var size := Vector3(HouseSketch.CELL, thick, HouseSketch.CELL)
 	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH)
 	_collide(at, size)
+	# Down in a cellar it fades with the rest of the house above (see _update_fade).
+	_into.get_child(_into.get_child_count() - 1).set_meta("ymin", 0.0)
 
 
 ## The floors, roofs and stairs up of a house. Everything is solid: a slab
@@ -1884,9 +1887,12 @@ func _update_fade() -> void:
 		return
 	_fade_state = state
 	var limit := (level * HouseSketch.STOREY_HEIGHT + WALL_HEIGHT - 0.05) if level >= 0 else -0.05
-	for node in _solid.get_children():
-		if node.has_meta("ymin"):
-			LightShadows.lift(node, inside and float(node.get_meta("ymin")) >= limit)
+	# The fixed houses' floors over their cellars too (the bank over its vault, the mine's hut, see
+	# _draw_once): down there no floor of the house above hangs overhead.
+	for layer: Node3D in [_solid, _mine_open]:
+		for node in layer.get_children():
+			if node.has_meta("ymin"):
+				LightShadows.lift(node, inside and float(node.get_meta("ymin")) >= limit)
 	for gun: Node3D in _guns.get_children():
 		gun.visible = not (inside and gun.position.y >= limit)
 
@@ -1909,7 +1915,9 @@ func _ramp(house: HouseSketch, x: int, y: int, dir: String, demolish: bool, rise
 		top.y = HouseSketch.FLOOR_RISE
 	_slanted(start + top, start + flat * length + Vector3(0, rise, 0), HouseSketch.CELL, 0.3, PLANK_COLOR, true, false)
 	var red: Material = _solid_material(DEMOLISH_COLOR) if demolish else null
-	var flight := WoodStairs.build_flight(_solid, start, flat, length, rise, STAIRS_WIDTH, red, red)
+	# Into the layer the cellar is drawn into: the bank's and the mine's stairs are drawn once
+	# (see _draw_once) and must outlive the next drawing of the houses' own pieces.
+	var flight := WoodStairs.build_flight(_open_into if rise < 0.0 else _solid, start, flat, length, rise, STAIRS_WIDTH, red, red)
 	# Fades with the floor it stands on, never with the storey it reaches.
 	flight.set_meta("ymin", minf(0.0, rise))
 
@@ -2219,6 +2227,8 @@ func _shutter_pair(at: Vector3, along_x: bool, opening: Vector2, demolish: bool)
 		pair.rotation.y = 0.0 if _outside > 0.0 else PI
 	else:
 		pair.rotation.y = PI * 0.5 if _outside > 0.0 else -PI * 0.5
+	# Fades with the wall it hangs on (see _update_fade): no shutters float over a cellar.
+	pair.set_meta("ymin", pair.position.y)
 	_solid.add_child(pair)
 	return pair
 

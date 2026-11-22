@@ -1,0 +1,2 @@
+- Down in the bank's vault, the bank's floor, its window shutters and Zarek no longer show overhead, and the stairs down are drawn instead of a white glare.
+- The bank and its vault are lit by lamps on the walls instead of lamps hanging from the ceiling.

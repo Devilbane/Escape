@@ -34,7 +34,7 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	var walk_in: WalkIn = v.level.get("walk_in") if v.level != null else null
 	if walk_in == null:
 		return false
-	var house := walk_in.house_near(v.global_position)
+	var house := walk_in.house_near(v.global_position, 9.0, v.role)
 	if house.is_empty():
 		return false
 	var bed := _free_bed(house)

@@ -96,7 +96,8 @@ func _ivy_count(lvl: Outdoor) -> int:
 
 
 func _houses(lvl: Outdoor) -> Array:
-	return lvl.walk_in.buildings.filter(func(r): return r.kind == "house")
+	# The villagers' own four, not the smith's cottage (see SmithCottage).
+	return lvl.walk_in.buildings.filter(func(r): return r.kind == "house" and not r.has("owner"))
 
 
 func _run() -> void:
@@ -247,6 +248,15 @@ func _run() -> void:
 	for r: Dictionary in houses:
 		var taken := (r.beds as Array).filter(func(b): return b.by != null).size()
 		check(taken <= WalkIn.MAX_BEDS, "no bed holds two")
+	# Gorm sleeps in his own little house beside the smithy, and nobody else does.
+	var cottages := walk_in.buildings.filter(func(r): return r.get("owner", "") == SmithCottage.OWNER)
+	check(cottages.size() == 1 and (cottages[0].beds as Array).size() == 1, "the smith's cottage can be walked into, with one bed")
+	for v: Villager in lvl.villagers:
+		var home: Dictionary = v.bed_trip.get("house", {})
+		if v.role == SmithCottage.OWNER:
+			check(home.get("owner", "") == SmithCottage.OWNER and String(v.bed_trip.get("step", "")) == "asleep", "Gorm sleeps in his own bed in his cottage")
+		else:
+			check(not home.has("owner"), "%s does not sleep in the smith's cottage" % v.role)
 	# Morning: everyone walks out.
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)

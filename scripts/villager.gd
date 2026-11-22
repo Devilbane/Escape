@@ -2522,6 +2522,9 @@ func house_door() -> Vector3:
 
 ## The door of the house nearest to the villager's own spot.
 func _house_door() -> Vector3:
+	var own = level.get("own_homes")
+	if own is Dictionary and (own as Dictionary).has(role):
+		return own[role]
 	var houses: Array = level.spots.houses
 	var at := level.cell_to_world(home)
 	var best := at

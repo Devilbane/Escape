@@ -88,7 +88,7 @@ func _init(lvl: Node3D) -> void:
 
 ## Whether the building made for map letter `ch` can be walked into.
 static func is_on(ch: String) -> bool:
-	return (ch == "h" and houses) or (ch == "s" and temple) or bool(halls.get(ch, false))
+	return ((ch == "h" or ch == "ß") and houses) or (ch == "s" and temple) or bool(halls.get(ch, false))
 
 
 ## Takes on a building before it is dressed (see Outdoor._dress_building), so its ivy can be sorted
@@ -252,7 +252,9 @@ func open_house(house: Node3D) -> void:
 	_solid(rec, Vector3(0, floor_y * 0.5, 0), Vector3(w, floor_y, d))
 	rec["door_shape"] = _solid(rec, Vector3(door_x, 1.4, d * 0.5 - t * 0.5), Vector3(DOOR_GAP, 2.8, t))
 	_ramp(rec, door_x, d * 0.5, floor_y)
-	if rec.kind == "house":
+	if rec.kind == "house" and rec.has("owner"):
+		SmithCottage.furnish(self, rec)
+	elif rec.kind == "house":
 		_furnish_house(rec, w, d, door_x)
 	else:
 		VillageHalls.furnish(self, rec)
@@ -617,13 +619,21 @@ func door_points(rec: Dictionary) -> Array[Vector3]:
 	return [outside, inside]
 
 
-## The house whose door is nearest to `pos` within `reach` metres, or {}.
-func house_near(pos: Vector3, reach := 9.0) -> Dictionary:
+## The house whose door is nearest to `pos` within `reach` metres, or {}. A house that belongs to
+## one villager alone (its "owner", see SmithCottage) is only theirs: `role` finds it first.
+func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 	var best := {}
 	var best_d := reach
 	for rec in buildings:
 		if rec.kind != "house" or not rec.get("opened", false):
 			continue
+		var owner := String(rec.get("owner", ""))
+		if owner != "" and owner != role:
+			continue
+		if owner != "" and owner == role:
+			var at: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+			if Vector2(at.x - pos.x, at.z - pos.z).length() < reach:
+				return rec
 		var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
 		var dist := Vector2(door.x - pos.x, door.z - pos.z).length()
 		if dist < best_d:

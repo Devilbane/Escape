@@ -22,8 +22,9 @@ uniform float tile = 4.0;
 // closed by a cellar ceiling is 0.5: snow lies on the ceiling, but not in the cellar under it.
 uniform sampler2D hole_mask : filter_nearest, repeat_disable, hint_default_black;
 uniform bool holes_on = false;
-// The ground inside the buildings one walks into (see SnowCover.set_rooms): R is 1 there, in
-// ROOM_STEP pixels from the world's corner, so the snow stops at their walls.
+// The rooms of the buildings one walks into (see SnowCover.set_rooms): R is how high they reach
+// and G from which height (the upper storey's overhang), both in SHELTER_SCALE metres, in ROOM_STEP pixels from the world's corner, so the snow stops at their
+// walls and stays off every storey under their roof.
 uniform sampler2D room_mask : filter_nearest, repeat_disable, hint_default_black;
 uniform bool rooms_on = false;
 // The height under which a covered tile is not open to the sky.
@@ -50,14 +51,15 @@ void fragment() {
 	// A drift gathers where the noise is high: the snow arrives in patches and joins up.
 	float lies = up * amount * 1.5 + (n - 0.5) * 0.55;
 	vec2 uv = (xz / tile + 0.5) / grid_size;
-	float covered = texture(sky_mask, uv).r;
+	float roofed = texture(sky_mask, uv).r * (1.0 - step(roof_height, world_pos.y));
 	if (rooms_on) {
 		vec2 room_uv = (xz + vec2(0.5 * tile)) / (grid_size * tile);
 		if (room_uv.x >= 0.0 && room_uv.y >= 0.0 && room_uv.x <= 1.0 && room_uv.y <= 1.0) {
-			covered = max(covered, texture(room_mask, room_uv).r);
+			// Below the rooms' ceiling (the eaves), every storey is inside.
+			vec2 room = texture(room_mask, room_uv).rg * SHELTER_SCALE;
+			roofed = max(roofed, step(world_pos.y, room.x) * step(room.y, world_pos.y));
 		}
 	}
-	float roofed = covered * (1.0 - step(roof_height, world_pos.y));
 	// Melted round fires, the forge and smoking chimneys. Open water and ice stay bare (G of the
 	// mask marks the pond tiles, only at ground level).
 	float pond = texture(sky_mask, uv).g * (1.0 - step(0.3, world_pos.y));

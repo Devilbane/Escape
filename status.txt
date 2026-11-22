@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Clear windows and candle-lit rooms in walkable buildings | Shipped this week: Give Ilse the furnisher a daily routine; Guild cellar: no flicker along the wall tops, Ragna upstairs out of sight; Snow up to the temple's walls (+47 more)
+Escape! dev status | Shipped this week: Clear windows and candle-lit rooms in walkable buildings; Give Ilse the furnisher a daily routine (+48 more)

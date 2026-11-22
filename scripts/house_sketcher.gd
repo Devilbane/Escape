@@ -1722,7 +1722,7 @@ func _solid_above(house: HouseSketch, keys: Array = []) -> void:
 				_cover(house, p[1], p[2], p[0])
 				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK * 0.5)
 			HouseSketch.SADDLE:
-				_saddle(mid, base + HouseSketch.SLAB_THICK, p[3] == "rx", demolish)
+				_saddle(mid, base + HouseSketch.SLAB_THICK, p[3] == "rx", demolish, _open_sides(house, p))
 				_cover(house, p[1], p[2], p[0])
 				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK + HouseSketch.ROOF_RISE * 0.5)
 			HouseSketch.UPSTAIRS:
@@ -1778,34 +1778,139 @@ func _hide_under(house: HouseSketch, x: int, y: int, height: float) -> void:
 	game.level.built_floors.append({"rect": Rect2(corner.x, corner.z, HouseSketch.CELL, HouseSketch.CELL), "y": corner.y + height})
 
 
-## One cell of pitched roof: two boards up to the ridge and a triangle at each end.
-func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool) -> void:
+## One cell of pitched roof: two boards up to the ridge and a triangle at each end. The boards
+## are tiled like the villagers' roofs (VillageHouse's aged tiles). Over an outer wall (`open`,
+## see _open_sides) a board reaches on down to the top of the wall with a little overhang, and
+## under a gable a timber knee wall closes the gap down to the wall, so the roof sits on the house
+## instead of floating a slab's thickness over it.
+func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {}) -> void:
 	var half := HouseSketch.CELL * 0.5
 	var rise := HouseSketch.ROOF_RISE
 	var colour := DEMOLISH_COLOR if demolish else ROOF_COLOR
 	var across := Vector3(0, 0, half) if ridge_x else Vector3(half, 0, 0)
 	var peak := mid + Vector3(0, eave + rise, 0)
+	var wall_top := eave - HouseSketch.SLAB_THICK
 	# An empty house's roof is old: grey and mossy, and here and there a board has fallen in.
 	var cx := floori(mid.x / HouseSketch.CELL)
 	var cz := floori(mid.z / HouseSketch.CELL)
 	if _abandoned and not demolish:
 		colour = OLD_ROOF.lerp(MOSS, 0.55 if posmod(cx + cz, 2) == 0 else 0.15)
 	for sign_ in [-1.0, 1.0]:
+		var foot: Vector3 = mid + across * sign_ + Vector3(0, eave, 0)
+		# Down to the wall's top on the house's outside, along the same slope, and a hand over it.
+		if bool(open.get("across%d" % int(sign_), false)):
+			var slope: Vector3 = foot - peak
+			foot = peak + slope * ((peak.y - wall_top + EAVE_DROP) / (peak.y - foot.y))
 		if _abandoned and not demolish and posmod(cz if ridge_x else cx, 3) == 1 and posmod((cx if ridge_x else cz) + (1 if sign_ > 0.0 else 0), 3) == 0:
 			continue
-		_slanted(mid + across * sign_ + Vector3(0, eave, 0), peak, HouseSketch.CELL, 0.15, colour, true)
+		if demolish:
+			_slanted(foot, peak, HouseSketch.CELL, 0.15, colour, true)
+		else:
+			_slanted(foot, peak, HouseSketch.CELL, 0.15, colour, true, false)
+			_tiled_board(foot, peak, HouseSketch.CELL, eave - 0.15)
 	var along := Vector3(half - 0.05, 0, 0) if ridge_x else Vector3(0, 0, half - 0.05)
+	var gable: Material = _solid_material(colour) if demolish else HouseLooks.stair_wood()
 	for sign_ in [-1.0, 1.0]:
 		var prism := MeshInstance3D.new()
 		var mesh := PrismMesh.new()
 		mesh.size = Vector3(HouseSketch.CELL, rise, 0.1)
 		prism.mesh = mesh
-		prism.material_override = _solid_material(colour)
+		prism.material_override = gable
 		prism.position = mid + along * sign_ + Vector3(0, eave + rise * 0.5, 0)
 		if ridge_x:
 			prism.rotation.y = PI * 0.5
 		prism.set_meta("ymin", eave)
 		_solid.add_child(prism)
+		# The knee wall under an outer gable, from the wall's top up to the roof.
+		if bool(open.get("along%d" % int(sign_), false)):
+			var knee := MeshInstance3D.new()
+			var box := BoxMesh.new()
+			box.size = Vector3(0.1, HouseSketch.SLAB_THICK, HouseSketch.CELL) if ridge_x else Vector3(HouseSketch.CELL, HouseSketch.SLAB_THICK, 0.1)
+			knee.mesh = box
+			knee.material_override = gable
+			knee.position = mid + along * sign_ + Vector3(0, wall_top + HouseSketch.SLAB_THICK * 0.5, 0)
+			knee.set_meta("ymin", eave)
+			_solid.add_child(knee)
+
+
+## How far a roof's eaves reach down past the top of the wall under them (metres).
+const EAVE_DROP := 0.12
+
+
+## Which sides of the saddle roof cell `p` (key parts, see HouseSketch.SADDLE) are the house's
+## outside, with no roof of the same storey beyond them: "across-1"/"across1" for the two eaves
+## (down the slopes), "along-1"/"along1" for the two gables (along the ridge).
+func _open_sides(house: HouseSketch, p: Array) -> Dictionary:
+	var ridge_x: bool = p[3] == "rx"
+	var across := Vector2i(0, 1) if ridge_x else Vector2i(1, 0)
+	var along := Vector2i(1, 0) if ridge_x else Vector2i(0, 1)
+	var out := {}
+	for s: int in [-1, 1]:
+		var a: Vector2i = Vector2i(p[1], p[2]) + across * s
+		var b: Vector2i = Vector2i(p[1], p[2]) + along * s
+		out["across%d" % s] = house.roof_key(a.x, a.y, p[0]) == ""
+		out["along%d" % s] = house.roof_key(b.x, b.y, p[0]) == ""
+	return out
+
+
+## The tiles over a roof board from `a` (the eaves) to `b` (the ridge), `width` wide: patches of
+## the villagers' aged roof tiles (see VillageHouse._roof), on a timber board. `ymin` is where it
+## hides with the storey under it (see _fade_storeys).
+func _tiled_board(a: Vector3, b: Vector3, width: float, ymin: float) -> void:
+	var slope := b - a
+	var length := slope.length()
+	var along := slope / length
+	var up := (Vector3.UP - along * along.dot(Vector3.UP)).normalized()
+	var side := along.cross(up)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var seeds := RandomNumberGenerator.new()
+	seeds.seed = hash(a)
+	var cols := maxi(1, roundi(width / VillageHouse.TILES_PATCH.x))
+	var rows := maxi(1, roundi(length / VillageHouse.TILES_PATCH.y))
+	var uv := VillageHouse.TILES_UV
+	var uvs := [uv.position, uv.position + Vector2(uv.size.x, 0), uv.end, uv.position + Vector2(0, uv.size.y)]
+	# From the ridge (row 0) down to the eaves, as on the villagers' roofs.
+	var origin := b + up * 0.02 - side * width * 0.5
+	for r in rows:
+		for c in cols:
+			var p0 := origin + side * (c * width / cols) - along * (r * length / rows)
+			var dx := side * (width / cols)
+			var dz := -along * (length / rows)
+			var quad := [p0, p0 + dx, p0 + dx + dz, p0 + dz]
+			var seed_colour := Color(seeds.randf(), 0, 0)
+			# Wound to face up, out of the roof.
+			var order := [0, 1, 2, 0, 2, 3] if (dx.cross(dz)).dot(up) < 0.0 else [0, 2, 1, 0, 3, 2]
+			for k: int in order:
+				st.set_color(seed_colour)
+				st.set_normal(up)
+				st.set_uv(uvs[k])
+				st.add_vertex(quad[k])
+	var tiles := MeshInstance3D.new()
+	tiles.mesh = st.commit()
+	tiles.material_override = _old_roof() if _abandoned else VillageHouse._roof_material(0)
+	tiles.set_meta("ymin", ymin)
+	_solid.add_child(tiles)
+	# The board under the tiles, seen from inside and at its edges.
+	var board := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(length, 0.12, width)
+	board.mesh = box
+	board.material_override = HouseLooks.stair_wood()
+	board.transform = Transform3D(Basis(along, up, side), a + slope * 0.5 - up * 0.06)
+	board.set_meta("ymin", ymin)
+	_solid.add_child(board)
+
+
+## The tiles of an empty house's roof: greyer and far more weathered (see aged_roof.gdshader).
+static var _old_tiles: ShaderMaterial = null
+
+
+static func _old_roof() -> ShaderMaterial:
+	if _old_tiles == null:
+		_old_tiles = (VillageHouse._roof_material(2) as ShaderMaterial).duplicate()
+		_old_tiles.set_shader_parameter("age", 1.3)
+	return _old_tiles
 
 
 ## Tells the map which stone-block cells stand on a slab (a flat roof or an

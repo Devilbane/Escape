@@ -14,6 +14,14 @@ house style in its Part 2, and tick its checklist (Part 3) in the pull request.
 The most important standing rule: expanding or collapsing a section (accordion, folding category,
 tab, details card) must not reshape or condense the rest of the window.
 
+## CI tests
+
+A new test goes in one of three lists (rule in `docs/testing.md`, "What goes in the required check"):
+`tests/ci_manifest.txt` blocks every PR and holds only fast, deterministic core logic (saves, combat, items and
+trading, collisions and getting stuck, data checks); `tests/ci_quests.txt` holds a finished quest's or dungeon's
+test with the paths it covers, and it runs only when a PR touches them; `tests/ci_nightly.txt` holds looks,
+screenshots, sounds, ambient life and timing-based simulations, which run every night. When in doubt, nightly.
+
 ## Language
 
 Write messages, code comments, PR descriptions and docs in English. Player-facing strings are

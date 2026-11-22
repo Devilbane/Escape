@@ -509,53 +509,14 @@ static func sign_text_fits(text: String, font: Font) -> bool:
 	return sign_text_width(text, font) <= SIGN_BOARD_WIDTH - SIGN_MARGIN * 2.0
 
 
-## A hanging shop sign: a wooden board on a post facing +Z, about 2.6 m high.
-## It shows a small picture (`icon`, one of SIGN_ICONS, a coin if unknown) with
-## the shop's name under it. A name that does not fit on the board is left
-## off, and the picture alone is shown larger in its place.
+## A hanging shop sign: a big shield on two chains from the arm of a post facing +Z, about 3.7 m
+## high (see HangingShield.on_post). The shield shows the shop's mark (`icon`, one of SIGN_ICONS, a
+## coin if unknown) large on both faces, and the shop's name hangs on a small board under it. A
+## name that does not fit on the board is left off.
 static func shop_sign(text: String, font: Font, icon := "coin") -> Node3D:
-	var board_sign := Node3D.new()
-	board_sign.name = "ShopSign"
-	var wood := _paint(Color(0.3, 0.2, 0.12))
-	var board_wood := _paint(Color(0.55, 0.38, 0.2))
-	var post := CylinderMesh.new()
-	post.top_radius = 0.07
-	post.bottom_radius = 0.09
-	post.height = 2.6
-	board_sign.add_child(_part(post, wood, Vector3(0, 1.3, 0)))
-	var arm := BoxMesh.new()
-	arm.size = Vector3(1.2, 0.08, 0.08)
-	board_sign.add_child(_part(arm, wood, Vector3(0.5, 2.55, 0)))
-	var board := BoxMesh.new()
-	board.size = Vector3(SIGN_BOARD_WIDTH, 0.7, 0.06)
-	board_sign.add_child(_part(board, board_wood, Vector3(0.55, 2.05, 0)))
-	for x in [0.15, 0.95]:
-		var chain := CylinderMesh.new()
-		chain.top_radius = 0.015
-		chain.bottom_radius = 0.015
-		chain.height = 0.16
-		board_sign.add_child(_part(chain, _paint(Color(0.5, 0.5, 0.55), 0.4, 0.8), Vector3(x, 2.47, 0)))
-	var fits := text != "" and sign_text_fits(text, font)
-	board_sign.set_meta("text_shown", fits)
-	board_sign.set_meta("icon", icon if icon in SIGN_ICONS else "coin")
-	var picture := sign_icon(icon)
-	picture.name = "SignIcon"
-	if fits:
-		picture.position = Vector3(0.55, 2.18, 0.03)
-		picture.scale = Vector3.ONE * 0.8
-		var label := Label3D.new()
-		label.text = text
-		label.font = font
-		label.font_size = SIGN_FONT_SIZE
-		label.pixel_size = SIGN_PIXEL_SIZE
-		label.modulate = Color(0.1, 0.06, 0.03)
-		label.position = Vector3(0.55, 1.88, 0.035)
-		label.no_depth_test = false
-		board_sign.add_child(label)
-	else:
-		picture.position = Vector3(0.55, 2.05, 0.03)
-		picture.scale = Vector3.ONE * 1.6
-	board_sign.add_child(picture)
+	var mark: String = icon if icon in SIGN_ICONS else "coin"
+	var board_sign := HangingShield.on_post(mark, text, font)
+	board_sign.set_meta("icon", mark)
 	return board_sign
 
 

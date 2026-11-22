@@ -55,9 +55,15 @@ const SLOTS := [Vector2i(1, 5), Vector2i(4, 5), Vector2i(7, 5), Vector2i(10, 5),
 	Vector2i(19, 10), Vector2i(22, 10)]
 ## A locker is this many cells wide and deep.
 const LOCKER := Vector2i(2, 3)
-## Where the lamps hang (cells).
-const LAMPS := [Vector2i(19, 6), Vector2i(4, 8), Vector2i(10, 9), Vector2i(16, 8), Vector2i(23, 9), Vector2i(29, 8)]
+## The lamps, on the walls (no lamp hangs from the ceiling): each the cell it lights and the way
+## from its wall into that cell; the lamp sits on the cell's wall on the other side.
+const LAMPS := [[Vector2i(17, 6), Vector2i(1, 0)], [Vector2i(22, 6), Vector2i(-1, 0)],
+	[Vector2i(3, 8), Vector2i(0, 1)], [Vector2i(9, 8), Vector2i(0, 1)], [Vector2i(26, 8), Vector2i(0, 1)],
+	[Vector2i(6, 9), Vector2i(0, -1)], [Vector2i(15, 9), Vector2i(0, -1)], [Vector2i(21, 9), Vector2i(0, -1)],
+	[Vector2i(29, 9), Vector2i(0, -1)]]
 const LAMP_COLOUR := Color(1.0, 0.78, 0.48)
+## How high the wall lamps hang over the floor.
+const LAMP_HIGH := 1.85
 const IRON := Color(0.2, 0.2, 0.22)
 ## How high a locker's name plate hangs over the floor.
 const PLATE_HIGH := 2.0
@@ -208,8 +214,8 @@ static func build(level: Level, parent: Node3D) -> void:
 	var iron := _mat("iron", IRON, 0.6)
 	for slot: Vector2i in SLOTS:
 		_bars(parent, body, slot, iron)
-	for c: Vector2i in LAMPS:
-		_lamp(parent, c)
+	for lamp: Array in LAMPS:
+		_lamp(parent, lamp[0], lamp[1])
 	_shows = Node3D.new()
 	_shows.name = "VaultShows"
 	parent.add_child(_shows)
@@ -230,19 +236,24 @@ static func _bars(parent: Node3D, body: StaticBody3D, slot: Vector2i, iron: Mate
 	_solid(body, at + Vector3(0, high * 0.5, 0), Vector3(wide, high, 0.2))
 
 
-## A lamp hanging from the vault's ceiling: an iron cage round a warm glow.
-static func _lamp(parent: Node3D, c: Vector2i) -> void:
-	var at := floor_at(c) + Vector3(0, 2.05, 0)
+## A lamp on the vault's wall: an iron bracket on a plate holding a caged warm glow out into
+## cell `c`, its wall on the side away from `into`.
+static func _lamp(parent: Node3D, c: Vector2i, into: Vector2i) -> void:
+	var out := Vector3(into.x, 0, into.y)
+	var wall := floor_at(c) - out * (HouseSketch.CELL * 0.5 - 0.03)
+	var at := wall + out * 0.28 + Vector3(0, LAMP_HIGH, 0)
 	var iron := _mat("iron", IRON, 0.6)
-	_box(parent, at + Vector3(0, 0.22, 0), Vector3(0.03, 0.2, 0.03), iron)
-	_box(parent, at, Vector3(0.22, 0.26, 0.22), _mat("lamp_glass", LAMP_COLOUR, 0.0, 2.5))
-	_box(parent, at + Vector3(0, 0.15, 0), Vector3(0.3, 0.05, 0.3), iron)
-	_box(parent, at - Vector3(0, 0.15, 0), Vector3(0.3, 0.05, 0.3), iron)
+	var flat := Vector3(absf(out.z), 0, absf(out.x)) * 0.16 + Vector3(absf(out.x), 0, absf(out.z)) * 0.04
+	_box(parent, wall + out * 0.02 + Vector3(0, LAMP_HIGH + 0.05, 0), flat + Vector3(0, 0.4, 0), iron)
+	_box(parent, wall + out * 0.15 + Vector3(0, LAMP_HIGH + 0.2, 0), Vector3(absf(out.x), 0, absf(out.z)) * 0.26 + Vector3(0.03, 0.03, 0.03), iron)
+	_box(parent, at, Vector3(0.18, 0.22, 0.18), _mat("lamp_glass", LAMP_COLOUR, 0.0, 2.5))
+	_box(parent, at + Vector3(0, 0.13, 0), Vector3(0.24, 0.04, 0.24), iron)
+	_box(parent, at - Vector3(0, 0.13, 0), Vector3(0.24, 0.04, 0.24), iron)
 	var light := OmniLight3D.new()
 	light.light_color = LAMP_COLOUR
-	light.light_energy = 2.4
-	light.omni_range = 9.0
-	light.position = at - Vector3(0, 0.1, 0)
+	light.light_energy = 2.0
+	light.omni_range = 7.5
+	light.position = at + out * 0.15
 	parent.add_child(light)
 
 

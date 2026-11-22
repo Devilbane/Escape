@@ -24,6 +24,9 @@ func tick(level: Outdoor, delta: float) -> void:
 	var crowd: Array = []
 	crowd.append_array(level.villagers)
 	crowd.append_array(level.animals)
+	# Zarek, the wandering merchant, is no villager of the map's own (see Outdoor._wanderer_arrives).
+	if level.wanderer != null:
+		crowd.append(level.wanderer)
 	for c in crowd:
 		if not is_instance_valid(c) or not c.is_inside_tree():
 			continue

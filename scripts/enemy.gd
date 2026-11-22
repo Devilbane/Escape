@@ -1743,6 +1743,8 @@ func _sink() -> void:
 
 func _die() -> void:
 	dead = true
+	# Its last cry takes the stage (see FinalScream).
+	FinalScream.scream(level, self, _speaker_name(), FinalScream.monster_line(kind), 2.6 * float(_stats.size))
 	if wound.active() and not is_ghost():
 		BloodDrops.pool(level, global_position, 0.5 * _stats.size)
 	collision_layer = 0

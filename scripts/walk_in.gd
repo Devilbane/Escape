@@ -45,6 +45,13 @@ const LAMP_RANGE := 6.5
 ## How see-through the temple's front wall gets while the hero is inside (0 solid, 1 gone).
 const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
+## A villagers' house's rug: the least free floor in front of the beds it needs (metres), its
+## largest size (across, deep), and how much room it leaves the ladder at the side.
+const RUG_MIN_FREE := 1.0
+const RUG_MAX := Vector2(2.6, 1.5)
+const LADDER_CLEAR := 1.0
+## How high over the floor the candle shelf hangs on the back wall, above the beds' headboards.
+const SHELF_HIGH := 1.75
 ## The beds of a house: as many as fit side by side along the back wall, at most this many.
 const MAX_BEDS := 3
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
@@ -405,6 +412,29 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 	_solid(rec, Vector3(ladder_x, floor_y + 1.0, free_z), Vector3(0.5, 2.0, 0.7))
 	rec["ladder"] = house.transform * Vector3(ladder_x - side * 0.65, floor_y, free_z)
 	rec["ladder_top"] = house.transform * Vector3(side * (room.end.x - 0.1), rec.top - 0.2, free_z)
+	_make_homely(rec, origin_z + CosyBed.FOOT, side)
+
+
+## What makes a villagers' house look lived in, not a bare box of beds: a rug in the strip in front
+## of the beds (where it is deep enough), clear of the ladder, and a shelf with a burning candle on
+## the back wall over the beds, whose glow lights the room with the house's lamp.
+func _make_homely(rec: Dictionary, beds_end: float, ladder_side: float) -> void:
+	var house: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var free := room.end.y - beds_end
+	if free >= RUG_MIN_FREE:
+		var wide := room.size.x - LADDER_CLEAR - 0.4
+		var size := Vector2(minf(wide, RUG_MAX.x), minf(free - 0.3, RUG_MAX.y))
+		var rug := WalkInFurniture.rug(size)
+		rug.position = Vector3(-ladder_side * LADDER_CLEAR * 0.5, floor_y, beds_end + free * 0.5)
+		house.add_child(rug)
+	var shelf := WalkInFurniture.candle_shelf()
+	shelf.position = Vector3(0, floor_y + SHELF_HIGH, room.position.y)
+	house.add_child(shelf)
+	var glow: OmniLight3D = shelf.get_node("CandleGlow")
+	glow.visible = false
+	rec["glows"] = [glow]
 
 
 ## The lamp that lights a house or hall while the hero is inside.
@@ -720,6 +750,9 @@ func _show_inside(rec: Dictionary, inside: bool) -> void:
 	var lamp: OmniLight3D = rec.get("lamp")
 	if lamp:
 		lamp.visible = inside
+	for glow in rec.get("glows", []):
+		if is_instance_valid(glow):
+			(glow as Light3D).visible = inside
 
 
 ## Which wall of a sided hall a leaf of ivy at `at` (the hall's frame) grows on, or "".

@@ -1,18 +1,32 @@
 class_name VillageHalls
 extends RefCounted
-## The village's halls one can walk into: the tavern, the shop and the post office, built in the
+## The village's halls one can walk into: the tavern, the shop, the post office, the Crown office
+## and the adventurers' guild, built in the
 ## village's own style (a VillageHouse, stone plinth, timber framing, plaster and ivy) instead of
 ## the old kit models, each with a sign by its door and its own furniture inside (see WalkIn, which
 ## opens them like the villagers' houses). Usability first: a door in the middle of the front, a
-## free way from it to the counter.
+## free way from it to the counter or desk, where the hall's keeper works by day (see KEEPERS and
+## VillagePosts): Mira behind the shop counter, Clerk Gero at his desk in the Crown office among
+## the land registers, Guild Master Ragna at hers in the guildhall, between its tavern corner and
+## its training corner.
 ##
 ## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
 
 ## The map letters of the halls and what they are.
-const KINDS := {"n": "tavern", "m": "shop", "o": "post"}
-## How big a hall may grow (metres, inside its block): wider and deeper than a home.
+const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild"}
+## Who keeps which hall (villager roles), working behind its counter or desk by day.
+const KEEPERS := {"shop": "6", "office": "¢", "guild": "G"}
+## How big a hall may grow (metres, inside its block): wider and deeper than a home, and the big
+## halls on their three-by-three blocks bigger still.
 const MAX_W := 9.4
 const MAX_D := 6.4
+const BIG := ["office", "guild"]
+const BIG_W := 9.8
+const BIG_D := 8.6
+## The desk of the Crown office and the guildhall: lower than a counter, and deeper.
+const DESK_HIGH := 0.85
+const DESK_DEEP := 0.8
+const DESK_WIDE := 2.4
 ## Behind a counter: how far it stands from the back wall (the keeper's room), and how deep it is.
 const BEHIND := 1.1
 const COUNTER_DEEP := 0.6
@@ -23,8 +37,18 @@ const SIGN_HIGH := 3.0
 
 
 ## The style a hall's VillageHouse is built in (see VillageHouse.build).
-static func style(_ch: String) -> Dictionary:
+static func style(ch: String) -> Dictionary:
+	if KINDS.get(ch, "") in BIG:
+		return {"max_w": BIG_W, "max_d": BIG_D, "door_x": 0.0}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
+
+
+## The kind of hall the villager of `role` keeps, or "".
+static func kept_by(role: String) -> String:
+	for kind: String in KEEPERS:
+		if KEEPERS[kind] == role:
+			return kind
+	return ""
 
 
 ## Furnishes an opened hall (see WalkIn.open_house): the counter, and what goes with the kind.
@@ -36,15 +60,18 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 	inside.name = "HallInside"
 	hall.add_child(inside)
 	var back := room.position.y
-	var counter_z := back + BEHIND + COUNTER_DEEP * 0.5
-	var counter_w := minf(room.size.x * 0.55, 4.2)
-	var counter := WalkInFurniture.counter(counter_w, COUNTER_HIGH, COUNTER_DEEP)
+	# A counter, or in the big halls a desk.
+	var desk := String(rec.kind) in BIG
+	var deep := DESK_DEEP if desk else COUNTER_DEEP
+	var counter_z := back + BEHIND + deep * 0.5
+	var counter_w := DESK_WIDE if desk else minf(room.size.x * 0.55, 4.2)
+	var counter := WalkInFurniture.desk(counter_w, DESK_HIGH, deep) if desk else WalkInFurniture.counter(counter_w, COUNTER_HIGH, deep)
 	counter.position = Vector3(0, floor_y, counter_z)
 	inside.add_child(counter)
-	walk_in._solid(rec, Vector3(0, floor_y + 0.6, counter_z), Vector3(counter_w, 1.2, COUNTER_DEEP))
+	walk_in._solid(rec, Vector3(0, floor_y + 0.6, counter_z), Vector3(counter_w, 1.2, deep))
 	# Whoever keeps the hall stands behind the counter, facing the door.
 	rec["posts"] = [{"pos": hall.transform * Vector3(0, floor_y, back + BEHIND * 0.5), "rot": hall.rotation.y,
-			"front": hall.transform * Vector3(0, floor_y, counter_z + COUNTER_DEEP * 0.5 + 0.6)}]
+			"front": hall.transform * Vector3(0, floor_y, counter_z + deep * 0.5 + 0.6)}]
 	match String(rec.kind):
 		"tavern":
 			_tavern(walk_in, rec, inside)
@@ -52,6 +79,10 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 			_shop(walk_in, rec, inside)
 		"post":
 			_post(walk_in, rec, inside)
+		"office":
+			_office(walk_in, rec, inside)
+		"guild":
+			_guild(walk_in, rec, inside)
 
 
 ## Barrels along the back wall behind the bar, two tables with stools either side of the way in.
@@ -104,6 +135,85 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	_by_the_sides(walk_in, rec, inside)
 
 
+## The Crown office: the land registers on bookcases along the back wall behind the clerk's desk,
+## blue banners of the Crown on the side walls and a bench along each for those who wait.
+static func _office(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y
+	var case_w := minf(2.0, (room.size.x - 0.8) * 0.5)
+	for side: float in [-1.0, 1.0]:
+		var books := WalkInFurniture.bookcase(case_w, 2.2, 0.4)
+		books.position = Vector3(side * (case_w * 0.5 + 0.3), floor_y, back + 0.2)
+		inside.add_child(books)
+		walk_in._solid(rec, books.position + Vector3(0, 1.0, 0), Vector3(case_w, 2.0, 0.4))
+	_benches(walk_in, rec, inside, Color(0.25, 0.35, 0.8))
+
+
+## The guildhall: the guild master's desk at the back under the guild's banners, a tavern corner on
+## the left (barrels, tables and stools) and a training corner on the right (a rack of weapons and a
+## straw dummy).
+static func _guild(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y
+	var half := room.size.x * 0.5
+	for x: float in [-1.6, 1.6]:
+		var flag := WalkInFurniture.banner(Color(0.6, 0.2, 0.15), 1.6)
+		flag.position = Vector3(x, floor_y + 2.6, back)
+		inside.add_child(flag)
+	# The tavern corner.
+	for k in 2:
+		var cask := WalkInFurniture.barrel()
+		cask.position = Vector3(-half + 0.45 + k * 0.7, floor_y, back + 0.45)
+		inside.add_child(cask)
+	walk_in._solid(rec, Vector3(-half + 0.8, floor_y + 0.5, back + 0.45), Vector3(1.5, 1.0, 0.75))
+	var table_x := -half + 1.5
+	for table_z: float in [back + 2.6, room.end.y - 1.8]:
+		var table := WalkInFurniture.table(0.55)
+		table.position = Vector3(table_x, floor_y, table_z)
+		inside.add_child(table)
+		walk_in._solid(rec, Vector3(table_x, floor_y + 0.4, table_z), Vector3(1.1, 0.8, 1.1))
+		for dx: float in [-0.85, 0.85]:
+			var stool := WalkInFurniture.stool()
+			stool.position = Vector3(table_x + dx, floor_y, table_z)
+			inside.add_child(stool)
+		var mug := WalkInFurniture.mug()
+		mug.position = Vector3(table_x + 0.15, floor_y + 0.79, table_z - 0.1)
+		inside.add_child(mug)
+	# The training corner.
+	var rack_w := 1.8
+	var rack := WalkInFurniture.weapon_rack(rack_w)
+	rack.position = Vector3(half - rack_w * 0.5 - 0.2, floor_y, back + 0.2)
+	inside.add_child(rack)
+	walk_in._solid(rec, rack.position + Vector3(0, 0.75, 0), Vector3(rack_w, 1.5, 0.4))
+	for dz: float in [2.6, room.size.y - 1.8]:
+		var dummy := WalkInFurniture.dummy()
+		dummy.position = Vector3(half - 1.3, floor_y, back + dz)
+		dummy.rotation.y = -0.5
+		inside.add_child(dummy)
+		walk_in._solid(rec, dummy.position + Vector3(0, 0.8, 0), Vector3(0.6, 1.6, 0.6))
+
+
+## A bench along each side wall, facing in, a banner of `colour` above it.
+static func _benches(walk_in: WalkIn, rec: Dictionary, inside: Node3D, colour: Color) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var z := room.position.y + room.size.y * 0.62
+	var long := minf(2.4, room.size.y * 0.4)
+	for side: float in [-1.0, 1.0]:
+		var x := side * (room.size.x * 0.5 - 0.4)
+		var bench := WalkInFurniture.pew(long)
+		bench.position = Vector3(x, floor_y, z)
+		bench.rotation.y = side * PI * 0.5
+		inside.add_child(bench)
+		walk_in._solid(rec, Vector3(x, floor_y + 0.5, z), Vector3(0.7, 1.0, long))
+		var flag := WalkInFurniture.banner(colour, 1.4)
+		flag.position = Vector3(side * room.size.x * 0.5, floor_y + 2.6, z - long * 0.5 - 0.8)
+		flag.rotation.y = -side * PI * 0.5
+		inside.add_child(flag)
+
+
 ## A row of things (`make` returns one) along the back wall, `step` apart, `deep` from the wall.
 static func _along_back(walk_in: WalkIn, rec: Dictionary, inside: Node3D, make: Callable, step: float, deep: float) -> void:
 	var room: Rect2 = rec.room
@@ -136,7 +246,8 @@ static func _by_the_sides(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> v
 
 
 ## Hangs the hall's sign beside its door: an iron arm out from the front wall and a board with the
-## hall's mark (a mug, a basket of bread, a post horn), so each is easy to tell from the street.
+## hall's mark (a mug, a basket of bread, a post horn, the Crown's sealed scroll, the guild's
+## shield), so each is easy to tell from the street.
 static func hang_sign(hall: Node3D, kind: String) -> Node3D:
 	var shape: Dictionary = hall.get_meta("shape")
 	var d: float = shape.d

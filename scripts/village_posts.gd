@@ -1,7 +1,8 @@
 class_name VillagePosts
 extends RefCounted
-## Villagers who keep a hall (see VillageHalls) work inside it by day: the shopkeeper behind her
-## counter in the shop. Where such a villager's own spot is at the door of a hall one can walk into,
+## Villagers who keep a hall (see VillageHalls.KEEPERS) work inside it by day: the shopkeeper behind
+## her counter in the shop, the clerk at his desk in the Crown office, the guild master at hers in
+## the guildhall. Where such a villager's hall can be walked into,
 ## she walks in through the door to her place behind the counter, works there facing the door, and
 ## walks out again at nightfall (or when the alarm sounds); anything else that calls her away
 ## while she is inside (a fright, a slime) puts her out on the street before the door at once.
@@ -11,31 +12,24 @@ extends RefCounted
 ## "post" task, `leave_at_once` when another task starts, `mind_station` each tick.
 ## With the hall switched off (WalkIn.halls) there is no counter and she stands outside as before.
 
-## The plans whose villagers keep a hall's counter.
-const PLANS := ["shop"]
-## How near her own spot the door of a hall must be (metres) for it to be hers.
-const DOOR_NEAR := 4.0
 ## From how far (metres, to her) the hero standing before the counter reaches her.
-const TOUCH := 1.9
+const TOUCH := 2.2
 ## How near a way point counts as reached (metres), and the longest the walk may take (seconds)
 ## before she is simply put where she was going.
 const ARRIVE := 0.15
 const GIVE_UP := 15.0
 
 
-## The post of the hall at the villager's own spot, or {} (no hall there, or none to walk into).
+## The post of the hall the villager keeps, or {} (she keeps none, or it cannot be walked into).
 static func post_of(v: Villager) -> Dictionary:
-	if not v.plan() in PLANS or v.level == null:
+	var kind := VillageHalls.kept_by(v.role)
+	if kind == "" or v.level == null:
 		return {}
 	var walk_in: WalkIn = v.level.get("walk_in")
 	if walk_in == null:
 		return {}
-	var spot: Vector3 = v.level.cell_to_world(v.home)
 	for rec in walk_in.buildings:
-		if not rec.get("opened", false) or (rec.get("posts", []) as Array).is_empty():
-			continue
-		var outside: Vector3 = walk_in.door_points(rec)[0]
-		if Vector2(outside.x - spot.x, outside.z - spot.z).length() <= DOOR_NEAR:
+		if rec.kind == kind and rec.get("opened", false) and not (rec.get("posts", []) as Array).is_empty():
 			return {"rec": rec, "post": rec.posts[0]}
 	return {}
 

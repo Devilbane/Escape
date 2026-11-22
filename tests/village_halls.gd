@@ -1,12 +1,13 @@
 extends SceneTree
 ## Headless test for the halls one can walk into (see VillageHalls, VillagePosts):
-## - the tavern, the shop and the post office are timber houses now, each with a sign and a door in
+## - the tavern, the shop, the post office, the Crown office and the guildhall are timber houses now, each with a sign and a door in
 ##   the middle of its front, opened like the villagers' houses (walls, floor, door);
 ## - the hero walks in through the door; inside, the floor above and whichever walls face the camera
 ##   are hidden (the shop's door faces away, so its back wall hides and its front stays);
 ## - each hall has its counter and furniture, the shop and the tavern a place behind the counter;
-## - by day the shopkeeper walks in through the door to her place behind the counter, the hero
-##   reaches her from in front of it, and at nightfall she walks out again;
+## - by day each keeper (the shopkeeper, the clerk, the guild master) walks in through the door to
+##   the place behind the counter or desk, the hero reaches them from in front of it, and at
+##   nightfall they walk out again;
 ## - with a hall's switch off (WalkIn.halls) it is the old solid kit model again, and nothing else
 ##   in the village changes.
 ## Run with: godot --headless --fixed-fps 60 -s tests/village_halls.gd
@@ -95,7 +96,7 @@ func _run() -> void:
 	var lvl := await _load_village()
 	var walk_in: WalkIn = lvl.walk_in
 	var halls := walk_in.buildings.filter(func(r): return VillageHalls.KINDS.values().has(r.kind))
-	check(halls.size() == VillageHalls.KINDS.size(), "the tavern, the shop and the post office can be walked into (%d)" % halls.size())
+	check(halls.size() == VillageHalls.KINDS.size(), "every hall can be walked into (%d)" % halls.size())
 	var houses_on := _house_boxes(lvl)
 	for rec in halls:
 		var hall: Node3D = rec.node
@@ -104,7 +105,7 @@ func _run() -> void:
 		check(hall.get_node_or_null("HallSign") != null, "the %s has its sign by the door" % kind)
 		check(is_zero_approx(float((hall.get_meta("shape") as Dictionary).door_x)), "the %s's door is in the middle of its front" % kind)
 		var inside_node := hall.get_node_or_null("HallInside")
-		check(inside_node != null and inside_node.get_node_or_null("Counter") != null, "the %s has its counter" % kind)
+		check(inside_node != null and (inside_node.get_node_or_null("Counter") != null or inside_node.get_node_or_null("Desk") != null), "the %s has its counter or desk" % kind)
 		check(not (rec.get("posts", []) as Array).is_empty(), "the %s has a place behind its counter" % kind)
 		for ch: String in VillageHalls.KINDS:
 			if VillageHalls.KINDS[ch] == kind:
@@ -137,46 +138,49 @@ func _run() -> void:
 		await _walk(in_dir, 3.0)
 		var behind := Vector2(post.pos.x - hero.global_position.x, post.pos.z - hero.global_position.z).length()
 		check(behind > 0.8, "the counter keeps the hero from its back (%.2f m from the keeper's place)" % behind)
+		# Running into the counter may have spoken to its keeper behind it: close that window.
+		game.menus.close()
+		game.state = game.State.PLAYING
 		await _walk(-in_dir, 4.0)
 		check(walk_in.hero_in.is_empty(), "and out of the %s again (%s)" % [kind, hero.global_position])
 		check(rec.up.all(func(p): return not is_instance_valid(p) or (p as Node3D).visible), "outside again the %s's roof is back" % kind)
 
-	# --- The shopkeeper behind her counter --------------------------------------------------
-	var mira: Villager = null
-	for v in lvl.villagers:
-		if v.role == "6":
-			mira = v
-	check(mira != null, "the shopkeeper is in the village")
-	if mira != null:
-		var shop: Dictionary = halls.filter(func(r): return r.kind == "shop")[0]
-		check(VillagePosts.post_of(mira).get("rec", {}).get("node") == shop.node, "the shop is the shopkeeper's hall")
-		_place(walk_in.door_points(shop)[0] + Vector3(6, 0.2, 0))
-		var at_post := false
-		for i in 60 * 40:
-			await physics_frame
-			if mira.post_trip.get("step", "") == "at":
-				at_post = true
-				break
-		check(at_post, "by day the shopkeeper walks in to her place behind the counter (%s, %s)" % [mira._task, mira.global_position])
-		check(walk_in.building_at(mira.global_position).get("node") == shop.node, "she is inside the shop")
-		await _wait(30)
-		check(mira.global_position.distance_to(shop.posts[0].pos) < 0.4, "behind the counter")
-		check(mira.station.get("touch", 0.0) > 1.0, "the hero reaches her from in front of the counter")
-		var front: Vector3 = shop.posts[0].front
-		check(lvl.station_at(front) == mira.station, "standing before the counter the hero touches her station")
-		# Nightfall: out of the door and home.
-		game.day_hour = 22.0
-		lvl.set_hour(22.0)
-		var out := false
-		for i in 60 * 20:
-			await physics_frame
-			if mira.post_trip.is_empty():
-				out = true
-				break
-		check(out, "at nightfall she walks out of the shop again (%s, %s)" % [mira._task, mira.post_trip])
-		check(walk_in.building_at(mira.global_position).is_empty(), "and is out on the street (%s)" % mira.global_position)
-		game.day_hour = 12.0
-		lvl.set_hour(12.0)
+	# --- The keepers behind their counters and desks -------------------------------------
+	var keepers := {}
+	for kind: String in VillageHalls.KEEPERS:
+		for v in lvl.villagers:
+			if v.role == VillageHalls.KEEPERS[kind]:
+				keepers[kind] = v
+		check(keepers.has(kind), "the %s's keeper is in the village" % kind)
+	var shop_rec: Dictionary = halls.filter(func(r): return r.kind == "shop")[0]
+	_place(walk_in.door_points(shop_rec)[0] + Vector3(6, 0.2, 0))
+	for i in 60 * 50:
+		await physics_frame
+		if keepers.values().all(func(v): return v.post_trip.get("step", "") == "at"):
+			break
+	await _wait(30)
+	for kind: String in keepers:
+		var keeper: Villager = keepers[kind]
+		var rec: Dictionary = halls.filter(func(r): return r.kind == kind)[0]
+		check(VillagePosts.post_of(keeper).get("rec", {}).get("node") == rec.node, "the %s is its keeper's hall" % kind)
+		check(keeper.post_trip.get("step", "") == "at", "by day the %s's keeper walks in to the place behind the counter (%s, %s)" % [kind, keeper._task, keeper.global_position])
+		check(walk_in.building_at(keeper.global_position).get("node") == rec.node, "the keeper is inside the %s" % kind)
+		check(keeper.global_position.distance_to(rec.posts[0].pos) < 0.4, "behind the %s's counter" % kind)
+		check(keeper.station.get("touch", 0.0) > 1.0, "the hero reaches the %s's keeper from in front of the counter" % kind)
+		check(lvl.station_at(rec.posts[0].front) == keeper.station, "standing before the %s's counter the hero touches the keeper's station" % kind)
+	# Nightfall: out of the door and home.
+	game.day_hour = 22.0
+	lvl.set_hour(22.0)
+	for i in 60 * 20:
+		await physics_frame
+		if keepers.values().all(func(v): return v.post_trip.is_empty()):
+			break
+	for kind: String in keepers:
+		var keeper: Villager = keepers[kind]
+		check(keeper.post_trip.is_empty(), "at nightfall the %s's keeper walks out again (%s, %s)" % [kind, keeper._task, keeper.post_trip])
+		check(walk_in.building_at(keeper.global_position).get("node") == null, "and is out of the %s (%s)" % [kind, keeper.global_position])
+	game.day_hour = 12.0
+	lvl.set_hour(12.0)
 
 	# --- The switches -----------------------------------------------------------------------
 	for ch: String in VillageHalls.KINDS:
@@ -192,10 +196,9 @@ func _run() -> void:
 		if not (houses_off[i] as AABB).is_equal_approx(houses_on[i]):
 			same = false
 	check(same, "switching the halls leaves every house as it was")
-	if mira != null:
-		for v in lvl.villagers:
-			if v.role == "6":
-				check(VillagePosts.post_of(v).is_empty(), "switched off, the shopkeeper has no counter to go to")
+	for v in lvl.villagers:
+		if VillageHalls.kept_by(v.role) != "":
+			check(VillagePosts.post_of(v).is_empty(), "switched off, %s has no counter to go to" % v.role)
 	for ch: String in VillageHalls.KINDS:
 		WalkIn.halls[ch] = true
 

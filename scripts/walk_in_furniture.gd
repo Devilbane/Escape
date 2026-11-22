@@ -285,7 +285,8 @@ static func sign_board(kind: String, out: float) -> Node3D:
 	_box(board, Vector3(0.04, 0.5, 0.62), Vector3.ZERO, _plain("sign_board", Color(0.32, 0.22, 0.15)))
 	for z: float in [-0.2, 0.2]:
 		_box(board, Vector3(0.02, 0.12, 0.02), Vector3(0, 0.3, z), iron)
-	var mark := _plain("sign_" + kind, {"tavern": Color(0.85, 0.65, 0.2), "shop": Color(0.9, 0.75, 0.45), "post": Color(0.95, 0.8, 0.25)}.get(kind, Color.WHITE), 0.5)
+	var mark := _plain("sign_" + kind, {"tavern": Color(0.85, 0.65, 0.2), "shop": Color(0.9, 0.75, 0.45), "post": Color(0.95, 0.8, 0.25),
+			"office": Color(0.93, 0.9, 0.8), "guild": Color(0.7, 0.2, 0.15)}.get(kind, Color.WHITE), 0.5)
 	for x: float in [-0.03, 0.03]:
 		match kind:
 			"tavern":
@@ -295,8 +296,106 @@ static func sign_board(kind: String, out: float) -> Node3D:
 			"shop":
 				_box(board, Vector3(0.02, 0.14, 0.36), Vector3(x, -0.04, 0), mark)
 				_box(board, Vector3(0.02, 0.06, 0.26), Vector3(x, 0.06, 0), mark)
+			"office":
+				# A scroll with the Crown's blue seal.
+				_box(board, Vector3(0.02, 0.26, 0.3), Vector3(x, 0.0, 0.0), mark)
+				_box(board, Vector3(0.025, 0.08, 0.08), Vector3(x, -0.08, 0.08), _plain("seal", Color(0.25, 0.35, 0.8), 0.5))
+			"guild":
+				# A red shield with a pale axe across it.
+				_box(board, Vector3(0.02, 0.26, 0.26), Vector3(x, 0.02, 0.0), mark)
+				_box(board, Vector3(0.025, 0.3, 0.04), Vector3(x, 0.0, 0.0), _plain("axe_haft", Color(0.85, 0.8, 0.7)), Basis(Vector3.RIGHT, 0.6))
 			_:
 				_box(board, Vector3(0.02, 0.06, 0.3), Vector3(x, 0.0, 0.0), mark)
 				_box(board, Vector3(0.02, 0.18, 0.08), Vector3(x, 0.02, 0.17), mark)
 				_box(board, Vector3(0.02, 0.1, 0.06), Vector3(x, 0.0, -0.17), mark)
+	return root
+
+
+## A bookcase `wide` x `high` and `deep`, its back on the wall (at -z), full of ledgers and rolls.
+static func bookcase(wide: float, high: float, deep: float) -> Node3D:
+	var root := shelf(wide, high, deep)
+	root.name = "Bookcase"
+	var colours := [Color(0.45, 0.18, 0.15), Color(0.2, 0.28, 0.45), Color(0.35, 0.4, 0.25), Color(0.5, 0.38, 0.22), Color(0.9, 0.86, 0.74)]
+	var boards := 4
+	for b in boards - 1:
+		var y := 0.15 + b * (high - 0.2) / (boards - 1)
+		var x := -wide * 0.5 + 0.1
+		var i := 0
+		while x < wide * 0.5 - 0.12:
+			var thick := 0.05 + float((i * 5 + b * 3) % 4) * 0.015
+			var tall := 0.22 + float((i * 3 + b) % 3) * 0.03
+			if (i + b * 2) % 9 != 4:
+				var c: Color = colours[(i * 2 + b) % colours.size()]
+				_box(root, Vector3(thick, tall, deep * 0.75), Vector3(x + thick * 0.5, y + 0.02 + tall * 0.5, 0), _plain("book%d" % ((i * 2 + b) % colours.size()), c))
+			x += thick + 0.01
+			i += 1
+	return root
+
+
+## A writing desk `wide` metres across: a counter at desk height with an open ledger, an inkpot and
+## a stack of papers on it (its front, the side one stands before, at +z).
+static func desk(wide: float, high: float, deep: float) -> Node3D:
+	var root := counter(wide, high, deep)
+	root.name = "Desk"
+	var paper := _plain("paper", Color(0.93, 0.9, 0.8))
+	_box(root, Vector3(0.5, 0.03, 0.36), Vector3(-0.15, high + 0.015, 0), paper, Basis(Vector3.UP, 0.12))
+	_box(root, Vector3(0.02, 0.035, 0.34), Vector3(-0.15, high + 0.02, 0), _plain("book1", Color(0.2, 0.28, 0.45)), Basis(Vector3.UP, 0.12))
+	_cylinder(root, 0.04, 0.07, Vector3(wide * 0.5 - 0.35, high + 0.035, -0.08), _plain("ink", Color(0.08, 0.08, 0.1), 0.3))
+	_box(root, Vector3(0.008, 0.2, 0.008), Vector3(wide * 0.5 - 0.33, high + 0.13, -0.08), _plain("quill", Color(0.95, 0.95, 0.92)), Basis(Vector3.FORWARD, 0.35))
+	for k in 3:
+		_box(root, Vector3(0.3, 0.02, 0.22), Vector3(-wide * 0.5 + 0.35, high + 0.01 + k * 0.022, 0.02), paper, Basis(Vector3.UP, k * 0.08))
+	return root
+
+
+## A rack of weapons `wide` metres long against a wall (its back at -z): swords and axes on pegs.
+static func weapon_rack(wide: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "WeaponRack"
+	var wood := _wood()
+	var iron := _plain("blade", Color(0.7, 0.72, 0.75), 0.35)
+	for x: float in [-wide * 0.5 + 0.05, wide * 0.5 - 0.05]:
+		_box(root, Vector3(0.08, 1.5, 0.3), Vector3(x, 0.75, 0), wood)
+	for y: float in [0.3, 1.25]:
+		_box(root, Vector3(wide, 0.06, 0.08), Vector3(0, y, -0.08), wood)
+	var n := maxi(2, int(wide / 0.35))
+	for i in n:
+		var x := -wide * 0.5 + 0.25 + i * (wide - 0.5) / maxf(1.0, n - 1)
+		if i % 2 == 0:
+			_box(root, Vector3(0.05, 1.0, 0.02), Vector3(x, 0.85, 0.02), iron)
+			_box(root, Vector3(0.2, 0.04, 0.04), Vector3(x, 0.4, 0.02), wood)
+		else:
+			_box(root, Vector3(0.04, 1.1, 0.04), Vector3(x, 0.7, 0.02), wood)
+			_box(root, Vector3(0.2, 0.18, 0.02), Vector3(x + 0.08, 1.15, 0.02), iron)
+	return root
+
+
+## A straw training dummy on a post, a sack for a head and a wooden shield strapped on.
+static func dummy() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Dummy"
+	var wood := _wood()
+	var straw := _plain("straw", Color(0.85, 0.72, 0.4))
+	_box(root, Vector3(0.5, 0.06, 0.5), Vector3(0, 0.03, 0), wood)
+	_cylinder(root, 0.05, 1.5, Vector3(0, 0.75, 0), wood)
+	_cylinder(root, 0.2, 0.6, Vector3(0, 1.15, 0), straw)
+	_box(root, Vector3(0.9, 0.08, 0.08), Vector3(0, 1.3, 0), wood)
+	var head := SphereMesh.new()
+	head.radius = 0.15
+	head.height = 0.3
+	var mi := MeshInstance3D.new()
+	mi.mesh = head
+	mi.material_override = _plain("sackcloth", Color(0.78, 0.7, 0.55))
+	mi.position = Vector3(0, 1.62, 0)
+	root.add_child(mi)
+	_cylinder(root, 0.22, 0.04, Vector3(-0.3, 1.1, 0.12), _plain("guild_red", Color(0.6, 0.2, 0.15)), Basis(Vector3.RIGHT, PI * 0.5))
+	return root
+
+
+## A long cloth banner `high` metres long hanging flat on a wall (at -z), in `colour` with a pale band.
+static func banner(colour: Color, high: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Banner"
+	_box(root, Vector3(0.9, 0.05, 0.05), Vector3(0, 0, 0.03), _wood())
+	_box(root, Vector3(0.7, high, 0.02), Vector3(0, -high * 0.5, 0.02), _plain("banner_%s" % colour.to_html(false), colour))
+	_box(root, Vector3(0.7, 0.1, 0.025), Vector3(0, -high * 0.3, 0.025), _plain("banner_band", Color(0.92, 0.82, 0.5)))
 	return root

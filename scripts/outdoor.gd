@@ -2354,6 +2354,11 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				walk_in.open_temple(node)
 				for lamp in find_children("TempleLamp*", "Node3D", false, false):
 					walk_in.add_front(node, lamp)
+		elif walk_in.has(node):
+			# A hall wears ivy like the villagers' houses (see VillageHalls).
+			var hall_door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
+			_dress_building(node, center, [hall_door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
+			walk_in.open_house(node)
 		elif ch == "w" or ch == "k":
 			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
 			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
@@ -2368,13 +2373,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-1.8, -0.9, 0.0, 0.9, 1.8]:
 				for z in [1.0, 0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			if walk_in.has(node):
-				# A hall wears ivy like the villagers' houses (see VillageHalls).
-				var hall_door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
-				_dress_building(node, center, [hall_door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
-				walk_in.open_house(node)
-			else:
-				_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b", BANK_ROOF_VINES if ch == "b" else 0)
+			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b", BANK_ROOF_VINES if ch == "b" else 0)
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))

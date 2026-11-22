@@ -20,8 +20,9 @@ extends RefCounted
 static var houses := true
 static var temple := true
 ## The halls rebuilt in the village's style to be walked into (see VillageHalls), each on its own:
-## the tavern (n), the shop (m) and the post office (o). Off, a hall is the old solid kit model again.
-static var halls := {"n": true, "m": true, "o": true}
+## the tavern (n), the shop (m), the post office (o), the Crown office (k) and the adventurers'
+## guild (w). Off, a hall is the old solid kit model again.
+static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true}
 
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2

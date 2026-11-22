@@ -237,6 +237,8 @@ func _run() -> void:
 		if not v.goes_to_bed():
 			continue
 		var step := String(v.bed_trip.get("step", ""))
+		if v.role == SmithCottage.OWNER:
+			continue # In his own bed on the ground floor, see below.
 		if step == "upstairs":
 			upstairs += 1
 			check(not v.visible and v.at_home, "%s sleeps upstairs, out of sight" % v.role)

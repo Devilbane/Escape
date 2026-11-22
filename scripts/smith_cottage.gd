@@ -42,7 +42,9 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 	walk_in._solid(rec, Vector3(bed_mid, floor_y + 0.5, (back + bed_front) * 0.5), Vector3(CosyBed.FOOT - CosyBed.HEAD, 1.0, bed_front - back))
 	var stand := house.transform * Vector3(bed_mid, floor_y, bed_front + 0.55)
 	rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y + turn, "by": null, "stand": stand})
-	# No ladder up: whoever finds the bed taken (nobody but Gorm sleeps here) waits beside it.
+	# His bed is on the ground floor, not up a ladder (see VillageBeds._on_ground). Should it ever be
+	# taken (nobody but Gorm sleeps here), whoever comes waits beside it.
+	rec["ground_beds"] = true
 	rec["ladder"] = stand
 	rec["ladder_top"] = stand
 	# His chest in the corner beyond the foot of the bed, a barrel in front of it.

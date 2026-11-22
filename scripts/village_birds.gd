@@ -173,7 +173,7 @@ const PERCH_SIZE := 0.72
 const WILD_SHY := 9.0
 const WILD_PECK_SHY := 6.0
 ## For the compendium.
-const LEARN := "Küken: In manchen Nestern auf den Dächern des Dorfes liegen Eier, in anderen sitzen junge Vögel. Hungrige Küken recken sich, sperren die Schnäbel auf und piepsen, bis ihre Eltern mit einem Wurm kommen. Trägst du Körner bei dir (bei der Krämerin), stell dich unter so ein Nest: Du wirfst den Küken eine Handvoll hinauf."
+const LEARN := "Küken: In manchen Nestern auf den Dächern des Dorfes liegen Eier, in anderen sitzen junge Vögel. Hungrige Küken recken sich, sperren die Schnäbel auf und piepsen, bis ihre Eltern mit einem Wurm kommen. Trägst du Körner bei dir (beim Müller), stell dich unter so ein Nest: Du wirfst den Küken eine Handvoll hinauf."
 ## Whether the hero was told how to feed the chicks (once a game).
 static var _hinted := false
 
@@ -1379,7 +1379,7 @@ func _hero_below(brood: Dictionary) -> void:
 		fed_by_hero += 1
 	elif not _hinted:
 		_hinted = true
-		Events.tell(Lang.t("Über dir piepsen hungrige Küken. Körner für sie gibt es bei der Krämerin."), Color(0.95, 0.88, 0.55), 3.5)
+		Events.tell(Lang.t("Über dir piepsen hungrige Küken. Körner für sie gibt es beim Müller in der Mühle."), Color(0.95, 0.88, 0.55), 3.5)
 		Events.teach(LEARN)
 
 

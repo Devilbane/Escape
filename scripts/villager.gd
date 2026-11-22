@@ -131,6 +131,9 @@ const ROLES := {
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "stay", "work": "Interact",
 		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
+	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [],
+		"colors": [Color(0.92, 0.9, 0.84), Color(0.55, 0.5, 0.42), Color(0.9, 0.88, 0.82)], "plan": "shop", "work": "Interact",
+		"lines": ["Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.", "Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.", "Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche."]},
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
@@ -1989,8 +1992,10 @@ func _physics_process(delta: float) -> void:
 		if _task == "watch" and not eaten and visible and threat == null and _blow_step(delta):
 			return
 		_end_horn()
-	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to.
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine":
+	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
+	# on the way through the door of their hall walks on while they speak, so neither they nor the
+	# hero get stuck in the doorway (see VillagePosts).
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)):
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")

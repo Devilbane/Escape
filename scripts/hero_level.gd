@@ -110,7 +110,7 @@ const BUILDING_AREAS := {
 ## by Bounties id ("bounty:" in front).
 const TASKS := {
 	"raeuberplage": [10, 6], "dolche": [10, 6], "schlaeger": [8, 7], "wilderer": [6, 5],
-	"hauptmann": [15, 9], "brief": [3, 5], "kuerbis": [3, 5], "wasser": [3, 5], "versoehnung": [4, 5],
+	"hauptmann": [15, 9], "brief": [3, 5], "mehl": [3, 5], "kuerbis": [3, 5], "wasser": [3, 5], "versoehnung": [4, 5],
 	"wunsch_klingen": [10, 3], "wunsch_blocken": [10, 3], "wunsch_ruestung": [12, 5],
 	"wunsch_aexte": [8, 7], "wunsch_werfen": [8, 5], "wunsch_schleichen": [8, 6],
 	"bounty:woelfe": [6, 6], "bounty:spinnen": [6, 6], "bounty:untote": [8, 5],

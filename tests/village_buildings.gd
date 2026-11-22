@@ -179,7 +179,8 @@ func _check_aged(lvl: Outdoor) -> void:
 			kit += 1
 			var mat := mi.material_override as ShaderMaterial
 			check(mat != null and mat.shader == AgedStone.SHADER, "%s is built of the old stone" % child.name)
-	check(kit > 2, "the smithy and the windmill are there (%d)" % kit)
+	# (The windmill is a hall now too, its kit tower on a stone storey, see MillTower.)
+	check(kit >= (1 if WalkIn.is_on("u") else 3), "the smithy and the windmill are there (%d)" % kit)
 	lvl.set_hour(23.0)
 	var lit := false
 	for mat in lvl._window_mats.values():

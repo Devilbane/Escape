@@ -22,12 +22,17 @@ static var temple := true
 ## The halls rebuilt in the village's style to be walked into (see VillageHalls), each on its own:
 ## the tavern (n), the shop (m), the post office (o), the Crown office (k) and the adventurers'
 ## guild (w). Off, a hall is the old solid kit model again.
-static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true}
+static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true, "u": true}
 
 ## Map tiles of other buildings one walks into that let sight and reach through (the bank, see
 ## BankVault): their own walls stop them.
 var open_cells := {}
 
+## The heights on the hero (metres above their feet) whose sight lines a roof must both cross to
+## count as covering them (see _mind_cover), and how long the roof stays off after (seconds).
+const COVER_FEET := 0.3
+const COVER_HEAD := 1.7
+const COVER_LINGER := 0.4
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
 ## The doorway as wide as the walls stop the hero (a little wider than the leaf, so the hero, 1.1 m
@@ -891,11 +896,14 @@ func tick(hero: Node3D, delta: float) -> void:
 		hero_up = up
 		if not hero_in.is_empty():
 			_show_inside(hero_in, true, up)
+	var cam := level.get_viewport().get_camera_3d() if level.is_inside_tree() else null
 	for rec in buildings:
 		if not rec.get("opened", false):
 			continue
 		_mind_door(rec, at, delta)
 		_mind_fade(rec, delta)
+		if cam != null:
+			_mind_cover(rec, cam.global_position, at, delta)
 
 
 func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
@@ -912,23 +920,68 @@ func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
 		shape.disabled = (leaf as HouseDoor).openness() > 0.25
 
 
+## The roof of a house or hall that hides the hero behind it from the camera, head to foot, is
+## lifted off (with the floor above): the hero shows, and so does the room under it. It comes back
+## once the hero is out from behind it again, a moment later so it does not flicker at the edge.
+func _mind_cover(rec: Dictionary, cam: Vector3, hero_at: Vector3, delta: float) -> void:
+	if rec.kind == "temple" or not (rec.node as Node3D).has_meta("shape"):
+		return
+	var covers := _covers(rec, cam, hero_at)
+	var wait := float(rec.get("cover_wait", 0.0))
+	wait = COVER_LINGER if covers else maxf(0.0, wait - delta)
+	rec["cover_wait"] = wait
+	var off := wait > 0.0
+	if off != bool(rec.get("roof_off", false)):
+		rec["roof_off"] = off
+		_show_up(rec)
+
+
+## Whether the roof and floor above of `rec` stand between the camera at `cam` and the whole hero
+## at `hero_at`: the sight lines to their feet and to their head both pass through them.
+func _covers(rec: Dictionary, cam: Vector3, hero_at: Vector3) -> bool:
+	var node: Node3D = rec.node
+	var shape: Dictionary = node.get_meta("shape")
+	var out := VillageHouse.JETTY + VillageHouse.ROOF_OVERHANG
+	var top: float = rec.top
+	var high := VillageHouse.UPPER + float(shape.ridge) * 1.3
+	var box := AABB(Vector3(-float(shape.w) * 0.5 - out, top, -float(shape.d) * 0.5 - out),
+			Vector3(float(shape.w) + out * 2.0, high, float(shape.d) + out * 2.0))
+	var to_local := node.global_transform.affine_inverse()
+	var eye := to_local * cam
+	for lift: float in [COVER_FEET, COVER_HEAD]:
+		if box.intersects_segment(eye, to_local * (hero_at + Vector3(0, lift, 0))) == null:
+			return false
+	return true
+
+
+## Shows the floor above and the roof unless the hero is inside or behind it (see _mind_cover).
+## Up on the floor above of a house with one (see is_upstairs), its back and side walls and its
+## room show while its roof and its front wall stay hidden.
+func _show_up(rec: Dictionary) -> void:
+	var inside := bool(rec.inside)
+	var up := bool(rec.get("hero_up", false))
+	var off := not inside and bool(rec.get("roof_off", false))
+	for part in rec.up:
+		if is_instance_valid(part):
+			(part as Node3D).visible = not inside and not off
+	for part in rec.get("up_walls", []):
+		if is_instance_valid(part):
+			(part as Node3D).visible = (not inside or up) and not off
+	for part in rec.get("up_front", []):
+		if is_instance_valid(part):
+			(part as Node3D).visible = not inside and not off
+	for part in rec.get("up_room", []):
+		if is_instance_valid(part):
+			(part as Node3D).visible = inside and up
+
+
 ## Hides (or shows again) what stands between the camera and the room.
 ## Up on the floor above (`up`), the roof and the upper front wall hide and the upper room shows,
 ## while the ground floor's front wall stays (it is below the hero).
 func _show_inside(rec: Dictionary, inside: bool, up := false) -> void:
 	rec.inside = inside
-	for part in rec.up:
-		if is_instance_valid(part):
-			(part as Node3D).visible = not inside
-	for part in rec.get("up_walls", []):
-		if is_instance_valid(part):
-			(part as Node3D).visible = not inside or up
-	for part in rec.get("up_front", []):
-		if is_instance_valid(part):
-			(part as Node3D).visible = not inside
-	for part in rec.get("up_room", []):
-		if is_instance_valid(part):
-			(part as Node3D).visible = inside and up
+	rec["hero_up"] = up
+	_show_up(rec)
 	for side: String in SIDES:
 		if not rec.has(side):
 			continue

@@ -184,7 +184,8 @@ func _process(_delta: float) -> bool:
 				villager.alarm(slime)
 				check(villager._task == "walk" and villager.get_meta("then", "") == "hide" or villager._task == "hide", "a timid villager runs for a house")
 				villager._start("hide", 1.0)
-				check(villager.at_home and not villager.visible, "and hides inside")
+				# By the swing door of a house one walks into they vanish once it has opened (see Villager._hide_inside).
+				check(villager.at_home and (not villager.visible or game.level.swing_door_near(villager.global_position)), "and hides inside")
 				stage = 2
 				stage_frames = 0
 		2:

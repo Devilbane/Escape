@@ -71,22 +71,37 @@ func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Ar
 const ROOM_STEP := 0.5
 
 
-## Keeps the snow off the ground inside the buildings one walks into (see Outdoor.walk_in_room):
-## `rooms` are their footprints (x/z), drawn into a fine mask so the snow stops at the walls and
-## the yard round a house takes snow. Below the roof line only, like the sky mask.
-func set_rooms(rooms: Array[Rect2], width: int, height: int, tile: float) -> void:
+## Keeps the snow off the rooms of the buildings one walks into (see Outdoor.walk_in_room): each
+## entry of `rooms` is [footprint (x/z), how high its rooms reach (metres)], and optionally how far
+## its upper storey juts out past that and from which height (metres), drawn into a fine mask
+## so the snow stops at the walls, the yard round a house takes snow, and nothing on any storey
+## under the roof does.
+func set_rooms(rooms: Array, width: int, height: int, tile: float) -> void:
 	if rooms.is_empty():
 		material.set_shader_parameter("rooms_on", false)
 		return
 	var size := Vector2i(ceili(width * tile / ROOM_STEP), ceili(height * tile / ROOM_STEP))
-	var img := Image.create(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_R8)
+	var img := Image.create(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_RG8)
 	var origin := Vector2.ONE * tile * -0.5
-	for r: Rect2 in rooms:
-		var from := Vector2i(((r.position - origin) / ROOM_STEP).round())
-		var to := Vector2i(((r.end - origin) / ROOM_STEP).round())
-		img.fill_rect(Rect2i(from, to - from).intersection(Rect2i(Vector2i.ZERO, size)), Color(1, 0, 0, 1))
+	var whole := Rect2i(Vector2i.ZERO, size)
+	for entry: Array in rooms:
+		var high := clampf(float(entry[1]) / SHELTER_SCALE, 0.0, 1.0)
+		# The upper storey juts out over the ground floor's walls: from its floor up, the rooms reach
+		# that far further (G: the height they start from there).
+		if entry.size() > 3:
+			var over: Rect2 = (entry[0] as Rect2).grow(float(entry[2]))
+			var low := clampf(float(entry[3]) / SHELTER_SCALE, 0.0, 1.0)
+			img.fill_rect(_pixels(over, origin).intersection(whole), Color(high, low, 0, 1))
+		img.fill_rect(_pixels(entry[0], origin).intersection(whole), Color(high, 0, 0, 1))
 	material.set_shader_parameter("room_mask", ImageTexture.create_from_image(img))
 	material.set_shader_parameter("rooms_on", true)
+
+
+## The rooms mask's pixels that `r` (world x/z) covers (see set_rooms).
+func _pixels(r: Rect2, origin: Vector2) -> Rect2i:
+	var from := Vector2i(((r.position - origin) / ROOM_STEP).round())
+	var to := Vector2i(((r.end - origin) / ROOM_STEP).round())
+	return Rect2i(from, to - from)
 
 
 ## Gives the snow the ponds' shore (see Outdoor._build_shore), so it stops where the water

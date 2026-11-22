@@ -4,7 +4,8 @@ extends RefCounted
 ## sleeps walks home as before; at the door they now step in, walk to the ladder by the side wall
 ## and climb it, hand over hand and foot over foot the way the hero climbs (see LadderPose), up
 ## through the hatch to the room on the floor above (see WalkIn._furnish_upstairs). There they walk
-## to their bed, hop in and sleep. Two beds to a house at most (WalkIn.MAX_BEDS): a villager whose
+## to their bed, hop in and sleep (Gorm's cottage has his bed on the ground floor, see SmithCottage:
+## he walks to it and lies down in sight). Two beds to a house at most (WalkIn.MAX_BEDS): a villager whose
 ## nearest house has no free bed goes in the old way and is gone until the morning. In the morning
 ## they get up, walk to the hatch, climb down, hop off the last rungs, walk out of the door and go
 ## back to their day.
@@ -43,7 +44,7 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	var walk_in: WalkIn = v.level.get("walk_in") if v.level != null else null
 	if walk_in == null:
 		return false
-	var house := walk_in.house_near(v.global_position)
+	var house := walk_in.house_near(v.global_position, 9.0, v.role)
 	if house.is_empty():
 		return false
 	var bed := _free_bed(house)
@@ -53,8 +54,32 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	bed.by = v
 	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": [way[0], way[1], house.ladder], "t": 0.0, "clock": 0.0}
 	if at_once:
-		_settle(v)
+		if _on_ground(house, bed):
+			_lie_on_ground(v)
+		else:
+			_settle(v)
 	return true
+
+
+## Whether the bed stands on the ground floor of its house (the smith's cottage), where the sleeper
+## lies in sight of whoever comes in, instead of up the ladder.
+static func _on_ground(house: Dictionary, bed: Dictionary) -> bool:
+	return bool(house.get("ground_beds", false)) and not bed.is_empty()
+
+
+## Into a bed on the ground floor: lies down in it, in sight, with the name hidden like upstairs.
+static func _lie_on_ground(v: Villager) -> void:
+	var trip := v.bed_trip
+	var bed: Dictionary = trip.bed
+	v.unpose_body()
+	v.global_position = Level.lie_spot(bed.pos, float(bed.rot), v.body_scale())
+	v.rotation.y = float(bed.rot)
+	v.play("Lie_Down", 0.0)
+	v.anim_to_end()
+	v.lean_on_pillow(true)
+	v.visible = not v.has_meta(InsideView.HIDDEN)
+	trip.step = "asleep"
+	v.reset_physics_interpolation()
 
 
 static func _free_bed(house: Dictionary) -> Dictionary:
@@ -165,6 +190,8 @@ static func step(v: Villager, delta: float) -> void:
 			if _walk(v, trip, delta):
 				if trip.step == "out":
 					_done(v)
+				elif _on_ground(trip.house, trip.bed):
+					_lie_on_ground(v)
 				else:
 					_start_climb(v, trip, true)
 		"climb":
@@ -240,6 +267,13 @@ static func rise(v: Villager) -> bool:
 			_start_climb(v, trip, false)
 		"rise", "hop_down", "to_hatch", "climb_down":
 			pass
+		"asleep":
+			# Up out of the bed on the ground floor, onto the floor beside it, and out.
+			v.lean_on_pillow(false)
+			v.play("Idle", 0.1)
+			v.global_position = (trip.bed as Dictionary).stand
+			v.reset_physics_interpolation()
+			_go_out(v, trip)
 		_:
 			_go_out(v, trip)
 	return true

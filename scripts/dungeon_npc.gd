@@ -25,6 +25,7 @@ func setup(creation: Dictionary) -> void:
 
 func _ready() -> void:
 	add_to_group(Footprint.GROUP)
+	OffscreenAnim.watch(self)
 	var look := Creations.npc_look(spec)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()

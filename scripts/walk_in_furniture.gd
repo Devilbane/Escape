@@ -67,6 +67,44 @@ static func upright_ladder(tall: float) -> Node3D:
 	return root
 
 
+## A woven rug, `size` metres (x across, y deep), lying flat on the floor: a warm red field with a
+## border and two pale stripes, so a villager's room looks lived in.
+static func rug(size: Vector2) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Rug"
+	_box(root, Vector3(size.x, 0.012, size.y), Vector3(0, 0.006, 0), _plain("rug_border", Color(0.36, 0.2, 0.12)))
+	_box(root, Vector3(size.x - 0.16, 0.016, size.y - 0.16), Vector3(0, 0.008, 0), _plain("rug_field", Color(0.62, 0.2, 0.14)))
+	for z: float in [-size.y * 0.22, size.y * 0.22]:
+		_box(root, Vector3(size.x - 0.3, 0.02, 0.07), Vector3(0, 0.01, z), _plain("rug_stripe", Color(0.9, 0.74, 0.46)))
+	return root
+
+
+## A small shelf hung on a wall, its back to the wall (-z), with a lit candle in a brass dish and a
+## jar on it: a warm spot of light in a villager's room.
+static func candle_shelf() -> Node3D:
+	var root := Node3D.new()
+	root.name = "CandleShelf"
+	var wood := _wood()
+	_box(root, Vector3(0.7, 0.04, 0.24), Vector3(0, 0, 0.12), wood)
+	_box(root, Vector3(0.04, 0.16, 0.18), Vector3(-0.28, -0.09, 0.09), wood)
+	_box(root, Vector3(0.04, 0.16, 0.18), Vector3(0.28, -0.09, 0.09), wood)
+	_cylinder(root, 0.09, 0.02, Vector3(0.12, 0.03, 0.12), _plain("brass", Color(0.78, 0.6, 0.3), 0.4))
+	_cylinder(root, 0.035, 0.18, Vector3(0.12, 0.13, 0.12), _plain("wax", Color(0.95, 0.92, 0.82), 0.6))
+	_cylinder(root, 0.07, 0.16, Vector3(-0.15, 0.1, 0.12), _plain("jar_green", Color(0.42, 0.55, 0.38), 0.5))
+	var flame := Effects.make_flame()
+	flame.scale = Vector3.ONE * 0.3
+	flame.position = Vector3(0.12, 0.27, 0.12)
+	root.add_child(flame)
+	var glow := OmniLight3D.new()
+	glow.name = "CandleGlow"
+	glow.light_color = Color(1.0, 0.72, 0.42)
+	glow.light_energy = 0.7
+	glow.omni_range = 3.2
+	glow.position = Vector3(0.12, 0.4, 0.35)
+	root.add_child(glow)
+	return root
+
+
 ## A floor of stone flags, `size` metres, its top at `y`, in the look of the square (see HouseLooks).
 static func flagstones(size: Vector2, y: float) -> MeshInstance3D:
 	var mesh := PlaneMesh.new()

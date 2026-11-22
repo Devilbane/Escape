@@ -648,6 +648,7 @@ func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
 	_stats = KINDS[kind].duplicate()
 	_stats.merge(custom, true)
+	OffscreenAnim.watch(self, maxf(1.0, float(_stats.get("size", 1.0))))
 	_scan = randf() * RIVAL_SCAN
 	if elite:
 		_stats.hp += 2

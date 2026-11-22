@@ -1,0 +1,1 @@
+- The map now has floors: once you have been down in the silver mine, switch between the surface and the mine with the arrows on the map (or Page Up and Page Down).

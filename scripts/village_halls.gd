@@ -32,8 +32,10 @@ const BEHIND := 1.1
 const COUNTER_DEEP := 0.6
 const COUNTER_HIGH := 1.0
 ## The sign: how far out from the wall its arm reaches and how high it hangs.
-const SIGN_OUT := 0.9
+const SIGN_OUT := 1.15
 const SIGN_HIGH := 3.0
+## How far beside the door a sign hung flat to the wall is, so it clears the doorway.
+const SIGN_ASIDE := 1.65
 
 
 ## The style a hall's VillageHouse is built in (see VillageHouse.build).
@@ -245,14 +247,19 @@ static func _by_the_sides(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> v
 		walk_in._solid(rec, Vector3(x, floor_y + 0.4, z - 0.4), Vector3(0.8, 0.8, 1.7))
 
 
-## Hangs the hall's sign beside its door: an iron arm out from the front wall and a board with the
-## hall's mark (a mug, a basket of bread, a post horn, the Crown's sealed scroll, the guild's
-## shield), so each is easy to tell from the street.
+## Hangs the hall's sign beside its door: an iron bracket out from the front wall under the upper
+## storey, and on two chains a big shield with the hall's mark (a mug for the tavern, scales for the
+## shop, a post horn, the Crown's crown, the guild's crossed swords; see HangingShield), so
+## each is easy to tell from the street. It hangs high enough to walk under, beside the doorway.
+## A hall whose front looks along the camera's view (south) shows the shield flat to its wall; the
+## others hang it edgewise to the wall, so from the high camera it is seen face on too.
 static func hang_sign(hall: Node3D, kind: String) -> Node3D:
 	var shape: Dictionary = hall.get_meta("shape")
 	var d: float = shape.d
-	var board := WalkInFurniture.sign_board(kind, SIGN_OUT)
+	var out_dir := Basis(Vector3.UP, hall.rotation.y) * Vector3.BACK
+	var flat := out_dir.z > 0.7
+	var board := HangingShield.on_wall(kind, SIGN_OUT, not flat)
 	board.name = "HallSign"
-	board.position = Vector3(-1.0, VillageHouse.PLINTH + SIGN_HIGH, d * 0.5 + 0.02)
+	board.position = Vector3(-SIGN_ASIDE if flat else -1.0, VillageHouse.PLINTH + SIGN_HIGH, d * 0.5 + 0.02)
 	hall.add_child(board)
 	return board

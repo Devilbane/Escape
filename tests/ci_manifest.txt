@@ -208,6 +208,7 @@ npc_personal_space.gd | 120 | fixed | passfail | villagers who walk about (the v
 pause_menu.gd | 120 | fixed | passfail | pause window on Esc: Esc in the game stops the world
 puddle_sound.gd | 120 | fixed | passfail | a step into a nearly dried-out puddle gives a soft squelch
 shop_signs.gd | 120 | fixed | passfail | shop signs: a name that fits on the board is written
+hanging_sign_shots.gd | 180 | fixed | passfail | Hanging shop signs: every hall, the smithy and the bank hang a big shield high enough to walk under
 slime_bar.gd | 120 | fixed | passfail | slime's health bar and level (see SlimeBar): a calm
 slime_sounds.gd | 120 | fixed | passfail | slimes' sounds (tools/make_slime_sounds.py,
 speech_bubble.gd | 120 | fixed | passfail | Headless test that spoken lines show in a compact multi-row speech bubble

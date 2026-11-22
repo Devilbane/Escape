@@ -1346,6 +1346,7 @@ func _redraw() -> void:
 	var built_ground := []
 	var buried := []
 	var shelters := {}
+	var roofs := {}
 	own_shelter = {}
 	_covered.clear()
 	_fade_state = ""
@@ -1406,6 +1407,7 @@ func _redraw() -> void:
 			buried.append_array(cache.buried)
 			built_ground.append_array(cache.ground)
 			shelters.merge(cache.shelter, true)
+			roofs.merge(HouseGround.roofed(house, cache.shelter), true)
 			_solid_above(house, keys)
 			continue
 		_solid_cellar(house, holes, ceilinged, buried)
@@ -1414,8 +1416,10 @@ func _redraw() -> void:
 		built_ground.append_array(HouseGround.rects(house))
 		var shelter := HouseGround.shelter(house)
 		shelters.merge(shelter, true)
+		roofs.merge(HouseGround.roofed(house, shelter), true)
 		if house == plan:
 			own_shelter = shelter
+	(game.level as Outdoor).roofs = roofs
 	(game.level as Outdoor).shelters = shelters
 	game.level.set_floor_holes(holes, ceilinged, buried)
 	cellar_view.holes = holes

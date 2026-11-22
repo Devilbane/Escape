@@ -105,12 +105,21 @@ func _process(_delta: float) -> bool:
 		check(plan.count(HouseSketch.WALL, HouseSketch.BUILT) == 16, "the walls are built (%d)" % plan.count(HouseSketch.WALL, HouseSketch.BUILT))
 		check(game._rain.visible, "out in the open the storm's rain falls")
 		check(game._env.fog_enabled, "out in the open the storm brings haze")
+		# A yard closed in by walls but open to the sky: inside the house, but the weather falls in.
+		var yard: Vector3 = plan.node_world(3, 3) + Vector3(0, 1, 0)
+		check(game.level.is_sheltered(yard), "the walls close the yard in")
+		check(not game.level.is_roofed(yard) and not IndoorMask.covers(yard), "the rain falls into a yard with no roof")
+		# Now a roof over it (slabs on the walls).
+		for cell: Array in plan.cells_between(Vector2i(1, 1), Vector2i(4, 4)):
+			plan.pieces[HouseSketch.key_of(cell[0], cell[1], cell[2])] = {"kind": HouseSketch.SLAB, "state": HouseSketch.BUILT}
+		game.house_sketcher._redraw()
 		_put_hero(plan.node_world(3, 3))
 		_lay_slab(plan.node_world(3, 3))
 		_next(1.0)
 		return false
 	if step == 1:
 		check(game.level.is_sheltered(game.player.global_position), "the hero stands inside the house")
+		check(game.level.is_roofed(game.player.global_position), "under its roof")
 		# The storm goes on outside (seen through the windows and over the walls), but the shaders leave
 		# out everything inside the house (see IndoorMask), and the rain only drums, muffled.
 		check(game._rain.visible, "outside the house the storm's rain still falls, seen from inside")

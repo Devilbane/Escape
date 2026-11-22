@@ -429,14 +429,21 @@ var _fires: Array[Vector3] = []
 ## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their
 ## light shows the hero at night like a lantern's.
 var house_lights: Array[Vector3] = []
-## Where the self-built houses keep the weather out (see HouseGround.shelter), set by HouseSketcher.
-## No snow settles in there either (see SnowCover.set_shelter).
+## What the self-built houses close in (see HouseGround.shelter), set by HouseSketcher: the hero in
+## there is indoors (see is_sheltered).
 var shelters := {}:
 	set(value):
 		shelters = value
+## The part of `shelters` under a slab or a roof (see HouseGround.roofed): only there the weather
+## stays out (no rain, snow or fog falls in, see IndoorMask and is_roofed); a yard closed in only by
+## walls is open to the sky. No snow settles under a roof either (see SnowCover.set_shelter). Set by
+## HouseSketcher before `shelters`.
+var roofs := {}:
+	set(value):
+		roofs = value
 		IndoorMask.mark()
 		if snow != null:
-			snow.set_shelter(shelters, width, height, TILE)
+			snow.set_shelter(roofs, width, height, TILE)
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []
@@ -804,7 +811,7 @@ func build() -> void:
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
-	snow.set_shelter(shelters, width, height, TILE)
+	snow.set_shelter(roofs, width, height, TILE)
 	snow.set_awnings(meals.awnings)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
@@ -4391,9 +4398,9 @@ func _setup_astar() -> void:
 
 ## By day everything is lit. At night, and in fog, only the lanterns and
 ## the campfire show the hero to the eyes of enemies: a sneaking hero in the
-## dark or the fog stays unseen. There is no fog inside a built house: by day it is lit there.
+## dark or the fog stays unseen. There is no fog under the roof of a built house: by day it is lit there.
 func is_lit(pos: Vector3) -> bool:
-	if not night and (weather != Weather.FOG or is_sheltered(pos)):
+	if not night and (weather != Weather.FOG or is_roofed(pos)):
 		return true
 	for lamp in _lamps:
 		if _flat_distance(pos, lamp.global_position) < LAMP_REACH:
@@ -4407,9 +4414,16 @@ func is_lit(pos: Vector3) -> bool:
 	return meals.lights_up(pos, LAMP_REACH)
 
 
-## Whether a spot lies inside a self-built house, where no weather reaches (see HouseGround.shelter).
+## Whether a spot lies inside a self-built house (under its roof or in a yard its walls close in, see
+## HouseGround.shelter) or a village room: the hero in there is indoors (see hero_indoors).
 func is_sheltered(pos: Vector3) -> bool:
 	return HouseGround.sheltered(shelters, pos) or (walk_in != null and walk_in.covers(pos))
+
+
+## Whether a spot lies under a roof, where no weather reaches: under a slab or roof of a self-built
+## house (see roofs) or in a village room.
+func is_roofed(pos: Vector3) -> bool:
+	return HouseGround.sheltered(roofs, pos) or (walk_in != null and walk_in.covers(pos))
 
 
 ## Whether the hero is under cover: in a house (their own or a built one) or down in a house
@@ -5239,7 +5253,7 @@ func set_ice(value: float) -> void:
 ## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot; `kind`
 ## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
-	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_sheltered(at):
+	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_roofed(at):
 		return
 	# Up on something (a house's roof): the print lies on what is underfoot there, not on the ground.
 	var up := Vector3.ZERO
@@ -5429,7 +5443,7 @@ func strike() -> Vector3:
 ## under a roof and not in a house cellar. Lightning only strikes there (see strike).
 func open_sky(pos: Vector3) -> bool:
 	var ground := Vector3(pos.x, 0.5, pos.z)
-	if _in_house(world_to_cell(ground)) or is_sheltered(ground):
+	if _in_house(world_to_cell(ground)) or is_roofed(ground):
 		return false
 	return not CellarView.in_cells(_cellar_holes, Vector3(pos.x, 0.0, pos.z))
 

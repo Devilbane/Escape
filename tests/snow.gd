@@ -148,6 +148,19 @@ func _world() -> void:
 			glowing += 1
 	check(glowing == 0, "nothing glowing (coals, embers) wears snow")
 	check(float(shaded.get_shader_parameter("amount")) > 0.5, "the shader knows how thick the snow lies")
+	# The ground round the village houses one walks into takes snow up to their walls: only their
+	# rooms are kept bare (see Outdoor.walk_in_room), not the whole block they stand on.
+	var rooms := 0
+	for rec in lvl.walk_in.buildings:
+		var room := lvl.walk_in_room(rec.node)
+		if not room.has_area():
+			continue
+		rooms += 1
+		var block: Rect2i = rec.block
+		var block_area := float(block.get_area()) * Outdoor.TILE * Outdoor.TILE
+		var centre := (rec.node as Node3D).global_position
+		check(room.has_point(Vector2(centre.x, centre.z)) and room.get_area() < block_area * 0.7, "%s keeps only its rooms bare (%s of a %.0f m² block)" % [rec.kind, room.size, block_area])
+	check(rooms >= 3 and bool(shaded.get_shader_parameter("rooms_on")), "the snow knows the rooms of the houses (%d)" % rooms)
 	# A new thing built while it snows gets its coat too.
 	var late := MeshInstance3D.new()
 	late.mesh = BoxMesh.new()

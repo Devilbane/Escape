@@ -205,9 +205,12 @@ func _run() -> void:
 	check(game.lore.has(LostMine.GATE_FIRST), "the gate is looked at")
 	check(level.station_at(gates[0].pos + Vector3(0, 0.5, 0)).get("kind", "") == LostMine.GATE, "the gate is run into down there")
 	check(level.station_at(Vector3(gates[0].pos.x, 0.5, gates[0].pos.z)).is_empty(), "but not from the ground above it")
+	await _check_the_dead(level)
 	if shots != "":
 		for spot: Array in [["shaft", Vector2i(42, 29)], ["store", Vector2i(45, 30)], ["gallery", Vector2i(31, 31)], ["bunks", Vector2i(35, 34)], ["silver", Vector2i(27, 29)],
-				["cart", Vector2i(57, 37)], ["cave_in", Vector2i(64, 41)], ["shrine", Vector2i(4, 35)], ["cleft", Vector2i(9, 22)], ["old_works", Vector2i(12, 10)], ["gate", Vector2i(12, 5)]]:
+				["cart", Vector2i(57, 37)], ["cave_in", Vector2i(64, 41)], ["shrine", Vector2i(4, 35)], ["cleft", Vector2i(9, 22)], ["old_works", Vector2i(12, 10)], ["gate", Vector2i(12, 5)],
+				["west_drift", Vector2i(3, 22)], ["ore_chamber", Vector2i(12, 45)], ["east_drift", Vector2i(66, 34)], ["east_vein", Vector2i(69, 29)],
+				["powder_room", Vector2i(17, 16)]]:
 			game.player.global_position = LostMine.floor_at(spot[1]) + Vector3(0, 0.1, 0)
 			game._snap_camera()
 			await _wait(10)
@@ -217,6 +220,9 @@ func _run() -> void:
 	game._snap_camera()
 	await _wait(20)
 	check(not view.active and not sketcher.deep.visible, "back up the mine hides again")
+	var standing := LostMine.guards()
+	check(not standing.is_empty() and standing.all(func(e): return not e.visible), "up on the ground the dead of the mine do not show")
+	check(standing.all(func(e): return not e._awake or e._lost > 0.0), "nor do they see the hero up there")
 	# A redraw of the houses (a piece built) is quick: the mine is drawn once.
 	var t := Time.get_ticks_msec()
 	sketcher.refresh()
@@ -224,6 +230,76 @@ func _run() -> void:
 	check(level.stations.filter(func(s): return s.kind == LostMine.NOTE).size() == LostMine.NOTES.size(), "drawing again adds no pages twice")
 	print("PASS: lost mine" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+## The dead of the far drifts: they rise when the hero comes down, stand on the mine's floor,
+## find their way along the tunnels and see only down them; up on the ground nobody knows of
+## them, and the ore veins they keep give ore once they have fallen, once a day.
+func _check_the_dead(level: Outdoor) -> void:
+	await _wait(5)
+	var dead := LostMine.guards()
+	check(dead.size() == LostMine.GUARDS.size(), "the dead stand in the far drifts (%d)" % dead.size())
+	for e: Enemy in dead:
+		check(MonsterFamilies.family_of(e.kind) == "undead", "the dead of the mine are undead (%s)" % e.kind)
+	await _wait(30)
+	for e: Enemy in dead:
+		check(absf(e.global_position.y + HouseSketch.DEPTH) < 0.3 and LostMine.holds(e.global_position), "one of the dead stands on the mine's floor (%s)" % str(e.global_position))
+	# The ways down there run along the tunnels.
+	var from := LostMine.floor_at(LostMine.SHAFT + Vector2i(0, 2))
+	var to := LostMine.floor_at(Vector2i(69, 28))
+	var way := LostMine.route(from, to)
+	check(way.size() > 20, "a way runs along the tunnels to the far east drift (%d steps)" % way.size())
+	check(way.all(func(p): return LostMine.holds(p + Vector3(0, 0.1, 0))), "every step of the way lies in the tunnels")
+	check(LostMine.sight(LostMine.floor_at(Vector2i(58, 34)), LostMine.floor_at(Vector2i(69, 34))), "the long east drift is seen down its length")
+	check(not LostMine.sight(LostMine.floor_at(Vector2i(58, 34)), LostMine.floor_at(Vector2i(69, 30))), "but not round its corner")
+	check(not level.has_line_of_sight(LostMine.floor_at(Vector2i(58, 34)), Vector3(LostMine.floor_at(Vector2i(58, 34)).x, 0, LostMine.floor_at(Vector2i(58, 34)).z + 4)), "nobody sees through the ground")
+	# The hero at the start of the east drift: the dead in it come for them along the tunnel.
+	var watcher: Enemy = null
+	for g: Dictionary in LostMine._guards:
+		if g.cell == Vector2i(63, 34):
+			watcher = g.enemy
+	game.player.global_position = LostMine.floor_at(Vector2i(57, 36)) + Vector3(0, 0.1, 0)
+	game.player.reset_physics_interpolation()
+	var start := watcher.global_position.distance_to(game.player.global_position)
+	game.player.godmode = true
+	await _wait(2)
+	# Heard round the corner: it walks the drift and turns the corner, not through the rock.
+	watcher.alert(game.player.global_position)
+	await _wait(120)
+	var near := watcher.global_position.distance_to(game.player.global_position)
+	check(near < start - 2.0, "one of the dead comes for the hero along the drift (%.1f m to %.1f m)" % [start, near])
+	check(LostMine.holds(watcher.global_position), "and stays down in the mine")
+	# A vein is theirs while they walk: nothing to hack.
+	var veins := level.stations.filter(func(s): return s.kind == LostMine.VEIN)
+	check(veins.size() == LostMine.VEINS.size(), "an ore vein at the end of each far drift (%d)" % veins.size())
+	var east: Dictionary = veins.filter(func(s): return s.vein == Vector2i(69, 28))[0]
+	var ores_before := _ore_count()
+	game._use_station(east)
+	check(_ore_count() == ores_before, "no ore while the dead walk near the vein")
+	for e: Enemy in LostMine.guards():
+		if e.global_position.distance_to(east.pos) < LostMine.VEIN_GUARD + 30.0:
+			e.take_hit(999, e.global_position + Vector3(1, 0, 0))
+	await _wait(5)
+	game._use_station(east)
+	check(_ore_count() > ores_before, "once they fell the vein gives ore (%d lumps)" % (_ore_count() - ores_before))
+	var once := _ore_count()
+	game._use_station(east)
+	check(_ore_count() == once, "but only once a day")
+	await _wait(5)
+	check(LostMine.guards().size() < LostMine.GUARDS.size(), "the fallen stay down today")
+	for k in [LostMine.VEIN_GUARDED, LostMine.VEIN_SPENT, LostMine.VEIN_FOUND, LostMine.prompt(LostMine.VEIN)]:
+		check(Lang.EN.has(k), "English for: " + k)
+	game.player.godmode = false
+	game.player.global_position = LostMine.floor_at(LostMine.SHAFT + Vector2i(0, 2)) + Vector3(0, 0.1, 0)
+	game.player.reset_physics_interpolation()
+	await _wait(5)
+
+
+func _ore_count() -> int:
+	var n := 0
+	for id in Ore.LUMPS:
+		n += int(game.crafting.pouch.get(id, 0))
+	return n
 
 
 ## The game's own camera, as the player sees it.

@@ -54,6 +54,15 @@ const TOUCH := {"bett": 2.6, "regal": 2.4, WeaponRack.KIND: 2.4, "feinbank": 2.4
 const TOUCH_DEFAULT := 1.8
 ## How far outside its solid a bump still counts as running into a piece (metres).
 const TOUCH_MARGIN := 0.4
+## How tall a standing piece is to the mouse (see aim_point): the camera looks down at a slant,
+## so the top of a chest is drawn over the floor of the cell behind it.
+const PICK_HEIGHT := {"bett": 1.5, "regal": 2.4, "trophaeen": 2.5, WeaponRack.KIND: 2.2, "leuchter": 1.6, "kamin": 1.6, "schrein_maija": 1.6}
+const PICK_HEIGHT_DEFAULT := 1.2
+## The part of a wall a torch covers, to the mouse: how wide, from how high to how high (metres).
+## A painting covers its frame (PAINTING, PAINTING_HEIGHT).
+const PICK_TORCH := Vector3(0.6, 1.1, 2.3)
+## How far out from the wall a torch or a painting is found by the mouse.
+const PICK_WALL_DEPTH := 0.5
 ## The scale of the pieces that are too big or too tall for a 2 m cell and a 2.6 m storey.
 const SHELF_SCALE := 0.75
 const FIRE_SCALE := 0.72
@@ -147,7 +156,7 @@ func _process(_delta: float) -> void:
 		var at := game.get_viewport().get_mouse_position()
 		drop(floor_point(at) if not game.menus.is_open() else null, at)
 	if game.state == game.State.PLAYING and not game.menus.is_open():
-		var spot = floor_point(game.get_viewport().get_mouse_position())
+		var spot = aim_point(game.get_viewport().get_mouse_position())
 		if spot != null:
 			hover(spot)
 
@@ -641,7 +650,7 @@ func handle_input(event: InputEvent) -> bool:
 			turn()
 			return true
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			var spot = floor_point(event.position)
+			var spot = aim_point(event.position)
 			if spot != null and (_hangs_here() or not grab(spot, event.position)):
 				click(spot)
 			return true
@@ -797,6 +806,66 @@ func floor_point(screen: Vector2):
 		return null
 	var y: float = HouseFurniture.FLOORS[storey]
 	return origin + dir * ((y - origin.y) / dir.y)
+
+
+## The floor point the mouse aims at: when the mouse is over a placed piece of the shown storey,
+## a point that _piece_under turns into that piece (the middle of a standing piece, or close to
+## the wall behind a torch or a painting), else floor_point. Seen from the slanted camera, the
+## top of a chest covers the floor of the cell behind it, and a torch above it is drawn over
+## the cell behind that, so a plain floor point missed both. While a torch or a painting in
+## stock is chosen, it is the plain floor point (it hangs on walls over the floor pieces).
+func aim_point(screen: Vector2):
+	var spot = floor_point(screen)
+	var house := plan()
+	if house == null or dragging() or _hangs_here():
+		return spot
+	var cam: Camera3D = game.camera
+	var hit := _aimed_piece(house, cam.project_ray_origin(screen), cam.project_ray_normal(screen))
+	if hit < 0:
+		return spot
+	var p: Dictionary = furniture.placed[hit]
+	var mid := HouseFurniture.centre(house, p.kind, p.storey, p.x, p.y, p.rot)
+	if HouseFurniture.on_wall(p.kind):
+		var back := Vector3(-sin(HouseFurniture.angle(p.rot)), 0, -cos(HouseFurniture.angle(p.rot)))
+		mid += back * HouseSketch.CELL * 0.4
+	return mid
+
+
+## The placed piece of the shown storey that a ray from the camera meets first, or -1.
+func _aimed_piece(house: HouseSketch, from: Vector3, dir: Vector3) -> int:
+	var best := -1
+	var best_d := INF
+	for i in furniture.placed.size():
+		var p: Dictionary = furniture.placed[i]
+		if p.storey != storey:
+			continue
+		var at = pick_box(house, p).intersects_ray(from, dir)
+		if at != null and (at - from).length() < best_d:
+			best_d = (at - from).length()
+			best = i
+	return best
+
+
+## The box a placed piece fills for the mouse: its cells up to its height, or for a torch or a
+## painting the strip of wall it hangs on.
+static func pick_box(house: HouseSketch, p: Dictionary) -> AABB:
+	var f := HouseFurniture.footprint(p.kind, p.rot)
+	var floor_y: float = HouseFurniture.FLOORS[p.storey]
+	var corner := house.node_world(p.x, p.y)
+	if not HouseFurniture.on_wall(p.kind):
+		var inset := 0.1
+		var size := Vector3(f.x * HouseSketch.CELL - inset * 2, PICK_HEIGHT.get(p.kind, PICK_HEIGHT_DEFAULT), f.y * HouseSketch.CELL - inset * 2)
+		return AABB(Vector3(corner.x + inset, floor_y, corner.z + inset), size)
+	var mid := HouseFurniture.centre(house, p.kind, p.storey, p.x, p.y, p.rot)
+	var back := Vector3(-sin(HouseFurniture.angle(p.rot)), 0, -cos(HouseFurniture.angle(p.rot))).round()
+	var spread := PICK_TORCH
+	if HouseFurniture.KINDS[p.kind].has("painting"):
+		spread = Vector3(PAINTING.x, PAINTING_HEIGHT - PAINTING.y * 0.5, PAINTING_HEIGHT + PAINTING.y * 0.5)
+	var across := Vector3(absf(back.z), 0, absf(back.x)) * spread.x
+	var deep := Vector3(absf(back.x), 0, absf(back.z)) * PICK_WALL_DEPTH
+	var centre := mid + back * (HouseSketch.CELL * 0.5 - PICK_WALL_DEPTH * 0.5)
+	var size := across + deep + Vector3(0, spread.z - spread.y, 0)
+	return AABB(Vector3(centre.x - size.x * 0.5, floor_y + spread.y, centre.z - size.z * 0.5), size)
 
 
 ## The north-west cell of the chosen piece with its middle under a floor point.

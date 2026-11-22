@@ -156,6 +156,24 @@ func _process(_delta: float) -> bool:
 	furnisher.drop(plan.cell_world(1, 2) + Vector3(-0.8, 0, 0), Vector2(0, 90))
 	torch = HouseFurniture.of(game.hero_name).placed.filter(func(q): return q.kind == "fackel")
 	check(torch.size() == 1 and torch[0].x == 1 and torch[0].y == 2 and torch[0].rot == 1 and HouseFurniture.wall_behind(plan, 0, Vector2i(1, 2), torch[0].rot), "it hangs on the west wall (%s)" % [torch])
+	# The mouse finds a piece by what is drawn: the camera looks down at a slant from the south, so
+	# the top of the chest is drawn over the floor of the cell north of it, and a torch on a wall
+	# over the floor further back still.
+	furnisher.furniture = HouseFurniture.of(game.hero_name)
+	var slant := Vector3(0, -sin(deg_to_rad(54.0)), -cos(deg_to_rad(54.0)))
+	var chest_top := HouseFurniture.centre(plan, "truhe", 0, 3, 1, 0) + Vector3(0, 1.1, -0.6)
+	var on_floor := chest_top + slant * (chest_top.y / -slant.y)
+	check(plan.cell_at(on_floor) != Vector2i(3, 1), "the chest's top is drawn over another cell's floor (%s)" % [plan.cell_at(on_floor)])
+	var aimed := furnisher._aimed_piece(plan, chest_top - slant * 20.0, slant)
+	check(aimed >= 0 and furnisher.furniture.placed[aimed].kind == "truhe", "the mouse on the chest's top finds the chest")
+	var torch_face := plan.node_world(1, 2) + Vector3(0.15, 1.6, HouseSketch.CELL * 0.5)
+	var beside := furnisher._aimed_piece(plan, torch_face + Vector3(0.6, -0.4, 0.6) - slant * 20.0, slant)
+	check(beside >= 0 and furnisher.furniture.placed[beside].kind == "bett", "beside the torch the mouse finds the bed under it")
+	aimed = furnisher._aimed_piece(plan, torch_face - slant * 20.0, slant)
+	check(aimed >= 0 and furnisher.furniture.placed[aimed].kind == "fackel", "the mouse on the torch finds the torch")
+	var chest_i_aim := furnisher.furniture.piece_at(0, Vector2i(3, 1))
+	var chest_p: Dictionary = furnisher.furniture.placed[chest_i_aim]
+	check(furnisher._piece_under(HouseFurniture.centre(plan, "truhe", 0, chest_p.x, chest_p.y, chest_p.rot)) == chest_i_aim, "the aimed point under the chest picks the chest")
 	# R over a placed piece turns it where it stands, to the next way it fits.
 	var shelf_store := HouseFurniture.of(game.hero_name)
 	var chest_i := shelf_store.piece_at(0, Vector2i(3, 1))

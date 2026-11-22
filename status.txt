@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Windows build on DirectX 12 (Forward+), with Quality, Balanced and Performance graphics | Shipped this week: Clear windows and candle-lit rooms in walkable buildings; Give Ilse the furnisher a daily routine (+48 more)
+Escape! dev status | Shipped this week: Windows build on DirectX 12 (Forward+), with Quality, Balanced and Performance graphics; Clear windows and candle-lit rooms in walkable buildings (+48 more)

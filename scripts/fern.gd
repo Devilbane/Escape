@@ -58,8 +58,21 @@ const HEIGHT := 7.0
 const REACH := 1.25
 ## How far below the cone's point the top tier sits (m).
 const REACH_TOP := 1.2
-## The needle trees' looks: how tall (times HEIGHT) and how full (times REACH) each variant is.
-const NEEDLE_LOOKS := [Vector2(1.0, 1.0), Vector2(0.75, 1.1), Vector2(1.1, 1.25)]
+## The needle trees' looks: how tall (times HEIGHT) and how full (times REACH) each variant is,
+## and what it is (z): a spruce (SPRUCE), a Scots pine (PINE: a bare reddish trunk and its
+## branches ending in tufts of needles, see needle_pine) or a broad, flat-topped old pine (BROAD).
+const SPRUCE := 0
+const PINE := 1
+const BROAD := 2
+const NEEDLE_LOOKS := [Vector3(1.0, 1.0, SPRUCE), Vector3(0.75, 1.1, SPRUCE), Vector3(1.1, 1.25, SPRUCE),
+		Vector3(1.25, 0.8, SPRUCE), Vector3(0.95, 1.4, SPRUCE), Vector3(1.15, 1.0, PINE), Vector3(1.0, 1.15, PINE),
+		Vector3(0.85, 1.0, BROAD)]
+## How often each look grows in the forest (weights, same order as NEEDLE_LOOKS): mostly
+## spruces, a pine here and there, now and then a broad old one.
+const NEEDLE_MIX := [5, 4, 4, 3, 3, 2, 2, 1]
+## A pine's bark: grey-brown low on the trunk, the thin orange-red bark of a Scots pine higher up.
+const PINE_BARK := Color(0.36, 0.24, 0.17)
+const PINE_BARK_HIGH := Color(0.62, 0.34, 0.18)
 
 const NEEDLE_SHADER := preload("res://shaders/spruce_needles.gdshader")
 
@@ -96,8 +109,11 @@ static func needle_tree_mesh(variant := 0, far := false) -> ArrayMesh:
 		trunk.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(key)
-		var look: Vector2 = NEEDLE_LOOKS[posmod(variant, NEEDLE_LOOKS.size())]
-		needle_tree(st, trunk, rng, look.x, look.y, far)
+		var look: Vector3 = NEEDLE_LOOKS[posmod(variant, NEEDLE_LOOKS.size())]
+		if int(look.z) == SPRUCE:
+			needle_tree(st, trunk, rng, look.x, look.y, far)
+		else:
+			needle_pine(st, trunk, variant, look.x, look.y, int(look.z) == BROAD, far)
 		st.set_material(material(true))
 		trunk.set_material(bark_material())
 		_cache[key] = trunk.commit(st.commit())
@@ -139,6 +155,101 @@ static func needle_shadow_mesh(variant := 0) -> ArrayMesh:
 		st.set_material(bark_material())
 		_cache[key] = st.commit()
 	return _cache[key]
+
+
+## Which needle tree grows at a spot whose dice gave `roll` (any whole number): picked by NEEDLE_MIX.
+static func needle_pick(roll: int) -> int:
+	var total := 0
+	for w: int in NEEDLE_MIX:
+		total += w
+	var r := posmod(roll, total)
+	for i in NEEDLE_MIX.size():
+		r -= NEEDLE_MIX[i]
+		if r < 0:
+			return i
+	return 0
+
+
+## A pine into `st` (its tufts of needles) and `trunk` (its bark): a tall, bare trunk, grey-brown
+## at its foot and orange-red higher up, and from about half its height (a `broad` one: a third)
+## its branches, a few at each level round the trunk, rising a little and ending in tufts of
+## needles, with a smaller tuft or two along each branch. A Scots pine's crown is an open, rounded
+## cone, widest in its middle; a broad old pine's spreads widest near its top, flat over it like an
+## umbrella. The tufts are fronds of the needle picture, so the pines share the spruces' material,
+## colours and snow. The branches come from their own dice (seeded by `variant`), the same for the
+## far model, so both have one outline.
+static func needle_pine(st: SurfaceTool, trunk: SurfaceTool, variant: int, tall: float, full: float, broad: bool, far: bool) -> void:
+	var shape := RandomNumberGenerator.new()
+	shape.seed = hash("pine shape:%d" % variant)
+	var fronds := RandomNumberGenerator.new()
+	fronds.seed = hash("pine fronds:%d:%s" % [variant, far])
+	var top := HEIGHT * (0.8 if broad else 0.95) * tall
+	var lean := Vector3(shape.randf_range(-0.25, 0.25), 0, shape.randf_range(-0.25, 0.25)) * (1.6 if broad else 1.0)
+	var foot_r := 0.2 * full * (1.4 if broad else 1.0)
+	var mid := lean * 0.4 + Vector3(0, top * 0.5, 0)
+	var tip := lean + Vector3(0, top, 0)
+	_limb(trunk, Vector3.ZERO, mid, foot_r, foot_r * 0.62, PINE_BARK)
+	_limb(trunk, mid, tip, foot_r * 0.62, 0.03, PINE_BARK_HIGH)
+	var crown_from := top * (0.3 if broad else 0.36)
+	var levels := 8 if broad else 10
+	var reach := REACH * full * (1.8 if broad else 1.15)
+	for lv in levels:
+		var t := (float(lv) + shape.randf_range(-0.2, 0.2)) / (levels - 1)
+		var y := lerpf(crown_from, top * 0.97, clampf(t, 0.0, 1.0))
+		var at := lean * (y / top) + Vector3(0, y, 0)
+		# How far the branches reach at this height: a rounded cone, or widest near the flat top.
+		var spread := (0.35 + 0.95 * sin(PI * clampf(t * 0.85 + 0.12, 0.0, 1.0))) if not broad else lerpf(0.55, 1.15, pow(clampf(t, 0.0, 1.0), 0.6)) * (0.6 if t > 0.95 else 1.0)
+		var branches := shape.randi_range(3, 4) if lv < levels - 1 else 1
+		var turn := shape.randf() * TAU
+		# The shade of the tufts at this height (see spruce_needles.gdshader: the lower are darker).
+		var shade := Color.WHITE * lerpf(NEEDLE_FOOT_SHADE + 0.08, NEEDLE_TOP_SHADE, clampf(t, 0.0, 1.0))
+		for b in branches:
+			var a := turn + TAU * b / branches + shape.randf_range(-0.4, 0.4)
+			var length := reach * spread * shape.randf_range(0.75, 1.05)
+			var rise := shape.randf_range(0.05, 0.3) if not broad else shape.randf_range(0.12, 0.3)
+			var dir := Vector3(cos(a), rise, sin(a)).normalized()
+			var end := at + dir * length
+			if lv < levels - 1:
+				_limb(trunk, at, end, foot_r * 0.28 * (1.2 - t * 0.6), 0.02, PINE_BARK_HIGH.lerp(PINE_BARK, 0.35))
+			# A big tuft at the branch's end, and smaller ones along it.
+			var tufts := [[1.0, 1.0], [shape.randf_range(0.7, 0.8), 0.9], [shape.randf_range(0.45, 0.6), 0.8]]
+			if length > 1.2:
+				tufts.append([shape.randf_range(0.25, 0.35), 0.7])
+			# Far off, the two biggest tufts of a branch keep its outline.
+			if far:
+				var big := 0.95 if broad else 0.85
+				tufts = [[1.0, big], [float(tufts[1][0]), big]]
+			for tf: Array in tufts:
+				var p: Vector3 = at.lerp(end, float(tf[0]))
+				var size: float = (1.05 if broad else 0.95) * float(tf[1]) * shape.randf_range(0.85, 1.15) * full
+				# A little off the branch, up or to a side, so the tufts gather in loose clumps.
+				p += Vector3(shape.randf_range(-0.2, 0.2), shape.randf_range(0.0, 0.25), shape.randf_range(-0.2, 0.2)) * full
+				var xf := Transform3D(Basis(Vector3.UP, shape.randf() * TAU), p)
+				# Round tufts: the fronds rise steeply and arch over all round, a dome of needles.
+				_rosette(st, fronds, xf, 2 if far else 5, size, 0.45, 1.7, shade, 0.03, true, far)
+	# A tuft on the very top.
+	_rosette(st, fronds, Transform3D(Basis.IDENTITY, tip), 3 if far else 7, 0.55 * full, 0.4, 0.8, Color.WHITE * NEEDLE_TOP_SHADE * NEEDLE_LEADER_SHADE, 0.0, true, far)
+
+
+## A tapering round limb from `from` to `to` in any direction (5 sides), into `st`.
+static func _limb(st: SurfaceTool, from: Vector3, to: Vector3, r0: float, r1: float, colour: Color) -> void:
+	var axis := to - from
+	if axis.length() < 0.01:
+		return
+	var up := axis.normalized()
+	var side := up.cross(Vector3.UP if absf(up.y) < 0.95 else Vector3.RIGHT).normalized()
+	var other := up.cross(side)
+	var sides := 6 if r0 > 0.08 else 4
+	for i in sides:
+		var a0 := TAU * i / sides
+		var a1 := TAU * (i + 1) / sides
+		var n0 := side * cos(a0) + other * sin(a0)
+		var n1 := side * cos(a1) + other * sin(a1)
+		var quad := [[from + n0 * r0, n0], [from + n1 * r0, n1], [to + n1 * r1, n1], [to + n0 * r1, n0]]
+		for j in [0, 2, 1, 0, 3, 2]:
+			st.set_color(colour * (0.85 + 0.15 * (quad[j][1] as Vector3).y))
+			st.set_normal(quad[j][1])
+			st.add_vertex(quad[j][0])
 
 
 ## How tall a needle tree `variant` stands (metres).

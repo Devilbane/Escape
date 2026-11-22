@@ -1225,9 +1225,10 @@ func in_spruce_patch(at: Vector3) -> bool:
 	return level_name == SPRUCE_MAP and SPRUCE_PATCH.has_point(world_to_cell(at))
 
 
-## Which of the spruces (see Fern.NEEDLE_LOOKS) stands at a spot: the same one every time.
+## Which of the needle trees (see Fern.NEEDLE_LOOKS: spruces, and a pine here and there, mixed by
+## Fern.NEEDLE_MIX) stands at a spot: the same one every time.
 func _spruce_of(at: Vector3) -> int:
-	return posmod(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))), Fern.NEEDLE_LOOKS.size())
+	return Fern.needle_pick(hash(Vector2i(roundi(at.x * 10.0), roundi(at.z * 10.0))))
 
 
 ## Plants a tree (see _plant), or a spruce in its place: every living tree, in the forest or on

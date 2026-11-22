@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Set out each shop's and office's trade by its door; Make the villagers' upper floor a room the hero can climb to (+4 more) | Shipped this week: Give the forest's spruces real snow; Silver mine: abandoned hut, barred gate and mine polish (+48 more)
+Escape! dev status | Working on: Fix roof footprints and the snowy, shadowed earth round a cellar; Set out each shop's and office's trade by its door (+4 more) | Shipped this week: Leave a roomy walk between the temple's altar and its front pews; Give the forest's spruces real snow (+48 more)

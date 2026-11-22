@@ -170,6 +170,8 @@ static func material(needles: bool) -> Material:
 			var sm := ShaderMaterial.new()
 			sm.shader = NEEDLE_SHADER
 			sm.set_shader_parameter("albedo_tex", frond_texture(true))
+			# Its own snow, in the shader: no overlay (see SnowCover.cut_out).
+			sm.set_meta("own_snow", true)
 			_mats[needles] = sm
 		else:
 			var m := StandardMaterial3D.new()

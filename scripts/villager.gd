@@ -367,6 +367,7 @@ func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
 	add_to_group(Footprint.GROUP)
 	radius = 0.5 * _info.get("scale", 1.0)
+	OffscreenAnim.watch(self, maxf(1.0, float(_info.get("scale", 1.0))))
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = radius

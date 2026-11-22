@@ -48,6 +48,10 @@ const INDOOR := &"indoor_light"
 const UNSHADOWED_LAYER := 1 << 15
 ## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
 const INDOOR_FIRST := 100.0
+## The meta of the two warm-up lamps (see warm_up): the picking leaves them alone.
+const WARM := &"shadow_warmup"
+## The warm-up lamps' reach: far enough to touch everything in a level or the village copy.
+const WARM_RANGE := 1000.0
 ## The meta a light sets to never cast shadows.
 const NO_SHADOW := &"no_wall_shadow"
 ## The meta of a node whose drawn parts are walls (see the top).
@@ -75,6 +79,8 @@ var _wait := 0.0
 var _picked := {}
 ## The lights whose shadows are fading in or out (by instance id).
 var _fading := {}
+## The warm-up lamps lit for a level's warm-up frame (see warm_up), freed after it.
+var _warm: Array[Light3D] = []
 
 
 func _ready() -> void:
@@ -87,14 +93,21 @@ func _ready() -> void:
 
 
 func _on_node_added(node: Node) -> void:
+	if node.name == &"VillageCopy" and node.get_parent() is WorldPreload:
+		# The copy of the village drawn behind the title: its shaders are built with walls'
+		# shadows too, so a lamp that gains them in play has its shaders ready.
+		warm_up(node as Node3D)
+		return
 	if node is GeometryInstance3D:
 		if is_wall(node):
 			(node as GeometryInstance3D).layers |= WALL_LAYER
 		elif takes_no_shadows(node):
 			(node as GeometryInstance3D).layers |= UNSHADOWED_LAYER
 	elif node is OmniLight3D or node is SpotLight3D:
-		_lights[node.get_instance_id()] = node
 		var light: Light3D = node
+		if light.has_meta(WARM):
+			return
+		_lights[node.get_instance_id()] = node
 		light.shadow_enabled = false
 		light.shadow_bias = BIAS
 		light.shadow_normal_bias = NORMAL_BIAS
@@ -102,6 +115,13 @@ func _on_node_added(node: Node) -> void:
 
 
 func _process(delta: float) -> void:
+	if not _warm.is_empty() and not LevelWarmup.active():
+		# The level's warm-up frame is drawn: back to the usual few lamps at once.
+		for light in _warm:
+			if is_instance_valid(light):
+				light.queue_free()
+		_warm.clear()
+		refresh(true)
 	_fade(delta / FADE)
 	_wait -= delta
 	if _wait > 0.0:
@@ -142,6 +162,38 @@ func refresh(at_once := false) -> void:
 			_drop(light, at_once)
 	if at_once:
 		_fade(1.0)
+		if LevelWarmup.active() and _warm.is_empty() and is_inside_tree():
+			_warm = warm_up(self, at)
+
+
+## Lights everything around `at` (under `parent`) for the frames it is drawn in with a
+## wall-shadowed point light and spot light of nearly no strength, so the renderer builds
+## every material's shaders for lamps with shadows now, in a dark warm-up frame. Built
+## only when a lamp first gains its shadows as the hero walks (every few ticks one does),
+## they made the game stutter. Returns the two lamps; they go with `parent`.
+static func warm_up(parent: Node, at := Vector3.ZERO) -> Array[Light3D]:
+	var omni := OmniLight3D.new()
+	omni.omni_range = WARM_RANGE
+	var spot := SpotLight3D.new()
+	spot.spot_range = WARM_RANGE
+	spot.spot_angle = 89.0
+	var made: Array[Light3D] = [omni, spot]
+	for light in made:
+		light.set_meta(WARM, true)
+		light.light_energy = 0.001
+		light.shadow_enabled = true
+		light.shadow_bias = BIAS
+		light.shadow_normal_bias = NORMAL_BIAS
+		light.shadow_caster_mask = WALL_LAYER | LID_LAYER
+		parent.add_child(light)
+	if parent is Node3D:
+		omni.position = Vector3(0, 30, 0)
+		spot.position = Vector3(0, 200, 0)
+	else:
+		omni.global_position = at + Vector3(0, 30, 0)
+		spot.global_position = at + Vector3(0, 200, 0)
+	spot.rotation_degrees = Vector3(-90, 0, 0)
+	return made
 
 
 func _pick(light: Light3D, at_once: bool) -> void:

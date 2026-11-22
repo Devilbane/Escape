@@ -129,7 +129,7 @@ const ROLES := {
 		"colors": [Color(0.95, 0.95, 0.95), Color(0.25, 0.25, 0.3), Color(1, 1, 1)], "plan": "shop", "work": "Interact",
 		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
-		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "work", "work": "Interact",
+		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "stay", "work": "Interact",
 		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
@@ -187,8 +187,8 @@ const BITE_POINT := Vector3(-0.215, 0.41, 1.59)
 ## The trunk he chops: its middle in his own frame, its radius and length.
 ## It lies across his way, settled a little into the ground, and its top is
 ## where the blade bites.
-const LOG_CENTRE := Vector3(-0.3, 0.12, 1.6)
-const LOG_RADIUS := 0.34
+const LOG_CENTRE := Vector3(-0.3, 0.18, 1.6)
+const LOG_RADIUS := 0.28
 const LOG_LENGTH := 3.0
 ## How long the axe sticks in the wood before he wrenches it out.
 const BITE_HOLD := 0.3
@@ -1007,6 +1007,40 @@ func _end_horn() -> void:
 			ClimbPose.apply(sk, _blow_base, {})
 		_current_anim = ""
 		play("Idle", 0.2)
+
+
+## Whether the body is posed bone by bone now (see pose_body).
+var _body_posed := false
+
+
+## Poses the body bone by bone (`pose` as ClimbPose.apply takes it), the clips held still: the
+## climb up and down a house ladder (see VillageBeds, LadderPose).
+func pose_body(pose: Dictionary) -> void:
+	var sk := _bones()
+	if sk == null:
+		return
+	if not _body_posed:
+		_body_posed = true
+		_anim.speed_scale = 1.0
+		_anim.play("Idle")
+		_anim.seek(0.0, true)
+		if _blow_base.is_empty():
+			_blow_base = ClimbPose.base_of(sk)
+		_anim.pause()
+		_current_anim = ""
+	_model.position.y = 0.0
+	ClimbPose.apply(sk, _blow_base, pose)
+
+
+## Back from pose_body to the clips.
+func unpose_body() -> void:
+	if not _body_posed:
+		return
+	_body_posed = false
+	var sk := _bones()
+	if sk != null:
+		ClimbPose.apply(sk, _blow_base, {})
+	_current_anim = ""
 
 
 # --- Defending the wall -------------------------------------------------------
@@ -2620,9 +2654,9 @@ func meet() -> void:
 		_name_tag.visible = not is_asleep()
 
 
-## Whether the villager lies asleep in a bed the hero can see (see VillageBeds): no name over the head.
+## Whether the villager is asleep upstairs in their house (see VillageBeds): no name over the head.
 func is_asleep() -> bool:
-	return String(bed_trip.get("step", "")) == "asleep"
+	return String(bed_trip.get("step", "")) == "upstairs"
 
 
 ## The elder sees the newcomer and hands over the house.

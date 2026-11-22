@@ -129,6 +129,7 @@ purse.gd | 120 | fixed | pass | Purse test (coins and gems take no bag or pouch 
 stone_puzzle.gd | 120 | fixed | pass | Stone walls and the block-pushing puzzle test
 ash_spire.gd | 300 | fixed | pass | Ashen Spire test (floors, sweepers, ledge, grimoire, respawn)
 hud_drawer.gd | 120 | fixed | pass | Pull-out button menu test
+perf_overlay.gd | 120 | fixed | pass | Performance plate on F1 (FPS, CPU/GPU graphs, ping)
 hud_tooltips.gd | 120 | fixed | pass | HUD tooltips test
 quick_bar.gd | 120 | fixed | pass | Quick window icons and quests window test
 music.gd | 120 | fixed | pass | Background music test

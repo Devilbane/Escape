@@ -1416,6 +1416,9 @@ func _redraw() -> void:
 		_vault_props.name = "BankVault"
 		deep.add_child(_vault_props)
 		BankVault.build(game.level, _vault_props)
+	if vault != null:
+		# The banking hall over it, with Goldwin's desk (see BankHall): built once per level.
+		BankHall.build(game.level)
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
 	if (game.level as Outdoor).surface_life != null:
 		(game.level as Outdoor).surface_life.set_built(built_ground)

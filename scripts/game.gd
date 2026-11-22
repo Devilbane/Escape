@@ -314,6 +314,8 @@ var frame_pull := 0.0
 var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
 var save_notice: SaveNotice
+## Frames per second, CPU and GPU time and ping under it, shown with F1 (see PerfOverlay).
+var perf_overlay: PerfOverlay
 var _level_label: Label
 ## The copper coins (the money) on the HUD; the silver and gold coins of the
 ## purse are counted after it (see _update_purse).
@@ -1734,6 +1736,9 @@ func _setup_hud() -> void:
 
 	save_notice = SaveNotice.new()
 	add_child(save_notice)
+	perf_overlay = PerfOverlay.new()
+	perf_overlay.ping_source = func() -> int: return coop.client.ping_ms() if coop != null and coop.client != null else -1
+	add_child(perf_overlay)
 
 	_setup_shrine_panel()
 
@@ -7958,6 +7963,12 @@ func _steer_by_mouse(delta: float) -> void:
 ## or key press anywhere can start the music.
 func _input(event: InputEvent) -> void:
 	Music.notice_input(event)
+	# F1 shows or hides the performance plate anywhere: on the title, in a
+	# window, while typing in the chat line.
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F1 and perf_overlay != null:
+		perf_overlay.toggle()
+		get_viewport().set_input_as_handled()
+		return
 	# Letting go of the mouse ends a drag in the blueprint tool (a wall, a
 	# rectangle of cellar or roof). It is seen here because the release may
 	# happen over the tool bar, and because _unhandled_input hands on key and

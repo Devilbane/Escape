@@ -146,6 +146,8 @@ village_buildings.gd | 120 | fixed | pass | Village houses and chapel test
 house_doors.gd | 120 | fixed | pass | House doors swing open before anyone goes in
 walk_in.gd | 300 | fixed | passfail | Walk-in village houses and temple (doors, hidden roof, beds for the villagers, switches off)
 village_halls.gd | 300 | fixed | passfail | Walk-in halls: tavern, shop, post office, Crown office and guildhall rebuilt, keepers behind their counters, switches off
+guild_hall.gd | 300 | fixed | passfail | The guildhall: two storeys, stairs up to the training roof and down to Ragna's cellar bed
+mill.gd | 300 | fixed | passfail | The walk-in mill: turning sails and millstone, Korbinian the miller sells grain and sends flour to the tavern
 quarry_door.gd | 120 | fixed | pass | The house beside the stonemason's quarry can be reached on foot
 quarry_rocks.gd | 120 | fixed | pass | Breaking stone at the quarry: stone blocks in the bag, rubble until morning
 nest_chicks.gd | 120 | fixed | pass | Eggs and chicks in the village nests (begging, fed by parents and the hero)

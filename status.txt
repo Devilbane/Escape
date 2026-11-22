@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Tiled roofs on built houses, seated on their walls | Shipped this week: Snow up to the walls of the village houses; Map floors: switch the map between the surface and the silver mine (+48 more)
+Escape! dev status | Shipped this week: Tiled roofs on built houses, seated on their walls; Snow up to the walls of the village houses (+48 more)

@@ -4490,7 +4490,7 @@ func hero_under_cover() -> bool:
 ## what is in the cellar (see hero_cellar); outside, everything shows.
 func hero_sees(pos: Vector3) -> bool:
 	if not hero_cellar.is_empty():
-		return CellarView.in_cells(hero_cellar, pos)
+		return CellarView.down_in(hero_cellar, pos)
 	# Up on the ground nothing down in the forgotten mine shows (see LostMine).
 	if LostMine.holds(pos):
 		return false

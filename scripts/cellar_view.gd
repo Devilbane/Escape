@@ -18,6 +18,11 @@ const LEAVE := -0.2
 ## How far the earth reaches down behind the cellar's walls from the rim (see _earth_mesh):
 ## deeper than any wall stops under the ground.
 const SKIRT := 0.4
+## How far behind the rim the skirt hangs: a cellar wall standing right on the rim (the
+## guildhall's) would otherwise share its plane and flicker against it.
+const SKIRT_BEHIND := 0.05
+## Feet higher than this stand on a floor over the cellar (a hall's ground floor), not down in it.
+const OVERHEAD := 0.3
 ## Metres of earth round the cellar, beyond what the camera ever shows.
 const REACH := 160.0
 ## Seconds between looks for things that came or went up on the surface.
@@ -165,6 +170,12 @@ static func _places(cells: Array) -> Dictionary:
 
 func _in_pit(pos: Vector3) -> bool:
 	return in_cells(pit, pos)
+
+
+## Whether someone whose feet are at `pos` is down in the cellar of `cells`: in its cells and
+## not up on a floor over it (Ragna at her desk over her own cellar, see GuildHall).
+static func down_in(cells: Array, pos: Vector3) -> bool:
+	return pos.y < OVERHEAD and in_cells(cells, pos)
 
 
 ## Whether `pos` lies in (or on the rim of) one of the cells (Rect2 of x, z), below head height.
@@ -337,7 +348,8 @@ func _earth_mesh(low: Vector2, high: Vector2) -> ArrayMesh:
 					open = true
 					break
 			if not open:
-				_skirt(st, a, b)
+				var back := ((a + b) * 0.5 - r.get_center()).normalized() * SKIRT_BEHIND
+				_skirt(st, a + back, b + back)
 	return st.commit()
 
 

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Lighter snow on the spruces, one shelf per tier; Furnishing tool: pick the piece the mouse is on, not the floor under it | Shipped this week: No snow on the furniture in the hero's house; Paint the shop shields by hand; Add a final scream when someone falls in a fight (+47 more)
+Escape! dev status | Working on: Lighter snow on the spruces, one shelf per tier | Shipped this week: Furnishing tool: pick the piece the mouse is on, not the floor under it; No snow on the furniture in the hero's house (+48 more)

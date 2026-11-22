@@ -214,6 +214,8 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 	root.position = at
 	root.rotation.y = HouseFurniture.angle(p.rot)
 	root.set_meta("storey", p.storey)
+	if indoors(p.kind):
+		root.set_meta("no_snow", true)
 	_pieces.add_child(root)
 	var station := build_piece(root, p.kind, p)
 	if p.kind == AppleTree.KIND:
@@ -256,6 +258,13 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 		station.rot = root.rotation.y
 	game.level.stations.append(station)
 	_stations.append(station)
+
+
+## Whether a piece of `kind` is furniture for the rooms (a bed, a shrine, a shelf ...), which never
+## takes snow (see SnowCover.bare), even where the snow mask's coarse cells reach in past the walls;
+## the garden's things (and the apple trees) stand outside and take it like the rest.
+static func indoors(kind: String) -> bool:
+	return kind != AppleTree.KIND and not HouseFurniture.KINDS.get(kind, {}).get("garden", false)
 
 
 ## Builds the model of a piece of `kind` into `root` (its front towards +z, its middle at the

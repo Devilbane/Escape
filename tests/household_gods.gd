@@ -129,6 +129,14 @@ func _process(_delta: float) -> bool:
 	check(shrines.size() == 1 and shrines[0].find_child("Relief", true, false) != null, "its plinth has a carved relief")
 	check(ShrineLook.filigree_material().transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR, "its filigree is open lace")
 	check(HouseholdGods.of_house(furnisher.furniture) == "maija", "Maija blesses the house")
+	# Furniture for the rooms never takes snow (see HouseFurnisher.indoors); the garden's does.
+	var up: Node = shrines[0] if shrines.size() == 1 else null
+	var kept := false
+	while up != null and up != furnisher._pieces:
+		kept = kept or SnowCover.bare(up)
+		up = up.get_parent()
+	check(kept, "no snow settles on the shrine in the house")
+	check(HouseFurnisher.indoors("bett") and not HouseFurnisher.indoors(AppleTree.KIND), "the rooms' furniture keeps the snow off, the garden's apple tree takes it")
 	# Inside: the blessing holds.
 	hero.global_position = inside
 	game._update_house_blessing()

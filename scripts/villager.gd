@@ -2650,7 +2650,12 @@ func meet() -> void:
 	if level:
 		level.met[role] = true
 	if _name_tag:
-		_name_tag.visible = true
+		_name_tag.visible = not is_asleep()
+
+
+## Whether the villager is asleep upstairs in their house (see VillageBeds): no name over the head.
+func is_asleep() -> bool:
+	return String(bed_trip.get("step", "")) == "upstairs"
 
 
 ## The elder sees the newcomer and hands over the house.
@@ -2765,6 +2770,9 @@ func _update_bubble(delta: float) -> void:
 	# into the event log, see Events.say). When it runs out the bubble fades.
 	if _bubble_time <= 0.0 and _bubble.is_shown():
 		_bubble.hide_line()
+	# Asleep in bed the name is gone from over the head; it is back when they get up.
+	if _name_tag:
+		_name_tag.visible = is_known() and not is_asleep()
 	# The bubble takes the place of the quest mark while we talk.
 	if _name_tag and _name_tag.visible:
 		_name_tag.modulate.a = 1.0

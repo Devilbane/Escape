@@ -252,6 +252,7 @@ func _run() -> void:
 	var still := lvl.villagers.filter(func(v): return not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed()))
 	check(still.is_empty(), "in the morning everyone is out of the houses again (%s)" % [still.map(func(v): return v.role + ":" + String(v.bed_trip.get("step", "")))])
 	check(lvl.villagers.all(func(v): return v.global_position.y < 0.3), "and back on the ground")
+	check(lvl.villagers.all(func(v): return not v.is_known() or v.get("_name_tag").visible), "awake again, the names are back over the heads")
 	# One walks home and to bed.
 	var sleeper: Villager = null
 	for v: Villager in lvl.villagers:

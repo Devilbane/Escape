@@ -43,6 +43,7 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
+var _graphics_button: Button
 var _effects_slider: HSlider
 var _log_width_slider: HSlider
 ## The width of the labels in front of the pull-out menu's sliders, room for
@@ -660,6 +661,8 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Graphics.load_settings()
+	Graphics.apply(get_viewport())
 	Sfx.load_settings()
 	Sfx.watch_focus(self)
 	Sfx.click_on_buttons(get_tree())
@@ -819,6 +822,9 @@ func _setup_world() -> void:
 	add_child(_clouds)
 
 
+## How strong the faint light from above is down in the dungeon.
+const DUNGEON_MOON := 0.28
+
 ## Dark dungeon air, or in the open the sky of the hour (see DayNight:
 ## by day the warm autumn light, at night a cool blue moonlight).
 func _set_atmosphere(outdoor: bool) -> void:
@@ -838,7 +844,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_env.adjustment_saturation = 1.0
 		_moon.rotation_degrees = Vector3(-62, 28, 0)
 		_moon.light_color = Color(0.82, 0.84, 0.9)
-		_moon.light_energy = 0.28
+		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
 	# No dripping cave water under the open sky.
 	if _ambience:
 		# A floor with a loop of its own (see Soundscape) lets the old cave air rest.
@@ -962,6 +968,7 @@ func _setup_drawer() -> void:
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
 	column.add_child(_make_log_width_slider())
+	column.add_child(_make_graphics_row())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -2943,6 +2950,7 @@ func _tick_clock(delta: float) -> void:
 		# A stroke of lightning flickers: bright, a dip, bright again.
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
 		Weather.apply(_env, _moon, _seen_look(), flicker)
+		_moon.light_energy = Graphics.sun(_moon.light_energy, DayNight.moon_at(day_hour))
 		_check_season()
 		if level is Outdoor:
 			level.day = day
@@ -3445,12 +3453,14 @@ func load_level(index: int, restock := true) -> void:
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
+	Graphics.lamp_match = Graphics.LAMP_MATCH if level.outdoor else Graphics.LAMP_MATCH_DUNGEON
 	var mood := Mines.mood(level.theme)
 	if not mood.is_empty():
 		# A mine has a light of its own (see Mines.MOODS).
 		_env.ambient_light_color = mood.ambient
 		_env.ambient_light_energy = mood.energy
 		_moon.light_color = mood.light
+		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
 	if level is Outdoor:
 		level.day = day
 		level.season_day = season_day()
@@ -3910,6 +3920,42 @@ func _make_log_width_slider() -> Control:
 	var row := _make_slider_row("Protokoll", "Breite des Ereignisprotokolls links", EventLog.width, EventLog.MIN_WIDTH, EventLog.MAX_WIDTH, EventLog.WIDTH_STEP, event_log.set_width)
 	_log_width_slider = row.get_child(1)
 	return row
+
+
+## The graphics row: its button names the picked preset (see Graphics) and steps on to the next
+## one, as the sound buttons do. The label lines up with the slider rows' labels.
+func _make_graphics_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var label := Label.new()
+	label.text = Lang.t("Grafik")
+	label.add_theme_font_override("font", TEXT_FONT)
+	label.add_theme_font_size_override("font_size", UiKit.sized(18))
+	label.add_theme_color_override("font_color", GOLD)
+	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
+	row.add_child(label)
+	_graphics_button = _make_button("", _next_graphics, true)
+	_graphics_button.custom_minimum_size = Vector2(0, 44)
+	_graphics_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_graphics_button)
+	_update_graphics_button()
+	return row
+
+
+func _next_graphics() -> void:
+	var at := Graphics.PRESETS.find(Graphics.preset)
+	Graphics.choose(Graphics.PRESETS[(at + 1) % Graphics.PRESETS.size()], get_viewport())
+	_update_graphics_button()
+
+
+func _update_graphics_button() -> void:
+	_graphics_button.text = Lang.t(Graphics.NAMES[Graphics.preset])
+	# The tooltip says what every preset is for, the picked one first.
+	var lines: Array[String] = [Lang.t(Graphics.HINTS[Graphics.preset])]
+	for which: String in Graphics.PRESETS:
+		if which != Graphics.preset:
+			lines.append(Lang.t(Graphics.HINTS[which]))
+	_graphics_button.tooltip_text = "\n".join(lines)
 
 
 ## The sound effects volume row.

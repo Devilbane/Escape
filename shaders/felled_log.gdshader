@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Felled trunks to chop for timber (see WoodLogs): the bark of a lying tree
 // and its sawn ends. The mesh is built in code (WoodLogs.trunk_mesh) with the
 // trunk along its own x axis, so everything here is in the trunk's own space
@@ -15,9 +16,9 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 
 // The bark's colour as painted (sRGB), and the wood of the sawn ends.
-uniform vec3 bark_colour : source_color = vec3(0.4, 0.27, 0.17);
-uniform vec3 sapwood : source_color = vec3(0.86, 0.7, 0.48);
-uniform vec3 heartwood : source_color = vec3(0.68, 0.48, 0.28);
+uniform vec3 bark_colour = vec3(0.4, 0.27, 0.17);
+uniform vec3 sapwood = vec3(0.86, 0.7, 0.48);
+uniform vec3 heartwood = vec3(0.68, 0.48, 0.28);
 // false: the bark (UV.x along the trunk in metres, UV.y round it, 0 to 1);
 // true: a sawn end (UV from -1 to 1 across it, 1 at the bark).
 uniform bool end_grain = false;
@@ -132,4 +133,5 @@ void fragment() {
 	ROUGHNESS = end_grain ? 0.85 : 0.95;
 	SPECULAR = end_grain ? 0.15 : 0.12;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
+	ALBEDO = gl_colour(ALBEDO);
 }

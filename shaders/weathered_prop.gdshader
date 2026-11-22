@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Old, weathered props for the world outside (see WeatheredProps): the
 // village's barrels, crates, sacks, lumber and stone heaps, pumpkins, tents,
 // the forge, the workbenches and the food pedestal. Their colours come from a
@@ -25,10 +26,10 @@ shader_type spatial;
 
 // The colours are read and weathered as they were painted (sRGB); the
 // result goes into linear light at the end.
-uniform sampler2D palette : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D palette : filter_linear_mipmap, repeat_enable;
 // Where the colour comes from: 0 the palette, 1 vertex colours, 2 base_colour.
 uniform int source = 0;
-uniform vec3 base_colour : source_color = vec3(0.5);
+uniform vec3 base_colour = vec3(0.5);
 // What a grey means: 1 stone, 0 iron. With vertex colours, the vertex
 // colour's alpha says it per piece instead (see WeatheredProps.Builder).
 // With `produce`, strong colours are produce (or earth) everywhere.
@@ -79,8 +80,8 @@ void fragment() {
 	vec3 p = obj_pos;
 	vec3 n = normalize(wnrm);
 	float px = length(fwidth(p));
-	// The palette and base_colour arrive in linear light (source_color):
-	// back to how they were painted. Vertex colours arrive as painted.
+	// The palette and base_colour arrive as stored (see gl_colour.gdshaderinc) and are
+	// lifted by this curve, as the props were made to look. Vertex colours arrive as painted.
 	vec3 c = pow(max(base_colour, vec3(0.0)), vec3(1.0 / 2.2));
 	if (source == 0) {
 		c = pow(max(texture(palette, UV).rgb, vec3(0.0)), vec3(1.0 / 2.2));
@@ -204,4 +205,5 @@ void fragment() {
 	float h = grit * 0.012 - crack * 0.006 * is_wood + pits * 0.006 * is_stone + rust * 0.003 * is_iron + crust * 0.004;
 	h = mix(h, weave_h * 0.003, clean);
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h) * age, dFdy(h) * age);
+	ALBEDO = gl_colour(ALBEDO);
 }

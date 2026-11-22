@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The open ground outside the dungeon in one piece: grass, dirt paths, the
 // cobbled village square, graveyard soil, dark forest floor and still water.
 // A small mask texture (one pixel per tile) says what lies where; noise
@@ -24,24 +25,24 @@ uniform float tile = 4.0;
 // Holes in the ground (a player's cellar): one pixel per 2 m cell of the map.
 uniform sampler2D hole_mask : filter_nearest, repeat_disable, hint_default_black;
 uniform bool holes_on = false;
-uniform vec3 grass_a : source_color = vec3(0.22, 0.33, 0.14);
-uniform vec3 grass_b : source_color = vec3(0.31, 0.40, 0.17);
-uniform vec3 forest : source_color = vec3(0.11, 0.17, 0.08);
-uniform vec3 dirt : source_color = vec3(0.40, 0.31, 0.22);
-uniform vec3 grave_soil : source_color = vec3(0.20, 0.23, 0.14);
-uniform vec3 water : source_color = vec3(0.16, 0.30, 0.38);
+uniform vec3 grass_a = vec3(0.22, 0.33, 0.14);
+uniform vec3 grass_b = vec3(0.31, 0.40, 0.17);
+uniform vec3 forest = vec3(0.11, 0.17, 0.08);
+uniform vec3 dirt = vec3(0.40, 0.31, 0.22);
+uniform vec3 grave_soil = vec3(0.20, 0.23, 0.14);
+uniform vec3 water = vec3(0.16, 0.30, 0.38);
 // Ice over the ponds (see IceCover): 0 open water to 1 frozen over. It creeps in from the banks,
 // and the holes (x, z, radius) stay open for fishing.
 uniform float ice : hint_range(0.0, 1.0) = 0.0;
 uniform vec3 ice_holes[4];
-uniform vec3 ice_color : source_color = vec3(0.62, 0.76, 0.82);
+uniform vec3 ice_color = vec3(0.62, 0.76, 0.82);
 // The ponds' shore (shore_mask, see shore.gdshaderinc) gives the water its curves, the shallows
 // and the deep middle, and the muddy, sandy bank. The colours of those:
-uniform vec3 shallow_water : source_color = vec3(0.20, 0.30, 0.27);
-uniform vec3 deep_water : source_color = vec3(0.06, 0.16, 0.20);
-uniform vec3 mud : source_color = vec3(0.24, 0.20, 0.14);
-uniform vec3 sand : source_color = vec3(0.52, 0.46, 0.33);
-uniform vec3 paving : source_color = vec3(0.50, 0.47, 0.43);
+uniform vec3 shallow_water = vec3(0.20, 0.30, 0.27);
+uniform vec3 deep_water = vec3(0.06, 0.16, 0.20);
+uniform vec3 mud = vec3(0.24, 0.20, 0.14);
+uniform vec3 sand = vec3(0.52, 0.46, 0.33);
+uniform vec3 paving = vec3(0.50, 0.47, 0.43);
 // The graveyard (x0, z0, x1, z1 in metres): its paving is old, sunk and
 // overgrown, and fallen leaves lie on its turf. Empty by default.
 uniform vec4 old_paving = vec4(0.0);
@@ -343,4 +344,5 @@ void fragment() {
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	ROUGHNESS = mix(rough, mix(0.12, 0.3, wet_ice), wet);
 	SPECULAR = mix(0.25, 0.6, wet);
+	ALBEDO = gl_colour(ALBEDO);
 }

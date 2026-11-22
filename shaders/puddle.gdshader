@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_back;
+#include "res://shaders/gl_colour.gdshaderinc"
 // A rain puddle on the ground (see Puddles): see-through, glossy water like
 // the slimes' body (see slime.gdshader), deeper and murkier in the middle,
 // with a rim of dark, soaked soil around it. While it rains, drops ring the
@@ -11,9 +12,9 @@ render_mode blend_mix, depth_draw_never, cull_back;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform vec3 deep_color : source_color = vec3(0.02, 0.03, 0.035);
-uniform vec3 shallow_color : source_color = vec3(0.08, 0.09, 0.085);
-uniform vec3 mud_color : source_color = vec3(0.06, 0.045, 0.03);
+uniform vec3 deep_color = vec3(0.02, 0.03, 0.035);
+uniform vec3 shallow_color = vec3(0.08, 0.09, 0.085);
+uniform vec3 mud_color = vec3(0.06, 0.045, 0.03);
 // How far one sees through the deepest water, where it faces the eye (0
 // opaque, 1 clear); the shallows near the edge show more of the ground.
 uniform float clear = 0.1;
@@ -102,4 +103,6 @@ void fragment() {
 	// streaks, so a puddle reads as water and not as a hole in the ground.
 	float mirror = 0.16 + 0.1 * smoothstep(0.25, 0.95, r1) + 0.08 * sheen + 0.15 * fresnel;
 	EMISSION = vec3(0.5, 0.55, 0.6) * sky * water * (mirror + 0.2 * clamp(wake, 0.0, 1.0));
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

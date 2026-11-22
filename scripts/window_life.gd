@@ -25,7 +25,8 @@ const LIFT := 0.063
 const HEAD := """
 shader_type spatial;
 render_mode blend_mix, unshaded, depth_draw_never, cull_disabled, shadows_disabled;
-uniform vec3 colour : source_color = vec3(1.0, 0.7, 0.36);
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 uniform float curtain_chance = %f;
 uniform float figure_chance = %f;
@@ -86,6 +87,7 @@ void fragment() {
 	float w = a_cloth / (a_cloth + a_fig * (1.0 - a_cloth) + 0.0001);
 	ALBEDO = mix(vec3(0.03, 0.02, 0.015), cloth_col, w);
 	ALPHA = (1.0 - (1.0 - a_cloth) * (1.0 - a_fig)) * clamp(lit, 0.0, 1.0);
+	ALBEDO = gl_colour(ALBEDO);
 }
 """ % [CLOSE_BEFORE, CLOSE_BEFORE - 0.1]
 

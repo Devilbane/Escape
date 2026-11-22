@@ -21,8 +21,10 @@ extends Node
 ## face) sets the meta NO_SHADOW; a small glow (range under MIN_RANGE, a spell
 ## or a spark) stays plain on its own.
 
-## How many lights cast shadows at once.
+## How many lights cast shadows at once, at most.
 const BUDGET := 8
+## How many do with the picked graphics preset (see Graphics): fewer on weak graphics cards.
+static var budget := BUDGET
 ## Lights with a shorter reach are small glows: they stay plain.
 const MIN_RANGE := 4.0
 ## How far outside its reach the hero may be for a light to still count: about
@@ -79,6 +81,9 @@ var _wait := 0.0
 var _picked := {}
 ## The lights whose shadows are fading in or out (by instance id).
 var _fading := {}
+## The lamps made stronger while they cast shadows (see _match_lamps), by instance id: their
+## own colour, and the colour written over it.
+var _matched := {}
 ## The warm-up lamps lit for a level's warm-up frame (see warm_up), freed after it.
 var _warm: Array[Light3D] = []
 
@@ -123,6 +128,7 @@ func _process(delta: float) -> void:
 		_warm.clear()
 		refresh(true)
 	_fade(delta / FADE)
+	_match_lamps()
 	_wait -= delta
 	if _wait > 0.0:
 		return
@@ -156,7 +162,7 @@ func refresh(at_once := false) -> void:
 	ranked.sort_custom(func(a, b): return a[0] < b[0])
 	for i in ranked.size():
 		var light: Light3D = ranked[i][1]
-		if i < BUDGET:
+		if i < budget:
 			_pick(light, at_once)
 		else:
 			_drop(light, at_once)
@@ -337,3 +343,36 @@ func _focus_point() -> Vector3:
 ## How many lights are picked to cast shadows right now.
 func shadowed() -> int:
 	return _picked.size()
+
+
+## On the modern renderer a lamp that casts shadows shines Graphics.lamp() times stronger, fading
+## in and out with its shadows, as OpenGL shows such a lamp brighter (see Graphics.LAMP_MATCH).
+## Its colour carries the boost, not its strength: the lamps' owners keep setting and tweening their
+## strength (flicker, dusk), and must read back what they set.
+func _match_lamps() -> void:
+	var boost := Graphics.lamp()
+	for id in _lights.keys():
+		var held = _lights[id]
+		if not is_instance_valid(held) or not held is OmniLight3D:
+			_matched.erase(id)
+			continue
+		var lamp: OmniLight3D = held
+		var rec: Dictionary = _matched.get(id, {})
+		if not lamp.shadow_enabled or boost == 1.0:
+			if not rec.is_empty():
+				# Its shadows are gone: back to its own colour, unless its owner set a new one.
+				if lamp.light_color.is_equal_approx(rec.wrote):
+					lamp.light_color = rec.color
+				_matched.erase(id)
+			continue
+		if rec.is_empty():
+			rec = {"color": lamp.light_color, "wrote": lamp.light_color}
+			_matched[id] = rec
+		# Whatever the owner set since the last frame is the lamp's own colour again.
+		if not lamp.light_color.is_equal_approx(rec.wrote):
+			rec.color = lamp.light_color
+		var own: Color = rec.color
+		var lit := own.srgb_to_linear() * lerpf(1.0, boost, lamp.shadow_opacity)
+		lit.a = own.a
+		lamp.light_color = lit.linear_to_srgb()
+		rec.wrote = lamp.light_color

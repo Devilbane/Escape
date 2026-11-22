@@ -142,6 +142,7 @@ static func _lay_stones(level: Node3D, list: Array[Transform3D]) -> void:
 	mat.albedo_color = Color(0.46, 0.45, 0.41)
 	mat.roughness = 0.85
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	ball.material = mat
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D

@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The weather that drifts or falls around the hero: rain streaks, patches of mist and autumn
 // leaves (see Weather.make_rain, make_mist and LeafFall). Unlit and see-through, like the plain
 // material they had before, but they leave out every spot inside a house (see indoors.gdshaderinc):
@@ -8,8 +9,8 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 
 #include "res://shaders/indoors.gdshaderinc"
 
-uniform vec4 albedo : source_color = vec4(1.0);
-uniform sampler2D texture_albedo : source_color, filter_linear_mipmap, hint_default_white;
+uniform vec4 albedo = vec4(1.0);
+uniform sampler2D texture_albedo : filter_linear_mipmap, hint_default_white;
 // 0 as placed, 1 facing the camera (particles: with their own size and spin), 2 upright facing it.
 uniform int billboard = 0;
 uniform bool use_vertex_color = false;
@@ -50,4 +51,5 @@ void fragment() {
 	}
 	ALBEDO = c.rgb;
 	ALPHA = c.a;
+	ALBEDO = gl_colour(ALBEDO);
 }

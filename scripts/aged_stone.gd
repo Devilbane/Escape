@@ -1373,6 +1373,7 @@ static func _grapes_into(root: Node3D, leaves: Dictionary) -> void:
 	var mesh := grape_mesh()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.roughness = 0.45
 	mesh.surface_set_material(0, mat)
 	var tiles := {}
@@ -1501,6 +1502,7 @@ static func _stems_into(root: Node3D, leaves: Dictionary) -> void:
 	bar.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.roughness = 1.0
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.albedo_texture = bark_texture()
@@ -1553,6 +1555,7 @@ static func leaf_material() -> StandardMaterial3D:
 		var mat := StandardMaterial3D.new()
 		mat.albedo_texture = ImageTexture.create_from_image(img)
 		mat.vertex_color_use_as_albedo = true
+		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		mat.alpha_scissor_threshold = 0.5
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -1596,6 +1599,7 @@ static func nest_mesh() -> Mesh:
 	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.roughness = 1.0
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.surface_set_material(0, mat)

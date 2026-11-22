@@ -11,6 +11,7 @@
 //
 // Define FADE before including this to get a version that turns grey and can
 // fade out, for a sneaking hero.
+#include "res://shaders/gl_colour.gdshaderinc"
 
 const int NONE = 0;
 const int CLOTH = 1;
@@ -32,10 +33,10 @@ const int PELT = 11;
 // the roots, over a fine fuzz (see CreatureSkin).
 const int BRISTLE = 12;
 
-uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap;
 // recolor: keep the light and dark of the texture but swap its colour for the tint.
 uniform bool recolor = true;
-uniform vec3 tint : source_color = vec3(1.0);
+uniform vec3 tint = vec3(1.0);
 uniform float metal = 0.0;
 // What the piece is made of (one of the constants above). NONE keeps the plain look.
 uniform int stuff = 0;
@@ -43,7 +44,7 @@ uniform int stuff = 0;
 uniform bool metal_where_grey = false;
 uniform float grey_metal = 0.3;
 // Multiplies the colour, as a plain material's albedo colour does (villagers' and bandits' dyed clothes).
-uniform vec3 dye : source_color = vec3(1.0);
+uniform vec3 dye = vec3(1.0);
 // Moves the marks of a hide or a pelt around, so that not every creature of
 // a kind has its scars in the same places.
 uniform vec3 seed = vec3(0.0);
@@ -252,4 +253,5 @@ void fragment() {
 	SPECULAR = 0.2;
 	ALPHA = 1.0 - fade;
 #endif
+	ALBEDO = gl_colour(ALBEDO);
 }

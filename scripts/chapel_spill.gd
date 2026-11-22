@@ -55,7 +55,8 @@ const DIM := 1.3
 const SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
-uniform sampler2D glass : source_color, filter_linear_mipmap, repeat_disable;
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform sampler2D glass : filter_linear_mipmap, repeat_disable;
 uniform float glow = 0.0;
 uniform float scale = 1.0;
 uniform float dim = 1.0;
@@ -91,6 +92,7 @@ void fragment() {
 		float ends = smoothstep(0.0, 0.03, UV.y) * smoothstep(1.0, 0.97, UV.y);
 		ALBEDO = c * fade * ends * glow / scale * dim * pic_dim;
 	}
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 

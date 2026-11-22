@@ -815,6 +815,7 @@ static func _leaf_mat() -> StandardMaterial3D:
 	if not _mats.has("leaf"):
 		var m := StandardMaterial3D.new()
 		m.vertex_color_use_as_albedo = true
+		m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		m.roughness = 0.85
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_mats["leaf"] = m
@@ -828,6 +829,7 @@ static func _vertex_mat(roughness: float) -> StandardMaterial3D:
 		return _mats[key]
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = roughness
 	_mats[key] = m
 	return m

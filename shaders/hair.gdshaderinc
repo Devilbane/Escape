@@ -19,8 +19,9 @@
 //
 // Define FADE before including this to get a version that turns grey and can
 // fade out, for a sneaking hero.
+#include "res://shaders/gl_colour.gdshaderinc"
 
-uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap;
 // true for the crest of locks, false for the head.
 uniform bool crest = false;
 // Head: the hair is shaved off (the mesh is too; this switches the look).
@@ -41,12 +42,12 @@ uniform bool ear_gem = false;
 uniform bool recolor = false;
 // 0: the colours below, 1: rainbow, 2: fire.
 uniform int mode = 0;
-uniform vec3 root_color : source_color = vec3(0.32, 0.14, 0.09);
-uniform vec3 hair_color : source_color = vec3(0.62, 0.33, 0.22);
-uniform vec3 tip_color : source_color = vec3(0.84, 0.52, 0.34);
+uniform vec3 root_color = vec3(0.32, 0.14, 0.09);
+uniform vec3 hair_color = vec3(0.62, 0.33, 0.22);
+uniform vec3 tip_color = vec3(0.84, 0.52, 0.34);
 // Head: the skin is multiplied by this (white keeps the texture's own), so
 // one character can have a rosier or a darker face than the model's.
-uniform vec3 skin_tint : source_color = vec3(1.0);
+uniform vec3 skin_tint = vec3(1.0);
 // Strands across one lock.
 uniform float strands = 6.0;
 // The crest is made of solid tufts (spiky hair): cones, UV.x round each one,
@@ -303,4 +304,6 @@ void fragment() {
 	if (cut) {
 		discard;
 	}
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

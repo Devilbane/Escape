@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_always, cull_back;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The slimes' body: a glossy, wet, see-through lump of murky water, like the
 // neglected water in the dungeon's fountain (see water.gdshader). It wobbles
 // and breathes, sags in lobes along its lower rim that creep down and drip,
@@ -8,10 +9,10 @@ render_mode blend_mix, depth_draw_always, cull_back;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform vec3 deep_color : source_color = vec3(0.06, 0.1, 0.06);
-uniform vec3 shallow_color : source_color = vec3(0.22, 0.28, 0.15);
-uniform vec3 scum_color : source_color = vec3(0.22, 0.24, 0.1);
-uniform vec3 glow_color : source_color = vec3(0.4, 0.8, 0.62);
+uniform vec3 deep_color = vec3(0.06, 0.1, 0.06);
+uniform vec3 shallow_color = vec3(0.22, 0.28, 0.15);
+uniform vec3 scum_color = vec3(0.22, 0.24, 0.1);
+uniform vec3 glow_color = vec3(0.4, 0.8, 0.62);
 // How strongly it glows from inside (a faint murk, more for the glowing kinds).
 uniform float glow = 0.12;
 // How far one sees through it where it is thinnest (0 opaque, 1 clear).
@@ -91,4 +92,6 @@ void fragment() {
 	vec3 sky = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 	float sheen = pow(clamp(dot(reflect(-normalize(VIEW), n), sky), 0.0, 1.0), 10.0) * (1.0 - film);
 	EMISSION = vec3(0.55, 0.62, 0.5) * sheen * 0.8 + glow_color * glow * (0.6 + 0.4 * sin(t * 1.4)) * (0.5 + murk) * (1.0 - thick * 0.5);
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

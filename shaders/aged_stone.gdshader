@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Old village stonework, to match the temple (the Modular Cathedral Kit's
 // stone): every building in the village is built of the kit's stone blocks,
 // weathered by years of rain and sun (see AgedStone). It adds:
@@ -30,10 +31,10 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/masonry.gdshaderinc"
 
-uniform sampler2D palette : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D palette : filter_linear_mipmap, repeat_enable;
 uniform bool use_palette = true;
 // The stone's tint (sandstone, grey, ...), and the strength of the weather.
-uniform vec3 tint : source_color = vec3(0.86, 0.83, 0.78);
+uniform vec3 tint = vec3(0.86, 0.83, 0.78);
 uniform float age = 1.0;
 // 1: laid in stone blocks; 0: hewn from one piece (a gravestone).
 uniform float blocks = 1.0;
@@ -47,10 +48,10 @@ uniform float soft_joints = 0.0;
 // 1: the roof tiles are uneven (each tile its own shade, now and then a new
 // or a blackened one) and bleached in patches (the village buildings).
 uniform float uneven_roofs = 0.0;
-uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim : filter_linear_mipmap, repeat_enable;
 // Where the windows sit on the palette (white), and how bright they glow.
 uniform sampler2D glow_mask : hint_default_black, filter_linear;
-uniform vec3 glow_colour : source_color = vec3(1.0, 0.7, 0.36);
+uniform vec3 glow_colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 // The grain of the timber (read as painted, not as light; see wood_tex use).
 uniform sampler2D wood_tex : hint_default_white, filter_linear_mipmap, repeat_enable;
@@ -289,4 +290,6 @@ void fragment() {
 	vec2 bevel = edge_bevel(edge_d * obj_scale, edge_round);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump + bevel.x, dFdy(height) * bump + bevel.y), 0.0)).xyz);
 	EMISSION = glow_colour * window * glow;
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

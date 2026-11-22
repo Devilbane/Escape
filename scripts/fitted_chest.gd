@@ -148,15 +148,18 @@ static func _materials() -> void:
 		return
 	_wood = StandardMaterial3D.new()
 	_wood.vertex_color_use_as_albedo = true
+	_wood.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	_wood.albedo_texture = _grain_texture()
 	_wood.roughness = 0.85
 	_metal = StandardMaterial3D.new()
 	_metal.vertex_color_use_as_albedo = true
+	_metal.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	_metal.metallic = 0.55
 	_metal.metallic_specular = 0.7
 	_metal.roughness = 0.42
 	_gold = StandardMaterial3D.new()
 	_gold.vertex_color_use_as_albedo = true
+	_gold.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	_gold.metallic = 0.45
 	_gold.metallic_specular = 0.8
 	_gold.roughness = 0.3
@@ -167,6 +170,7 @@ static func _materials() -> void:
 	var shader := Shader.new()
 	shader.code = """shader_type spatial;
 render_mode specular_schlick_ggx;
+#include "res://shaders/gl_colour.gdshaderinc"
 varying vec3 spot;
 void vertex() {
 	spot = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -179,6 +183,8 @@ void fragment() {
 	float beat = sin(TIME * 2.6 + spot.x * 7.0 + spot.z * 5.0 + COLOR.r * 6.0);
 	float flash = pow(max(beat, 0.0), 8.0);
 	EMISSION = COLOR.rgb * (0.35 + 0.25 * beat) + vec3(flash * 0.9);
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }
 """
 	_jewel = ShaderMaterial.new()

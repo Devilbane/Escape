@@ -98,6 +98,7 @@ func _build() -> void:
 	add_child(_body)
 	var fur := StandardMaterial3D.new()
 	fur.vertex_color_use_as_albedo = true
+	fur.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	fur.roughness = 0.95
 	fur.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var body := MeshInstance3D.new()

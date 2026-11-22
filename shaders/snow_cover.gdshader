@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back;
+#include "res://shaders/gl_colour.gdshaderinc"
 // A layer of snow on everything that faces the sky (see SnowCover). It is laid
 // over every mesh of the open air as its material overlay: wherever a surface
 // faces up it draws snow, and nowhere else, so roofs, ledges, fence tops, rocks,
@@ -81,4 +82,5 @@ void fragment() {
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
+	ALBEDO = gl_colour(ALBEDO);
 }

@@ -147,6 +147,7 @@ static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_
 	_puff(st, Vector3(cx, MATTRESS_TOP + 0.09, quilt_head + 0.1), Vector2(inner + 0.08, 0.22), 0.04, LINEN)
 	var cloth := wool(Color(0.9, 0.9, 0.9), 0.3)
 	cloth.vertex_color_use_as_albedo = true
+	cloth.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	var bedding := MeshInstance3D.new()
 	bedding.name = "Bedding"
 	bedding.mesh = st.commit()

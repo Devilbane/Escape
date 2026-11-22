@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Old, neglected stone for the dungeon's fountain: the rough, matt stone of
 // stone.gdshader, left for centuries in a damp cellar. On top of its stains,
 // grain and pits it adds:
@@ -14,7 +15,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform vec3 albedo_color : source_color = vec3(0.56, 0.54, 0.5);
+uniform vec3 albedo_color = vec3(0.56, 0.54, 0.5);
 uniform float strength = 1.0;
 // How much more moss grows low down, near the floor (0 for loose rubble,
 // whose own foot is not the fountain's).
@@ -127,4 +128,5 @@ void fragment() {
 	// Matt stone and moss; wet stone and slime have a dull sheen.
 	ROUGHNESS = mix(0.92 + 0.08 * grit, 0.55, max(under, moss * (1.0 - up)) * s * 0.6);
 	SPECULAR = mix(0.2, 0.4, under * s);
+	ALBEDO = gl_colour(ALBEDO);
 }

@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The old tiled roofs of the villagers' houses (VillageHouse._roof): the red
 // tiles of the cathedral trim sheet, one copy per patch of roof, aged like
 // the stone of the walls (see aged_stone.gdshader). It adds:
@@ -14,9 +15,9 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform sampler2D trim : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim : filter_linear_mipmap, repeat_enable;
 // The house's roof shade (VillageHouse.ROOFS).
-uniform vec3 tint : source_color = vec3(1.0);
+uniform vec3 tint = vec3(1.0);
 // How weathered the roof is.
 uniform float age = 1.0;
 
@@ -106,4 +107,5 @@ void fragment() {
 	// little proud.
 	float height = (raw + h1 * 0.08) * band(2.0, px);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.5, dFdy(height) * 0.5), 0.0)).xyz);
+	ALBEDO = gl_colour(ALBEDO);
 }

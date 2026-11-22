@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The stone floors of the player's houses (see HouseLooks.flagstones): the
 // same paving as the village square round the smith's forge, laid in world
 // space so the stones run on from one floor tile to the next without a seam.
@@ -7,7 +8,7 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/cobbles.gdshaderinc"
 
-uniform vec3 paving : source_color = vec3(0.50, 0.47, 0.43);
+uniform vec3 paving = vec3(0.50, 0.47, 0.43);
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -32,4 +33,5 @@ void fragment() {
 	ROUGHNESS = 0.82;
 	SPECULAR = 0.25;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
+	ALBEDO = gl_colour(ALBEDO);
 }

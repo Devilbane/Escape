@@ -78,6 +78,7 @@ func build(level: Node3D, tables: Array) -> void:
 			cells.append(level.world_to_cell(at))
 	var coal_mat := StandardMaterial3D.new()
 	coal_mat.vertex_color_use_as_albedo = true
+	coal_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	coal_mat.roughness = 0.9
 	coal_mat.emission_enabled = true
 	coal_mat.emission = Color(1.0, 0.36, 0.08)

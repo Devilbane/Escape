@@ -1,14 +1,15 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_back, specular_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 // A ghost of the dungeon (see Enemy._ghostly): the model's own texture,
 // washed out to a pale white, see-through, with a neon aura at its edges. It
 // fades away towards the floor, so it has no feet, and its lower part sways.
 
-uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap;
 uniform bool use_tex = false;
-uniform vec4 color : source_color = vec4(0.95, 1.0, 0.97, 1.0);
+uniform vec4 color = vec4(0.95, 1.0, 0.97, 1.0);
 // The glowing aura at its edges.
-uniform vec4 aura : source_color = vec4(0.3, 1.0, 0.45, 1.0);
+uniform vec4 aura = vec4(0.3, 1.0, 0.45, 1.0);
 // How much of it shows: 1 in full, near 0 a mere shimmer (a wraith that has
 // not noticed the hero), 0 gone.
 uniform float alpha : hint_range(0.0, 1.0) = 1.0;
@@ -44,4 +45,6 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	float feet = smoothstep(fade_low, fade_high, height);
 	ALPHA = clamp(alpha * (0.42 + 0.55 * rim) * feet * flicker, 0.0, 1.0);
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

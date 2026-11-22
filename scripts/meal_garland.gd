@@ -319,7 +319,8 @@ func _add_globes(node: Node3D, globes: Array[Transform3D]) -> void:
 const HALO_SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
-uniform vec3 colour : source_color = vec3(1.0, 0.72, 0.38);
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.72, 0.38);
 uniform float glow = 0.0;
 uniform float strength = 0.5;
 void vertex() {
@@ -330,6 +331,7 @@ void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float d = clamp(1.0 - length(p), 0.0, 1.0);
 	ALBEDO = colour * (d * d * 0.7 + pow(d, 6.0) * 0.8) * glow * strength;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 
@@ -338,13 +340,15 @@ void fragment() {
 const POOL_SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
-uniform vec3 colour : source_color = vec3(1.0, 0.72, 0.38);
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.72, 0.38);
 uniform float glow = 0.0;
 uniform float strength = 0.1;
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float d = smoothstep(1.0, 0.0, length(p));
 	ALBEDO = colour * d * glow * strength;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 

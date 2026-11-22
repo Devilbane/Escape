@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The falling snowflakes (see Weather.make_snow). A flake shows only as much as light reaches it:
 // it gives no light of its own and is drawn added onto what lies behind it, so an unlit flake is
 // invisible rather than a dark speck. By day the sun and the sky light every flake; at night only
@@ -9,8 +10,8 @@ render_mode blend_add, depth_draw_never, cull_disabled, specular_disabled;
 
 #include "res://shaders/indoors.gdshaderinc"
 
-uniform vec4 albedo : source_color = vec4(0.92, 0.94, 1.0, 0.9);
-uniform sampler2D dot_tex : source_color, filter_linear, repeat_disable;
+uniform vec4 albedo = vec4(0.92, 0.94, 1.0, 0.9);
+uniform sampler2D dot_tex : filter_linear, repeat_disable;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 
 varying vec3 world_pos;
@@ -36,6 +37,7 @@ void fragment() {
 	vec4 tex = texture(dot_tex, UV);
 	ALBEDO = albedo.rgb * tex.rgb;
 	ALPHA = albedo.a * tex.a;
+	ALBEDO = gl_colour(ALBEDO);
 }
 
 void light() {

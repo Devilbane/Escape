@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Bare, dug earth on the floor and walls of a cellar (see BareEarth). The soil
 // picture is laid in world space on every face (triplanar), so squares and walls
 // join. So that it never shows as a repeating tile, it is laid twice, at two sizes
@@ -8,7 +9,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform sampler2D soil : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D soil : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D soil_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 // Metres one copy of the picture covers, in the first and second layer.
 uniform float size_a = 1.6;
@@ -79,4 +80,5 @@ void fragment() {
 	ROUGHNESS = 0.95 - max(wet, 0.0) * 0.12;
 	vec3 bent = normalize(n + tilt * bump);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
+	ALBEDO = gl_colour(ALBEDO);
 }

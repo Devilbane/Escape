@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The water of a stone basin: a glossy, slightly see-through surface with
 // slow drifting ripples, rings spreading from where the spout falls in, and a
 // faint, breathing glow for the fountain that heals. Like the ground and the
@@ -8,9 +9,9 @@ render_mode blend_mix, depth_draw_opaque, cull_back;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform vec3 deep_color : source_color = vec3(0.07, 0.19, 0.24);
-uniform vec3 shallow_color : source_color = vec3(0.2, 0.4, 0.43);
-uniform vec3 glow_color : source_color = vec3(0.45, 0.85, 0.85);
+uniform vec3 deep_color = vec3(0.07, 0.19, 0.24);
+uniform vec3 shallow_color = vec3(0.2, 0.4, 0.43);
+uniform vec3 glow_color = vec3(0.45, 0.85, 0.85);
 // How strongly the water glows from inside (0 for plain water).
 uniform float glow = 0.25;
 // Rings spreading from the middle of the surface, where the spout lands.
@@ -21,7 +22,7 @@ uniform float ring_spacing = 22.0;
 // water's own radius, for where the rim is.
 uniform float scum = 0.0;
 uniform float radius = 1.3;
-uniform vec3 scum_color : source_color = vec3(0.2, 0.25, 0.1);
+uniform vec3 scum_color = vec3(0.2, 0.25, 0.1);
 
 varying vec3 world_pos;
 varying vec3 local_pos;
@@ -66,4 +67,6 @@ void fragment() {
 		SPECULAR = mix(SPECULAR, 0.25, film);
 		EMISSION *= 1.0 - 0.85 * film;
 	}
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

@@ -9,7 +9,7 @@ extends SceneTree
 ## a floor slab, stairs up, an upper wall, a saddle roof and a flat roof with things set on it.
 ##
 ## Run with a display (the checks about what is on screen need one):
-##   SHOTS=/tmp/house xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 \
+##   SHOTS=/tmp/house xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-method gl_compatibility --rendering-driver opengl3 \
 ##       --fixed-fps 60 -s tests/house_playtest.gd
 ## Without a display it still runs (--headless) but skips the screenshots and the pixel checks.
 ## Every step prints "ok" or "FAIL: ..."; the run ends with a summary of the failed steps.

@@ -21,7 +21,8 @@ const GROUND_FLOOR := 2.4
 const SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, shadows_disabled;
-uniform vec3 colour : source_color = vec3(1.0, 0.7, 0.36);
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 uniform float scale = 1.0;
 varying vec2 key;
@@ -35,6 +36,7 @@ void fragment() {
 	// Brightest next to the wall (UV.y = 0), fading away from it.
 	float along = 1.0 - UV.y * 0.6;
 	ALBEDO = colour * d * d * along * COLOR.a * glow * window_lit(key) / scale * 0.16;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 

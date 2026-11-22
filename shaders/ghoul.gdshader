@@ -1,15 +1,16 @@
 shader_type spatial;
 render_mode cull_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 // A ghoul's body (see Enemy "ghoul_skin"): the model's light and dark kept,
 // its colours washed out to dead, grey skin, with patches of rotten flesh
 // (wet, dark reddish brown) and, inside the worst of them, bare bone:
 // ivory with dark grooves between ribs. The patches are noise on the rest
 // position of each vertex, so they stay put on the body while it moves.
 
-uniform sampler2D tex : source_color, filter_linear_mipmap;
-uniform vec3 skin : source_color = vec3(0.74, 0.75, 0.68);
-uniform vec3 rot : source_color = vec3(0.42, 0.24, 0.16);
-uniform vec3 bone : source_color = vec3(0.86, 0.82, 0.68);
+uniform sampler2D tex : filter_linear_mipmap;
+uniform vec3 skin = vec3(0.74, 0.75, 0.68);
+uniform vec3 rot = vec3(0.42, 0.24, 0.16);
+uniform vec3 bone = vec3(0.86, 0.82, 0.68);
 // Moves the patches around, so not every ghoul rots in the same places.
 uniform vec3 seed = vec3(0.0);
 // How much of the body has rotted (0..1).
@@ -66,4 +67,5 @@ void fragment() {
 	// The rot is wet and glistens; bone and skin are dry.
 	ROUGHNESS = mix(0.85, 0.3, rotten * (1.0 - bared));
 	SPECULAR = mix(0.3, 0.6, rotten * (1.0 - bared));
+	ALBEDO = gl_colour(ALBEDO);
 }

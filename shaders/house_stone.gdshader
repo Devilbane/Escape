@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The stone walls the hero builds (house walls, garden walls, cellar walls; see
 // HouseLooks.temple_stone): the village's natural stonework (masonry.gdshaderinc)
 // in the cool grey of the temple's blocks, laid in world space so the courses run
@@ -7,7 +8,7 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/masonry.gdshaderinc"
 
-uniform vec3 tint : source_color = vec3(0.6, 0.6, 0.58);
+uniform vec3 tint = vec3(0.6, 0.6, 0.58);
 // See StoneLook.apply.
 uniform float masonry = 1.0;
 uniform float course = 0.3;
@@ -41,4 +42,5 @@ void fragment() {
 	float h = laid.a * 0.012 * band(1.0 / course, px);
 	vec2 bevel = edge_bevel(edge_d, edge_round);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(h) + bevel.x, dFdy(h) + bevel.y), 0.0)).xyz);
+	ALBEDO = gl_colour(ALBEDO);
 }

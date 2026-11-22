@@ -438,6 +438,7 @@ static func mesh(kind: String) -> Mesh:
 static func _material(cull_off: bool, roughness: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = roughness
 	if cull_off:
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -489,6 +490,7 @@ static func _band_mesh() -> Mesh:
 	plane.size = Vector2.ONE
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.albedo_texture = SurfaceLife._patch_texture(57, 0.09)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.roughness = 1.0

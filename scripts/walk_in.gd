@@ -45,6 +45,11 @@ const LAMP_RANGE := 6.5
 ## How see-through the temple's front wall gets while the hero is inside (0 solid, 1 gone).
 const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
+## A villagers' house's rug under the table (metres across, deep), and how high over the floor the
+## candle shelf hangs on the back wall, and how far off the middle (away from the store shelf).
+const RUG_SIZE := Vector2(2.2, 1.6)
+const SHELF_HIGH := 1.75
+const SHELF_OFF := 0.4
 ## The beds of a house, on the floor above: as many as fit side by side along its back wall
 ## beside the hatch, at most this many.
 const MAX_BEDS := 3
@@ -458,6 +463,25 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 		var origin := Vector3(mid - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5, up_y, origin_z)
 		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
 				"stand": house.transform * Vector3(mid + 0.1, up_y, origin_z + CosyBed.FOOT + 0.55)})
+	_make_homely(rec, table_at, side)
+
+
+## What makes a villagers' house look lived in and warmly lit: a rug under the table, and a shelf
+## with a burning candle on the back wall between the store shelf and the barrels, whose glow
+## lights the room with the house's lamp (see _show_inside).
+func _make_homely(rec: Dictionary, table_at: Vector3, ladder_side: float) -> void:
+	var house: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var rug := WalkInFurniture.rug(Vector2(minf(RUG_SIZE.x, room.size.x - 0.6), minf(RUG_SIZE.y, room.size.y - 0.6)))
+	rug.position = Vector3(table_at.x, floor_y, table_at.z)
+	house.add_child(rug)
+	var shelf := WalkInFurniture.candle_shelf()
+	shelf.position = Vector3(-ladder_side * SHELF_OFF, floor_y + SHELF_HIGH, room.position.y)
+	house.add_child(shelf)
+	var glow: OmniLight3D = shelf.get_node("CandleGlow")
+	glow.visible = false
+	rec["glows"] = [glow]
 
 
 ## The lamp that lights a house or hall while the hero is inside.
@@ -774,6 +798,9 @@ func _show_inside(rec: Dictionary, inside: bool) -> void:
 	var lamp: OmniLight3D = rec.get("lamp")
 	if lamp:
 		lamp.visible = inside
+	for glow in rec.get("glows", []):
+		if is_instance_valid(glow):
+			(glow as Light3D).visible = inside
 
 
 ## Which wall of a sided hall a leaf of ivy at `at` (the hall's frame) grows on, or "".

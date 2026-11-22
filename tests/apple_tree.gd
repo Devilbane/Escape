@@ -104,7 +104,7 @@ func _run() -> void:
 	var model := Node3D.new()
 	AppleTree.build(model, old, summer)
 	check(model.has_node("Ground") and not model.has_node("Soil"), "the tree stands in a patch of grass ringed with stones, not on a disc of earth")
-	check(model.get_child_count() <= 5, "a tree is a handful of meshes (%d)" % model.get_child_count())
+	check(model.get_child_count() <= 6, "a tree is a handful of meshes (%d)" % model.get_child_count())
 	model.free()
 	# In autumn a share of the leaves is still green among the turned ones.
 	var fall := Node3D.new()

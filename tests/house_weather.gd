@@ -1,7 +1,8 @@
 extends SceneTree
-## No weather inside a built house (see HouseGround.shelter and Game._shelter): a hero who steps
-## in out of a storm sees no rain, no fog and no storm dark, and in daytime fog a hero indoors is
-## lit as on a clear day (see Outdoor.is_lit). Out in the open again, the storm is back.
+## No weather inside a built house (see HouseGround.shelter, Game._shelter and IndoorMask): a hero who
+## steps in out of a storm sees no rain, no fog and no storm dark in there, but the storm outside goes
+## on and the rain drums muffled; in daytime fog a hero indoors is lit as on a clear day (see
+## Outdoor.is_lit). Out in the open again, the storm is back.
 ## Run with: godot --headless -s tests/house_weather.gd
 
 var failures := 0
@@ -104,12 +105,30 @@ func _process(_delta: float) -> bool:
 		check(plan.count(HouseSketch.WALL, HouseSketch.BUILT) == 16, "the walls are built (%d)" % plan.count(HouseSketch.WALL, HouseSketch.BUILT))
 		check(game._rain.visible, "out in the open the storm's rain falls")
 		check(game._env.fog_enabled, "out in the open the storm brings haze")
+		# A yard closed in by walls but open to the sky: inside the house, but the weather falls in.
+		var yard: Vector3 = plan.node_world(3, 3) + Vector3(0, 1, 0)
+		check(game.level.is_sheltered(yard), "the walls close the yard in")
+		check(not game.level.is_roofed(yard) and not IndoorMask.covers(yard), "the rain falls into a yard with no roof")
+		# Now a roof over it (slabs on the walls).
+		for cell: Array in plan.cells_between(Vector2i(1, 1), Vector2i(4, 4)):
+			plan.pieces[HouseSketch.key_of(cell[0], cell[1], cell[2])] = {"kind": HouseSketch.SLAB, "state": HouseSketch.BUILT}
+		game.house_sketcher._redraw()
 		_put_hero(plan.node_world(3, 3))
+		_lay_slab(plan.node_world(3, 3))
 		_next(1.0)
 		return false
 	if step == 1:
 		check(game.level.is_sheltered(game.player.global_position), "the hero stands inside the house")
-		check(not game._rain.visible, "no rain falls inside the house")
+		check(game.level.is_roofed(game.player.global_position), "under its roof")
+		# The storm goes on outside (seen through the windows and over the walls), but the shaders leave
+		# out everything inside the house (see IndoorMask), and the rain only drums, muffled.
+		check(game._rain.visible, "outside the house the storm's rain still falls, seen from inside")
+		var inside: Vector3 = game.player.global_position + Vector3(0, 1, 0)
+		check(IndoorMask.covers(inside), "no rain, mist or fog clouds show inside the house")
+		check(not IndoorMask.covers(plan.node_world(0, 0) - Vector3(3, -1, 3)), "outside the house they do")
+		check(not IndoorMask.covers(inside + Vector3(0, HouseSketch.STOREY_HEIGHT * 2.0, 0)), "above the house they do")
+		var bus := AudioServer.get_bus_index(Soundscape.WEATHER_BUS)
+		check(bus >= 0 and AudioServer.get_bus_volume_db(bus) < -6.0, "the rain is heard muffled inside")
 		check(not game._env.fog_enabled, "no haze inside the house")
 		check(float(game._seen_look().sat) > 0.95 and float(game._seen_look().sun) > 0.95, "no storm grey or dark inside the house")
 		_snow_checks()
@@ -122,6 +141,8 @@ func _process(_delta: float) -> bool:
 		return false
 	if step == 2:
 		check(game._rain.visible, "out again, the rain falls again")
+		var bus := AudioServer.get_bus_index(Soundscape.WEATHER_BUS)
+		check(bus >= 0 and AudioServer.get_bus_volume_db(bus) > -0.5, "out again, the rain is heard clearly")
 		check(game._env.fog_enabled, "out again, the haze is back")
 		print("PASS: house weather" if failures == 0 else "FAILED: %d" % failures)
 		Plots.release(game.hero_name)
@@ -153,9 +174,33 @@ func _snow_checks() -> void:
 	check(SnowPrints._records.size() == before, "no footprints in the snow inside the house")
 	o.snow_print(outside, 0.0)
 	check(SnowPrints._records.size() == before + 1, "footprints outside it")
+	# Up high with nothing underfoot no print is pressed (none falls through to the floor inside
+	# the house); up on a flat roof (here a slab over the house) it lies on the roof.
+	o.snow_print(inside + Vector3(0, 6.0, 0), 0.0)
+	check(SnowPrints._records.size() == before + 1, "no print on the floor inside for a step high above it")
+	o.snow_print(Vector3(inside.x, 3.12, inside.z), 0.0)
+	check(SnowPrints._records.size() == before + 2, "footprints on the roof")
+	var rec: Array = SnowPrints._records[SnowPrints._records.size() - 1]
+	check(rec.size() > 6 and absf(float(rec[5]) - 3.1) < 0.05, "the roof's print lies on the roof, not on the floor (%s)" % [rec])
+	slab.queue_free()
 	check(Surfaces.step_ground(o, inside) != Surfaces.SNOW, "steps inside do not crunch in snow")
 	check(Surfaces.step_ground(o, outside) == Surfaces.SNOW or Surfaces.ground(o, outside) == Surfaces.WOOD, "steps outside crunch")
 	o.set_snow(0.0)
+
+
+## A flat roof to stand on over the house (see _snow_checks), laid a while before so the physics
+## knows it.
+var slab: StaticBody3D
+
+
+func _lay_slab(at: Vector3) -> void:
+	slab = StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(4, 0.2, 4)
+	slab.add_child(shape)
+	game.level.add_child(slab)
+	slab.global_position = Vector3(at.x, 3.0, at.z)
 
 
 func _next(shelter: float) -> void:

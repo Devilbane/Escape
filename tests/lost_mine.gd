@@ -150,6 +150,29 @@ func _run() -> void:
 		var ahead := c + Vector2i(roundi(front.x), roundi(front.z))
 		var behind := c - Vector2i(roundi(front.x), roundi(front.z))
 		check(LostMine.cells().has(ahead) or not LostMine.cells().has(behind), "a chest opens towards the room, its back to a wall (%s)" % c)
+	# Nothing stands in a tunnel's way: where a tunnel cell meets the next open cell, the hero fits
+	# through (a rack of picks once stood across the tool store's way out).
+	var ball := SphereShape3D.new()
+	ball.radius = 0.32
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = ball
+	var open := LostMine.cells().keys().filter(func(c): return LostMine.cells()[c] != "x")
+	# A tunnel cell lies in no open 2 x 2 block (those are rooms, where things stand about).
+	var narrow := func(c: Vector2i) -> bool:
+		for corner: Vector2i in [Vector2i(0, 0), Vector2i(-1, 0), Vector2i(0, -1), Vector2i(-1, -1)]:
+			var o := c + corner
+			if open.has(o) and open.has(o + Vector2i(1, 0)) and open.has(o + Vector2i(0, 1)) and open.has(o + Vector2i(1, 1)):
+				return false
+		return true
+	for c: Vector2i in open:
+		if not narrow.call(c):
+			continue
+		for d: Vector2i in HouseSketch.DOWN.values():
+			if not open.has(c + d):
+				continue
+			q.transform = Transform3D(Basis(), (LostMine.floor_at(c) + LostMine.floor_at(c + d)) * 0.5 + Vector3(0, 0.9, 0))
+			var hit := space.intersect_shape(q, 1)
+			check(hit.is_empty(), "the way from tunnel cell %s on to %s is free" % [c, c + d])
 	var beds := level.stations.filter(func(s): return s.kind == LostMine.BED)
 	check(beds.size() == 3, "the bunks are there to run into (%d)" % beds.size())
 	for text in [LostMine.BED_WARN, LostMine.prompt(LostMine.BED)]:

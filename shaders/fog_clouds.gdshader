@@ -2,11 +2,14 @@ shader_type spatial;
 // Large, soft fog clouds that float in the air over the open ground. Each of three thin layers
 // a few metres up is two layers of tiling noise read in world space (so the clouds stay put in
 // the world while the camera moves), with clear gaps between the banks; under them only a thin
-// haze lies on the ground. The clouds stay as they are around the hero too.
+// haze lies on the ground. The clouds stay as they are around the hero too, but leave out
+// what lies inside a house (see indoors.gdshaderinc).
 // Drawn at the lowest render priority of all see-through things: every label
 // (damage numbers, speech bubbles, news) and every particle is drawn after
 // the clouds and so stays exactly as readable as without them.
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix, fog_disabled;
+
+#include "res://shaders/indoors.gdshaderinc"
 
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 uniform sampler2D noise_tex : filter_linear, repeat_enable;
@@ -46,6 +49,10 @@ void fragment() {
 	view.xyz /= view.w;
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz;
 	vec3 cam = CAMERA_POSITION_WORLD;
+	// Nothing of the clouds over what lies inside a house: the outside keeps them.
+	if (indoors(world)) {
+		discard;
+	}
 	// The clouds float in the air: a few thin layers above the ground. The view ray meets each
 	// layer above whatever it hits, so tall things (trees, roofs) stand up through the clouds,
 	// and the layers slide against the ground and each other as the camera moves.

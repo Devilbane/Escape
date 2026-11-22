@@ -107,6 +107,7 @@ func _run() -> void:
 	var earth := view.get_node_or_null("CellarEarth")
 	check(earth != null and earth.is_visible_in_tree(), "earth lies round the cellar")
 	check(earth != null and earth.get_child_count() > 20, "stones and roots lie in the earth")
+	check(earth != null and SnowCover.bare(earth), "no snow settles on the earth round the cellar")
 	check(game._under_roof(), "no weather falls into the cellar")
 	# The earth is open over every dug cell and closed elsewhere.
 	if earth != null:

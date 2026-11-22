@@ -1,10 +1,12 @@
 class_name WinterWear
 extends RefCounted
 ## Winter clothes for the people of the village: a fur collar or a fur mantle over the shoulders, a
-## fur hem on the coat, a wool scarf and warm headgear (a fur hat with earflaps, a knit cap with a
-## bobble, a fur-rimmed hood or a tall fur hat). The kind of fur differs from person to person (red
-## fox, grey wolf, white hare, brown bear, black sable, tawny lynx). People who already wear a hat or
-## a helmet keep it and get the scarf and the fur over the shoulders.
+## fur hem on the coat, a wool scarf and a warm hat picked for each person (see HAT_OF): a knit cap
+## with a bobble, a knit cap with earflaps and braids, a long stocking cap, a rolled watch cap, a fur
+## ushanka, the herald's fur cap with its plume, a hood or a wool shawl over the head. The kind of fur
+## differs from person to person (red fox, grey wolf, white hare, brown bear, black sable, tawny
+## lynx). People who already wear a hat or a helmet keep it and get the scarf and the fur over the
+## shoulders.
 ##
 ## Built in code in the chunky low-poly shapes of the KayKit people and hung from the bones (like
 ## PostCap), so it moves with the body. Everything is measured in the skeleton's rest space; the
@@ -32,7 +34,27 @@ const COAT_TONES := [Color(0.42, 0.25, 0.18), Color(0.25, 0.32, 0.26), Color(0.3
 	Color(0.38, 0.22, 0.24), Color(0.28, 0.27, 0.25)]
 const COAT_SHARE := 0.55
 
-const HATS := ["ushanka", "knit", "hood", "tall"]
+## The kinds of hat, for anyone not in HAT_OF.
+const HATS := ["bobble", "earflap", "ushanka", "watch", "stocking", "hood"]
+## Every hatless person's own winter hat, picked to suit them: its kind, the colour of its cloth or
+## wool and of its trim (the bobble, the stripes, the braid, the hood's edge), and the fur where it
+## has some. Neighbours wear different kinds (Herald Konrad and Clerk Gero stand side by side).
+const HAT_OF := {
+	"1": {"hat": "watch", "cloth": Color(0.3, 0.29, 0.3), "trim": Color(0.62, 0.36, 0.2)},
+	"2": {"hat": "shawl", "cloth": Color(0.86, 0.48, 0.22), "trim": Color(0.96, 0.84, 0.55)},
+	"5": {"hat": "stocking", "cloth": Color(0.26, 0.52, 0.3), "trim": Color(0.96, 0.94, 0.88)},
+	"6": {"hat": "ushanka", "cloth": Color(0.52, 0.24, 0.48), "fur": "hare"},
+	"7": {"hat": "bobble", "cloth": Color(0.27, 0.42, 0.82), "trim": Color(0.97, 0.8, 0.27)},
+	"pippi": {"hat": "earflap", "cloth": Color(0.84, 0.26, 0.28), "trim": Color(0.97, 0.95, 0.9)},
+	"9": {"hat": "earflap", "cloth": Color(0.26, 0.5, 0.6), "trim": Color(0.97, 0.95, 0.9)},
+	"K": {"hat": "herald", "cloth": Color(0.27, 0.38, 0.85), "trim": Color(0.95, 0.78, 0.3), "fur": "sable"},
+	"¢": {"hat": "ushanka", "cloth": Color(0.22, 0.27, 0.5), "fur": "bear"},
+	"O": {"hat": "hood", "cloth": Color(0.9, 0.86, 0.76), "trim": Color(0.93, 0.74, 0.3)},
+	"G": {"hat": "hood", "cloth": Color(0.6, 0.2, 0.16), "fur": "wolf"},
+	"Z": {"hat": "bobble", "cloth": Color(0.95, 0.95, 0.95), "trim": Color(0.8, 0.18, 0.2)},
+	"S": {"hat": "watch", "cloth": Color(0.78, 0.62, 0.25), "trim": Color(0.45, 0.42, 0.4)},
+	"µ": {"hat": "shawl", "cloth": Color(0.26, 0.5, 0.46), "trim": Color(0.88, 0.7, 0.36)},
+}
 const MANTLES := [false, true]
 
 ## Whose looks these are, in order: the fur, the wool and the coat go round the list. A person's own
@@ -45,21 +67,30 @@ const TAG := "WinterWear"
 const SPIKE := 0.05
 
 
-## The look of one person: fur, headgear ("" when a hat or a helmet is worn already), mantle (fur over
-## the shoulders instead of a collar), wool and coat tone. `info` is the role (see Villager.ROLES).
+## The look of one person: fur, hat ("" when a hat or a helmet is worn already), the hat's cloth and
+## trim colours, mantle (fur over the shoulders instead of a collar), wool and coat tone. `info` is
+## the role (see Villager.ROLES).
 static func look_for(role: String, info: Dictionary) -> Dictionary:
 	var i := ORDER.find(role)
 	if i < 0:
 		i = 17 + absi(hash(role)) % 7
 	var hatted: bool = info.show.any(func(p): return String(p).ends_with("Hat") or String(p).ends_with("Helmet")) or info.get("cap", "") != ""
+	var fur: String = FUR_KINDS[(i * 5 + 2) % FUR_KINDS.size()]
+	var wool := i % WOOLS.size()
+	var own: Dictionary = HAT_OF.get(role, {})
 	var hat := ""
 	if not hatted:
-		hat = "knit" if info.get("scale", 1.0) < 1.0 else HATS[(i * 3 + 1) % HATS.size()]
+		hat = own.get("hat", "bobble" if info.get("scale", 1.0) < 1.0 else HATS[(i * 3 + 1) % HATS.size()])
+		fur = own.get("fur", fur)
 	return {
-		"fur": FUR_KINDS[(i * 5 + 2) % FUR_KINDS.size()],
+		"fur": fur,
 		"hat": hat,
+		"cloth": own.get("cloth", WOOLS[wool]),
+		"trim": own.get("trim", Color(0.96, 0.94, 0.9)),
+		# A hood is edged with fur only where its fur is named.
+		"furred": own.has("fur") or not own.has("hat"),
 		"mantle": hatted and i % 2 == 0 or (not hatted and i % 3 == 0),
-		"wool": i % WOOLS.size(),
+		"wool": wool,
 		"coat": (i * 2 + 1) % COAT_TONES.size(),
 		"kid": info.get("scale", 1.0) < 1.0,
 	}
@@ -87,7 +118,9 @@ static func put_on(model: Node3D, look: Dictionary) -> void:
 	_hang(hips, "Hem", _hem(fur))
 	_hang(chest, "Scarf", _scarf(wool, look.kid))
 	if look.hat != "":
-		_hang(head, "Hat", _hat(look.hat, _head_box(model), fur, wool))
+		_hang(head, "Hat", WinterHats.mesh(look.hat, _head_box(model), look.cloth, look.trim, fur if look.furred else []))
+		# A crest, spikes or a hair knot would poke through the hat; pigtails hang out below it.
+		_tuck_hair(model, true)
 	_dye_coat(model, COAT_TONES[look.coat])
 	var marker := Node3D.new()
 	marker.name = TAG
@@ -104,7 +137,20 @@ static func take_off(model: Node3D) -> void:
 	for slot in model.find_children("Winter*", "BoneAttachment3D", true, false):
 		slot.get_parent().remove_child(slot)
 		slot.free()
+	_tuck_hair(model, false)
 	_dye_coat(model, null)
+
+
+## Hides the hair that would poke through a winter hat (the crest, the spikes and the knot), or shows
+## it again. Pigtails stay: they hang out below the hat.
+static func _tuck_hair(model: Node3D, tucked: bool) -> void:
+	var slot := model.find_child("HeadSlot", true, false) as Node3D
+	if slot == null:
+		return
+	for part in ["Crest", "Bun"]:
+		var locks := slot.get_node_or_null(part) as Node3D
+		if locks:
+			locks.visible = locks.get_meta("wanted", false) and not tucked and not slot.get_meta("covered", false)
 
 
 # --- Slots and dye ---------------------------------------------------------------
@@ -289,39 +335,4 @@ static func _scarf(wool: Color, kid: bool) -> ArrayMesh:
 	var drop := 0.34 if kid else 0.48
 	_box(st, Vector3(0.2, 1.15 - drop * 0.5, 0.43), Vector3(0.17, drop, 0.045), wool)
 	_box(st, Vector3(0.2, 1.15 - drop + 0.06, 0.435), Vector3(0.17, 0.05, 0.05), wool.lightened(0.28))
-	return _finish(st)
-
-
-## The headgear, sized by the head's box.
-static func _hat(kind: String, box: AABB, fur: Array, wool: Color) -> ArrayMesh:
-	var st := _start()
-	var cx := box.get_center().x
-	var cz := box.get_center().z
-	var rx := box.size.x * 0.5
-	var rz := box.size.z * 0.5
-	var top := box.end.y
-	var brim := top - 0.27
-	match kind:
-		"ushanka":
-			# A fur band round the head, a fur crown and two earflaps hanging down.
-			_fur_band(st, brim, brim + 0.2, rx + 0.04, rz + 0.04, fur, false, cx, cz, 0.0, TAU, 0.0)
-			_dome(st, [[brim + 0.2, rx + 0.05, rz + 0.05], [top + 0.02, rx + 0.02, rz + 0.02], [top + 0.09, rx * 0.72, rz * 0.72], [top + 0.1, rx * 0.5, rz * 0.5]], [fur[0], fur[0].lerp(fur[1], 0.3), fur[0]], cx, cz)
-			for side in [-1.0, 1.0]:
-				_box(st, Vector3(cx + side * (rx + 0.07), brim - 0.12, cz), Vector3(0.12, 0.42, rz * 1.15), fur[0])
-				_box(st, Vector3(cx + side * (rx + 0.075), brim - 0.35, cz), Vector3(0.13, 0.08, rz * 1.0), fur[1])
-		"knit":
-			# A snug wool cap with a turned-up cuff and a fur bobble.
-			_band(st, brim - 0.02, brim + 0.16, rx + 0.04, rz + 0.04, rx + 0.06, rz + 0.06, wool.lightened(0.22), cx, cz)
-			_dome(st, [[brim + 0.16, rx + 0.05, rz + 0.05], [top + 0.0, rx + 0.03, rz + 0.03], [top + 0.14, rx * 0.74, rz * 0.74], [top + 0.2, rx * 0.4, rz * 0.4]], [wool, wool.darkened(0.12)], cx, cz)
-			_box(st, Vector3(cx, top + 0.3, cz), Vector3(0.2, 0.2, 0.2), fur[1])
-		"hood":
-			# A wool hood over the back and sides of the head, trimmed with fur round the face.
-			_dome(st, [[brim - 0.34, rx + 0.12, rz + 0.12], [brim - 0.12, rx + 0.1, rz + 0.1], [brim + 0.2, rx + 0.08, rz + 0.08], [top + 0.04, rx + 0.04, rz + 0.04], [top + 0.14, rx * 0.5, rz * 0.5]], [wool, wool.darkened(0.1)], cx, cz, 1.0)
-			_fur_band(st, brim - 0.3, brim + 0.0, rx + 0.12, rz + 0.12, fur, false, cx, cz, 1.0, TAU - 1.0, 0.0)
-			_fur_band(st, brim + 0.0, brim + 0.12, rx + 0.1, rz + 0.1, fur, true, cx, cz, 0.0, TAU, 0.0)
-		_:
-			# A tall fur hat, round and high like a kolpak, with a wool top.
-			_fur_band(st, brim, brim + 0.26, rx + 0.05, rz + 0.05, fur, false, cx, cz, 0.0, TAU, 0.02)
-			_dome(st, [[brim + 0.26, rx + 0.06, rz + 0.06], [top + 0.18, rx + 0.08, rz + 0.08], [top + 0.3, rx * 0.8, rz * 0.8]], [fur[0], fur[0]], cx, cz)
-			_dome(st, [[top + 0.3, rx * 0.8, rz * 0.8], [top + 0.33, rx * 0.5, rz * 0.5]], [wool], cx, cz)
 	return _finish(st)

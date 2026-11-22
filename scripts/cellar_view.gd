@@ -266,6 +266,8 @@ func _build_earth() -> void:
 		_earth.queue_free()
 	_earth = Node3D.new()
 	_earth.name = "CellarEarth"
+	# It is the earth under the ground, cut open: no snow settles on it in winter (see SnowCover).
+	_earth.set_meta("no_snow", true)
 	add_child(_earth)
 	var low := Vector2(INF, INF)
 	var high := Vector2(-INF, -INF)

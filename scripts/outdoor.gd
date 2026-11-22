@@ -116,6 +116,13 @@ const BUILDING_NAMES := {
 ## Where the bank's sign post stands from its door: aside (+x) and out into the street (-z).
 const BANK_SIGN_SIDE := 1.4
 const BANK_SIGN_OUT := 1.1
+## Where the smith's sign post stands from the middle of his forge's tile.
+const SMITH_SIGN := Vector3(-2.3, 0, 1.7)
+## Where the smith's wares stand from the middle of his forge's tile: on the tile west of it.
+const SMITH_WARES := Vector3(-3.9, 0, -1.2)
+## Where the bank's strongbox stands from its door: to the other side (-x) and out (-z).
+const BANK_BOX_SIDE := 2.0
+const BANK_BOX_OUT := 0.75
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
 var mines: Array[Vector3] = []
@@ -422,13 +429,21 @@ var _fires: Array[Vector3] = []
 ## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their
 ## light shows the hero at night like a lantern's.
 var house_lights: Array[Vector3] = []
-## Where the self-built houses keep the weather out (see HouseGround.shelter), set by HouseSketcher.
-## No snow settles in there either (see SnowCover.set_shelter).
+## What the self-built houses close in (see HouseGround.shelter), set by HouseSketcher: the hero in
+## there is indoors (see is_sheltered).
 var shelters := {}:
 	set(value):
 		shelters = value
+## The part of `shelters` under a slab or a roof (see HouseGround.roofed): only there the weather
+## stays out (no rain, snow or fog falls in, see IndoorMask and is_roofed); a yard closed in only by
+## walls is open to the sky. No snow settles under a roof either (see SnowCover.set_shelter). Set by
+## HouseSketcher before `shelters`.
+var roofs := {}:
+	set(value):
+		roofs = value
+		IndoorMask.mark()
 		if snow != null:
-			snow.set_shelter(shelters, width, height, TILE)
+			snow.set_shelter(roofs, width, height, TILE)
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []
@@ -796,7 +811,7 @@ func build() -> void:
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
-	snow.set_shelter(shelters, width, height, TILE)
+	snow.set_shelter(roofs, width, height, TILE)
 	snow.set_awnings(meals.awnings)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
@@ -2344,6 +2359,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				windmills.append(turning)
 				SailCloth.apply(turning.sails as MeshInstance3D, _window_mask)
 			walk_in.add_upper(node, tower)
+		# Its wares and what goes with its trade set out by the door (see ShopFronts).
+		walk_in.add_front(node, ShopFronts.dress(walk_in, node, VillageHalls.KINDS[ch]))
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -2452,8 +2469,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var side := Vector3(-facing.y, 0, facing.x) * 4.0
 		for flag in [-1, 1]:
 			_put("flag_blue", front + side * flag - Vector3(facing.x, 0, facing.y) * 1.2, rot, PROP_SCALE)
-	elif ch == "o":
-		# Parcels waiting at the post office.
+	elif ch == "o" and not walk_in.has(node):
+		# Parcels waiting at the old post office (the walked-in one sets out its own, see ShopFronts).
 		var side := Vector3(-facing.y, 0, facing.x) * 2.4
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
@@ -2489,6 +2506,12 @@ func _bank_sign(door: Vector3) -> void:
 	WeatheredProps.weather_plain(board)
 	add_child(board)
 	_add_solid(at, Vector3(0.4, HangingShield.POST_HIGH, 0.4))
+	# The bank's strongbox on the door's other side, a halberd leaned on it (see ShopFronts).
+	var box := ShopFronts.bank_strongbox(Vector3(0, 0, -1))
+	var box_at := door + Vector3(-BANK_BOX_SIDE, 0, -BANK_BOX_OUT)
+	box.position = box_at
+	add_child(box)
+	_add_solid(box_at + Vector3(0, 0.5, 0), box.get_meta("solid_size"))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level
@@ -3974,9 +3997,17 @@ func _build_forge(cell: Vector2i) -> void:
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "anvil")
 	WeatheredProps.weather_plain(board)
-	board.position = pos + Vector3(-1.5, 0, 1.6)
+	# On the grass beside the paved way to the forge, its shield hanging out over the way.
+	board.position = pos + SMITH_SIGN
 	add_child(board)
-	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + SMITH_SIGN, Vector3(0.5, 2.6, 0.5))
+	# His wares on the grass beside the forge, away from the paved way to it (see ShopFronts).
+	var wares := ShopFronts.smith_yard()
+	wares.position = pos + SMITH_WARES
+	add_child(wares)
+	for part: Array in wares.get_meta("solids"):
+		_add_solid(wares.position + (part[0] as Vector3) - Vector3(0, (part[1] as Vector3).y * 0.5, 0), part[1])
+	astar.set_point_solid(cell + Vector2i(-1, 0), true)
 
 
 ## Where the villager of `role` (on map tile `cell`) has their place: the tile before the door of
@@ -4403,9 +4434,9 @@ func _setup_astar() -> void:
 
 ## By day everything is lit. At night, and in fog, only the lanterns and
 ## the campfire show the hero to the eyes of enemies: a sneaking hero in the
-## dark or the fog stays unseen. There is no fog inside a built house: by day it is lit there.
+## dark or the fog stays unseen. There is no fog under the roof of a built house: by day it is lit there.
 func is_lit(pos: Vector3) -> bool:
-	if not night and (weather != Weather.FOG or is_sheltered(pos)):
+	if not night and (weather != Weather.FOG or is_roofed(pos)):
 		return true
 	for lamp in _lamps:
 		if _flat_distance(pos, lamp.global_position) < LAMP_REACH:
@@ -4419,9 +4450,16 @@ func is_lit(pos: Vector3) -> bool:
 	return meals.lights_up(pos, LAMP_REACH)
 
 
-## Whether a spot lies inside a self-built house, where no weather reaches (see HouseGround.shelter).
+## Whether a spot lies inside a self-built house (under its roof or in a yard its walls close in, see
+## HouseGround.shelter) or a village room: the hero in there is indoors (see hero_indoors).
 func is_sheltered(pos: Vector3) -> bool:
 	return HouseGround.sheltered(shelters, pos) or (walk_in != null and walk_in.covers(pos))
+
+
+## Whether a spot lies under a roof, where no weather reaches: under a slab or roof of a self-built
+## house (see roofs) or in a village room.
+func is_roofed(pos: Vector3) -> bool:
+	return HouseGround.sheltered(roofs, pos) or (walk_in != null and walk_in.covers(pos))
 
 
 ## Whether the hero is under cover: in a house (their own or a built one) or down in a house
@@ -5251,9 +5289,34 @@ func set_ice(value: float) -> void:
 ## the snow lies thick enough (see Weather.PRINT_FROM). `size` 1 is a grown-up's boot; `kind`
 ## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
-	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_sheltered(at):
+	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_roofed(at):
 		return
-	SnowPrints.leave(self, at, heading, size, kind, snow.daylight)
+	# Up on something (a house's roof): the print lies on what is underfoot there, not on the ground.
+	var up := Vector3.ZERO
+	if at.y > PRINT_ABOVE:
+		var hit := _underfoot(at)
+		if hit.is_empty() or (hit.normal as Vector3).y < SnowCaps.STEEPEST:
+			return
+		up = hit.normal
+		at = hit.position
+	SnowPrints.leave(self, at, heading, size, kind, snow.daylight, up)
+
+
+## What is under `at` (a ray hit: position, normal), found by a short ray down past the hero, or
+## {} when nothing is within reach below.
+func _underfoot(at: Vector3) -> Dictionary:
+	var space := get_world_3d().direct_space_state
+	var ray := PhysicsRayQueryParameters3D.create(at + Vector3(0, 0.4, 0), at - Vector3(0, 0.5, 0))
+	ray.collide_with_areas = false
+	ray.hit_from_inside = false
+	if player != null:
+		ray.exclude = [player.get_rid()]
+	return space.intersect_ray(ray)
+
+
+## From how high over the ground a print is pressed into what is underfoot (a roof) instead of the
+## ground (metres).
+const PRINT_ABOVE := 0.5
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.
@@ -5416,7 +5479,7 @@ func strike() -> Vector3:
 ## under a roof and not in a house cellar. Lightning only strikes there (see strike).
 func open_sky(pos: Vector3) -> bool:
 	var ground := Vector3(pos.x, 0.5, pos.z)
-	if _in_house(world_to_cell(ground)) or is_sheltered(ground):
+	if _in_house(world_to_cell(ground)) or is_roofed(ground):
 		return false
 	return not CellarView.in_cells(_cellar_holes, Vector3(pos.x, 0.0, pos.z))
 

@@ -54,6 +54,16 @@ const NIGHT_WOODS_REVERB := 0.7
 ## Words in a floor's name that make it a cave.
 const CAVE_NAMES := ["hoehle", "loch", "grotte", "tiefe", "nest"]
 
+## The rain loops play through their own bus (see default_bus_layout.tres): under a roof (a built
+## house or a village room one walks into, see Game._shelter) the rain still drums outside, but
+## dull and quieter, as heard through the walls. Its low-pass filter falls from WEATHER_OPEN Hz
+## in the open to WEATHER_INSIDE Hz indoors, and the bus is WEATHER_INSIDE_DB quieter in there.
+const WEATHER_BUS := "Weather"
+const WEATHER_LOOPS := ["rain_light", "rain", "rain_heavy"]
+const WEATHER_OPEN := 20000.0
+const WEATHER_INSIDE := 650.0
+const WEATHER_INSIDE_DB := -7.0
+
 var _players := {}
 var _level := {}
 var _want := {}
@@ -189,6 +199,7 @@ static func covers_dungeon(level: Level) -> bool:
 
 ## Called every frame by Game: fades every loop to its strength.
 func tick(game: Node, delta: float) -> void:
+	muffle(float(game.get("_shelter")) if game.get("_shelter") != null else 0.0)
 	_next_scan -= delta
 	if _next_scan <= 0.0:
 		_next_scan = 0.4
@@ -204,7 +215,22 @@ func tick(game: Node, delta: float) -> void:
 			continue
 		if player == null:
 			player = Sfx.start_loop(self, sound)
+			if sound in WEATHER_LOOPS and AudioServer.get_bus_index(WEATHER_BUS) >= 0:
+				player.bus = WEATHER_BUS
 			_players[sound] = player
 		player.volume_db = float(LOOPS[sound]) + linear_to_db(now)
 		if not player.playing:
 			player.play()
+
+
+## How muffled the rain is: 0 out in the open, 1 under a roof (see WEATHER_BUS).
+static func muffle(indoors: float) -> void:
+	var bus := AudioServer.get_bus_index(WEATHER_BUS)
+	if bus < 0:
+		return
+	var k := clampf(indoors, 0.0, 1.0)
+	AudioServer.set_bus_volume_db(bus, WEATHER_INSIDE_DB * k)
+	var filter := AudioServer.get_bus_effect(bus, 0) as AudioEffectLowPassFilter
+	if filter != null:
+		# Down in even steps of pitch, not of hertz, so the walls close in smoothly.
+		filter.cutoff_hz = WEATHER_OPEN * pow(WEATHER_INSIDE / WEATHER_OPEN, k)

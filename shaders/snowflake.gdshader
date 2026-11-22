@@ -4,10 +4,16 @@ shader_type spatial;
 // invisible rather than a dark speck. By day the sun and the sky light every flake; at night only
 // the moon (as bright as tonight's phase, so a thin crescent leaves the flakes barely there), the
 // lamps, torches, lit windows and the hero's lantern do, each on the flakes near it.
+// No flake falls inside a house, nor over what lies in one (see indoors.gdshaderinc).
 render_mode blend_add, depth_draw_never, cull_disabled, specular_disabled;
+
+#include "res://shaders/indoors.gdshaderinc"
 
 uniform vec4 albedo : source_color = vec4(0.92, 0.94, 1.0, 0.9);
 uniform sampler2D dot_tex : source_color, filter_linear, repeat_disable;
+uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
+
+varying vec3 world_pos;
 
 void vertex() {
 	// Faces the camera, keeping each particle's own scale and spin (as BILLBOARD_PARTICLES does).
@@ -20,9 +26,13 @@ void vertex() {
 			vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0),
 			vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0), vec4(0.0, 0.0, 0.0, 1.0));
 	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
+	world_pos = (INV_VIEW_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0))).xyz;
 }
 
 void fragment() {
+	if (indoors(world_pos) || indoors(indoor_surface(depth_tex, SCREEN_UV, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX))) {
+		discard;
+	}
 	vec4 tex = texture(dot_tex, UV);
 	ALBEDO = albedo.rgb * tex.rgb;
 	ALPHA = albedo.a * tex.a;

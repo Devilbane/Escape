@@ -1,0 +1,1 @@
+- Weather stays outside houses: from indoors you see fog, rain and snow through windows and over walls, hear the rain muffled, no dark patch appears when fog rolls in, and changing weather no longer stutters.

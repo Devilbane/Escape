@@ -3233,9 +3233,15 @@ func _seen_look() -> Dictionary:
 
 
 ## Rain and mist fall and drift around the hero in the open air only, and
-## the rain patters as hard as it falls. Inside a built house none of it shows.
+## the rain patters as hard as it falls. Inside a house (a built one or a village room one walks
+## into) none of it shows, but it goes on outside: the rain, the snow, the mist, the leaves and the fog
+## clouds leave out only what lies in there (see IndoorMask), so the hero sees the weather through the
+## windows and the open door. Down in a cellar, or while the furnisher looks into a storey, there is
+## no outside to see and nothing shows at all.
 func _show_weather() -> void:
-	var outside: bool = level != null and level.outdoor and player != null and _shelter < 0.999
+	IndoorMask.update(level)
+	var shut_in: bool = house_sketcher != null and (house_sketcher.view_storey != HouseSketcher.NO_VIEW or house_sketcher.cellar_view.active)
+	var outside: bool = level != null and level.outdoor and player != null and not shut_in
 	if not outside:
 		_rain.emitting = false
 		_rain.visible = false
@@ -3248,30 +3254,32 @@ func _show_weather() -> void:
 		_clouds.set_look(0.0, Weather.HAZE, 0.0)
 		return
 	Weather.cold = _shelter < 0.5 and (snow_cover >= Weather.COLD_FROM or float(_weather_look.snow) > 0.3)
+	# The weather outside as it is (the shaders leave the inside of the houses out); only the
+	# colour of the air follows the view (see _seen_look).
+	var look := _weather_look
 	var seen := _seen_look()
 	_snow.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT * 0.6, 0)
 	_leaves.anchor = player.global_position
 	_rain.global_position = player.global_position + Vector3(0, Weather.RAIN_HEIGHT, 0)
 	_mist.global_position = player.global_position + Vector3(0, 0.8, 0)
-	var dusty := seen.duplicate()
-	# Not even the night's dust drifts inside a built house.
-	dusty.mist = Weather.dusty_mist(seen, day_hour) * (1.0 - _shelter)
-	var winter_fog := Weather.is_winter(season_day()) and _shelter < 0.5
-	var haze := Weather.fog_haze(_env.fog_light_color, float(seen.mist), winter_fog)
+	var dusty := look.duplicate()
+	dusty.mist = Weather.dusty_mist(look, day_hour)
+	var winter_fog := Weather.is_winter(season_day())
+	var haze := Weather.fog_haze(_env.fog_light_color, maxf(float(seen.mist), float(look.mist)), winter_fog)
 	# One even haze at night. Over the winter snow the banks stay, only softened (WINTER_EVEN), so
 	# winter fog still drifts in clouds; by day elsewhere the clouds are fully patchy.
 	var even := 0.0
 	if DayNight.glow_at(day_hour) > 0.5:
-		even = float(seen.mist)
+		even = float(look.mist)
 	elif winter_fog:
-		even = float(seen.mist) * WINTER_EVEN
-	_clouds.set_look(dusty.mist, haze, even * (1.0 - _shelter))
+		even = float(look.mist) * WINTER_EVEN
+	_clouds.set_look(dusty.mist, haze, even)
 	# The mist patches are shaded by the light; the night's dust keeps them
 	# moonlit rather than black.
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
-	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(seen.mist)) * 0.6)
-	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(season_day()) and _shelter < 0.5)
-	Weather.show_leaves(_leaves, Weather.leaf_strength(seen, day_hour) * (1.0 - _shelter), light)
+	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(look.mist)) * 0.6)
+	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(season_day()))
+	Weather.show_leaves(_leaves, Weather.leaf_strength(look, day_hour), light)
 	Breath.set_light(light)
 
 
@@ -3454,7 +3462,8 @@ func load_level(index: int, restock := true) -> void:
 	# lamps round the hero cast their shadows from that frame on, so their
 	# shaders are built in it too (see LightShadows).
 	light_shadows.refresh(true)
-	LevelWarmup.begin(level)
+	# In the open air one more dark frame builds the shaders of every other weather (see WeatherWarmup).
+	LevelWarmup.begin(level, WeatherWarmup.passes(self))
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:
@@ -7672,6 +7681,7 @@ func _process(delta: float) -> void:
 	_eerie(delta)
 	_tick_clock(delta)
 	_show_weather()
+	WeatherWarmup.hold(self)
 	# A skeleton on the hero's heels keeps the fight going, and a hero who
 	# has been spotted cannot stay hidden.
 	if state == State.PLAYING and level and _anyone_hunting():

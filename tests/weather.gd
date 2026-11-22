@@ -45,8 +45,12 @@ func _finish() -> void:
 	# The mist particles at night are dark, too.
 	var mist := Weather.make_mist()
 	Weather.show_particles(Weather.make_rain(), mist, fog, 0.3)
-	var mc: Color = (mist.mesh as QuadMesh).material.albedo_color
+	var mc: Color = ((mist.mesh as QuadMesh).material as ShaderMaterial).get_shader_parameter("albedo")
 	check(maxf(mc.r, maxf(mc.g, mc.b)) < 0.2, "night mist is dark")
+	# A mist patch that has not drifted in yet has no size and must draw nothing: drawn full-sized,
+	# the waiting patches showed as one black dome over the hero when fog rolled in.
+	var mist_mat := (mist.mesh as QuadMesh).material as ShaderMaterial
+	check(mist_mat.shader == Weather.PARTICLE_SHADER and int(mist_mat.get_shader_parameter("billboard")) == Weather.FACING, "mist patches keep their own size")
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: weather")

@@ -396,6 +396,26 @@ static func word(kind: String) -> String:
 	return "klar"
 
 
+const PARTICLE_SHADER := preload("res://shaders/weather_particle.gdshader")
+## How weather_particle.gdshader turns a quad: as placed, facing the camera, or upright facing it.
+const AS_PLACED := 0
+const FACING := 1
+const UPRIGHT := 2
+
+
+## The unlit, see-through look of the rain, the mist and the leaves, which leaves out the inside of
+## the houses (see weather_particle.gdshader and IndoorMask).
+static func particle_material(tex: Texture2D, billboard: int, tinted: bool, colour: Color) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = PARTICLE_SHADER
+	if tex != null:
+		mat.set_shader_parameter("texture_albedo", tex)
+	mat.set_shader_parameter("billboard", billboard)
+	mat.set_shader_parameter("use_vertex_color", tinted)
+	mat.set_shader_parameter("albedo", colour)
+	return mat
+
+
 ## Rain that falls around the hero (keep it over the hero, see Game).
 static func make_rain() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
@@ -406,13 +426,7 @@ static func make_rain() -> CPUParticles3D:
 	p.emitting = false
 	var streak := QuadMesh.new()
 	streak.size = Vector2(0.035, 0.85)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	mat.billboard_keep_scale = true
-	mat.albedo_color = Color(0.75, 0.82, 0.95, 0.0)
-	streak.material = mat
+	streak.material = particle_material(null, UPRIGHT, false, Color(0.75, 0.82, 0.95, 0.0))
 	p.mesh = streak
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	p.emission_box_extents = RAIN_BOX
@@ -499,7 +513,7 @@ static func leaf_strength(weather_look: Dictionary, hour: float) -> float:
 static func show_leaves(leaves: LeafFall, strength: float, light: float) -> void:
 	leaves.visible = strength > 0.05
 	var tone := clampf(0.4 + light, 0.4, 1.0)
-	leaves.material.albedo_color = Color(tone, tone, tone, 0.9 * strength)
+	leaves.material.set_shader_parameter("albedo", Color(tone, tone, tone, 0.9 * strength))
 
 
 ## Soft grey patches of mist that drift slowly over the ground.
@@ -513,15 +527,10 @@ static func make_mist() -> CPUParticles3D:
 	p.emitting = false
 	var patch := QuadMesh.new()
 	patch.size = Vector2(9.0, 9.0)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.vertex_color_use_as_albedo = true
-	mat.albedo_texture = Effects._soft_dot()
-	mat.albedo_color = Color(1, 1, 1, 0.0)
-	mat.no_depth_test = false
-	patch.material = mat
+	# Facing the camera with each patch's own size: a patch that has not drifted in yet has no
+	# size and draws nothing. (Drawn full-sized, every waiting patch showed as one black dome over
+	# the hero for the first seconds of fog.)
+	patch.material = particle_material(Effects._soft_dot(), FACING, true, Color(1, 1, 1, 0.0))
 	p.mesh = patch
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	p.emission_box_extents = Vector3(22, 0.6, 16)
@@ -568,13 +577,13 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	rain.emitting = r > 0.02
 	rain.visible = rain.emitting
 	var shade := clampf(0.12 + light, 0.12, 1.0)
-	var rain_mat: StandardMaterial3D = (rain.mesh as QuadMesh).material
-	rain_mat.albedo_color = Color(0.75 * shade, 0.82 * shade, 0.95 * shade, 0.45 * r)
+	var rain_mat: ShaderMaterial = (rain.mesh as QuadMesh).material
+	rain_mat.set_shader_parameter("albedo", Color(0.75 * shade, 0.82 * shade, 0.95 * shade, 0.45 * r))
 	var m: float = weather_look.mist
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting
-	var mist_mat: StandardMaterial3D = (mist.mesh as QuadMesh).material
+	var mist_mat: ShaderMaterial = (mist.mesh as QuadMesh).material
 	# Mist by day is pale. At night it is no brighter than the dark around it (it never lights the
 	# scenery up, it only hides it): its brightness follows the light of the hour, which is low.
 	var pale := clampf(light * light * 1.6, 0.03, 1.0)
-	mist_mat.albedo_color = Color(pale * 0.95, pale * 0.97, pale, m)
+	mist_mat.set_shader_parameter("albedo", Color(pale * 0.95, pale * 0.97, pale, m))

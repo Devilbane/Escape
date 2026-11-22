@@ -35,6 +35,14 @@ hero_reveal={
 "type": "vec4",
 "value": Color(0, 0, 0, 0)
 }
+indoor_mask={
+"type": "sampler2D",
+"value": ""
+}
+indoor_area={
+"type": "vec4",
+"value": Color(0, 0, 0, 0)
+}
 
 [rendering]
 

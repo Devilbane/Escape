@@ -168,8 +168,11 @@ func _in_pit(pos: Vector3) -> bool:
 
 
 ## Whether `pos` lies in (or on the rim of) one of the cells (Rect2 of x, z), below head height.
+## Under a long cellar (the forgotten mine, the bank's vault, see SMALL_PIT) with whole ground
+## over most of it, only what is down below it counts: geese and pumpkins up on the street over
+## it are not in it.
 static func in_cells(cells: Array, pos: Vector3) -> bool:
-	if pos.y > 1.0:
+	if pos.y > 1.0 or (cells.size() > SMALL_PIT and pos.y > -0.5):
 		return false
 	if cells.size() < 24:
 		for r: Rect2 in cells:

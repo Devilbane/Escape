@@ -170,12 +170,12 @@ func _check_aged(lvl: Outdoor) -> void:
 			continue
 		var letter := lvl.cell_char((child.get_meta("block") as Rect2i).position)
 		if letter == "R" or not Outdoor.BLOCK_MODELS.has(letter) or child.has_meta("hall"):
-			continue # A hall one walks into is a timber house now (see VillageHalls).
+			continue # A hall one walks into is a timber house now (see VillageHalls), the bank a stone one (BankVault).
 		for mi: MeshInstance3D in child.find_children("*", "MeshInstance3D", true, false):
 			kit += 1
 			var mat := mi.material_override as ShaderMaterial
 			check(mat != null and mat.shader == AgedStone.SHADER, "%s is built of the old stone" % child.name)
-	check(kit > 5, "the smithy, tavern, shop and the rest are there (%d)" % kit)
+	check(kit > 2, "the smithy and the windmill are there (%d)" % kit)
 	lvl.set_hour(23.0)
 	var lit := false
 	for mat in lvl._window_mats.values():

@@ -2272,6 +2272,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "<":
 		_build_spire_gate(block)
 		return
+	if ch == "b" and BankVault.on:
+		_build_bank_site(block)
+		return
 	var facing := _block_facing(block) if ch != "R" else Vector2i(0, 1)
 	var rot := atan2(float(facing.x), float(facing.y))
 	var turned := facing.x != 0
@@ -2422,6 +2425,33 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
 	node.set_meta("block", block)
+
+
+## The bank's block with the bank and its vault walked into (see BankVault): the house itself is
+## drawn by HouseSketcher like a hero's, so here only its tiles let sight and reach through (its
+## walls stop them) and its door is where villagers and errands go to it.
+func _build_bank_site(block: Rect2i) -> void:
+	for c in BankVault.bank_tiles():
+		walk_in.open_cells[c] = true
+	var door: Vector3 = BankVault.sketch().node_world(BankVault.door_cell().x, BankVault.door_cell().y) + Vector3(HouseSketch.CELL * 0.5, 0, 0)
+	var front := door + Vector3(0, 0, -2.0)
+	doors["b"] = front
+	spots.square.append(front)
+	_entrances.append({"door": door, "out": Vector3(0, 0, -1)})
+	var marker := Node3D.new()
+	marker.name = "BankSite"
+	marker.position = door
+	marker.set_meta("block", block)
+	add_child(marker)
+
+
+## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level
+## fills its own lockers (see Level.refresh_vaults).
+func refresh_vaults() -> void:
+	if BankVault.on:
+		BankVault.refresh(self)
+	else:
+		super()
 
 
 ## Weavers' Lane: the block is split into one narrow town house per tile

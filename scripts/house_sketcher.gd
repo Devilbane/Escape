@@ -204,13 +204,16 @@ var cellar_view := CellarView.new()
 ## they stop the light like the houses' walls) and what lies about down there (_deep_props).
 ## The mine never changes, so it is drawn once (see _draw_mine), with the walls of its open
 ## shaft and the hut's floor in _mine_open (always shown) and its floors and ceilings in
-## _mine_body; _mine_cache keeps what the houses' drawing collects from it.
+## _mine_body; _mine_cache keeps what the houses' drawing collects from it. The bank's vault
+## cellar (see BankVault) is drawn the same way, once, into the same layers.
 var deep := Node3D.new()
 var _deep_walls := Node3D.new()
 var _deep_props: Node3D = null
 var _mine_open := Node3D.new()
 var _mine_body := StaticBody3D.new()
 var _mine_cache := {}
+var _vault_cache := {}
+var _vault_props: Node3D = null
 ## Where the next drawn box goes: the houses' own pieces, or the mine's.
 var _into: Node3D = _solid
 var _open_into: Node3D = _solid
@@ -1338,15 +1341,26 @@ func _redraw() -> void:
 		houses.append([plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect), deed.rect == _plot])
 	var mine := LostMine.sketch()
 	houses.append([mine, false])
+	# The bank over its vault cellar (see BankVault), with its switch on.
+	var vault: HouseSketch = BankVault.sketch() if BankVault.on else null
+	if vault != null:
+		houses.append([vault, false])
 	for entry: Array in houses:
 		var house: HouseSketch = entry[0]
 		var own: bool = entry[1]
-		if house == mine or _has_floors(house):
+		if house == mine or house == vault or _has_floors(house):
 			floored.append(house)
-		# The mine's hundreds of dug cells are drawn once (see _draw_mine): only its hut's pieces here.
-		var keys: Array = LostMine.surface_keys() if house == mine else house.pieces.keys()
+		# The mine's hundreds of dug cells are drawn once (see _draw_mine): only its hut's pieces
+		# here; the same for the vault and its bank.
+		var keys: Array = house.pieces.keys()
+		if house == mine:
+			keys = LostMine.surface_keys()
+		elif house == vault:
+			keys = _surface_keys(vault)
 		if house == mine:
 			_inside_now = LostMine.hut_inside()
+		elif house == vault:
+			_inside_now = BankVault.bank_inside()
 		else:
 			_inside_now = HouseGround.inside_cells(house) if house.count(HouseSketch.WINDOW) > 0 else {}
 		for key in keys:
@@ -1363,13 +1377,20 @@ func _redraw() -> void:
 				if _new_shutters != null:
 					_hang_shutters(_new_shutters, house, key, own)
 					_new_shutters = null
-		if house == mine:
-			_draw_mine()
-			holes.append_array(_mine_cache.holes)
-			ceilinged.append_array(_mine_cache.ceilinged)
-			buried.append_array(_mine_cache.buried)
-			built_ground.append_array(_mine_cache.ground)
-			shelters.merge(_mine_cache.shelter, true)
+		if house == mine or house == vault:
+			var cache := _mine_cache
+			if house == mine:
+				_draw_mine()
+				cache = _mine_cache
+			else:
+				if _vault_cache.is_empty():
+					_vault_cache = _draw_once(vault)
+				cache = _vault_cache
+			holes.append_array(cache.holes)
+			ceilinged.append_array(cache.ceilinged)
+			buried.append_array(cache.buried)
+			built_ground.append_array(cache.ground)
+			shelters.merge(cache.shelter, true)
 			_solid_above(house, keys)
 			continue
 		_solid_cellar(house, holes, ceilinged, buried)
@@ -1388,6 +1409,11 @@ func _redraw() -> void:
 		_deep_props.name = "LostMine"
 		deep.add_child(_deep_props)
 		LostMine.build(game.level, _deep_props)
+	if vault != null and _vault_props == null:
+		_vault_props = Node3D.new()
+		_vault_props.name = "BankVault"
+		deep.add_child(_vault_props)
+		BankVault.build(game.level, _vault_props)
 	# No grass tufts, twigs or leaves inside a built house (see HouseGround).
 	if (game.level as Outdoor).surface_life != null:
 		(game.level as Outdoor).surface_life.set_built(built_ground)
@@ -1437,7 +1463,23 @@ func _redraw() -> void:
 func _draw_mine() -> void:
 	if not _mine_cache.is_empty():
 		return
-	var mine := LostMine.sketch()
+	_mine_cache = _draw_once(LostMine.sketch())
+
+
+## The keys of a fixed sketch's pieces above the ground and its ladders and stairs, drawn every
+## time; its dug cells and their floors and ceilings are drawn once (see _draw_once).
+static func _surface_keys(house: HouseSketch) -> Array:
+	var out := []
+	for key in house.pieces:
+		var kind: String = house.pieces[key].kind
+		if kind != HouseSketch.DIG and kind != HouseSketch.COVER:
+			out.append(key)
+	return out
+
+
+## Draws the cellar of a sketch that never changes (the forgotten mine, the bank's vault) into the
+## mine's layers, once; returns what the houses' drawing collects from it.
+func _draw_once(mine: HouseSketch) -> Dictionary:
 	var keep_body := _body
 	_body = _mine_body
 	_open_into = _mine_open
@@ -1448,7 +1490,7 @@ func _draw_mine() -> void:
 	_open_into = _solid
 	_into = _solid
 	_body = keep_body
-	_mine_cache = {"holes": holes, "ceilinged": ceilinged, "buried": buried, "ground": HouseGround.rects(mine), "shelter": HouseGround.shelter(mine)}
+	return {"holes": holes, "ceilinged": ceilinged, "buried": buried, "ground": HouseGround.rects(mine), "shelter": HouseGround.shelter(mine)}
 
 
 ## The built ballistae of a house: they stand and shoot (see HouseBallista), and

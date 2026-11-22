@@ -288,6 +288,8 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 		"kamin":
 			var fire := HomeFireplace.build_into(root, {"pos": Vector3(0, 0, -HouseSketch.CELL * 0.5), "rot": 0.0})
 			fire.scale = Vector3.ONE * FIRE_SCALE
+			for glow: Light3D in fire.find_children("*", "Light3D", true, false):
+				glow.set_meta(LightShadows.INDOOR, true)
 			solids.append({"at": Vector3(0, 0, -HouseSketch.CELL * 0.5 + HomeFireplace.DEPTH * FIRE_SCALE * 0.5),
 					"size": Vector3(HomeFireplace.WIDTH * FIRE_SCALE, 1.6, HomeFireplace.DEPTH * FIRE_SCALE)})
 		"trophaeen":
@@ -323,7 +325,7 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.04, 0.05, 1.3), iron, Vector3(0, 0.68, 0))
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.25, 0.08, 0.06), iron, Vector3(0, 1.34, 0))
 			level._place("candle_triple", Vector3(0, 1.37, 0), 0.0, root)
-			_add_light(root, Vector3(0, 1.9, 0))
+			_add_light(root, Vector3(0, 1.9, 0)).set_meta(LightShadows.INDOOR, true)
 			solids.append({"at": Vector3.ZERO, "size": Vector3(0.6, 1.4, 0.6)})
 		"fackel":
 			var holder := Node3D.new()
@@ -335,7 +337,7 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			flame.position = Vector3(0, 0.78, 0.45)
 			flame.scale = Vector3.ONE * 0.8
 			holder.add_child(flame)
-			_add_light(holder, Vector3(0, 1.0, 0.8))
+			_add_light(holder, Vector3(0, 1.0, 0.8)).set_meta(LightShadows.INDOOR, true)
 		"bild_berge", "bild_see", "bild_drache":
 			_build_painting(root, int(info.painting))
 		_:
@@ -367,7 +369,7 @@ static func roof_reach(reach: float, storey: int, high: float) -> float:
 ## A warm light like a wall torch's, a little softer, that flickers. Its place counts as lit at
 ## night (see Outdoor.is_lit and refresh).
 ## A garden lamp's light is steady (`flicker` off) and its own lantern's colour.
-func _add_light(parent: Node3D, at: Vector3, energy := LIGHT_ENERGY, reach := LIGHT_RANGE, flicker := true) -> void:
+func _add_light(parent: Node3D, at: Vector3, energy := LIGHT_ENERGY, reach := LIGHT_RANGE, flicker := true) -> OmniLight3D:
 	var light := OmniLight3D.new()
 	light.name = "FurnitureLight"
 	light.light_color = Level.TORCH_COLOUR if flicker else GardenDecor.LAMP_COLOUR
@@ -377,10 +379,11 @@ func _add_light(parent: Node3D, at: Vector3, energy := LIGHT_ENERGY, reach := LI
 	light.position = at
 	parent.add_child(light)
 	if not flicker:
-		return
+		return light
 	var glow := light.create_tween().set_loops()
 	glow.tween_property(light, "light_energy", energy * 1.1, 0.25)
 	glow.tween_property(light, "light_energy", energy * 0.88, 0.32)
+	return light
 
 
 ## A framed painting on the wall behind the piece: a dark oak frame with a gilt edge and the

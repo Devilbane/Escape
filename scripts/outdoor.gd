@@ -5181,7 +5181,32 @@ func set_ice(value: float) -> void:
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_sheltered(at):
 		return
-	SnowPrints.leave(self, at, heading, size, kind, snow.daylight)
+	# Up on something (a house's roof): the print lies on what is underfoot there, not on the ground.
+	var up := Vector3.ZERO
+	if at.y > PRINT_ABOVE:
+		var hit := _underfoot(at)
+		if hit.is_empty() or (hit.normal as Vector3).y < SnowCaps.STEEPEST:
+			return
+		up = hit.normal
+		at = hit.position
+	SnowPrints.leave(self, at, heading, size, kind, snow.daylight, up)
+
+
+## What is under `at` (a ray hit: position, normal), found by a short ray down past the hero, or
+## {} when nothing is within reach below.
+func _underfoot(at: Vector3) -> Dictionary:
+	var space := get_world_3d().direct_space_state
+	var ray := PhysicsRayQueryParameters3D.create(at + Vector3(0, 0.4, 0), at - Vector3(0, 0.5, 0))
+	ray.collide_with_areas = false
+	ray.hit_from_inside = false
+	if player != null:
+		ray.exclude = [player.get_rid()]
+	return space.intersect_ray(ray)
+
+
+## From how high over the ground a print is pressed into what is underfoot (a roof) instead of the
+## ground (metres).
+const PRINT_ABOVE := 0.5
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.

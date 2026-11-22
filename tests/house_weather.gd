@@ -105,6 +105,7 @@ func _process(_delta: float) -> bool:
 		check(game._rain.visible, "out in the open the storm's rain falls")
 		check(game._env.fog_enabled, "out in the open the storm brings haze")
 		_put_hero(plan.node_world(3, 3))
+		_lay_slab(plan.node_world(3, 3))
 		_next(1.0)
 		return false
 	if step == 1:
@@ -153,9 +154,33 @@ func _snow_checks() -> void:
 	check(SnowPrints._records.size() == before, "no footprints in the snow inside the house")
 	o.snow_print(outside, 0.0)
 	check(SnowPrints._records.size() == before + 1, "footprints outside it")
+	# Up high with nothing underfoot no print is pressed (none falls through to the floor inside
+	# the house); up on a flat roof (here a slab over the house) it lies on the roof.
+	o.snow_print(inside + Vector3(0, 6.0, 0), 0.0)
+	check(SnowPrints._records.size() == before + 1, "no print on the floor inside for a step high above it")
+	o.snow_print(Vector3(inside.x, 3.12, inside.z), 0.0)
+	check(SnowPrints._records.size() == before + 2, "footprints on the roof")
+	var rec: Array = SnowPrints._records[SnowPrints._records.size() - 1]
+	check(rec.size() > 6 and absf(float(rec[5]) - 3.1) < 0.05, "the roof's print lies on the roof, not on the floor (%s)" % [rec])
+	slab.queue_free()
 	check(Surfaces.step_ground(o, inside) != Surfaces.SNOW, "steps inside do not crunch in snow")
 	check(Surfaces.step_ground(o, outside) == Surfaces.SNOW or Surfaces.ground(o, outside) == Surfaces.WOOD, "steps outside crunch")
 	o.set_snow(0.0)
+
+
+## A flat roof to stand on over the house (see _snow_checks), laid a while before so the physics
+## knows it.
+var slab: StaticBody3D
+
+
+func _lay_slab(at: Vector3) -> void:
+	slab = StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(4, 0.2, 4)
+	slab.add_child(shape)
+	game.level.add_child(slab)
+	slab.global_position = Vector3(at.x, 3.0, at.z)
 
 
 func _next(shelter: float) -> void:

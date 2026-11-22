@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Pines among the spruces and heavier snow on the needle trees; Map floors: switch the map between the surface and the silver mine | Shipped this week: Keep the bank above out of the vault's view; wall lamps in bank and vault (+49 more)
+Escape! dev status | Working on: Map floors: switch the map between the surface and the silver mine | Shipped this week: Pines among the spruces and heavier snow on the needle trees; Keep the bank above out of the vault's view; wall lamps in bank and vault (+48 more)

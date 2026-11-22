@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Guild cellar: no flicker along the wall tops, Ragna upstairs out of sight; Snow up to the temple's walls | Shipped this week: Roof eaves no longer block doors; stone detail on the mine hut; No snow on the upper floors of the walk-in buildings (+48 more)
+Escape! dev status | Working on: Guild cellar: no flicker along the wall tops, Ragna upstairs out of sight | Shipped this week: Snow up to the temple's walls; Roof eaves no longer block doors; stone detail on the mine hut; No snow on the upper floors of the walk-in buildings (+47 more)

@@ -4,7 +4,8 @@ extends SceneTree
 ## to the north, the hero walks in, down the stairs into the vault and the surface hides, every
 ## locker has its bars and plate, the hero's own locker opens when they run into its bars (but
 ## not from the street above), no plot can be marked out over it, and with the switch off the
-## bank is the old tower with its way into the cellar level again.
+## bank is the old tower with its way into the cellar level again. Up in the bank's hall (see BankHall)
+## the banker walks in to his desk and deals there, and the hall hides while the hero is down below.
 ## Run with: godot --headless --fixed-fps 60 -s tests/bank_vault.gd
 ## With SHOTS=<folder> and a display it also saves pictures of the bank and the vault.
 
@@ -118,6 +119,37 @@ func _run() -> void:
 	check(level.stations.filter(func(s): return s.kind == "eingang" and s.get("building", "") == "b").is_empty(), "no door into the old cellar level")
 	check(not level.get_children().any(func(n): return n.has_meta("block") and level.cell_char((n.get_meta("block") as Rect2i).position) == "b" and n.name != "BankSite"), "the old tower is gone")
 	check(level.doors.has("b"), "the bank has its door for errands")
+	# The banking hall: Goldwin's desk, the vault door and the rest, his post at the desk near enough
+	# to his own tile that he deals there (see VillagerPost.POST_RADIUS).
+	var hall := BankHall.of(level)
+	check(hall != null and hall.find_child("Desk", true, false) != null, "the bank's hall has the banker's desk")
+	var windows := BankVault.sketch().count(HouseSketch.WINDOW)
+	var window_bars := hall.get_node_or_null("WindowBars") if hall != null else null
+	check(window_bars != null and window_bars.get_child_count() >= windows * BankHall.BARS, "every one of the bank's %d windows has iron bars" % windows)
+	var banker: Villager = null
+	for v: Villager in level.villagers:
+		if v.role == BankHall.KEEPER:
+			banker = v
+	check(banker != null, "the banker is in the village")
+	var found := BankHall.post(level)
+	check(not found.is_empty(), "the banker has his post at the desk")
+	if banker != null and not found.is_empty():
+		var home := level.cell_to_world(banker.home)
+		var spot: Vector3 = found.post.pos
+		check(Vector2(spot.x - home.x, spot.z - home.z).length() < VillagerPost.POST_RADIUS, "his desk is near enough to his tile to deal there")
+		# He walks in through the door, round the desk to his place behind it.
+		level.set_hour(10.0)
+		banker.global_position = home
+		banker.reset_physics_interpolation()
+		VillagePosts.enter(banker)
+		banker._start("post", 10.0)
+		for i in 1200:
+			await physics_frame
+			if VillagePosts.inside(banker) and banker.post_trip.step == "at":
+				break
+		check(VillagePosts.inside(banker) and banker.post_trip.step == "at", "the banker walked in to his desk")
+		check(Vector2(banker.global_position.x - spot.x, banker.global_position.z - spot.z).length() < 0.3, "he stands behind it (%s)" % banker.global_position)
+		check(VillagerPost.for_station(level, banker.station) == "", "there he deals with the hero")
 	var tile0 := BankVault.PLOT.position + BankVault.BANK.position / HouseSketch.CELLS_PER_TILE
 	check(not level.is_opaque(tile0), "the bank's block lets sight through (its walls stop it)")
 	var why := Plots.problem(level, Rect2i(BankVault.PLOT.position + Vector2i(0, 3), Vector2i(2, 2)))
@@ -151,6 +183,10 @@ func _run() -> void:
 		hero.global_position = door + Vector3(-1.0, 0.1, -7.0)
 		game._snap_camera()
 		await _shot("bank_outside")
+	if shots != "":
+		hero.global_position = BankHall.world(Vector2(4.2, 4.2)) + Vector3(0, 0.1, 0)
+		game._snap_camera()
+		await _shot("bank_inside")
 	hero.global_position = door + Vector3(0, 0.1, -3.0)
 	hero.reset_physics_interpolation()
 	await _physics(5)
@@ -170,6 +206,7 @@ func _run() -> void:
 	await _wait(10)
 	check(view.active, "down in the vault the cellar view is on")
 	check(sketcher.deep.visible, "down there the vault is drawn")
+	check(not BankHall.of(level).visible, "the hall over it hides, its stairwell shade with it")
 	check(game._under_roof(), "no weather falls into the vault")
 	if shots != "":
 		await _shot("vault_stairs")

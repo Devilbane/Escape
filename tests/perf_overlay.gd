@@ -57,6 +57,10 @@ func _run() -> void:
 	if game.state == game.State.TITLE:
 		game._start_playing()
 	game._title.visible = false
+	# The game read the language saved by an earlier test in the same shard (floor_packs saves
+	# German): this test reads English labels.
+	Lang.language = "en"
+	Lang._apply()
 	game.state = game.State.PLAYING
 	await _wait(10)
 	var overlay: PerfOverlay = game.perf_overlay

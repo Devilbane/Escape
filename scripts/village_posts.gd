@@ -2,7 +2,8 @@ class_name VillagePosts
 extends RefCounted
 ## Villagers who keep a hall (see VillageHalls.KEEPERS) work inside it by day: the shopkeeper behind
 ## her counter in the shop, the clerk at his desk in the Crown office, the guild master at hers in
-## the guildhall. Where such a villager's hall can be walked into,
+## the guildhall, and the banker at his desk in the bank's hall (see BankHall, which brings its own
+## way in and out). Where such a villager's hall can be walked into,
 ## she walks in through the door to her place behind the counter, works there facing the door, and
 ## walks out again at nightfall (or when the alarm sounds); anything else that calls her away
 ## while she is inside (a fright, a slime) puts her out on the street before the door at once.
@@ -22,6 +23,9 @@ const GIVE_UP := 15.0
 
 ## The post of the hall the villager keeps, or {} (she keeps none, or it cannot be walked into).
 static func post_of(v: Villager) -> Dictionary:
+	if v.role == BankHall.KEEPER:
+		# The banker at his desk in the bank's hall (see BankHall).
+		return BankHall.post(v.level)
 	var kind := VillageHalls.kept_by(v.role)
 	if kind == "" or v.level == null:
 		return {}
@@ -44,10 +48,9 @@ static func enter(v: Villager) -> void:
 	var found := post_of(v)
 	if found.is_empty():
 		return
-	var walk_in: WalkIn = v.level.get("walk_in")
-	var way := walk_in.door_points(found.rec)
+	var way := _door_points(v, found.rec)
 	var post: Dictionary = found.post
-	v.post_trip = {"rec": found.rec, "post": post, "step": "in", "way": [way[0], way[1], post.pos], "clock": 0.0}
+	v.post_trip = {"rec": found.rec, "post": post, "step": "in", "way": [way[0], way[1]] + found.rec.get("via", []) + [post.pos], "clock": 0.0}
 
 
 ## Whether she is in the hall (on the way in, at her place or on the way out).
@@ -79,9 +82,10 @@ static func step(v: Villager, delta: float) -> void:
 
 
 static func _go_out(v: Villager, trip: Dictionary) -> void:
-	var walk_in: WalkIn = v.level.get("walk_in")
-	var way := walk_in.door_points(trip.rec)
-	trip.way = [way[1], way[0]]
+	var way := _door_points(v, trip.rec)
+	var via: Array = (trip.rec.get("via", []) as Array).duplicate()
+	via.reverse()
+	trip.way = via + [way[1], way[0]]
 	trip.step = "out"
 	trip.clock = 0.0
 
@@ -91,8 +95,7 @@ static func leave_at_once(v: Villager) -> void:
 	var trip := v.post_trip
 	if trip.is_empty():
 		return
-	var walk_in: WalkIn = v.level.get("walk_in")
-	v.global_position = walk_in.door_points(trip.rec)[0]
+	v.global_position = _door_points(v, trip.rec)[0]
 	v.reset_physics_interpolation()
 	v.post_trip = {}
 
@@ -120,7 +123,7 @@ static func _walk(v: Villager, trip: Dictionary, delta: float) -> bool:
 	var pace := v.walk_stride(delta)
 	if to.length() <= maxf(pace, ARRIVE) or float(trip.clock) > GIVE_UP:
 		var at := Vector3(goal.x, 0, goal.z)
-		at.y = walk_in.floor_at(at)
+		at.y = _floor_at(walk_in, trip.rec, at)
 		v.global_position = at
 		way.pop_front()
 		if float(trip.clock) > GIVE_UP:
@@ -128,7 +131,7 @@ static func _walk(v: Villager, trip: Dictionary, delta: float) -> bool:
 			v.reset_physics_interpolation()
 		return way.is_empty()
 	var next := v.global_position + to.normalized() * pace
-	next.y = walk_in.floor_at(next)
+	next.y = _floor_at(walk_in, trip.rec, next)
 	v.global_position = next
 	v.face_way(to, delta)
 	v.play("Walking_A")
@@ -139,3 +142,19 @@ static func _walk(v: Villager, trip: Dictionary, delta: float) -> bool:
 		if leaf != null and is_instance_valid(leaf) and not (leaf as HouseDoor).is_open():
 			(leaf as HouseDoor).swing()
 	return false
+
+
+## The points outside and inside the door of the hall: a record that brings its own (the bank, see
+## BankHall) or one of WalkIn's halls.
+static func _door_points(v: Villager, rec: Dictionary) -> Array:
+	if rec.has("way"):
+		return rec.way
+	var walk_in: WalkIn = v.level.get("walk_in")
+	return walk_in.door_points(rec)
+
+
+## The floor under a point of the way in or out: the bank's own, or WalkIn's.
+static func _floor_at(walk_in: WalkIn, rec: Dictionary, at: Vector3) -> float:
+	if rec.get("kind", "") == "bank":
+		return BankHall.floor_y(at)
+	return walk_in.floor_at(at)

@@ -1,0 +1,2 @@
+- Banker Goldwin now works at his own desk inside the bank, among iron-bound chests, banners, pillars and the open vault door.
+- The way down to the vault no longer glares white from above, and the lamp post moved off the path to the bank's door.

@@ -90,18 +90,22 @@ func _run() -> void:
 
 	# The houses.
 	var blocks := 0
+	var own := 0
 	var seen := {}
 	for y in lvl.height:
 		for x in lvl.width:
 			var c := Vector2i(x, y)
-			if lvl.cell_char(c) == "h" and not seen.has(c):
+			# The villagers' houses (h) and the smith's own cottage (ß, see SmithCottage).
+			if (lvl.cell_char(c) == "h" or lvl.cell_char(c) == "ß") and not seen.has(c):
 				blocks += 1
+				if lvl.cell_char(c) == "ß":
+					own += 1
 				for dy in 2:
 					for dx in 2:
 						seen[c + Vector2i(dx, dy)] = true
 	check(blocks > 0, "the village has house blocks")
 	check(houses.size() == blocks, "every house block gets a half-timbered house (%d of %d)" % [houses.size(), blocks])
-	check(lvl.spots.houses.size() == blocks, "every house has a door the villagers walk to")
+	check(lvl.spots.houses.size() + lvl.own_homes.size() == blocks and lvl.own_homes.size() == own, "every house has a door the villagers walk to")
 	var looks := {}
 	for house in houses:
 		var box := _bounds(house)

@@ -84,7 +84,7 @@ func _by_day() -> void:
 	game.load_level(game._outdoor_index(), false)
 	var level: Outdoor = game.level
 	check(not level.chimneys.is_empty(), "the village houses have chimneys")
-	check(level.chimneys.size() == level.spots.houses.size(), "every village house has its chimney")
+	check(level.chimneys.size() == level.spots.houses.size() + level.own_homes.size(), "every village house has its chimney (the smith's cottage too)")
 	for c in level.chimneys:
 		check(c.smoke.global_position.y > VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER, "the smoke comes out over the roof")
 	check(_smoking() == 0, "no chimney smokes by day")

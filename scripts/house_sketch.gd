@@ -170,6 +170,8 @@ var ceiling_surface := "wood"
 ## whole plot when empty. The forgotten mine (see LostMine) keeps it to its hut, so the woods
 ## and the meadow over its tunnels stay the open map's.
 var floors_area := Rect2i()
+## Nobody lives here (the forgotten mine's hut, see LostMine): its windows are broken and never lit.
+var abandoned := false
 ## What the next garden walls are made of: "stone" or "wood" (see fence_kind).
 var fence_material := "stone"
 ## The built doors and gates the owner locked (piece key -> true; see BuiltDoor).

@@ -430,6 +430,8 @@ var _title_sub: Label
 var _title_prompt: Label
 var _message_tween: Tween
 var _pending_search := {}
+## How long (ms) after a search a chest says nothing when it is searched again (see _search).
+const SEARCHED_QUIET := 2500
 ## A crate the hero was sent to pick up with a click (see Crate).
 var _pending_crate: Crate = null
 var menus: Menus
@@ -6917,12 +6919,16 @@ func _search(obj: Dictionary) -> void:
 	player.path.clear()
 	player.face(obj.pos - player.global_position)
 	if obj.searched:
-		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
+		# Just searched (the hero runs into it and a click to it arrives a moment later): the
+		# finds are still rising over it, no second word. Else a small note, not a big find.
+		if Time.get_ticks_msec() - int(obj.get("searched_at", -SEARCHED_QUIET)) >= SEARCHED_QUIET:
+			Effects.loot_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), 0.0)
 		return
 	if obj.loot.has("item") and not player.bag_fits(obj.loot.item):
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
+	obj.searched_at = Time.get_ticks_msec()
 	player.play_once("Interact", 0.55)
 	# A chest creaks open, anything else gets rummaged through; what was in
 	# it sounds once the lid is up or the hands have found it.

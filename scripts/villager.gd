@@ -187,8 +187,8 @@ const BITE_POINT := Vector3(-0.215, 0.41, 1.59)
 ## The trunk he chops: its middle in his own frame, its radius and length.
 ## It lies across his way, settled a little into the ground, and its top is
 ## where the blade bites.
-const LOG_CENTRE := Vector3(-0.3, 0.12, 1.6)
-const LOG_RADIUS := 0.34
+const LOG_CENTRE := Vector3(-0.3, 0.18, 1.6)
+const LOG_RADIUS := 0.28
 const LOG_LENGTH := 3.0
 ## How long the axe sticks in the wood before he wrenches it out.
 const BITE_HOLD := 0.3

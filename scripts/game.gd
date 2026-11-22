@@ -822,6 +822,9 @@ func _setup_world() -> void:
 	add_child(_clouds)
 
 
+## How strong the faint light from above is down in the dungeon.
+const DUNGEON_MOON := 0.28
+
 ## Dark dungeon air, or in the open the sky of the hour (see DayNight:
 ## by day the warm autumn light, at night a cool blue moonlight).
 func _set_atmosphere(outdoor: bool) -> void:
@@ -841,7 +844,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_env.adjustment_saturation = 1.0
 		_moon.rotation_degrees = Vector3(-62, 28, 0)
 		_moon.light_color = Color(0.82, 0.84, 0.9)
-		_moon.light_energy = 0.28
+		_moon.light_energy = DUNGEON_MOON
 	# No dripping cave water under the open sky.
 	if _ambience:
 		# A floor with a loop of its own (see Soundscape) lets the old cave air rest.
@@ -2947,6 +2950,7 @@ func _tick_clock(delta: float) -> void:
 		# A stroke of lightning flickers: bright, a dip, bright again.
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
 		Weather.apply(_env, _moon, _seen_look(), flicker)
+		LightMatch.sun(_env, _moon)
 		_check_season()
 		if level is Outdoor:
 			level.day = day
@@ -3455,6 +3459,8 @@ func load_level(index: int, restock := true) -> void:
 		_env.ambient_light_color = mood.ambient
 		_env.ambient_light_energy = mood.energy
 		_moon.light_color = mood.light
+		_moon.light_energy = DUNGEON_MOON
+	LightMatch.sun(_env, _moon)
 	if level is Outdoor:
 		level.day = day
 		level.season_day = season_day()

@@ -26,7 +26,12 @@ bool indoors(vec3 p) {
 // The world spot of the solid surface seen at a pixel (from the depth buffer).
 vec3 indoor_surface(sampler2D depth_tex, vec2 screen_uv, mat4 inv_projection, mat4 inv_view) {
 	float depth = texture(depth_tex, screen_uv).r;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
 	vec3 ndc = vec3(screen_uv * 2.0 - 1.0, depth * 2.0 - 1.0);
+#else
+	// The modern renderer keeps depth in a clip space from 0 to 1 (see depth.gdshaderinc).
+	vec3 ndc = vec3(screen_uv * 2.0 - 1.0, depth);
+#endif
 	vec4 view = inv_projection * vec4(ndc, 1.0);
 	view.xyz /= view.w;
 	return (inv_view * vec4(view.xyz, 1.0)).xyz;

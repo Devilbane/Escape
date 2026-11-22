@@ -81,6 +81,9 @@ var _wait := 0.0
 var _picked := {}
 ## The lights whose shadows are fading in or out (by instance id).
 var _fading := {}
+## The lamps matched to OpenGL's look (see _match_lamps), by instance id: their own colour and
+## fall-off, and what was written over them.
+var _matched := {}
 ## The warm-up lamps lit for a level's warm-up frame (see warm_up), freed after it.
 var _warm: Array[Light3D] = []
 
@@ -125,6 +128,7 @@ func _process(delta: float) -> void:
 		_warm.clear()
 		refresh(true)
 	_fade(delta / FADE)
+	_match_lamps()
 	_wait -= delta
 	if _wait > 0.0:
 		return
@@ -241,6 +245,46 @@ func _fade(step: float) -> void:
 			_fading.erase(id)
 			if goal == 0.0:
 				light.shadow_enabled = false
+
+
+## On the modern renderer a lamp that casts shadows is made to look as it does on OpenGL, which
+## adds such a lamp to the finished picture (see LightMatch): brighter, with a gentler fall-off,
+## fading in and out with its shadows. Its colour carries the boost, not its strength: the lamps'
+## owners keep setting and tweening their strength (flicker, dusk), and must read back what they set.
+func _match_lamps() -> void:
+	if not Graphics.modern():
+		return
+	for id in _lights.keys():
+		var held = _lights[id]
+		if not is_instance_valid(held) or not held is OmniLight3D:
+			_matched.erase(id)
+			continue
+		var lamp: OmniLight3D = held
+		var rec: Dictionary = _matched.get(id, {})
+		if not lamp.shadow_enabled:
+			if not rec.is_empty():
+				# Its shadows are gone: back to its own colour and fall-off, unless its owner set new ones.
+				if lamp.light_color.is_equal_approx(rec.wrote_color):
+					lamp.light_color = rec.color
+				if is_equal_approx(lamp.omni_attenuation, rec.wrote_falloff):
+					lamp.omni_attenuation = rec.falloff
+				_matched.erase(id)
+			continue
+		if rec.is_empty():
+			rec = {"color": lamp.light_color, "falloff": lamp.omni_attenuation, "wrote_color": lamp.light_color, "wrote_falloff": lamp.omni_attenuation}
+			_matched[id] = rec
+		# Whatever the owner set since the last frame is the lamp's own again.
+		if not lamp.light_color.is_equal_approx(rec.wrote_color):
+			rec.color = lamp.light_color
+		if not is_equal_approx(lamp.omni_attenuation, rec.wrote_falloff):
+			rec.falloff = lamp.omni_attenuation
+		var own: Color = rec.color
+		var fit := LightMatch.lamp(own.srgb_to_linear().get_luminance() * lamp.light_energy, lamp.omni_range, rec.falloff, LightMatch.sky)
+		var share := lamp.shadow_opacity
+		lamp.light_color = LightMatch.brighter(own, lerpf(1.0, fit[0], share))
+		lamp.omni_attenuation = lerpf(rec.falloff, fit[1], share)
+		rec.wrote_color = lamp.light_color
+		rec.wrote_falloff = lamp.omni_attenuation
 
 
 ## Whether a light is picked to cast shadows (its shadows may still be fading in).

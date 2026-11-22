@@ -10,6 +10,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix, fog_disabled;
 
 #include "res://shaders/indoors.gdshaderinc"
+#include "res://shaders/depth.gdshaderinc"
 
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 uniform sampler2D noise_tex : filter_linear, repeat_enable;
@@ -28,7 +29,12 @@ uniform vec3 layers = vec3(2.4, 3.3, 4.3);
 uniform float ground_haze = 0.18;
 
 void vertex() {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
 	POSITION = vec4(VERTEX.xy * 2.0, 0.0, 1.0);
+#else
+	// The modern renderer's clip space runs from 1 (near) to 0 (far): on the near plane.
+	POSITION = vec4(VERTEX.xy * 2.0, 1.0, 1.0);
+#endif
 }
 
 // How thick a cloud is at a point of its layer: banks with a short edge and a denser core.
@@ -44,7 +50,7 @@ float cloud(vec2 p, float shift) {
 
 void fragment() {
 	float depth = texture(depth_tex, SCREEN_UV).r;
-	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, depth * 2.0 - 1.0);
+	vec3 ndc = depth_ndc(SCREEN_UV, depth);
 	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
 	view.xyz /= view.w;
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz;

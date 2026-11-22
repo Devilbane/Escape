@@ -122,6 +122,9 @@ var only := OS.get_environment("ONLY").split(",", false)
 var taken: Array = []
 var _season := -1
 var _place := ""
+var failures := 0
+## How far (metres) the hero may drift from a shot's spot while the picture settles.
+const STRAY := 2.0
 
 
 func _initialize() -> void:
@@ -227,6 +230,29 @@ func _take(name: String, hour: float, wait: int, facts: Dictionary) -> void:
 	print("shot ", name)
 
 
+## Waits `wait` frames with the hero standing at `spot`, holding the hour. Something may carry the
+## hero off meanwhile (an eagle's flight, a door stepped into, a blow): then the hero is put back
+## and the wait starts again, three times at most. False when the hero would not stay.
+func _hold(spot: Vector3, hour: float, wait: int) -> bool:
+	for attempt in 3:
+		var stayed := true
+		for i in wait:
+			game.day_hour = hour
+			await process_frame
+			if not is_instance_valid(game.level) or not game.level is Outdoor or not is_instance_valid(game.player):
+				return false
+			var at: Vector3 = game.player.global_position
+			if Vector2(at.x - spot.x, at.z - spot.z).length() > STRAY or absf(at.y - spot.y) > STRAY:
+				stayed = false
+				break
+		if stayed:
+			return true
+		game.player.global_position = spot
+		game.player.velocity = Vector3.ZERO
+		game._snap_camera()
+	return false
+
+
 func _hide_hud() -> void:
 	for layer: CanvasLayer in game.find_children("*", "CanvasLayer", true, false):
 		layer.visible = false
@@ -264,23 +290,35 @@ func _run() -> void:
 		file.store_string(JSON.stringify(manifest, "\t"))
 		file.close()
 	game.delete_save(game.save_path())
-	print("PASS: lighting reference shots (%d)" % taken.size())
-	quit(0)
+	var wanted := (VILLAGE + DUNGEONS).filter(func(s): return _wanted(s[0])).size()
+	if taken.size() < wanted:
+		failures += wanted - taken.size()
+	if failures > 0:
+		print("FAILED: lighting reference shots (%d of %d taken)" % [taken.size(), wanted])
+	else:
+		print("PASS: lighting reference shots (%d)" % taken.size())
+	quit(1 if failures > 0 else 0)
 
 
 func _village() -> void:
-	game.load_level(game._outdoor_index(), false)
-	game.state = game.State.PLAYING
-	await _wait(20)
-	var lvl: Outdoor = game.level
-	var places := _places(lvl)
+	var lvl: Outdoor = null
+	var places := {}
 	for shot: Array in VILLAGE:
 		var name: String = shot[0]
 		if not _wanted(name):
 			continue
+		if not is_instance_valid(lvl) or game.level != lvl:
+			# The first shot, or the hero left the village (a door, a flight): load it again.
+			game.load_level(game._outdoor_index(), false)
+			game.state = game.State.PLAYING
+			await _wait(20)
+			lvl = game.level
+			places = _places(lvl)
+			_place = ""
 		var place: String = shot[1]
 		if not places.has(place):
-			print("SKIP ", name, ": no ", place, " on this map")
+			failures += 1
+			print("FAIL: ", name, ": no ", place, " on this map")
 			continue
 		var hour: float = shot[2]
 		var season: int = shot[4]
@@ -309,8 +347,13 @@ func _village() -> void:
 		_zoom(shot[7])
 		game._snap_camera()
 		_hide_hud()
-		await _take(name, hour, wait, {"place": place, "hour": hour, "weather": shot[3], "season_day": season,
-				"moon": Moon.word(shot[5]), "hero": shot[6], "zoom": shot[7]})
+		var facts := {"place": place, "hour": hour, "weather": shot[3], "season_day": season,
+				"moon": Moon.word(shot[5]), "hero": shot[6], "zoom": shot[7]}
+		if not await _hold(places[place], hour, wait):
+			failures += 1
+			print("FAIL: ", name, ": the hero did not stay at ", place)
+			continue
+		await _take(name, hour, 0, facts)
 	_dress_hero("")
 	_zoom(0.0)
 

@@ -3,6 +3,8 @@ shader_type spatial;
 // before but out of sight are grey, and everything in sight stays untouched.
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix, fog_disabled;
 
+#include "res://shaders/depth.gdshaderinc"
+
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
 uniform sampler2D depth_tex : hint_depth_texture, filter_nearest;
 uniform sampler2D fog_tex : filter_linear;
@@ -11,12 +13,17 @@ uniform float tile = 4.0;
 uniform vec3 void_color : source_color = vec3(0.0);
 
 void vertex() {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
 	POSITION = vec4(VERTEX.xy * 2.0, 0.0, 1.0);
+#else
+	// The modern renderer's clip space runs from 1 (near) to 0 (far): on the near plane.
+	POSITION = vec4(VERTEX.xy * 2.0, 1.0, 1.0);
+#endif
 }
 
 void fragment() {
 	float depth = texture(depth_tex, SCREEN_UV).r;
-	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, depth * 2.0 - 1.0);
+	vec3 ndc = depth_ndc(SCREEN_UV, depth);
 	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
 	view.xyz /= view.w;
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz;
@@ -30,7 +37,7 @@ void fragment() {
 	float explored = fog.g;
 	ALBEDO = mix(void_color, grey, explored);
 	ALPHA = 1.0 - visible;
-	if (depth >= 0.99999) {
+	if (depth_is_far(depth)) {
 		ALBEDO = void_color;
 	}
 }

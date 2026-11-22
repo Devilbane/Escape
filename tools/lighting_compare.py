@@ -11,6 +11,8 @@ prints a table, worst first:
          over 5 is plain). Blurring first ignores villagers, flames and leaves that moved.
   hue    how far the average colour drifted (Lab a/b distance of the two means)
   dark   brightness ratio of the darkest tenth (shadows), bright: of the brightest tenth (lamps)
+  ok     "yes" when the picture matches: dE at most MATCH_DE and lum within MATCH_LUM. Two runs of
+         the same renderer differ by about dE 2 (villagers walk, flames flicker), so that is the floor.
 
 With an output folder it also writes <name>.png there: reference left, new right, and
 report.json with the numbers. The exit code is 1 when a picture is missing in the new folder.
@@ -21,6 +23,14 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
+
+
+MATCH_DE = 4.0
+MATCH_LUM = (0.8, 1.25)
+
+
+def matched(row: dict) -> bool:
+    return row["dE"] <= MATCH_DE and MATCH_LUM[0] <= row["lum"] <= MATCH_LUM[1]
 
 
 def _linear(srgb: np.ndarray) -> np.ndarray:
@@ -103,11 +113,13 @@ def main() -> int:
         if out_dir:
             side_by_side(ref, new, ref_path.stem, labels).save(out_dir / ref_path.name)
     rows.sort(key=lambda r: -r["dE"])
-    print("%-34s %6s %6s %6s %6s %6s" % ("shot", "lum", "dE", "hue", "dark", "bright"))
+    print("%-34s %6s %6s %6s %6s %6s  %s" % ("shot", "lum", "dE", "hue", "dark", "bright", "ok"))
     for r in rows:
-        print("%-34s %6.2f %6.2f %6.2f %6.2f %6.2f" % (r["name"], r["lum"], r["dE"], r["hue"], r["dark"], r["bright"]))
+        r["ok"] = matched(r)
+        print("%-34s %6.2f %6.2f %6.2f %6.2f %6.2f  %s" % (r["name"], r["lum"], r["dE"], r["hue"], r["dark"], r["bright"], "yes" if r["ok"] else "-"))
     if rows:
         print("%-34s %6.2f %6.2f" % ("mean of %d" % len(rows), float(np.mean([r["lum"] for r in rows])), float(np.mean([r["dE"] for r in rows]))))
+        print("matched %d of %d" % (sum(1 for r in rows if r["ok"]), len(rows) + len(missing)))
     for name in missing:
         print("MISSING in %s: %s" % (new_dir, name))
     if out_dir:

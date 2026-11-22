@@ -113,6 +113,9 @@ const BUILDING_NAMES := {
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
 	"|": "die Ruinen von Sternhall", "\"": "die Verlassene Wüste",
 }
+## Where the bank's sign post stands from its door: aside (+x) and out into the street (-z).
+const BANK_SIGN_SIDE := 1.4
+const BANK_SIGN_OUT := 1.1
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
 var mines: Array[Vector3] = []
@@ -2473,6 +2476,19 @@ func _build_bank_site(block: Rect2i) -> void:
 	marker.position = door
 	marker.set_meta("block", block)
 	add_child(marker)
+	_bank_sign(door)
+
+
+## The bank's sign: a post beside its door, to the right as one comes up the path (the door faces
+## north, -z), off the path, its shield of coins hung away from the path (see HangingShield).
+func _bank_sign(door: Vector3) -> void:
+	var at := door + Vector3(BANK_SIGN_SIDE, 0, -BANK_SIGN_OUT)
+	var board := HangingShield.on_post("bank", Lang.t("Bank"), preload("res://assets/fonts/Cinzel-Bold.woff2"))
+	board.name = "BankSign"
+	board.position = at
+	WeatheredProps.weather_plain(board)
+	add_child(board)
+	_add_solid(at, Vector3(0.4, HangingShield.POST_HIGH, 0.4))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level

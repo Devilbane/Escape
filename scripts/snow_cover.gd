@@ -42,6 +42,8 @@ func _init(world: Node) -> void:
 	material.shader = SHADER
 	_all.append(material)
 	_all.append_array(SnowCaps.materials())
+	# The spruces' fronds draw their own snow (see spruce_needles.gdshader).
+	_all.append(Fern.material(true))
 	_param("amount", 0.0)
 
 
@@ -231,6 +233,9 @@ static func cut_out(gi: GeometryInstance3D) -> bool:
 			if gi is MeshInstance3D:
 				mats.append((gi as MeshInstance3D).get_surface_override_material(i))
 	for m in mats:
+		# A material that draws its own snow (the spruces' fronds) takes no overlay.
+		if m != null and m.has_meta("own_snow"):
+			return true
 		var base := m as BaseMaterial3D
 		if base != null and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 			return true

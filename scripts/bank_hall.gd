@@ -7,7 +7,8 @@ extends RefCounted
 ## A heavy iron vault door stands open against the east wall by a stone gateway over the stairs, with
 ## an iron railing round the stairwell; stone pillars stand in the corners, iron-bound chests in a row
 ## across its south half, the Crown's green banners on the walls, ledgers in a bookcase, and an iron
-## chandelier lights it all. Looked into from above, the stairwell shows the lamplit stone of the
+## chandelier lights it all; every window has iron bars against robbers and lets the light of the
+## hour in (WindowSun). Looked into from above, the stairwell shows the lamplit stone of the
 ## vault below instead of the empty light the hidden cellar left (the shade, see _shade).
 ##
 ## Everything stands under one node on the level ("BankHall"), so it hides with the rest of the
@@ -35,6 +36,15 @@ const GATE_RIGHT := 7.5
 const GATE_HIGH := 2.35
 ## The railing round the stairwell.
 const RAIL_HIGH := 1.0
+## The bars over the windows: how many uprights, how far out from the middle of the wall.
+const BARS := 7
+const BARS_OUT := 0.09
+## Where the cross bands hold them, as parts of the window's height from the sill.
+const BANDS := [0.22, 0.75]
+## The light through the windows: how far in from the middle of the wall the bright inner pane
+## hangs, and how deep into the hall the patch of light on the floor reaches.
+const PANE_IN := 0.12
+const PATCH_DEEP := 1.3
 ## The row of chests (hall frame, their middle): far enough from the south wall that it does not
 ## hide them from the camera, which looks over it.
 const CHESTS_Z := 5.6
@@ -113,6 +123,7 @@ static func build(level: Node3D) -> void:
 	_carpet(hall)
 	_stairwell(hall, body)
 	_vault_door(hall, body, size)
+	_window_bars(hall)
 	_pillars(hall, body, size)
 	_chests(hall, body, size)
 	_banners(hall, size)
@@ -266,6 +277,141 @@ static func _vault_door(hall: Node3D, body: StaticBody3D, size: Vector2) -> void
 	for k in 3:
 		_box(hall, Vector3(0.025, 0.56, 0.03), Vector3(face - 0.12, d.y * 0.48, at.z), steel, Basis(Vector3.RIGHT, k * PI / 3.0))
 	_box(hall, Vector3(0.02, 0.18, 0.4), Vector3(face - 0.02, d.y * 0.8, at.z), brass)
+
+
+## Iron bars over every window of the bank, on the outside of the glass, against robbers: stout
+## uprights set into the sill and the lintel, held by two flat cross bands with a riveted knuckle
+## where each upright crosses them. The shutters still swing in front of them.
+static func _window_bars(hall: Node3D) -> void:
+	var s := BankVault.sketch()
+	var iron := _mat("iron", IRON, 0.6)
+	var centre := (s.node_world(BankVault.BANK.position.x, BankVault.BANK.position.y) + s.node_world(BankVault.BANK.end.x, BankVault.BANK.end.y)) * 0.5
+	var opening := HouseSketch.CELL - 2.0 * HouseSketcher.JAMB
+	var low := HouseSketcher.SILL
+	var high := HouseSketcher.WINDOW_TOP - low
+	var bars := Node3D.new()
+	bars.name = "WindowBars"
+	hall.add_child(bars)
+	var sun := WindowSun.new()
+	sun.name = "WindowSun"
+	sun.level = hall.get_parent()
+	hall.add_child(sun)
+	for key: String in s.pieces:
+		if s.pieces[key].kind != HouseSketch.WINDOW:
+			continue
+		var p := HouseSketch.parts_of(key)
+		var along_x: bool = p[3] == HouseSketch.ORIENT_X
+		var axis := Vector3.RIGHT if along_x else Vector3.BACK
+		var across := Vector3.BACK if along_x else Vector3.RIGHT
+		var mid := s.node_world(p[1], p[2]) + axis * HouseSketch.CELL * 0.5
+		var out := signf((mid - centre).dot(across))
+		var turn := Basis() if along_x else Basis(Vector3.UP, PI * 0.5)
+		# Just outside the glass and its glazing bars, inside the shutters; and seen from the hall,
+		# the same grille again in front of the bright inner pane (see _daylight), which hides the glass.
+		for side: float in [out * BARS_OUT, -out * (PANE_IN + 0.04)]:
+			var face := hall.to_local(mid + across * side)
+			face.y = 0.0
+			_grille(bars, face, turn, signf(side), opening, low, high, iron)
+		_daylight(hall, sun, mid, axis, across * -out, opening, low, high)
+
+
+## One grille of window bars on the face at `face` (hall frame), its bands on the `out` side.
+static func _grille(parent: Node3D, face: Vector3, turn: Basis, out: float, opening: float, low: float, high: float, iron: Material) -> void:
+	var y0 := low - HouseSketch.FLOOR_RISE
+	for i in BARS:
+		var t := -opening * 0.5 + (i + 0.5) * opening / BARS
+		_box(parent, Vector3(0.045, high + 0.1, 0.045), face + turn * Vector3(t, 0, 0) + Vector3(0, y0 + high * 0.5, 0), iron, turn)
+		for y: float in BANDS:
+			_box(parent, Vector3(0.07, 0.08, 0.07), face + turn * Vector3(t, 0, out * 0.02) + Vector3(0, y0 + high * y, 0), iron, turn)
+	for y: float in BANDS:
+		_box(parent, Vector3(opening, 0.06, 0.025), face + turn * Vector3(0, 0, out * 0.03) + Vector3(0, y0 + high * y, 0), iron, turn)
+
+
+## The light through one window (`inward` points into the hall): its inner pane shines with the sky,
+## a spotlight falls in through it, and on the floor before it lies a patch of light striped by the
+## shadows of the bars (none over the stairwell). WindowSun keeps them to the hour.
+static func _daylight(hall: Node3D, sun: WindowSun, mid: Vector3, axis: Vector3, inward: Vector3, opening: float, low: float, high: float) -> void:
+	var turn := Basis(Vector3.UP.cross(inward), Vector3.UP, inward)
+	var lift := Vector3(0, low + high * 0.5 - HouseSketch.FLOOR_RISE, 0)
+	var pane := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(opening - 0.1, high)
+	pane.mesh = quad
+	pane.material_override = sun.pane
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pane.transform = Transform3D(turn, hall.to_local(mid + inward * PANE_IN) * Vector3(1, 0, 1) + lift)
+	hall.add_child(pane)
+	var spot := SpotLight3D.new()
+	spot.spot_range = 5.0
+	spot.spot_angle = 50.0
+	spot.shadow_enabled = false
+	var from := hall.to_local(mid + inward * 0.3) * Vector3(1, 0, 1) + Vector3(0, low + high - HouseSketch.FLOOR_RISE, 0)
+	spot.transform = Transform3D(Basis.looking_at(inward * 1.0 + Vector3(0, -1.1, 0), Vector3.UP), from)
+	hall.add_child(spot)
+	sun.lights.append(spot)
+	# The patch on the floor: a stripe between each two bars, from the wall into the hall.
+	var start := hall.to_local(mid + inward * 0.15) * Vector3(1, 0, 1)
+	var foot := Rect2(Vector2(start.x, start.z), Vector2.ZERO).expand(Vector2(start.x, start.z) + Vector2(inward.x, inward.z) * PATCH_DEEP)
+	foot = foot.grow_individual(absf(axis.x) * opening * 0.5, absf(axis.z) * opening * 0.5, absf(axis.x) * opening * 0.5, absf(axis.z) * opening * 0.5)
+	if foot.intersects(WELL):
+		return
+	var gap := 0.07
+	var stripe := (opening - BARS * gap) / (BARS + 1)
+	for i in BARS + 1:
+		var t := -opening * 0.5 + stripe * 0.5 + i * (stripe + gap)
+		var strip := MeshInstance3D.new()
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(stripe, PATCH_DEEP)
+		strip.mesh = plane
+		strip.material_override = sun.patch
+		strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		strip.transform = Transform3D(turn, start + turn * Vector3(t, 0, PATCH_DEEP * 0.5) + Vector3(0, 0.03, 0))
+		hall.add_child(strip)
+
+
+## Keeps the windows' light to the hour of the day: warm daylight, the reds of dusk, pale blue
+## moonlight at night, as the open air outside (see DayNight.sky_at). Looks again every TICK seconds.
+class WindowSun extends Node3D:
+	const TICK := 0.5
+	var level: Node
+	var lights: Array[SpotLight3D] = []
+	var pane := StandardMaterial3D.new()
+	var patch := StandardMaterial3D.new()
+	var _hour := -99.0
+	var _wait := 0.0
+
+	func _init() -> void:
+		pane.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		patch.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		patch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		patch.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+
+	func _ready() -> void:
+		show_hour()
+
+	func _process(delta: float) -> void:
+		_wait -= delta
+		if _wait > 0.0:
+			return
+		_wait = TICK
+		show_hour()
+
+	## Lights the panes, the patches and the spotlights for the level's hour.
+	func show_hour() -> void:
+		var hour = level.get("hour") if level != null else null
+		if hour == null or float(hour) < 0.0 or absf(float(hour) - _hour) < 0.05:
+			return
+		_hour = float(hour)
+		var sky := DayNight.sky_at(_hour)
+		var c: Color = sky.sun
+		var e := clampf(float(sky.sun_e), 0.0, 1.2)
+		# The sky through the glass: blue by day, warm at dusk, deep blue at night.
+		var sky_col: Color = sky.bg if sky.has("bg") else c
+		pane.albedo_color = sky_col.lerp(c, 0.35) * (0.3 + 0.55 * minf(e, 1.0))
+		patch.albedo_color = Color(c.r, c.g, c.b, 1.0) * (0.15 + 0.3 * minf(e, 1.0))
+		for l in lights:
+			l.light_color = c
+			l.light_energy = 0.4 + 1.4 * e
 
 
 ## Stone pillars in the corners (the north-east one is the vault door's), on plinths under capitals.

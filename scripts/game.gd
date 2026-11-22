@@ -432,6 +432,8 @@ var _title_sub: Label
 var _title_prompt: Label
 var _message_tween: Tween
 var _pending_search := {}
+## How long (ms) after a search a chest says nothing when it is searched again (see _search).
+const SEARCHED_QUIET := 2500
 ## A crate the hero was sent to pick up with a click (see Crate).
 var _pending_crate: Crate = null
 var menus: Menus
@@ -777,12 +779,14 @@ func _setup_world() -> void:
 	# as the hero walks towards them. The camera hangs about 27 m from the hero, so the
 	# first ring reaches past everything around the hero (46 m): a prop on the hero's
 	# side of a ring edge used to be shaded differently from one on the other side, and
-	# a bench flipped between the two as the hero walked past it. Only the far rings are wide.
+	# a bench flipped between the two as the hero walked past it. Only the far ring is wide.
+	# Two rings, not four: every ring draws the shadow casters in it once more each
+	# frame. The first covers all the usual view; the second, coarser, only the far
+	# land seen when zoomed in close.
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	moon.directional_shadow_max_distance = 200.0
 	moon.directional_shadow_fade_start = 1.0
 	moon.directional_shadow_split_1 = 0.23
-	moon.directional_shadow_split_2 = 0.4
-	moon.directional_shadow_split_3 = 0.6
 	# Blend the rings so no hard edge of shade sweeps over the props as the hero walks.
 	moon.directional_shadow_blend_splits = true
 	add_child(moon)
@@ -3460,10 +3464,12 @@ func load_level(index: int, restock := true) -> void:
 	_update_hud()
 	# Every shader the new level needs is built in its first, still dark
 	# frame, and the time that takes does not count (see LevelWarmup). The
-	# lamps round the hero cast their shadows from that frame on, so their
-	# shaders are built in it too (see LightShadows).
-	light_shadows.refresh(true)
+	# lamps round the hero cast their shadows from that frame on, and for that
+	# frame alone two faint lamps with shadows light the whole level, so the
+	# shaders of every lamp that gains its shadows later are built in it too
+	# (see LightShadows.warm_up).
 	LevelWarmup.begin(level)
+	light_shadows.refresh(true)
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:
@@ -6926,12 +6932,16 @@ func _search(obj: Dictionary) -> void:
 	player.path.clear()
 	player.face(obj.pos - player.global_position)
 	if obj.searched:
-		Effects.float_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), true)
+		# Just searched (the hero runs into it and a click to it arrives a moment later): the
+		# finds are still rising over it, no second word. Else a small note, not a big find.
+		if Time.get_ticks_msec() - int(obj.get("searched_at", -SEARCHED_QUIET)) >= SEARCHED_QUIET:
+			Effects.loot_text(level, obj.icon_pos, Lang.t("Schon durchsucht"), Color(0.8, 0.8, 0.8), 0.0)
 		return
 	if obj.loot.has("item") and not player.bag_fits(obj.loot.item):
 		if not _message_busy():
 			show_message(Lang.t("Deine Tasche ist voll. Wirf im Inventar (Taste I) etwas weg."), 2.0)
 		return
+	obj.searched_at = Time.get_ticks_msec()
 	player.play_once("Interact", 0.55)
 	# A chest creaks open, anything else gets rummaged through; what was in
 	# it sounds once the lid is up or the hands have found it.

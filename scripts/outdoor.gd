@@ -4014,45 +4014,25 @@ func _build_chopping_log(v: Villager, cell: Vector2i) -> void:
 	spot.position = stand
 	spot.rotation.y = atan2(face.x, face.z)
 	add_child(spot)
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.4, 0.27, 0.17)
-	bark.roughness = 1.0
 	var sapwood := StandardMaterial3D.new()
-	sapwood.albedo_color = Color(0.86, 0.7, 0.48)
+	sapwood.albedo_color = WoodLogs.SAPWOOD
 	sapwood.roughness = 0.9
-	var heartwood := StandardMaterial3D.new()
-	heartwood.albedo_color = Color(0.68, 0.48, 0.28)
-	heartwood.roughness = 0.9
-	# The trunk lies along the woodcutter's left and right (his own x).
+	# The trunk lies along the woodcutter's left and right (his own x), grown
+	# like the felled trunks of his yard (see WoodLogs.trunk_mesh): lumpy,
+	# tapering, with a flared root end, fissured bark and ringed sawn ends.
+	# Its middle is LOG_RADIUS thick round LOG_CENTRE, where his axe bites.
 	var r := Villager.LOG_RADIUS
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(cell)
+	var grain_seed := rng.randf_range(0.0, 50.0)
 	var trunk := MeshInstance3D.new()
-	var round_mesh := CylinderMesh.new()
-	round_mesh.top_radius = r
-	round_mesh.bottom_radius = r * 1.08
-	round_mesh.height = Villager.LOG_LENGTH
-	round_mesh.radial_segments = 14
-	round_mesh.rings = 1
-	trunk.mesh = round_mesh
-	trunk.material_override = bark
-	trunk.position = Villager.LOG_CENTRE
-	trunk.rotation.z = PI * 0.5
+	trunk.name = "Trunk"
+	trunk.mesh = WoodLogs.trunk_mesh(Villager.LOG_LENGTH, r / 1.02, rng)
+	trunk.mesh.surface_set_material(0, WoodLogs.log_material(WoodLogs.BARK, r, 0.2, grain_seed, false))
+	trunk.mesh.surface_set_material(1, WoodLogs.log_material(WoodLogs.BARK, r, 0.2, grain_seed, true))
+	# trunk_mesh lies on the ground: settle it so its axis is at LOG_CENTRE.
+	trunk.position = Villager.LOG_CENTRE - Vector3(0, trunk.mesh.get_aabb().get_center().y, 0)
 	spot.add_child(trunk)
-	# The sawn ends: pale wood with a darker heart.
-	for side in [-1.0, 1.0]:
-		var radius: float = r * (1.08 if side < 0.0 else 1.0)
-		for ring in [[radius * 0.94, sapwood, 0.012], [radius * 0.45, heartwood, 0.02]]:
-			var disc := MeshInstance3D.new()
-			var disc_mesh := CylinderMesh.new()
-			disc_mesh.top_radius = ring[0]
-			disc_mesh.bottom_radius = ring[0]
-			disc_mesh.height = 0.02
-			disc_mesh.radial_segments = 14
-			disc_mesh.rings = 1
-			disc.mesh = disc_mesh
-			disc.material_override = ring[1]
-			disc.position = Villager.LOG_CENTRE + Vector3(-side * (Villager.LOG_LENGTH * 0.5 + ring[2]), 0, 0)
-			disc.rotation.z = PI * 0.5
-			spot.add_child(disc)
 	# Chips from earlier blows on the ground around the cut.
 	var chip_mesh := BoxMesh.new()
 	chip_mesh.size = Vector3(0.14, 0.025, 0.08)

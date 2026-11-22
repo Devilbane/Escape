@@ -124,8 +124,8 @@ static func _add_log(level: Outdoor, cell: Vector2i, bark_colour: Color, length:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(cell)
 	var grain_seed := rng.randf_range(0.0, 50.0)
-	var bark := _log_material(bark_colour, r, moss, grain_seed, false)
-	var ends := _log_material(bark_colour, r, moss, grain_seed, true)
+	var bark := log_material(bark_colour, r, moss, grain_seed, false)
+	var ends := log_material(bark_colour, r, moss, grain_seed, true)
 	var pos := level.cell_to_world(cell) + Vector3(rng.randf_range(-shift, shift), 0, rng.randf_range(-shift, shift))
 	var root := Node3D.new()
 	root.name = "WoodLog"
@@ -267,7 +267,7 @@ static func trunk_mesh(length: float, r: float, rng: RandomNumberGenerator, flat
 
 
 ## The bark or the sawn ends of one trunk (see felled_log.gdshader).
-static func _log_material(bark_colour: Color, r: float, moss: float, grain_seed: float, end_grain: bool) -> ShaderMaterial:
+static func log_material(bark_colour: Color, r: float, moss: float, grain_seed: float, end_grain: bool) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/felled_log.gdshader")
 	mat.set_shader_parameter("bark_colour", bark_colour)

@@ -87,7 +87,10 @@ func _run() -> void:
 		if s.kind == "schmied":
 			smith = s
 	check(not smith.is_empty() and smith.has("npc"), "the smith stands at his forge in the village")
-	check(lvl.astar.is_point_solid(smith.cell + Vector2i(-1, 0)), "the forge takes the tile beside him")
+	if WalkIn.is_on("j"):
+		check(smith.npc.chops() and lvl.walk_in.building_at(smith.npc._chop_stand).get("kind", "") == "smithy", "his forge and anvil stand in the smithy")
+	else:
+		check(lvl.astar.is_point_solid(smith.cell + Vector2i(-1, 0)), "the forge takes the tile beside him")
 
 	# Melting down.
 	p.bag.clear()

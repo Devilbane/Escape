@@ -273,7 +273,8 @@ static func pigeonholes(wide: float, high: float) -> Node3D:
 
 
 ## A shop sign on an iron arm reaching `out` metres from the wall (along +z), the board hanging under
-## it with the mark of the `kind` of hall: a mug for the tavern, a loaf for the shop, a horn for the post.
+## it with the mark of the `kind` of hall: a mug for the tavern, a loaf for the shop, a horn for the post,
+## an anvil for the smithy.
 static func sign_board(kind: String, out: float) -> Node3D:
 	var root := Node3D.new()
 	var iron := _plain("iron", Color(0.22, 0.22, 0.24), 0.5)
@@ -286,7 +287,7 @@ static func sign_board(kind: String, out: float) -> Node3D:
 	for z: float in [-0.2, 0.2]:
 		_box(board, Vector3(0.02, 0.12, 0.02), Vector3(0, 0.3, z), iron)
 	var mark := _plain("sign_" + kind, {"tavern": Color(0.85, 0.65, 0.2), "shop": Color(0.9, 0.75, 0.45), "post": Color(0.95, 0.8, 0.25),
-			"office": Color(0.93, 0.9, 0.8), "guild": Color(0.7, 0.2, 0.15)}.get(kind, Color.WHITE), 0.5)
+			"office": Color(0.93, 0.9, 0.8), "guild": Color(0.7, 0.2, 0.15), "smithy": Color(0.3, 0.3, 0.33)}.get(kind, Color.WHITE), 0.5)
 	for x: float in [-0.03, 0.03]:
 		match kind:
 			"tavern":
@@ -304,6 +305,12 @@ static func sign_board(kind: String, out: float) -> Node3D:
 				# A red shield with a pale axe across it.
 				_box(board, Vector3(0.02, 0.26, 0.26), Vector3(x, 0.02, 0.0), mark)
 				_box(board, Vector3(0.025, 0.3, 0.04), Vector3(x, 0.0, 0.0), _plain("axe_haft", Color(0.85, 0.8, 0.7)), Basis(Vector3.RIGHT, 0.6))
+			"smithy":
+				# A dark iron anvil: its face with the horn, the waist and the foot.
+				_box(board, Vector3(0.02, 0.07, 0.3), Vector3(x, 0.07, 0.02), mark)
+				_box(board, Vector3(0.02, 0.04, 0.1), Vector3(x, 0.08, -0.17), mark)
+				_box(board, Vector3(0.02, 0.1, 0.12), Vector3(x, -0.02, 0.03), mark)
+				_box(board, Vector3(0.02, 0.05, 0.24), Vector3(x, -0.1, 0.03), mark)
 			_:
 				_box(board, Vector3(0.02, 0.06, 0.3), Vector3(x, 0.0, 0.0), mark)
 				_box(board, Vector3(0.02, 0.18, 0.08), Vector3(x, 0.02, 0.17), mark)

@@ -50,6 +50,11 @@ static func enter(v: Villager) -> void:
 	v.post_trip = {"rec": found.rec, "post": post, "step": "in", "way": [way[0], way[1], post.pos], "clock": 0.0}
 
 
+## Whether she is at her place in the hall (not on the way in or out).
+static func at_post(v: Villager) -> bool:
+	return not v.post_trip.is_empty() and v.post_trip.step == "at"
+
+
 ## Whether she is in the hall (on the way in, at her place or on the way out).
 static func inside(v: Villager) -> bool:
 	return not v.post_trip.is_empty()
@@ -68,8 +73,12 @@ static func step(v: Villager, delta: float) -> void:
 			if _walk(v, trip, delta):
 				trip.step = "at"
 		"at":
-			v.turn_toward(Basis(Vector3.UP, float(trip.post.rot)) * Vector3.BACK, delta)
-			v.play(v.work_anim())
+			if v.chops():
+				# The smith hammers on his anvil (see Villager._do), sparks and all.
+				v.work_at_post(delta)
+			else:
+				v.turn_toward(Basis(Vector3.UP, float(trip.post.rot)) * Vector3.BACK, delta)
+				v.play(v.work_anim())
 			if v.night or v.level.village_alarm.raised:
 				_go_out(v, trip)
 		"out":

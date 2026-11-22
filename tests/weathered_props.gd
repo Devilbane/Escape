@@ -41,7 +41,7 @@ func _weathered(mi: MeshInstance3D) -> bool:
 func _meshes_near(lvl: Node3D, at: Vector3, reach: float) -> Array[MeshInstance3D]:
 	var out: Array[MeshInstance3D] = []
 	for child in lvl.get_children():
-		if child is MeshInstance3D and Vector2(child.position.x - at.x, child.position.z - at.z).length() <= reach:
+		if child is MeshInstance3D and Vector2(child.global_position.x - at.x, child.global_position.z - at.z).length() <= reach:
 			out.append(child)
 	return out
 
@@ -78,7 +78,13 @@ func _run() -> void:
 	check(not smith.is_empty(), "Gorm stands at his forge")
 	if not smith.is_empty():
 		var forge_at: Vector3 = lvl.cell_to_world(smith.cell + Vector2i(-1, 0))
-		var near := _meshes_near(lvl, forge_at, 1.9)
+		var forge_in: Node3D = lvl
+		for rec in lvl.walk_in.buildings:
+			if rec.kind == "smithy":
+				# In the smithy one walks into (see VillageHalls._smithy).
+				forge_at = VillageHalls.forge_spot(rec)
+				forge_in = (rec.node as Node3D).get_node("HallInside")
+		var near := _meshes_near(forge_in, forge_at, 1.9)
 		var merged := near.filter(func(mi): return _weathered(mi) and (mi as MeshInstance3D).mesh.get_faces().size() > 900)
 		check(merged.size() >= 1, "the forge is one weathered mesh of many parts")
 		check(near.size() <= 6, "the forge draws in a few meshes (%d)" % near.size())

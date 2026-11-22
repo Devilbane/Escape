@@ -1,21 +1,22 @@
 class_name VillageHalls
 extends RefCounted
-## The village's halls one can walk into: the tavern, the shop, the post office, the Crown office
-## and the adventurers' guild, built in the
+## The village's halls one can walk into: the tavern, the shop, the post office, the Crown office,
+## the adventurers' guild and the smithy, built in the
 ## village's own style (a VillageHouse, stone plinth, timber framing, plaster and ivy) instead of
 ## the old kit models, each with a sign by its door and its own furniture inside (see WalkIn, which
 ## opens them like the villagers' houses). Usability first: a door in the middle of the front, a
 ## free way from it to the counter or desk, where the hall's keeper works by day (see KEEPERS and
 ## VillagePosts): Mira behind the shop counter, Clerk Gero at his desk in the Crown office among
 ## the land registers, Guild Master Ragna at hers in the guildhall, between its tavern corner and
-## its training corner.
+## its training corner, Smith Gorm at his anvil in the smithy, the forge glowing behind him.
 ##
 ## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
 
 ## The map letters of the halls and what they are.
-const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild"}
-## Who keeps which hall (villager roles), working behind its counter or desk by day.
-const KEEPERS := {"shop": "6", "office": "¢", "guild": "G"}
+const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild", "j": "smithy"}
+## Who keeps which hall (villager roles), working behind its counter or desk by day (the smith at
+## his anvil before the forge).
+const KEEPERS := {"shop": "6", "office": "¢", "guild": "G", "smithy": "1"}
 ## How big a hall may grow (metres, inside its block): wider and deeper than a home, and the big
 ## halls on their three-by-three blocks bigger still.
 const MAX_W := 9.4
@@ -59,6 +60,9 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 	var inside := Node3D.new()
 	inside.name = "HallInside"
 	hall.add_child(inside)
+	if String(rec.kind) == "smithy":
+		_smithy(walk_in, rec, inside)
+		return
 	var back := room.position.y
 	# A counter, or in the big halls a desk.
 	var desk := String(rec.kind) in BIG
@@ -193,6 +197,90 @@ static func _guild(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		dummy.rotation.y = -0.5
 		inside.add_child(dummy)
 		walk_in._solid(rec, dummy.position + Vector3(0, 0.8, 0), Vector3(0.6, 1.6, 0.6))
+
+
+## Where the smith stands at his anvil (in the smithy's own frame: out from the room's back wall, and to
+## the right of the way in, so his anvil before him stands clear of it)
+## and how far the forge sits out from the back wall (its middle, see VillageProps.build_forge).
+const SMITH_STAND := 3.0
+const SMITH_SIDE := 1.9
+const FORGE_OUT := 1.25
+const FORGE_SIZE := Vector3(3.2, 1.2, 2.6)
+
+## Where the smithy's forge stands (the middle of its footprint, see VillageProps.build_forge), in
+## the level's frame.
+static func forge_spot(rec: Dictionary) -> Vector3:
+	return (rec.node as Node3D).global_transform * _forge_local(rec)
+
+
+static func _forge_local(rec: Dictionary) -> Vector3:
+	return Vector3(0.5, float(rec.floor), (rec.room as Rect2).position.y + FORGE_OUT)
+
+
+## The smithy: the forge against the back wall, its coals glowing and its embers rising, and the
+## smith before it at his anvil, facing the door, so the hero walks straight up to him (his station
+## is touched from in front of the anvil). A rack of weapons he made on the left wall, iron and coal
+## on the right. The smith's anvil, his spot and the sparks of his blows are kept in the record
+## (`anvil`), for Outdoor to hand him (see Villager.set_chopping).
+static func _smithy(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var hall: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y
+	var half := room.size.x * 0.5
+	var forge_at := _forge_local(rec)
+	var coals := VillageProps.build_forge(inside, forge_at)
+	walk_in._solid(rec, Vector3(forge_at.x, floor_y + FORGE_SIZE.y * 0.5, forge_at.z), FORGE_SIZE)
+	var flame := Effects.make_flame()
+	flame.position = coals
+	flame.scale = Vector3.ONE * 2.0
+	flame.use_fixed_seed = true
+	flame.seed = 11
+	inside.add_child(flame)
+	var embers := Effects.make_forge_embers()
+	embers.position = coals + Vector3(0, 0.1, 0)
+	embers.use_fixed_seed = true
+	embers.seed = 12
+	inside.add_child(embers)
+	var light := OmniLight3D.new()
+	light.name = "ForgeLight"
+	light.light_color = Color(1.0, 0.55, 0.25)
+	light.light_energy = 2.4
+	light.omni_range = 6.0
+	light.omni_attenuation = 1.4
+	light.position = coals + Vector3(0, 0.8, 0.6)
+	inside.add_child(light)
+	# The smith's spot and his anvil before him (Villager.ANVIL_AT, its horn to his right), facing the door.
+	var stand := Vector3(SMITH_SIDE, floor_y, back + SMITH_STAND)
+	var spot := Node3D.new()
+	spot.name = "SmithAnvil"
+	spot.position = stand
+	inside.add_child(spot)
+	VillageProps.build_anvil(spot, Villager.ANVIL_AT)
+	var sparks := Effects.make_forge_sparks()
+	sparks.position = Villager.HAMMER_POINT
+	spot.add_child(sparks)
+	walk_in._solid(rec, stand + Villager.ANVIL_AT + Vector3(0, VillageProps.ANVIL_TOP * 0.5, 0), Vector3(1.1, VillageProps.ANVIL_TOP, 0.8))
+	var face := hall.global_transform.basis * Vector3.BACK
+	rec["anvil"] = {"stand": hall.global_transform * stand, "face": Vector3(face.x, 0, face.z).normalized(), "sparks": sparks}
+	rec["posts"] = [{"pos": hall.global_transform * stand, "rot": hall.rotation.y,
+			"front": hall.global_transform * (stand + Vector3(-0.3, 0, 1.9))}]
+	# A rack of his weapons on the left wall, iron and coal by the right one.
+	var rack_w := minf(2.2, room.size.y - 3.0)
+	var rack := WalkInFurniture.weapon_rack(rack_w)
+	rack.position = Vector3(-half + 0.2, floor_y, room.end.y - 1.0 - rack_w * 0.5)
+	rack.rotation.y = PI * 0.5
+	inside.add_child(rack)
+	walk_in._solid(rec, rack.position + Vector3(0, 0.75, 0), Vector3(0.4, 1.5, rack_w))
+	var z := room.end.y - 1.3
+	var crate := WalkInFurniture.crate(0.7)
+	crate.position = Vector3(half - 0.45, floor_y, z)
+	crate.rotation.y = 0.15
+	inside.add_child(crate)
+	var cask := WalkInFurniture.barrel()
+	cask.position = Vector3(half - 0.45, floor_y, z - 0.85)
+	inside.add_child(cask)
+	walk_in._solid(rec, Vector3(half - 0.45, floor_y + 0.4, z - 0.4), Vector3(0.8, 0.8, 1.7))
 
 
 ## A bench along each side wall, facing in, a banner of `colour` above it.

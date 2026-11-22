@@ -105,7 +105,8 @@ func _run() -> void:
 		check(hall.get_node_or_null("HallSign") != null, "the %s has its sign by the door" % kind)
 		check(is_zero_approx(float((hall.get_meta("shape") as Dictionary).door_x)), "the %s's door is in the middle of its front" % kind)
 		var inside_node := hall.get_node_or_null("HallInside")
-		check(inside_node != null and (inside_node.get_node_or_null("Counter") != null or inside_node.get_node_or_null("Desk") != null), "the %s has its counter or desk" % kind)
+		check(inside_node != null and (inside_node.get_node_or_null("Counter") != null or inside_node.get_node_or_null("Desk") != null
+				or inside_node.get_node_or_null("SmithAnvil") != null), "the %s has its counter, desk or anvil" % kind)
 		check(not (rec.get("posts", []) as Array).is_empty(), "the %s has a place behind its counter" % kind)
 		for ch: String in VillageHalls.KINDS:
 			if VillageHalls.KINDS[ch] == kind:
@@ -168,6 +169,21 @@ func _run() -> void:
 		check(keeper.global_position.distance_to(rec.posts[0].pos) < 0.4, "behind the %s's counter" % kind)
 		check(keeper.station.get("touch", 0.0) > 1.0, "the hero reaches the %s's keeper from in front of the counter" % kind)
 		check(lvl.station_at(rec.posts[0].front) == keeper.station, "standing before the %s's counter the hero touches the keeper's station" % kind)
+	# The smith hammers at his anvil in the smithy, sparks and all (see Villager._do).
+	var gorm: Villager = keepers.get("smithy")
+	if gorm != null:
+		var smithy: Dictionary = halls.filter(func(r): return r.kind == "smithy")[0]
+		check(gorm.chops() and gorm._chop_stand.distance_to(smithy.anvil.stand) < 0.01, "the smith's anvil is the one in the smithy")
+		check(lvl.get_node_or_null("SmithAnvil") == null, "and no forge or anvil stands out in the open")
+		var blows := 0
+		var sparks := false
+		for i in 60 * 8:
+			await physics_frame
+			if gorm._anim.current_animation == gorm.work_anim() and gorm._anim.speed_scale == 0.0:
+				blows += 1
+				sparks = sparks or gorm._chips.emitting
+		check(blows > 0 and sparks, "in the smithy the smith strikes his anvil and sparks fly (%d)" % blows)
+		check(gorm.global_position.distance_to(smithy.anvil.stand) < 0.1, "from his place before the forge")
 	# Nightfall: out of the door and home.
 	game.day_hour = 22.0
 	lvl.set_hour(22.0)

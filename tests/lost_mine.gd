@@ -140,6 +140,23 @@ func _run() -> void:
 	check(gates.size() == 1, "the gate is there")
 	var chests := level.interactables.filter(func(o): return str(o.id).begins_with("grube:"))
 	check(chests.size() >= 3, "a few chests to search (%d)" % chests.size())
+	# Each chest stands with its back to a wall and opens (its +Z) into the room.
+	for o: Dictionary in chests:
+		var c := LostMine.cell_at(o.pos)
+		var lid_node: Node3D = (o.lid as Node3D).get_parent() if o.get("lid") != null else null
+		if lid_node == null:
+			continue
+		var front := lid_node.global_basis.z
+		var ahead := c + Vector2i(roundi(front.x), roundi(front.z))
+		var behind := c - Vector2i(roundi(front.x), roundi(front.z))
+		check(LostMine.cells().has(ahead) or not LostMine.cells().has(behind), "a chest opens towards the room, its back to a wall (%s)" % c)
+	var beds := level.stations.filter(func(s): return s.kind == LostMine.BED)
+	check(beds.size() == 3, "the bunks are there to run into (%d)" % beds.size())
+	for text in [LostMine.BED_WARN, LostMine.prompt(LostMine.BED)]:
+		check(Lang.EN.has(text), "English for: " + text)
+	# The hut stands empty: no lit panes.
+	check(mine.abandoned, "the hut is marked as empty")
+	check(sketcher.get_node_or_null("EmptyHut") != null and sketcher.get_node("EmptyHut").get_child_count() > 10, "dust, debris and cobwebs lie in the hut")
 	# The hut from outside.
 	var front := mine.cell_world(41, 24)
 	if shots != "":
@@ -159,6 +176,8 @@ func _run() -> void:
 	var page: Dictionary = pages[0]
 	game._use_station(page)
 	check(game.lore.has(LostMine.NOTES[0][0]), "a page read goes into the compendium")
+	game._use_station(beds[0])
+	check(game.player.global_position.y < -1.0, "the bed only warns: the hero stays where they are")
 	game._use_station(gates[0])
 	check(game.lore.has(LostMine.GATE_FIRST), "the gate is looked at")
 	check(level.station_at(gates[0].pos + Vector3(0, 0.5, 0)).get("kind", "") == LostMine.GATE, "the gate is run into down there")

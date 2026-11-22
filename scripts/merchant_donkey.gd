@@ -25,6 +25,7 @@ var _left := 0.0
 
 func _ready() -> void:
 	_rng.seed = hash("zarek esel")
+	OffscreenAnim.watch(self, 1.5)
 	var model: Node3D = load(MODEL).instantiate()
 	model.name = "Model"
 	model.scale = Vector3.ONE * SCALE

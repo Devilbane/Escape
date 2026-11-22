@@ -66,6 +66,9 @@ const RECT_TOOLS := [TOOL_DIG, TOOL_COVER, TOOL_SLAB, TOOL_SADDLE]
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss"}
 const SLAB_COLOR := Color(0.9, 0.75, 0.4, 0.7)
 const ROOF_COLOR := Color(0.55, 0.22, 0.16)
+## An empty house's old roof (see HouseSketch.abandoned): weathered grey, and moss on it.
+const OLD_ROOF := Color(0.33, 0.27, 0.24)
+const MOSS := Color(0.24, 0.32, 0.17)
 const SURFACE_NAMES := {"": "roh", "stone": "aus Stein", "wood": "aus Holz"}
 const COVER_COLOR := Color(0.75, 0.6, 0.35, 0.8)
 const DIG_COLOR := Color(0.9, 0.55, 0.15, 0.8)
@@ -124,6 +127,8 @@ const DIG_SECONDS := 3.0
 const BUILD_RANGE := 16.0
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
 const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
+## What is left of the panes of an empty house: dull, dirty glass.
+const BROKEN_GLASS := Color(0.32, 0.36, 0.36, 0.55)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
 const BALLISTA_COLOR := Color(1.0, 0.6, 0.3, 0.6)
 ## How much thicker a ghost is drawn over a built piece on the same edge.
@@ -217,6 +222,11 @@ var _vault_props: Node3D = null
 ## Where the next drawn box goes: the houses' own pieces, or the mine's.
 var _into: Node3D = _solid
 var _open_into: Node3D = _solid
+## Whether the house being drawn stands empty (see HouseSketch.abandoned): dark, broken panes.
+var _abandoned := false
+## The forgotten mine's hut inside: dust, debris, cobwebs and a little cold light (see
+## LostMine.furnish_hut), shown while the hero is up on the ground.
+var _hut_props: Node3D
 
 
 func _ready() -> void:
@@ -254,6 +264,8 @@ func _process(delta: float) -> void:
 	_update_fade()
 	if deep.visible != cellar_view.active:
 		deep.visible = cellar_view.active
+	if _hut_props != null and _hut_props.visible == cellar_view.active:
+		_hut_props.visible = not cellar_view.active
 	if cellar_view.active and game.player != null and LostMine.holds(game.player.global_position):
 		LostMine.entered(game)
 	if active:
@@ -1350,6 +1362,7 @@ func _redraw() -> void:
 	for entry: Array in houses:
 		var house: HouseSketch = entry[0]
 		var own: bool = entry[1]
+		_abandoned = house.abandoned
 		if house == mine or house == vault or _has_floors(house):
 			floored.append(house)
 		# The mine's hundreds of dug cells are drawn once (see _draw_mine): only its hut's pieces
@@ -1406,6 +1419,12 @@ func _redraw() -> void:
 	(game.level as Outdoor).shelters = shelters
 	game.level.set_floor_holes(holes, ceilinged, buried)
 	cellar_view.holes = holes
+	if _hut_props == null:
+		_hut_props = Node3D.new()
+		_hut_props.name = "EmptyHut"
+		add_child(_hut_props)
+		LostMine.furnish_hut(_hut_props)
+		LostMine.furnish_yard(game.level, _hut_props)
 	if _deep_props == null:
 		_deep_props = Node3D.new()
 		_deep_props.name = "LostMine"
@@ -1759,7 +1778,14 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool) -> void:
 	var colour := DEMOLISH_COLOR if demolish else ROOF_COLOR
 	var across := Vector3(0, 0, half) if ridge_x else Vector3(half, 0, 0)
 	var peak := mid + Vector3(0, eave + rise, 0)
+	# An empty house's roof is old: grey and mossy, and here and there a board has fallen in.
+	var cx := floori(mid.x / HouseSketch.CELL)
+	var cz := floori(mid.z / HouseSketch.CELL)
+	if _abandoned and not demolish:
+		colour = OLD_ROOF.lerp(MOSS, 0.55 if posmod(cx + cz, 2) == 0 else 0.15)
 	for sign_ in [-1.0, 1.0]:
+		if _abandoned and not demolish and posmod(cz if ridge_x else cx, 3) == 1 and posmod((cx if ridge_x else cz) + (1 if sign_ > 0.0 else 0), 3) == 0:
+			continue
 		_slanted(mid + across * sign_ + Vector3(0, eave, 0), peak, HouseSketch.CELL, 0.15, colour, true)
 	var along := Vector3(half - 0.05, 0, 0) if ridge_x else Vector3(0, 0, half - 0.05)
 	for sign_ in [-1.0, 1.0]:
@@ -2143,9 +2169,18 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	# The glass is the villagers' panes: dark by day, lit in the evening until
 	# bedtime (see WindowLights). Shut shutters cover the glow.
 	var glass: Material = _solid_material(GLASS_COLOR)
-	if not demolish and game != null and game.level is Outdoor:
+	if not demolish and not _abandoned and game != null and game.level is Outdoor:
 		glass = (game.level as Outdoor)._house_glass()
-	_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, opening - 0.1, high, 0.03), glass)
+	if _abandoned:
+		# An empty house: no light behind the panes, and most of the glass is gone. Shards are
+		# left in the corners of the frame.
+		var shard := _solid_material(BROKEN_GLASS)
+		var pane_w := opening - 0.1
+		_visual_box(mid + axis * (-pane_w * 0.34) + Vector3(0, SILL + high * 0.18, 0), _along(axis, across, pane_w * 0.32, high * 0.36, 0.03), shard)
+		_visual_box(mid + axis * (-pane_w * 0.4) + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, pane_w * 0.2, high * 0.28, 0.03), shard)
+		_visual_box(mid + axis * (pane_w * 0.36) + Vector3(0, SILL + high * 0.84, 0), _along(axis, across, pane_w * 0.28, high * 0.3, 0.03), shard)
+	else:
+		_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, opening - 0.1, high, 0.03), glass)
 	_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, 0.05, high, 0.06), wood)
 	_visual_box(mid + Vector3(0, SILL + high * 0.55, 0), _along(axis, across, opening - 0.1, 0.05, 0.06), wood)
 	# The pane itself stops the hero too: a window is no way through.

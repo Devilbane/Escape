@@ -193,7 +193,7 @@ func _at_night() -> void:
 	var guard := _villager("4")
 	if guard != null:
 		guard._mind_torch(0.1)
-		check(guard.carries_torch() and guard._torch_light.visible and guard._torch_light.light_energy > 1.0, "the guard keeps watch with a burning torch")
+		check(guard.carries_torch() and guard._torch_light.visible and guard._torch_light.light_energy > Villager.TORCH_ENERGY * 0.7, "the guard keeps watch with a burning torch")
 		check(guard._torch_hidden.all(func(n): return not n.visible), "the guard puts away his shield to hold the torch")
 	var drinker := _villager("5")
 	if drinker != null:

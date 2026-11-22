@@ -256,6 +256,25 @@ static func sack() -> Node3D:
 	return root
 
 
+## A sack of flour or grain from the mill: rough brown cloth, squat and full, tied at the top.
+static func flour_sack() -> Node3D:
+	var root := Node3D.new()
+	root.name = "FlourSack"
+	var cloth := _plain("millsack", Color(0.55, 0.45, 0.32))
+	var body := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.2
+	mesh.bottom_radius = 0.27
+	mesh.height = 0.62
+	body.mesh = mesh
+	body.material_override = cloth
+	body.position.y = 0.31
+	root.add_child(body)
+	_cylinder(root, 0.07, 0.12, Vector3(0, 0.67, 0), cloth)
+	_cylinder(root, 0.08, 0.03, Vector3(0, 0.64, 0), _plain("twine", Color(0.3, 0.22, 0.14)))
+	return root
+
+
 ## A shelf `wide` x `high` and `deep`, its back on the wall (at -z); with `goods` its boards carry
 ## jars, bundles and loaves.
 static func shelf(wide: float, high: float, deep: float, goods := false) -> Node3D:
@@ -321,7 +340,7 @@ static func sign_board(kind: String, out: float) -> Node3D:
 	for z: float in [-0.2, 0.2]:
 		_box(board, Vector3(0.02, 0.12, 0.02), Vector3(0, 0.3, z), iron)
 	var mark := _plain("sign_" + kind, {"tavern": Color(0.85, 0.65, 0.2), "shop": Color(0.9, 0.75, 0.45), "post": Color(0.95, 0.8, 0.25),
-			"office": Color(0.93, 0.9, 0.8), "guild": Color(0.7, 0.2, 0.15)}.get(kind, Color.WHITE), 0.5)
+			"office": Color(0.93, 0.9, 0.8), "guild": Color(0.7, 0.2, 0.15), "mill": Color(0.92, 0.78, 0.35)}.get(kind, Color.WHITE), 0.5)
 	for x: float in [-0.03, 0.03]:
 		match kind:
 			"tavern":
@@ -339,6 +358,11 @@ static func sign_board(kind: String, out: float) -> Node3D:
 				# A red shield with a pale axe across it.
 				_box(board, Vector3(0.02, 0.26, 0.26), Vector3(x, 0.02, 0.0), mark)
 				_box(board, Vector3(0.025, 0.3, 0.04), Vector3(x, 0.0, 0.0), _plain("axe_haft", Color(0.85, 0.8, 0.7)), Basis(Vector3.RIGHT, 0.6))
+			"mill":
+				# A golden sheaf of wheat: three stalks fanning out, bound in the middle.
+				for tilt: float in [-0.35, 0.0, 0.35]:
+					_box(board, Vector3(0.02, 0.3, 0.03), Vector3(x, 0.0, 0.0), mark, Basis(Vector3.RIGHT, tilt))
+				_box(board, Vector3(0.025, 0.04, 0.1), Vector3(x, -0.02, 0.0), _plain("twine", Color(0.3, 0.22, 0.14)))
 			_:
 				_box(board, Vector3(0.02, 0.06, 0.3), Vector3(x, 0.0, 0.0), mark)
 				_box(board, Vector3(0.02, 0.18, 0.08), Vector3(x, 0.02, 0.17), mark)
@@ -401,6 +425,34 @@ static func weapon_rack(wide: float) -> Node3D:
 		else:
 			_box(root, Vector3(0.04, 1.1, 0.04), Vector3(x, 0.7, 0.02), wood)
 			_box(root, Vector3(0.2, 0.18, 0.02), Vector3(x + 0.08, 1.15, 0.02), iron)
+	return root
+
+
+## A pair of millstones on a timber frame under a wooden hopper, with the shaft rising from the
+## runner stone up to the ceiling (to the sails above). The runner turns while the sails do
+## (see Windmill): it is the child named "Runner".
+static func millstones() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Millstones"
+	var wood := _wood()
+	var stone := _plain("millstone", Color(0.42, 0.41, 0.39), 0.95)
+	# The frame (a low box of planks) and the bed stone in it.
+	_box(root, Vector3(1.7, 0.5, 1.7), Vector3(0, 0.25, 0), wood)
+	_cylinder(root, 0.72, 0.18, Vector3(0, 0.59, 0), stone)
+	var runner := Node3D.new()
+	runner.name = "Runner"
+	runner.position = Vector3(0, 0.68, 0)
+	root.add_child(runner)
+	_cylinder(runner, 0.7, 0.2, Vector3(0, 0.1, 0), stone)
+	_cylinder(runner, 0.12, 0.04, Vector3(0, 0.21, 0), _plain("iron", Color(0.22, 0.22, 0.24), 0.5))
+	_box(runner, Vector3(0.9, 0.06, 0.1), Vector3(0, 0.22, 0), wood)
+	# The hopper on four legs over the stones, and the shaft up through it.
+	for x: float in [-0.55, 0.55]:
+		for z: float in [-0.55, 0.55]:
+			_box(root, Vector3(0.08, 0.8, 0.08), Vector3(x, 1.1, z), wood)
+	_box(root, Vector3(0.9, 0.45, 0.9), Vector3(0, 1.65, 0), wood)
+	_box(root, Vector3(0.55, 0.06, 0.55), Vector3(0, 1.42, 0), wood)
+	_cylinder(root, 0.09, 2.6, Vector3(0, 2.3, 0), wood)
 	return root
 
 

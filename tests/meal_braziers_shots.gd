@@ -69,7 +69,7 @@ func _run() -> void:
 		await _shoot("braziers_%02d_wide" % int(hour), middle, Vector3(-3, 11, 15), Vector3(0, 1.0, 0))
 		await _shoot("braziers_%02d_close" % int(hour), middle, Vector3(-9.5, 2.6, 5.0), Vector3(-5.5, 1.0, 0))
 	game.camera.make_current()
-	game.player.global_position = meals.tables[0] + Vector3(-3.5, 0, 3.0)
+	game.player.global_position = middle + Vector3(0, 0, -4.0)
 	game.player.reset_physics_interpolation()
 	await _wait(90)
 	if shots != "":

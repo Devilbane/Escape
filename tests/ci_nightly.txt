@@ -1,0 +1,178 @@
+# Tests that run every night (and by hand: Actions > Tests > Run workflow), not on every pull request: looks and
+# screenshots, sounds, ambient life (villagers, animals, birds, weather) and timing-based simulations. They never
+# block a merge. A pull request that changes one of these test files still runs it, as a warning only.
+# Run them locally with tests/ci_shard.sh nightly 0 1. Same columns as tests/ci_manifest.txt.
+fitted_chest.gd | 120 | free | passfail | Chests with metal fittings: three styles, kit size, lid swings up, loot chests by worth
+entrance_textures.gd | 120 | free | pass | Dungeon entrances are aged and textured
+loot_text_size.gd | 60 | free | pass | Loot and experience text sized by worth
+cobwebs.gd | 300 | fixed | pass | Cobwebs (spread out, off grates, doors and corridor floors)
+wall_height.gd | 300 | fixed | passfail | Walls at full height (only the stretch in front of the hero turns see-through)
+level_warmup.gd | 120 | free | pass | Level warm-up (no hitch when a level starts)
+world_preload.gd | 120 | free | pass | Village preload (ready behind the title screen)
+loot_fanfare.gd | 60 | free | pass | Loot fanfares (epic and god-born gear ring out)
+rarity_colours.gd | 120 | free | pass | Rarity colours (item names in the colour of their tier)
+coin_metals.gd | 120 | fixed | pass | Coins look like their metal (copper, iron, polished silver, blinking gold)
+village_worries.gd | 120 | free | pass | Villagers grumble about the weather and take fright test
+drinking_songs.gd | 120 | free | pass | Fritz sings drinking songs test
+village_rumours.gd | 120 | free | pass | Townsfolk small talk, rumours and stories test
+grate_tentacles.gd | 300 | fixed | pass | Grate tentacles test
+reputation.gd | 120 | free | pass | Villager reputation test
+crafting_square.gd | 300 | fixed | pass | Crafting square test
+fox.gd | 400 | fixed | pass | Fox companion test
+fountain.gd | 120 | fixed | pass | Refuge fountain gives 5 life per drink test
+bloated_belly.gd | 120 | fixed | pass | Drinking too much at the village fountain swells the belly test
+seats.gd | 200 | fixed | passfail | Sitting on the benches of the market square test
+bench_rest.gd | 200 | free | passfail | Idle townsfolk now and then rest on the fountain benches, one to a bench, and get up again
+slime_growth.gd | 300 | fixed | pass | Growing slimes test (colours, sizes, swallowing, corpses, Blobs)
+slime_tricks.gd | 300 | fixed | pass | Slime tricks test (half damage from shots, slimed attackers, spit)
+slime_prey.gd | 300 | fixed | pass | Slime prey test (townsfolk and animals, fighting back, hiding, coming back out)
+village_wall.gd | 300 | fixed | pass | Village wall test (gates, slimes eating the wall, the stonemason mending it)
+wall_cracks.gd | 300 | free | pass | Wall cracks test (three crack stages that grow with a brick's damage)
+village_arms.gd | 300 | fixed | pass | Village arms test (weapons for each villager, Pip's knives, the priestess heals)
+townsfolk_look.gd | 60 | free | passfail | Every villager has a look of their own (skin, haircut, glasses, hat colour)
+slime_belly.gd | 300 | fixed | pass | Slime belly test
+drip_puddles.gd | 120 | fixed | pass | Drip puddles test (a step into one splashes)
+barber.gd | 120 | free | pass | Barber test
+cape_wardrobe.gd | 120 | fixed | pass | Cape wardrobe test (the house's wardrobe, the cape back designs, saved choice)
+post_cap.gd | 120 | fixed | PASS:_post_cap | Postmaster's cap test
+dreadlocks.gd | 120 | fixed | PASS:_dreadlocks | Guild Master Ragna's dreadlocks test
+playtest_map.gd | 180 | free | pass | Testing a map from the workshop
+window_buttons.gd | 120 | free | pass | Window buttons, hover and keyboard focus test
+bronze_frames.gd | 120 | free | pass | Bronze frames test
+item_icons.gd | 120 | free | pass | Item icons test
+character_page.gd | 120 | free | pass | Character page test
+npc_names.gd | 120 | free | pass | Villager names after a talk test
+bump_hint.gd | 120 | free | pass | Explanatory hints shown only twice test
+npc_speech_cooldown.gd | 120 | free | pass | Villager speech cooldown test
+npc_speech_overlap.gd | 120 | free | pass | Villager speech overlap test
+wild_bandits.gd | 120 | fixed | pass | Wild bandits on the robbers' pass test
+wild_beasts.gd | 120 | fixed | pass | Beasts of the wolf hollow test
+spider_webs.gd | 120 | fixed | pass | Spider webs test
+ghosts.gd | 180 | fixed | pass | Ghosts and ghouls test
+animals.gd | 120 | fixed | pass | Peaceful animals of the woods test
+dragon_flyover.gd | 120 | fixed | passfail | Dragon flies over the open air test
+corpses.gd | 120 | fixed | pass | Corpses stay and rot away test
+dead_eyes.gd | 120 | fixed | pass | Crossed-out eyes of the dead test
+horrors.gd | 300 | fixed | pass | Dark holes, torches and horrors test
+elementals.gd | 120 | free | pass | Elementals and golems test
+elemental_fights.gd | 300 | fixed | pass | Elementals and golems fight test
+monster_lore.gd | 180 | fixed | pass | Monster lore test
+vital_circle.gd | 180 | fixed | pass | Vital blow circle (the weapon swings a full circle, streak follows, no time lost)
+vital_star.gd | 180 | fixed | pass | Vital blow star (blood-red wobbling star, short-lived)
+heroine.gd | 120 | free | pass | Hero or heroine test
+damage_numbers.gd | 120 | fixed | pass | Damage numbers over the head test
+message_overlap.gd | 120 | fixed | pass | Messages never cover each other test
+event_log.gd | 120 | free | pass | Event log test
+crates.gd | 120 | fixed | pass | Crates and food basket test
+stones.gd | 120 | fixed | pass | Building with stone blocks test
+steel.gd | 120 | fixed | pass | Steel test
+hud_drawer.gd | 120 | fixed | pass | Pull-out button menu test
+perf_overlay.gd | 120 | fixed | pass | Performance plate on F1 (FPS, CPU/GPU graphs, ping)
+hud_tooltips.gd | 120 | fixed | pass | HUD tooltips test
+quick_bar.gd | 120 | fixed | pass | Quick window icons and quests window test
+music.gd | 120 | fixed | pass | Background music test
+dungeon_sounds.gd | 120 | fixed | pass | Eerie dungeon sounds test
+weapon_sounds.gd | 120 | fixed | pass | Sword and axe sounds test
+day_night.gd | 120 | fixed | pass | Day and night test
+wandering_merchant.gd | 120 | fixed | pass | Wandering merchant test
+weather.gd | 120 | fixed | pass | Weather test
+snow.gd | 180 | fixed | pass | Snow (snowfall, the snow layer and its melting, footprints, cold breath)
+snow_play.gd | 300 | fixed | pass | Play in the snow (snowball fights, one snowman that melts)
+puddles.gd | 120 | fixed | pass | Rain puddles test
+surfaces.gd | 120 | fixed | pass | Walking speed by ground test
+village_buildings.gd | 120 | fixed | pass | Village houses and chapel test
+house_doors.gd | 120 | fixed | pass | House doors swing open before anyone goes in
+walk_in.gd | 300 | fixed | passfail | Walk-in village houses and temple (doors, hidden roof, beds for the villagers, switches off)
+village_halls.gd | 300 | fixed | passfail | Walk-in halls: tavern, shop, post office, Crown office and guildhall rebuilt, keepers behind their counters, switches off
+quarry_rocks.gd | 120 | fixed | pass | Breaking stone at the quarry: stone blocks in the bag, rubble until morning
+nest_chicks.gd | 120 | fixed | pass | Eggs and chicks in the village nests (begging, fed by parents and the hero)
+bird_feeding.gd | 180 | fixed | pass | Villagers feed the birds (seed scattered, birds peck and perch on the feeder)
+frozen_fritz.gd | 240 | fixed | pass | Fritz freezes on the market square in the snow (no singing, birds perch on him, thaws)
+journal.gd | 120 | free | pass | Map and journal test
+map_zoom.gd | 120 | free | passfail | Map zoom (wheel, keys, buttons, drag) and houses on the map
+home_run.gd | 300 | fixed | passfail | Run home test (the home button and the way home)
+wishes.gd | 120 | free | pass | Wishes and fighting style test
+crystals.gd | 300 | fixed | passfail | Crystal mining test
+fishing.gd | 120 | free | pass | Fishing test
+home_upgrades.gd | 120 | fixed | pass | Home upgrades test
+home_hoard.gd | 120 | fixed | pass | Home hoard and benches test
+home_stores.gd | 120 | fixed | pass | Home stores test
+traps.gd | 200 | fixed | pass | Hidden traps test
+flame_jets.gd | 200 | fixed | pass | Flame jets test
+surface_life.gd | 200 | fixed | pass | Life on the ground above test
+tree_light.gd | 200 | fixed | pass | Tree light (the trees are lit by the lanterns near them)
+woodcutter.gd | 200 | fixed | pass | The woodcutter chops a trunk, not the air
+smith.gd | 200 | fixed | pass | The smith hammers iron on his anvil, not the air
+windmill.gd | 200 | fixed | pass | Windmill sails turn with the wind and whoosh test
+flag_wind.gd | 200 | fixed | pass | Flags and banners flutter in the wind, more in a storm
+kit_wood_grain.gd | 60 | fixed | pass | The wood of the village buildings has its grain along every beam
+bookshelf.gd | 120 | fixed | passfail | bookshelf in the cellar of every town house (see Bookshelf and
+chat_line.gd | 120 | fixed | passfail | hero's chat line under the event log (see ChatLine,
+chimney_smoke.gd | 120 | fixed | passfail | evening smoke from the village chimneys (see
+coin_piles.gd | 120 | fixed | passfail | coin piles (CoinPile). Coins of one metal that come down on
+coin_shine.gd | 120 | fixed | passfail | gold glints (CoinShine). Coins on the floor, the heaps of
+comic_placement.gd | 120 | fixed | passfail | comic bubbles sit close to the fight without covering it
+companions.gd | 120 | fixed | passfail | hero's companions (see Companions): a doe and a stag
+creature_skin.gd | 120 | fixed | passfail | the wild's creatures get a skin of their own
+effects_volume.gd | 120 | fixed | passfail | sound effects volume: the effects play through their
+event_log_frame.gd | 120 | fixed | passfail | the event log shows only its text over the world. Its dark
+event_log_width.gd | 120 | fixed | passfail | event log's width slider in the pull-out menu (see
+exploration.gd | 120 | fixed | passfail | Erkunden (exploring) skill: it needs no gear, a
+grates_clear.gd | 120 | fixed | passfail | floor grates: nothing is placed on one. On every
+guard_watch.gd | 120 | fixed | passfail | town guard's watch on the west gate (see GuardWatch):
+hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new game shows the
+message_over_head.gd | 120 | fixed | passfail | messages float just over the hero's head and are written
+moon.gd | 120 | fixed | passfail | moon: its phases run on the game's day counter
+puddle_sound.gd | 120 | fixed | passfail | a step into a nearly dried-out puddle gives a soft squelch
+shop_signs.gd | 120 | fixed | passfail | shop signs: a name that fits on the board is written
+hanging_sign_shots.gd | 180 | fixed | passfail | Hanging shop signs: every hall, the smithy and the bank hang a big shield high enough to walk under
+shop_front_shots.gd | 180 | fixed | passfail | Shop fronts: every hall sets out its wares beside its door, the way in and the street stay free, the bank has its strongbox
+slime_bar.gd | 120 | fixed | passfail | slime's health bar and level (see SlimeBar): a calm
+slime_sounds.gd | 120 | fixed | passfail | slimes' sounds (tools/make_slime_sounds.py,
+speech_bubble.gd | 120 | fixed | passfail | Headless test that spoken lines show in a compact multi-row speech bubble
+surface_detail.gd | 120 | fixed | passfail | villagers, bandits and skeletons show what they are made
+ui_wheel.gd | 120 | fixed | passfail | the mouse wheel over an open window scrolls the window, never
+village_bell.gd | 120 | fixed | passfail | village's warning bell (tools/make_bell_sounds.py,
+village_talk.gd | 120 | fixed | passfail | villagers talking to each other (see VillageTalk):
+meal_garland.gd | 200 | free | passfail | Dining-area frame: tall ivy poles and ropes with lamps round the tables, lit at night, clear of every path
+meal_braziers.gd | 200 | free | passfail | Winter braziers by the dining tables: only in winter, lit, clear of seats and paths
+villager_post.gd | 120 | fixed | passfail | villager windows stay shut during an alarm or away from the post (VillagerPost)
+wall_caps.gd | 120 | fixed | passfail | wall caps (WallCaps): every dungeon wall that touches a room gets
+war_horn.gd | 120 | fixed | passfail | village's alarm horn (tools/make_horn_sounds.py,
+weathered_props.gd | 120 | fixed | passfail | weathered props of the village (see WeatheredProps
+lava_cracks.gd | 120 | fixed | lava_cracks:_all_checks_passed | glowing ember cracks ("~") of the ember tunnels
+townsfolk_strength.gd | 120 | fixed | :_OK | the townsfolk can put up a real fight against a Blob of
+wall_themes.gd | 120 | fixed | :_ok | cave styles of walls and floors (WallThemes, header
+woods_life.gd | 180 | fixed | pass | Woods wildlife (birds in the treetops, squirrels that run up their trees)
+village_farm.gd | 300 | fixed | pass | Village geese, goats and dogs (wander, never block a door, bolt or greet, rest at night, Pip minds the goats)
+pips_friend.gd | 300 | fixed | pass | Pippi, Pip's red-haired friend with pigtails and freckles (herds geese and goats, plays and chats with Pip, blocks no way)
+kid_play.gd | 600 | fixed | passfail | Pip and Pippi play (chase, cartwheels, somersaults; never at night, in an alarm, into walls or the hero)
+goat_model.gd | 60 | free | passfail | The village goats are the sheep model dressed as goats (horns, red horns for the red-horned one, smooth coat)
+red_goat.gd | 120 | fixed | passfail | Red-horned goat (winds up and shouts, bumps without harm, retreats after 3 bumps, 10 minute cooldown, cannot be hurt)
+townsfolk_steps.gd | 60 | free | pass | Townsfolk footsteps (ground, volume, distance and crowd cap)
+window_spill.gd | 60 | free | pass | Lit windows throw a pool of light on the ground (see WindowSpill)
+chapel_spill.gd | 60 | free | pass | The temple windows throw coloured pools outside (see ChapelSpill)
+glowworm_swarms.gd | 120 | fixed | passfail | glowworm swarms roaming the open air at night (more in the village, none by day or indoors)
+home_fireplace.gd | 60 | free | pass | Hero's house: a fireplace with flames and light on every storey but the cellar
+lightning_strike.gd | 120 | fixed | pass | Lightning glows, scares and hurts what it strikes
+place_monsters.gd | 60 | free | pass | Compendium places list their monsters' level range
+turning.gd | 60 | free | pass | Natural turns (limited turn rate, arcs)
+frozen_ponds.gd | 120 | free | pass | Frozen ponds with one fishing hole
+winter_wear.gd | 120 | fixed | PASS:_winter_wear | Winter clothes for the villagers
+house_sketcher.gd | 120 | free | pass | Blueprint tool: sign, drag a wall, door, eraser, undo
+garden_wall_shots.gd | 120 | fixed | passfail | Garden walls: stone wall, wooden fence and gates get built, the blueprint bar still fits
+bare_earth.gd | 120 | fixed | passfail | Bare earth: a bare cellar looks like dug soil (varied, shared material)
+cellar_view.gd | 120 | fixed | passfail | Cellar view: down in a cellar the surface hides and earth surrounds it, climbing out brings it back
+bank_vault.gd | 240 | fixed | passfail | Bank and vault cellar on the map: stone bank with stairs down, lockers behind bars, own locker opens, no plots over it, switch off
+house_looks_shots.gd | 120 | fixed | passfail | House looks: stone walls, flagstone and plank floors, stair-board walls
+ivy_seasons.gd | 120 | free | passfail | The vines on the houses follow the seasons (autumn colours, snowy and grapeless in winter)
+window_shutters.gd | 180 | fixed | passfail | Built windows: wooden frame, shutters on the outside face, E shuts and opens them, kept in the plan
+house_ballista.gd | 120 | fixed | passfail | House ballista: planned on the ground or a flat roof, built after its roof, shoots slimes in reach and winds up again
+house_garden.gd | 120 | free | passfail | House garden: flowers, garden torches, a lamp and a grill stand only outdoors on the plot, light it at night, follow the seasons, and the grill cooks food into life
+apple_tree.gd | 120 | free | passfail | Apple tree: a garden seedling grows by the seasons into a tree, keeps its age, blossoms, bears apples to pick in summer and autumn, bare in winter
+fern.gd | 180 | free | passfail | Ferns and spruces: a low fern and slim spruces light to draw, the spruce stand in Die Freiheit, ferns in the shade along the forest edge, never on a plot
+light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
+autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushes shed their leaves in autumn, and fallen leaves in the ivy's autumn colours lie spread over the ground
+stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone
+wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
+offscreen_anim.gd | 180 | fixed | pass | Off-screen bodies step their animations coarsely and catch up in view

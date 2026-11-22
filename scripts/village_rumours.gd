@@ -63,7 +63,7 @@ const SMALL_TALK := [
 ## "after_tell" and "after_chat" are said instead. "not": roles left out of
 ## the chats.
 const RUMOURS := {
-	"drache": {"who": ["3", "5", "7", "G", "%"], "slain": "drache",
+	"drache": {"who": ["3", "5", "7", "G", "%", "ü"], "slain": "drache",
 		"tell": ["Man sagt, unter dem Steinbogen im Wald schläft ein Drache auf einem Berg aus Gold.",
 			"Nachts fliegen kleine Drachen aus dem Steinbogen und tragen fort, was draußen herumliegt. Lass nichts liegen!"],
 		"chat": [["Hast du die kleinen Drachen gesehen, nachts über dem Wald?", "Sie tragen alles zum Steinbogen. Für den großen Drachen, heißt es.", "Dann lasse ich nie wieder etwas draußen liegen."]],
@@ -100,7 +100,7 @@ const RUMOURS := {
 	"grauen": {"who": ["3", "4", "O"],
 		"tell": ["In den finsteren Löchern draußen in der Wildnis atmet etwas. Etwas Riesiges, das keinen Namen hat. Geh da nicht allein hin."],
 		"chat": [["In den Löchern draußen atmet etwas. Ich hab es gehört.", "Das warst du selbst, vor lauter Angst.", "Lach nur. Du warst noch nie dort."]]},
-	"wanderer": {"who": ["5", "6", "K", "µ"],
+	"wanderer": {"who": ["5", "6", "K", "µ", "ü"],
 		"tell": ["Jede dritte Nacht kommt ein Händler mit einem Karren ins Dorf. Er hat Dinge, die es sonst nirgends gibt."],
 		"chat": [["Der Wanderhändler war wieder da. Mitten in der Nacht.", "Hast du was gekauft?", "Mondsilber. Ich weiß nicht einmal, wofür."]]},
 	"tentakel": {"who": ["4", "8", "9"],

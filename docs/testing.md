@@ -3,16 +3,47 @@
 Tests are headless Godot scripts in `tests/`: `godot --headless -s tests/<name>.gd` (add
 `--fixed-fps 60` for tests that move bodies). A test prints `PASS` when it is happy.
 
+## What goes in the required check
+
+Every pull request waits for the required check, so it holds only what is worth that wait. When you add a test,
+put it in one of three lists:
+
+- **Required, `tests/ci_manifest.txt`:** fast, deterministic tests of core logic. Saving and loading, combat,
+  items, trading and crafting, collisions and getting stuck, and the checks that keep the data whole (map letters,
+  monster families, English texts, the event bus, the map workshop's `validate()`). Keep each under about 30 s,
+  seed its randomness and wait for events, not wall time.
+- **Quests, `tests/ci_quests.txt`:** the tests of a quest or dungeon once it is finished. Each line names the
+  paths it covers (its scripts and maps); a pull request runs the test in the required check only when it touches
+  one of them or the test file itself. While a quest is still being built, keep its test in the manifest and move
+  it here when it is done.
+- **Nightly, `tests/ci_nightly.txt`:** looks and screenshots, sounds, ambient life (villagers, animals, birds,
+  weather, seasons), timing-based simulations and everything else that is not core logic. They run every night
+  and never block a merge.
+
+A test listed nowhere also runs every night, with the defaults (120 s, `--fixed-fps 60`, PASS and no FAIL).
+When in doubt, choose nightly: a missed nightly failure costs a day, a slow or flaky required test costs every
+pull request. Move a required test that turns flaky to the nightly list until it is fixed.
+
 ## Fast checks: every pull request and every push to main
 
-`.github/workflows/web.yml` runs the tests in parallel shards, so a pull request gets its answer in minutes
-instead of half an hour. The tests that block are listed in `tests/ci_manifest.txt` (file, timeout, whether
-it needs `--fixed-fps 60`, how it counts as passed); `tests/ci_shard.sh` splits them into 8 shards in a matrix
-by their measured length (`tests/ci_timings.txt`): longest first, each to the shard with the least work so far, so
-all shards end at about the same time. A test missing from that file counts as 15 s. Refresh it now and then
-from a run's logs (Actions > a run > Download log archive, unpack, then
-`python3 tools/ci_timings.py <folder>/*.txt`); an outdated file only makes the split less even, never wrong.
-The same script runs locally: `tests/ci_shard.sh blocking 0 1` runs them all.
+`.github/workflows/web.yml` runs the required tests in parallel shards, so a pull request gets its answer in
+minutes. The `scope` job looks at the changed files (`tests/ci_select.sh`) and picks:
+
+- the required tests in `tests/ci_manifest.txt` (file, timeout, whether it needs `--fixed-fps 60`, how it counts
+  as passed), always;
+- the quest tests in `tests/ci_quests.txt` whose paths or test file changed; they join the required shards and
+  block like the rest;
+- as a warning only, the other test files the change touched (a new test, or an edited nightly one), in one
+  `extra-tests` job that starts after `tests` has reported, so it never takes a runner the required shards need.
+
+`tests/ci_shard.sh` splits the required tests into 6 shards in a matrix by their measured length
+(`tests/ci_timings.txt`): longest first, each to the shard with the least work so far, so all shards end at about
+the same time. A test missing from that file counts as 15 s. Refresh it now and then from a run's logs (Actions >
+a run > Download log archive, unpack, then `python3 tools/ci_timings.py <folder>/*.txt`); an outdated file only
+makes the split less even, never wrong. The same script runs locally: `tests/ci_shard.sh blocking 0 1` runs the
+required tests, `CI_QUESTS=all tests/ci_shard.sh blocking 0 1` adds every quest test and
+`tests/ci_shard.sh nightly 0 1` runs the rest. To see what a branch would pick:
+`git diff --name-only origin/main...HEAD | tests/ci_select.sh`.
 
 Every job also restores the imported project (`.godot`) from the cache that pushes to main store
 (`.github/actions/godot-setup`), so the import only handles what changed.
@@ -23,22 +54,22 @@ bug in the test: seed the randomness (`seed(n)` in `_initialize`), wait for even
 wall time, and read values such as `max_hit()` before the blow that trains a skill.
 
 A pull request that changes only documentation (`docs/`, `balance/`, `*.md`) skips the shards; `tests` still
-reports green. The full suite, extra shards included, also runs every night on main.
+reports green.
 
-Every other `tests/*.gd` (not `profile_*.gd` and not the play-through) runs in 4 non-blocking `extra` shards.
-On a pull request they start only after `tests` has reported, so they never take a runner the blocking shards
-need (GitHub runs only so many jobs at once); on main and at night they run alongside the blocking shards.
-A new test therefore runs from the day it is added without an entry anywhere; it only warns until it has
-been run in CI for a while. Fix it and add a line to `tests/ci_manifest.txt` to make it block.
+## Nightly: everything
 
-Tests listed in `tests/ci_on_demand.txt` (now `slime_siege.gd`) are skipped by both the blocking and the extra
-shards, because they are slow or flaky in CI. They run only on demand: Actions > "On-demand tests" > Run
-workflow (`.github/workflows/on_demand_tests.yml`, optionally with one file name), or locally with
+Every night on main (and on a manual run: Actions > Tests > Run workflow, on any branch) the required shards run
+every quest test too, and 8 `nightly-tests` shards run the nightly list and every test listed nowhere. The
+nightly shards only warn. Check the nightly run now and then, and fix what it reports.
+
+Tests listed in `tests/ci_on_demand.txt` (now `slime_siege.gd`) are skipped by every shard, because they are slow
+or flaky in CI. They run only on demand: Actions > "On-demand tests" > Run workflow
+(`.github/workflows/on_demand_tests.yml`, optionally with one file name), or locally with
 `tests/ci_shard.sh on_demand 0 1`.
 
 The workflow is called "Tests". Its last job, `tests`, gathers the shards: it passes only when every blocking
 shard passed. That is the single check to require on pull requests, and the Windows build on main waits only
-for it (never for the play-through, the extra shards or the browser export). Adding or removing shards never
+for it (never for the play-through or the browser export; the extra and nightly shards only warn). Adding or removing shards never
 changes that name.
 
 Patch notes do not conflict: every PR adds its own file in `docs/patch_notes.d/` and the release workflow
@@ -67,7 +98,7 @@ away from the test shards). It runs
 Two pull requests that each pass alone can break main together. In the repository settings
 (Settings > Branches > branch protection rule for `main`, or Settings > Rules > Rulesets) turn on:
 
-1. **Require status checks to pass before merging**, with the single check `tests` (never `build`, `tests-shard (n)` or `extra-tests (n)`).
+1. **Require status checks to pass before merging**, with the single check `tests` (never `build`, `tests-shard (n)`, `extra-tests` or `nightly-tests (n)`).
 2. **Require branches to be up to date before merging** ("strict" status checks). A pull request that is behind main
    then has to be updated and re-tested before it can merge. Or, better when several pull requests land at once,
    **Require merge queue**: GitHub merges each pull request on top of the queue and tests that result.

@@ -13,9 +13,9 @@ extends RefCounted
 ## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
 
 ## The map letters of the halls and what they are.
-const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild"}
+const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild", "u": "mill"}
 ## Who keeps which hall (villager roles), working behind its counter or desk by day.
-const KEEPERS := {"shop": "6", "office": "¢", "guild": "G"}
+const KEEPERS := {"shop": "6", "office": "¢", "guild": "G", "mill": "ü"}
 ## How big a hall may grow (metres, inside its block): wider and deeper than a home, and the big
 ## halls on their three-by-three blocks bigger still.
 const MAX_W := 9.4
@@ -23,6 +23,8 @@ const MAX_D := 6.4
 const BIG := ["office", "guild"]
 const BIG_W := 9.8
 const BIG_D := 8.6
+## The mill's stone storey (metres across, square).
+const MILL_W := 6.4
 ## The desk of the Crown office and the guildhall: lower than a counter, and deeper.
 const DESK_HIGH := 0.85
 const DESK_DEEP := 0.8
@@ -40,6 +42,9 @@ const SIGN_ASIDE := 1.65
 
 ## The style a hall's VillageHouse is built in (see VillageHouse.build).
 static func style(ch: String) -> Dictionary:
+	if KINDS.get(ch, "") == "mill":
+		# A square stone storey under the kit's tower (see MillTower), no upper floor or roof.
+		return {"max_w": MILL_W, "max_d": MILL_W, "door_x": 0.0, "tower": true}
 	if KINDS.get(ch, "") in BIG:
 		return {"max_w": BIG_W, "max_d": BIG_D, "door_x": 0.0}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
@@ -85,6 +90,8 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 			_office(walk_in, rec, inside)
 		"guild":
 			_guild(walk_in, rec, inside)
+		"mill":
+			_mill(walk_in, rec, inside)
 
 
 ## Barrels along the back wall behind the bar, two tables with stools either side of the way in.
@@ -195,6 +202,32 @@ static func _guild(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		dummy.rotation.y = -0.5
 		inside.add_child(dummy)
 		walk_in._solid(rec, dummy.position + Vector3(0, 0.8, 0), Vector3(0.6, 1.6, 0.6))
+
+
+## The mill room: the millstones in the front corner on the left, under their hopper, with the
+## shaft up to the sails, sacks of flour and grain heaped by the right wall, and the miller behind
+## his counter at the back (see furnish).
+static func _mill(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var stones := WalkInFurniture.millstones()
+	var at := Vector3(room.position.x + 1.1, floor_y, room.end.y - 1.6)
+	stones.position = at
+	inside.add_child(stones)
+	walk_in._solid(rec, at + Vector3(0, 0.6, 0), Vector3(1.8, 1.2, 1.8))
+	rec["millstones"] = stones
+	# Sacks of flour and grain along the right wall, a crate beside them.
+	var right := room.end.x
+	for i in 4:
+		var sack := WalkInFurniture.flour_sack()
+		sack.position = Vector3(right - 0.4 - (i % 2) * 0.55, floor_y, room.end.y - 0.6 - (i / 2) * 0.75)
+		sack.rotation.y = 0.4 * i
+		inside.add_child(sack)
+	walk_in._solid(rec, Vector3(right - 0.65, floor_y + 0.4, room.end.y - 0.95), Vector3(1.2, 0.8, 1.5))
+	var crate := WalkInFurniture.crate(0.6)
+	crate.position = Vector3(right - 0.45, floor_y, room.position.y + 0.45)
+	inside.add_child(crate)
+	walk_in._solid(rec, crate.position + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.6))
 
 
 ## A bench along each side wall, facing in, a banner of `colour` above it.

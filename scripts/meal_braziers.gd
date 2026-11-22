@@ -1,22 +1,26 @@
 class_name MealBraziers
 extends RefCounted
-## In winter four iron braziers stand round the dining tables on the village
+## In winter iron braziers stand round the dining tables on the village
 ## square (see TownMeals) to warm the guests: a bowl of glowing coals on three
 ## legs, small flames and embers rising, a thin curl of smoke, and a warm light
 ## over the benches. They burn day and night all winter and are gone the rest of
 ## the year (set_winter; Outdoor.set_winter_wear calls it when winter comes and goes).
 ##
-## They stand at the ends of the tables, between the canopy posts, so they warm
-## the seats at both ends of each table and never stand in anyone's way: a table's
-## tile is blocked, so nobody walks through the ends of it, and the nearest paths
-## (along the next tile's middle, WalkRules.JITTER off at most) pass well clear.
-## The hero walks round them (a box that is only solid while they burn).
+## Each table has one behind its north bench, at the canopy's back left corner,
+## and one before its south bench, at the front right corner (CORNER), so between
+## them they warm both benches. They stand just past the ends of the benches, so
+## nobody stepping up to a seat passes them, and well off the paths along the next
+## tiles' middles (WalkRules.JITTER off at most). One more stands in the middle
+## between two neighbouring tables; while it burns, its tile is blocked
+## (block_paths), so the villagers walk round the tables instead of between them.
+## The hero walks round them all (a box that is only solid while they burn).
 ##
 ## Their lights are out in the open, so they never cast shadows and take no slot
 ## of LightShadows' budget. Snow does not settle round them (Outdoor.warm_spots).
 
-## Where a brazier stands: this far from its table's middle, along the table (metres).
-const END := 2.45
+## Where a brazier stands by its table: this far from the table's middle along it
+## (x) and across it (z), metres; north of the table to the west, south of it to the east.
+const CORNER := Vector2(1.95, 2.55)
 ## The brazier: how tall its rim stands, the bowl's radius at the rim and at its
 ## foot, and how far its three legs reach out.
 const RIM := 0.95
@@ -34,6 +38,9 @@ const LIGHT_COLOUR := Color(1.0, 0.55, 0.24)
 
 ## The braziers' feet (world positions).
 var spots: Array[Vector3] = []
+## The tiles the braziers between the tables stand on: blocked while they burn (see block_paths).
+var cells: Array[Vector2i] = []
+var _level: WeakRef
 ## Whether they burn now (winter).
 var burning := false
 var lights: Array[OmniLight3D] = []
@@ -43,22 +50,32 @@ var _fires: Array[CPUParticles3D] = []
 var _glow := 0.0
 
 
-## Where the braziers stand round `tables` (world positions): at both ends of the
-## first and the last table (four for the square's two tables), along the tables' line.
+## Where the braziers stand round `tables` (world positions): behind and before
+## every table (CORNER), and halfway between each two neighbouring tables (five
+## for the square's two tables).
 static func places(tables: Array) -> Array[Vector3]:
 	var out: Array[Vector3] = []
-	if tables.is_empty():
-		return out
-	var ends: Array = [tables[0]] if tables.size() == 1 else [tables[0], tables[-1]]
-	for t: Vector3 in ends:
-		for side in [-1.0, 1.0]:
-			out.append(t + Vector3(side * END, 0, 0))
+	for t: Vector3 in tables:
+		out.append(t + Vector3(-CORNER.x, 0, -CORNER.y))
+		out.append(t + Vector3(CORNER.x, 0, CORNER.y))
+	for i in range(1, tables.size()):
+		out.append((tables[i - 1] + tables[i]) * 0.5)
 	return out
+
+
+## The braziers between the tables (see places).
+static func between(tables: Array) -> Array[Vector3]:
+	return places(tables).slice(tables.size() * 2)
 
 
 ## Builds the braziers round `tables` on `level` (hidden until winter, see set_winter).
 func build(level: Node3D, tables: Array) -> void:
 	spots = places(tables)
+	_level = weakref(level)
+	cells.clear()
+	if "astar" in level:
+		for at in between(tables):
+			cells.append(level.world_to_cell(at))
 	var coal_mat := StandardMaterial3D.new()
 	coal_mat.vertex_color_use_as_albedo = true
 	coal_mat.roughness = 0.9
@@ -179,7 +196,18 @@ func set_winter(on: bool, at_once := false) -> void:
 		p.emitting = on
 		if on and at_once:
 			p.restart()
+	var level: Node3D = _level.get_ref() if _level else null
+	if level:
+		block_paths(level)
 	set_glow(_glow)
+
+
+## Blocks the tiles of the braziers between the tables while they burn, so nobody's
+## path runs through them, and opens them again when they are gone (Outdoor._setup_astar calls it too).
+func block_paths(level: Node3D) -> void:
+	for c in cells:
+		if level.astar.is_in_boundsv(c):
+			level.astar.set_point_solid(c, burning or not Outdoor.WALK.contains(level.cell_char(c)))
 
 
 ## The lights are brighter at night (`glow`: 0 by day, 1 at night, see DayNight.glow_at).

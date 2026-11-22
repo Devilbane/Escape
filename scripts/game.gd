@@ -295,7 +295,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler"]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -1956,6 +1956,10 @@ func _villager_unavailable(s: Dictionary) -> bool:
 		return false
 	player.face(s.pos - player.global_position)
 	player.play("Idle")
+	# A keeper away from their hall still hands out or takes back a task (and tells a secret)
+	# before sending the hero to the hall for the goods (see VillagerPost.HALL_LINES).
+	if VillagerPost.is_hall_line(line) and not s.npc.is_busy_talking() and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc)):
+		return true
 	if not s.npc.is_busy_talking():
 		s.npc.say(Lang.t(line), player.global_position)
 	return true
@@ -7829,6 +7833,7 @@ func _process(delta: float) -> void:
 			WoodLogs.KIND: Lang.t("Dagegenlaufen, um Bauholz zu hacken"),
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			Mill.KIND: Lang.t("Dagegenlaufen, um bei %s Körner zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"raumausstatter": Lang.t("Dagegenlaufen, um bei %s Möbel zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",

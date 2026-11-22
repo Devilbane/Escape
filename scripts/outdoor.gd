@@ -98,7 +98,7 @@ const VILLAGE_DIR := "res://assets/village/"
 const WALK := ".,Pai:0123456789KOGMYZS¢µcAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS¢µ"
+const VILLAGERS := "0123456789KOGMYZS¢µü"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -2349,6 +2349,16 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		house_doors.append(node.get_meta("door_leaf"))
 		walk_in.claim(node, VillageHalls.KINDS[ch], block)
 		walk_in.add_front(node, VillageHalls.hang_sign(node, VillageHalls.KINDS[ch]))
+		if ch == "u":
+			# The mill's tower, cap and turning sails on its stone storey (see MillTower).
+			var tower := MillTower.raise(node, _put)
+			_age_kit_building(tower)
+			var turning := Windmill.attach(self, tower)
+			if turning:
+				turning.hall = node
+				windmills.append(turning)
+				SailCloth.apply(turning.sails as MeshInstance3D, _window_mask)
+			walk_in.add_upper(node, tower)
 		# Its wares and what goes with its trade set out by the door (see ShopFronts).
 		walk_in.add_front(node, ShopFronts.dress(walk_in, node, VillageHalls.KINDS[ch]))
 	else:
@@ -3801,13 +3811,15 @@ func _spawn_villagers() -> void:
 				continue
 			var v := Villager.new()
 			v.setup(self, ch, c)
+			# Whoever keeps a hall one walks into has their place before its door (see _keeper_home).
+			v.home = _keeper_home(ch, c)
 			add_child(v)
-			v.global_position = cell_to_world(c)
+			v.global_position = cell_to_world(v.home)
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter"}.get(ch, "npc")
-			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND}.get(ch, "npc")
+			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
 			if ch == "0":
@@ -3996,6 +4008,30 @@ func _build_forge(cell: Vector2i) -> void:
 	for part: Array in wares.get_meta("solids"):
 		_add_solid(wares.position + (part[0] as Vector3) - Vector3(0, (part[1] as Vector3).y * 0.5, 0), part[1])
 	astar.set_point_solid(cell + Vector2i(-1, 0), true)
+
+
+## Where the villager of `role` (on map tile `cell`) has their place: the tile before the door of
+## the hall they keep, when it is one to walk into (see VillageHalls.KEEPERS), so they walk in and
+## out from there and wait there after closing time; else their own tile.
+func _keeper_home(role: String, cell: Vector2i) -> Vector2i:
+	var kind := VillageHalls.kept_by(role)
+	if kind == "":
+		return cell
+	for rec in walk_in.buildings:
+		if rec.kind == kind and rec.get("opened", false):
+			# A free tile out from the door, clear of the hall's own block, and a tile to the side
+			# of the way in, so whoever waits there never stands in the doorway.
+			var way := walk_in.door_points(rec)
+			var out := way[0] - way[1]
+			out.y = 0.0
+			out = out.normalized()
+			var side := Vector3(-out.z, 0, out.x)
+			for step in 4:
+				for aside: float in [1.0, -1.0]:
+					var before := world_to_cell(way[0] + out * step * TILE * 0.5 + side * aside * TILE)
+					if not (rec.block as Rect2i).has_point(before) and astar.is_in_boundsv(before) and not astar.is_point_solid(before):
+						return before
+	return cell
 
 
 ## Gives a particle effect its own fixed random seed. Particles otherwise draw their
@@ -4387,6 +4423,8 @@ func _setup_astar() -> void:
 	for id in treasure_cells:
 		if TreasureMaps.blocks(self, id):
 			astar.set_point_solid(treasure_cells[id], true)
+	# The brazier between the dining tables stands in the way while it burns (see MealBraziers).
+	meals.braziers.block_paths(self)
 	# Villagers and the hero keep to the paths where they can.
 	for y in height:
 		for x in width:

@@ -264,6 +264,25 @@ func _run() -> void:
 	check(walk_in.hero_in.is_empty(), "and out again (%s)" % hero.global_position)
 	_place(t_way[0] + Vector3(0, 0.2, 6.0))
 
+	# --- A roof that hides the hero behind it -------------------------------------------
+	# Behind a house (the camera looks north from the south) its roof covers the hero: it lifts
+	# off, so the hero and the room show; out in front of it again the roof is back.
+	var behind_rec: Dictionary = houses[0]
+	var behind_node: Node3D = behind_rec.node
+	var behind_d := float((behind_node.get_meta("shape") as Dictionary).d)
+	_place(behind_node.global_position + Vector3(0, 0.1, -behind_d * 0.5 - 0.6))
+	game._snap_camera()
+	await _wait(10)
+	var cam_at: Vector3 = game.camera.global_position
+	check(walk_in._covers(behind_rec, cam_at, hero.global_position), "standing right behind a house its roof covers the hero")
+	check(bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible),
+			"and its roof and floor above are lifted off")
+	_place(behind_node.global_position + Vector3(0, 0.1, behind_d * 0.5 + 6.0))
+	game._snap_camera()
+	await _wait(60)
+	check(not bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or (p as Node3D).visible),
+			"in front of it again the roof is back")
+
 	# --- The villagers' night ------------------------------------------------------------
 	for c in lvl.find_children("*", "CharacterBody3D", true, false):
 		c.process_mode = Node.PROCESS_MODE_INHERIT
@@ -275,8 +294,8 @@ func _run() -> void:
 		if not v.goes_to_bed():
 			continue
 		var step := String(v.bed_trip.get("step", ""))
-		if v.role == SmithCottage.OWNER:
-			continue # In his own bed on the ground floor, see below.
+		if v.role == SmithCottage.OWNER or v.role == VillageHalls.KEEPERS.guild:
+			continue # In their own bed on the ground floor or down in the cellar, see below.
 		if step == "upstairs":
 			upstairs += 1
 			check(not v.visible and v.at_home, "%s sleeps upstairs, out of sight" % v.role)
@@ -296,8 +315,11 @@ func _run() -> void:
 		var home: Dictionary = v.bed_trip.get("house", {})
 		if v.role == SmithCottage.OWNER:
 			check(home.get("owner", "") == SmithCottage.OWNER and String(v.bed_trip.get("step", "")) == "asleep", "Gorm sleeps in his own bed in his cottage")
+		elif v.role == VillageHalls.KEEPERS.guild:
+			# Ragna sleeps in the guildhall's cellar (see GuildHall, tests/guild_hall.gd).
+			check(home.get("owner", "") == VillageHalls.KEEPERS.guild, "Ragna sleeps in her own guildhall")
 		else:
-			check(not home.has("owner"), "%s does not sleep in the smith's cottage" % v.role)
+			check(not home.has("owner"), "%s does not sleep in the smith's cottage or the guildhall" % v.role)
 	# Morning: everyone walks out.
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)

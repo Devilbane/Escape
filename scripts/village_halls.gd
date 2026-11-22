@@ -7,15 +7,15 @@ extends RefCounted
 ## opens them like the villagers' houses). Usability first: a door in the middle of the front, a
 ## free way from it to the counter or desk, where the hall's keeper works by day (see KEEPERS and
 ## VillagePosts): Mira behind the shop counter, Clerk Gero at his desk in the Crown office among
-## the land registers, Guild Master Ragna at hers in the guildhall, between its tavern corner and
-## its training corner.
+## the land registers, Guild Master Ragna at hers in the guildhall, under the guild's banners (the
+## guildhall has two storeys, a roof to train on and a cellar, see GuildHall).
 ##
 ## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
 
 ## The map letters of the halls and what they are.
-const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild"}
+const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild", "u": "mill"}
 ## Who keeps which hall (villager roles), working behind its counter or desk by day.
-const KEEPERS := {"shop": "6", "office": "¢", "guild": "G"}
+const KEEPERS := {"shop": "6", "office": "¢", "guild": "G", "mill": "ü"}
 ## How big a hall may grow (metres, inside its block): wider and deeper than a home, and the big
 ## halls on their three-by-three blocks bigger still.
 const MAX_W := 9.4
@@ -23,6 +23,8 @@ const MAX_D := 6.4
 const BIG := ["office", "guild"]
 const BIG_W := 9.8
 const BIG_D := 8.6
+## The mill's stone storey (metres across, square).
+const MILL_W := 6.4
 ## The desk of the Crown office and the guildhall: lower than a counter, and deeper.
 const DESK_HIGH := 0.85
 const DESK_DEEP := 0.8
@@ -40,6 +42,12 @@ const SIGN_ASIDE := 1.65
 
 ## The style a hall's VillageHouse is built in (see VillageHouse.build).
 static func style(ch: String) -> Dictionary:
+	if KINDS.get(ch, "") == "mill":
+		# A square stone storey under the kit's tower (see MillTower), no upper floor or roof.
+		return {"max_w": MILL_W, "max_d": MILL_W, "door_x": 0.0, "tower": true}
+	if KINDS.get(ch, "") == "guild":
+		# Two storeys under a flat roof one trains on, a cellar under it (see GuildHall).
+		return GuildHall.STYLE
 	if KINDS.get(ch, "") in BIG:
 		return {"max_w": BIG_W, "max_d": BIG_D, "door_x": 0.0}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
@@ -85,6 +93,8 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 			_office(walk_in, rec, inside)
 		"guild":
 			_guild(walk_in, rec, inside)
+		"mill":
+			_mill(walk_in, rec, inside)
 
 
 ## Barrels along the back wall behind the bar, two tables with stools either side of the way in.
@@ -152,49 +162,35 @@ static func _office(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	_benches(walk_in, rec, inside, Color(0.25, 0.35, 0.8))
 
 
-## The guildhall: the guild master's desk at the back under the guild's banners, a tavern corner on
-## the left (barrels, tables and stools) and a training corner on the right (a rack of weapons and a
-## straw dummy).
+## The guildhall: two storeys and a roof to train on, a cellar under it (see GuildHall).
 static func _guild(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	GuildHall.furnish(walk_in, rec, inside)
+
+
+## The mill room: the millstones in the front corner on the left, under their hopper, with the
+## shaft up to the sails, sacks of flour and grain heaped by the right wall, and the miller behind
+## his counter at the back (see furnish).
+static func _mill(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
-	var back := room.position.y
-	var half := room.size.x * 0.5
-	for x: float in [-1.6, 1.6]:
-		var flag := WalkInFurniture.banner(Color(0.6, 0.2, 0.15), 1.6)
-		flag.position = Vector3(x, floor_y + 2.6, back)
-		inside.add_child(flag)
-	# The tavern corner.
-	for k in 2:
-		var cask := WalkInFurniture.barrel()
-		cask.position = Vector3(-half + 0.45 + k * 0.7, floor_y, back + 0.45)
-		inside.add_child(cask)
-	walk_in._solid(rec, Vector3(-half + 0.8, floor_y + 0.5, back + 0.45), Vector3(1.5, 1.0, 0.75))
-	var table_x := -half + 1.5
-	for table_z: float in [back + 2.6, room.end.y - 1.8]:
-		var table := WalkInFurniture.table(0.55)
-		table.position = Vector3(table_x, floor_y, table_z)
-		inside.add_child(table)
-		walk_in._solid(rec, Vector3(table_x, floor_y + 0.4, table_z), Vector3(1.1, 0.8, 1.1))
-		for dx: float in [-0.85, 0.85]:
-			var stool := WalkInFurniture.stool()
-			stool.position = Vector3(table_x + dx, floor_y, table_z)
-			inside.add_child(stool)
-		var mug := WalkInFurniture.mug()
-		mug.position = Vector3(table_x + 0.15, floor_y + 0.79, table_z - 0.1)
-		inside.add_child(mug)
-	# The training corner.
-	var rack_w := 1.8
-	var rack := WalkInFurniture.weapon_rack(rack_w)
-	rack.position = Vector3(half - rack_w * 0.5 - 0.2, floor_y, back + 0.2)
-	inside.add_child(rack)
-	walk_in._solid(rec, rack.position + Vector3(0, 0.75, 0), Vector3(rack_w, 1.5, 0.4))
-	for dz: float in [2.6, room.size.y - 1.8]:
-		var dummy := WalkInFurniture.dummy()
-		dummy.position = Vector3(half - 1.3, floor_y, back + dz)
-		dummy.rotation.y = -0.5
-		inside.add_child(dummy)
-		walk_in._solid(rec, dummy.position + Vector3(0, 0.8, 0), Vector3(0.6, 1.6, 0.6))
+	var stones := WalkInFurniture.millstones()
+	var at := Vector3(room.position.x + 1.1, floor_y, room.end.y - 1.6)
+	stones.position = at
+	inside.add_child(stones)
+	walk_in._solid(rec, at + Vector3(0, 0.6, 0), Vector3(1.8, 1.2, 1.8))
+	rec["millstones"] = stones
+	# Sacks of flour and grain along the right wall, a crate beside them.
+	var right := room.end.x
+	for i in 4:
+		var sack := WalkInFurniture.flour_sack()
+		sack.position = Vector3(right - 0.4 - (i % 2) * 0.55, floor_y, room.end.y - 0.6 - (i / 2) * 0.75)
+		sack.rotation.y = 0.4 * i
+		inside.add_child(sack)
+	walk_in._solid(rec, Vector3(right - 0.65, floor_y + 0.4, room.end.y - 0.95), Vector3(1.2, 0.8, 1.5))
+	var crate := WalkInFurniture.crate(0.6)
+	crate.position = Vector3(right - 0.45, floor_y, room.position.y + 0.45)
+	inside.add_child(crate)
+	walk_in._solid(rec, crate.position + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.6))
 
 
 ## A bench along each side wall, facing in, a banner of `colour` above it.

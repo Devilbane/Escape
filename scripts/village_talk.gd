@@ -70,6 +70,7 @@ const GOALS := {
 	"4": "Will das Dorf vor den Räubern schützen, ohne die Hilfe der Gilde.",
 	"5": "Will trinken, Geschichten hören und eines Tages seine Zeche zahlen.",
 	"6": "Will ihre Schulden bei der Bank loswerden und ihren Laden vergrößern.",
+	"ü": "Will, dass sein Stein nie stillsteht und das ganze Dorf sein Brot aus seinem Mehl backt.",
 	"7": "Will ein echter Abenteurer werden, wie der Held aus der Gruft.",
 	"pippi": "Will mit Pip die Gänse und Ziegen hüten und nie wieder von einer Gans gezwickt werden.",
 	"8": "Will das Rätsel der Gruft lösen, mit Büchern, nicht mit Gebeten.",

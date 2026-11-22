@@ -77,7 +77,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -348,6 +348,8 @@ func _rebuild() -> void:
 			_build_stonemason()
 		"holzfaeller":
 			_build_woodcutter()
+		Mill.KIND:
+			_build_miller()
 		"raumausstatter":
 			_build_furnisher()
 		"ausbau":
@@ -2302,9 +2304,7 @@ func _build_shop() -> void:
 		var food: String = Companions.SPECIES[kind].food
 		while game.shop_stock.count(food) < 2:
 			game.shop_stock.push_front(food)
-	# Grain for the hungry chicks in the village nests (see VillageBirds).
-	while game.shop_stock.count(VillageBirds.SEEDS) < 2:
-		game.shop_stock.push_front(VillageBirds.SEEDS)
+	# (Grain for the hungry chicks in the village nests comes from the miller now, see Mill.)
 	# And torches for the pitch-black holes in the wild (see HandTorch).
 	while game.shop_stock.count(HandTorch.ITEM) < 3:
 		game.shop_stock.push_front(HandTorch.ITEM)
@@ -2609,6 +2609,68 @@ func _build_woodcutter() -> void:
 					"price_ok": all > 0, "action": _buy_timber.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
 		]},
 	], _shop_pages())
+
+
+## The miller's window (see Mill): grain for the chicks in the village nests, by the handful or as
+## much as the bag holds and the copper pays for.
+func _build_miller() -> void:
+	var p: Player = game.player
+	var seeds := VillageBirds.SEEDS
+	var price: int = game.trader_price(Items.buy_price(seeds))
+	var room: int = Items.room_for(p.bag, p.bag_size(), seeds)
+	_add_label(Lang.t("Mühle"), 38, game.GOLD, game.TITLE_FONT)
+	var header := Lang.t("Dein Kupfer: %d") % game.coins
+	var all := mini(mini(room, game.coins / price) if price > 0 else room, Mill.MOST)
+	var have := p.bag.count(seeds)
+	var detail := {"subtitle": TradeWindow.subtitle(seeds), "lines": TradeWindow.stat_lines(seeds) + [
+			[Lang.t("Körner aus der Mühle. Stell dich unter ein Nest auf den Dächern des Dorfes, und du wirfst den Küken eine Handvoll hinauf."), TradeWindow.BLUE]]}
+	var compare := {"title": Lang.t("In deiner Tasche"), "name": "%s: %d" % [Items.item_name(seeds), have], "icon": seeds,
+			"subtitle": Lang.t("Platz für %d weitere") % room}
+	_trade(header, [
+		{"key": "grain", "title": Items.item_name(seeds), "icon": seeds, "entries": [
+			{"key": "back", "id": seeds, "name": Lang.t("1 zurückgeben"), "price": "+" + Lang.t("%d Kupfer") % sell_price(seeds),
+					"button": Lang.t("Verkaufen"), "action": _sell_grain, "enabled": have > 0, "detail": detail, "compare": compare},
+		] if _shop_page == "verkaufen" else [
+			{"key": "one", "id": seeds, "name": "1 " + Items.item_name(seeds), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+					"action": _buy_grain.bind(1), "enabled": room > 0 and game.coins >= price, "detail": detail, "compare": compare},
+			{"key": "all", "id": seeds, "name": "%d %s" % [maxi(all, 1), Items.item_name(seeds)], "price": Lang.t("%d Kupfer") % (maxi(all, 1) * price),
+					"price_ok": all > 0, "action": _buy_grain.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
+		]},
+	], _shop_pages())
+
+
+func _buy_grain(count: int) -> void:
+	var p: Player = game.player
+	var seeds := VillageBirds.SEEDS
+	var price: int = game.trader_price(Items.buy_price(seeds))
+	var bought := 0
+	for i in count:
+		if game.coins < price or not p.bag_fits(seeds):
+			break
+		game.coins -= price
+		p.bag.append(seeds)
+		bought += 1
+	if bought > 0:
+		Events.bus().traded.emit(game.trader_role)
+		_note = Lang.t("Gekauft: %d × %s") % [bought, Items.item_name(seeds)]
+		Sfx.play(game, "gear_soft_0", -2.0)
+	elif not p.bag_fits(seeds):
+		_note = Lang.t("Deine Tasche ist voll.")
+	else:
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+	game._update_hud()
+	_rebuild()
+
+
+func _sell_grain() -> void:
+	var p: Player = game.player
+	var seeds := VillageBirds.SEEDS
+	if p.bag.has(seeds):
+		p.bag.erase(seeds)
+		game.coins += sell_price(seeds)
+		_note = Lang.t("Verkauft: %s für %d Kupfer") % [Items.item_name(seeds), sell_price(seeds)]
+	game._update_hud()
+	_rebuild()
 
 
 func _buy_timber(count: int) -> void:

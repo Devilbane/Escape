@@ -19,6 +19,10 @@ const TOUCH := 2.2
 ## before she is simply put where she was going.
 const ARRIVE := 0.15
 const GIVE_UP := 15.0
+## Behind the counter a keeper stands still and busies their hands only now and then: every so
+## many seconds (from, to), for this long.
+const FIDGET_EVERY := Vector2(7.0, 14.0)
+const FIDGET_TIME := 2.0
 
 
 ## The post of the hall the villager keeps, or {} (she keeps none, or it cannot be walked into).
@@ -51,11 +55,17 @@ static func enter(v: Villager) -> void:
 	var way := _door_points(v, found.rec)
 	var post: Dictionary = found.post
 	v.post_trip = {"rec": found.rec, "post": post, "step": "in", "way": [way[0], way[1]] + found.rec.get("via", []) + [post.pos], "clock": 0.0}
+	_pass_through(v, true)
 
 
 ## Whether she is in the hall (on the way in, at her place or on the way out).
 static func inside(v: Villager) -> bool:
 	return not v.post_trip.is_empty()
+
+
+## Whether she is at her place in the hall (not on the way in or out).
+static func at_post(v: Villager) -> bool:
+	return not v.post_trip.is_empty() and v.post_trip.step == "at"
 
 
 ## One physics tick of the "post" task.
@@ -70,14 +80,22 @@ static func step(v: Villager, delta: float) -> void:
 		"in":
 			if _walk(v, trip, delta):
 				trip.step = "at"
+				_pass_through(v, false)
 		"at":
 			v.turn_toward(Basis(Vector3.UP, float(trip.post.rot)) * Vector3.BACK, delta)
-			v.play(v.work_anim())
+			# She stands calmly behind her counter and only now and then busies her hands.
+			trip["fidget"] = float(trip.get("fidget", FIDGET_EVERY.x)) - delta
+			if float(trip.fidget) <= 0.0:
+				trip.fidget = randf_range(FIDGET_EVERY.x, FIDGET_EVERY.y)
+				trip["busy"] = FIDGET_TIME
+			trip["busy"] = float(trip.get("busy", 0.0)) - delta
+			v.play(v.work_anim() if float(trip.busy) > 0.0 else "Idle")
 			if v.night or v.level.village_alarm.raised:
 				_go_out(v, trip)
 		"out":
 			if _walk(v, trip, delta):
 				v.post_trip = {}
+				_pass_through(v, false)
 				v.end_post()
 
 
@@ -88,6 +106,7 @@ static func _go_out(v: Villager, trip: Dictionary) -> void:
 	trip.way = via + [way[1], way[0]]
 	trip.step = "out"
 	trip.clock = 0.0
+	_pass_through(v, true)
 
 
 ## Out on the street before the door at once (called away inside the hall by a fright, a slime).
@@ -98,6 +117,7 @@ static func leave_at_once(v: Villager) -> void:
 	v.global_position = _door_points(v, trip.rec)[0]
 	v.reset_physics_interpolation()
 	v.post_trip = {}
+	_pass_through(v, false)
 
 
 ## Behind her counter the hero reaches her from in front of it, not only on her own tile.
@@ -108,6 +128,18 @@ static func mind_station(v: Villager) -> void:
 		v.station["touch"] = TOUCH
 	else:
 		v.station.erase("touch")
+
+
+## On the way through the door the keeper does not bump into the hero (no body to collide with),
+## so the two never block each other in the doorway; at their place and outside they have it again.
+static func _pass_through(v: Villager, through: bool) -> void:
+	if through:
+		if v.collision_layer != 0:
+			v.set_meta("post_layer", v.collision_layer)
+			v.collision_layer = 0
+	elif v.has_meta("post_layer"):
+		v.collision_layer = int(v.get_meta("post_layer"))
+		v.remove_meta("post_layer")
 
 
 ## Walks the trip's way one tick, the feet on the floor, pushing the door open on the way. True

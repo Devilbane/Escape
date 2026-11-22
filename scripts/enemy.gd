@@ -26,6 +26,9 @@ extends CharacterBody3D
 signal died
 
 const SIGHT := 26.0
+## How far apart the hero and a monster count when one is down in the forgotten mine and
+## the other up on the ground (see LostMine.apart): out of every sight, sound and reach.
+const FAR_APART := 100000.0
 ## Noticing the hero. Eyes look ahead in a 120 degree cone and need light on
 ## the hero (a burning torch nearby, or the lantern when not sneaking). Ears
 ## hear all around, but not a hero who sneaks or stands still. Right up
@@ -1871,6 +1874,8 @@ func _head_for(at: Vector3) -> Vector3:
 		_path.clear()
 		if level.has_line_of_sight(global_position, at):
 			_path.append(at)
+		elif _deep():
+			_path.append_array(LostMine.route(global_position, at))
 		else:
 			for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(at)).slice(1):
 				_path.append(level.cell_to_world(c))
@@ -2105,6 +2110,9 @@ func _physics_process(delta: float) -> void:
 	var to_player := player.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
+	# One down in the forgotten mine and the other up on the ground: neither knows of the other.
+	if LostMine.apart(global_position, player.global_position):
+		dist = FAR_APART
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
 	# Under the open sky there is no fog of war: everything shows.
 	# From inside a house the hero sees out only through windows and open doors (see Level.hero_sees).
@@ -2415,6 +2423,9 @@ func _plan_route(goal: Vector3, reach: float) -> bool:
 	_repath = 0.5
 	_stranded = false
 	_path.clear()
+	if _deep():
+		_path.append_array(LostMine.route(global_position, goal))
+		return not _path.is_empty() or LostMine.cell_at(global_position) == LostMine.cell_at(goal)
 	var here := level.world_to_cell(global_position)
 	var there := level.world_to_cell(goal)
 	var cells := level.grid_path(here, there).slice(1)
@@ -2656,6 +2667,9 @@ func _check_stuck(delta: float, move: Vector3) -> void:
 ## Pushed into a tile with a pillar or furniture, where neither paths nor
 ## the hero's blade reach well: walk out to the nearest free tile.
 func _step_out() -> Vector3:
+	# Down in the mine the map's tiles lie overhead.
+	if _deep():
+		return Vector3.ZERO
 	var cell := level.world_to_cell(global_position)
 	# A tile walled off by stone blocks still has floor to stand on.
 	if not level.astar.is_in_boundsv(cell) or not level.astar.is_point_solid(cell) or level.stone_cut(cell):
@@ -2666,6 +2680,12 @@ func _step_out() -> Vector3:
 			to.y = 0.0
 			return to.normalized()
 	return Vector3.ZERO
+
+
+## Whether it walks down in the forgotten mine (see LostMine), where the ways run along its
+## tunnels and not over the map's tiles overhead.
+func _deep() -> bool:
+	return level is Outdoor and LostMine.holds(global_position)
 
 
 ## Sets the skeleton on the hero at once, e.g. a cutthroat called by the chief.
@@ -2733,8 +2753,11 @@ func _rest(delta: float) -> Vector3:
 	if _repath <= 0.0 or _path.is_empty():
 		_repath = 1.0
 		_path.clear()
-		for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(_home)).slice(1):
-			_path.append(level.cell_to_world(c))
+		if _deep():
+			_path.append_array(LostMine.route(global_position, _home))
+		else:
+			for c in level.grid_path(level.world_to_cell(global_position), level.world_to_cell(_home)).slice(1):
+				_path.append(level.cell_to_world(c))
 		_path.append(_home)
 	var to := _path[0] - global_position
 	to.y = 0.0

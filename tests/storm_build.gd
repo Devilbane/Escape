@@ -92,6 +92,8 @@ func _process(_delta: float) -> bool:
 	if frames < LAST_FRAME:
 		# Building: every placed piece redraws the house and its floor slabs.
 		game.house_sketcher._redraw()
+		# The test strikes on its own beat: the storm's own random strokes would land in the quiet end.
+		lvl._strike_timer = 1000.0
 		if frames % STRIKE_EVERY == 0 and frames < LAST_FRAME - 200:
 			hero.hp = hero.max_hp
 			hero._invulnerable = 0.0

@@ -38,6 +38,17 @@ func is_welcomed() -> bool:
 	return id != 0
 
 
+## The round trip to the server in milliseconds, as ENet measures it, or -1
+## when not connected (shown by PerfOverlay).
+func ping_ms() -> int:
+	if _peer == null or not is_welcomed():
+		return -1
+	var server := _peer.get_peer(1)
+	if server == null:
+		return -1
+	return int(server.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+
+
 ## Sends a command; returns its number, which the ack carries back (0 when
 ## not connected).
 func send_command(cmd: Dictionary) -> int:

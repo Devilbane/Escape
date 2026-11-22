@@ -63,6 +63,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Load saved game | L | “Load” button (also on the title screen) |
 | Pause, quit game | Esc (again to play on) | “Quit” button, top right |
 | Sound on/off | M | “Sound” button, top right |
+| Show performance (frames per second, CPU and GPU time per frame, ping) | F1 | |
 | Say something | Enter (Enter sends; Esc or an empty line goes back) | click the line under the event log; whoever stands near answers |
 | Music on/off, music volume | | “Music” button and the volume slider in the pull-out menu (Tab) |
 | Choose in a window | arrow keys or Tab, then Enter; Esc closes | click the button |

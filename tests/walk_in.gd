@@ -192,12 +192,14 @@ func _run() -> void:
 	# A click inside walks round through the door.
 	_place(way[0] + Vector3(4.0, 0.2, 2.0))
 	await _wait(2)
-	var bed: Dictionary = rec.beds[0]
-	hero.walk_to(bed.stand)
+	hero.walk_to(rec.ladder)
 	check(hero.path.size() >= 2, "a click into the house plans a way through the door")
 	await _wait(60 * 8)
 	check(not walk_in.building_at(hero.global_position).is_empty(), "the hero walks there (%s)" % hero.global_position)
-	check(rec.beds.size() == WalkIn.MAX_BEDS, "a house has three beds (%d)" % rec.beds.size())
+	check(rec.beds.size() >= 1 and rec.beds.size() <= WalkIn.MAX_BEDS, "a house has beds upstairs (%d)" % rec.beds.size())
+	for b: Dictionary in rec.beds:
+		check((b.pos as Vector3).y > float(rec.ladder_top.y) - 0.3, "each bed is up on the floor above (%.2f)" % (b.pos as Vector3).y)
+	check(absf(float(rec.ladder_top.y) - float(rec.ladder.y) - float(rec.ladder_tall)) < 0.01, "the ladder climbs from the floor to the hatch")
 	_place(way[0] + Vector3(0, 0.2, 3.0))
 	await _wait(5)
 
@@ -249,21 +251,19 @@ func _run() -> void:
 	for v: Villager in lvl.villagers:
 		v.set_night(true, true)
 	await _wait(5)
-	var asleep := 0
 	var upstairs := 0
 	for v: Villager in lvl.villagers:
 		if not v.goes_to_bed():
 			continue
 		var step := String(v.bed_trip.get("step", ""))
-		if step == "asleep":
-			asleep += 1
-			check(v.visible and v.at_home, "%s sleeps in a bed where one can see them" % v.role)
-		elif step == "upstairs":
+		if v.role == SmithCottage.OWNER:
+			continue # In his own bed on the ground floor, see below.
+		if step == "upstairs":
 			upstairs += 1
-			check(not v.visible, "%s sleeps upstairs, out of sight" % v.role)
+			check(not v.visible and v.at_home, "%s sleeps upstairs, out of sight" % v.role)
 		else:
 			check(false, "%s went to bed in a house (%s)" % [v.role, step])
-	check(asleep > 0 and asleep <= houses.size() * WalkIn.MAX_BEDS, "villagers sleep in the beds (%d), the rest upstairs (%d)" % [asleep, upstairs])
+	check(upstairs > 0, "villagers sleep upstairs (%d)" % upstairs)
 	for r: Dictionary in houses:
 		var taken := (r.beds as Array).filter(func(b): return b.by != null).size()
 		check(taken <= WalkIn.MAX_BEDS, "no bed holds two")
@@ -283,6 +283,7 @@ func _run() -> void:
 	var still := lvl.villagers.filter(func(v): return not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed()))
 	check(still.is_empty(), "in the morning everyone is out of the houses again (%s)" % [still.map(func(v): return v.role + ":" + String(v.bed_trip.get("step", "")))])
 	check(lvl.villagers.all(func(v): return v.global_position.y < 0.3), "and back on the ground")
+	check(lvl.villagers.all(func(v): return not v.is_known() or v.get("_name_tag").visible), "awake again, the names are back over the heads")
 	# One walks home and to bed.
 	var sleeper: Villager = null
 	for v: Villager in lvl.villagers:
@@ -293,14 +294,40 @@ func _run() -> void:
 	sleeper.reset_physics_interpolation()
 	sleeper.set_night(true, false)
 	var went := false
-	for k in 60 * 25:
+	var climbed := false
+	var hid_on_ladder := false
+	for k in 60 * 30:
 		await physics_frame
-		if String(sleeper.bed_trip.get("step", "")) in ["asleep", "upstairs"]:
+		var step := String(sleeper.bed_trip.get("step", ""))
+		if step == "climb":
+			if not climbed:
+				var h: Dictionary = sleeper.bed_trip.house
+				check(Vector2(sleeper.global_position.x - h.ladder.x, sleeper.global_position.z - h.ladder.z).length() < 0.5, "a villager walks in through the door to the foot of the ladder")
+			climbed = true
+			if sleeper.global_position.y > float(sleeper.bed_trip.house.ladder_top.y) - 0.4:
+				hid_on_ladder = not sleeper.visible
+		if step == "upstairs":
 			went = true
 			break
-	check(went, "a villager walks in through the door and goes to bed (%s)" % sleeper.bed_trip.get("step", "-"))
-	if String(sleeper.bed_trip.get("step", "")) == "asleep":
-		check(sleeper.global_position.y > 0.9, "and lies on the mattress (%.2f)" % sleeper.global_position.y)
+	check(climbed, "and climbs the ladder")
+	check(hid_on_ladder, "out of sight once through the hatch")
+	check(went, "up to bed on the floor above (%s)" % sleeper.bed_trip.get("step", "-"))
+	if went and not (sleeper.bed_trip.bed as Dictionary).is_empty():
+		check(sleeper.global_position.y > float(sleeper.bed_trip.house.ladder_top.y), "and lies in a bed up there (%.2f)" % sleeper.global_position.y)
+	# And down again in the morning, seen on the lower rungs.
+	sleeper.set_night(false, true)
+	var down_seen := false
+	var out := false
+	for k in 60 * 25:
+		await physics_frame
+		var step := String(sleeper.bed_trip.get("step", ""))
+		if step == "climb_down" and sleeper.visible and sleeper.global_position.y < 1.5:
+			down_seen = true
+		if sleeper.bed_trip.is_empty():
+			out = true
+			break
+	check(down_seen, "in the morning they climb down the ladder in sight")
+	check(out and sleeper.global_position.y < 0.3, "and walk out of the house (%s)" % sleeper.global_position)
 
 	game.delete_save(game.save_path())
 	if failures == 0:

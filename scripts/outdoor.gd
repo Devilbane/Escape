@@ -783,6 +783,13 @@ func build() -> void:
 			for sx in range(Corral.SHELTER.position.x, Corral.SHELTER.end.x):
 				roofed.append(Vector2i(sx, sy))
 	roofed.append_array(meals.roofed)
+	# The rooms of the buildings one walks into (see WalkIn): no snow on their floors and furniture,
+	# which the camera sees once their roof is lifted off.
+	for rec in walk_in.buildings:
+		var block: Rect2i = rec.block
+		for by in range(block.position.y, block.end.y):
+			for bx in range(block.position.x, block.end.x):
+				roofed.append(Vector2i(bx, by))
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)

@@ -75,6 +75,7 @@ static func mesh() -> ArrayMesh:
 	st.generate_normals()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.roughness = 0.75
 	st.set_material(mat)
 	_mesh = st.commit()

@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Rough stone for the dungeon walls and the stone of the cartoon pieces. The kit's wall texture gives each brick a
 // flat, even face, which looks like plastic where a torch shines on it. This
 // keeps the kit's colour and normal map and adds stains, grain and small pits
@@ -9,9 +10,9 @@ shader_type spatial;
 #include "res://shaders/reveal.gdshaderinc"
 #include "res://shaders/masonry.gdshaderinc"
 
-uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform vec3 albedo_color : source_color = vec3(1.0);
+uniform vec3 albedo_color = vec3(1.0);
 // The flat cartoon pieces (spike and grate tiles, stairs, doorways) have no
 // normal map and need a little more grain to match the kit's carved stone.
 uniform bool use_normal_map = true;
@@ -29,7 +30,7 @@ uniform float masonry = 0.0;
 uniform float course = 0.3;
 uniform float irregular = 0.0;
 uniform float edge_round = 0.0;
-uniform vec3 stone_tint : source_color = vec3(0.34, 0.325, 0.31);
+uniform vec3 stone_tint = vec3(0.34, 0.325, 0.31);
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -79,4 +80,5 @@ void fragment() {
 			discard;
 		}
 	}
+	ALBEDO = gl_colour(ALBEDO);
 }

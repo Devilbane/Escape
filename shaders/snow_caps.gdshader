@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The body of the snow on roofs, ledges and window tops (see SnowCaps): a slab over each
 // surface that faces the sky and a rounded, overhanging roll along its open edges. Every
 // vertex sits on the surface it covers and is pushed out to its full place (CUSTOM0) as the
@@ -31,4 +32,5 @@ void fragment() {
 	ALBEDO *= mix(0.78, 1.0, smoothstep(-0.6, 0.2, world_normal.y));
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
+	ALBEDO = gl_colour(ALBEDO);
 }

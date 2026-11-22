@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Old, worn wood and metal for the dungeon's chests, trunks, barrels, crates,
 // tables, beds and doors (see WornLook). The models' textures are clean and
 // even, which looks freshly made next to the dusty floor. This keeps their
@@ -18,10 +19,10 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/flutter.gdshaderinc"
 
-uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform bool use_normal_map = false;
-uniform vec3 albedo_color : source_color = vec3(1.0);
+uniform vec3 albedo_color = vec3(1.0);
 // 0 keeps the clean look, 1 is a long-forgotten dungeon prop.
 uniform float strength = 1.0;
 // The texture is flat cartoon colour (the KayKit pieces): give it wood grain,
@@ -146,4 +147,6 @@ void fragment() {
 		ROUGHNESS = mix(mix(0.93, 0.55 + 0.3 * grime, metal), 0.25, shiny);
 		SPECULAR = mix(mix(0.2, 0.45, metal), 0.9, shiny);
 	}
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

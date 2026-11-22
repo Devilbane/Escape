@@ -64,6 +64,48 @@ static func modern() -> bool:
 	return RenderingServer.get_current_rendering_method() != "gl_compatibility"
 
 
+## How much stronger the sun and the moon shine on the modern renderer. OpenGL draws a light
+## that casts shadows (the sun, the moon) in a pass of its own and adds it to the finished picture,
+## after the brightness curve, so it counts for much more there; the modern renderer adds all
+## light first. Measured on the village by day (tests/lighting_reference_shots.gd with GRID=1):
+## the sky's light alone and the sun alone look the same on both, together the modern renderer
+## was half as bright, and the sun at 2.5 times its strength brings it level.
+const SUN_MATCH := 2.5
+
+
+## How much stronger a lamp shines on the modern renderer while it casts shadows (see
+## LightShadows): OpenGL adds those lamps afterwards too, as it does the sun (see SUN_MATCH), which
+## counts for most where little else lights the floor. Measured as SUN_MATCH was: down in the
+## dungeons the torches need three times their strength, in the village at night (lamps over
+## moonlit cobbles) one and a half.
+const LAMP_MATCH := 1.5
+const LAMP_MATCH_DUNGEON := 3.0
+## The lamps' factor in use: Game.load_level picks it for the level (a variable, so tests can try others).
+static var lamp_match := LAMP_MATCH
+
+
+## The sun's or moon's strength to draw with, for its strength as the game sets it. `night` is
+## how much of the light is the moon's (DayNight.moon_at): the moon keeps its own strength, as the
+## village by night looked far too bright with the sun's factor (the dungeons' faint light from
+## above keeps it, see Game._set_atmosphere).
+static func sun(energy: float, night := 0.0) -> float:
+	return energy * lerpf(SUN_MATCH, 1.0, clampf(night, 0.0, 1.0)) if modern() else energy
+
+
+## What a material that takes its colour from the mesh's vertex colours sets as
+## vertex_color_is_srgb. The game's vertex colours were picked on OpenGL, which reads them as
+## screen colours (see shaders/gl_colour.gdshaderinc); the modern renderer reads them as light
+## unless told otherwise, and they came out bleached there (pale apple trees). On OpenGL it stays
+## false, or the colour would be turned into light twice.
+static func vertex_colours_srgb() -> bool:
+	return modern()
+
+
+## How much stronger a shadow-casting lamp shines: lamp_match on the modern renderer, 1 on OpenGL.
+static func lamp() -> float:
+	return lamp_match if modern() else 1.0
+
+
 static func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_FILE) == OK:

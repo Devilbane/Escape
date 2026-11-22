@@ -244,6 +244,7 @@ func _hold(spot: Vector3, hour: float, wait: int) -> bool:
 			var at: Vector3 = game.player.global_position
 			if Vector2(at.x - spot.x, at.z - spot.z).length() > STRAY or absf(at.y - spot.y) > STRAY:
 				stayed = false
+				print("  the hero left ", spot, " for ", at, " after ", i, " frames")
 				break
 		if stayed:
 			return true
@@ -303,7 +304,10 @@ func _run() -> void:
 func _village() -> void:
 	var lvl: Outdoor = null
 	var places := {}
-	for shot: Array in VILLAGE:
+	var queue: Array = VILLAGE.duplicate()
+	var retried := {}
+	while not queue.is_empty():
+		var shot: Array = queue.pop_front()
 		var name: String = shot[0]
 		if not _wanted(name):
 			continue
@@ -351,6 +355,14 @@ func _village() -> void:
 		var facts := {"place": place, "hour": hour, "weather": shot[3], "season_day": season,
 				"moon": Moon.word(shot[5]), "hero": shot[6], "zoom": shot[7]}
 		if not await _hold(places[place], hour, wait):
+			if not retried.has(name):
+				# Once more from a freshly loaded village: a villager, a door or a flight carried
+				# the hero off, and the next try starts clean.
+				retried[name] = true
+				print("  again: ", name)
+				lvl = null
+				queue.push_front(shot)
+				continue
 			failures += 1
 			print("FAIL: ", name, ": the hero did not stay at ", place)
 			continue

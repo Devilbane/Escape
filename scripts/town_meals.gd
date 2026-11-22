@@ -314,6 +314,7 @@ func _cloth_mesh() -> MeshInstance3D:
 	if _cloth_mat == null:
 		_cloth_mat = StandardMaterial3D.new()
 		_cloth_mat.vertex_color_use_as_albedo = true
+		_cloth_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_cloth_mat.roughness = 0.95
 		_cloth_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_cloth_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
@@ -388,6 +389,7 @@ func _food_mesh(c: Vector2i) -> MeshInstance3D:
 	mi.mesh = _merge(parts)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.roughness = 0.75
 	mi.material_override = mat
 	return mi

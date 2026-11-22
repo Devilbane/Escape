@@ -286,6 +286,7 @@ func _breathe() -> void:
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	quad.material = mat
 	stream.mesh = quad
 	var ramp := Gradient.new()

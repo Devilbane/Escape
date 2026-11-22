@@ -137,6 +137,7 @@ static func puff(world: Node3D, at: Vector3, amount := 14, crumb := 0.07) -> voi
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.albedo_texture = Effects._soft_dot()
 	quad.material = mat
 	p.mesh = quad

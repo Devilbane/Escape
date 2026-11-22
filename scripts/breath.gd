@@ -59,6 +59,7 @@ static func _shared() -> StandardMaterial3D:
 		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		_material.vertex_color_use_as_albedo = true
+		_material.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_material.albedo_texture = Effects._soft_dot()
 		_material.albedo_color = Color(1, 1, 1, 0.75)
 	return _material

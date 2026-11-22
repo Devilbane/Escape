@@ -105,6 +105,7 @@ static func _flame_material() -> StandardMaterial3D:
 		_flame_mat.no_depth_test = false
 		_flame_mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 		_flame_mat.vertex_color_use_as_albedo = true
+		_flame_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_flame_mat.albedo_texture = _soft_texture()
 	return _flame_mat
 

@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Old trap spikes: iron gone to rust, caked with dirt at the foot and dark,
 // dried blood running down from the tips. base_y and tip_y are the spikes'
 // lowest and highest points in the mesh's own space; the grain comes from
@@ -56,4 +57,5 @@ void fragment() {
 	METALLIC = 0.35 * (1.0 - rusty) * (1.0 - dirt) * (1.0 - blood);
 	ROUGHNESS = mix(0.85, 0.25, blood);
 	SPECULAR = mix(0.4, 0.8, blood);
+	ALBEDO = gl_colour(ALBEDO);
 }

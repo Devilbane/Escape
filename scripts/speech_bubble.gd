@@ -49,12 +49,13 @@ static func silenced() -> bool:
 const SHADER := """
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_test_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 uniform vec2 body = vec2(2.0, 1.0);
 uniform float radius = 0.3;
 uniform float rim = 0.05;
 uniform vec2 tail = vec2(0.42, 0.4);
-uniform vec4 paper : source_color = vec4(1.0, 0.96, 0.86, 1.0);
-uniform vec4 rim_color : source_color = vec4(0.06, 0.03, 0.06, 1.0);
+uniform vec4 paper = vec4(1.0, 0.96, 0.86, 1.0);
+uniform vec4 rim_color = vec4(0.06, 0.03, 0.06, 1.0);
 uniform float alpha = 1.0;
 
 void vertex() {
@@ -80,6 +81,7 @@ void fragment() {
 	vec3 col = mix(rim_color.rgb, paper.rgb, edge);
 	ALBEDO = col;
 	ALPHA = inside * alpha;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 

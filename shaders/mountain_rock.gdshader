@@ -2,6 +2,7 @@ shader_type spatial;
 // Both sides drawn, as the rock's builders always did: a face seen from
 // behind never leaves a hole.
 render_mode cull_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Weathered mountain rock, to match the aged stone of the village and the
 // graveyard (aged_stone.gdshader): the high mountains (Mountains) and the
 // mountain the dragon's lair is dug into (LairMountain) keep their low-poly
@@ -100,4 +101,5 @@ void fragment() {
 	// Relief: the grain and the strata stand out.
 	float height = (grain * 0.5 + fine * 0.3 * band(2.3, px) + strata * steep) * (1.0 - snow * 0.7);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.3, dFdy(height) * 0.3), 0.0)).xyz);
+	ALBEDO = gl_colour(ALBEDO);
 }

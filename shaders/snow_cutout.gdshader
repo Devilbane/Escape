@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Snow on leaves and other cut-out cards (bushes, ivy, roof vines), see SnowCover: like
 // snow_cover, but it keeps to the shape of the card (the alpha of its texture), so a leaf
 // gets a white top and no white square round it. Leaves catch snow more readily than a
@@ -7,7 +8,7 @@ render_mode cull_disabled;
 
 #include "res://shaders/snow.gdshaderinc"
 
-uniform sampler2D cutout : source_color, filter_linear_mipmap;
+uniform sampler2D cutout : filter_linear_mipmap;
 uniform vec3 uv_scale = vec3(1.0);
 uniform vec3 uv_offset = vec3(0.0);
 uniform float alpha_scissor = 0.5;
@@ -55,4 +56,5 @@ void fragment() {
 	}
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
+	ALBEDO = gl_colour(ALBEDO);
 }

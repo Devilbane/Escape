@@ -336,6 +336,7 @@ func _fallen_material() -> Material:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = ivy.albedo_texture
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -879,6 +880,7 @@ func _litter_material(kind: String) -> Material:
 		return _materials[kind]
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = 0.9
 	match kind:
 		"leaf":

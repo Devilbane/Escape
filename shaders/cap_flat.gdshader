@@ -1,11 +1,12 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The flat, matt tops and outer sides of the walls (see WallCaps): the same look as a plain
 // material. A cap in front of the hero fades with its wall (WallFade) and, near or far, opens in the
 // see-through circle around the hero (reveal.gdshaderinc), so a wall top never hides the hero.
 
 #include "res://shaders/reveal.gdshaderinc"
 
-uniform vec3 albedo_color : source_color = vec3(0.33, 0.31, 0.29);
+uniform vec3 albedo_color = vec3(0.33, 0.31, 0.29);
 instance uniform float fade = 0.0;
 
 void fragment() {
@@ -22,4 +23,5 @@ void fragment() {
 	if (reveal_cut(VERTEX, VIEW_MATRIX, FRAGCOORD.xy)) {
 		discard;
 	}
+	ALBEDO = gl_colour(ALBEDO);
 }

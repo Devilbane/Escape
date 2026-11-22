@@ -180,3 +180,4 @@ wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the fo
 offscreen_anim.gd | 180 | fixed | pass | Off-screen bodies step their animations coarsely and catch up in view
 final_scream.gd | 120 | fixed | passfail | A fall in a fight brings a final scream that silences all other bubbles
 furnisher_day.gd | 200 | fixed | passfail | Ilse the furnisher keeps her stall through her opening hours and strolls, eats and rests outside them
+lighting_reference_shots.gd | 600 | fixed | passfail | Lighting reference pictures (village, rooms, cellars, mine, dungeons; weather, moon, the hero's light). With SHOTS=<folder> it saves them for tools/lighting_compare.py

@@ -272,9 +272,11 @@ static func _build_book(look: Dictionary) -> ArrayMesh:
 	if _cloth == null:
 		_cloth = StandardMaterial3D.new()
 		_cloth.vertex_color_use_as_albedo = true
+		_cloth.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_cloth.roughness = 0.8
 		_metal = StandardMaterial3D.new()
 		_metal.vertex_color_use_as_albedo = true
+		_metal.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_metal.roughness = 0.4
 		_metal.metallic = 0.5
 	var size: Vector3 = look.size

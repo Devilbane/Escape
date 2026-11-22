@@ -8,6 +8,7 @@ shader_type spatial;
 // (damage numbers, speech bubbles, news) and every particle is drawn after
 // the clouds and so stays exactly as readable as without them.
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix, fog_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 
 #include "res://shaders/indoors.gdshaderinc"
 #include "res://shaders/depth.gdshaderinc"
@@ -80,4 +81,5 @@ void fragment() {
 	ALBEDO = haze;
 	// An even haze covers everything, so it is lighter than patchy clouds.
 	ALPHA = clamp(alpha * reach * strength * mix(1.0, 0.6, even), 0.0, 0.9);
+	ALPHA = gl_alpha(haze, ALPHA);
 }

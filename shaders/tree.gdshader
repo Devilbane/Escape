@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Natural-looking trees from the flat low-poly kit models. The kit colours
 // every tree from a palette texture, so each facet is one even, glossy
 // colour and the trees look like moulded plastic. This keeps the palette
@@ -15,7 +16,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform sampler2D albedo_tex : source_color, filter_nearest, repeat_enable;
+uniform sampler2D albedo_tex : filter_nearest, repeat_enable;
 // 1 for the swaying, speckled foliage; 0 leaves the shape alone (stumps).
 uniform float wind = 1.0;
 // The share of green leaves that has turned (0 in summer, near 1 late in
@@ -124,4 +125,5 @@ void fragment() {
 	}
 	ALBEDO = c;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
+	ALBEDO = gl_colour(ALBEDO);
 }

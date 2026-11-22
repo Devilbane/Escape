@@ -41,7 +41,8 @@ float window_lit(vec2 place) {
 
 const GLASS_SHADER := """
 shader_type spatial;
-uniform vec3 colour : source_color = vec3(1.0, 0.7, 0.36);
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 varying vec2 key;
 """ + LIT_FUNCTION + """
@@ -52,6 +53,8 @@ void fragment() {
 	ALBEDO = vec3(0.16, 0.18, 0.22);
 	ROUGHNESS = 0.25;
 	EMISSION = colour * glow * window_lit(key);
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }
 """
 

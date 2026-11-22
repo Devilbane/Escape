@@ -384,6 +384,7 @@ static func _halo(metal: String) -> QuadMesh:
 	mat.albedo_texture = ImageTexture.create_from_image(img)
 	mat.albedo_color = METALS[metal].glow
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.disable_fog = true
 	mat.disable_receive_shadows = true
 	var mesh := QuadMesh.new()

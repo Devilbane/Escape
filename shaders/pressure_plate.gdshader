@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The old pressure plates of the dungeon's puzzle rooms (see Level's
 // _build_plate): a slab of carved stone, worn and dirty like the rest of the
 // dungeon, with an ornament cut into its top:
@@ -16,8 +17,8 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform vec3 albedo_color : source_color = vec3(0.43, 0.41, 0.37);
-uniform vec3 glow_color : source_color = vec3(1.0, 0.68, 0.3);
+uniform vec3 albedo_color = vec3(0.43, 0.41, 0.37);
+uniform vec3 glow_color = vec3(1.0, 0.68, 0.3);
 // 0 for an empty plate, 1 while a block lies on it.
 uniform float glow = 0.0;
 uniform float glow_energy = 1.5;
@@ -151,4 +152,6 @@ void fragment() {
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	ROUGHNESS = 0.9 + 0.1 * grit;
 	SPECULAR = 0.2;
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

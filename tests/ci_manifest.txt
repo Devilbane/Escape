@@ -14,6 +14,7 @@ merchant_placement.gd | 60 | free | pass | Merchants stand in the open middle of
 furniture_stuck.gd | 300 | fixed | passfail | Furniture blocks only where it is drawn (nobody gets stuck on it)
 village_clutter.gd | 60 | free | pass | Village heaps (barrels, crates, planks and carts never overlap)
 lang_keys.gd | 60 | free | pass | English texts (no German text translated twice)
+shader_colours.gd | 60 | free | pass | Shader colours (every shader of ours looks the same on both renderers)
 jump_windup.gd | 120 | fixed | passfail | Jump wind-up (half a step first, called off by a hit)
 melee_path.gd | 60 | free | passfail | Melee pathfinding (monsters walk round what blocks their blow)
 smooth_motion.gd | 120 | fixed | pass | Smooth running (bodies drawn between physics ticks)

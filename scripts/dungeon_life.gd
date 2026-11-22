@@ -147,6 +147,7 @@ func _decal_material(key: String, tex: Texture2D) -> StandardMaterial3D:
 		m.albedo_texture = tex
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.vertex_color_use_as_albedo = true
+		m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		m.roughness = 1.0
 		_materials[key] = m

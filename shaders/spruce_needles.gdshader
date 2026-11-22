@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // A spruce's fronds (see Fern.needle_tree_mesh): the frond picture, cut out where it is empty,
 // times the frond's colour, both sides drawn. A spruce is too dense to be lit leaf by leaf (its own
 // shadow would turn it black inside), so it takes no shadows; its lower tiers are darker instead.
@@ -26,15 +27,15 @@ render_mode cull_disabled, shadows_disabled;
 
 #include "res://shaders/snow.gdshaderinc"
 
-uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
 // How far a branch tip one metre out from the trunk sways (metres).
 uniform float sway = 0.08;
 // The spruce's greens, from fresh to a dark blue-green.
-uniform vec3 green_1 : source_color = vec3(0.38, 0.68, 0.3);
-uniform vec3 green_2 : source_color = vec3(0.27, 0.6, 0.34);
-uniform vec3 green_3 : source_color = vec3(0.19, 0.53, 0.42);
-uniform vec3 green_4 : source_color = vec3(0.14, 0.45, 0.48);
-uniform vec3 green_5 : source_color = vec3(0.11, 0.36, 0.33);
+uniform vec3 green_1 = vec3(0.38, 0.68, 0.3);
+uniform vec3 green_2 = vec3(0.27, 0.6, 0.34);
+uniform vec3 green_3 = vec3(0.19, 0.53, 0.42);
+uniform vec3 green_4 = vec3(0.14, 0.45, 0.48);
+uniform vec3 green_5 = vec3(0.11, 0.36, 0.33);
 // How many of a tree's ferns are dark all through, and how many have fronds of three greens.
 uniform float dark_ferns = 0.12;
 uniform float mixed_ferns = 0.25;
@@ -127,4 +128,6 @@ void fragment() {
 	ALPHA = tex.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.4;
 	ROUGHNESS = 0.9;
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

@@ -844,7 +844,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_env.adjustment_saturation = 1.0
 		_moon.rotation_degrees = Vector3(-62, 28, 0)
 		_moon.light_color = Color(0.82, 0.84, 0.9)
-		_moon.light_energy = DUNGEON_MOON
+		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
 	# No dripping cave water under the open sky.
 	if _ambience:
 		# A floor with a loop of its own (see Soundscape) lets the old cave air rest.
@@ -2950,7 +2950,7 @@ func _tick_clock(delta: float) -> void:
 		# A stroke of lightning flickers: bright, a dip, bright again.
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
 		Weather.apply(_env, _moon, _seen_look(), flicker)
-		LightMatch.sun(_env, _moon)
+		_moon.light_energy = Graphics.sun(_moon.light_energy, DayNight.moon_at(day_hour))
 		_check_season()
 		if level is Outdoor:
 			level.day = day
@@ -3453,14 +3453,14 @@ func load_level(index: int, restock := true) -> void:
 	_pending_crate = null
 	_end_drag()
 	_set_atmosphere(level.outdoor)
+	Graphics.lamp_match = Graphics.LAMP_MATCH if level.outdoor else Graphics.LAMP_MATCH_DUNGEON
 	var mood := Mines.mood(level.theme)
 	if not mood.is_empty():
 		# A mine has a light of its own (see Mines.MOODS).
 		_env.ambient_light_color = mood.ambient
 		_env.ambient_light_energy = mood.energy
 		_moon.light_color = mood.light
-		_moon.light_energy = DUNGEON_MOON
-	LightMatch.sun(_env, _moon)
+		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
 	if level is Outdoor:
 		level.day = day
 		level.season_day = season_day()

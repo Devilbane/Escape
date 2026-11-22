@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The village's birds (see VillageBirds), all in one MultiMesh. The mesh is
 // one bird at rest (VillageBirds.bird_mesh): a round body and head, eyes,
 // a beak, a tail, legs and two wings spread out flat. COLOR.r says which
@@ -266,4 +267,5 @@ void fragment() {
 	// The colours are picked in sRGB; light works in linear.
 	ALBEDO = pow(c, vec3(2.2));
 	ROUGHNESS = 0.85;
+	ALBEDO = gl_colour(ALBEDO);
 }

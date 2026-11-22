@@ -7,32 +7,33 @@
 // - rock: grey-brown rock in layers with cracks, pits and sand,
 // - obsidian: glossy black glass in facets with sharp highlights,
 // - crystal: blue facets with glowing veins that breathe faintly.
+#include "res://shaders/gl_colour.gdshaderinc"
 
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/reveal.gdshaderinc"
 
-uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
 // 0 bone, 1 rock, 2 obsidian, 3 crystal.
 uniform int style = 0;
 // 0 for a wall, 1 for a floor (a little lighter and calmer, so the two stay
 // apart), 2 for rough floor.
 uniform int surface = 0;
-uniform vec3 base_color : source_color = vec3(0.7);
-uniform vec3 dark_color : source_color = vec3(0.3);
+uniform vec3 base_color = vec3(0.7);
+uniform vec3 dark_color = vec3(0.3);
 // The two other variants of the style: their colours, and how fine their
 // pattern is (variant 0 is base_color and dark_color, with the pattern at 1).
-uniform vec3 base_b : source_color = vec3(0.7);
-uniform vec3 dark_b : source_color = vec3(0.3);
-uniform vec3 base_c : source_color = vec3(0.7);
-uniform vec3 dark_c : source_color = vec3(0.3);
+uniform vec3 base_b = vec3(0.7);
+uniform vec3 dark_b = vec3(0.3);
+uniform vec3 base_c = vec3(0.7);
+uniform vec3 dark_c = vec3(0.3);
 uniform float scale_b = 1.35;
 uniform float scale_c = 0.75;
 // -1 mixes the three variants in patches a few metres wide, blended smoothly in
 // world space (so two maps or tiles of one style never show a seam); 0, 1 and 2
 // give one variant alone.
 uniform int variant = -1;
-uniform vec3 glow_color : source_color = vec3(0.4, 0.8, 1.0);
+uniform vec3 glow_color = vec3(0.4, 0.8, 1.0);
 // See stone.gdshader: how see-through a near wall in front of the hero is.
 #ifndef NO_FADE
 instance uniform float fade = 0.0;
@@ -161,4 +162,6 @@ void fragment() {
 		}
 	}
 #endif
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

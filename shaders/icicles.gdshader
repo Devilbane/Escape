@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back, blend_mix, depth_draw_opaque;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Icicles under the eaves and the window tops (see SnowCaps): clear, glassy ice hanging from
 // the roll of snow. They ride on the snow as it grows (CUSTOM0) and lengthen once it lies
 // deep (CUSTOM1), and shrink back into it as it melts.
@@ -29,4 +30,6 @@ void fragment() {
 	SPECULAR = 0.9;
 	// A soft crystal glow, stronger at the rim, so the ice reads as glinting by day and night.
 	EMISSION = vec3(0.35, 0.7, 1.0) * (0.12 + 0.25 * rim) + vec3(0.4, 0.55, 0.8) * 0.04 * (1.0 - daylight);
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

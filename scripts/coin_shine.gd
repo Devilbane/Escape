@@ -152,6 +152,7 @@ static func _star() -> QuadMesh:
 		mat.albedo_texture = ImageTexture.create_from_image(img)
 		mat.albedo_color = GLINT
 		mat.vertex_color_use_as_albedo = true
+		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		# A glint is light: it does not hide in the fog of the dungeon.
 		mat.disable_fog = true
 		_star_mesh = QuadMesh.new()

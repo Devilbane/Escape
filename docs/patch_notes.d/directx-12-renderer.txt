@@ -1,0 +1,2 @@
+- The Windows version now draws with DirectX 12 (Godot's modern renderer) instead of OpenGL, with the same look by day, night and down in the dungeons.
+- New graphics setting in the pull-out menu: Quality (the default), Balanced or Performance.

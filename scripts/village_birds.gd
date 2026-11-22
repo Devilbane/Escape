@@ -286,6 +286,7 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 	worms.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var worm_mat := StandardMaterial3D.new()
 	worm_mat.vertex_color_use_as_albedo = true
+	worm_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	worm_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	worm_mat.roughness = 0.45
 	worms.material_override = worm_mat
@@ -1318,6 +1319,7 @@ func _brood_multimesh(node_name: String, mesh: Mesh, count: int) -> MultiMesh:
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.roughness = 0.9
 	node.material_override = mat
 	add_child(node)

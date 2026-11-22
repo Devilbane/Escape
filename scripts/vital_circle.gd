@@ -114,6 +114,7 @@ func _make_streak(level: Node) -> void:
 	_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_mat.vertex_color_use_as_albedo = true
+	_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	_streak = MeshInstance3D.new()
 	_streak.mesh = _mesh
 	_streak.material_override = _mat

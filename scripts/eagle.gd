@@ -261,6 +261,7 @@ static func _add_mesh(parent: Node3D, mesh: Mesh, at: Vector3) -> void:
 	if _material == null:
 		_material = StandardMaterial3D.new()
 		_material.vertex_color_use_as_albedo = true
+		_material.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_material.roughness = 0.9
 		_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	var m := MeshInstance3D.new()

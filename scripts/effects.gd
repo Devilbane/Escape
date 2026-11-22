@@ -10,6 +10,7 @@ static func _glow_material(color: Color) -> StandardMaterial3D:
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.albedo_color = color
 	mat.albedo_texture = _soft_dot()
 	return mat

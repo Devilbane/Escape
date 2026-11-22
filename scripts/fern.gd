@@ -287,6 +287,7 @@ static func material(needles: bool) -> Material:
 		else:
 			var m := StandardMaterial3D.new()
 			m.vertex_color_use_as_albedo = true
+			m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 			m.albedo_texture = frond_texture(false)
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 			m.alpha_scissor_threshold = 0.4
@@ -301,6 +302,7 @@ static func bark_material() -> StandardMaterial3D:
 	if _bark_mat == null:
 		_bark_mat = StandardMaterial3D.new()
 		_bark_mat.vertex_color_use_as_albedo = true
+		_bark_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_bark_mat.roughness = 0.95
 	return _bark_mat
 

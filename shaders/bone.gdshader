@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // Old bones lying in the dungeon (DungeonLife's bone piles and skulls, and
 // the bones in the pits under the grates). A plain bone colour looks clean
 // and fresh; this ages it:
@@ -13,7 +14,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform vec3 albedo_color : source_color = vec3(0.74, 0.69, 0.57);
+uniform vec3 albedo_color = vec3(0.74, 0.69, 0.57);
 // 0 keeps the clean look, 1 is a bone that lay in the dirt for ages.
 uniform float strength = 1.0;
 
@@ -54,4 +55,5 @@ void fragment() {
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(grit * 0.002), dFdy(grit * 0.002));
 	ROUGHNESS = 0.85 + 0.15 * earth;
 	SPECULAR = 0.25;
+	ALBEDO = gl_colour(ALBEDO);
 }

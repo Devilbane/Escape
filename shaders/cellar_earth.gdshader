@@ -1,4 +1,5 @@
 shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
 // The ground round a cellar as the hero sees it from down there (see CellarView):
 // not the grass of the surface but the earth the cellar is dug into, as if cut open.
 // Packed soil from BareEarth's picture (laid twice, turned, so it never tiles), with
@@ -10,7 +11,7 @@ render_mode shadows_disabled;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform sampler2D soil : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D soil : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D soil_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float size_a = 1.6;
 uniform float size_b = 2.47;
@@ -21,7 +22,7 @@ uniform vec2 pit_min = vec2(0.0);
 uniform vec2 pit_max = vec2(0.0);
 // Metres from the cellar where the darkness is complete.
 uniform float dark_reach = 15.0;
-uniform vec3 rock_colour : source_color = vec3(0.3, 0.28, 0.26);
+uniform vec3 rock_colour = vec3(0.3, 0.28, 0.26);
 uniform float bump = 0.9;
 
 varying vec3 world_pos;
@@ -64,4 +65,5 @@ void fragment() {
 	ROUGHNESS = mix(0.95, 0.7, rock);
 	vec3 bent = normalize(vec3(0.0, 1.0, 0.0) + vec3(tilt.x, 0.0, tilt.y) * bump * (1.0 - rock * 0.5));
 	NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
+	ALBEDO = gl_colour(ALBEDO);
 }

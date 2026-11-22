@@ -434,7 +434,8 @@ func _furnish_temple(rec: Dictionary, chapel: Node3D) -> void:
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor * s
 	var floor_mesh := WalkInFurniture.flagstones(Vector2(room.size.x, room.size.y + 1.0) * s, floor_y)
-	floor_mesh.position = Vector3(room.get_center().x, 0, room.get_center().y + 0.5) * s
+	# Up at the floor's height, not on the ground: down there it lay in the grass and flickered with it.
+	floor_mesh.position = Vector3(room.get_center().x * s, floor_y, (room.get_center().y + 0.5) * s)
 	inside.add_child(floor_mesh)
 	# The altar, under the rose window.
 	var altar_z := (room.position.y + 2.2) * s

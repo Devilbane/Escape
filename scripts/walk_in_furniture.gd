@@ -92,7 +92,8 @@ static func altar() -> Node3D:
 	_box(root, ALTAR_SIZE - Vector3(0.2, 0.2, 0.2), Vector3(0, ALTAR_SIZE.y * 0.5, 0), stone)
 	_box(root, Vector3(ALTAR_SIZE.x, 0.1, ALTAR_SIZE.z), Vector3(0, ALTAR_SIZE.y - 0.05, 0), stone)
 	_box(root, Vector3(ALTAR_SIZE.x * 0.7, 0.02, ALTAR_SIZE.z + 0.06), Vector3(0, ALTAR_SIZE.y + 0.01, 0), _plain("cloth", Color(0.92, 0.9, 0.84)))
-	_box(root, Vector3(0.3, 0.4, ALTAR_SIZE.z + 0.08), Vector3(0, ALTAR_SIZE.y - 0.18, 0), _plain("cloth_red", Color(0.55, 0.12, 0.12)))
+	# The red band lies over the cloth, a little higher, so their tops never share a plane and flicker.
+	_box(root, Vector3(0.3, 0.41, ALTAR_SIZE.z + 0.08), Vector3(0, ALTAR_SIZE.y - 0.175, 0), _plain("cloth_red", Color(0.55, 0.12, 0.12)))
 	for x: float in [-0.65, 0.65]:
 		_box(root, Vector3(0.08, 0.3, 0.08), Vector3(x, ALTAR_SIZE.y + 0.17, 0), _plain("wax", Color(0.95, 0.92, 0.82), 0.6))
 		var flame := Effects.make_flame()

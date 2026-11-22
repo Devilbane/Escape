@@ -238,6 +238,9 @@ func _run() -> void:
 		if step == "asleep":
 			asleep += 1
 			check(v.visible and v.at_home, "%s sleeps in a bed where one can see them" % v.role)
+			v.meet()
+			await physics_frame
+			check(not v.get("_name_tag").visible, "%s shows no name over the head while asleep" % v.role)
 		elif step == "upstairs":
 			upstairs += 1
 			check(not v.visible, "%s sleeps upstairs, out of sight" % v.role)
@@ -254,6 +257,7 @@ func _run() -> void:
 	var still := lvl.villagers.filter(func(v): return not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed()))
 	check(still.is_empty(), "in the morning everyone is out of the houses again (%s)" % [still.map(func(v): return v.role + ":" + String(v.bed_trip.get("step", "")))])
 	check(lvl.villagers.all(func(v): return v.global_position.y < 0.3), "and back on the ground")
+	check(lvl.villagers.all(func(v): return not v.is_known() or v.get("_name_tag").visible), "awake again, the names are back over the heads")
 	# One walks home and to bed.
 	var sleeper: Villager = null
 	for v: Villager in lvl.villagers:

@@ -82,5 +82,6 @@ func _run() -> void:
 				elif on > 0:
 					half_glass += 1
 			check(half_glass == 0, "%s: no pane is part glass, part wall (%d)" % [node.name, half_glass])
-	check(buildings >= 6, "the village's KayKit buildings were found (%d)" % buildings)
+	# (The bank is a walk-in stone house now, see BankVault, and no kit tower.)
+	check(buildings >= (5 if BankVault.on else 6), "the village's KayKit buildings were found (%d)" % buildings)
 	check(panes > 50, "the village's windows are glass (%d pane triangles)" % panes)

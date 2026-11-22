@@ -2172,6 +2172,10 @@ func _build_bank() -> void:
 		rent.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		rent.custom_minimum_size = Vector2(300, 54)
 		_box.add_child(rent)
+	if BankVault.on:
+		# The vault is under the bank itself (see BankVault): down the stairs inside.
+		_add_label(Lang.t("Der Tresorkeller liegt unter der Bank: Geh hinein und die Treppe hinab."), 16, BLUE)
+		return
 	var down: Button = game._make_button(Lang.t("In den Tresorkeller gehen"), func():
 		close()
 		game.go_to_vaults())

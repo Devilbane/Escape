@@ -24,6 +24,10 @@ static var temple := true
 ## guild (w). Off, a hall is the old solid kit model again.
 static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true}
 
+## Map tiles of other buildings one walks into that let sight and reach through (the bank, see
+## BankVault): their own walls stop them.
+var open_cells := {}
+
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
 ## The doorway as wide as the walls stop the hero (a little wider than the leaf, so the hero, 1.1 m
@@ -551,6 +555,8 @@ func _finish(rec: Dictionary) -> void:
 ## Whether a map tile belongs to a building one can walk into: it does not block sight or reach by
 ## itself, its walls do (see Level.fixed_walls).
 func opens(c: Vector2i) -> bool:
+	if open_cells.has(c):
+		return true
 	for rec in buildings:
 		if rec.get("opened", false) and rec.cells.has(c):
 			return true

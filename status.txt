@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Map floors: switch the map between the surface and the silver mine; Keep the bank above out of the vault's view; wall lamps in bank and vault | Shipped this week: Silver mine: far drifts kept by the dead, ore veins, a dark and barren look; Guildhall with two storeys, a training roof and a cellar for Ragna (+48 more)
+Escape! dev status | Working on: Map floors: switch the map between the surface and the silver mine | Shipped this week: Keep the bank above out of the vault's view; wall lamps in bank and vault (+49 more)

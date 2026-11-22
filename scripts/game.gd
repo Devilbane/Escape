@@ -314,6 +314,8 @@ var frame_pull := 0.0
 var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
 var save_notice: SaveNotice
+## Frames per second, CPU and GPU time and ping under it, shown with F1 (see PerfOverlay).
+var perf_overlay: PerfOverlay
 var _level_label: Label
 ## The copper coins (the money) on the HUD; the silver and gold coins of the
 ## purse are counted after it (see _update_purse).
@@ -777,12 +779,14 @@ func _setup_world() -> void:
 	# as the hero walks towards them. The camera hangs about 27 m from the hero, so the
 	# first ring reaches past everything around the hero (46 m): a prop on the hero's
 	# side of a ring edge used to be shaded differently from one on the other side, and
-	# a bench flipped between the two as the hero walked past it. Only the far rings are wide.
+	# a bench flipped between the two as the hero walked past it. Only the far ring is wide.
+	# Two rings, not four: every ring draws the shadow casters in it once more each
+	# frame. The first covers all the usual view; the second, coarser, only the far
+	# land seen when zoomed in close.
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	moon.directional_shadow_max_distance = 200.0
 	moon.directional_shadow_fade_start = 1.0
 	moon.directional_shadow_split_1 = 0.23
-	moon.directional_shadow_split_2 = 0.4
-	moon.directional_shadow_split_3 = 0.6
 	# Blend the rings so no hard edge of shade sweeps over the props as the hero walks.
 	moon.directional_shadow_blend_splits = true
 	add_child(moon)
@@ -1734,6 +1738,9 @@ func _setup_hud() -> void:
 
 	save_notice = SaveNotice.new()
 	add_child(save_notice)
+	perf_overlay = PerfOverlay.new()
+	perf_overlay.ping_source = func() -> int: return coop.client.ping_ms() if coop != null and coop.client != null else -1
+	add_child(perf_overlay)
 
 	_setup_shrine_panel()
 
@@ -3453,10 +3460,12 @@ func load_level(index: int, restock := true) -> void:
 	_update_hud()
 	# Every shader the new level needs is built in its first, still dark
 	# frame, and the time that takes does not count (see LevelWarmup). The
-	# lamps round the hero cast their shadows from that frame on, so their
-	# shaders are built in it too (see LightShadows).
-	light_shadows.refresh(true)
+	# lamps round the hero cast their shadows from that frame on, and for that
+	# frame alone two faint lamps with shadows light the whole level, so the
+	# shaders of every lamp that gains its shadows later are built in it too
+	# (see LightShadows.warm_up).
 	LevelWarmup.begin(level)
+	light_shadows.refresh(true)
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:
@@ -7960,6 +7969,12 @@ func _steer_by_mouse(delta: float) -> void:
 ## or key press anywhere can start the music.
 func _input(event: InputEvent) -> void:
 	Music.notice_input(event)
+	# F1 shows or hides the performance plate anywhere: on the title, in a
+	# window, while typing in the chat line.
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F1 and perf_overlay != null:
+		perf_overlay.toggle()
+		get_viewport().set_input_as_handled()
+		return
 	# Letting go of the mouse ends a drag in the blueprint tool (a wall, a
 	# rectangle of cellar or roof). It is seen here because the release may
 	# happen over the tool bar, and because _unhandled_input hands on key and

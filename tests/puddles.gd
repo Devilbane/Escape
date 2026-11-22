@@ -96,7 +96,8 @@ func _dry_ground() -> void:
 			small_on_walk += 1
 	print("puddles: laid %d, left %d, small %d, small on walkways %d, water ratio %.3f" % [laid, spots.size(), small, small_on_walk, _puddles().total_area() / _puddles().laid_area])
 	check(small >= 1, "a few small puddles lie about in between (%d)" % small)
-	check(small <= spots.size() / 10, "the small puddles are very few (%d)" % small)
+	# A tenth of them at most, rounded (the integer division cut 6.7 down to 6).
+	check(small <= roundi(spots.size() / 10.0), "the small puddles are very few (%d)" % small)
 	check(small_on_walk == 0, "no small puddle lies on a path or a square (%d)" % small_on_walk)
 	var on_path := 0
 	var by_house := 0

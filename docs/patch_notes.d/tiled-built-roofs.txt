@@ -1,0 +1,1 @@
+- Built roofs (your own house's and the old hut over the lost mine) now have weathered clay tiles like the village houses and sit on their walls instead of floating.

@@ -92,7 +92,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 ## door and the windows in it, `up` the upper floor, the roof and the chimney, `step` the stone
 ## step before the door. All four the same dictionary builds the solid house as it always was;
 ## kept apart they make a house one can walk into (see hollow).
-static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Dictionary, step: Dictionary, walls := {}) -> void:
+static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Dictionary, step: Dictionary, walls := {}, roof = null, up_front = null) -> void:
 	var w: float = shape.w
 	var d: float = shape.d
 	var ridge: float = shape.ridge
@@ -116,7 +116,16 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 				Rect2(door_x + w * 0.5 - HouseDoor.WIDTH * 0.5, 0.0, HouseDoor.WIDTH, HouseDoor.HEIGHT))
 	var uw := w + JETTY * 2.0
 	var ud := d + JETTY * 2.0
-	_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
+	if roof == null:
+		_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
+	else:
+		# A floor above one walks into (see hollow with a hatch): its back and side walls and its
+		# underside, its front wall and its lid apart, so the roof and the front can hide.
+		_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud), Basis(), 2.0, [0, 4])
+		_box(up_front, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud), Basis(), 2.0, [1, 2, 3, 4, 5])
+		_box(roof, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud), Basis(), 2.0, [0, 1, 2, 3, 5])
+	var lid: Dictionary = up if roof == null else roof
+	var up_face: Dictionary = up if up_front == null else up_front
 	# The upper floor rests on a band of oak beams.
 	_beams(up, uw, ud, top)
 	# The floor beams of the jetty poking out under the upper floor.
@@ -129,15 +138,15 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 	for x: float in _window_spots(w, door_x):
 		_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), 0.0)
 	for x: float in _window_spots(uw, INF):
-		_window(up, Vector3(x, top + 1.3, ud * 0.5), 0.0)
+		_window(up_face, Vector3(x, top + 1.3, ud * 0.5), 0.0)
 	for side: float in [-1.0, 1.0]:
 		_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
 		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
 	# The roof, its gables and the chimney.
-	_gables(up, uw, ud, eaves, ridge)
-	_roof(up, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)
-	_box(up, "stone", Vector3(cx, eaves + ridge * 0.6, -ud * 0.22), Vector3(0.8, ridge * 1.2 + 0.8, 0.8))
-	_box(up, "timber", Vector3(cx, eaves + ridge * 1.2 + 0.45, -ud * 0.22), Vector3(0.95, 0.12, 0.95))
+	_gables(lid, uw, ud, eaves, ridge)
+	_roof(lid, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)
+	_box(lid, "stone", Vector3(cx, eaves + ridge * 0.6, -ud * 0.22), Vector3(0.8, ridge * 1.2 + 0.8, 0.8))
+	_box(lid, "timber", Vector3(cx, eaves + ridge * 1.2 + 0.45, -ud * 0.22), Vector3(0.95, 0.12, 0.95))
 
 
 ## How far the walls of a hollow house reach in from their outer faces (metres).
@@ -154,7 +163,7 @@ const FLOOR_LIFT := 0.02
 ## Outdoor._dress_building), which reads the solid mesh. Returns the new meshes by group
 ## ("low", "front", "up", "inside"); the plain dark panel behind the door is gone, the doorway
 ## now opens into the room.
-static func hollow(house: Node3D, sides := false) -> Dictionary:
+static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionary:
 	var shape: Dictionary = house.get_meta("shape")
 	var mats: Dictionary = shape.mats.duplicate()
 	mats["floor"] = _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5))
@@ -167,8 +176,17 @@ static func hollow(house: Node3D, sides := false) -> Dictionary:
 		for key: String in ["back", "right", "left"]:
 			groups[key] = {}
 		walls = {1: groups.back, 2: groups.right, 3: groups.left}
-	_shape(shape, groups.low, groups.front, groups.up, groups.low, walls)
+	var upper := hatch.size != Vector2.ZERO
+	if upper:
+		# A floor above one walks into: the roof, the upper front wall and the upper room apart.
+		for key: String in ["roof", "up_front", "up_inside"]:
+			groups[key] = {}
+		_shape(shape, groups.low, groups.front, groups.up, groups.low, walls, groups.roof, groups.up_front)
+	else:
+		_shape(shape, groups.low, groups.front, groups.up, groups.low, walls)
 	_room(shape, groups.inside, groups.front)
+	if upper:
+		_upper_room(shape, groups.up_inside, groups.up_front, hatch)
 	var body: MeshInstance3D = shape.body
 	var out := {}
 	for key: String in groups:
@@ -220,6 +238,38 @@ static func _room(shape: Dictionary, parts: Dictionary, front: Dictionary) -> vo
 		_inner_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), Vector3(x, PLINTH + 1.6, d * 0.5 - t), 0.0)
 	for side: float in [-1.0, 1.0]:
 		_inner_window(parts, Vector3(side * w * 0.5, PLINTH + 1.6, 0), Vector3(side * (w * 0.5 - t), PLINTH + 1.6, 0), side * PI * 0.5)
+
+
+## The room on the floor above a hollow house (see hollow with a hatch): into `parts` the boards
+## with the hatch (`hatch`, the house's frame, x and z) left open, the inner faces of the back and
+## side walls with their windows and the tops of the walls (seen once the roof is hidden); into
+## `front` the inner face of the front wall and its windows, so it hides with it.
+static func _upper_room(shape: Dictionary, parts: Dictionary, front: Dictionary, hatch: Rect2) -> void:
+	var t := WALL_THICK
+	var uw: float = float(shape.w) + JETTY * 2.0
+	var ud: float = float(shape.d) + JETTY * 2.0
+	var top := PLINTH + GROUND
+	var eaves := top + UPPER
+	var corner := Vector3(-uw * 0.5 + t, top + FLOOR_LIFT, ud * 0.5 - t)
+	_face(parts, "floor", corner, Vector3.RIGHT, Vector3.FORWARD, Vector2(uw - t * 2.0, ud - t * 2.0),
+			Rect2(hatch.position.x - corner.x, corner.z - hatch.end.y, hatch.size.x, hatch.size.y))
+	# The rim of the hatch, down through the floor's thickness.
+	_box(parts, "timber", Vector3(hatch.get_center().x, top - 0.06, hatch.position.y - 0.03), Vector3(hatch.size.x + 0.12, 0.16, 0.06))
+	_box(parts, "timber", Vector3(hatch.get_center().x, top - 0.06, hatch.end.y + 0.03), Vector3(hatch.size.x + 0.12, 0.16, 0.06))
+	_box(parts, "timber", Vector3(hatch.position.x - 0.03, top - 0.06, hatch.get_center().y), Vector3(0.06, 0.16, hatch.size.y))
+	_box(parts, "timber", Vector3(hatch.end.x + 0.03, top - 0.06, hatch.get_center().y), Vector3(0.06, 0.16, hatch.size.y))
+	_face(parts, "plaster", Vector3(-uw * 0.5 + t, top, -ud * 0.5 + t), Vector3.RIGHT, Vector3.UP, Vector2(uw - t * 2.0, UPPER))
+	_face(parts, "plaster", Vector3(-uw * 0.5 + t, top, ud * 0.5 - t), Vector3.FORWARD, Vector3.UP, Vector2(ud - t * 2.0, UPPER))
+	_face(parts, "plaster", Vector3(uw * 0.5 - t, top, -ud * 0.5 + t), Vector3.BACK, Vector3.UP, Vector2(ud - t * 2.0, UPPER))
+	_face(front, "plaster", Vector3(uw * 0.5 - t, top, ud * 0.5 - t), Vector3.LEFT, Vector3.UP, Vector2(uw - t * 2.0, UPPER))
+	_face(parts, "plaster", Vector3(-uw * 0.5, eaves, -ud * 0.5 + t), Vector3.RIGHT, Vector3.FORWARD, Vector2(uw, t))
+	_face(parts, "plaster", Vector3(-uw * 0.5, eaves, ud * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, ud - t * 2.0))
+	_face(parts, "plaster", Vector3(uw * 0.5 - t, eaves, ud * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, ud - t * 2.0))
+	_face(front, "plaster", Vector3(-uw * 0.5, eaves, ud * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(uw, t))
+	for x: float in _window_spots(uw, INF):
+		_inner_window(front, Vector3(x, top + 1.3, ud * 0.5), Vector3(x, top + 1.3, ud * 0.5 - t), 0.0)
+	for side: float in [-1.0, 1.0]:
+		_inner_window(parts, Vector3(side * uw * 0.5, top + 1.3, 0), Vector3(side * (uw * 0.5 - t), top + 1.3, 0), side * PI * 0.5)
 
 
 ## A window seen from inside: the pane of the window outside at `outer`, on the inner face at
@@ -406,8 +456,14 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_box(parts, "timber", at + out * 0.07, Vector3(0.8, 0.08, 0.06), b)
 	_box(parts, "timber", at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
 	_box(parts, "timber", at + out * 0.08 + Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.12), b)
+	# The shutters: three wooden planks each, held by a cross batten. (They used the chapel door's
+	# picture, whose pale carving read as stone tiles on such small boards.)
 	for s: float in [-1.0, 1.0]:
-		_box(parts, "door", at + side * s * 0.68 + out * 0.08, Vector3(0.45, 0.95, 0.05), b)
+		var mid := at + side * s * 0.68 + out * 0.08
+		for k in 3:
+			_box(parts, "timber", mid + side * (k - 1) * 0.15, Vector3(0.14, 0.95, 0.05), b)
+		for y: float in [-0.3, 0.3]:
+			_box(parts, "timber", mid + out * 0.035 + Vector3(0, y, 0), Vector3(0.42, 0.07, 0.025), b)
 
 
 ## The two triangular gable ends under the roof, plastered, with a king post.

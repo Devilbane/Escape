@@ -199,6 +199,44 @@ func _run() -> void:
 	for b: Dictionary in rec.beds:
 		check((b.pos as Vector3).y > float(rec.ladder_top.y) - 0.3, "each bed is up on the floor above (%.2f)" % (b.pos as Vector3).y)
 	check(absf(float(rec.ladder_top.y) - float(rec.ladder.y) - float(rec.ladder_tall)) < 0.01, "the ladder climbs from the floor to the hatch")
+	for r: Dictionary in houses:
+		var sh: Dictionary = (r.node as Node3D).get_meta("shape")
+		print("  house %.2f x %.2f: %d beds" % [sh.w, sh.d, r.beds.size()])
+		check((r.node as Node3D).find_children("VillagerBed*", "", true, false).size() == r.beds.size(), "each bed upstairs is drawn")
+
+	# The hero climbs the ladder to the floor above, and down again.
+	_place(rec.ladder + Vector3(0, 0.1, 0))
+	await _wait(10)
+	var push: Vector3 = rec.ladder_push
+	await _walk(push, 0.3)
+	check(hero.on_ladder(), "walking at the ladder's foot towards it, the hero climbs it")
+	for k in 60 * 8:
+		await physics_frame
+		if not hero.on_ladder():
+			break
+	await _wait(20)
+	check(hero.global_position.y > float(rec.ladder_top.y) - 0.2, "and stands on the floor above (%.2f)" % hero.global_position.y)
+	check(walk_in.hero_upstairs_in(rec), "up in the house's upper room")
+	check(rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible), "its roof is hidden")
+	for key: String in ["up_walls", "up_front", "up_room"]:
+		check((rec[key][0] as MeshInstance3D).mesh.get_surface_count() > 0, "the floor above's %s is built" % key)
+	check((rec.node as Node3D).find_child("WalkRoof", false, false) != null and ((rec.node as Node3D).get_node("WalkRoof") as MeshInstance3D).mesh.get_surface_count() > 0, "and its roof apart")
+	check((rec.up_walls[0] as Node3D).visible and not (rec.up_front[0] as Node3D).visible, "its upper walls stand, the upper front wall is hidden")
+	check(rec.up_room.all(func(p): return (p as Node3D).visible), "the upper room and its beds show")
+	check(walk_in.covers(hero.global_position), "out of the weather up there")
+	await _walk(push, 1.0)
+	check(not hero.on_ladder() and hero.global_position.y > float(rec.ladder_top.y) - 0.2, "the floor up there holds the hero (%.2f)" % hero.global_position.y)
+	_place(rec.ladder_top + Vector3(0, 0.1, 0))
+	await _wait(10)
+	await _walk(-push, 0.3)
+	check(hero.on_ladder(), "at the top, walking towards the hatch climbs down")
+	for k in 60 * 8:
+		await physics_frame
+		if not hero.on_ladder():
+			break
+	await _wait(20)
+	check(absf(hero.global_position.y - float(rec.ladder.y)) < 0.25, "back on the ground floor (%.2f)" % hero.global_position.y)
+	check(not walk_in.hero_upstairs_in(rec) and rec.up_room.all(func(p): return not (p as Node3D).visible), "the upper room hides again")
 	_place(way[0] + Vector3(0, 0.2, 3.0))
 	await _wait(5)
 
@@ -240,8 +278,11 @@ func _run() -> void:
 			upstairs += 1
 			check(not v.visible and v.at_home, "%s sleeps upstairs, out of sight" % v.role)
 		else:
-			check(false, "%s went to bed in a house (%s)" % [v.role, step])
-	check(upstairs > 0, "villagers sleep upstairs (%d)" % upstairs)
+			check(v.bed_trip.is_empty() and v.at_home and not v.visible, "%s went to bed (%s)" % [v.role, step])
+	var all_beds := 0
+	for r: Dictionary in houses:
+		all_beds += (r.beds as Array).size()
+	check(upstairs > 0 and upstairs <= all_beds, "villagers sleep upstairs in the beds (%d of %d), two to a house at most" % [upstairs, all_beds])
 	for r: Dictionary in houses:
 		var taken := (r.beds as Array).filter(func(b): return b.by != null).size()
 		check(taken <= WalkIn.MAX_BEDS, "no bed holds two")

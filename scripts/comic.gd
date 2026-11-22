@@ -86,10 +86,20 @@ static func under_weapon() -> void:
 ## Shows a word at a point in the world. Kind picks words and colours:
 ## "hit", "big", "knife", "hurt", "break", "miss", "lever", "rumble",
 ## "backstab", "block" or "vital" (a vital leap strike).
+## While a final scream shows (see FinalScream), no word pops.
 static func pop(world_pos: Vector3, kind: String) -> void:
-	if current == null or current.camera == null:
+	if current == null or current.camera == null or SpeechBubble.silenced():
 		return
 	current._pop(world_pos, kind)
+
+
+## Every word bubble on screen is gone at once (a final scream needs the stage).
+static func clear() -> void:
+	if current == null:
+		return
+	for c in current.get_children():
+		c.queue_free()
+	current._pops.clear()
 
 
 func _pop(world_pos: Vector3, kind: String) -> void:

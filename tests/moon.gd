@@ -181,7 +181,7 @@ func _new_moon() -> void:
 	check(game._moon.light_energy < bright * 0.15, "a new moon night is nearly black: the moon is the night's only light")
 	check(game._env.ambient_light_energy < 0.004 and game._moon.light_energy < bright * 0.03, "and the new moon leaves the night nearly pitch black")
 	check(game._moon.light_energy > 0.0, "but a trace of moonlight still shows the shapes of things")
-	check(game.player._lantern.omni_range < 8.5 * 0.8 and game.player._lantern.light_energy < 1.1 * 0.8, "the hero's lantern shows only a small pool on a moonless night")
+	check(game.player._lantern.omni_range < 8.5 * 0.8 and game.player._lantern.light_energy < Player.LANTERN_ENERGY * 0.8, "the hero's lantern shows only a small pool on a moonless night")
 	check(game._clock_text().contains(Lang.t("Neumond")), "the HUD clock names the new moon")
 	check(out.holes_breathe(), "the holes breathe at new moon")
 	check(out._breaths.size() == out.holes.size() and out._breaths.all(func(b): return b.emitting), "a dark breath rises out of every hole")

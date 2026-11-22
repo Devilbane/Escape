@@ -36,7 +36,7 @@ static func build(root: Node3D, info: Dictionary) -> Array:
 	var shrine := Node3D.new()
 	shrine.name = "Shrine"
 	root.add_child(shrine)
-	var marble := marble_material(Color(0.97, 0.95, 0.91))
+	var marble := marble_material(Color(0.9, 0.89, 0.87))
 	var statue := marble_material(info.statue)
 	var gilt := gilt_material(info.wings)
 	var gold := gilt_material(GOLD)
@@ -234,9 +234,10 @@ static func marble_material(tint: Color) -> StandardMaterial3D:
 		m.normal_enabled = true
 		m.normal_texture = _marble_textures()[1]
 		m.normal_scale = 0.5
-		m.roughness = 0.25
+		# Honed rather than mirror-polished, so it does not glare in lamplight.
+		m.roughness = 0.45
 		m.uv1_triplanar = true
-		m.uv1_scale = Vector3.ONE * 1.6
+		m.uv1_scale = Vector3.ONE * 2.4
 		_cache[key] = m
 	return _cache[key]
 
@@ -444,25 +445,33 @@ static func _noise(seed: int, frequency: float, size: int) -> Image:
 	return noise.get_seamless_image(size, size)
 
 
-## The marble: [albedo texture, normal texture, albedo image]. Veins run across in waves bent by
-## the noise, so the pattern tiles.
+## The marble: [albedo texture, normal texture, albedo image]. A soft grey-white stone, clouded a
+## little darker here and there, crossed by many fine grey lines: a few long veins bent by the
+## noise and a scatter of thin hairline cracks between them. Every layer tiles.
 static func _marble_textures() -> Array:
 	if not _cache.has("marble_tex"):
 		var size := 256
 		var cloud := _noise(17, 0.012, size)
 		var fine := _noise(18, 0.06, size)
+		var cracks := _noise(19, 0.035, size)
 		var img := Image.create(size, size, false, Image.FORMAT_RGB8)
 		var bump := Image.create(size, size, false, Image.FORMAT_RGBA8)
 		for y in size:
 			for x in size:
 				var n := cloud.get_pixel(x, y).r
-				var phase := TAU * (float(x) / size + float(y) / size) + n * 9.0
-				var vein := pow(1.0 - absf(sin(phase)), 14.0)
-				var hair := pow(1.0 - absf(sin(phase * 2.0 + fine.get_pixel(x, y).r * 6.0)), 30.0) * 0.5
-				var c := Color(0.95, 0.94, 0.91).darkened((n - 0.5) * 0.1)
-				c = c.lerp(Color(0.5, 0.5, 0.53), clampf(vein * 0.75 + hair * 0.5, 0.0, 1.0))
+				var f := fine.get_pixel(x, y).r
+				var u := float(x) / size
+				var v := float(y) / size
+				# Long veins, thin, running across in waves.
+				var vein := pow(1.0 - absf(sin(TAU * (u + v) * 2.0 + n * 12.0)), 40.0)
+				# Finer veins the other way, broken up by the fine noise.
+				var thread := pow(1.0 - absf(sin(TAU * (u * 2.0 - v) + f * 10.0 + n * 4.0)), 60.0) * smoothstep(0.35, 0.6, n)
+				# Scattered hairline cracks: the ridges of a third noise.
+				var hair := pow(1.0 - absf(cracks.get_pixel(x, y).r * 2.0 - 1.0), 28.0)
+				var c := Color(0.84, 0.83, 0.81).darkened((n - 0.5) * 0.3 + (f - 0.5) * 0.06)
+				c = c.lerp(Color(0.42, 0.42, 0.45), clampf(vein * 0.7 + thread * 0.5 + hair * 0.45, 0.0, 0.8))
 				img.set_pixel(x, y, c)
-				var hgt := 1.0 - vein * 0.25
+				var hgt := 1.0 - vein * 0.25 - hair * 0.1
 				bump.set_pixel(x, y, Color(hgt, hgt, hgt))
 		var plain := img.duplicate() as Image
 		img.generate_mipmaps()

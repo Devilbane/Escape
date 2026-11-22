@@ -153,6 +153,20 @@ func _run() -> void:
 		if m.layers & LightShadows.WALL_LAYER:
 			house_walls += 1
 	check(house_walls > 4, "the built house's walls stop light (%d)" % house_walls)
+	# Floors are lit but cast no shadow of their own (no stripes of shadow acne on the boards);
+	# an upper floor keeps the light below it with a thin shadow-only board at its underside.
+	var floors := 0
+	var lit_floors := 0
+	var lids := 0
+	for m: MeshInstance3D in game.house_sketcher._solid.find_children("*", "MeshInstance3D", false, false):
+		if m.has_meta(LightShadows.FLOOR):
+			floors += 1
+			if not (m.layers & LightShadows.WALL_LAYER):
+				lit_floors += 1
+		elif m.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and m.layers & LightShadows.WALL_LAYER and not LightShadows.lifted(m):
+			lids += 1
+	check(floors >= 6 and lit_floors == floors, "the house's floors cast no shadow of their own (%d of %d)" % [lit_floors, floors])
+	check(lids >= 6, "the upper floor keeps a shadow-only board under it (%d)" % lids)
 	var torch_holder := torch_light.get_parent() if torch_light != null else null
 	var bracket_walls := 0
 	if torch_holder != null:

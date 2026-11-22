@@ -40,6 +40,11 @@ const FADE := 1.2
 const NO_SHADOW := &"no_wall_shadow"
 ## The meta of a node whose drawn parts are walls (see the top).
 const WALL := &"blocks_light"
+## The meta of a drawn floor inside a wall's node: it is lit but casts no shadow of its own.
+## A floor that cast one would shade its own top face (shadow acne), in stripes that crawl
+## over the boards as the hero's lantern moves. A floor with a room under it gets a thin
+## shadow-only lid at its underside instead (see HouseSketcher._floor_box).
+const FLOOR := &"lit_floor"
 ## The render layer of walls: the only thing point lights take shadows from.
 const WALL_LAYER := 1 << 17
 ## The render layer of a lifted roof (see lift): it is not drawn, and only point
@@ -201,10 +206,13 @@ static func lifted(node: Node) -> bool:
 	return node.get_meta(&"lifted", false)
 
 
-## Whether a drawn thing is part of a wall: it or one of its parents carries WALL.
+## Whether a drawn thing is part of a wall: it or one of its parents carries WALL, and it is
+## no floor (FLOOR).
 static func is_wall(node: Node) -> bool:
 	var up := node
 	while up != null:
+		if up.has_meta(FLOOR):
+			return false
 		if up.has_meta(WALL):
 			return true
 		up = up.get_parent()

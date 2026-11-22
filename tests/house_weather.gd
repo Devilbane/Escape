@@ -1,7 +1,8 @@
 extends SceneTree
-## No weather inside a built house (see HouseGround.shelter and Game._shelter): a hero who steps
-## in out of a storm sees no rain, no fog and no storm dark, and in daytime fog a hero indoors is
-## lit as on a clear day (see Outdoor.is_lit). Out in the open again, the storm is back.
+## No weather inside a built house (see HouseGround.shelter, Game._shelter and IndoorMask): a hero who
+## steps in out of a storm sees no rain, no fog and no storm dark in there, but the storm outside goes
+## on and the rain drums muffled; in daytime fog a hero indoors is lit as on a clear day (see
+## Outdoor.is_lit). Out in the open again, the storm is back.
 ## Run with: godot --headless -s tests/house_weather.gd
 
 var failures := 0
@@ -109,7 +110,15 @@ func _process(_delta: float) -> bool:
 		return false
 	if step == 1:
 		check(game.level.is_sheltered(game.player.global_position), "the hero stands inside the house")
-		check(not game._rain.visible, "no rain falls inside the house")
+		# The storm goes on outside (seen through the windows and over the walls), but the shaders leave
+		# out everything inside the house (see IndoorMask), and the rain only drums, muffled.
+		check(game._rain.visible, "outside the house the storm's rain still falls, seen from inside")
+		var inside: Vector3 = game.player.global_position + Vector3(0, 1, 0)
+		check(IndoorMask.covers(inside), "no rain, mist or fog clouds show inside the house")
+		check(not IndoorMask.covers(plan.node_world(0, 0) - Vector3(3, -1, 3)), "outside the house they do")
+		check(not IndoorMask.covers(inside + Vector3(0, HouseSketch.STOREY_HEIGHT * 2.0, 0)), "above the house they do")
+		var bus := AudioServer.get_bus_index(Soundscape.WEATHER_BUS)
+		check(bus >= 0 and AudioServer.get_bus_volume_db(bus) < -6.0, "the rain is heard muffled inside")
 		check(not game._env.fog_enabled, "no haze inside the house")
 		check(float(game._seen_look().sat) > 0.95 and float(game._seen_look().sun) > 0.95, "no storm grey or dark inside the house")
 		_snow_checks()
@@ -122,6 +131,8 @@ func _process(_delta: float) -> bool:
 		return false
 	if step == 2:
 		check(game._rain.visible, "out again, the rain falls again")
+		var bus := AudioServer.get_bus_index(Soundscape.WEATHER_BUS)
+		check(bus >= 0 and AudioServer.get_bus_volume_db(bus) > -0.5, "out again, the rain is heard clearly")
 		check(game._env.fog_enabled, "out again, the haze is back")
 		print("PASS: house weather" if failures == 0 else "FAILED: %d" % failures)
 		Plots.release(game.hero_name)

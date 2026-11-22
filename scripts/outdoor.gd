@@ -427,6 +427,7 @@ var house_lights: Array[Vector3] = []
 var shelters := {}:
 	set(value):
 		shelters = value
+		IndoorMask.mark()
 		if snow != null:
 			snow.set_shelter(shelters, width, height, TILE)
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow

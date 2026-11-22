@@ -103,10 +103,11 @@ static func make_swarm() -> CPUParticles3D:
 	return p
 
 
-## Whether a swarm may hover over a spot: open ground, not a house.
+## Whether a swarm may hover over a spot: open ground, not a house (a village one, a self-built one
+## or its walled yard, see Outdoor.is_sheltered).
 func _free(at: Vector3) -> bool:
 	var c := level.world_to_cell(at)
-	return GROUND.contains(level.cell_char(c)) and not level._in_house(c)
+	return GROUND.contains(level.cell_char(c)) and not level._in_house(c) and not level.is_sheltered(Vector3(at.x, 0.5, at.z))
 
 
 ## A new spot for a swarm around `centre`, on open ground, or INF.

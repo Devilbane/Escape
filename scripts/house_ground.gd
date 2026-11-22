@@ -126,6 +126,26 @@ static func shelter(house: HouseSketch) -> Dictionary:
 	return out
 
 
+## Where `house` keeps the sky off (no rain, snow, fog or storm dark, see Game._shelter, IndoorMask and
+## SnowCover.set_shelter): the part of `sheltered` (see shelter) that has a slab or a roof over it. A
+## yard closed in by walls but open to the sky still counts as inside the house (see shelter), but the
+## weather falls into it.
+static func roofed(house: HouseSketch, sheltered: Dictionary) -> Dictionary:
+	var out := {}
+	if sheltered.is_empty():
+		return out
+	var covered := {}
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if _stands(piece) and piece.kind in ROOFING:
+			var p := HouseSketch.parts_of(key)
+			covered[cell_at(house.node_world(p[1], p[2]) + Vector3(HouseSketch.CELL * 0.5, 0, HouseSketch.CELL * 0.5))] = true
+	for c: Vector2i in sheltered:
+		if covered.has(c):
+			out[c] = sheltered[c]
+	return out
+
+
 ## Whether a world point lies inside a built house, out of the weather (see shelter).
 static func sheltered(shelters: Dictionary, pos: Vector3) -> bool:
 	return shelters.has(cell_at(pos)) and pos.y < float(shelters[cell_at(pos)])

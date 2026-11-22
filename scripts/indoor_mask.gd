@@ -1,8 +1,8 @@
 class_name IndoorMask
 extends RefCounted
 ## Where the weather does not show: a map of the open air that tells, for every half metre of the
-## ground, how high the house over it keeps the weather out (shaders/indoors.gdshaderinc). Inside a
-## self-built house (Outdoor.shelters, see HouseGround.shelter) and in a village room one walks into
+## ground, how high the house over it keeps the weather out (shaders/indoors.gdshaderinc). Under the
+## roof of a self-built house (Outdoor.roofs, see HouseGround.roofed) and in a village room one walks into
 ## (WalkIn), up to the top of it, the fog clouds, the rain, the snowflakes, the mist and the leaves
 ## leave everything out. Outside they go on, so from in there the weather shows through the windows,
 ## the open door and over the walls, but none of it inside.
@@ -71,10 +71,10 @@ static func build(level: Outdoor) -> void:
 	var size := Vector2i(ceili(level.width * Level.TILE / STEP), ceili(level.height * Level.TILE / STEP))
 	var img := Image.create(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_R8)
 	var any := false
-	# The self-built houses: each 2 m cell of the house lattice, up to its top.
+	# The roofs of the self-built houses: each 2 m cell of the house lattice, up to its top.
 	var per := int(round(HouseSketch.CELL / STEP))
-	for c: Vector2i in level.shelters:
-		var top := float(level.shelters[c])
+	for c: Vector2i in level.roofs:
+		var top := float(level.roofs[c])
 		for dy in per:
 			for dx in per:
 				any = _raise(img, Vector2i(c.x * per + dx, c.y * per + dy), top) or any

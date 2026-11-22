@@ -3230,7 +3230,7 @@ func _under_roof() -> bool:
 		return false
 	if house_sketcher != null and (house_sketcher.view_storey != HouseSketcher.NO_VIEW or house_sketcher.cellar_view.active):
 		return true
-	return (level as Outdoor).is_sheltered(player.global_position)
+	return (level as Outdoor).is_roofed(player.global_position)
 
 
 ## The weather as it is seen: out in the open the weather's own look, inside a built house

@@ -18,6 +18,10 @@ const TOUCH := 2.2
 ## before she is simply put where she was going.
 const ARRIVE := 0.15
 const GIVE_UP := 15.0
+## Behind the counter a keeper stands still and busies their hands only now and then: every so
+## many seconds (from, to), for this long.
+const FIDGET_EVERY := Vector2(7.0, 14.0)
+const FIDGET_TIME := 2.0
 
 
 ## The post of the hall the villager keeps, or {} (she keeps none, or it cannot be walked into).
@@ -76,7 +80,13 @@ static func step(v: Villager, delta: float) -> void:
 				_pass_through(v, false)
 		"at":
 			v.turn_toward(Basis(Vector3.UP, float(trip.post.rot)) * Vector3.BACK, delta)
-			v.play(v.work_anim())
+			# She stands calmly behind her counter and only now and then busies her hands.
+			trip["fidget"] = float(trip.get("fidget", FIDGET_EVERY.x)) - delta
+			if float(trip.fidget) <= 0.0:
+				trip.fidget = randf_range(FIDGET_EVERY.x, FIDGET_EVERY.y)
+				trip["busy"] = FIDGET_TIME
+			trip["busy"] = float(trip.get("busy", 0.0)) - delta
+			v.play(v.work_anim() if float(trip.busy) > 0.0 else "Idle")
 			if v.night or v.level.village_alarm.raised:
 				_go_out(v, trip)
 		"out":

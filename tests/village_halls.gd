@@ -143,7 +143,8 @@ func _run() -> void:
 		game.state = game.State.PLAYING
 		await _walk(-in_dir, 4.0)
 		check(walk_in.hero_in.is_empty(), "and out of the %s again (%s)" % [kind, hero.global_position])
-		check(rec.up.all(func(p): return not is_instance_valid(p) or (p as Node3D).visible), "outside again the %s's roof is back" % kind)
+		# (Unless the hero stands behind it, where it is lifted off so they show, see WalkIn._mind_cover.)
+		check(bool(rec.get("roof_off", false)) or rec.up.all(func(p): return not is_instance_valid(p) or (p as Node3D).visible), "outside again the %s's roof is back" % kind)
 
 	# --- The keepers behind their counters and desks -------------------------------------
 	var keepers := {}
@@ -169,6 +170,13 @@ func _run() -> void:
 		check(keeper.station.get("touch", 0.0) > 1.0, "the hero reaches the %s's keeper from in front of the counter" % kind)
 		check(lvl.station_at(rec.posts[0].front) == keeper.station, "standing before the %s's counter the hero touches the keeper's station" % kind)
 		check(VillagerPost.for_station(lvl, keeper.station) == "", "at their place in the %s its keeper deals" % kind)
+		# Calm behind the counter: mostly standing idle, the hands busy only now and then.
+		var busy := 0
+		for i in 60 * 6:
+			await physics_frame
+			if keeper.work_anim() != "Idle" and keeper._anim.current_animation == keeper.work_anim():
+				busy += 1
+		check(busy < 60 * 4, "the %s's keeper stands calmly, busy only now and then (%d of 360 ticks)" % [kind, busy])
 	# Nightfall: out of the door and home.
 	game.day_hour = 22.0
 	lvl.set_hour(22.0)

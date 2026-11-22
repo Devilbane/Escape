@@ -116,6 +116,13 @@ const BUILDING_NAMES := {
 ## Where the bank's sign post stands from its door: aside (+x) and out into the street (-z).
 const BANK_SIGN_SIDE := 1.4
 const BANK_SIGN_OUT := 1.1
+## Where the smith's sign post stands from the middle of his forge's tile.
+const SMITH_SIGN := Vector3(-2.3, 0, 1.7)
+## Where the smith's wares stand from the middle of his forge's tile: on the tile west of it.
+const SMITH_WARES := Vector3(-3.9, 0, -1.2)
+## Where the bank's strongbox stands from its door: to the other side (-x) and out (-z).
+const BANK_BOX_SIDE := 2.0
+const BANK_BOX_OUT := 0.75
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
 var mines: Array[Vector3] = []
@@ -2335,6 +2342,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		house_doors.append(node.get_meta("door_leaf"))
 		walk_in.claim(node, VillageHalls.KINDS[ch], block)
 		walk_in.add_front(node, VillageHalls.hang_sign(node, VillageHalls.KINDS[ch]))
+		# Its wares and what goes with its trade set out by the door (see ShopFronts).
+		walk_in.add_front(node, ShopFronts.dress(walk_in, node, VillageHalls.KINDS[ch]))
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -2443,8 +2452,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var side := Vector3(-facing.y, 0, facing.x) * 4.0
 		for flag in [-1, 1]:
 			_put("flag_blue", front + side * flag - Vector3(facing.x, 0, facing.y) * 1.2, rot, PROP_SCALE)
-	elif ch == "o":
-		# Parcels waiting at the post office.
+	elif ch == "o" and not walk_in.has(node):
+		# Parcels waiting at the old post office (the walked-in one sets out its own, see ShopFronts).
 		var side := Vector3(-facing.y, 0, facing.x) * 2.4
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
@@ -2480,6 +2489,12 @@ func _bank_sign(door: Vector3) -> void:
 	WeatheredProps.weather_plain(board)
 	add_child(board)
 	_add_solid(at, Vector3(0.4, HangingShield.POST_HIGH, 0.4))
+	# The bank's strongbox on the door's other side, a halberd leaned on it (see ShopFronts).
+	var box := ShopFronts.bank_strongbox(Vector3(0, 0, -1))
+	var box_at := door + Vector3(-BANK_BOX_SIDE, 0, -BANK_BOX_OUT)
+	box.position = box_at
+	add_child(box)
+	_add_solid(box_at + Vector3(0, 0.5, 0), box.get_meta("solid_size"))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level
@@ -3963,9 +3978,17 @@ func _build_forge(cell: Vector2i) -> void:
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "anvil")
 	WeatheredProps.weather_plain(board)
-	board.position = pos + Vector3(-1.5, 0, 1.6)
+	# On the grass beside the paved way to the forge, its shield hanging out over the way.
+	board.position = pos + SMITH_SIGN
 	add_child(board)
-	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + SMITH_SIGN, Vector3(0.5, 2.6, 0.5))
+	# His wares on the grass beside the forge, away from the paved way to it (see ShopFronts).
+	var wares := ShopFronts.smith_yard()
+	wares.position = pos + SMITH_WARES
+	add_child(wares)
+	for part: Array in wares.get_meta("solids"):
+		_add_solid(wares.position + (part[0] as Vector3) - Vector3(0, (part[1] as Vector3).y * 0.5, 0), part[1])
+	astar.set_point_solid(cell + Vector2i(-1, 0), true)
 
 
 ## Gives a particle effect its own fixed random seed. Particles otherwise draw their

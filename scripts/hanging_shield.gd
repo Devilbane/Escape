@@ -33,7 +33,7 @@ const LOOKS := {
 	"office": {"field": Color(0.15, 0.22, 0.52), "mark": "crown"},
 	"guild": {"field": Color(0.62, 0.14, 0.12), "mark": "swords"},
 	"bank": {"field": Color(0.12, 0.36, 0.3), "mark": "coins"},
-	"smithy": {"field": Color(0.24, 0.24, 0.27), "mark": "anvil"},
+	"smithy": {"field": Color(0.72, 0.32, 0.12), "mark": "anvil"},
 	"barber": {"field": Color(0.75, 0.18, 0.18), "mark": "scissors"},
 	"mason": {"field": Color(0.36, 0.42, 0.5), "mark": "stone"},
 	"wood": {"field": Color(0.3, 0.45, 0.2), "mark": "axe"},

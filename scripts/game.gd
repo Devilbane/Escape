@@ -7041,6 +7041,8 @@ func _on_player_hurt(_amount: int) -> void:
 ## workshop still ends, back in the workshop.
 func _on_player_defeated() -> void:
 	state = State.TRANSITION
+	# The hero's last cry takes the stage (see FinalScream).
+	FinalScream.scream(level, player, hero_name, FinalScream.hero_line(), 3.0)
 	if playtest_file != "":
 		show_message(Lang.t("Du wurdest besiegt..."), 2.0)
 		var tween := create_tween()

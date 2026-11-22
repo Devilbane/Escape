@@ -34,6 +34,17 @@ const RIM_COLOR := Color(0.06, 0.03, 0.06)
 const INK := Color(0.16, 0.1, 0.08)
 const NAME_INK := Color(0.62, 0.16, 0.05)
 const FADE := 6.0
+## Every bubble is in this group, so a final scream can clear them all.
+const GROUP := "speech_bubbles"
+
+## The final scream that has the stage right now (see FinalScream): while it
+## shows, no other bubble may appear.
+static var silenced_by: SpeechBubble = null
+
+
+## Whether a final scream holds everyone's attention right now.
+static func silenced() -> bool:
+	return is_instance_valid(silenced_by) and silenced_by.is_inside_tree() and silenced_by.holds_stage()
 
 const SHADER := """
 shader_type spatial;
@@ -81,6 +92,8 @@ var _text: Label3D
 var text := ""
 var _alpha := 0.0
 var _target := 0.0
+## How fast the bubble fades in and out (alpha per second).
+var fade := FADE
 ## The tail's tip sits at this node's origin: put the node where the bubble
 ## should touch the speaker.
 var _size := Vector2.ZERO
@@ -88,6 +101,7 @@ var _size := Vector2.ZERO
 
 func _init() -> void:
 	visible = false
+	add_to_group(GROUP)
 
 
 func _ready() -> void:
@@ -175,7 +189,10 @@ static func split_speaker(speaker: String) -> PackedStringArray:
 
 ## Shows `text` said by `speaker`. With `titled` the speaker's name and title
 ## (see split_speaker) are set on two rows, which keeps the bubble narrow.
+## While a final scream shows (see silenced), the line is not shown.
 func show_line(speaker: String, text: String, titled := false) -> void:
+	if silenced() and silenced_by != self:
+		return
 	self.text = "%s:\n%s" % [speaker, text]
 	var parts := split_speaker(speaker) if titled else PackedStringArray([speaker, ""])
 	var rows := rows_for(text)
@@ -239,11 +256,16 @@ func is_shown() -> bool:
 	return visible
 
 
+## Whether this bubble keeps all others away (only a final scream does).
+func holds_stage() -> bool:
+	return false
+
+
 func _process(delta: float) -> void:
 	if not visible:
 		return
 	_face_camera()
-	_alpha = move_toward(_alpha, _target, delta * FADE)
+	_alpha = move_toward(_alpha, _target, delta * fade)
 	_apply()
 	if _alpha <= 0.0 and _target <= 0.0:
 		visible = false

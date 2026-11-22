@@ -178,3 +178,4 @@ autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushe
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone
 wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
 offscreen_anim.gd | 180 | fixed | pass | Off-screen bodies step their animations coarsely and catch up in view
+final_scream.gd | 120 | fixed | passfail | A fall in a fight brings a final scream that silences all other bubbles

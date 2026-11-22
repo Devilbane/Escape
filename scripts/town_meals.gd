@@ -550,6 +550,11 @@ func tick(level: Outdoor, delta: float) -> void:
 			if v.dines():
 				v.leave_meal()
 			_plan.erase(v)
+		elif not p.seated and level.hour >= p.arrive and not alarm and v.rests():
+			# Resting on a fountain bench when the meal calls: up first, then to the table
+			# (see BenchRest), instead of staying until the rest is over and coming late.
+			if v._meal_step != "rising":
+				v.leave_meal()
 		elif not p.seated and level.hour >= p.arrive and not alarm and v.can_go_to_meal():
 			var seat := free_seat(level.player.global_position if level.player else Vector3.INF)
 			if seat.is_empty():

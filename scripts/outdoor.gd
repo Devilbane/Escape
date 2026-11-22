@@ -99,7 +99,7 @@ const WALK := ".,Pai:0123456789KOGMYZS¢µcAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µ"
-const BLOCK_CHARS := "RhjnmuskowbE^[])<"
+const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -322,6 +322,9 @@ var met := {}
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
 var spots := {"houses": [], "square": [], "well": [], "market": []}
+## The door spots of houses that belong to one villager alone (see SmithCottage), by role: they go
+## home to theirs at night, and nobody else does.
+var own_homes := {}
 ## The village houses' chimneys: each house's door spot (as in spots.houses)
 ## and the plume of smoke over its roof (see ChimneySmoke).
 var chimneys: Array[Dictionary] = []
@@ -780,6 +783,13 @@ func build() -> void:
 			for sx in range(Corral.SHELTER.position.x, Corral.SHELTER.end.x):
 				roofed.append(Vector2i(sx, sy))
 	roofed.append_array(meals.roofed)
+	# The rooms of the buildings one walks into (see WalkIn): no snow on their floors and furniture,
+	# which the camera sees once their roof is lifted off.
+	for rec in walk_in.buildings:
+		var block: Rect2i = rec.block
+		for by in range(block.position.y, block.end.y):
+			for bx in range(block.position.x, block.end.x):
+				roofed.append(Vector2i(bx, by))
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
@@ -2285,8 +2295,13 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		node = _build_chapel(center, rot, room if not turned else Vector2(room.y, room.x))
 		if WalkIn.is_on(ch):
 			walk_in.claim(node, "temple", block)
-	elif ch == "h":
-		node = VillageHouse.build(room if not turned else Vector2(room.y, room.x), _rng, _house_glass())
+	elif ch == "h" or ch == "ß":
+		if ch == "h":
+			node = VillageHouse.build(room if not turned else Vector2(room.y, room.x), _rng, _house_glass())
+		else:
+			# Gorm's own little house beside the smithy (see SmithCottage), with its own dice so the
+			# other houses look as they always did.
+			node = SmithCottage.build(room if not turned else Vector2(room.y, room.x), block, _house_glass())
 		node.position = center
 		node.rotation.y = rot
 		add_child(node)
@@ -2295,7 +2310,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		house_doors.append(node.get_meta("door_leaf"))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
 		if WalkIn.is_on(ch):
-			walk_in.claim(node, "house", block)
+			var rec := walk_in.claim(node, "house", block)
+			if ch == "ß":
+				rec["owner"] = SmithCottage.OWNER
 		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 		if walk_in.has(node):
 			walk_in.open_house(node)
@@ -2343,7 +2360,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
 	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
 	doors[ch] = front
-	if ch != "R" and ch != "h":
+	if ch != "R" and ch != "h" and ch != "ß":
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})
 		if ch == "s":
@@ -2382,8 +2399,11 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		stations.append({"kind": "eingang", "building": ch, "name": BUILDING_NAMES.get(ch, ""),
 				"cell": world_to_cell(door - Vector3(facing.x, 0, facing.y) * 0.5), "pos": door, "used": false})
-	if ch == "h":
-		spots.houses.append(front)
+	if ch == "h" or ch == "ß":
+		if ch == "h":
+			spots.houses.append(front)
+		else:
+			own_homes[SmithCottage.OWNER] = front
 		var plume := ChimneySmoke.make()
 		plume.position = node.transform * (node.get_meta("chimney") as Vector3)
 		add_child(plume)

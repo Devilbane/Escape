@@ -34,17 +34,43 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	var walk_in: WalkIn = v.level.get("walk_in") if v.level != null else null
 	if walk_in == null:
 		return false
-	var house := walk_in.house_near(v.global_position)
+	var house := walk_in.house_near(v.global_position, 9.0, v.role)
 	if house.is_empty():
 		return false
 	var bed := _free_bed(house)
 	var way := walk_in.door_points(house)
 	if not bed.is_empty():
 		bed.by = v
-	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": [way[0], way[1], house.ladder], "t": 0.0, "clock": 0.0}
+	# In a house with its bed on the ground floor (see SmithCottage) they walk to the bed, not the ladder.
+	var goal: Vector3 = bed.stand if _on_ground(house, bed) else house.ladder
+	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": [way[0], way[1], goal], "t": 0.0, "clock": 0.0}
 	if at_once:
-		_settle(v)
+		if _on_ground(house, bed):
+			_lie_down(v)
+		else:
+			_settle(v)
 	return true
+
+
+## Whether the bed stands on the ground floor of its house (the smith's cottage), where the sleeper
+## lies in sight of whoever comes in, instead of up the ladder.
+static func _on_ground(house: Dictionary, bed: Dictionary) -> bool:
+	return bool(house.get("ground_beds", false)) and not bed.is_empty()
+
+
+## Into a bed on the ground floor: lies down in it, in sight, with the name hidden like upstairs.
+static func _lie_down(v: Villager) -> void:
+	var trip := v.bed_trip
+	var bed: Dictionary = trip.bed
+	v.unpose_body()
+	v.global_position = Level.lie_spot(bed.pos, float(bed.rot), v.body_scale())
+	v.rotation.y = float(bed.rot)
+	v.play("Lie_Down", 0.0)
+	v.anim_to_end()
+	v.lean_on_pillow(true)
+	v.visible = not v.has_meta(InsideView.HIDDEN)
+	trip.step = "asleep"
+	v.reset_physics_interpolation()
 
 
 static func _free_bed(house: Dictionary) -> Dictionary:
@@ -131,12 +157,14 @@ static func step(v: Villager, delta: float) -> void:
 			if _walk(v, trip, delta):
 				if trip.step == "out":
 					_done(v)
+				elif _on_ground(trip.house, trip.bed):
+					_lie_down(v)
 				else:
 					_start_climb(v, trip, true)
 		"climb":
 			if _climb(v, trip, delta):
 				_settle(v)
-		"upstairs":
+		"upstairs", "asleep":
 			pass
 		"climb_down":
 			if _climb(v, trip, delta):
@@ -163,6 +191,13 @@ static func rise(v: Villager) -> bool:
 			_start_climb(v, trip, false)
 		"climb_down":
 			pass
+		"asleep":
+			# Up out of the bed on the ground floor, onto the floor beside it, and out.
+			v.lean_on_pillow(false)
+			v.play("Idle", 0.1)
+			v.global_position = (trip.bed as Dictionary).stand
+			v.reset_physics_interpolation()
+			_go_out(v, trip)
 		_:
 			_go_out(v, trip)
 	return true

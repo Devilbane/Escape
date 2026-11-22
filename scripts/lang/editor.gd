@@ -259,6 +259,7 @@ const EN := {
 	"Friedhofszaun": "Graveyard fence",
 	"Viehkoppelzaun": "Cattle pen fence",
 	"Viehkoppeltor": "Cattle pen gate",
+	"Haus des Schmieds": "The smith's cottage",
 	"Laterne": "Lantern",
 	"Fässer, Kisten und Säcke": "Barrels, crates and sacks",
 	"Bank zum Sitzen": "Bench",

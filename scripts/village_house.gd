@@ -64,7 +64,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	var uw := w + JETTY * 2.0
 	var ud := d + JETTY * 2.0
 	var cx := rng.randf_range(-0.3, 0.3) * uw
-	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx}
+	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx, "tower": bool(style.get("tower", false))}
 	var parts := {}
 	_shape(shape, parts, parts, parts, parts)
 	var eaves := PLINTH + GROUND + UPPER
@@ -116,23 +116,33 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 				Rect2(door_x + w * 0.5 - HouseDoor.WIDTH * 0.5, 0.0, HouseDoor.WIDTH, HouseDoor.HEIGHT))
 	var uw := w + JETTY * 2.0
 	var ud := d + JETTY * 2.0
-	_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
-	# The upper floor rests on a band of oak beams.
-	_beams(up, uw, ud, top)
-	# The floor beams of the jetty poking out under the upper floor.
-	for i in range(1, int(uw / 1.1)):
-		var x := -uw * 0.5 + i * uw / int(uw / 1.1)
-		_box(up, "timber", Vector3(x, top - 0.12, d * 0.5 + JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
-		_box(up, "timber", Vector3(x, top - 0.12, -d * 0.5 - JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
+	# A tower (the mill, see MillTower) has no upper floor and no roof of its own: only a band of
+	# oak beams round the top of its stone storey, for the kit's tower to stand on.
+	var tower := bool(shape.get("tower", false))
+	if tower:
+		_beams(up, w + 0.1, d + 0.1, top)
+	else:
+		_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
+		# The upper floor rests on a band of oak beams.
+		_beams(up, uw, ud, top)
+		# The floor beams of the jetty poking out under the upper floor.
+		for i in range(1, int(uw / 1.1)):
+			var x := -uw * 0.5 + i * uw / int(uw / 1.1)
+			_box(up, "timber", Vector3(x, top - 0.12, d * 0.5 + JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
+			_box(up, "timber", Vector3(x, top - 0.12, -d * 0.5 - JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
 	# Door, windows with shutters.
 	_door(front, Vector3(door_x, PLINTH, d * 0.5), step)
 	for x: float in _window_spots(w, door_x):
 		_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), 0.0)
-	for x: float in _window_spots(uw, INF):
-		_window(up, Vector3(x, top + 1.3, ud * 0.5), 0.0)
+	if not tower:
+		for x: float in _window_spots(uw, INF):
+			_window(up, Vector3(x, top + 1.3, ud * 0.5), 0.0)
 	for side: float in [-1.0, 1.0]:
-		_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
+		if not tower:
+			_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
 		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
+	if tower:
+		return
 	# The roof, its gables and the chimney.
 	_gables(up, uw, ud, eaves, ridge)
 	_roof(up, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)

@@ -141,7 +141,9 @@ func _test() -> void:
 	check(game.quests.is_active("dolche"), "the shopkeeper hands out her task")
 	check(not game.menus.is_open(), "handing out a task does not open the shop")
 	_bump("6")
-	check(game.menus.current == "haendler", "the next time the shop opens as before")
+	# Outside her shop one walks into she sends the hero in to trade (see VillagerPost.HALL_LINES).
+	var mira_line := VillagerPost.for_station(game.level, _villager("6").station)
+	check(game.menus.current == "haendler" or VillagerPost.is_hall_line(mira_line), "the next time the shop opens as before, or she asks the hero into it")
 	game.menus.close()
 	seed(1)
 	var drops := 0

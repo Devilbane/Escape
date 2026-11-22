@@ -40,7 +40,4 @@ static func for_station(level: Node, s: Dictionary) -> String:
 	var v: Villager = s.npc
 	var post: Vector3 = level.cell_to_world(v.home)
 	var d := Vector2(v.global_position.x - post.x, v.global_position.z - post.z).length()
-	if VillagePosts.at_post(v):
-		# At her place in the hall she keeps (see VillagePosts), however far that is from her tile.
-		d = 0.0
 	return refusal(alarm_on(level), v.endangered(), v._info.get("plan", ""), d)

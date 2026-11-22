@@ -2187,11 +2187,6 @@ func _do(task: String, delta: float) -> void:
 				Sfx.play(self, _info.sound, -16.0, global_position, 0.8))
 
 
-## The smith's work at his post in the smithy (see VillagePosts): hammer blows on his anvil.
-func work_at_post(delta: float) -> void:
-	_do("work", delta)
-
-
 ## Gives the woodcutter his trunk (or the smith his anvil): he stands at
 ## `stand`, faces `face` and the blade or hammer lands where `chips` (placed
 ## by the caller at BITE_POINT or HAMMER_POINT) throws up its splinters or
@@ -2221,10 +2216,7 @@ func chops() -> bool:
 func _ready_to_chop(delta: float) -> bool:
 	if _current_anim == _info.work and _anim.is_playing():
 		return true
-	# Only at his spot by the anvil: on his own tile, or at his post in the smithy (see VillagePosts);
-	# out on his tile while his anvil is in there, he only stands and waits.
-	var at_post := VillagePosts.at_post(self)
-	if not at_post and (level.world_to_cell(global_position) != home or not VillagePosts.post_of(self).is_empty()):
+	if level.world_to_cell(global_position) != home:
 		play("Idle")
 		return false
 	var to := _chop_stand - global_position

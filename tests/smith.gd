@@ -22,9 +22,6 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
-	# The anvil out in the open by his tile, as with the smithy switched off (see WalkIn.halls): the
-	# same anvil stands in the smithy, where tests/village_halls.gd watches him hammer.
-	WalkIn.halls["j"] = false
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

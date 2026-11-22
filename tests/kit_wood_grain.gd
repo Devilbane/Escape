@@ -82,7 +82,6 @@ func _run() -> void:
 				elif on > 0:
 					half_glass += 1
 			check(half_glass == 0, "%s: no pane is part glass, part wall (%d)" % [node.name, half_glass])
-	# (The bank and the smithy are walk-in stone houses now, see BankVault and VillageHalls, and no kit models.)
-	var rebuilt := (1 if BankVault.on else 0) + (1 if WalkIn.is_on("j") else 0)
-	check(buildings >= 6 - rebuilt, "the village's KayKit buildings were found (%d)" % buildings)
-	check(panes > 30, "the village's windows are glass (%d pane triangles)" % panes)
+	# (The bank is a walk-in stone house now, see BankVault, and no kit tower.)
+	check(buildings >= (5 if BankVault.on else 6), "the village's KayKit buildings were found (%d)" % buildings)
+	check(panes > 50, "the village's windows are glass (%d pane triangles)" % panes)

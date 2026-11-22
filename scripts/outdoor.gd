@@ -2314,15 +2314,6 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		house_doors.append(node.get_meta("door_leaf"))
 		walk_in.claim(node, VillageHalls.KINDS[ch], block)
 		walk_in.add_front(node, VillageHalls.hang_sign(node, VillageHalls.KINDS[ch]))
-		if ch == "j":
-			# The forge inside burns day and night: smoke from the smithy's chimney, no snow on it.
-			var plume := ChimneySmoke.make()
-			plume.position = node.transform * (node.get_meta("chimney") as Vector3)
-			_fixed_seed(plume, 3)
-			add_child(plume)
-			ChimneySmoke.light(plume, true, true)
-			warm_spots.append(Vector4(plume.position.x, plume.position.y, plume.position.z, 0.8))
-			walk_in.add_upper(node, plume)
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -3770,13 +3761,8 @@ func _spawn_villagers() -> void:
 				_build_stone_yard(c + MASON_YARD)
 				_build_quarry(v, c)
 			elif ch == "1":
-				var anvil := _smithy_anvil()
-				if anvil.is_empty():
-					_build_forge(c + Vector2i(-1, 0))
-					_build_anvil(v, c, Vector3.LEFT)
-				else:
-					# His forge and anvil stand in the smithy (see VillageHalls._smithy).
-					v.set_chopping(anvil.stand, anvil.face, anvil.sparks)
+				_build_forge(c + Vector2i(-1, 0))
+				_build_anvil(v, c, Vector3.LEFT)
 			elif ch == "3":
 				_build_chopping_log(v, c)
 				WoodLogs.build(self, c)
@@ -3943,15 +3929,6 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
-
-
-## The smith's anvil in the smithy one walks into ({stand, face, sparks}, see VillageHalls._smithy),
-## or {} when the smithy is the old kit model and his forge stands out in the open.
-func _smithy_anvil() -> Dictionary:
-	for rec in walk_in.buildings:
-		if rec.kind == "smithy" and rec.has("anvil"):
-			return rec.anvil
-	return {}
 
 
 ## Gives a particle effect its own fixed random seed. Particles otherwise draw their

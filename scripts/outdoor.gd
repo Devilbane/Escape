@@ -4482,6 +4482,9 @@ func hero_under_cover() -> bool:
 func hero_sees(pos: Vector3) -> bool:
 	if not hero_cellar.is_empty():
 		return CellarView.in_cells(hero_cellar, pos)
+	# Up on the ground nothing down in the forgotten mine shows (see LostMine).
+	if LostMine.holds(pos):
+		return false
 	if player == null or not hero_indoors:
 		return true
 	return has_line_of_sight(player.global_position, pos)
@@ -4494,7 +4497,10 @@ func shot_blocked(a: Vector3, b: Vector3) -> bool:
 
 ## The shut gate of the village wall (three courses) hides what is behind it; the wall itself,
 ## two courses high, does not: villagers and monsters see over it (see VillageWall.shot_blocked).
+## Down in the forgotten mine only its tunnels count (see LostMine.sight): the map's tiles lie overhead.
 func has_line_of_sight(a: Vector3, b: Vector3) -> bool:
+	if LostMine.holds(a) or LostMine.holds(b):
+		return LostMine.sight(a, b)
 	return super(a, b) and not village_wall.shot_blocked(a, b)
 
 

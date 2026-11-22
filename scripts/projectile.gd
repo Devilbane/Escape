@@ -163,8 +163,11 @@ func _physics_process(delta: float) -> void:
 	var step := direction * (MAGIC_SPEED if magic else WEB_SPEED if web else SlimeCoat.SPIT_SPEED if gob else SPEED) * delta
 	var was := global_position
 	global_position += step
-	# A wall, a closed door or a pillar (statue, crate stack) stops it.
-	if _age > (LIFETIME * 2.0 if magic else LIFETIME) or level.is_opaque(level.world_to_cell(global_position)) \
+	# A wall, a closed door or a pillar (statue, crate stack) stops it. Down in the forgotten mine
+	# the rock of its tunnels does, not the map's tiles overhead (see LostMine.walled).
+	var deep := level is Outdoor and (LostMine.holds(was) or LostMine.holds(global_position))
+	if _age > (LIFETIME * 2.0 if magic else LIFETIME) \
+			or (LostMine.walled(was, global_position) if deep else level.is_opaque(level.world_to_cell(global_position))) \
 			or level.shot_blocked(was, global_position):
 		_land(was)
 		return
@@ -240,4 +243,6 @@ func _land(at: Vector3) -> void:
 
 
 func _hits(target: Vector3) -> bool:
-	return Vector2(target.x - global_position.x, target.z - global_position.z).length() < 0.9
+	# Nothing up on the ground is hit by a shot flying down in the forgotten mine, nor the other way.
+	return Vector2(target.x - global_position.x, target.z - global_position.z).length() < 0.9 \
+			and not LostMine.apart(target, global_position)

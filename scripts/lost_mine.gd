@@ -45,26 +45,26 @@ const LAYOUT := [
 	"          sssss   sss                                                   ",
 	"            s                                                           ",
 	"            s                                                           ",
-	"            s                                                           ",
-	"            r                                                           ",
-	"            r                                                           ",
-	"            r                                                           ",
-	"        rrrrr                                                           ",
-	"        r                                                               ",
-	"        r                                                               ",
-	"        r                                                               ",
-	"        r                                                               ",
-	"        rrr                                                             ",
-	"          r                                                             ",
-	"          r                                                             ",
-	"          .                               L                             ",
-	"          .             .......           .                             ",
-	"          .             .......           . ....                        ",
-	"          .                .              . ....                        ",
-	"    ............................................                        ",
-	"    .               .              .        ....                        ",
-	"  .....             .            .....        .                         ",
-	"  .....             .            .....        ............              ",
+	"            s  .....                                                    ",
+	"            r  .....                                                    ",
+	"            rrr.....                                                    ",
+	"            r  .....                                                    ",
+	"  ...   rrrrr                                                           ",
+	"  ...   r                                                               ",
+	"   .    r                                                               ",
+	"   .    r                                                               ",
+	"   .    r                                                               ",
+	"   .    rrr                                                             ",
+	"   .      r                                                             ",
+	"   .      r                                                             ",
+	"   .      .                               L                             ",
+	"   ........             .......           .                        .... ",
+	"          .             .......           . ....                   .... ",
+	"          .                .              . ....                     .  ",
+	"    ............................................                     .  ",
+	"    .               .              .        ....                     .  ",
+	"  .....             .            .....        .                      .  ",
+	"  .....             .            .....        ........................  ",
 	"  .....             .            .....                   .              ",
 	"  .....             .            .....                   .              ",
 	"    .               .                                  ......           ",
@@ -73,10 +73,10 @@ const LAYOUT := [
 	"    .               .                                  ......   .       ",
 	"    .               .                                           .       ",
 	"    .................                                           .       ",
-	"                                                                .       ",
-	"                                                            xxxxx       ",
-	"                                                                        ",
-	"                                                                        ",
+	"            .                                                   .       ",
+	"            .                                               xxxxx       ",
+	"          .....                                                         ",
+	"          .....                                                         ",
 	"                                                                        ",
 ]
 ## The raw rock of the cleft, a wall surface of the mine alone (see HouseSketcher._wall_material).
@@ -96,7 +96,9 @@ const NOTE := "grubenbuch"
 const GATE := "grubentor"
 ## A miner's plank bed: the hero would rather not sleep down here.
 const BED := "grubenbett"
-const KINDS := [NOTE, GATE, BED]
+## A vein of ore at the end of a drift, to hack lumps out of (see dig).
+const VEIN := "erzader"
+const KINDS := [NOTE, GATE, BED, VEIN]
 const BED_WARN := "Auf dem modrigen Stroh schlafen, hier unten, wo es nachts im Fels klopft? Lieber nicht."
 
 ## The compendium's entry, learnt the first time the hero climbs down.
@@ -122,6 +124,19 @@ const LAMPS := [Vector2i(42, 30), Vector2i(46, 31), Vector2i(35, 35), Vector2i(3
 const LAMP_COLOUR := Color(1.0, 0.68, 0.36)
 const LAMP_ENERGY := 2.6
 const LAMP_RANGE := 8.5
+## The one lamp still burning: at the foot of the ladder.
+const LIT_LAMP := Vector2i(42, 30)
+## Where moonlight falls through cracks in the roof (cells), its colour and strength.
+const MOON_CRACKS := [Vector2i(31, 31), Vector2i(20, 38), Vector2i(10, 30), Vector2i(57, 36), Vector2i(64, 34), Vector2i(3, 26),
+	Vector2i(12, 43), Vector2i(17, 17), Vector2i(8, 21), Vector2i(4, 33)]
+const MOON_COLOUR := Color(0.62, 0.72, 1.0)
+const MOON_ENERGY := 4.0
+## Where water stands in puddles on the floor (cells).
+const PUDDLES := [Vector2i(14, 31), Vector2i(26, 31), Vector2i(20, 35), Vector2i(4, 39), Vector2i(16, 42), Vector2i(3, 23),
+	Vector2i(8, 28), Vector2i(12, 44), Vector2i(60, 34), Vector2i(66, 34), Vector2i(69, 32), Vector2i(58, 37), Vector2i(64, 41),
+	Vector2i(8, 22), Vector2i(12, 14), Vector2i(46, 33), Vector2i(53, 34)]
+## How likely a corner of two walls has a cobweb in it.
+const WEB_CHANCE := 0.55
 ## The pale light of the old works' runes, cold and faint.
 const RUNE_COLOUR := Color(0.45, 0.62, 1.0)
 const TIMBER := Color(0.34, 0.23, 0.13)
@@ -139,6 +154,34 @@ static var _cells := {}
 static var _mats := {}
 static var _surface: Array = []
 static var _inside := {}
+static var _paths: AStarGrid2D = null
+## The dead of the mine (see GUARDS), one entry each: {"kind", "cell", "enemy", "fell"}.
+static var _guards: Array = []
+## The day each vein (by its cell) was last hacked at (see dig).
+static var _dug := {}
+
+## The dead who keep the far drifts (kind, cell): the ore at their ends is
+## theirs until they fall (see VEIN_GUARD). Each rises again a day after it fell.
+const GUARDS := [
+	["krieger", Vector2i(3, 24)], ["krieger", Vector2i(3, 20)],
+	["ghul", Vector2i(11, 45)], ["wicht", Vector2i(13, 46)],
+	["krieger", Vector2i(63, 34)], ["schuetze", Vector2i(69, 30)], ["krieger", Vector2i(68, 28)],
+	["krieger", Vector2i(17, 16)], ["wicht", Vector2i(18, 18)],
+]
+## The ore veins at the ends of the long drifts: the cell in front of each and the wall it is in.
+const VEINS := [[Vector2i(3, 19), Vector2i(0, -1)], [Vector2i(12, 46), Vector2i(0, 1)], [Vector2i(69, 28), Vector2i(0, -1)]]
+## While one of the dead stands this near a vein (metres), nobody hacks at it in peace.
+const VEIN_GUARD := 12.0
+## What a vein gives: how many lumps, and how likely each size is (Ore.LUMPS, small to big).
+const VEIN_LUMPS := [1, 2]
+const VEIN_ODDS := {"erzbrocken_klein": 0.6, "erzbrocken": 0.3, "erzbrocken_gross": 0.1}
+## At night the silver of the vein shows its moonsilver (see Crafting.INGREDIENTS) this often.
+const MOONSILVER_CHANCE := 0.5
+## Coins in the rags of one of the dead of the mine [least, most]: they fall to dust, the coins into the purse.
+const GUARD_PURSE := [1, 4]
+const VEIN_GUARDED := "Hier hackt niemand in Ruhe, solange die Toten dieses Stollens umgehen."
+const VEIN_SPENT := "Die Ader gibt heute nichts mehr her. Komm an einem anderen Tag wieder."
+const VEIN_FOUND := "Du schlägst Erz aus der Ader."
 
 
 ## Every dug cell of the mine: Vector2i (plot cells) -> its LAYOUT letter.
@@ -400,6 +443,8 @@ static func prompt(kind: String) -> String:
 			return Lang.t("Dagegenlaufen, um das Tor zu untersuchen")
 		BED:
 			return Lang.t("Dagegenlaufen, um dich hinzulegen")
+		VEIN:
+			return Lang.t("Dagegenlaufen, um Erz abzubauen")
 	return ""
 
 
@@ -408,6 +453,9 @@ static func prompt(kind: String) -> String:
 static func use(game: Node, s: Dictionary) -> void:
 	if s.kind == BED:
 		game.show_message(Lang.t(BED_WARN), 3.5)
+		return
+	if s.kind == VEIN:
+		dig(game, s)
 		return
 	var entry: String = s.get("text", GATE_FIRST)
 	var text := entry
@@ -423,12 +471,151 @@ static func use(game: Node, s: Dictionary) -> void:
 	game.show_message(said, maxf(6.0, 1.0 + 0.06 * said.length()), Color(1.0, 0.88, 0.62))
 
 
-## Down for the first time: the compendium learns of the mine.
+## Down in the mine (every frame the hero is): the dead rise at their posts, and the
+## first time the compendium learns of the mine.
 static func entered(game: Node) -> void:
+	_rouse_guards(game.level)
 	if game.lore.has(LEARN):
 		return
 	Events.teach(LEARN)
 	Events.tell(Lang.t(ENTERED), Color(1.0, 0.82, 0.4))
+
+
+# --- The dead, the ore and the ways down there -------------------------------
+
+## The dead rise at their posts: each one not standing yet, and not fallen today
+## (on a new day the fallen rise again).
+static func _rouse_guards(level: Level) -> void:
+	if _guards.size() != GUARDS.size():
+		_guards.clear()
+		for g: Array in GUARDS:
+			_guards.append({"kind": g[0], "cell": g[1], "enemy": null, "fell": -1})
+	var day := int(level.get("day")) if level.get("day") != null else 0
+	for g: Dictionary in _guards:
+		var e = g.enemy
+		if e != null and is_instance_valid(e) and e.level == level:
+			continue
+		if e != null and is_instance_valid(e) and e.dead:
+			continue
+		if int(g.fell) == day:
+			continue
+		g.enemy = _raise(level, g)
+
+
+static func _raise(level: Level, g: Dictionary) -> Enemy:
+	var e := Enemy.new()
+	e.kind = g.kind
+	e.level = level
+	level.add_child(e)
+	e.global_position = floor_at(g.cell)
+	e.reset_physics_interpolation()
+	e.died.connect(func():
+		level.enemy_killed.emit(e)
+		g.fell = int(level.get("day")) if level.get("day") != null else 0
+		# The dead of the mine fall to dust: their coins go straight into the purse.
+		level.coins_collected.emit(randi_range(GUARD_PURSE[0], GUARD_PURSE[1]), CoinPile.MONEY, 0))
+	level.enemies = level.enemies.filter(func(x): return is_instance_valid(x))
+	level.enemies.append(e)
+	return e
+
+
+## The dead of the mine standing now (for the tests and the veins).
+static func guards() -> Array:
+	var out: Array = []
+	for g: Dictionary in _guards:
+		if g.enemy != null and is_instance_valid(g.enemy) and not g.enemy.dead:
+			out.append(g.enemy)
+	return out
+
+
+## The hero hacks at a vein: not while the dead are near, once a day, a lump or two of ore,
+## and at night now and then moonsilver.
+static func dig(game: Node, s: Dictionary) -> void:
+	var at: Vector3 = s.pos
+	for e: Enemy in guards():
+		if e.global_position.distance_to(at) < VEIN_GUARD:
+			game.show_message(Lang.t(VEIN_GUARDED), 3.0, Color(1.0, 0.6, 0.5))
+			return
+	var day := int(game.level.get("day")) if game.level.get("day") != null else 0
+	var key: Vector2i = s.vein
+	if _dug.get(key, -1) == day:
+		game.show_message(Lang.t(VEIN_SPENT), 3.0)
+		return
+	_dug[key] = day
+	Sfx.play(game, "axe_hit_%d" % randi_range(0, 3), -6.0, null, 0.75)
+	Events.tell(Lang.t(VEIN_FOUND), Color(0.8, 0.82, 0.88))
+	for i in randi_range(VEIN_LUMPS[0], VEIN_LUMPS[1]):
+		game.level.ingredient_collected.emit(_lump(randf()), 1, true)
+	if game.level.get("night") and randf() < MOONSILVER_CHANCE:
+		game.level.ingredient_collected.emit("mondsilbererz", 1, true)
+
+
+## The size of lump a roll in 0..1 gives (see VEIN_ODDS).
+static func _lump(roll: float) -> String:
+	var sum := 0.0
+	for id: String in VEIN_ODDS:
+		sum += float(VEIN_ODDS[id])
+		if roll < sum:
+			return id
+	return VEIN_ODDS.keys()[-1]
+
+
+## Whether `a` and `b` are on two sides of the ground: one down in the mine, the other not.
+## Nobody on one side sees, hears or reaches the other.
+static func apart(a: Vector3, b: Vector3) -> bool:
+	return holds(a) != holds(b)
+
+
+## The way along the tunnels from `from` to `to`, both down in the mine: the middle of each
+## cell after the first, then `to` itself. Empty when there is none.
+static func route(from: Vector3, to: Vector3) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	if not holds(from) or not holds(to):
+		return out
+	var grid := _grid()
+	var a := cell_at(from)
+	var b := cell_at(to)
+	if grid.is_point_solid(a) or grid.is_point_solid(b):
+		return out
+	var cells := grid.get_id_path(a, b)
+	for i in range(1, cells.size() - 1):
+		out.append(floor_at(cells[i]))
+	if cells.size() > 1:
+		out.append(Vector3(to.x, floor_at(b).y, to.z))
+	return out
+
+
+## Whether `b` can be seen from `a`, both down in the mine: no rock (and no rubble) between.
+static func sight(a: Vector3, b: Vector3) -> bool:
+	if not holds(a) or not holds(b):
+		return false
+	var flat := Vector2(b.x - a.x, b.z - a.z)
+	var steps := int(flat.length() / 0.25) + 1
+	for i in range(1, steps):
+		var p := a.lerp(b, float(i) / steps)
+		if not _open(cell_at(Vector3(p.x, a.y, p.z))):
+			return false
+	return true
+
+
+## Whether a shot flying from `a` to `b` hits the rock of the mine (or comes up out of it).
+static func walled(a: Vector3, b: Vector3) -> bool:
+	return not sight(a, b)
+
+
+## The tunnels as a grid to find ways along (cells of the plot; rock and rubble are solid).
+static func _grid() -> AStarGrid2D:
+	if _paths != null:
+		return _paths
+	_paths = AStarGrid2D.new()
+	_paths.region = Rect2i(0, 0, LAYOUT[0].length(), LAYOUT.size())
+	_paths.cell_size = Vector2.ONE
+	_paths.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	_paths.update()
+	for y in LAYOUT.size():
+		for x in LAYOUT[0].length():
+			_paths.set_point_solid(Vector2i(x, y), not _open(Vector2i(x, y)))
+	return _paths
 
 
 # --- What lies about down there ---------------------------------------------
@@ -444,8 +631,15 @@ static func build(level: Level, parent: Node3D) -> void:
 	body.name = "MineSolids"
 	parent.add_child(body)
 	_timber_sets(parent)
+	# The miners' lamps went out long ago; only the one at the foot of the ladder still burns.
 	for c: Vector2i in LAMPS:
-		_lamp(parent, c)
+		if c == LIT_LAMP:
+			_lamp(parent, c)
+		else:
+			_dead_lamp(parent, c, rng)
+	_moonlight(parent)
+	_puddles(parent, rng)
+	_cobwebs(parent, rng)
 	_tool_store(level, parent, body)
 	_bunk_room(level, parent, body)
 	_silver_vein(parent, body, rng)
@@ -456,6 +650,279 @@ static func build(level: Level, parent: Node3D) -> void:
 	for i in NOTES.size():
 		_page(level, parent, body, NOTES[i][1], NOTES[i][0], i)
 	_gate(level, parent, body)
+	_powder_room(parent, body, rng)
+	_ore_chamber(parent, body, rng)
+	for v: Array in VEINS:
+		_vein(level, parent, body, v[0], v[1], rng)
+
+
+## A miner's lamp gone out: dark glass, hanging askew from its hook, or fallen and broken on the floor.
+static func _dead_lamp(parent: Node3D, c: Vector2i, rng: RandomNumberGenerator) -> void:
+	var iron := _mat("old_iron", IRON.darkened(0.2), 0.4)
+	var glass := _mat("dead_glass", Color(0.16, 0.15, 0.13))
+	if rng.randf() < 0.4:
+		var at := floor_at(c) + Vector3(rng.randf_range(-0.5, 0.5), 0.12, rng.randf_range(-0.5, 0.5))
+		var lamp := _box(parent, at, Vector3(0.22, 0.28, 0.22), glass)
+		lamp.rotation = Vector3(PI * 0.5, rng.randf() * TAU, 0)
+		_box(parent, at + Vector3(0.18, -0.08, 0.1), Vector3(0.3, 0.05, 0.3), iron, rng.randf() * TAU)
+		for i in 4:
+			_box(parent, at + Vector3(rng.randf_range(-0.4, 0.4), -0.1, rng.randf_range(-0.4, 0.4)), Vector3(0.06, 0.01, 0.04), glass, rng.randf() * TAU)
+		return
+	var at := floor_at(c) + Vector3(0, 1.95, 0)
+	var hang := Node3D.new()
+	hang.position = at + Vector3(0, 0.55, 0)
+	hang.rotation = Vector3(rng.randf_range(-0.25, 0.25), rng.randf() * TAU, rng.randf_range(-0.25, 0.25))
+	parent.add_child(hang)
+	_box(hang, Vector3(0, -0.2, 0), Vector3(0.03, 0.4, 0.03), iron)
+	_box(hang, Vector3(0, -0.55, 0), Vector3(0.22, 0.28, 0.22), glass)
+	_box(hang, Vector3(0, -0.39, 0), Vector3(0.3, 0.05, 0.3), iron)
+	_box(hang, Vector3(0, -0.71, 0), Vector3(0.3, 0.05, 0.3), iron)
+
+
+## Pale moonlight falling through cracks in the roof where the earth above is thin: a cold
+## beam of dust down to a bright patch on the floor.
+static func _moonlight(parent: Node3D) -> void:
+	var beam := _mat("moon_beam", Color(MOON_COLOUR, 0.07), 0.0, 0.6)
+	beam.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	beam.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	beam.cull_mode = BaseMaterial3D.CULL_DISABLED
+	beam.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var patch := _mat("moon_patch", Color(MOON_COLOUR, 0.16), 0.0, 0.8)
+	patch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	patch.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	patch.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var crack := _mat("moon_crack", MOON_COLOUR, 0.0, 2.0)
+	for c: Vector2i in MOON_CRACKS:
+		var mid := floor_at(c)
+		var light := SpotLight3D.new()
+		light.light_color = MOON_COLOUR
+		light.light_energy = MOON_ENERGY
+		light.spot_range = HouseSketch.DEPTH + 3.0
+		light.spot_angle = 50.0
+		light.spot_attenuation = 0.6
+		light.position = mid + Vector3(0, HouseSketch.DEPTH - 0.05, 0)
+		light.rotation.x = -PI * 0.5
+		parent.add_child(light)
+		var shaft := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.12
+		cyl.bottom_radius = 0.55
+		cyl.height = HouseSketch.DEPTH
+		cyl.cap_top = false
+		cyl.cap_bottom = false
+		shaft.mesh = cyl
+		shaft.material_override = beam
+		shaft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		shaft.position = mid + Vector3(0, HouseSketch.DEPTH * 0.5, 0)
+		parent.add_child(shaft)
+		var spot := MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.6
+		disc.bottom_radius = 0.6
+		disc.height = 0.005
+		spot.mesh = disc
+		spot.material_override = patch
+		spot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		spot.position = mid + Vector3(0, 0.02, 0)
+		parent.add_child(spot)
+		_box(parent, mid + Vector3(0, HouseSketch.DEPTH - 0.02, 0), Vector3(0.5, 0.02, 0.08), crack, 0.7)
+
+
+## Water seeping through the rock into puddles on the floor: dark and still, with a wet rim.
+static func _puddles(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var water := _mat("puddle", Color(0.12, 0.15, 0.17, 0.75))
+	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water.metallic_specular = 1.0
+	water.roughness = 0.04
+	var wet := _mat("wet_rim", Color(0.06, 0.05, 0.05, 0.45))
+	wet.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	wet.roughness = 0.3
+	for c: Vector2i in PUDDLES:
+		var at := floor_at(c) + Vector3(rng.randf_range(-0.35, 0.35), 0, rng.randf_range(-0.35, 0.35))
+		var radius := rng.randf_range(0.4, 0.7)
+		var wobble := rng.randf() * TAU
+		for layer in [[radius * 1.3, 0.012, wet], [radius, 0.02, water]]:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			st.set_normal(Vector3.UP)
+			var rim: Array[Vector3] = []
+			for i in 24:
+				var a := TAU * i / 24.0
+				var r: float = layer[0] * (0.8 + 0.2 * sin(a * 3.0 + wobble) + 0.06 * sin(a * 7.0 + wobble * 3.0))
+				rim.append(Vector3(cos(a) * r * 1.3, 0, sin(a) * r))
+			for i in 24:
+				st.add_vertex(Vector3.ZERO)
+				st.add_vertex(rim[(i + 1) % 24])
+				st.add_vertex(rim[i])
+			var m := MeshInstance3D.new()
+			m.mesh = st.commit()
+			m.material_override = layer[2]
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			m.position = at + Vector3(0, layer[1], 0)
+			m.rotation.y = rng.randf() * TAU
+			parent.add_child(m)
+
+
+## Cobwebs up in the corners where two walls meet, thick in the far drifts nobody walked for years.
+static func _cobwebs(parent: Node3D, rng: RandomNumberGenerator) -> void:
+	var mats: Array[StandardMaterial3D] = []
+	for k in 3:
+		var m := StandardMaterial3D.new()
+		m.albedo_texture = DungeonLife._web_texture(k)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+		m.albedo_color = Color(0.85, 0.85, 0.82, 0.8)
+		m.roughness = 1.0
+		mats.append(m)
+	var top := HouseSketch.DEPTH - 0.08
+	var half := HouseSketch.CELL * 0.5 - 0.06
+	for c: Vector2i in cells():
+		if not _open(c) or c == SHAFT:
+			continue
+		for d: Vector2i in [Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+			# A corner of two walls: both neighbours on its sides are rock.
+			if _open(c + Vector2i(d.x, 0)) or _open(c + Vector2i(0, d.y)):
+				continue
+			if rng.randf() > WEB_CHANCE:
+				continue
+			var size := rng.randf_range(0.5, 0.9)
+			var corner := floor_at(c) + Vector3(d.x * half, top, d.y * half)
+			var a := corner + Vector3(-d.x * size, -size * rng.randf_range(0.3, 0.8), 0)
+			var b := corner + Vector3(0, -size * rng.randf_range(0.3, 0.8), -d.y * size)
+			parent.add_child(_web_sheet(corner, a, b, mats[rng.randi() % 3]))
+
+
+## A sheet of web from `corner` (where its threads meet) to `a` and `b` (see DungeonLife._web).
+static func _web_sheet(corner: Vector3, a: Vector3, b: Vector3, mat: Material) -> MeshInstance3D:
+	var far := a + b - corner
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal((a - corner).cross(b - corner).normalized())
+	for v in [[corner, Vector2(0, 0)], [a, Vector2(1, 0)], [far, Vector2(1, 1)], [corner, Vector2(0, 0)], [far, Vector2(1, 1)], [b, Vector2(0, 1)]]:
+		st.set_uv(v[1])
+		st.add_vertex(v[0])
+	var m := MeshInstance3D.new()
+	m.mesh = st.commit()
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return m
+
+
+## The powder room off the cleft: kegs burst open, crates smashed, a table broken in two,
+## planks and black powder all over the floor.
+static func _powder_room(parent: Node3D, body: StaticBody3D, rng: RandomNumberGenerator) -> void:
+	var wood := _mat("old_wood", TIMBER.darkened(0.1))
+	var powder := _mat("powder", Color(0.08, 0.08, 0.09))
+	# Burst kegs: a ring of staves round a heap of spilt powder.
+	for c: Vector2i in [Vector2i(15, 15), Vector2i(19, 15), Vector2i(19, 18)]:
+		var mid := floor_at(c) + Vector3(0.3 * (1.0 if c.x > 17 else -1.0), 0, 0.3 * (1.0 if c.y > 16 else -1.0))
+		_box(parent, mid + Vector3(0, 0.015, 0), Vector3(1.0, 0.02, 0.8), powder, rng.randf() * TAU)
+		for i in 7:
+			var a := TAU * i / 7.0 + rng.randf_range(-0.2, 0.2)
+			var stave := _box(parent, mid + Vector3(cos(a) * 0.35, 0.3, sin(a) * 0.35), Vector3(0.12, 0.6 * rng.randf_range(0.5, 1.0), 0.04), wood, -a)
+			stave.rotation.x = rng.randf_range(-0.6, 0.6)
+		_box(parent, mid + Vector3(0, 0.05, 0), Vector3(0.6, 0.04, 0.6), _mat("iron", IRON, 0.6), rng.randf())
+		_solid(body, mid + Vector3(0, 0.3, 0), Vector3(0.9, 0.6, 0.9))
+	_broken_heap(parent, body, floor_at(Vector2i(15, 18)) + Vector3(-0.3, 0, 0.3), rng)
+	# The broken table: two halves tipped against each other.
+	var t := floor_at(Vector2i(17, 15)) + Vector3(0, 0, -0.3)
+	for side in [-1.0, 1.0]:
+		var half_top := _box(parent, t + Vector3(side * 0.45, 0.35, 0), Vector3(0.8, 0.07, 0.8), wood)
+		half_top.rotation.z = side * 0.7
+		_box(parent, t + Vector3(side * 0.75, 0.3, 0.3), Vector3(0.07, 0.6, 0.07), wood)
+	_solid(body, t + Vector3(0, 0.4, 0), Vector3(1.8, 0.8, 0.9))
+	DungeonLife.bone_pile(parent, floor_at(Vector2i(18, 17)), rng, 1.0)
+	_strewn(parent, wood, Rect2i(15, 15, 5, 4), 14, rng)
+
+
+## The ore chamber at the end of the south drift: baskets of ore, a broken barrow and picks,
+## and the vein in its far wall (see VEINS).
+static func _ore_chamber(parent: Node3D, body: StaticBody3D, rng: RandomNumberGenerator) -> void:
+	var wood := _mat("old_wood", TIMBER.darkened(0.1))
+	var ore := _mat("ore", Color(0.3, 0.29, 0.3))
+	# Two wicker baskets of ore, one tipped over.
+	for i in 2:
+		var mid := floor_at(Vector2i(10 + i, 45)) + Vector3(-0.2, 0, -0.45)
+		var basket := _box(parent, mid + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.6), _mat("wicker", Color(0.42, 0.33, 0.2)))
+		if i == 1:
+			basket.rotation.z = PI * 0.5
+			basket.position.y = 0.3 + mid.y
+		for k in 5:
+			var lump := _box(parent, mid + Vector3(rng.randf_range(-0.3, 0.3) + (0.6 if i == 1 else 0.0), 0.62 if i == 0 else 0.1, rng.randf_range(-0.3, 0.3)), Vector3.ONE * rng.randf_range(0.14, 0.24), ore)
+			lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_solid(body, mid + Vector3(0, 0.3, 0), Vector3(0.7, 0.6, 0.7))
+	# A wheelbarrow with its wheel off.
+	var barrow := floor_at(Vector2i(14, 45)) + Vector3(0.2, 0, -0.2)
+	var tray := _box(parent, barrow + Vector3(0, 0.35, 0), Vector3(0.7, 0.3, 1.1), wood, 0.4)
+	tray.rotation.x = 0.25
+	for side in [-0.3, 0.3]:
+		_box(parent, barrow + Vector3(side, 0.3, 0.8), Vector3(0.06, 0.06, 0.9), wood, 0.4)
+	var wheel := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.25
+	cyl.bottom_radius = 0.25
+	cyl.height = 0.07
+	wheel.mesh = cyl
+	wheel.material_override = wood
+	wheel.position = barrow + Vector3(-0.6, 0.04, 0.6)
+	parent.add_child(wheel)
+	_solid(body, barrow + Vector3(0, 0.35, 0), Vector3(0.9, 0.7, 1.2))
+	_broken_heap(parent, body, floor_at(Vector2i(10, 46)) + Vector3(-0.3, 0, 0.3), rng)
+	DungeonLife.bone_pile(parent, floor_at(Vector2i(13, 45)) + Vector3(0, 0, -0.5), rng, 1.0)
+	_strewn(parent, wood, Rect2i(10, 45, 5, 2), 8, rng)
+
+
+## A heap of smashed crates against a wall: boards, a lid, a broken frame.
+static func _broken_heap(parent: Node3D, body: StaticBody3D, at: Vector3, rng: RandomNumberGenerator) -> void:
+	var wood := _mat("old_wood", TIMBER.darkened(0.1))
+	for i in 7:
+		var board := _box(parent, at + Vector3(rng.randf_range(-0.35, 0.35), 0.06 + i * 0.07, rng.randf_range(-0.35, 0.35)), Vector3(rng.randf_range(0.5, 0.9), 0.04, 0.16), wood, rng.randf() * TAU)
+		board.rotation.x = rng.randf_range(-0.4, 0.4)
+	var frame := _box(parent, at + Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0.06), wood, rng.randf() * TAU)
+	frame.rotation.z = 0.9
+	_solid(body, at + Vector3(0, 0.3, 0), Vector3(0.9, 0.6, 0.9))
+
+
+## Planks and splinters strewn over the floor of cells `area` (flat on the floor, nothing to trip on).
+static func _strewn(parent: Node3D, wood: Material, area: Rect2i, n: int, rng: RandomNumberGenerator) -> void:
+	for i in n:
+		var c := Vector2i(rng.randi_range(area.position.x, area.end.x - 1), rng.randi_range(area.position.y, area.end.y - 1))
+		_box(parent, floor_at(c) + Vector3(rng.randf_range(-0.7, 0.7), 0.025, rng.randf_range(-0.7, 0.7)), Vector3(rng.randf_range(0.2, 0.9), 0.03, rng.randf_range(0.06, 0.16)), wood, rng.randf() * TAU)
+
+
+## A vein of ore in the wall at the end of a drift: dark lumps and glints of silver in the rock,
+## broken stone at its foot and an old pick left by it. The hero runs into it to hack (see dig).
+static func _vein(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i, wall: Vector2i, rng: RandomNumberGenerator) -> void:
+	var out := Vector3(wall.x, 0, wall.y)
+	var across := Vector3(-out.z, 0, out.x)
+	var face := floor_at(c) + out * (HouseSketch.CELL * 0.5 - 0.08)
+	var turn := atan2(out.x, out.z)
+	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var ore := _mat("ore_vein", Color(0.24, 0.22, 0.25), 0.3)
+	for i in 9:
+		var lump := _box(parent, face + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.3, 2.2), 0), Vector3(rng.randf_range(0.25, 0.5), rng.randf_range(0.2, 0.4), 0.18), ore, turn)
+		lump.rotation.z = rng.randf_range(-0.5, 0.5)
+	for i in 7:
+		var streak := _box(parent, face - out * 0.06 + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.4, 2.1), 0), Vector3(rng.randf_range(0.2, 0.6), rng.randf_range(0.04, 0.09), 0.06), silver, turn)
+		streak.rotation.z = rng.randf_range(-0.5, 0.5)
+	var glint := OmniLight3D.new()
+	glint.light_color = SILVER
+	glint.light_energy = 0.5
+	glint.omni_range = 2.5
+	glint.position = face - out * 0.5 + Vector3(0, 1.2, 0)
+	parent.add_child(glint)
+	var rock := _mat("rubble", Color(0.36, 0.33, 0.3))
+	for i in 8:
+		var stone := _box(parent, face - out * rng.randf_range(0.2, 0.7) + across * rng.randf_range(-0.7, 0.7) + Vector3(0, 0.08, 0), Vector3.ONE * rng.randf_range(0.12, 0.28), rock)
+		stone.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+	# An old pick leant against the rock.
+	var pick := face - out * 0.25 + across * 0.6
+	var handle := _box(parent, pick + Vector3(0, 0.5, 0), Vector3(0.06, 1.0, 0.06), _mat("timber", TIMBER), turn)
+	handle.rotation.x = 0.25
+	_box(parent, pick + Vector3(0, 1.0, 0) - out * 0.1, Vector3(0.5, 0.07, 0.07), _mat("iron", IRON, 0.6), turn + PI * 0.5)
+	var at := floor_at(c) + out * 0.5
+	level.stations.append({"kind": VEIN, "vein": c, "pos": at, "cell": level.world_to_cell(at), "used": false, "touch": 1.3})
 
 
 ## The raw rock of the cleft's walls: grey stone, rough and cracked, laid in world space so it

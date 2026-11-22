@@ -47,6 +47,12 @@ const PUSH_EVERY := 0.4
 const LAMP_COLOUR := Color(1.0, 0.76, 0.48)
 const LAMP_ENERGY := 1.4
 const LAMP_RANGE := 6.5
+## The candles in iron sconces on the walls inside (see _sconces): how high over a floor they hang
+## (metres), and when they burn, each building from its own moment in LIGHT_FROM (hours, as the sun
+## goes down) till its own bedtime in BED_TIME (hours, past midnight counted on from 24).
+const SCONCE_HIGH := 1.95
+const LIGHT_FROM := Vector2(18.9, 19.6)
+const BED_TIME := Vector2(22.0, 25.0)
 ## How see-through the temple's front wall gets while the hero is inside (0 solid, 1 gone).
 const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
@@ -334,6 +340,14 @@ func open_house(house: Node3D) -> void:
 	else:
 		VillageHalls.furnish(self, rec)
 	_lamp(rec)
+	_sconces(rec)
+	# Only a building one cannot walk into throws the light of its lit panes on the ground (see
+	# WindowSpill): this one has clear windows, and its candles' light falls out through them. (The
+	# pools are only taken away now: the ivy was laid out round them, as on every other house.)
+	var spill := house.get_node_or_null("WindowSpill")
+	if spill:
+		house.remove_child(spill)
+		spill.free()
 	_walls_of_house(rec, w, d, door_x)
 	_finish(rec)
 
@@ -628,6 +642,76 @@ func _lamp(rec: Dictionary) -> void:
 	lamp.visible = false
 	house.add_child(lamp)
 	rec["lamp"] = lamp
+
+
+## The candles in sconces on the side walls of a house or hall, one storey each, which burn from
+## nightfall till the household goes to bed (see set_hour): their light falls out through the
+## windows. On the ground floor two, in the back half of the room clear of the side windows (and in
+## the guild hall along its left wall, away from its stairs); on a floor above one climbs to one
+## more, which hides with that floor's walls.
+func _sconces(rec: Dictionary) -> void:
+	var house: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y + room.size.y * 0.25
+	var spots := []
+	if rec.has("layout"):
+		var lay: Dictionary = rec.layout
+		var up_room: Rect2 = lay.up_room
+		spots.append([house, Vector3(room.position.x, floor_y + SCONCE_HIGH, back), 1.0])
+		spots.append([house, Vector3(room.position.x, floor_y + SCONCE_HIGH, room.end.y - room.size.y * 0.25), 1.0])
+		var upper := house.get_node_or_null("GuildUpper") as Node3D
+		if upper:
+			spots.append([upper, Vector3(up_room.end.x, float(lay.up_floor) + SCONCE_HIGH, up_room.position.y + up_room.size.y * 0.3), -1.0])
+	else:
+		spots.append([house, Vector3(room.position.x, floor_y + SCONCE_HIGH, back), 1.0])
+		spots.append([house, Vector3(room.end.x, floor_y + SCONCE_HIGH, back), -1.0])
+		if not rec.get("up_walls", []).is_empty():
+			var up := room.grow(VillageHouse.JETTY)
+			var side := -ladder_side(float(shape_of(rec).door_x))
+			var x := up.end.x if side > 0.0 else up.position.x
+			spots.append([rec.up_walls[0], Vector3(x, float(rec.top) + VillageHouse.FLOOR_LIFT + SCONCE_HIGH - 0.4, up.position.y + up.size.y * 0.3), -side])
+	var sconces := []
+	for spot: Array in spots:
+		var sconce := WalkInFurniture.sconce()
+		sconce.position = spot[1]
+		# Its back on the wall, facing into the room: +x off the left wall, -x off the right.
+		sconce.rotation.y = PI * 0.5 * float(spot[2])
+		(spot[0] as Node3D).add_child(sconce)
+		sconces.append(sconce)
+	var dice := RandomNumberGenerator.new()
+	dice.seed = hash("sconces %s" % [rec.block])
+	rec["sconces"] = sconces
+	rec["light_from"] = dice.randf_range(LIGHT_FROM.x, LIGHT_FROM.y)
+	rec["bedtime"] = dice.randf_range(BED_TIME.x, BED_TIME.y)
+
+
+func shape_of(rec: Dictionary) -> Dictionary:
+	return (rec.node as Node3D).get_meta("shape")
+
+
+## Lights or puts out the candles on the walls of each building for the hour of the day.
+func set_hour(hour: float) -> void:
+	for rec in buildings:
+		if not rec.has("sconces"):
+			continue
+		var lit := lit_at(float(rec.light_from), float(rec.bedtime), hour)
+		if lit == rec.get("sconces_lit"):
+			continue
+		rec["sconces_lit"] = lit
+		for sconce: Node3D in rec.sconces:
+			if is_instance_valid(sconce):
+				(sconce.get_node("Flame") as Node3D).visible = lit
+				(sconce.get_node("SconceGlow") as Node3D).visible = lit
+
+
+## Whether candles lit at hour `from` and put out at `bed` (past midnight counted on from 24) burn
+## at `hour`.
+static func lit_at(from: float, bed: float, hour: float) -> bool:
+	var h := fposmod(hour, 24.0)
+	if h < 12.0:
+		h += 24.0
+	return h >= from and h < bed
 
 
 ## Pews in two rows either side of an aisle, facing the altar under the rose window, and the altar

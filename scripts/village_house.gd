@@ -46,6 +46,14 @@ static var _panes: Array = []
 static var _outs: Array = []
 ## The place of the pane being built, which its glass carries (see WindowLights).
 static var _pane_key := Vector2.ZERO
+## The windows of the rooms one walks into, while such a house is built (see hollow): each
+## {at, out}, the middle of its outer face and the way it looks out (the house's frame). Every wall
+## face they lie in is cut open there (see _face, _box), so one sees through the wall, and their
+## glass is clear (see _window, _inner_window). Empty while a house is built that one cannot enter:
+## its windows stay lit panes on the wall (see WindowLights).
+static var _openings: Array = []
+## The size of a window's opening through the wall (metres, across and high).
+const OPENING := Vector2(0.8, 0.9)
 
 
 ## A house that fits into a footprint of `room` metres (x across the front,
@@ -201,6 +209,8 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 	if bool(shape.get("flat", false)):
 		shape["floor_cut"] = GuildHall.layout(shape).well
 	var upper := hatch.size != Vector2.ZERO
+	_openings = walk_in_windows(shape, upper or bool(shape.get("flat", false)))
+	mats["clear"] = clear_glass()
 	if upper:
 		# A floor above one walks into: the roof, the upper front wall and the upper room apart.
 		for key: String in ["roof", "up_front", "up_inside"]:
@@ -216,6 +226,7 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		for key: String in GuildHall.UPPER_GROUPS:
 			groups[key] = {}
 		GuildHall.upper_storey(shape, groups)
+	_openings = []
 	var body: MeshInstance3D = shape.body
 	var out := {}
 	for key: String in groups:
@@ -232,6 +243,40 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		door.remove_child(recess)
 		recess.queue_free()
 	return out
+
+
+## The windows of the rooms of `shape` one walks into (see _openings): the ground floor's, and
+## the upper floor's when one walks into that too (`upstairs`). Each {at, out}, the house's frame.
+static func walk_in_windows(shape: Dictionary, upstairs: bool) -> Array:
+	var w: float = shape.w
+	var d: float = shape.d
+	var out := []
+	for x: float in _window_spots(w, float(shape.door_x)):
+		out.append({"at": Vector3(x, PLINTH + 1.6, d * 0.5), "out": Vector3.BACK})
+	for side: float in [-1.0, 1.0]:
+		out.append({"at": Vector3(side * w * 0.5, PLINTH + 1.6, 0), "out": Vector3(side, 0, 0)})
+	if upstairs and not bool(shape.get("tower", false)):
+		var uw := w + JETTY * 2.0
+		var ud := d + JETTY * 2.0
+		var top := PLINTH + GROUND
+		for x: float in _window_spots(uw, INF):
+			out.append({"at": Vector3(x, top + 1.3, ud * 0.5), "out": Vector3.BACK})
+		for side: float in [-1.0, 1.0]:
+			out.append({"at": Vector3(side * uw * 0.5, top + 1.3, 0), "out": Vector3(side, 0, 0)})
+	return out
+
+
+## The glass of a window one looks through (see _openings): clear and faintly blue, a little shiny.
+static func clear_glass() -> StandardMaterial3D:
+	if not _mats.has("clear_glass"):
+		var glass := StandardMaterial3D.new()
+		glass.albedo_color = Color(0.72, 0.82, 0.9, 0.14)
+		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+		glass.roughness = 0.05
+		glass.metallic_specular = 0.7
+		_mats["clear_glass"] = glass
+	return _mats["clear_glass"]
 
 
 ## The room inside a hollow house (see hollow): into `parts` the floor boards and the inner faces
@@ -313,11 +358,40 @@ static func _inner_window(parts: Dictionary, outer: Vector3, inner: Vector3, tur
 	_pane_key = WindowLights.key(outer)
 	var b := Basis(Vector3.UP, turn)
 	var into := b * Vector3(0, 0, -1)
-	_box(parts, "glass", inner + into * 0.02, Vector3(0.8, 0.9, 0.04), b)
+	if _is_opening(outer):
+		# The opening through the wall (see _openings): its four sides, from the outer face to the
+		# inner, each turned into the opening; the glass is in the middle (see _window).
+		_reveals(parts, outer, inner, b)
+	else:
+		_box(parts, "glass", inner + into * 0.02, Vector3(0.8, 0.9, 0.04), b)
 	_box(parts, "timber", inner + into * 0.04 - Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.14), b)
 	_box(parts, "timber", inner + into * 0.03 + Vector3(0, 0.5, 0), Vector3(1.0, 0.08, 0.08), b)
 	for s: float in [-1.0, 1.0]:
 		_box(parts, "timber", inner + into * 0.03 + b * Vector3(s * 0.46, 0, 0), Vector3(0.08, 1.0, 0.08), b)
+
+
+## Whether the window with its outer middle at `at` opens through the wall (see _openings).
+static func _is_opening(at: Vector3) -> bool:
+	for o: Dictionary in _openings:
+		if (o.at as Vector3).distance_to(at) < 0.05:
+			return true
+	return false
+
+
+## The sides of a window's opening through the wall, from `outer` (the middle of its outer face) to
+## `inner` (of its inner face), turned by `b` (the window looks out along b's z): the two jambs, the
+## sill and the head, each facing into the opening.
+static func _reveals(parts: Dictionary, outer: Vector3, inner: Vector3, b: Basis) -> void:
+	var out := b * Vector3(0, 0, 1)
+	var side := b * Vector3(1, 0, 0)
+	var deep := (outer - inner).length()
+	var hw := OPENING.x * 0.5
+	var hh := OPENING.y * 0.5
+	# u x v faces into the opening (see _face).
+	_face(parts, "plaster", outer - side * hw - Vector3.UP * hh, -out, Vector3.UP, Vector2(deep, OPENING.y))
+	_face(parts, "plaster", inner + side * hw - Vector3.UP * hh, out, Vector3.UP, Vector2(deep, OPENING.y))
+	_face(parts, "plaster", outer - side * hw - Vector3.UP * hh, side, -out, Vector2(OPENING.x, deep))
+	_face(parts, "plaster", inner - side * hw + Vector3.UP * hh, side, out, Vector2(OPENING.x, deep))
 
 
 ## A narrow town house for a row of them along a lane (see
@@ -487,7 +561,12 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	var out := b * Vector3(0, 0, 1)
 	_outs.append(out)
 	var side := b * Vector3(1, 0, 0)
-	_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
+	if _is_opening(at):
+		# A window of a room one walks into: clear glass in the middle of the wall's thickness, the
+		# room's own light shining out through it.
+		_box(parts, "clear", at - out * WALL_THICK * 0.5, Vector3(OPENING.x, OPENING.y, 0.02), b)
+	else:
+		_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
 	_box(parts, "timber", at + out * 0.07, Vector3(0.08, 0.9, 0.06), b)
 	_box(parts, "timber", at + out * 0.07, Vector3(0.8, 0.08, 0.06), b)
 	_box(parts, "timber", at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
@@ -582,6 +661,12 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		var c := n * h
 		var corners := [c - u * su * 0.5 - v * sv * 0.5, c + u * su * 0.5 - v * sv * 0.5,
 				c + u * su * 0.5 + v * sv * 0.5, c - u * su * 0.5 + v * sv * 0.5]
+		# A wall a window of a room one walks into looks out through: cut open there (see _face).
+		if not _openings.is_empty() and n.y == 0.0:
+			var at: Vector3 = center + basis * (corners[0] as Vector3)
+			if not _openings_in(at, basis * u, basis * v, Vector2(su, sv)).is_empty():
+				_face(parts, key, at, basis * u, basis * v, Vector2(su, sv))
+				continue
 		var uvs := [Vector2(0, 0), Vector2(su, 0), Vector2(su, sv), Vector2(0, sv)]
 		# Clockwise seen from outside, which Godot draws as the front. Wound
 		# the other way the camera saw the far insides of every box, dark and
@@ -594,19 +679,75 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 			st.add_vertex(center + basis * corners[k])
 
 
+## The windows (see _openings) that pierce a wall face with its corner at `corner`, running `size`
+## along `u` and `v` (unit axes): those looking out across the face, through the wall's thickness
+## from it, inside its bounds. As rectangles on the face, from its corner.
+static func _openings_in(corner: Vector3, u: Vector3, v: Vector3, size: Vector2) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if _openings.is_empty():
+		return out
+	var n := u.cross(v).normalized()
+	if absf(n.y) > 0.1:
+		return out
+	for o: Dictionary in _openings:
+		var at: Vector3 = o.at
+		if absf(n.dot(o.out)) < 0.99:
+			continue
+		var rel := at - corner
+		if absf(rel.dot(n)) > WALL_THICK + 0.05:
+			continue
+		var p := Vector2(rel.dot(u.normalized()), rel.dot(v.normalized()))
+		if p.x <= 0.0 or p.y <= 0.0 or p.x >= size.x or p.y >= size.y:
+			continue
+		# Only a wall is cut, not the window's own frame or sill round the opening.
+		if size.x < OPENING.x + 0.3 or size.y < OPENING.y + 0.3:
+			continue
+		out.append(Rect2(p - OPENING * 0.5, OPENING))
+	return out
+
+
+## The rectangles of a face of `size` around `holes` (from its corner, not overlapping one another):
+## columns between the holes' sides, each cut where a hole crosses it.
+static func _around(size: Vector2, holes: Array[Rect2]) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if holes.is_empty():
+		out.append(Rect2(Vector2.ZERO, size))
+		return out
+	var xs: Array[float] = [0.0, size.x]
+	for h in holes:
+		xs.append(clampf(h.position.x, 0.0, size.x))
+		xs.append(clampf(h.end.x, 0.0, size.x))
+	xs.sort()
+	for i in xs.size() - 1:
+		var x0 := xs[i]
+		var x1 := xs[i + 1]
+		if x1 - x0 <= 0.001:
+			continue
+		var cuts: Array[Vector2] = []
+		for h in holes:
+			if h.position.x < x1 - 0.0005 and h.end.x > x0 + 0.0005:
+				cuts.append(Vector2(maxf(h.position.y, 0.0), minf(h.end.y, size.y)))
+		cuts.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+		var y := 0.0
+		for c in cuts:
+			if c.x > y:
+				out.append(Rect2(x0, y, x1 - x0, c.x - y))
+			y = maxf(y, c.y)
+		if y < size.y:
+			out.append(Rect2(x0, y, x1 - x0, size.y - y))
+	return out
+
+
 ## A flat rectangle into the surface for `key`: from its corner `corner` it runs `size.x` metres
 ## along `u` and `size.y` along `v`, and faces u x v (the way a face of _box with the same axes
 ## faces). Laid out like a face of _box, so its texture lines up with a box face in the same spot.
 ## `hole` (metres from the corner, along u and v) is left open: a doorway.
 static func _face(parts: Dictionary, key: String, corner: Vector3, u: Vector3, v: Vector3, size: Vector2, hole := Rect2()) -> void:
-	var rects: Array[Rect2] = []
-	if hole.size == Vector2.ZERO:
-		rects.append(Rect2(Vector2.ZERO, size))
-	else:
-		rects.append(Rect2(0.0, 0.0, hole.position.x, size.y))
-		rects.append(Rect2(hole.end.x, 0.0, size.x - hole.end.x, size.y))
-		rects.append(Rect2(hole.position.x, hole.end.y, hole.size.x, size.y - hole.end.y))
-		rects.append(Rect2(hole.position.x, 0.0, hole.size.x, hole.position.y))
+	var holes: Array[Rect2] = []
+	if hole.size != Vector2.ZERO:
+		holes.append(hole)
+	holes.append_array(_openings_in(corner, u, v, size))
+	var rects := _around(size, holes)
 	var st := _tool(parts, key)
 	var n := u.cross(v)
 	for r: Rect2 in rects:

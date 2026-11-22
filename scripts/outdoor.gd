@@ -4680,6 +4680,8 @@ func set_hour(new_hour: float) -> void:
 		candle.visible = glow > 0.02
 	# The lanterns and candles at the dining tables (see TownMeals).
 	meals.set_glow(glow)
+	if walk_in != null:
+		walk_in.set_hour(hour)
 	for mat in _window_mats.values():
 		if mat is ShaderMaterial:
 			mat.set_shader_parameter("glow", WINDOW_GLOW * glow)

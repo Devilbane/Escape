@@ -119,7 +119,9 @@ func _run() -> void:
 		for mi: MeshInstance3D in house.find_children("Walk*", "MeshInstance3D", true, false) if house.has_node("WalkLow") else [house.find_children("*", "MeshInstance3D", true, false)[0]]:
 			var mesh: Mesh = mi.mesh
 			for i in mesh.get_surface_count():
-				if mesh.surface_get_material(i) == lvl._house_glass():
+				# Lit panes on a house one cannot enter; clear glass in the openings of the rooms one
+				# walks into (see VillageHouse._openings).
+				if mesh.surface_get_material(i) == lvl._house_glass() or mesh.surface_get_material(i) == VillageHouse.clear_glass():
 					glass = true
 				elif not _textured(mesh.surface_get_material(i)):
 					check(false, "every part of a house is textured")

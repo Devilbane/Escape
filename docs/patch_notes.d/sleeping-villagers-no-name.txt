@@ -1,0 +1,1 @@
+- Sleeping villagers no longer show their name above their heads.

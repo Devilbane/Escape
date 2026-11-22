@@ -45,6 +45,8 @@ const LAMP_RANGE := 6.5
 ## How see-through the temple's front wall gets while the hero is inside (0 solid, 1 gone).
 const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
+## The walk between the altar and the first pews (metres), roomy for the hero.
+const ALTAR_WALK := 1.7
 ## A villagers' house's rug under the table (metres across, deep), and how high over the floor the
 ## candle shelf hangs on the back wall, and how far off the middle (away from the store shelf).
 const RUG_SIZE := Vector2(2.2, 1.6)
@@ -525,7 +527,9 @@ func _furnish_temple(rec: Dictionary, chapel: Node3D) -> void:
 	# The pews: rows from the altar's front to the door, an aisle down the middle.
 	var aisle := 1.7
 	var pew_w := (room.size.x * s - aisle) * 0.5 - 0.35
-	var first := altar_z + 1.9
+	# The first row stands well clear of the altar: the walk between them is wider than the hero
+	# (1.1 m), or they wedged in there and could not get out.
+	var first := altar_z + WalkInFurniture.ALTAR_SIZE.z * 0.5 + ALTAR_WALK + WalkInFurniture.PEW_DEPTH * 0.5
 	var last := (NAVE_DOOR_Z - 4.0) * s
 	var rows := maxi(1, int((last - first) / WalkInFurniture.PEW_STEP) + 1)
 	for r in rows:

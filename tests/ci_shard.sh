@@ -1,30 +1,49 @@
 #!/usr/bin/env bash
-# Runs one shard of the headless tests, see .github/workflows/web.yml.
-#   tests/ci_shard.sh blocking <shard> <shards>   the tests listed in tests/ci_manifest.txt
-#   tests/ci_shard.sh extra <shard> <shards>      every other tests/*.gd (not blocking in CI)
+# Runs one shard of the headless tests, see .github/workflows/web.yml and docs/testing.md.
+#   tests/ci_shard.sh blocking <shard> <shards>   the required tests: tests/ci_manifest.txt, plus the quest tests
+#                                                 named in $CI_QUESTS (from tests/ci_select.sh; "all" runs them all)
+#   tests/ci_shard.sh extra <shard> <shards>      the tests named in $CI_EXTRA (changed test files that are not
+#                                                 required; a failure is only a warning in CI)
+#   tests/ci_shard.sh nightly <shard> <shards>    every test that is not required: tests/ci_nightly.txt and any
+#                                                 tests/*.gd listed nowhere yet (the nightly run)
 #   tests/ci_shard.sh on_demand <shard> <shards>  the tests in tests/ci_on_demand.txt, which general CI skips
 # The tests are split by their measured length (tests/ci_timings.txt): longest first, each to the shard with the
 # least work so far, so all shards end at about the same time. Runs all its tests, then fails if any failed.
 # A failed test is run once more: passing on the retry makes it a reported flaky test, not a failure.
 set -u
-mode=${1:?blocking, extra or on_demand}; shard=${2:?shard number from 0}; shards=${3:?number of shards}
+mode=${1:?blocking, extra, nightly or on_demand}; shard=${2:?shard number from 0}; shards=${3:?number of shards}
 godot=${GODOT:-$HOME/godot/godot}
 cd "$(dirname "$0")/.."
 
 mkdir -p ci_logs
 list=$(mktemp)
-if [ "$mode" = blocking ] || [ "$mode" = on_demand ]; then
-  manifest=tests/ci_manifest.txt; [ "$mode" = on_demand ] && manifest=tests/ci_on_demand.txt
-  grep -v '^#' "$manifest" | grep . | awk -F' [|] ' '{print $1" "$2" "$3" "$4}' > "$list"
-else
-  for t in tests/*.gd; do
-    n=$(basename "$t")
-    case "$n" in play_all_levels.gd|profile_*.gd) continue;; esac
-    grep -q "^$n " tests/ci_manifest.txt && continue
-    grep -q "^$n " tests/ci_on_demand.txt && continue
-    echo "$n 120 fixed passfail"
-  done > "$list"
-fi
+# The four columns the runner needs (file, timeout, fps, check) of a list's lines; quest lines carry their paths
+# in the fifth column, which is dropped here.
+columns() { grep -v '^#' "$@" | grep . | awk -F' [|] ' '{print $1" "$2" "$3" "$4}'; }
+# A test listed in none of the files runs with these settings.
+unlisted() { echo "$1 120 fixed passfail"; }
+case "$mode" in
+  blocking)
+    columns tests/ci_manifest.txt > "$list"
+    quests=${CI_QUESTS:-}
+    if [ "$quests" = all ]; then columns tests/ci_quests.txt >> "$list"
+    else for q in $quests; do columns tests/ci_quests.txt | grep "^$q " >> "$list"; done; fi;;
+  on_demand) columns tests/ci_on_demand.txt > "$list";;
+  extra)
+    for n in ${CI_EXTRA:-}; do
+      [ -f "tests/$n" ] || continue
+      columns tests/ci_nightly.txt | grep "^$n " || unlisted "$n"
+    done > "$list";;
+  nightly)
+    columns tests/ci_nightly.txt > "$list"
+    for t in tests/*.gd; do
+      n=$(basename "$t")
+      case "$n" in play_all_levels.gd|profile_*.gd) continue;; esac
+      grep -q "^$n " tests/ci_manifest.txt tests/ci_quests.txt tests/ci_nightly.txt tests/ci_on_demand.txt && continue
+      unlisted "$n"
+    done >> "$list";;
+  *) echo "unknown mode $mode"; exit 2;;
+esac
 
 # Runs one test once; sets ok to 1 when it passed.
 run_test() {

@@ -7,6 +7,7 @@ extends SceneTree
 ## - E next to the window shuts them and opens them again; the plan keeps the
 ##   state over a redraw and a reload of the houses.
 ## - A wall turned into a door loses its shutters' state.
+## - The glass is lit on the outside and clear from the inside.
 ## Run with: godot --headless --fixed-fps 60 -s tests/window_shutters.gd
 ## With SHOTS=<folder> and a display it also saves pictures by day and night,
 ## open and shut.
@@ -111,6 +112,21 @@ func _run() -> void:
 				and absf(m.global_position.z - north_wall.z) < 0.5:
 			wood += 1
 	check(wood >= 6, "the window has a wooden frame: lintel, two casing boards, sill and two glazing bars (%d)" % wood)
+	# The glass: lit on its outer face like the villagers' panes, clear on its inner face, so from
+	# inside one looks out and no glow shows in the room.
+	var outer: MeshInstance3D = null
+	var inner: MeshInstance3D = null
+	for m: MeshInstance3D in sk._solid.find_children("*", "MeshInstance3D", false, false):
+		if absf(m.global_position.x - north_wall.x) < 1.2 and absf(m.global_position.z - north_wall.z) < 0.1 and m.mesh is QuadMesh:
+			if m.material_override == HouseSketcher.clear_glass():
+				inner = m
+			else:
+				outer = m
+	check(outer != null and outer.material_override is ShaderMaterial, "the pane's outer face is the lit glass")
+	check(inner != null and HouseSketcher.clear_glass().transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "its inner face is clear glass")
+	if outer != null and inner != null:
+		# A quad shows its +z side: the outer one faces north (outside), the inner one south (into the room).
+		check(outer.global_basis.z.z < -0.9 and inner.global_basis.z.z > 0.9, "each face of the glass looks to its own side (%s, %s)" % [outer.global_basis.z, inner.global_basis.z])
 
 	var hero: Player = game.player
 	hero.godmode = true

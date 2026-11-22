@@ -109,10 +109,10 @@ func _run() -> void:
 	WalkIn.houses = false
 	WalkIn.temple = false
 	var lvl := await _load_village()
-	check(lvl.walk_in.buildings.is_empty(), "switched off, no building can be walked into")
+	check(lvl.walk_in.buildings.all(func(r): return VillageHalls.KINDS.values().has(r.kind)), "switched off, no house or temple can be walked into")
 	var solid_boxes := []
 	for c in lvl.get_children():
-		if c is Node3D and c.has_meta("village_house"):
+		if c is Node3D and c.has_meta("village_house") and not c.has_meta("hall"):
 			solid_boxes.append(_outside_box(c))
 			check(c.get_node_or_null("WalkLow") == null, "switched off, a house stays one solid block")
 	var solid_ivy := _ivy_count(lvl)
@@ -137,7 +137,7 @@ func _run() -> void:
 	# Unchanged outside.
 	var i := 0
 	for c in lvl.get_children():
-		if c is Node3D and c.has_meta("village_house"):
+		if c is Node3D and c.has_meta("village_house") and not c.has_meta("hall"):
 			if i < solid_boxes.size():
 				var a: AABB = solid_boxes[i]
 				var b := _outside_box(c)

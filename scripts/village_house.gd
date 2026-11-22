@@ -51,13 +51,16 @@ static var _pane_key := Vector2.ZERO
 ## A house that fits into a footprint of `room` metres (x across the front,
 ## y deep). Its glowing window panes use `glass`, so the village can light
 ## them at night.
-static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material) -> Node3D:
+static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, style := {}) -> Node3D:
 	_panes = []
 	_outs = []
-	var w := clampf(room.x - 1.2 - JETTY * 2.0, 4.5, 7.0) - rng.randf_range(0.0, 0.6)
-	var d := clampf(room.y - 1.4 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.5)
+	# A hall (see VillageHalls) may be wider and deeper than a home, its door in the middle.
+	var w := clampf(room.x - 1.2 - JETTY * 2.0, 4.5, float(style.get("max_w", 7.0))) - rng.randf_range(0.0, 0.6)
+	var d := clampf(room.y - 1.4 - JETTY * 2.0, 4.0, float(style.get("max_d", 6.0))) - rng.randf_range(0.0, 0.5)
 	var ridge := rng.randf_range(2.6, 3.4)
 	var door_x: float = [-1.0, 0.0, 1.0][rng.randi() % 3] * (w * 0.5 - 1.2)
+	if style.has("door_x"):
+		door_x = float(style.door_x)
 	var uw := w + JETTY * 2.0
 	var ud := d + JETTY * 2.0
 	var cx := rng.randf_range(-0.3, 0.3) * uw
@@ -89,7 +92,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material) ->
 ## door and the windows in it, `up` the upper floor, the roof and the chimney, `step` the stone
 ## step before the door. All four the same dictionary builds the solid house as it always was;
 ## kept apart they make a house one can walk into (see hollow).
-static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Dictionary, step: Dictionary) -> void:
+static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Dictionary, step: Dictionary, walls := {}) -> void:
 	var w: float = shape.w
 	var d: float = shape.d
 	var ridge: float = shape.ridge
@@ -103,7 +106,12 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 		_box(low, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d))
 	else:
 		# Hollow: no lid (the floor above is its ceiling), and the front wall has a doorway.
-		_box(low, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d), Basis(), 2.0, [0, 4])
+		if walls.is_empty():
+			_box(low, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d), Basis(), 2.0, [0, 4])
+		else:
+			# Each wall in its own mesh (see hollow with `sides`): the back (face 1), right (2), left (3).
+			for fi: int in walls:
+				_box(walls[fi], "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d), Basis(), 2.0, [0, 1, 2, 3, 4, 5].filter(func(k): return k != fi))
 		_face(front, "plaster", Vector3(-w * 0.5, PLINTH, d * 0.5), Vector3.RIGHT, Vector3.UP, Vector2(w, GROUND),
 				Rect2(door_x + w * 0.5 - HouseDoor.WIDTH * 0.5, 0.0, HouseDoor.WIDTH, HouseDoor.HEIGHT))
 	var uw := w + JETTY * 2.0
@@ -124,7 +132,7 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 		_window(up, Vector3(x, top + 1.3, ud * 0.5), 0.0)
 	for side: float in [-1.0, 1.0]:
 		_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
-		_window(low, Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
+		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
 	# The roof, its gables and the chimney.
 	_gables(up, uw, ud, eaves, ridge)
 	_roof(up, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)
@@ -146,14 +154,20 @@ const FLOOR_LIFT := 0.02
 ## Outdoor._dress_building), which reads the solid mesh. Returns the new meshes by group
 ## ("low", "front", "up", "inside"); the plain dark panel behind the door is gone, the doorway
 ## now opens into the room.
-static func hollow(house: Node3D) -> Dictionary:
+static func hollow(house: Node3D, sides := false) -> Dictionary:
 	var shape: Dictionary = house.get_meta("shape")
 	var mats: Dictionary = shape.mats.duplicate()
 	mats["floor"] = _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5))
 	_panes = []
 	_outs = []
 	var groups := {"low": {}, "front": {}, "up": {}, "inside": {}}
-	_shape(shape, groups.low, groups.front, groups.up, groups.low)
+	var walls := {}
+	if sides:
+		# The back and side walls apart too, so whichever faces the camera can hide (see WalkIn).
+		for key: String in ["back", "right", "left"]:
+			groups[key] = {}
+		walls = {1: groups.back, 2: groups.right, 3: groups.left}
+	_shape(shape, groups.low, groups.front, groups.up, groups.low, walls)
 	_room(shape, groups.inside, groups.front)
 	var body: MeshInstance3D = shape.body
 	var out := {}

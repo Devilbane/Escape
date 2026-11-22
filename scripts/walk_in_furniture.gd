@@ -118,3 +118,185 @@ static func pew(wide: float) -> Node3D:
 	for x: float in [-wide * 0.5 + 0.05, wide * 0.5 - 0.05]:
 		_box(root, Vector3(0.07, BACK, PEW_DEPTH - 0.1), Vector3(x, BACK * 0.5, 0), wood)
 	return root
+
+
+# --- The halls' furniture (see VillageHalls) ---------------------------------------
+
+static func _cylinder(parent: Node3D, radius: float, height: float, at: Vector3, mat: Material, turn := Basis()) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	mesh.radial_segments = 12
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.transform = Transform3D(turn, at)
+	parent.add_child(mi)
+	return mi
+
+
+## A counter `wide` metres across, `high` and `deep`: a plank top over a panelled front (facing +z).
+static func counter(wide: float, high: float, deep: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Counter"
+	var wood := _wood()
+	var dark := _plain("counter_wood", Color(0.5, 0.36, 0.24))
+	_box(root, Vector3(wide, high - 0.06, deep - 0.08), Vector3(0, (high - 0.06) * 0.5, 0), dark)
+	_box(root, Vector3(wide + 0.1, 0.06, deep + 0.06), Vector3(0, high - 0.03, 0), wood)
+	var panels := maxi(1, int(wide / 0.8))
+	for i in panels:
+		var x := -wide * 0.5 + (i + 0.5) * wide / panels
+		_box(root, Vector3(wide / panels - 0.12, high - 0.3, 0.03), Vector3(x, high * 0.5, deep * 0.5 - 0.03), wood)
+	return root
+
+
+## A round table, its top `radius` across, on one thick leg.
+static func table(radius: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Table"
+	var wood := _wood()
+	_cylinder(root, radius, 0.06, Vector3(0, 0.76, 0), wood)
+	_cylinder(root, 0.07, 0.72, Vector3(0, 0.37, 0), wood)
+	_cylinder(root, 0.3, 0.04, Vector3(0, 0.02, 0), wood)
+	return root
+
+
+## A three-legged stool.
+static func stool() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Stool"
+	var wood := _wood()
+	_cylinder(root, 0.19, 0.05, Vector3(0, 0.46, 0), wood)
+	for i in 3:
+		var a := TAU * i / 3.0
+		_box(root, Vector3(0.04, 0.46, 0.04), Vector3(cos(a) * 0.12, 0.22, sin(a) * 0.12), wood)
+	return root
+
+
+## A tankard of ale.
+static func mug() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Mug"
+	_cylinder(root, 0.055, 0.14, Vector3(0, 0.07, 0), _plain("pewter", Color(0.55, 0.55, 0.58), 0.4))
+	_cylinder(root, 0.05, 0.01, Vector3(0, 0.14, 0), _plain("foam", Color(0.96, 0.93, 0.85)))
+	_box(root, Vector3(0.02, 0.09, 0.05), Vector3(0.075, 0.07, 0), _plain("pewter", Color(0.55, 0.55, 0.58), 0.4))
+	return root
+
+
+## A barrel on its end, bound with iron hoops.
+static func barrel() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Barrel"
+	_cylinder(root, 0.32, 0.9, Vector3(0, 0.45, 0), _wood())
+	for y: float in [0.12, 0.45, 0.78]:
+		_cylinder(root, 0.335, 0.05, Vector3(0, y, 0), _plain("iron", Color(0.22, 0.22, 0.24), 0.5))
+	return root
+
+
+## A crate `size` metres on a side.
+static func crate(size: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Crate"
+	var wood := _wood()
+	_box(root, Vector3.ONE * size, Vector3(0, size * 0.5, 0), _plain("crate", Color(0.55, 0.42, 0.28)))
+	for y: float in [0.06, size - 0.06]:
+		_box(root, Vector3(size + 0.02, 0.08, size + 0.02), Vector3(0, y, 0), wood)
+	return root
+
+
+## A sack of flour or grain, slumped.
+static func sack() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Sack"
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.28
+	mesh.height = 0.6
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = _plain("sackcloth", Color(0.78, 0.7, 0.55))
+	mi.scale = Vector3(1.0, 1.15, 0.9)
+	mi.position.y = 0.32
+	root.add_child(mi)
+	return root
+
+
+## A shelf `wide` x `high` and `deep`, its back on the wall (at -z); with `goods` its boards carry
+## jars, bundles and loaves.
+static func shelf(wide: float, high: float, deep: float, goods := false) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Shelf"
+	var wood := _wood()
+	for x: float in [-wide * 0.5 + 0.03, wide * 0.5 - 0.03]:
+		_box(root, Vector3(0.06, high, deep), Vector3(x, high * 0.5, 0), wood)
+	var boards := 4
+	var colours := [Color(0.75, 0.5, 0.25), Color(0.45, 0.55, 0.35), Color(0.7, 0.62, 0.45), Color(0.6, 0.3, 0.25), Color(0.85, 0.8, 0.6)]
+	for b in boards:
+		var y := 0.15 + b * (high - 0.2) / (boards - 1)
+		_box(root, Vector3(wide, 0.04, deep), Vector3(0, y, 0), wood)
+		if not goods or b == boards - 1:
+			continue
+		var n := int(wide / 0.32)
+		for i in n:
+			if (i * 7 + b * 3) % 5 == 0:
+				continue
+			var x := -wide * 0.5 + 0.2 + i * (wide - 0.4) / maxf(1.0, n - 1)
+			var c: Color = colours[(i + b * 2) % colours.size()]
+			if (i + b) % 2 == 0:
+				_cylinder(root, 0.08, 0.22, Vector3(x, y + 0.13, 0), _plain("jar%d" % ((i + b * 2) % colours.size()), c, 0.5))
+			else:
+				_box(root, Vector3(0.22, 0.18, deep * 0.7), Vector3(x, y + 0.11, 0), _plain("goods%d" % ((i + b * 2) % colours.size()), c))
+	return root
+
+
+## Pigeonholes for letters, `wide` x `high`, a few letters and rolls in them.
+static func pigeonholes(wide: float, high: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Pigeonholes"
+	var wood := _wood()
+	var deep := 0.32
+	var cols := maxi(2, int(wide / 0.35))
+	var rows := maxi(2, int(high / 0.3))
+	_box(root, Vector3(wide, high, 0.03), Vector3(0, high * 0.5, -deep * 0.5), _plain("dark_wood", Color(0.3, 0.2, 0.14)))
+	for r in rows + 1:
+		_box(root, Vector3(wide, 0.03, deep), Vector3(0, r * high / rows, 0), wood)
+	for c in cols + 1:
+		_box(root, Vector3(0.03, high, deep), Vector3(-wide * 0.5 + c * wide / cols, high * 0.5, 0), wood)
+	var paper := _plain("paper", Color(0.93, 0.9, 0.8))
+	for r in rows:
+		for c in cols:
+			if (r * 5 + c * 3) % 4 == 0:
+				continue
+			var at := Vector3(-wide * 0.5 + (c + 0.5) * wide / cols, r * high / rows + 0.06, 0.02)
+			_box(root, Vector3(wide / cols * 0.6, 0.08, deep * 0.6), at, paper)
+	return root
+
+
+## A shop sign on an iron arm reaching `out` metres from the wall (along +z), the board hanging under
+## it with the mark of the `kind` of hall: a mug for the tavern, a loaf for the shop, a horn for the post.
+static func sign_board(kind: String, out: float) -> Node3D:
+	var root := Node3D.new()
+	var iron := _plain("iron", Color(0.22, 0.22, 0.24), 0.5)
+	_box(root, Vector3(0.05, 0.05, out), Vector3(0, 0, out * 0.5), iron)
+	_box(root, Vector3(0.04, 0.3, 0.04), Vector3(0, -0.15, 0.04), iron)
+	var board := Node3D.new()
+	board.position = Vector3(0, -0.36, out * 0.55)
+	root.add_child(board)
+	_box(board, Vector3(0.04, 0.5, 0.62), Vector3.ZERO, _plain("sign_board", Color(0.32, 0.22, 0.15)))
+	for z: float in [-0.2, 0.2]:
+		_box(board, Vector3(0.02, 0.12, 0.02), Vector3(0, 0.3, z), iron)
+	var mark := _plain("sign_" + kind, {"tavern": Color(0.85, 0.65, 0.2), "shop": Color(0.9, 0.75, 0.45), "post": Color(0.95, 0.8, 0.25)}.get(kind, Color.WHITE), 0.5)
+	for x: float in [-0.03, 0.03]:
+		match kind:
+			"tavern":
+				_box(board, Vector3(0.02, 0.24, 0.16), Vector3(x, -0.02, -0.03), mark)
+				_box(board, Vector3(0.02, 0.14, 0.04), Vector3(x, -0.02, 0.09), mark)
+				_box(board, Vector3(0.02, 0.05, 0.18), Vector3(x, 0.12, -0.03), _plain("foam", Color(0.96, 0.93, 0.85)))
+			"shop":
+				_box(board, Vector3(0.02, 0.14, 0.36), Vector3(x, -0.04, 0), mark)
+				_box(board, Vector3(0.02, 0.06, 0.26), Vector3(x, 0.06, 0), mark)
+			_:
+				_box(board, Vector3(0.02, 0.06, 0.3), Vector3(x, 0.0, 0.0), mark)
+				_box(board, Vector3(0.02, 0.18, 0.08), Vector3(x, 0.02, 0.17), mark)
+				_box(board, Vector3(0.02, 0.1, 0.06), Vector3(x, 0.0, -0.17), mark)
+	return root

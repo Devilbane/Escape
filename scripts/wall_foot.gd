@@ -42,6 +42,15 @@ const LOOK := "village"
 const WILD := "overgrown"
 static var look := LOOK
 static var wild := WILD
+## A building's footprint leaves out the parts of its walls lower than this (metres): steps, plinths.
+const FOOTPRINT_LOW := 0.5
+## Walls this large (square metres) are a building's own sides: what stands no more than
+## FOOTPRINT_PROUD metres proud of one (a doorway's jambs) is left out of its footprint.
+const FOOTPRINT_LONG_WALL := 10.0
+const FOOTPRINT_PROUD := 0.8
+## A stone_row: metres between its stones (on average) and how large they lie.
+const ROW_STEP := 0.38
+const ROW_STONE_SIZE := 1.5
 ## Only walls whose foot is this close to the ground (metres) grow a fringe.
 const FOOT := 0.15
 ## Room left clear in front of a door (metres from the spot before it).
@@ -192,29 +201,98 @@ static func _clump(base: Vector3, n: Vector3, across: Vector3, rng: RandomNumber
 					colour = FLOWER_COLOURS[rng.randi() % FLOWER_COLOURS.size()]
 				"stone":
 					var s := rng.randf_range(0.2, 0.42) * float(l.stone_size)
-					var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.0, 0.25))
-					xf = Transform3D((tilt * turn).scaled(Vector3(s * rng.randf_range(1.0, 1.5), s, s * rng.randf_range(0.9, 1.3))), at - Vector3(0, s * 0.18, 0))
+					xf = _stone_xform(at, s, turn, rng)
 					colour = STONE_TINTS[rng.randi() % STONE_TINTS.size()] * rng.randf_range(0.9, 1.05)
 			colour.a = 1.0
 			batch.xforms.append(xf)
 			batch.colours.append(colour)
 
 
+## A stone of size `s` lying at `at`, turned by `turn` and tilted a little, sunk a bit into the ground.
+static func _stone_xform(at: Vector3, s: float, turn: Basis, rng: RandomNumberGenerator) -> Transform3D:
+	var tilt := Basis(Vector3(rng.randf_range(-1, 1), 0, rng.randf_range(-1, 1)).normalized(), rng.randf_range(0.0, 0.25))
+	return Transform3D((tilt * turn).scaled(Vector3(s * rng.randf_range(1.0, 1.5), s, s * rng.randf_range(0.9, 1.3))), at - Vector3(0, s * 0.18, 0))
+
+
+## A row of mossy stones all along the foot of a building's front wall (the walls facing `facing`, a
+## storey high and standing on the ground), where the door's clearance would leave it bare: only the
+## stretch within `clear` metres either side of `door` (its steps) stays free. For a front wider than
+## its doorway, such as the temple's. Stones may lie on paving; `open` (at, true) has the last word.
+static func stone_row(tris: Array, middle: Vector3, ground: float, facing: Vector3, door: Vector3, clear: float, rng: RandomNumberGenerator, out: Dictionary, open: Callable) -> void:
+	if not out.has("stone"):
+		out["stone"] = {"xforms": [], "colours": []}
+	for wall: Dictionary in AgedStone.walls(tris, middle, ground):
+		var n: Vector3 = wall.n
+		if float(wall.foot) > ground + FOOT or float(wall.top) < ground + 1.5 or float(wall.area) < 1.0 or n.dot(facing) < 0.9:
+			continue
+		var lo := INF
+		var hi := -INF
+		for f: Vector2 in wall.flat:
+			if f.y < float(wall.foot) + 0.05:
+				lo = minf(lo, f.x)
+				hi = maxf(hi, f.x)
+		var across: Vector3 = wall.across
+		var door_at := door.dot(across)
+		var a := lo + rng.randf() * ROW_STEP * 0.5
+		while a < hi:
+			var here := a
+			a += ROW_STEP * rng.randf_range(0.6, 1.4)
+			if absf(here - door_at) < clear:
+				continue
+			for k in rng.randi_range(1, 2):
+				var off := 0.08 + pow(rng.randf(), 1.4) * 0.4
+				var at := across * clampf(here + rng.randf_range(-0.15, 0.15), lo + 0.1, hi - 0.1) + n * (float(wall.d) + off)
+				at.y = ground
+				if out.stone.xforms.size() >= CAP or not open.call(at, true):
+					continue
+				var s := rng.randf_range(0.24, 0.5) * ROW_STONE_SIZE * (1.0 - off * 0.5)
+				out.stone.xforms.append(_stone_xform(at, s, Basis(Vector3.UP, rng.randf() * TAU), rng))
+				var colour: Color = STONE_TINTS[rng.randi() % STONE_TINTS.size()] * rng.randf_range(0.9, 1.05)
+				colour.a = 1.0
+				out.stone.colours.append(colour)
+
+
 ## Where a building stands on the ground: the outline (convex, seen from above) of the feet of its
-## real walls (a storey high, standing on the ground; not its steps). Nothing grows inside another
-## building's (terraced houses stand wall to wall). `middle` is the middle of the building.
+## real walls (a storey high, standing on the ground; not its steps, see FOOTPRINT_LOW). A doorway's
+## jambs standing a little proud of a long wall are cut off at that wall (see FOOTPRINT_PROUD), so
+## its foot is not left bare. Nothing grows inside another building's (terraced houses stand wall to
+## wall). `middle` is the middle of the building.
 static func footprint(tris: Array, middle: Vector3, ground: float) -> PackedVector2Array:
 	var points := PackedVector2Array()
+	var long_walls: Array = []
 	for wall: Dictionary in AgedStone.walls(tris, middle, ground):
 		if float(wall.foot) > ground + FOOT or float(wall.top) < ground + 1.5 or float(wall.area) < 1.0:
 			continue
+		if float(wall.area) >= FOOTPRINT_LONG_WALL:
+			long_walls.append(wall)
 		for t: Dictionary in wall.tris:
+			# The wall itself, not a low step or plinth that shares its plane (the temple's steps
+			# share their sides with the door's jambs): it stands upright, so its lower part,
+			# seen from above, lies on its foot.
+			if maxf(t.a.y, maxf(t.b.y, t.c.y)) < ground + FOOTPRINT_LOW:
+				continue
 			for q: Vector3 in [t.a, t.b, t.c]:
-				if q.y < ground + 0.3:
+				if q.y < ground + 3.0:
 					points.append(Vector2(q.x, q.z))
 	if points.size() < 3:
 		return PackedVector2Array()
-	return Geometry2D.convex_hull(points)
+	var hull := Geometry2D.convex_hull(points)
+	for wall: Dictionary in long_walls:
+		var n := Vector2((wall.n as Vector3).x, (wall.n as Vector3).z).normalized()
+		var d := float(wall.d)
+		var proud := -INF
+		for q in hull:
+			proud = maxf(proud, q.dot(n) - d)
+		if proud <= 0.02 or proud > FOOTPRINT_PROUD:
+			continue
+		# Everything behind the wall's plane (a big square on its inner side).
+		var along := Vector2(-n.y, n.x) * 1000.0
+		var at := n * (d + 0.02)
+		var behind := PackedVector2Array([at + along, at - along, at - along - n * 1000.0, at + along - n * 1000.0])
+		var cut := Geometry2D.intersect_polygons(hull, behind)
+		if not cut.is_empty():
+			hull = cut[0]
+	return hull
 
 
 ## Keeps only the pieces of `grown` (see grow) whose spot `open` still allows (the ways to the doors

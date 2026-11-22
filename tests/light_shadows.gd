@@ -174,6 +174,19 @@ func _run() -> void:
 			if g.layers & LightShadows.WALL_LAYER:
 				bracket_walls += 1
 	check(torch_holder != null and bracket_walls == 0, "the torch's own bracket does not")
+	# A lamp inside the house goes first for shadows and never lights the spruces, which take
+	# no shadows and would glow through the walls.
+	check(torch_light != null and torch_light.has_meta(LightShadows.INDOOR), "the wall torch is an indoor lamp")
+	check(torch_light != null and not (torch_light.light_cull_mask & LightShadows.UNSHADOWED_LAYER), "it leaves the spruces out of its light")
+	var spruces := 0
+	var shadowless := 0
+	for g: GeometryInstance3D in game.level.find_children("*", "MultiMeshInstance3D", true, false):
+		var mmi := g as MultiMeshInstance3D
+		if mmi.multimesh != null and mmi.multimesh.mesh != null and mmi.multimesh.mesh.get_surface_count() > 0 and mmi.multimesh.mesh.surface_get_material(0) == Fern.material(true):
+			spruces += 1
+			if g.layers & LightShadows.UNSHADOWED_LAYER:
+				shadowless += 1
+	check(spruces > 0 and shadowless == spruces, "every batch of spruce fronds is on the shadowless layer (%d of %d)" % [shadowless, spruces])
 	var hero_walls := 0
 	for g: GeometryInstance3D in game.player.find_children("*", "GeometryInstance3D", true, false):
 		if g.layers & LightShadows.WALL_LAYER:

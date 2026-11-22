@@ -15,7 +15,10 @@ extends RefCounted
 ## four weeks and a full-grown tree after eight.
 ##
 ## The seasons: blossom in spring, green leaves and red apples in summer, red, orange and gold
-## leaves (and apples) in autumn, bare branches in winter. Running into a tree with apples picks
+## leaves (and apples) in autumn, bare branches in winter with a few withered leaves left on the
+## twigs. While snow lies (see SnowCover) it rests on the crown: ridges along the tops of the
+## limbs, tufts in the forks and on the twigs' ends, and caps over the clumps of leaves when it
+## snows in a season in leaf (see _snow). Running into a tree with apples picks
 ## them all into the bag (Items "apfel", which deer love, see Companions); a tree bears again the
 ## next season it is in fruit (once in summer, once in autumn).
 ##
@@ -54,6 +57,16 @@ const APPLE_COLOUR := Color(0.78, 0.12, 0.09)
 const APPLE_GREEN := Color(0.56, 0.7, 0.16)
 const HANGING := 5
 const BARK := Color(0.33, 0.24, 0.17)
+## The few withered leaves a bare tree keeps through the winter: their colours, how many of the
+## twigs of a tree old enough to bear hold a bunch, and how many leaves in a bunch.
+const WITHERED := [Color(0.42, 0.29, 0.16), Color(0.5, 0.36, 0.2), Color(0.36, 0.25, 0.15), Color(0.46, 0.38, 0.24)]
+const WITHERED_SHARE := 0.3
+const WITHERED_BUNCH := Vector2i(3, 6)
+## The snow on the crown (see _snow): how deep it lies on a level limb against the limb's
+## thickness, and the least and most; how thick it lies on a leaf against the leaf's length.
+const SNOW_ON_LIMB := 1.1
+const SNOW_LIMB_RANGE := Vector2(0.012, 0.075)
+const SNOW_ON_LEAF := 0.16
 ## Single leaves on a full-sized clump of leaves (fewer on a smaller one).
 const LEAVES_PER_CLUMP := 62
 ## The grass round a tree's foot: its radius for a seedling, and how much wider each stage.
@@ -423,6 +436,16 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 			var shade := clampf((c[0].y - low) / maxf(high - low, 0.1), 0.0, 1.0)
 			var size: float = c[1]
 			parts.clump(rng, c[0], Vector3(1.12, 0.88, 1.12) * size, colour * lerpf(0.7, 1.08, shade) * rng.randf_range(0.92, 1.06), autumn_mix(rng, season))
+	# In winter a few bunches of withered leaves still hang on the twigs of a tree old enough to bear.
+	var withered := []
+	if season == Weather.WINTER and grown >= YOUNG:
+		for t in tips:
+			if rng.randf() < WITHERED_SHARE:
+				withered.append(t)
+				for i in rng.randi_range(WITHERED_BUNCH.x, WITHERED_BUNCH.y):
+					var hang := (Vector3(rng.randf_range(-1, 1), rng.randf_range(-1.2, 0.1), rng.randf_range(-1, 1))).normalized()
+					var colour: Color = WITHERED[rng.randi() % WITHERED.size()] * rng.randf_range(0.85, 1.1)
+					parts.leaf(t + hang * shape.clump * 0.12, hang, shape.clump * rng.randf_range(0.3, 0.42), rng.randf() * TAU, colour)
 	# Blossom in spring, on a tree old enough to bear: on the outside of the clumps.
 	var blossoms := 0
 	if season == Weather.SPRING and grown >= YOUNG:
@@ -443,7 +466,11 @@ static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
 		var sunny := (Vector3(rng.randf_range(-1, 1), rng.randf_range(0.2, 1.0), rng.randf_range(-1, 1))).normalized()
 		parts.apple(at, 0.17 if grown == MATURE else 0.13, APPLE_COLOUR * rng.randf_range(0.86, 1.12), APPLE_GREEN * rng.randf_range(0.9, 1.08), sunny, rng.randf_range(-0.35, 0.35))
 	parts.finish(root)
+	var snow := _snow(parts.segments, parts.snowy, clumps, forks, tips, withered, shape, rng)
+	if snow != null:
+		root.add_child(snow)
 	root.set_meta("apples", n)
+	root.set_meta("withered", withered.size())
 	root.set_meta("leaves", clumps.size())
 	root.set_meta("single_leaves", parts.leaves_made)
 	root.set_meta("blossom", blossoms)
@@ -483,6 +510,112 @@ static func _grow(parts: _Parts, rng: RandomNumberGenerator, from: Vector3, dir:
 		_grow(parts, rng, end, child, length * rng.randf_range(0.6, 0.72), r * 0.64, depth - 1, tips, forks, bare)
 
 
+## The snow on a tree (one mesh, see SnowCaps: hidden until snow lies, then it grows out of the
+## bark and the leaves as the snow deepens and sinks back as it melts), or null for a tree too
+## small to hold any. It lies as a rounded ridge along the top of every limb that is not too
+## steep, deepest on the level ones; in a tuft in every fork and on the end of every twig (over
+## the withered leaves in winter); and as a little pad on every leaf of the crown's top and
+## outside that faces the sky, so a crown in leaf turns white on top with its green showing
+## between and under the pads.
+static func _snow(segments: Array, snowy: Array, clumps: Array, forks: Array, tips: Array, withered: Array, shape: Dictionary, rng: RandomNumberGenerator) -> MeshInstance3D:
+	var s := SnowCaps._Surface.new()
+	for seg: Array in segments:
+		_snow_ridge(s, seg[0], seg[1], seg[2], seg[3])
+	var tuft: float = clampf(shape.clump * 0.32, 0.025, 0.16)
+	for f: Vector3 in forks:
+		_snow_tuft(s, f, tuft * rng.randf_range(0.8, 1.15), rng)
+	if clumps.is_empty():
+		for t: Vector3 in tips:
+			if withered.has(t):
+				_snow_tuft(s, t + Vector3(0, tuft * 0.15, 0), tuft * rng.randf_range(1.0, 1.3), rng)
+			elif rng.randf() < 0.6:
+				_snow_tuft(s, t, tuft * rng.randf_range(0.45, 0.7), rng)
+	for outline: Array in snowy:
+		_snow_on_leaf(s, outline, rng)
+	if s.empty():
+		return null
+	var mesh := ArrayMesh.new()
+	s.commit(mesh, SnowCaps.cap_material(), Vector3.ZERO)
+	var node := SnowCaps.node_for(mesh)
+	node.name = "Snow"
+	return node
+
+
+## A ridge of snow along the top of the limb from `a` to `b` (`r0` and `r1` thick): three rings
+## across its top half, closed at both ends, its vertices on the bark and pushed up and out to
+## the snow's full shape. Deepest in the limb's middle and on a level limb, none on an upright one.
+static func _snow_ridge(s: SnowCaps._Surface, a: Vector3, b: Vector3, r0: float, r1: float) -> void:
+	var u := (b - a).normalized()
+	var level := 1.0 - absf(u.y)
+	if level < 0.15 or a.distance_to(b) < 0.01:
+		return
+	var top := (Vector3.UP - u * u.y).normalized()
+	var side := top.cross(u).normalized()
+	var deep := clampf(maxf(r0, r1) * SNOW_ON_LIMB, SNOW_LIMB_RANGE.x, SNOW_LIMB_RANGE.y) * smoothstep(0.15, 0.6, level)
+	const ACROSS := [-1.4, -0.75, 0.0, 0.75, 1.4]
+	var rings: Array[int] = []
+	for t: float in [0.0, 0.5, 1.0]:
+		var c := a.lerp(b, t)
+		var r := lerpf(r0, r1, t)
+		var d := deep * (1.0 if t == 0.5 else 0.6)
+		rings.append(s.size())
+		for th: float in ACROSS:
+			var dir := top * cos(th) + side * sin(th)
+			var lift := pow(maxf(cos(th), 0.0), 1.3)
+			s.add(c + dir * r, (dir + Vector3.UP * 0.6).normalized(), Vector3.UP * d * lift + dir * d * 0.35 * lift)
+	for i in 2:
+		for k in ACROSS.size() - 1:
+			s.quad(rings[i] + k, rings[i] + k + 1, rings[i + 1] + k + 1, rings[i + 1] + k)
+	# The ends, rounded off past the ring.
+	for e in [[0, -1.0, a, r0], [2, 1.0, b, r1]]:
+		var ring: int = rings[e[0]]
+		var out: Vector3 = u * float(e[1])
+		var tip := s.size()
+		s.add((e[2] as Vector3) + top * float(e[3]), (out + Vector3.UP).normalized(), Vector3.UP * deep * 0.35 + out * deep * 0.5)
+		for k in ACROSS.size() - 1:
+			s.tri(ring + k, ring + k + 1, tip)
+
+
+## A little flattened mound of snow `r` wide sitting at `at` (a fork or a twig's end): every
+## vertex starts at `at` and grows out to the mound's shape.
+static func _snow_tuft(s: SnowCaps._Surface, at: Vector3, r: float, rng: RandomNumberGenerator) -> void:
+	const SIDES := 7
+	var spin := rng.randf() * TAU
+	var rings: Array[int] = []
+	for lv: Vector2 in [Vector2(0.75, -0.12), Vector2(1.0, 0.2), Vector2(0.6, 0.5)]:
+		rings.append(s.size())
+		for k in SIDES:
+			var a := spin + TAU * k / SIDES
+			var out := Vector3(cos(a), 0, sin(a)) * lv.x * r * rng.randf_range(0.85, 1.15) + Vector3(0, lv.y * r, 0)
+			s.add(at, (out + Vector3(0, r * 0.3, 0)).normalized(), out)
+	var cap := s.size()
+	s.add(at, Vector3.UP, Vector3(0, r * rng.randf_range(0.6, 0.72), 0))
+	for i in rings.size() - 1:
+		for k in SIDES:
+			var k2 := (k + 1) % SIDES
+			s.quad(rings[i] + k, rings[i] + k2, rings[i + 1] + k2, rings[i + 1] + k)
+	var last := rings[rings.size() - 1]
+	for k in SIDES:
+		s.tri(last + k, last + (k + 1) % SIDES, cap)
+
+
+## A pad of snow lying on a leaf (`outline`: foot, side, tip, side): a little short of its
+## edges, thin at the rim and rounded up over its middle. It starts on the leaf and rises as
+## the snow deepens.
+static func _snow_on_leaf(s: SnowCaps._Surface, outline: Array, rng: RandomNumberGenerator) -> void:
+	var mid: Vector3 = ((outline[0] as Vector3) + outline[1] + outline[2] + outline[3]) * 0.25
+	var long := (outline[2] as Vector3).distance_to(outline[0])
+	var thick := clampf(long * SNOW_ON_LEAF, 0.012, 0.045) * rng.randf_range(0.8, 1.2)
+	var first := s.size()
+	for p: Vector3 in outline:
+		var rim := mid.lerp(p, 0.85)
+		s.add(rim, ((rim - mid).normalized() * 0.5 + Vector3.UP).normalized(), Vector3.UP * thick * 0.25 + (rim - mid) * 0.12)
+	var top := s.size()
+	s.add(mid, Vector3.UP, Vector3.UP * thick)
+	for k in 4:
+		s.tri(first + k, first + (k + 1) % 4, top)
+
+
 ## In autumn a clump's leaves are not all one colour: the colours to pick from leaf by leaf (an
 ## empty list the rest of the year).
 static func autumn_mix(rng: RandomNumberGenerator, season: String) -> Array:
@@ -508,6 +641,10 @@ class _Parts:
 	var ground := SurfaceTool.new()
 	var limbs := 0
 	var leaves_made := 0
+	## Every limb as [from, to, r0, r1], and the outlines of the leaves that face the sky, for
+	## the snow on them (see AppleTree._snow).
+	var segments := []
+	var snowy := []
 	var _used := {}
 
 	func _init() -> void:
@@ -534,6 +671,7 @@ class _Parts:
 				bark.set_normal(quad[j][1])
 				bark.add_vertex(quad[j][0])
 		limbs += 1
+		segments.append([from, to, r0, r1])
 		_used[bark] = true
 
 	## The ground round the tree's foot, `radius` across: a flat disc of grass a shade richer than
@@ -590,11 +728,15 @@ class _Parts:
 				tint = AppleTree.LEAF.summer * rng.randf_range(0.8, 1.05) if rng.randf() < AppleTree.AUTUMN_GREEN \
 						else (mix[rng.randi() % mix.size()] as Color).lerp(colour, 0.35)
 			tint *= lerpf(0.6, 1.0, depth) * rng.randf_range(0.88, 1.1)
-			leaf(foot, d, scale.x * rng.randf_range(0.42, 0.58), rng.randf() * TAU, tint)
+			var shape := leaf(foot, d, scale.x * rng.randf_range(0.42, 0.58), rng.randf() * TAU, tint)
+			# The leaves on the crown's top and outside that face the sky hold snow when it falls.
+			if d.y > 0.25 and depth > 0.6:
+				snowy.append(shape)
 		leaves_made += count
 
 	## One leaf at `foot` on the outside of a clump (`out`: the way out of it), `size` long.
-	func leaf(foot: Vector3, out: Vector3, size: float, turn: float, colour: Color) -> void:
+	## Returns its outline: foot, one side, tip, other side.
+	func leaf(foot: Vector3, out: Vector3, size: float, turn: float, colour: Color) -> Array:
 		# The leaf's line: outwards, tipped round `out` by `turn` and drooping a little.
 		var side := out.cross(Vector3.UP if absf(out.y) < 0.9 else Vector3.RIGHT).normalized()
 		var along := (out * 0.55 + side.rotated(out, turn) * 0.75 + Vector3.DOWN * 0.25).normalized()
@@ -611,6 +753,7 @@ class _Parts:
 			leaves.set_normal(out)
 			leaves.add_vertex(shades[j][0])
 		_used[leaves] = true
+		return [shades[0][0], shades[1][0], shades[2][0], shades[3][0]]
 
 	func blossom(at: Vector3, r: float, colour: Color) -> void:
 		_ball(flowers, at, Vector3.ONE * r, 0.0, colour, AppleTree._ball_arrays(5))

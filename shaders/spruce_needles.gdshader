@@ -15,7 +15,16 @@ shader_type spatial;
 // The wind stirs the branches gently: each frond's outer part sways up to about ten centimetres, more
 // towards its tip, the trunk and the branches' roots stay put. Every branch has its own beat, so
 // the crown ripples instead of rocking as one.
+//
+// Snow (see SnowCover, which keeps `amount` and the rest of snow.gdshaderinc in step): it lies on
+// the fronds where they run level, the shoulders of the tiers, in drifts that join up as it
+// deepens, and only on the leaflets themselves (the cut-out shape). It stays put while the
+// branches sway (its pattern is taken from where the frond rests), and keeps off near fires and
+// under shelters like the snow on the ground. The overlay is not laid on the spruces (it cannot
+// see the cut-out leaflets nor follow the sway).
 render_mode cull_disabled, shadows_disabled;
+
+#include "res://shaders/snow.gdshaderinc"
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 // How far a branch tip one metre out from the trunk sways (metres).
@@ -31,6 +40,9 @@ uniform float dark_ferns = 0.12;
 uniform float mixed_ferns = 0.25;
 
 varying vec3 tint;
+varying vec3 rest_pos;
+varying vec3 rest_normal;
+varying float shade;
 
 // A number from 0 to 1 for `p`, the same every time.
 float rand(vec2 p) {
@@ -64,6 +76,9 @@ void vertex() {
 	// The whole tree leans greener or bluer.
 	colour = mix(colour, s3 < 0.5 ? green_1 : green_4, abs(s3 - 0.5) * 0.4);
 	tint = colour * COLOR.rgb;
+	rest_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	rest_normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
+	shade = COLOR.r;
 
 	// Nothing near the trunk moves; the outer branches move most.
 	float give = smoothstep(0.12, 1.3, r);
@@ -79,6 +94,33 @@ void vertex() {
 void fragment() {
 	vec4 tex = texture(albedo_tex, UV);
 	ALBEDO = tex.rgb * tint;
+	if (amount > 0.001) {
+		// The fronds' normals lean up already (see Fern._card): a level frond is nearly 1.
+		float level = smoothstep(0.6, 0.88, rest_normal.y);
+		// Only on the upper side: from below, a frond shows its green.
+		float above = step(0.0, dot(CAMERA_POSITION_WORLD - rest_pos, rest_normal));
+		float n = snow_noise(rest_pos.xz * 2.2 + rest_pos.y * 1.3) * 0.6 + snow_noise(rest_pos.xz * 7.0 + 3.0) * 0.4;
+		// The upper tiers are open to the sky, the lower ones lie under them (`shade` runs from the
+		// foot's 0.72 to the top's 1.0, see Fern.NEEDLE_FOOT_SHADE).
+		float tier = clamp((shade - 0.72) / 0.28, 0.0, 1.0);
+		float lies = level * above * amount * 0.8 + (n - 0.5) * 0.6 + (tier - 0.5) * 0.7;
+		if (lies > 0.5 && !snow_melted(rest_pos, n) && !snow_sheltered(rest_pos)) {
+			vec3 snow_albedo;
+			vec3 snow_normal;
+			vec3 snow_glow;
+			snow_look(rest_pos, vec3(0.0, 1.0, 0.0), VIEW_MATRIX, TIME, snow_albedo, snow_normal, snow_glow);
+			// The lower tiers, in the crown's shade, are greyer (see Fern's NEEDLE_FOOT_SHADE).
+			snow_albedo *= mix(0.65, 1.0, shade);
+			// Along each frond's middle, over the stem and the leaflets' roots, wider the deeper it
+			// lies; the leaflets' tips at the edges and the drooping end of the frond stay green, so
+			// every tier shows as a white ridge over a dark green fringe.
+			float wide = 0.05 + 0.1 * smoothstep(0.5, 0.9, lies);
+			float ridge = 1.0 - smoothstep(wide - 0.03, wide, abs(UV.x - 0.5));
+			float thick = smoothstep(0.5, 0.6, lies) * ridge * smoothstep(0.97, 0.8, UV.y) * mix(0.85, 1.0, tex.r);
+			ALBEDO = mix(ALBEDO, snow_albedo, thick);
+			EMISSION = snow_glow * thick;
+		}
+	}
 	ALPHA = tex.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.4;
 	ROUGHNESS = 0.9;

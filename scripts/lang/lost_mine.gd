@@ -16,4 +16,8 @@ const EN := {
 	"Das Tor ist fest verschlossen. Noch.": "The gate is shut fast. For now.",
 	"Dagegenlaufen, um die Seite des Steigerbuchs zu lesen": "Run into it to read the page of the foreman's log",
 	"Dagegenlaufen, um das Tor zu untersuchen": "Run into it to examine the gate",
+	"Dagegenlaufen, um Erz abzubauen": "Run into it to mine ore",
+	"Hier hackt niemand in Ruhe, solange die Toten dieses Stollens umgehen.": "Nobody hacks at the rock in peace here while the dead of this drift are walking.",
+	"Die Ader gibt heute nichts mehr her. Komm an einem anderen Tag wieder.": "The vein gives nothing more today. Come back another day.",
+	"Du schlägst Erz aus der Ader.": "You hack ore out of the vein.",
 }

@@ -1302,8 +1302,9 @@ func enemies_in_reach() -> Array[Enemy]:
 	for e in level.enemies:
 		if not is_instance_valid(e) or e.dead or e.is_friend() or level.stacked(self, e):
 			continue
-		# No blow lands through a closed door, either way (see Level.door_between).
-		if level.door_between(global_position, e.global_position):
+		# No blow lands through a closed door, either way (see Level.door_between), nor through
+		# the ground between the forgotten mine and the world above (see LostMine.apart).
+		if level.door_between(global_position, e.global_position) or LostMine.apart(global_position, e.global_position):
 			continue
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0

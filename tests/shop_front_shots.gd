@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test: what the shops and offices set out by their doors (ShopFronts). Every hall has its
 ## display, nothing of it stands in the way to the door or further out than ShopFronts.DEEP, and the
-## bank has its strongbox. Run with: godot --headless --fixed-fps 60 -s tests/shop_front_shots.gd
+## bank has its strongbox and the smith his wares by his forge. Run with: godot --headless --fixed-fps 60 -s tests/shop_front_shots.gd
 ## With SHOTS=<folder> and a display it also saves pictures; ONLY=<name,...> limits them.
 
 ## name: map letter of the door the picture is taken at.
@@ -80,6 +80,7 @@ func _run() -> void:
 				check(box.position.x >= ShopFronts.DOOR_FREE - 0.05 or box.end.x <= -ShopFronts.DOOR_FREE + 0.05, "nothing of the %s's display stands before the door (%s)" % [n.get_meta("hall"), mi.get_parent().name])
 	check(dressed >= 5, "the halls set out their wares (%d)" % dressed)
 	check(lvl.find_child("BankStrongbox", true, false) != null, "the bank has its strongbox by the door")
+	check(lvl.find_child("SmithWares", true, false) != null, "the smith sets out his wares by his forge")
 	for name: String in PLACES:
 		var key: String = PLACES[name]
 		if not lvl.doors.has(key) or not _wanted(name):

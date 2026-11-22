@@ -116,6 +116,10 @@ const BUILDING_NAMES := {
 ## Where the bank's sign post stands from its door: aside (+x) and out into the street (-z).
 const BANK_SIGN_SIDE := 1.4
 const BANK_SIGN_OUT := 1.1
+## Where the smith's sign post stands from the middle of his forge's tile.
+const SMITH_SIGN := Vector3(-2.3, 0, 1.7)
+## Where the smith's wares stand from the middle of his forge's tile: on the tile west of it.
+const SMITH_WARES := Vector3(-3.9, 0, -1.2)
 ## Where the bank's strongbox stands from its door: to the other side (-x) and out (-z).
 const BANK_BOX_SIDE := 2.0
 const BANK_BOX_OUT := 0.75
@@ -3973,9 +3977,17 @@ func _build_forge(cell: Vector2i) -> void:
 	astar.set_point_solid(cell, true)
 	var board := Effects.shop_sign(Lang.t("Schmiede"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "anvil")
 	WeatheredProps.weather_plain(board)
-	board.position = pos + Vector3(-1.5, 0, 1.6)
+	# On the grass beside the paved way to the forge, its shield hanging out over the way.
+	board.position = pos + SMITH_SIGN
 	add_child(board)
-	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + SMITH_SIGN, Vector3(0.5, 2.6, 0.5))
+	# His wares on the grass beside the forge, away from the paved way to it (see ShopFronts).
+	var wares := ShopFronts.smith_yard()
+	wares.position = pos + SMITH_WARES
+	add_child(wares)
+	for part: Array in wares.get_meta("solids"):
+		_add_solid(wares.position + (part[0] as Vector3) - Vector3(0, (part[1] as Vector3).y * 0.5, 0), part[1])
+	astar.set_point_solid(cell + Vector2i(-1, 0), true)
 
 
 ## Gives a particle effect its own fixed random seed. Particles otherwise draw their

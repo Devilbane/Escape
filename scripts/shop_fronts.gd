@@ -4,8 +4,8 @@ extends RefCounted
 ## about: the tavern's casks and an outdoor table with tankards and a chalked board, Mira's market
 ## table of fruit, bread and cheese under a striped awning, the post office's parcels and post box,
 ## the Crown office's notice board of proclamations and a bench for those who wait, the guild's
-## armour stand and archery target, the smithy's rack of blades and its quenching tub and
-## grindstone, and the bank's iron strongbox with a halberd leaned on it.
+## armour stand and archery target, and the bank's iron strongbox with a halberd leaned on it.
+## The smith works in the open, and his wares stand by his forge (see smith_yard).
 ##
 ## Everything stands against the front wall, on both sides of the door, and never in front of it:
 ## the way in (DOOR_FREE either side of the door's middle) stays clear, and nothing reaches further
@@ -47,8 +47,6 @@ static func dress(walk_in: WalkIn, hall: Node3D, kind: String) -> Node3D:
 			parts = _office(root, reach)
 		"guild":
 			parts = _guild(root, reach)
-		"smithy":
-			parts = _smithy(root, reach)
 	if parts.is_empty():
 		root.queue_free()
 		return null
@@ -320,54 +318,61 @@ static func _guild(root: Node3D, reach: float) -> Array:
 	return parts
 
 
-## The smith's wares on a rack on the left (swords and axes), with a shield hung on it; on the right
-## a quenching tub and a grindstone on its frame.
-static func _smithy(root: Node3D, reach: float) -> Array:
-	var wide := minf(reach - DOOR_FREE - 0.2, 1.8)
-	var x := -(DOOR_FREE + 0.1 + wide * 0.5)
+## The smith's wares for his open-air forge (see Outdoor._build_forge): a rack of blades he made
+## with the anvil shield hung on it, and before it a quenching tub and a grindstone on its frame.
+## The rack's back is at z = 0 and it faces +z. Returns the root, standing on the ground; its meta
+## `solids` lists [middle, size] of its solid parts in its own frame.
+static func smith_yard() -> Node3D:
+	var root := Node3D.new()
+	root.name = "SmithWares"
+	var wide := 1.6
 	var rack := WalkInFurniture.weapon_rack(wide)
-	rack.position = Vector3(x, 0, 0.3)
+	rack.position = Vector3(0, 0, 0.15)
 	root.add_child(rack)
 	var shield := HangingShield.shield_of("smithy")
-	shield.position = Vector3(x, 1.5, 0.36)
+	shield.position = Vector3(0, 1.55, 0.22)
 	shield.scale = Vector3.ONE * 0.45
 	root.add_child(shield)
-	var parts := [[Vector3(x, 0.75, 0.3), Vector3(wide + 0.1, 1.5, 0.4)]]
-	var qx := DOOR_FREE + 0.5
+	var parts := [[Vector3(0, 0.75, 0.15), Vector3(wide + 0.1, 1.5, 0.4)]]
+	var qx := 0.45
+	var qz := 1.2
 	var tub := CylinderMesh.new()
 	tub.top_radius = 0.38
 	tub.bottom_radius = 0.33
 	tub.height = 0.5
-	root.add_child(_part(tub, WalkInFurniture._wood(), Vector3(qx, 0.25, 0.55)))
+	root.add_child(_part(tub, WalkInFurniture._wood(), Vector3(qx, 0.25, qz)))
 	var water := CylinderMesh.new()
 	water.top_radius = 0.35
 	water.bottom_radius = 0.35
 	water.height = 0.02
-	root.add_child(_part(water, _mat("dark_water", Color(0.12, 0.16, 0.18), 0.1, 0.2), Vector3(qx, 0.47, 0.55)))
+	root.add_child(_part(water, _mat("dark_water", Color(0.12, 0.16, 0.18), 0.1, 0.2), Vector3(qx, 0.47, qz)))
+	var iron := _mat("iron", Color(0.2, 0.2, 0.22), 0.45, 0.6)
 	for y: float in [0.1, 0.4]:
 		var hoop := CylinderMesh.new()
 		hoop.top_radius = 0.37 if y > 0.2 else 0.345
 		hoop.bottom_radius = hoop.top_radius
 		hoop.height = 0.04
-		root.add_child(_part(hoop, _mat("iron", Color(0.2, 0.2, 0.22), 0.45, 0.6), Vector3(qx, y, 0.55)))
-	_box(root, Vector3(0.04, 0.6, 0.04), Vector3(qx + 0.2, 0.65, 0.55), _mat("iron", Color(0.2, 0.2, 0.22), 0.45, 0.6), Basis(Vector3.BACK, -0.3))
-	parts.append([Vector3(qx, 0.3, 0.55), Vector3(0.8, 0.6, 0.8)])
-	if reach - DOOR_FREE >= 1.8:
-		var gx := DOOR_FREE + 1.45
-		var frame_wood := _mat("post_wood", Color(0.3, 0.2, 0.12))
-		for s: float in [-1.0, 1.0]:
-			_box(root, Vector3(0.6, 0.06, 0.06), Vector3(gx, 0.45, 0.55 + s * 0.17), frame_wood)
-			for e: float in [-1.0, 1.0]:
-				_box(root, Vector3(0.06, 0.5, 0.06), Vector3(gx + e * 0.25, 0.22, 0.55 + s * 0.17), frame_wood)
-		var stone := CylinderMesh.new()
-		stone.top_radius = 0.3
-		stone.bottom_radius = 0.3
-		stone.height = 0.12
-		root.add_child(_part(stone, _mat("grit", Color(0.66, 0.62, 0.55), 0.95), Vector3(gx, 0.72, 0.55), Basis(Vector3.RIGHT, PI * 0.5)))
-		_box(root, Vector3(0.03, 0.03, 0.5), Vector3(gx, 0.72, 0.55), _mat("iron", Color(0.2, 0.2, 0.22), 0.45, 0.6))
-		_box(root, Vector3(0.03, 0.2, 0.03), Vector3(gx, 0.62, 0.82), _mat("iron", Color(0.2, 0.2, 0.22), 0.45, 0.6))
-		parts.append([Vector3(gx, 0.5, 0.55), Vector3(0.7, 1.0, 0.5)])
-	return parts
+		root.add_child(_part(hoop, iron, Vector3(qx, y, qz)))
+	# Tongs left in the water.
+	_box(root, Vector3(0.04, 0.6, 0.04), Vector3(qx + 0.2, 0.65, qz), iron, Basis(Vector3.BACK, -0.3))
+	parts.append([Vector3(qx, 0.3, qz), Vector3(0.8, 0.6, 0.8)])
+	var gx := -0.6
+	var gz := 1.2
+	var frame_wood := _mat("post_wood", Color(0.3, 0.2, 0.12))
+	for s: float in [-1.0, 1.0]:
+		_box(root, Vector3(0.6, 0.06, 0.06), Vector3(gx, 0.45, gz + s * 0.17), frame_wood)
+		for e: float in [-1.0, 1.0]:
+			_box(root, Vector3(0.06, 0.5, 0.06), Vector3(gx + e * 0.25, 0.22, gz + s * 0.17), frame_wood)
+	var stone := CylinderMesh.new()
+	stone.top_radius = 0.3
+	stone.bottom_radius = 0.3
+	stone.height = 0.12
+	root.add_child(_part(stone, _mat("grit", Color(0.66, 0.62, 0.55), 0.95), Vector3(gx, 0.72, gz), Basis(Vector3.RIGHT, PI * 0.5)))
+	_box(root, Vector3(0.03, 0.03, 0.5), Vector3(gx, 0.72, gz), iron)
+	_box(root, Vector3(0.03, 0.2, 0.03), Vector3(gx, 0.62, gz + 0.27), iron)
+	parts.append([Vector3(gx, 0.5, gz), Vector3(0.7, 1.0, 0.5)])
+	root.set_meta("solids", parts)
+	return root
 
 
 ## A cask lying on its side along x, its middle at the origin.

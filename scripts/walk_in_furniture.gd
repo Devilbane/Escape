@@ -15,6 +15,10 @@ const BACK := 1.0
 const LADDER_WIDE := 0.5
 const LADDER_BEFORE := 0.18
 
+## How brightly a wall sconce's candle lights its room, and how far (metres).
+const SCONCE_ENERGY := 1.6
+const SCONCE_RANGE := 5.0
+
 static var _mats := {}
 
 
@@ -101,6 +105,45 @@ static func candle_shelf() -> Node3D:
 	glow.light_energy = 0.7
 	glow.omni_range = 3.2
 	glow.position = Vector3(0.12, 0.4, 0.35)
+	root.add_child(glow)
+	return root
+
+
+## A wall sconce: an iron plate on the wall, an arm out of it and a candle in a brass cup on the arm,
+## its back on the wall at the origin, facing +z. Its flame ("Flame", lit with emission) and its
+## light ("SconceGlow") start out; WalkIn lights them at nightfall (see WalkIn.set_hour).
+static func sconce() -> Node3D:
+	var root := Node3D.new()
+	root.name = "WallSconce"
+	var iron := _plain("sconce_iron", Color(0.16, 0.15, 0.14), 0.55)
+	_box(root, Vector3(0.12, 0.26, 0.02), Vector3(0, 0, 0.01), iron)
+	_box(root, Vector3(0.03, 0.03, 0.2), Vector3(0, -0.06, 0.11), iron)
+	_cylinder(root, 0.055, 0.03, Vector3(0, -0.035, 0.2), _plain("brass", Color(0.78, 0.6, 0.3), 0.4))
+	_cylinder(root, 0.025, 0.14, Vector3(0, 0.05, 0.2), _plain("wax", Color(0.95, 0.92, 0.82), 0.6))
+	var flame := MeshInstance3D.new()
+	flame.name = "Flame"
+	var drop := SphereMesh.new()
+	drop.radius = 0.018
+	drop.height = 0.07
+	flame.mesh = drop
+	if not _mats.has("sconce_flame"):
+		var hot := StandardMaterial3D.new()
+		hot.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		hot.albedo_color = Color(1.0, 0.78, 0.4)
+		_mats["sconce_flame"] = hot
+	flame.material_override = _mats["sconce_flame"]
+	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	flame.position = Vector3(0, 0.155, 0.2)
+	flame.visible = false
+	root.add_child(flame)
+	var glow := OmniLight3D.new()
+	glow.name = "SconceGlow"
+	glow.light_color = Color(1.0, 0.72, 0.42)
+	glow.light_energy = SCONCE_ENERGY
+	glow.omni_range = SCONCE_RANGE
+	glow.omni_attenuation = 1.6
+	glow.position = Vector3(0, 0.2, 0.55)
+	glow.visible = false
 	root.add_child(glow)
 	return root
 

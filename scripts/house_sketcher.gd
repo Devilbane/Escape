@@ -126,7 +126,6 @@ const BUILD_SECONDS := 12.0
 const DIG_SECONDS := 3.0
 const BUILD_RANGE := 16.0
 const WOOD_COLOR := Color(0.4, 0.27, 0.15)
-const GLASS_COLOR := Color(0.6, 0.8, 0.9, 0.35)
 ## What is left of the panes of an empty house: dull, dirty glass.
 const BROKEN_GLASS := Color(0.32, 0.36, 0.36, 0.55)
 const DEMOLISH_COLOR := Color(1.0, 0.45, 0.35, 0.6)
@@ -2332,11 +2331,9 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	var sill_deep := jamb_deep + 0.1
 	_visual_box(mid + across * _outside * 0.05 + Vector3(0, SILL + 0.03, 0), _along(axis, across, opening + 0.2, 0.06, sill_deep), wood)
 	# The pane and its glazing bars: one upright and one across, on both faces.
-	# The glass is the villagers' panes: dark by day, lit in the evening until
-	# bedtime (see WindowLights). Shut shutters cover the glow.
-	var glass: Material = _solid_material(GLASS_COLOR)
-	if not demolish and not _abandoned and game != null and game.level is Outdoor:
-		glass = (game.level as Outdoor)._house_glass()
+	# One walks into this house, so its glass is clear from both sides: what lights it at night is
+	# the light the hero has put up inside, shining out through it (only the houses one cannot walk
+	# into have panes that glow by themselves, see WindowLights).
 	if _abandoned:
 		# An empty house: no light behind the panes, and most of the glass is gone. Shards are
 		# left in the corners of the frame.
@@ -2346,7 +2343,7 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 		_visual_box(mid + axis * (-pane_w * 0.4) + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, pane_w * 0.2, high * 0.28, 0.03), shard)
 		_visual_box(mid + axis * (pane_w * 0.36) + Vector3(0, SILL + high * 0.84, 0), _along(axis, across, pane_w * 0.28, high * 0.3, 0.03), shard)
 	else:
-		_pane(mid + Vector3(0, SILL + high * 0.5, 0), across * _outside, Vector2(opening - 0.1, high), glass)
+		_pane(mid + Vector3(0, SILL + high * 0.5, 0), across * _outside, Vector2(opening - 0.1, high))
 	_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, 0.05, high, 0.06), wood)
 	_visual_box(mid + Vector3(0, SILL + high * 0.55, 0), _along(axis, across, opening - 0.1, 0.05, 0.06), wood)
 	# The pane itself stops the hero too: a window is no way through.
@@ -2355,11 +2352,9 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	_new_shutters = _shutter_pair(shutters_at, along_x, Vector2(opening - 0.04, high - 0.04), demolish)
 
 
-## A window's glass, two faces back to back (see _solid_window): the outer one, turned to `out`, is the
-## villagers' pane, dark by day and lit in the evening (`glass`); the inner one is clear, so from
-## inside the house one looks out through it, and no glow shows on that side. Each face is drawn
-## from its own side only.
-func _pane(at: Vector3, out: Vector3, size: Vector2, glass: Material) -> void:
+## A window's glass, two clear faces back to back (see _solid_window), one turned to `out` and one
+## into the room, each drawn from its own side only. Glass casts no shadow.
+func _pane(at: Vector3, out: Vector3, size: Vector2) -> void:
 	for face in [1.0, -1.0]:
 		var m := MeshInstance3D.new()
 		var quad := QuadMesh.new()
@@ -2370,16 +2365,13 @@ func _pane(at: Vector3, out: Vector3, size: Vector2, glass: Material) -> void:
 		m.basis = Basis(Vector3.UP.cross(facing), Vector3.UP, facing)
 		m.position = at + facing * 0.012 + Vector3(0, _lift, 0)
 		m.set_meta("ymin", at.y + _lift - size.y * 0.5)
-		if face > 0.0:
-			m.material_override = glass
-		else:
-			m.material_override = clear_glass()
-			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			m.name = "ClearPane"
+		m.material_override = clear_glass()
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.name = "ClearPane"
 		_into.add_child(m)
 
 
-## The inner face of a window's glass: clear and faintly blue, a little shiny.
+## A window's glass: clear and faintly blue, a little shiny.
 static func clear_glass() -> StandardMaterial3D:
 	if _clear_glass == null:
 		_clear_glass = StandardMaterial3D.new()

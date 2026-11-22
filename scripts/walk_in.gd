@@ -47,6 +47,11 @@ const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
 ## The walk between the altar and the first pews (metres), roomy for the hero.
 const ALTAR_WALK := 1.7
+## A villagers' house's rug under the table (metres across, deep), and how high over the floor the
+## candle shelf hangs on the back wall, and how far off the middle (away from the store shelf).
+const RUG_SIZE := Vector2(2.2, 1.6)
+const SHELF_HIGH := 1.75
+const SHELF_OFF := 0.4
 ## The beds of a house, on the floor above: as many as fit side by side along its back wall
 ## beside the hatch, at most this many.
 const MAX_BEDS := 3
@@ -98,7 +103,7 @@ func _init(lvl: Node3D) -> void:
 
 ## Whether the building made for map letter `ch` can be walked into.
 static func is_on(ch: String) -> bool:
-	return (ch == "h" and houses) or (ch == "s" and temple) or bool(halls.get(ch, false))
+	return ((ch == "h" or ch == "ß") and houses) or (ch == "s" and temple) or bool(halls.get(ch, false))
 
 
 ## Takes on a building before it is dressed (see Outdoor._dress_building), so its ivy can be sorted
@@ -262,7 +267,9 @@ func open_house(house: Node3D) -> void:
 	_solid(rec, Vector3(0, floor_y * 0.5, 0), Vector3(w, floor_y, d))
 	rec["door_shape"] = _solid(rec, Vector3(door_x, 1.4, d * 0.5 - t * 0.5), Vector3(DOOR_GAP, 2.8, t))
 	_ramp(rec, door_x, d * 0.5, floor_y)
-	if rec.kind == "house":
+	if rec.kind == "house" and rec.has("owner"):
+		SmithCottage.furnish(self, rec)
+	elif rec.kind == "house":
 		_furnish_house(rec, w, d, door_x)
 	else:
 		VillageHalls.furnish(self, rec)
@@ -460,6 +467,25 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 		var origin := Vector3(mid - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5, up_y, origin_z)
 		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
 				"stand": house.transform * Vector3(mid + 0.1, up_y, origin_z + CosyBed.FOOT + 0.55)})
+	_make_homely(rec, table_at, side)
+
+
+## What makes a villagers' house look lived in and warmly lit: a rug under the table, and a shelf
+## with a burning candle on the back wall between the store shelf and the barrels, whose glow
+## lights the room with the house's lamp (see _show_inside).
+func _make_homely(rec: Dictionary, table_at: Vector3, ladder_side: float) -> void:
+	var house: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var rug := WalkInFurniture.rug(Vector2(minf(RUG_SIZE.x, room.size.x - 0.6), minf(RUG_SIZE.y, room.size.y - 0.6)))
+	rug.position = Vector3(table_at.x, floor_y, table_at.z)
+	house.add_child(rug)
+	var shelf := WalkInFurniture.candle_shelf()
+	shelf.position = Vector3(-ladder_side * SHELF_OFF, floor_y + SHELF_HIGH, room.position.y)
+	house.add_child(shelf)
+	var glow: OmniLight3D = shelf.get_node("CandleGlow")
+	glow.visible = false
+	rec["glows"] = [glow]
 
 
 ## The lamp that lights a house or hall while the hero is inside.
@@ -675,13 +701,21 @@ func door_points(rec: Dictionary) -> Array[Vector3]:
 	return [outside, inside]
 
 
-## The house whose door is nearest to `pos` within `reach` metres, or {}.
-func house_near(pos: Vector3, reach := 9.0) -> Dictionary:
+## The house whose door is nearest to `pos` within `reach` metres, or {}. A house that belongs to
+## one villager alone (its "owner", see SmithCottage) is only theirs: `role` finds it first.
+func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 	var best := {}
 	var best_d := reach
 	for rec in buildings:
 		if rec.kind != "house" or not rec.get("opened", false):
 			continue
+		var owner := String(rec.get("owner", ""))
+		if owner != "" and owner != role:
+			continue
+		if owner != "" and owner == role:
+			var at: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+			if Vector2(at.x - pos.x, at.z - pos.z).length() < reach:
+				return rec
 		var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
 		var dist := Vector2(door.x - pos.x, door.z - pos.z).length()
 		if dist < best_d:
@@ -778,6 +812,9 @@ func _show_inside(rec: Dictionary, inside: bool) -> void:
 	var lamp: OmniLight3D = rec.get("lamp")
 	if lamp:
 		lamp.visible = inside
+	for glow in rec.get("glows", []):
+		if is_instance_valid(glow):
+			(glow as Light3D).visible = inside
 
 
 ## Which wall of a sided hall a leaf of ivy at `at` (the hall's frame) grows on, or "".

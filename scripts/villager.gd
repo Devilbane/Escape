@@ -187,8 +187,8 @@ const BITE_POINT := Vector3(-0.215, 0.41, 1.59)
 ## The trunk he chops: its middle in his own frame, its radius and length.
 ## It lies across his way, settled a little into the ground, and its top is
 ## where the blade bites.
-const LOG_CENTRE := Vector3(-0.3, 0.12, 1.6)
-const LOG_RADIUS := 0.34
+const LOG_CENTRE := Vector3(-0.3, 0.18, 1.6)
+const LOG_RADIUS := 0.28
 const LOG_LENGTH := 3.0
 ## How long the axe sticks in the wood before he wrenches it out.
 const BITE_HOLD := 0.3
@@ -367,6 +367,7 @@ func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
 	add_to_group(Footprint.GROUP)
 	radius = 0.5 * _info.get("scale", 1.0)
+	OffscreenAnim.watch(self, maxf(1.0, float(_info.get("scale", 1.0))))
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = radius
@@ -2556,6 +2557,9 @@ func house_door() -> Vector3:
 
 ## The door of the house nearest to the villager's own spot.
 func _house_door() -> Vector3:
+	var own = level.get("own_homes")
+	if own is Dictionary and (own as Dictionary).has(role):
+		return own[role]
 	var houses: Array = level.spots.houses
 	var at := level.cell_to_world(home)
 	var best := at
@@ -2653,9 +2657,10 @@ func meet() -> void:
 		_name_tag.visible = not is_asleep()
 
 
-## Whether the villager is asleep upstairs in their house (see VillageBeds): no name over the head.
+## Whether the villager is asleep in their house, upstairs or in a bed on the ground floor (see
+## VillageBeds): no name over the head.
 func is_asleep() -> bool:
-	return String(bed_trip.get("step", "")) == "upstairs"
+	return String(bed_trip.get("step", "")) in ["upstairs", "asleep"]
 
 
 ## The elder sees the newcomer and hands over the house.

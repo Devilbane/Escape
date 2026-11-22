@@ -377,6 +377,7 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
 	var silver := _mat("silver", SILVER, 0.9, 0.25)
 	var door_x := HUT.position.x + HUT.size.x / 2
+	var first := parent.get_child_count()
 	# The face of the door's wall (north), the door's middle on it.
 	var face := s.node_world(door_x, HUT.position.y) + Vector3(HouseSketch.CELL * 0.5, 0, 0)
 	var out := Vector3(0, 0, -1)
@@ -395,13 +396,20 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 				y += h
 				k += 1
 			level._add_solid(face + way + Vector3(side * (PORTAL_HALF + 0.27), 0, 0), Vector3(0.56, high, 0.4))
-		var ring := 9
+			# A plinth under the jamb and a projecting impost block where the arch springs.
+			_box(parent, face + way + Vector3(side * (PORTAL_HALF + 0.3), 0.12, 0), Vector3(0.72, 0.24, 0.52), dark_stone)
+			_box(parent, face + way + Vector3(side * (PORTAL_HALF + 0.24), high - 0.09, 0), Vector3(0.74, 0.18, 0.5), dark_stone)
+		# The arch: wedge stones, each a little wider outside than in, and a keystone that stands out.
+		var ring := 13
 		for i in ring:
 			var a := PI * (float(i) + 0.5) / float(ring)
-			var r := PORTAL_HALF + 0.25
+			var r := PORTAL_HALF + 0.24
+			var key := i == ring / 2
 			var at: Vector3 = face + way + Vector3(-cos(a) * r, high + sin(a) * r, 0)
-			var wedge := _box(parent, at, Vector3(0.5 if i == ring / 2 else 0.4, 0.5 if i == ring / 2 else 0.42, 0.44 if i == ring / 2 else 0.4), stone if i % 2 else dark_stone)
+			var wedge := _box(parent, at, Vector3(0.3 if not key else 0.36, 0.48 if not key else 0.62, 0.42 if not key else 0.5), stone if i % 2 else dark_stone)
 			wedge.rotation.z = a - PI * 0.5
+			if key:
+				wedge.position += Vector3(0, 0.06, 0)
 		_box(parent, face + way * 1.2 + Vector3(0, high - 0.12, 0), Vector3(PORTAL_HALF * 2.0 + 0.2, 0.22, 0.22), wood)
 	# The lantern on an iron bracket on the right-hand jamb: the one light left burning.
 	var lamp_at := face + out * 0.62 + Vector3(PORTAL_HALF + 0.3, 2.0, 0)
@@ -518,6 +526,32 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 		var size := rng.randf_range(0.16, 0.42)
 		var block := _box(parent, at + Vector3(0, size * 0.4, 0), Vector3(size * 1.3, size, size), stone if i % 3 else dark_stone, rng.randf() * TAU)
 		block.rotation.x = rng.randf_range(-0.3, 0.3)
+	_weather(parent, first, [stone, dark_stone], [wood, sleeper, _mat("rope", Color(0.55, 0.47, 0.33))], [iron, rail])
+
+
+## Gives the entrance's pieces (children of `parent` from index `first` on) the look of the
+## other buildings: blocks of `stones` become rounded hewn blocks of the walls' stone (see
+## HouseLooks.temple_stone and StoneLook.rounded_box), and `woods` and `irons` take the
+## weathered grain, cracks, rust and moss of the props outside (see WeatheredProps).
+static func _weather(parent: Node3D, first: int, stones: Array, woods: Array, irons: Array) -> void:
+	var nodes: Array[Node] = []
+	for i in range(first, parent.get_child_count()):
+		var child := parent.get_child(i)
+		nodes.append(child)
+		nodes.append_array(child.find_children("*", "MeshInstance3D", true, false))
+	for n in nodes:
+		var m := n as MeshInstance3D
+		if m == null or m.material_override == null:
+			continue
+		var was: Material = m.material_override
+		if was in stones:
+			if m.mesh is BoxMesh:
+				m.mesh = StoneLook.rounded_box((m.mesh as BoxMesh).size)
+			m.material_override = HouseLooks.temple_stone()
+		elif was in woods:
+			m.material_override = WeatheredProps.colour_material((was as StandardMaterial3D).albedo_color.lightened(0.25), WeatheredProps.WOOD)
+		elif was in irons:
+			m.material_override = WeatheredProps.colour_material((was as StandardMaterial3D).albedo_color.lightened(0.2), WeatheredProps.IRON)
 
 
 static func _wheel(at: Vector3, radius: float, thick: float, mat: Material, turn: Vector3) -> MeshInstance3D:

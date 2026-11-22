@@ -546,7 +546,8 @@ func tick(level: Outdoor, delta: float) -> void:
 			# The hour at the table counts from sitting down: a long walk over does not cut it short.
 			p.sat = level.hour
 			p.leave = minf(p.sat + p.stay, p.last)
-		if level.hour >= p.leave:
+		# Ilse goes back to her stall when it opens again, done eating or not (see FurnisherDay).
+		if level.hour >= p.leave or not goes(v):
 			if v.dines():
 				v.leave_meal()
 			_plan.erase(v)

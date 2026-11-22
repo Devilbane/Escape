@@ -806,14 +806,18 @@ func build() -> void:
 	roofed.append_array(meals.roofed)
 	# The rooms of the buildings one walks into (see WalkIn): no snow on their floors and furniture,
 	# which the camera sees once their roof is lifted off. A house's own walls bound that (see
-	# walk_in_room), so the yard round it on its block snows over like the rest; a building
-	# without a known shape keeps its whole block clear.
+	# walk_in_room), so the yard round it on its block snows over like the rest; the temple's nave
+	# its walls (see temple_room); a building without a known shape keeps its whole block clear.
 	var rooms: Array = []
 	for rec in walk_in.buildings:
 		var room := walk_in_room(rec.node)
 		if room.has_area():
 			# Both storeys, up to the eaves: the upper floor is a room too (the roof above takes snow).
 			rooms.append([room, WALK_IN_CEILING, VillageHouse.JETTY, VillageHouse.PLINTH + VillageHouse.GROUND - 0.1])
+			continue
+		if rec.kind == "temple":
+			var nave := temple_room(rec.node)
+			rooms.append([nave, (WalkIn.NAVE_WALL - 0.2) * (rec.node as Node3D).scale.y])
 			continue
 		var block: Rect2i = rec.block
 		for by in range(block.position.y, block.end.y):
@@ -4491,7 +4495,7 @@ func hero_under_cover() -> bool:
 ## what is in the cellar (see hero_cellar); outside, everything shows.
 func hero_sees(pos: Vector3) -> bool:
 	if not hero_cellar.is_empty():
-		return CellarView.in_cells(hero_cellar, pos)
+		return CellarView.down_in(hero_cellar, pos)
 	# Up on the ground nothing down in the forgotten mine shows (see LostMine).
 	if LostMine.holds(pos):
 		return false
@@ -5557,6 +5561,14 @@ func _fade_ore() -> void:
 				var tween := create_tween()
 				tween.tween_property(n, "scale", Vector3.ONE * 0.01, 1.2)
 				tween.tween_callback(n.queue_free)
+
+
+## The ground the temple's nave stands on (x/z), inside its walls (see WalkIn._walls_of_temple).
+func temple_room(node: Node3D) -> Rect2:
+	var xf := node.global_transform if node.is_inside_tree() else node.transform
+	var a := xf * Vector3(WalkIn.NAVE.position.x - 0.5, 0, WalkIn.NAVE.position.y - 0.5)
+	var b := xf * Vector3(WalkIn.NAVE.end.x + 0.5, 0, WalkIn.NAVE_DOOR_Z + 0.5)
+	return Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z))
 
 
 ## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth.

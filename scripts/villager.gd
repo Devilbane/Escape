@@ -1655,7 +1655,7 @@ func _next_task() -> void:
 		else:
 			_walk_to(_house_door(), WALK_SPEED * 1.15, "home")
 		return
-	match _info.plan:
+	match day_plan():
 		"stay", "shop":
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
@@ -1764,7 +1764,7 @@ func _nearby(radius: int) -> Vector3:
 ## other way round, so their shop or word is always there to bump into.
 func keeps_spot() -> bool:
 	# Someone frozen stiff in the cold stands as still as a shopkeeper.
-	return _info.plan in ["shop", "stay"] or _task == "frozen"
+	return day_plan() in ["shop", "stay"] or _task == "frozen"
 
 
 ## Whether a tile is next to the spot of someone else who keeps to it.
@@ -2441,6 +2441,15 @@ func plan() -> String:
 	return String(_info.plan)
 
 
+## The plan they follow right now: their day's plan, except for Ilse the furnisher,
+## who keeps her stall only through her opening hours and strolls about otherwise
+## (see FurnisherDay).
+func day_plan() -> String:
+	if role == FurnisherDay.ROLE and level != null and level.hour >= 0.0:
+		return FurnisherDay.plan_at(level.hour)
+	return String(_info.plan)
+
+
 ## The animation of their work (behind the counter, see VillagePosts).
 func work_anim() -> String:
 	return String(_info.work)
@@ -2486,7 +2495,7 @@ func unseen_at_home() -> bool:
 func carries_torch() -> bool:
 	if not night or at_home or not visible:
 		return false
-	return _task == "walk" or not _info.plan in UNLIT_PLANS
+	return _task == "walk" or not day_plan() in UNLIT_PLANS
 
 
 ## Lights the torch, puts it out, and lets it flicker while it burns.
@@ -2621,7 +2630,7 @@ func _hide_inside(inside: bool, at_the_door := false) -> void:
 ## Who drops their work to hear the herald: not the shopkeeper at her
 ## stall, the elder or the woodcutter out in the woods.
 func comes_to_listen() -> bool:
-	return not night and _info.plan in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not _on_seat()
+	return not night and day_plan() in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not _on_seat()
 
 
 func gather_at(spot: Vector3, speaker: Vector3) -> void:
@@ -3040,7 +3049,7 @@ const MEAL_LIMIT := 150.0
 
 ## The day plan of the role (see ROLES): who keeps a stall stays at it.
 func meal_plan() -> String:
-	return _info.plan
+	return day_plan()
 
 
 ## Whether we can go and eat now: awake, out in the village, free (not

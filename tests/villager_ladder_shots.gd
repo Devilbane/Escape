@@ -78,6 +78,33 @@ func _run() -> void:
 	await _shot("room", null, Vector3.ZERO)
 	var mid: Vector3 = (rec.node as Node3D).global_position + Vector3(0, 1.0, 0)
 	await _shot("room_doorway", way[0] + Vector3(0, 2.6, 0), mid)
+	# Upstairs: the hero at the top of the ladder, a villager asleep in a bed.
+	hero.visible = true
+	hero.global_position = rec.ladder_top
+	hero.reset_physics_interpolation()
+	var sleeper: Villager = lvl.villagers[1]
+	sleeper.bed_trip = {"house": rec, "bed": rec.beds[0], "step": "in", "way": [], "t": 0.0, "clock": 0.0}
+	rec.beds[0].by = sleeper
+	VillageBeds._settle(sleeper)
+	sleeper.process_mode = Node.PROCESS_MODE_DISABLED
+	await _wait(30)
+	check(lvl.walk_in.hero_upstairs_in(rec), "the hero is upstairs")
+	sleeper.visible = true
+	await _shot("upstairs", null, Vector3.ZERO)
+	var up_mid: Vector3 = (rec.node as Node3D).global_position + Vector3(0, 4.5, 0)
+	hero.visible = false
+	await _shot("upstairs_close", up_mid + Vector3(0, 2.5, 4.5), up_mid - Vector3(0, 1.0, 0.5))
+	# A window from outside, with its shutters.
+	hero.visible = true
+	hero.global_position = way[0] + Vector3(0, 0.2, 6.0)
+	hero.reset_physics_interpolation()
+	await _wait(30)
+	var shape: Dictionary = (rec.node as Node3D).get_meta("shape")
+	var fx: float = VillageHouse._window_spots(float(shape.w), float(shape.door_x))[0]
+	var pane := (rec.node as Node3D).global_transform * Vector3(fx, VillageHouse.PLINTH + 1.6, float(shape.d) * 0.5)
+	await _shot("window", pane + (rec.node as Node3D).global_transform.basis * Vector3(0.6, 0.4, 2.6), pane)
+	var upper_pane := (rec.node as Node3D).global_transform * Vector3(0, VillageHouse.PLINTH + VillageHouse.GROUND + 1.3, float(shape.d) * 0.5 + VillageHouse.JETTY)
+	await _shot("upper_windows", upper_pane + (rec.node as Node3D).global_transform.basis * Vector3(0, 0.4, 5.5), upper_pane)
 	print("PASS: villager ladder shots" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 

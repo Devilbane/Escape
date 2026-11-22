@@ -116,6 +116,9 @@ const BUILDING_NAMES := {
 ## Where the bank's sign post stands from its door: aside (+x) and out into the street (-z).
 const BANK_SIGN_SIDE := 1.4
 const BANK_SIGN_OUT := 1.1
+## Where the bank's strongbox stands from its door: to the other side (-x) and out (-z).
+const BANK_BOX_SIDE := 2.0
+const BANK_BOX_OUT := 0.75
 ## The mine entrances in the mountains (see "]" and Mines), west to east:
 ## the floor of mine n has the line "building: mine<n>".
 var mines: Array[Vector3] = []
@@ -2334,6 +2337,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		house_doors.append(node.get_meta("door_leaf"))
 		walk_in.claim(node, VillageHalls.KINDS[ch], block)
 		walk_in.add_front(node, VillageHalls.hang_sign(node, VillageHalls.KINDS[ch]))
+		# Its wares and what goes with its trade set out by the door (see ShopFronts).
+		walk_in.add_front(node, ShopFronts.dress(walk_in, node, VillageHalls.KINDS[ch]))
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -2442,8 +2447,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		var side := Vector3(-facing.y, 0, facing.x) * 4.0
 		for flag in [-1, 1]:
 			_put("flag_blue", front + side * flag - Vector3(facing.x, 0, facing.y) * 1.2, rot, PROP_SCALE)
-	elif ch == "o":
-		# Parcels waiting at the post office.
+	elif ch == "o" and not walk_in.has(node):
+		# Parcels waiting at the old post office (the walked-in one sets out its own, see ShopFronts).
 		var side := Vector3(-facing.y, 0, facing.x) * 2.4
 		_put("crate_long_A", front + side - Vector3(facing.x, 0, facing.y) * 1.0, rot, PROP_SCALE)
 		_put("crate_open", front - side - Vector3(facing.x, 0, facing.y) * 1.0, rot + 0.3, PROP_SCALE)
@@ -2479,6 +2484,12 @@ func _bank_sign(door: Vector3) -> void:
 	WeatheredProps.weather_plain(board)
 	add_child(board)
 	_add_solid(at, Vector3(0.4, HangingShield.POST_HIGH, 0.4))
+	# The bank's strongbox on the door's other side, a halberd leaned on it (see ShopFronts).
+	var box := ShopFronts.bank_strongbox(Vector3(0, 0, -1))
+	var box_at := door + Vector3(-BANK_BOX_SIDE, 0, -BANK_BOX_OUT)
+	box.position = box_at
+	add_child(box)
+	_add_solid(box_at + Vector3(0, 0.5, 0), box.get_meta("solid_size"))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level

@@ -1,0 +1,1 @@
+- The temple's stone floor and the altar's red band no longer flicker when you step inside.

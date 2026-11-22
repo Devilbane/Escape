@@ -1,0 +1,1 @@
+- F1 shows a small performance panel in the top right corner: frames per second, CPU and GPU time per frame with graphs, and your ping while playing together.

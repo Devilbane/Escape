@@ -46,7 +46,7 @@ const LEAVES := {SPRING_SUMMER: Color(0.22, 0.48, 0.16), AUTUMN: Color(0.4, 0.4,
 const BLOOMING := {SPRING_SUMMER: 1.0, AUTUMN: 0.75, WINTER: 0.25}
 ## The light of a garden torch (a touch stronger than indoors, no ceiling throws it back) and of the
 ## grill's coals.
-const TORCH_ENERGY := 2.6
+const TORCH_ENERGY := 1.7
 const TORCH_RANGE := 10.0
 const COALS_ENERGY := 1.6
 const COALS_RANGE := 6.0

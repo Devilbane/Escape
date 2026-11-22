@@ -83,7 +83,7 @@ func _run() -> void:
 	for child in lvl.get_children():
 		if not child is Node3D or not child.has_meta("block"):
 			continue
-		if child.has_meta("village_house"):
+		if child.has_meta("village_house") and not child.has_meta("hall"):
 			houses.append(child)
 		elif child.name.begins_with("Chapel"):
 			chapel = child
@@ -169,8 +169,8 @@ func _check_aged(lvl: Outdoor) -> void:
 		if not child is Node3D or not child.has_meta("block"):
 			continue
 		var letter := lvl.cell_char((child.get_meta("block") as Rect2i).position)
-		if letter == "R" or not Outdoor.BLOCK_MODELS.has(letter):
-			continue
+		if letter == "R" or not Outdoor.BLOCK_MODELS.has(letter) or child.has_meta("hall"):
+			continue # A hall one walks into is a timber house now (see VillageHalls).
 		for mi: MeshInstance3D in child.find_children("*", "MeshInstance3D", true, false):
 			kit += 1
 			var mat := mi.material_override as ShaderMaterial
@@ -234,7 +234,7 @@ func _check_aged(lvl: Outdoor) -> void:
 				for group: String in ["ivy_up", "ivy_front"]:
 					leaves.append_array(rec[group].get("xforms", []))
 		var standalone := 0
-		for house: Node3D in lvl.get_children().filter(func(c): return c.has_meta("village_house") and c.has_meta("block")):
+		for house: Node3D in lvl.get_children().filter(func(c): return c.has_meta("village_house") and c.has_meta("block") and not c.has_meta("hall")):
 			var block: Rect2i = house.get_meta("block")
 			if not lvl._standalone(block):
 				continue

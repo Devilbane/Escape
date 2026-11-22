@@ -19,6 +19,9 @@ extends RefCounted
 ## can turn them off; in the game they are only ever changed here.
 static var houses := true
 static var temple := true
+## The halls rebuilt in the village's style to be walked into (see VillageHalls), each on its own:
+## the tavern (n), the shop (m) and the post office (o). Off, a hall is the old solid kit model again.
+static var halls := {"n": true, "m": true, "o": true}
 
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
@@ -59,6 +62,12 @@ const PORCH_LANDING := 15.2
 const PORCH_END := 18.2
 const NAVE_ROOF := 15.8
 const NAVE_FRONT := 10.3
+## A building's walls, by the way they face in its own frame: the front (its door, +z), the back,
+## its left (-x) and right (+x).
+const SIDES := ["front", "back", "left", "right"]
+const SIDE_NORMALS := {"front": Vector3(0, 0, 1), "back": Vector3(0, 0, -1), "left": Vector3(-1, 0, 0), "right": Vector3(1, 0, 0)}
+## How near a wall (metres) a leaf of ivy counts as growing on it (see split_ivy).
+const ON_WALL := 0.45
 
 var level: Node3D
 ## One entry per building (see claim): its node, its kind ("house" or "temple") and everything
@@ -74,7 +83,7 @@ func _init(lvl: Node3D) -> void:
 
 ## Whether the building made for map letter `ch` can be walked into.
 static func is_on(ch: String) -> bool:
-	return (ch == "h" and houses) or (ch == "s" and temple)
+	return (ch == "h" and houses) or (ch == "s" and temple) or bool(halls.get(ch, false))
 
 
 ## Takes on a building before it is dressed (see Outdoor._dress_building), so its ivy can be sorted
@@ -82,7 +91,14 @@ static func is_on(ch: String) -> bool:
 func claim(node: Node3D, kind: String, block: Rect2i) -> Dictionary:
 	var rec := {"node": node, "kind": kind, "block": block, "up": [], "front": [], "ivy_up": {}, "ivy_front": {},
 			"beds": [], "inside": false, "push": 0.0, "fade": 0.0}
-	if kind == "house":
+	if VillageHalls.KINDS.values().has(kind):
+		# A hall's door may face any way: whichever of its walls faces the camera hides (see SIDES).
+		rec["sided"] = true
+		for side: String in SIDES:
+			rec[side] = rec.get(side, [])
+			rec["ivy_" + side] = {}
+	if kind != "temple":
+		# A villagers' house or a hall (see VillageHalls): both are VillageHouses.
 		var shape: Dictionary = node.get_meta("shape")
 		var w: float = shape.w
 		var d: float = shape.d
@@ -140,6 +156,10 @@ func split_ivy(node: Node3D, leaves: Dictionary) -> Dictionary:
 			var into: Dictionary = stay
 			if at.y >= float(rec.upper_from):
 				into = rec.ivy_up
+			elif rec.has("sided"):
+				var side := _side_of(rec, at)
+				if side != "":
+					into = rec["ivy_" + side]
 			elif at.z >= float(rec.front_from):
 				into = rec.ivy_front
 			if not into.has(pair[0]):
@@ -172,7 +192,9 @@ func plant_ivy(ivy: Node3D) -> void:
 		return
 	for i in buildings.size():
 		var rec: Dictionary = buildings[i]
-		for group: String in ["up", "front"]:
+		for group: String in ["up"] + SIDES:
+			if not rec.has("ivy_" + group):
+				continue
 			var leaves: Dictionary = rec["ivy_" + group]
 			if (leaves.get("xforms", []) as Array).is_empty():
 				continue
@@ -197,9 +219,12 @@ func open_house(house: Node3D) -> void:
 	var rec := _record(house)
 	if rec.is_empty():
 		return
-	var meshes := VillageHouse.hollow(house)
+	var meshes := VillageHouse.hollow(house, rec.has("sided"))
 	rec.up.append(meshes.up)
 	rec.front.append(meshes.front)
+	if rec.has("sided"):
+		for side: String in ["back", "left", "right"]:
+			rec[side].append(meshes[side])
 	var leaf: HouseDoor = house.get_meta("door_leaf")
 	rec.front.append(leaf)
 	rec["leaf"] = leaf
@@ -222,7 +247,11 @@ func open_house(house: Node3D) -> void:
 	_solid(rec, Vector3(0, floor_y * 0.5, 0), Vector3(w, floor_y, d))
 	rec["door_shape"] = _solid(rec, Vector3(door_x, 1.4, d * 0.5 - t * 0.5), Vector3(DOOR_GAP, 2.8, t))
 	_ramp(rec, door_x, d * 0.5, floor_y)
-	_furnish_house(rec, w, d, door_x)
+	if rec.kind == "house":
+		_furnish_house(rec, w, d, door_x)
+	else:
+		VillageHalls.furnish(self, rec)
+	_lamp(rec)
 	_walls_of_house(rec, w, d, door_x)
 	_finish(rec)
 
@@ -371,6 +400,12 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 	_solid(rec, Vector3(ladder_x, floor_y + 1.0, free_z), Vector3(0.5, 2.0, 0.7))
 	rec["ladder"] = house.transform * Vector3(ladder_x - side * 0.65, floor_y, free_z)
 	rec["ladder_top"] = house.transform * Vector3(side * (room.end.x - 0.1), rec.top - 0.2, free_z)
+
+
+## The lamp that lights a house or hall while the hero is inside.
+func _lamp(rec: Dictionary) -> void:
+	var house: Node3D = rec.node
+	var room: Rect2 = rec.room
 	var lamp := OmniLight3D.new()
 	lamp.name = "WalkInLamp"
 	lamp.light_color = LAMP_COLOUR
@@ -558,7 +593,7 @@ func floor_at(pos: Vector3) -> float:
 			return node.global_position.y + floor_y * node.scale.y
 		if rec.kind == "temple" and absf(p.x) <= PORCH_HALF and p.z > wall_out and p.z < PORCH_END:
 			return node.global_position.y + NAVE_FLOOR * node.scale.y * clampf((PORCH_END - p.z) / (PORCH_END - PORCH_LANDING), 0.0, 1.0)
-		if rec.kind == "house" and in_door and p.z > wall_out and p.z < wall_out + RAMP:
+		if rec.kind != "temple" and in_door and p.z > wall_out and p.z < wall_out + RAMP:
 			return node.global_position.y + floor_y * (1.0 - (p.z - wall_out) / RAMP)
 	return 0.0
 
@@ -666,12 +701,41 @@ func _show_inside(rec: Dictionary, inside: bool) -> void:
 	for part in rec.up:
 		if is_instance_valid(part):
 			(part as Node3D).visible = not inside
-	for part in rec.front:
-		if is_instance_valid(part):
-			(part as Node3D).visible = not inside
+	for side: String in SIDES:
+		if not rec.has(side):
+			continue
+		# A house hides its front (its door faces the street, towards the camera); a hall hides
+		# whichever walls face the camera.
+		var hide := inside and (not rec.has("sided") or _faces_camera(rec, side))
+		for part in rec[side]:
+			if is_instance_valid(part):
+				(part as Node3D).visible = not hide
 	var lamp: OmniLight3D = rec.get("lamp")
 	if lamp:
 		lamp.visible = inside
+
+
+## Which wall of a sided hall a leaf of ivy at `at` (the hall's frame) grows on, or "".
+func _side_of(rec: Dictionary, at: Vector3) -> String:
+	var shape: Dictionary = (rec.node as Node3D).get_meta("shape")
+	var hw := float(shape.w) * 0.5
+	var hd := float(shape.d) * 0.5
+	if at.z >= hd - ON_WALL:
+		return "front"
+	if at.z <= -hd + ON_WALL:
+		return "back"
+	if at.x >= hw - ON_WALL:
+		return "right"
+	if at.x <= -hw + ON_WALL:
+		return "left"
+	return ""
+
+
+## Whether a wall of a building faces the camera, which looks north (-z) from the south: it would
+## stand between the camera and the room.
+func _faces_camera(rec: Dictionary, side: String) -> bool:
+	var normal: Vector3 = (rec.node as Node3D).global_transform.basis * (SIDE_NORMALS[side] as Vector3)
+	return normal.normalized().z > 0.3
 
 
 ## The temple's front wall fades out while the hero is inside and back in once they leave.

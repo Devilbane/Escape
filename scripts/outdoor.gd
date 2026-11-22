@@ -2296,6 +2296,21 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
 		if walk_in.has(node):
 			walk_in.open_house(node)
+	elif VillageHalls.KINDS.has(ch) and WalkIn.is_on(ch):
+		# A hall rebuilt in the village's style to be walked into (see VillageHalls).
+		# Its own dice, so switching a hall on or off leaves every other building as it was.
+		var hall_rng := RandomNumberGenerator.new()
+		hall_rng.seed = hash("hall %s %s" % [ch, block.position])
+		node = VillageHouse.build(room if not turned else Vector2(room.y, room.x), hall_rng, _house_glass(), VillageHalls.style(ch))
+		node.name = "Hall_" + String(VillageHalls.KINDS[ch])
+		node.set_meta("hall", VillageHalls.KINDS[ch])
+		node.position = center
+		node.rotation.y = rot
+		add_child(node)
+		WindowSpill.attach(node, _spill_material())
+		house_doors.append(node.get_meta("door_leaf"))
+		walk_in.claim(node, VillageHalls.KINDS[ch], block)
+		walk_in.add_front(node, VillageHalls.hang_sign(node, VillageHalls.KINDS[ch]))
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -2353,7 +2368,13 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-1.8, -0.9, 0.0, 0.9, 1.8]:
 				for z in [1.0, 0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b", BANK_ROOF_VINES if ch == "b" else 0)
+			if walk_in.has(node):
+				# A hall wears ivy like the villagers' houses (see VillageHalls).
+				var hall_door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
+				_dress_building(node, center, [hall_door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
+				walk_in.open_house(node)
+			else:
+				_dress_building(node, center, door_spots, 0.75, MILL_IVY if ch == "u" else (BANK_IVY if ch == "b" else STONE_IVY), true, 0.0, 0.0, BANK_WINDOW_ROOM if ch == "b" else 1.0, ch == "b", BANK_ROOF_VINES if ch == "b" else 0)
 	if interiors.has(ch):
 		# Run into the door to go in.
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))

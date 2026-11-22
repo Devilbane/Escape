@@ -1,0 +1,147 @@
+class_name VillageHalls
+extends RefCounted
+## The village's halls one can walk into: the tavern, the shop and the post office, built in the
+## village's own style (a VillageHouse, stone plinth, timber framing, plaster and ivy) instead of
+## the old kit models, each with a sign by its door and its own furniture inside (see WalkIn, which
+## opens them like the villagers' houses). Usability first: a door in the middle of the front, a
+## free way from it to the counter.
+##
+## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
+
+## The map letters of the halls and what they are.
+const KINDS := {"n": "tavern", "m": "shop", "o": "post"}
+## How big a hall may grow (metres, inside its block): wider and deeper than a home.
+const MAX_W := 9.4
+const MAX_D := 6.4
+## Behind a counter: how far it stands from the back wall (the keeper's room), and how deep it is.
+const BEHIND := 1.1
+const COUNTER_DEEP := 0.6
+const COUNTER_HIGH := 1.0
+## The sign: how far out from the wall its arm reaches and how high it hangs.
+const SIGN_OUT := 0.9
+const SIGN_HIGH := 3.0
+
+
+## The style a hall's VillageHouse is built in (see VillageHouse.build).
+static func style(_ch: String) -> Dictionary:
+	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
+
+
+## Furnishes an opened hall (see WalkIn.open_house): the counter, and what goes with the kind.
+static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
+	var hall: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var inside := Node3D.new()
+	inside.name = "HallInside"
+	hall.add_child(inside)
+	var back := room.position.y
+	var counter_z := back + BEHIND + COUNTER_DEEP * 0.5
+	var counter_w := minf(room.size.x * 0.55, 4.2)
+	var counter := WalkInFurniture.counter(counter_w, COUNTER_HIGH, COUNTER_DEEP)
+	counter.position = Vector3(0, floor_y, counter_z)
+	inside.add_child(counter)
+	walk_in._solid(rec, Vector3(0, floor_y + 0.6, counter_z), Vector3(counter_w, 1.2, COUNTER_DEEP))
+	# Whoever keeps the hall stands behind the counter, facing the door.
+	rec["posts"] = [{"pos": hall.transform * Vector3(0, floor_y, back + BEHIND * 0.5), "rot": hall.rotation.y,
+			"front": hall.transform * Vector3(0, floor_y, counter_z + COUNTER_DEEP * 0.5 + 0.6)}]
+	match String(rec.kind):
+		"tavern":
+			_tavern(walk_in, rec, inside)
+		"shop":
+			_shop(walk_in, rec, inside)
+		"post":
+			_post(walk_in, rec, inside)
+
+
+## Barrels along the back wall behind the bar, two tables with stools either side of the way in.
+static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y
+	_along_back(walk_in, rec, inside, func(): return WalkInFurniture.barrel(), 0.75, 0.42)
+	var table_z := room.end.y - 1.6
+	for side: float in [-1.0, 1.0]:
+		var x := side * (room.size.x * 0.5 - 1.2)
+		var table := WalkInFurniture.table(0.55)
+		table.position = Vector3(x, floor_y, table_z)
+		inside.add_child(table)
+		walk_in._solid(rec, Vector3(x, floor_y + 0.4, table_z), Vector3(1.1, 0.8, 1.1))
+		for dz: float in [-0.85, 0.85]:
+			var stool := WalkInFurniture.stool()
+			stool.position = Vector3(x, floor_y, table_z + dz)
+			inside.add_child(stool)
+	# Mugs on the bar.
+	for x: float in [-0.9, -0.5, 0.7]:
+		var mug := WalkInFurniture.mug()
+		mug.position = Vector3(x, floor_y + COUNTER_HIGH, back + BEHIND + COUNTER_DEEP * 0.5)
+		inside.add_child(mug)
+
+
+## Shelves of goods along the back wall, sacks and crates by the side walls.
+static func _shop(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y
+	var shelf_w := room.size.x - 0.6
+	var shelf := WalkInFurniture.shelf(shelf_w, 2.1, 0.4, true)
+	shelf.position = Vector3(0, floor_y, back + 0.2)
+	inside.add_child(shelf)
+	walk_in._solid(rec, Vector3(0, floor_y + 1.0, back + 0.2), Vector3(shelf_w, 2.0, 0.4))
+	_by_the_sides(walk_in, rec, inside)
+
+
+## Pigeonholes for the letters on the back wall, parcels stacked by the side walls.
+static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var back := room.position.y
+	var holes_w := minf(room.size.x - 0.6, 3.6)
+	var holes := WalkInFurniture.pigeonholes(holes_w, 1.8)
+	holes.position = Vector3(0, floor_y + 0.5, back + 0.18)
+	inside.add_child(holes)
+	walk_in._solid(rec, Vector3(0, floor_y + 1.2, back + 0.18), Vector3(holes_w, 2.4, 0.36))
+	_by_the_sides(walk_in, rec, inside)
+
+
+## A row of things (`make` returns one) along the back wall, `step` apart, `deep` from the wall.
+static func _along_back(walk_in: WalkIn, rec: Dictionary, inside: Node3D, make: Callable, step: float, deep: float) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var z := room.position.y + deep * 0.5 + 0.05
+	var count := int((room.size.x - 0.4) / step)
+	for i in count:
+		var x := -(count - 1) * step * 0.5 + i * step
+		var thing: Node3D = make.call()
+		thing.position = Vector3(x, floor_y, z)
+		inside.add_child(thing)
+	walk_in._solid(rec, Vector3(0, floor_y + 0.5, z), Vector3(count * step, 1.0, deep))
+
+
+## Crates and sacks against the side walls, in front of the counter, leaving the middle free.
+static func _by_the_sides(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var z := room.end.y - 1.3
+	for side: float in [-1.0, 1.0]:
+		var x := side * (room.size.x * 0.5 - 0.45)
+		var crate := WalkInFurniture.crate(0.7)
+		crate.position = Vector3(x, floor_y, z)
+		crate.rotation.y = side * 0.15
+		inside.add_child(crate)
+		var sack := WalkInFurniture.sack()
+		sack.position = Vector3(x, floor_y, z - 0.85)
+		inside.add_child(sack)
+		walk_in._solid(rec, Vector3(x, floor_y + 0.4, z - 0.4), Vector3(0.8, 0.8, 1.7))
+
+
+## Hangs the hall's sign beside its door: an iron arm out from the front wall and a board with the
+## hall's mark (a mug, a basket of bread, a post horn), so each is easy to tell from the street.
+static func hang_sign(hall: Node3D, kind: String) -> Node3D:
+	var shape: Dictionary = hall.get_meta("shape")
+	var d: float = shape.d
+	var board := WalkInFurniture.sign_board(kind, SIGN_OUT)
+	board.name = "HallSign"
+	board.position = Vector3(-1.0, VillageHouse.PLINTH + SIGN_HIGH, d * 0.5 + 0.02)
+	hall.add_child(board)
+	return board

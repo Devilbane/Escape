@@ -284,6 +284,8 @@ var _pumpkin_clock := -1.0
 var at_home := false
 ## The way to bed and out again in a house one can walk into, while it lasts (see VillageBeds).
 var bed_trip := {}
+## The way to (or out of) her place behind a hall's counter, and that place (see VillagePosts).
+var post_trip := {}
 ## The room this villager takes up (metres, see Footprint): half a body width.
 var radius := 0.5
 var _layer := 1
@@ -737,11 +739,20 @@ func _thaw() -> void:
 var _settling := false
 
 
+## Called away from behind the counter (any task but "post"): out on the street first (see
+## VillagePosts).
+func _leave_post() -> void:
+	if not post_trip.is_empty():
+		VillagePosts.leave_at_once(self)
+
+
 func _start(task: String, time: float) -> void:
 	# Nothing but the thaw (see _mind_frost) takes a frozen Fritz off his spot: not the alarm, a
 	# slime, a chat nor anyone calling him calm.
 	if _task == "frozen" and task != "frozen" and FrozenFritz.wants(level, true):
 		return
+	if task != "post":
+		_leave_post()
 	_task = task
 	# Called away from the herald on the way to him (an alarm, a chat, a fright):
 	# no longer listening, or he would stay deaf to chats until the next call.
@@ -1253,6 +1264,7 @@ func alarm(slime: Enemy, called := false) -> void:
 	if brave and not too_big and not shaken:
 		_draw_blade(true)
 		say(Lang.t("Weg mit dir, Schleim!"))
+		_leave_post()
 		_task = "fight"
 		_blow_cool = 0.6
 	else:
@@ -1609,6 +1621,10 @@ func _next_task() -> void:
 		"stay", "shop":
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+			elif VillagePosts.wants(self):
+				# In through the door to her place behind the counter (see VillagePosts).
+				VillagePosts.enter(self)
+				_start("post", 10.0)
 			else:
 				_start("work", 6.0)
 		"work", "sit":
@@ -1866,6 +1882,7 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 		_start(then, 3.0)
 		return
 	_speed = speed
+	_leave_post()
 	_task = "walk"
 	set_meta("then", then)
 
@@ -1916,6 +1933,7 @@ func _physics_process(delta: float) -> void:
 		_mind_pumpkin(1.0)
 	station.pos = global_position
 	station.cell = level.world_to_cell(global_position)
+	VillagePosts.mind_station(self)
 	_leave_prints()
 	_update_bubble(delta)
 	var hero: Node3D = level.player
@@ -1945,6 +1963,8 @@ func _physics_process(delta: float) -> void:
 	match _task:
 		"home":
 			VillageBeds.step(self, delta)
+		"post":
+			VillagePosts.step(self, delta)
 		"fight":
 			_fight(delta)
 			return
@@ -2374,6 +2394,27 @@ func lean_on_pillow(lying: bool, time := 0.0) -> void:
 ## How big the body is (where it lies in a bed, see Level.lie_spot).
 func body_scale() -> float:
 	return _model.scale.x
+
+
+## The day's plan ("shop", "work", ...; see VILLAGERS).
+func plan() -> String:
+	return String(_info.plan)
+
+
+## The animation of their work (behind the counter, see VillagePosts).
+func work_anim() -> String:
+	return String(_info.work)
+
+
+## Turns smoothly to face `direction`.
+func turn_toward(direction: Vector3, delta: float) -> void:
+	_turn_to(direction, delta)
+
+
+## Out of the hall's door again (see VillagePosts): on with the day, or home at nightfall.
+func end_post() -> void:
+	post_trip = {}
+	_start("idle", 0.3)
 
 
 ## Winds the playing animation on to its end (lying in bed already, see VillageBeds).
@@ -2882,6 +2923,7 @@ func join_chat(partner: Villager, walk: bool) -> bool:
 			side = Vector3(1, 0, 0)
 		_path.append(Vector3(at.x, 0, at.z) + side.normalized() * CHAT_GAP)
 		_speed = WALK_SPEED
+		_leave_post()
 		_task = "walk"
 		set_meta("then", "chat")
 		_chat_sitting = false

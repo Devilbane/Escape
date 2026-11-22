@@ -805,12 +805,20 @@ func build() -> void:
 				roofed.append(Vector2i(sx, sy))
 	roofed.append_array(meals.roofed)
 	# The rooms of the buildings one walks into (see WalkIn): no snow on their floors and furniture,
-	# which the camera sees once their roof is lifted off.
+	# which the camera sees once their roof is lifted off. A house's own walls bound that (see
+	# walk_in_room), so the yard round it on its block snows over like the rest; a building
+	# without a known shape keeps its whole block clear.
+	var rooms: Array[Rect2] = []
 	for rec in walk_in.buildings:
+		var room := walk_in_room(rec.node)
+		if room.has_area():
+			rooms.append(room)
+			continue
 		var block: Rect2i = rec.block
 		for by in range(block.position.y, block.end.y):
 			for bx in range(block.position.x, block.end.x):
 				roofed.append(Vector2i(bx, by))
+	snow.set_rooms(rooms, width, height, TILE)
 	snow.set_sky_mask(roofed, width, height, TILE, _pond_waters.map(func(w: Dictionary) -> Vector2i: return w.cell))
 	snow.set_shore(_shore_tex, SHORE_REACH)
 	snow.set_warm(warm_spots)
@@ -5546,3 +5554,25 @@ func _fade_ore() -> void:
 				var tween := create_tween()
 				tween.tween_property(n, "scale", Vector3.ONE * 0.01, 1.2)
 				tween.tween_callback(n.queue_free)
+
+
+## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth.
+const ROOM_MARGIN := 0.12
+
+
+## The ground a building one walks into stands on (x/z, see WalkIn), from its shape (see
+## VillageHouse.build): its ground floor's walls and the plinth. Empty for a
+## building built some other way.
+func walk_in_room(node: Node3D) -> Rect2:
+	if node == null or not node.has_meta("shape"):
+		return Rect2()
+	var shape: Dictionary = node.get_meta("shape")
+	if not shape.has("w") or not shape.has("d"):
+		return Rect2()
+	var half := Vector2(float(shape.w), float(shape.d)) * 0.5 + Vector2.ONE * ROOM_MARGIN
+	var xf := node.global_transform if node.is_inside_tree() else node.transform
+	var a := xf * Vector3(-half.x, 0, -half.y)
+	var b := xf * Vector3(half.x, 0, half.y)
+	# Turned by a quarter or not at all, so two opposite corners span it.
+	return Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z))
+

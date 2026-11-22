@@ -173,7 +173,7 @@ const FACE_HERO_WITHIN := 8.0
 ## Without shadows and only while someone is out, to stay cheap in the
 ## browser (a handful of villagers at most).
 const TORCH_COLOR := Color(1.0, 0.6, 0.28)
-const TORCH_ENERGY := 1.7
+const TORCH_ENERGY := 1.1
 const TORCH_RANGE := 12.0
 ## The woodcutter splits wood on a felled trunk beside his spot (see
 ## set_chopping and Outdoor._build_chopping_log) instead of swinging at the
@@ -2500,7 +2500,7 @@ func _make_torch() -> void:
 	_torch_light.light_color = TORCH_COLOR
 	_torch_light.light_energy = TORCH_ENERGY
 	_torch_light.omni_range = TORCH_RANGE
-	_torch_light.omni_attenuation = 1.4
+	_torch_light.omni_attenuation = Level.HAND_TORCH_ATTENUATION
 	_torch_light.position = Vector3(0.4, 2.3, 0.4) * size
 	add_child(_torch_light)
 	_torch.visible = false

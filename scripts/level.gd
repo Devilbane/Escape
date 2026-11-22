@@ -187,10 +187,16 @@ const TORCH_LIT_CHANCE := 0.5
 ## How far a light reaches far enough to see someone by.
 const LIGHT_REACH := 8.0
 ## The light of a wall torch, shared by everything that burns like one (the ember cracks).
+## Torches burn soft: about two thirds of their old brightness close by, with a gentler
+## fall-off (TORCH_ATTENUATION) so the far edge of their light is as bright and as wide as before.
+## Lowering the energy by a share k and the attenuation by log10(k) / log10(LIGHT_REACH) keeps
+## the light at LIGHT_REACH unchanged (Godot's omni light falls off as distance ^ -attenuation).
 const TORCH_COLOUR := Color(1.0, 0.56, 0.24)
-const TORCH_ENERGY := 3.4
+const TORCH_ENERGY := 2.2
 const TORCH_RANGE := 22.5
-const TORCH_ATTENUATION := 1.3
+const TORCH_ATTENUATION := 1.1
+## The fall-off of torches carried by hand (the hero's, a villager's): dimmed like the wall torches.
+const HAND_TORCH_ATTENUATION := 1.2
 ## How close to a torch's wall the hero must run to reach it.
 const TORCH_TOUCH := 1.6
 var _spikes: Array = []

@@ -50,6 +50,20 @@ const FENCE_COLOR := Color(0.42, 0.4, 0.38)
 ## A planned (not yet built) piece shows this faint.
 const SKETCH_ALPHA := 0.35
 
+## The floors of a map: GROUND, and on the open air DEEP, the forgotten mine under the woods
+## (see LostMine), once the hero has been down there.
+const GROUND := 0
+const DEEP := -1
+## Which floor shows. On DEEP the ground above is drawn dim under the mine's tunnels, and
+## only the mine's own marks show (see deep_places).
+var storey := GROUND
+## How much of its colour the ground keeps under the mine (see storey).
+const GROUND_UNDER := 0.22
+## The colours of the mine's cells by their letter (see LostMine.LAYOUT), and of their walls.
+const DEEP_COLORS := {".": Color(0.6, 0.45, 0.28), "L": Color(0.6, 0.45, 0.28), "r": Color(0.52, 0.5, 0.48),
+	"s": Color(0.66, 0.64, 0.6), "D": Color(0.66, 0.64, 0.6), "x": Color(0.3, 0.25, 0.21)}
+const DEEP_WALL := Color(0.05, 0.04, 0.04)
+
 ## Emitted when the zoom or the part shown changes (see zoom_at, pan_by).
 signal view_changed
 ## How far in the map is zoomed (1.0 = whole explored part), and the tile
@@ -60,6 +74,24 @@ var center := Vector2.INF
 var _dragging := false
 ## The houses on this map (see houses), worked out in setup.
 var _houses: Array = []
+
+
+## The floors of `level_file`'s map the hero knows, from the top down (see storey).
+static func storeys(owner_journal: Journal, level_file: String) -> Array[int]:
+	var out: Array[int] = [GROUND]
+	if owner_journal.map_of(level_file).get("outdoor", false) and owner_journal.has_deep():
+		out.append(DEEP)
+	return out
+
+
+## The German name of a floor (see storey).
+static func storey_name(which: int) -> String:
+	return "Silbergrube" if which == DEEP else "Oberfläche"
+
+
+## The floor the hero stands on (see storey).
+static func hero_storey(hero: Vector3) -> int:
+	return DEEP if LostMine.holds(hero) else GROUND
 
 
 func setup(owner_journal: Journal, level_file: String, font: Font) -> void:
@@ -288,6 +320,8 @@ func _draw() -> void:
 			var color := tile_color(ch, outdoor)
 			if ch == "?" and _secret_open(c):
 				color = tile_color(".", false)
+			if storey == DEEP:
+				color = UNSEEN.lerp(color, GROUND_UNDER)
 			draw_rect(Rect2(o + Vector2(x, y) * t, Vector2(t, t)), color)
 	if t >= 10.0:
 		for y in range(lo.y, hi.y + 1):
@@ -295,6 +329,10 @@ func _draw() -> void:
 		for x in range(lo.x, hi.x + 1):
 			draw_line(o + Vector2(x, lo.y) * t, o + Vector2(x, hi.y) * t, GRID_LINE)
 	var r := clampf(t * 0.55, 6.0, 11.0)
+	if storey == DEEP:
+		_draw_deep(o, t, r)
+		_draw_hero(o, t, r)
+		return
 	_draw_houses(o, t, r)
 	for s in journal.secrets.get(file, []):
 		_draw_star(o + (Vector2(s[0], s[1]) + Vector2(0.5, 0.5)) * t, r, Journal.MARK_COLORS.secret)
@@ -319,6 +357,11 @@ func _draw() -> void:
 		_draw_cross(o + (Vector2(c) + Vector2(0.5, 0.5)) * t, r)
 	for c in lost_packs():
 		_draw_pack(o + (c + Vector2(0.5, 0.5)) * t, r)
+	_draw_hero(o, t, r)
+
+
+## The hero's arrow, where they stand on the floor shown.
+func _draw_hero(o: Vector2, t: float, r: float) -> void:
 	if hero_at != Vector2.INF:
 		var p := o + (hero_at + Vector2(0.5, 0.5)) * t
 		var fwd := hero_facing.normalized() if hero_facing.length() > 0.01 else Vector2.DOWN
@@ -328,6 +371,58 @@ func _draw() -> void:
 		draw_colored_polygon(arrow, Color(1.0, 0.82, 0.4))
 		arrow.append(arrow[0])
 		draw_polyline(arrow, Color(0.1, 0.05, 0.0), 2.0)
+
+
+## Where a point of the world lies on the map, in tiles (as hero_at and the tiles are drawn).
+static func _map_point(world: Vector3) -> Vector2:
+	return Vector2(world.x, world.z) / Level.TILE + Vector2(0.5, 0.5)
+
+
+## The forgotten mine's floor: every cell the hero has seen, a dark line where it meets rock,
+## and its marks (see deep_places).
+func _draw_deep(o: Vector2, t: float, r: float) -> void:
+	var cell := HouseSketch.CELL / Level.TILE * t
+	var half := Vector3(HouseSketch.CELL, 0, HouseSketch.CELL) * 0.5
+	var mine := LostMine.cells()
+	var seen: Array[Vector2i] = []
+	for c: Vector2i in mine:
+		if journal.is_deep_seen(c):
+			seen.append(c)
+	for c in seen:
+		var at := o + _map_point(LostMine.floor_at(c) - half) * t
+		draw_rect(Rect2(at, Vector2(cell, cell)), DEEP_COLORS.get(mine[c], DEEP_COLORS["."]))
+	var line := clampf(t * 0.08, 1.0, 3.0)
+	for c in seen:
+		var at := o + _map_point(LostMine.floor_at(c) - half) * t
+		var corners := [at, at + Vector2(cell, 0), at + Vector2(cell, cell), at + Vector2(0, cell)]
+		for i in 4:
+			var d: Vector2i = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)][i]
+			if not mine.has(c + d):
+				draw_line(corners[i], corners[(i + 1) % 4], DEEP_WALL, line)
+	var places := deep_places()
+	for i in places.size():
+		var p: Vector2 = o + places[i].at * t
+		draw_circle(p, r, Color(0, 0, 0, 0.75))
+		draw_circle(p, r - 1.5, places[i].color)
+		if _font:
+			var label := str(i + 1)
+			var fs := int(r * 1.2)
+			var w := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+			draw_string(_font, p + Vector2(-w * 0.5, fs * 0.38), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.03, 0.05))
+
+
+## The marks of the forgotten mine the hero has seen, numbered in this order: the ladder up to
+## the hut, the sealed gate and the ore veins. Each {"kind", "name" (German), "at" (map tiles), "color"}.
+func deep_places() -> Array:
+	var out: Array = []
+	var marks: Array = [["stairs", "Leiter zur Steigerhütte", LostMine.SHAFT], ["lair", "Versiegeltes Tor", LostMine.GATE_CELL]]
+	for v: Array in LostMine.VEINS:
+		marks.append(["ore", "Erzader im Fels", v[0]])
+	for m: Array in marks:
+		if journal.is_deep_seen(m[2]):
+			out.append({"kind": m[0], "name": m[1], "at": _map_point(LostMine.floor_at(m[2])),
+				"color": Journal.MARK_COLORS.get(m[0], Journal.FIND_COLORS.get(m[0], Color.WHITE))})
+	return out
 
 
 ## Where a backpack lies on this level's floor, in tiles: the hero's bag

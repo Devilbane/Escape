@@ -229,6 +229,8 @@ const CHAPEL_GLASS_LIGHT := Color(0.9, 0.8, 0.64)
 const TEMPLE_STEP_SNOW := 0.05
 const CHAPEL_DAY_GLOW := 0.45
 const CHAPEL_DAY_SPILL := 0.5
+## How far either side of the temple's door (metres) its front keeps free of mossy stones: its steps.
+const TEMPLE_STEPS_CLEAR := 1.65
 
 const HOUSE_ROOF_HEIGHT := 3.6
 const WALL_HEIGHT := 4.0
@@ -2332,6 +2334,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
 			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
+			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
 				for lamp in find_children("TempleLamp*", "Node3D", false, false):
@@ -3122,6 +3125,22 @@ func _wild_fringe(parts: Array, middle: Vector3, door_spots: Array) -> void:
 		for i in fringe[kind].xforms.size():
 			_fringe[kind].xforms.append((fringe[kind].xforms[i] as Transform3D).translated(-offset))
 			_fringe[kind].colours.append(fringe[kind].colours[i])
+
+
+## Mossy stones all along the foot of the temple's front (see WallFoot.stone_row), which its wide
+## doorway clearance would leave a hard, straight line; only its steps stay free.
+func _temple_stones(chapel: Node3D, middle: Vector3, door: Vector3, out: Vector3) -> void:
+	var offset := global_position
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s|temple stones" % level_name)
+	var row := {}
+	WallFoot.stone_row(AgedStone.triangles(chapel, true), middle + offset, offset.y, out, door + offset, TEMPLE_STEPS_CLEAR, rng, row,
+			func(at: Vector3, _stone: bool) -> bool: return _fringe_ground(at - offset, true))
+	if not _fringe.has("stone"):
+		_fringe["stone"] = {"xforms": [], "colours": []}
+	for i in row.stone.xforms.size():
+		_fringe.stone.xforms.append((row.stone.xforms[i] as Transform3D).translated(-offset))
+		_fringe.stone.colours.append(row.stone.colours[i])
 
 
 ## Whether grass, flowers or a stone may grow at the foot of a wall at `at` (see WallFoot): on open

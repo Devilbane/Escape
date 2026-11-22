@@ -1,7 +1,7 @@
 extends SceneTree
 ## Checks the grass, flowers and mossy stones at the foot of the buildings (WallFoot): they grow
 ## along the foot of the walls and only there, never in front of a door or where the ground is not
-## open; they follow the seasons (straw-coloured grass and fewer flowers in autumn, low grass and
+## open (the temple's front gets a row of mossy stones); they follow the seasons (straw-coloured grass and fewer flowers in autumn, low grass and
 ## no flowers in winter, green again in spring); and they stay cheap: few batches, no shadows, not
 ## drawn from far away. In the village: every kind grows, no grass or flower on paving, nothing
 ## inside a building or before a door.
@@ -158,6 +158,15 @@ func _village() -> void:
 					if xf.origin.distance_to(lvl.doors["E"]) < 8.0:
 						near += 1
 			check(near > 10, "the lair's entrance is overgrown at its foot (%d pieces)" % near)
+		# The temple's wide front is lined with mossy stones, its steps kept free.
+		if lvl.doors.has("s"):
+			var stones := 0
+			for child in lvl.wall_foot.get_children():
+				if child.get_meta("kind") == "stone":
+					for xf: Transform3D in child.get_meta("grown")[0]:
+						if xf.origin.distance_to(lvl.doors["s"]) < 7.0:
+							stones += 1
+			check(stones > 10, "mossy stones lie along the temple's front (%d)" % stones)
 		# Cheap: a batch per kind and stretch of village, not one per building.
 		check(lvl.wall_foot.get_child_count() < 100, "the fringe is drawn in few batches (%d)" % lvl.wall_foot.get_child_count())
 		print("fringe: %s in %d batches" % [counts, lvl.wall_foot.get_child_count()])

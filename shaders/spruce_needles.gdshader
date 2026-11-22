@@ -103,7 +103,7 @@ void fragment() {
 		// The upper tiers are open to the sky, the lower ones lie under them (`shade` runs from the
 		// foot's 0.72 to the top's 1.0, see Fern.NEEDLE_FOOT_SHADE).
 		float tier = clamp((shade - 0.72) / 0.28, 0.0, 1.0);
-		float lies = level * above * amount * 0.8 + (n - 0.5) * 0.6 + (tier - 0.5) * 0.7;
+		float lies = level * above * amount * 0.95 + (n - 0.5) * 0.55 + (tier - 0.5) * 0.35;
 		if (lies > 0.5 && !snow_melted(rest_pos, n) && !snow_sheltered(rest_pos)) {
 			vec3 snow_albedo;
 			vec3 snow_normal;
@@ -112,13 +112,15 @@ void fragment() {
 			// The lower tiers, in the crown's shade, are greyer (see Fern's NEEDLE_FOOT_SHADE).
 			snow_albedo *= mix(0.65, 1.0, shade);
 			// Along each frond's middle, over the stem and the leaflets' roots, wider the deeper it
-			// lies; the leaflets' tips at the edges and the drooping end of the frond stay green, so
+			// lies, with a crisp edge (no grey half-snow); the leaflets' tips at the edges and the drooping end of the frond stay green, so
 			// every tier shows as a white ridge over a dark green fringe.
-			float wide = 0.05 + 0.1 * smoothstep(0.5, 0.9, lies);
+			float wide = 0.18 + 0.24 * smoothstep(0.5, 0.9, lies);
 			float ridge = 1.0 - smoothstep(wide - 0.03, wide, abs(UV.x - 0.5));
-			float thick = smoothstep(0.5, 0.6, lies) * ridge * smoothstep(0.97, 0.8, UV.y) * mix(0.85, 1.0, tex.r);
+			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.02, 0.1, UV.y) * smoothstep(0.88, 0.7, UV.y) * mix(0.85, 1.0, tex.r);
 			ALBEDO = mix(ALBEDO, snow_albedo, thick);
 			EMISSION = snow_glow * thick;
+			// Lit as the snow on the ground is, from above, not as the leaning frond under it.
+			NORMAL = normalize(mix(NORMAL, snow_normal, thick));
 		}
 	}
 	ALPHA = tex.a;

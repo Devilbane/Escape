@@ -18,3 +18,4 @@ elder_lair.gd | 200 | fixed | pass | scripts/elder_lair.gd scripts/elder_dragon.
 sternhall.gd | 300 | fixed | pass | scripts/stern*.gd scripts/arcane_bolt.gd levels/38_der_sternenschlund.txt levels/39_das_sternengewoelbe.txt | Sternhall (star reliefs, wardens, eyes, the chasm, the tome and the drain)
 bounties.gd | 120 | free | passfail | scripts/bounties.gd | Bounty board (taken, counted and paid once; kept in the saved game)
 lost_mine.gd | 180 | fixed | passfail | scripts/lost_mine.gd | Forgotten silver mine: under the forest, drawn like a house cellar with whole ground over it, pages, gate, no plots over it
+map_storeys.gd | 180 | fixed | passfail | scripts/map_view.gd scripts/journal.gd scripts/lang/map_storeys.gd scripts/lost_mine.gd | Map floors: the silver mine's tunnels go on the open air's map as a second floor, switched with buttons or Page Up/Down

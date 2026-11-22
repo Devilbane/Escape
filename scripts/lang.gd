@@ -17,6 +17,7 @@ const PARTS := [
 	preload("res://scripts/lang/lost_mine.gd"),
 	preload("res://scripts/lang/bank_vault.gd"),
 	preload("res://scripts/lang/map_zoom.gd"),
+	preload("res://scripts/lang/map_storeys.gd"),
 	preload("res://scripts/lang/furniture.gd"),
 	preload("res://scripts/lang/garden_decor.gd"),
 	preload("res://scripts/lang/apple_tree.gd"),

@@ -6,9 +6,9 @@ extends RefCounted
 ## him in through the door and out again at nightfall); the hero stands on the red carpet before it.
 ## A heavy iron vault door stands open against the east wall by a stone gateway over the stairs, with
 ## an iron railing round the stairwell; stone pillars stand in the corners, iron-bound chests in a row
-## across its south half, the Crown's green banners on the walls, ledgers in a bookcase, and an iron
-## chandelier lights it all; every window has iron bars against robbers and lets the light of the
-## hour in (WindowSun). Looked into from above, the stairwell shows the lamplit stone of the
+## across its south half, the Crown's green banners on the walls, ledgers in a bookcase, and candle
+## sconces on the walls light it all; every window has iron bars against robbers and lets the light
+## of the hour in (WindowSun). Looked into from above, the stairwell shows the lamplit stone of the
 ## vault below instead of the empty light the hidden cellar left (the shade, see _shade).
 ##
 ## Everything stands under one node on the level ("BankHall"), so it hides with the rest of the
@@ -53,6 +53,8 @@ const VAULT_DOOR := Vector3(0.22, 2.2, 1.55)
 ## Walls and roof: how far in from the bank's walls the inner faces stand, how high the ceiling is.
 const INSET := 0.1
 const CEILING := 3.1
+## How high the candle sconces sit on the walls.
+const SCONCE_HIGH := 1.9
 
 const STONE := Color(0.74, 0.71, 0.66)
 const IRON := Color(0.17, 0.17, 0.19)
@@ -128,7 +130,7 @@ static func build(level: Node3D) -> void:
 	_chests(hall, body, size)
 	_banners(hall, size)
 	_ledgers(hall, body, size)
-	_chandelier(hall, size)
+	_sconces(hall, size)
 	_shade(hall)
 
 
@@ -489,35 +491,28 @@ static func _ledgers(hall: Node3D, body: StaticBody3D, size: Vector2) -> void:
 	_solid(body, Vector3(0.22, 1.1, size.y - 1.95), Vector3(0.4, 2.2, 1.6))
 
 
-## An iron ring of candles hanging on chains over the middle of the hall, and its light.
-static func _chandelier(hall: Node3D, size: Vector2) -> void:
+## Candle sconces on the walls (nothing hangs from the ceiling): an iron plate and bracket with a
+## brass drip pan and a candle, and its light. Each spot is a point on a wall (hall frame) and the
+## way from that wall into the hall.
+static func _sconces(hall: Node3D, size: Vector2) -> void:
 	var iron := _mat("iron", IRON, 0.6)
-	var at := Vector3(3.6, CEILING - 0.9, size.y * 0.5)
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.42
-	torus.outer_radius = 0.48
-	ring.mesh = torus
-	ring.material_override = iron
-	ring.position = at
-	hall.add_child(ring)
-	for k in 6:
-		var a := k * TAU / 6.0
-		var p := at + Vector3(cos(a), 0, sin(a)) * 0.45
-		_cylinder(hall, 0.022, 0.12, p + Vector3(0, 0.06, 0), _mat("wax", Color(0.96, 0.92, 0.8)))
-		_box(hall, Vector3(0.025, 0.04, 0.025), p + Vector3(0, 0.14, 0), _mat("flame", LIGHT, 0.0, 3.0))
-	for k in 3:
-		var a := k * TAU / 3.0
-		var foot := at + Vector3(cos(a), 0, sin(a)) * 0.45
-		var top := at + Vector3(0, 0.9, 0)
-		var mid := (foot + top) * 0.5
-		_box(hall, Vector3(0.015, foot.distance_to(top), 0.015), mid, iron, Basis(Quaternion(Vector3.UP, (top - foot).normalized())))
-	var light := OmniLight3D.new()
-	light.light_color = LIGHT
-	light.light_energy = 1.6
-	light.omni_range = 7.0
-	light.position = at + Vector3(0, 0.1, 0)
-	hall.add_child(light)
+	for spot: Array in [[Vector2(2.2, 0.0), Vector2(0, 1)], [Vector2(0.0, 4.5), Vector2(1, 0)],
+			[Vector2(1.0, size.y), Vector2(0, -1)], [Vector2(6.9, size.y), Vector2(0, -1)], [Vector2(size.x, 4.6), Vector2(-1, 0)]]:
+		var wall := Vector3(spot[0].x, SCONCE_HIGH, spot[0].y)
+		var out := Vector3(spot[1].x, 0, spot[1].y)
+		var side := Vector3(absf(out.z), 0, absf(out.x))
+		_box(hall, wall + out * 0.02 + Vector3(0, 0.05, 0), side * 0.14 + out.abs() * 0.03 + Vector3(0, 0.36, 0), iron)
+		_box(hall, wall + out * 0.13, out.abs() * 0.22 + Vector3(0.03, 0.03, 0.03), iron)
+		var cup := wall + out * 0.25
+		_cylinder(hall, 0.07, 0.02, cup, _mat("brass", BRASS, 0.7))
+		_cylinder(hall, 0.025, 0.16, cup + Vector3(0, 0.09, 0), _mat("wax", Color(0.96, 0.92, 0.8)))
+		_box(hall, Vector3(0.03, 0.05, 0.03), cup + Vector3(0, 0.2, 0), _mat("flame", LIGHT, 0.0, 3.0))
+		var light := OmniLight3D.new()
+		light.light_color = LIGHT
+		light.light_energy = 0.9
+		light.omni_range = 4.5
+		light.position = cup + out * 0.15 + Vector3(0, 0.3, 0)
+		hall.add_child(light)
 
 
 ## Looked down into from the hall, the stairwell shows the vault's lamplit stone floor below: a dark

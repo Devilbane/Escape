@@ -70,6 +70,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Set up furniture (blueprint button, “Furnish”) | R turns it, Esc closes | left click puts it down, hold and drag moves a placed piece, right click turns it |
 | Zoom | + and − | mouse wheel (up close the camera tilts and you see the face) |
 | Zoom and move the map (map window) | + and −, 0 shows the whole map | mouse wheel, the buttons in the map's top right corner; drag to move it |
+| Change the map's floor (map window: surface, silver mine) | Page Up and Page Down | the arrows in the map's top left corner |
 
 A jump from a run keeps its momentum: the faster you are, the farther you fly.
 Running has a risk: lose more than 10 % of your lives within 2 seconds while running (or right after) and you fall to the ground and get up again, which takes about 2.5 seconds. No blow lands while you are down.
@@ -860,6 +861,9 @@ so leave quietly. See `scripts/elder_lair.gd` and `scripts/elder_dragon.gd`.
 Your hero draws a **map** as they go. In the dungeon everything the fog of war has shown you goes on it,
 in the open air everything within about 24 m of you. Press **N** (or the map icon on the right edge) to open it;
 the arrows above the map flip through every level you have a map of, and it zooms in on the part you have explored.
+Once you have climbed down into the forgotten silver mine, the open air's map gets a second floor: the arrows in the
+map's top left corner (or Page Up and Page Down) switch between the surface and the mine. The mine shows its tunnels as
+you have seen them, over the dimmed woods above. The map always opens on the floor you stand on.
 Landmarks get a numbered mark once you have seen them, listed beside the map: the stairs, doors, shrines,
 fountains, merchants, beds and storage chests below ground, and the crypt, the graveyard, the dragon's lair,
 the village buildings, Weavers' Lane, the market fountain, the well, the ponds, the food basket, the bandit camp,

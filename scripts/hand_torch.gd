@@ -28,7 +28,7 @@ const TORCH_REACH := 11.4
 const DARK_LANTERN_ENERGY := 0.12
 const DARK_LANTERN_RANGE := 3.0
 const LIGHT_COLOR := Color(1.0, 0.58, 0.26)
-const LIGHT_ENERGY := 2.0
+const LIGHT_ENERGY := 1.3
 const LIGHT_RANGE := 13.8
 
 var player: Player
@@ -173,7 +173,7 @@ func _make_holder() -> void:
 		_light.light_color = LIGHT_COLOR
 		_light.light_energy = LIGHT_ENERGY
 		_light.omni_range = LIGHT_RANGE
-		_light.omni_attenuation = 1.4
+		_light.omni_attenuation = Level.HAND_TORCH_ATTENUATION
 		_light.position = Vector3(0.4, 2.4, 0.5)
 		player.add_child(_light)
 	_light.visible = true

@@ -4,15 +4,15 @@ extends RefCounted
 ## villagers' houses (see VillageHouse.hollow) and the temple (the chapel, see
 ## Outdoor._build_chapel). From outside they look exactly as they always did. Their door swings
 ## open as the hero comes up to it, and inside is a room: a floor, walls all round, windows one
-## sees out of, and furniture (three beds and a ladder up to the floor above in a house, pews and
-## an altar in the temple). While the hero is inside:
+## sees out of, and furniture (a table, a shelf, stores and a ladder up to the floor above in a
+## house, pews and an altar in the temple). While the hero is inside:
 ## - the floor above, the roof and everything on them (ivy, snow, a nest, chimney smoke) are hidden,
 ##   and the front wall too (the temple's fades to a ghost of itself), so the camera sees in;
 ## - the room keeps the weather out (Outdoor.is_sheltered), and the hero sees out only through
 ##   the windows and the open door (see InsideView, Level.fixed_walls);
 ## - a warm light burns in a house.
-## At night the villagers sleep in the beds of the house they go home to (see VillageBeds); whoever
-## finds no free bed climbs the ladder to the floor above.
+## At night the villagers of the house they go home to climb its ladder to the floor above, where
+## they sleep (see VillageBeds).
 ##
 ## The switches: `houses` and `temple` below. Turned off (false), that building is built the old way,
 ## a solid block one cannot enter, and nothing of this runs for it. They are static, so a test
@@ -45,8 +45,16 @@ const LAMP_RANGE := 6.5
 ## How see-through the temple's front wall gets while the hero is inside (0 solid, 1 gone).
 const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
-## The beds of a house: as many as fit side by side along the back wall, at most this many.
+## The beds of a house, on the floor above: as many as fit side by side along its back wall
+## beside the hatch, at most this many.
 const MAX_BEDS := 3
+## The house ladder (see _furnish_house): how far in from the side wall the hatch's edge is, how
+## far back from the front wall the ladder stands, and how far before the edge one stands at its foot.
+const LADDER_EDGE_IN := 0.6
+const LADDER_FROM_FRONT := 0.75
+const LADDER_FOOT := 0.65
+## How much of the floor above the hatch and the way from it to the beds keep free (metres across).
+const HATCH_CLEAR := 1.7
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
 const BED_WIDE := CosyBed.RIGHT - CosyBed.LEFT
 const BED_GAP := 0.1
@@ -378,35 +386,80 @@ func _body() -> StaticBody3D:
 
 # --- Furniture -------------------------------------------------------------------
 
-## Three beds side by side along the back wall (heads to the wall), a ladder up to the floor above
-## against the side wall away from the door, and a lamp.
+## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
+## barrels and a crate in the back corner on the door's side, and in the front corner away from
+## the door an upright ladder up through a hatch to the floor above. The villagers sleep up there
+## (see VillageBeds): as many beds as fit along its back wall beside the hatch, kept as places
+## (`pos`, `rot`, `stand` like a bed one lies in, see Level.lie_spot). The ladder's climb is kept as
+## `ladder` (where one stands at its foot), `ladder_edge` (on the hatch's edge, on the floor),
+## `ladder_push` (the flat way from the foot to the top), `ladder_tall` and `ladder_top` (where one
+## steps off upstairs), all world.
 func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 	var house: Node3D = rec.node
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
-	var count := clampi(int((room.size.x + BED_GAP) / (BED_WIDE + BED_GAP)), 1, MAX_BEDS)
-	var span := count * BED_WIDE + (count - 1) * BED_GAP
-	var head_z := room.position.y + 0.02
-	var origin_z := head_z - CosyBed.HEAD
-	for i in count:
-		var mid := -span * 0.5 + BED_WIDE * 0.5 + i * (BED_WIDE + BED_GAP)
-		# The bed's own origin sits off its middle (LEFT and RIGHT differ).
-		var origin := Vector3(mid - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5, floor_y, origin_z)
-		var bed := CosyBed.build(house, origin, 0.0, false)
-		bed.name = "VillagerBed%d" % i
-		_solid(rec, Vector3(mid, floor_y + 0.5, origin_z + (CosyBed.HEAD + CosyBed.FOOT) * 0.5), Vector3(BED_WIDE, 1.0, CosyBed.FOOT - CosyBed.HEAD))
-		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
-				"stand": house.transform * Vector3(mid + 0.1, floor_y, origin_z + CosyBed.FOOT + 0.55)})
-	# The ladder: against the side wall away from the door, in the free strip in front of the beds.
 	var side := -1.0 if door_x >= 0.0 else 1.0
-	var free_z := (origin_z + CosyBed.FOOT + room.end.y) * 0.5
-	var ladder_x := side * (room.end.x - 0.35)
-	var ladder := WalkInFurniture.ladder(floor_y, rec.top, side)
-	ladder.position = Vector3(ladder_x, 0, free_z)
+	var turn := house.transform.basis.orthonormalized()
+	# The ladder, its climb across the room towards the side wall.
+	var edge := Vector3(side * (room.end.x - LADDER_EDGE_IN), floor_y, room.end.y - LADDER_FROM_FRONT)
+	var tall := float(rec.top) - floor_y
+	var ladder := WalkInFurniture.upright_ladder(tall)
+	ladder.position = edge
+	ladder.rotation.y = 0.0 if side > 0.0 else PI
 	house.add_child(ladder)
-	_solid(rec, Vector3(ladder_x, floor_y + 1.0, free_z), Vector3(0.5, 2.0, 0.7))
-	rec["ladder"] = house.transform * Vector3(ladder_x - side * 0.65, floor_y, free_z)
-	rec["ladder_top"] = house.transform * Vector3(side * (room.end.x - 0.1), rec.top - 0.2, free_z)
+	_solid(rec, edge + Vector3(-side * WalkInFurniture.LADDER_BEFORE, 1.0, 0), Vector3(0.2, 2.0, WalkInFurniture.LADDER_WIDE + 0.1))
+	var push := turn * Vector3(side, 0, 0)
+	rec["ladder_push"] = push
+	rec["ladder_edge"] = house.transform * edge
+	rec["ladder_tall"] = tall * house.scale.y
+	rec["ladder"] = house.transform * (edge - Vector3(side * LADDER_FOOT, 0, 0))
+	rec["ladder_top"] = house.transform * (edge + Vector3(side * LadderPose.TOP_FORWARD, tall, 0))
+	# The table in the middle, a little back from the way to the ladder, stools behind and beside it.
+	var table_at := Vector3(-side * 0.3, floor_y, room.get_center().y - 0.3)
+	var table := WalkInFurniture.table(0.55)
+	table.position = table_at
+	house.add_child(table)
+	_solid(rec, table_at + Vector3(0, 0.4, 0), Vector3(1.1, 0.8, 1.1))
+	for at: Vector3 in [Vector3(-0.8, 0, 0), Vector3(0.8, 0, 0), Vector3(0, 0, -0.8)]:
+		var stool := WalkInFurniture.stool()
+		stool.position = table_at + at
+		house.add_child(stool)
+	var mug := WalkInFurniture.mug()
+	mug.position = table_at + Vector3(0.15, 0.79, -0.1)
+	house.add_child(mug)
+	# A shelf of stores on the back wall, on the ladder's side.
+	var shelf_w := minf(1.8, room.size.x * 0.35)
+	var shelf_at := Vector3(side * (room.size.x * 0.5 - shelf_w * 0.5 - 0.3), floor_y, room.position.y + 0.2)
+	var shelf := WalkInFurniture.shelf(shelf_w, 1.9, 0.4, true)
+	shelf.position = shelf_at
+	house.add_child(shelf)
+	_solid(rec, shelf_at + Vector3(0, 0.95, 0), Vector3(shelf_w, 1.9, 0.4))
+	# Barrels, a crate and a sack in the back corner on the door's side.
+	var corner := Vector3(-side * (room.end.x - 0.4), floor_y, room.position.y + 0.4)
+	for k in 2:
+		var barrel := WalkInFurniture.barrel()
+		barrel.position = corner + Vector3(side * 0.7 * k, 0, 0)
+		house.add_child(barrel)
+	var crate := WalkInFurniture.crate(0.55)
+	crate.position = corner + Vector3(0, 0, 0.75)
+	crate.rotation.y = 0.2
+	house.add_child(crate)
+	var sack := WalkInFurniture.sack()
+	sack.position = corner + Vector3(side * 1.35, 0, 0.05)
+	house.add_child(sack)
+	_solid(rec, corner + Vector3(side * 0.35, 0.45, 0.3), Vector3(1.4, 0.9, 1.4))
+	# The beds upstairs: heads to the back wall, from the side wall away from the hatch.
+	var t := VillageHouse.WALL_THICK
+	var upper := Rect2(-w * 0.5 - VillageHouse.JETTY + t, -d * 0.5 - VillageHouse.JETTY + t,
+			w + (VillageHouse.JETTY - t) * 2.0, d + (VillageHouse.JETTY - t) * 2.0)
+	var up_y := float(rec.top) + VillageHouse.FLOOR_LIFT
+	var count := clampi(int((upper.size.x - HATCH_CLEAR + BED_GAP) / (BED_WIDE + BED_GAP)), 1, MAX_BEDS)
+	var origin_z := upper.position.y + 0.02 - CosyBed.HEAD
+	for i in count:
+		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP))
+		var origin := Vector3(mid - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5, up_y, origin_z)
+		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
+				"stand": house.transform * Vector3(mid + 0.1, up_y, origin_z + CosyBed.FOOT + 0.55)})
 
 
 ## The lamp that lights a house or hall while the hero is inside.
@@ -436,7 +489,8 @@ func _furnish_temple(rec: Dictionary, chapel: Node3D) -> void:
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor * s
 	var floor_mesh := WalkInFurniture.flagstones(Vector2(room.size.x, room.size.y + 1.0) * s, floor_y)
-	floor_mesh.position = Vector3(room.get_center().x, 0, room.get_center().y + 0.5) * s
+	# Up at the floor's height, not on the ground: down there it lay in the grass and flickered with it.
+	floor_mesh.position = Vector3(room.get_center().x * s, floor_y, (room.get_center().y + 0.5) * s)
 	inside.add_child(floor_mesh)
 	# The altar, under the rose window.
 	var altar_z := (room.position.y + 2.2) * s

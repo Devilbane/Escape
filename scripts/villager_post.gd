@@ -59,6 +59,7 @@ const HALL_LINES := {
 	"shop": ["Komm zu mir in den Laden, dort handeln wir.", "Mein Laden hat zu. Komm morgen früh wieder."],
 	"office": ["Komm zu mir ins Amt, an meinen Schreibtisch.", "Das Amt hat zu. Komm morgen früh wieder."],
 	"guild": ["Komm zu mir in die Gildenhalle.", "Die Gildenhalle hat zu. Komm morgen früh wieder."],
+	"mill": ["Komm zu mir in die Mühle, an meinen Tresen.", "Die Mühle hat zu. Komm morgen früh wieder."],
 }
 
 

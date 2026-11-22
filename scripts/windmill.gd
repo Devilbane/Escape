@@ -44,6 +44,10 @@ var speed: float = SPEEDS[Weather.CLEAR]
 ## How far round the sails have turned in all (radians).
 var turned := 0.0
 var _outdoor: Node
+## The mill hall under the sails one walks into (see MillTower), whose runner stone turns with
+## them: found in it once furnished.
+var hall: Node3D
+var _runner: Node3D
 var _groan_timer := GROAN_MIN
 
 
@@ -78,6 +82,11 @@ func _process(delta: float) -> void:
 	# The cross is flat in its own x-y plane and faces along its z axis, so
 	# it turns about z.
 	sails.rotation.z = fmod(turned, TAU)
+	# Down in the mill room the runner stone turns with the sails.
+	if hall != null and (_runner == null or not is_instance_valid(_runner)):
+		_runner = hall.find_child("Runner", true, false) as Node3D
+	if _runner != null and is_instance_valid(_runner):
+		_runner.rotation.y = -fmod(turned, TAU)
 	var dist := _hero_distance()
 	if dist > HEAR_RANGE:
 		return

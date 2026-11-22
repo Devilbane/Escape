@@ -22,7 +22,7 @@ static var temple := true
 ## The halls rebuilt in the village's style to be walked into (see VillageHalls), each on its own:
 ## the tavern (n), the shop (m), the post office (o), the Crown office (k) and the adventurers'
 ## guild (w). Off, a hall is the old solid kit model again.
-static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true}
+static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true, "u": true}
 
 ## Map tiles of other buildings one walks into that let sight and reach through (the bank, see
 ## BankVault): their own walls stop them.

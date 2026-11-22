@@ -186,6 +186,7 @@ static var ALL := {
 	# Things carried for a villager's task (see Quests): never found as loot,
 	# never worn, worth next to nothing to the merchant.
 	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},
+	"mehlsack": {"name": "Mehlsack", "slot": "auftrag", "weight": 1.0, "price": 1, "no_loot": true, "effect": "Für Fritz im Wirtshaus"},
 	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},
 	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Fritz im Wirtshaus"},
 	"alriks_siegelring": {"name": "Alriks Siegelring", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für den Gelehrten im Dorf"},
@@ -588,7 +589,7 @@ const RARITY := {
 	# Everyday things, tasks and materials.
 	"kiste": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
-	"banditendolch": "normal", "brief": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
+	"banditendolch": "normal", "brief": "normal", "mehlsack": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"kartenstueck_1": "ungewoehnlich", "kartenstueck_2": "ungewoehnlich", "kartenstueck_3": "ungewoehnlich", "schatzkarte": "selten",
 	"karawanenring": "selten", "sternenstaubamulett": "selten", "kompassarmreif": "selten", "staubumhang": "selten",
 	"alriks_siegelring": "normal", "foliant_der_kraft": "episch",

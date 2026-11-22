@@ -98,7 +98,7 @@ const VILLAGE_DIR := "res://assets/village/"
 const WALK := ".,Pai:0123456789KOGMYZS¢µcAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS¢µ"
+const VILLAGERS := "0123456789KOGMYZS¢µü"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -2331,6 +2331,16 @@ func _build_block(ch: String, block: Rect2i) -> void:
 		house_doors.append(node.get_meta("door_leaf"))
 		walk_in.claim(node, VillageHalls.KINDS[ch], block)
 		walk_in.add_front(node, VillageHalls.hang_sign(node, VillageHalls.KINDS[ch]))
+		if ch == "u":
+			# The mill's tower, cap and turning sails on its stone storey (see MillTower).
+			var tower := MillTower.raise(node, _put)
+			_age_kit_building(tower)
+			var turning := Windmill.attach(self, tower)
+			if turning:
+				turning.hall = node
+				windmills.append(turning)
+				SailCloth.apply(turning.sails as MeshInstance3D, _window_mask)
+			walk_in.add_upper(node, tower)
 	else:
 		var model: String = BLOCK_MODELS[ch]
 		var box := _aabb_of(model)
@@ -3769,7 +3779,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter"}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)

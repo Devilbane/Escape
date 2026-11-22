@@ -21,8 +21,10 @@ extends Node
 ## face) sets the meta NO_SHADOW; a small glow (range under MIN_RANGE, a spell
 ## or a spark) stays plain on its own.
 
-## How many lights cast shadows at once.
+## How many lights cast shadows at once, at most.
 const BUDGET := 8
+## How many do with the picked graphics preset (see Graphics): fewer on weak graphics cards.
+static var budget := BUDGET
 ## Lights with a shorter reach are small glows: they stay plain.
 const MIN_RANGE := 4.0
 ## How far outside its reach the hero may be for a light to still count: about
@@ -156,7 +158,7 @@ func refresh(at_once := false) -> void:
 	ranked.sort_custom(func(a, b): return a[0] < b[0])
 	for i in ranked.size():
 		var light: Light3D = ranked[i][1]
-		if i < BUDGET:
+		if i < budget:
 			_pick(light, at_once)
 		else:
 			_drop(light, at_once)

@@ -10,6 +10,8 @@ extends SceneTree
 ## Run with (needs a display; --fixed-fps 10 lets fades settle within a few frames):
 ##   SHOTS=<folder> godot --fixed-fps 10 -s tests/lighting_reference_shots.gd
 ## Add --rendering-method <gl_compatibility|mobile|forward_plus> to choose the renderer.
+## GRAPHICS=<quality|balanced|performance> picks the graphics preset (see Graphics); without it
+## the pictures are taken at "balanced", the picture the game had before the presets.
 ## ONLY=<word,word> retakes only the shots whose name contains one of the words; LIST=1 only prints
 ## the names. Without SHOTS it loads the village, visits every spot and takes no pictures.
 ## Besides the pictures it writes <folder>/manifest.json: the renderer and every shot's settings.
@@ -237,6 +239,10 @@ func _run() -> void:
 		game._start_playing()
 	game._title.visible = false
 	game.hero_name = "Light test"
+	# The settings file may name another preset: the pictures are taken with the one asked for.
+	var graphics := OS.get_environment("GRAPHICS")
+	Graphics.preset = graphics if graphics in Graphics.PRESETS else Graphics.BALANCED
+	Graphics.apply(root)
 	game.escaped = true
 	await _wait(5)
 	if VILLAGE.any(func(s): return _wanted(s[0])):
@@ -251,6 +257,7 @@ func _run() -> void:
 			"adapter": RenderingServer.get_video_adapter_name(),
 			"size": [root.size.x, root.size.y],
 			"engine": Engine.get_version_info().string,
+			"graphics": Graphics.preset,
 			"shots": taken,
 		}
 		var file := FileAccess.open(shots.path_join("manifest.json"), FileAccess.WRITE)

@@ -1,0 +1,1 @@
+- Villagers now climb the ladder in their houses and sleep on the floor above; the ground floor has a table, a shelf and stores instead of beds.

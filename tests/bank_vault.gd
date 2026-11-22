@@ -123,6 +123,9 @@ func _run() -> void:
 	# to his own tile that he deals there (see VillagerPost.POST_RADIUS).
 	var hall := BankHall.of(level)
 	check(hall != null and hall.find_child("Desk", true, false) != null, "the bank's hall has the banker's desk")
+	var windows := BankVault.sketch().count(HouseSketch.WINDOW)
+	var window_bars := hall.get_node_or_null("WindowBars") if hall != null else null
+	check(window_bars != null and window_bars.get_child_count() >= windows * BankHall.BARS, "every one of the bank's %d windows has iron bars" % windows)
 	var banker: Villager = null
 	for v: Villager in level.villagers:
 		if v.role == BankHall.KEEPER:

@@ -808,11 +808,12 @@ func build() -> void:
 	# which the camera sees once their roof is lifted off. A house's own walls bound that (see
 	# walk_in_room), so the yard round it on its block snows over like the rest; a building
 	# without a known shape keeps its whole block clear.
-	var rooms: Array[Rect2] = []
+	var rooms: Array = []
 	for rec in walk_in.buildings:
 		var room := walk_in_room(rec.node)
 		if room.has_area():
-			rooms.append(room)
+			# Both storeys, up to the eaves: the upper floor is a room too (the roof above takes snow).
+			rooms.append([room, WALK_IN_CEILING, VillageHouse.JETTY, VillageHouse.PLINTH + VillageHouse.GROUND - 0.1])
 			continue
 		var block: Rect2i = rec.block
 		for by in range(block.position.y, block.end.y):
@@ -5558,6 +5559,9 @@ func _fade_ore() -> void:
 
 ## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth.
 const ROOM_MARGIN := 0.12
+## How high the rooms of a walk-in building reach (metres): its eaves (see VillageHouse._shape), so
+## no snow lies on the upper floor's furniture and stairs; the roof over them keeps its snow.
+const WALK_IN_CEILING := VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER - 0.05
 
 
 ## The ground a building one walks into stands on (x/z, see WalkIn), from its shape (see

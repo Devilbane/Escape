@@ -161,6 +161,18 @@ func _world() -> void:
 		var centre := (rec.node as Node3D).global_position
 		check(room.has_point(Vector2(centre.x, centre.z)) and room.get_area() < block_area * 0.7, "%s keeps only its rooms bare (%s of a %.0f m² block)" % [rec.kind, room.size, block_area])
 	check(rooms >= 3 and bool(shaded.get_shader_parameter("rooms_on")), "the snow knows the rooms of the houses (%d)" % rooms)
+	# Every storey under their roof is inside: the mask reaches up to the eaves, so no snow lies on
+	# the upper floor's furniture and stairs (the guildhall's first floor).
+	var mask: Texture2D = shaded.get_shader_parameter("room_mask")
+	if mask != null and not lvl.walk_in.buildings.is_empty():
+		var img := mask.get_image()
+		var highest := 0.0
+		for rec in lvl.walk_in.buildings:
+			var at := (rec.node as Node3D).global_position
+			var px := Vector2i(((Vector2(at.x, at.z) + Vector2.ONE * Outdoor.TILE * 0.5) / SnowCover.ROOM_STEP).floor())
+			if lvl.walk_in_room(rec.node).has_area():
+				highest = maxf(highest, img.get_pixelv(px).r * SnowCover.SHELTER_SCALE)
+		check(highest > VillageHouse.PLINTH + VillageHouse.GROUND + 1.5, "the rooms reach up through the upper floor (%.2f m)" % highest)
 	# A new thing built while it snows gets its coat too.
 	var late := MeshInstance3D.new()
 	late.mesh = BoxMesh.new()

@@ -147,6 +147,50 @@ func _run() -> void:
 	var walk_ivy := _ivy_count(lvl)
 	check(walk_ivy == solid_ivy, "the houses and the temple wear just as much ivy (%d / %d)" % [walk_ivy, solid_ivy])
 
+	# Candles in sconces on the walls inside each house and hall: lit at nightfall, out at each
+	# household's own bedtime between 22:00 and 1:00; clear windows let their light out, and no
+	# pools of light from lit panes lie in front of them.
+	var bedtimes := {}
+	for b in walk_in.buildings:
+		if b.kind == "temple":
+			continue
+		var bnode: Node3D = b.node
+		check(b.has("sconces") and (b.sconces as Array).size() >= 2, "the %s has candles on its walls" % b.kind)
+		check(bnode.get_node_or_null("WindowSpill") == null, "no pools of lit-pane light in front of the %s" % b.kind)
+		var room: Rect2 = b.room
+		for sconce: Node3D in b.get("sconces", []):
+			if sconce.get_parent() != bnode:
+				continue
+			var p := sconce.position
+			var on_wall := absf(p.x - room.position.x) < 0.05 or absf(p.x - room.end.x) < 0.05
+			check(on_wall, "a %s's ground-floor candle hangs on a side wall (%s)" % [b.kind, p])
+			check(p.y > float(b.floor) + 1.6 and p.y < float(b.top), "above head height, under the ceiling (%.2f)" % p.y)
+		check(float(b.bedtime) >= WalkIn.BED_TIME.x and float(b.bedtime) <= WalkIn.BED_TIME.y, "its bedtime lies between 22:00 and 1:00 (%.2f)" % b.bedtime)
+		bedtimes[snappedf(float(b.bedtime), 0.01)] = true
+	check(bedtimes.size() > 3, "the households go to bed at different times (%d)" % bedtimes.size())
+	var lit := func(hour: float) -> int:
+		walk_in.set_hour(hour)
+		var n := 0
+		for b in walk_in.buildings:
+			for sconce: Node3D in b.get("sconces", []):
+				var glow := sconce.get_node("SconceGlow") as Light3D
+				var flame := sconce.get_node("Flame") as Node3D
+				check(glow.visible == flame.visible, "a candle's flame and its light go together")
+				n += 1 if glow.visible else 0
+		return n
+	var all := 0
+	for b in walk_in.buildings:
+		all += (b.get("sconces", []) as Array).size()
+	check(lit.call(12.0) == 0, "by day the candles are out")
+	check(lit.call(17.0) == 0, "still out before sunset")
+	check(lit.call(21.0) == all, "after sunset they all burn (%d)" % all)
+	var late: int = lit.call(23.5)
+	check(late > 0 and late < all, "towards midnight some households have gone to bed (%d of %d)" % [late, all])
+	check(lit.call(1.5) == 0, "after one at night all are out")
+	check(lit.call(4.0) == 0, "and stay out till the next evening")
+	check(WalkIn.lit_at(19.0, 24.5, 0.2) and not WalkIn.lit_at(19.0, 24.5, 0.7), "a bedtime past midnight counts on from 24")
+	lit.call(12.0)
+
 	var hero: Player = game.player
 	hero.godmode = true
 	for c in lvl.find_children("*", "CharacterBody3D", true, false):

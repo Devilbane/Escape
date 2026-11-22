@@ -19,6 +19,8 @@ extends RefCounted
 const REVEAL_RADIUS := 6
 ## How often the map is brought up to date, in seconds.
 const UPDATE_EVERY := 0.25
+## How far the hero sees down in the forgotten mine (cells of 2 m), along its tunnels.
+const DEEP_RADIUS := 5
 ## The journal keeps this many lines; the oldest go first.
 const MAX_LOG := 300
 ## Two finds of the same thing closer than this (tiles) share one spot.
@@ -84,6 +86,10 @@ var secrets := {}
 ## The level files the hero has explored fully: file -> true. Each one
 ## trains the Erkunden skill once (see note_full_map).
 var full := {}
+## The cells of the forgotten mine under the open air (see LostMine) the hero has seen, one byte
+## per cell of its plot, 1 = seen; empty until the hero first climbs down. Its own floor of the
+## open air's map (see MapView.storey).
+var deep := PackedByteArray()
 var _timer := 0.0
 var _full_check := 0
 ## Map data read from the level files: file -> {"grid", "width", "height",
@@ -104,6 +110,7 @@ func clear() -> void:
 	entries.clear()
 	secrets.clear()
 	full.clear()
+	deep = PackedByteArray()
 
 
 # --- Reading the maps ---------------------------------------------------------
@@ -267,6 +274,10 @@ func update(delta: float) -> void:
 		return
 	if not explored.has(file):
 		write("Betreten: %s", ["@" + file], file)
+	# Down in the forgotten mine the hero sees its tunnels, not the woods overhead.
+	if level is Outdoor and LostMine.holds(game.player.global_position):
+		reveal_deep(game.player.global_position)
+		return
 	reveal(file, level)
 	_discover(file)
 	_full_check += 1
@@ -319,6 +330,28 @@ func reveal(file: String, level: Level) -> void:
 				if Vector2(x - here.x, y - here.y).length() <= REVEAL_RADIUS + 0.5:
 					bytes[y * w + x] = 1
 	explored[file] = bytes
+
+
+## Marks the tunnels of the forgotten mine the hero sees from `pos` as seen (see deep).
+func reveal_deep(pos: Vector3) -> void:
+	var n := LostMine.grid_size()
+	if deep.size() != n.x * n.y:
+		deep.resize(n.x * n.y)
+	for c: Vector2i in LostMine.seen_from(pos, DEEP_RADIUS):
+		deep[c.y * n.x + c.x] = 1
+
+
+## Whether the hero has seen cell `c` of the forgotten mine (see deep).
+func is_deep_seen(c: Vector2i) -> bool:
+	var n := LostMine.grid_size()
+	if deep.size() != n.x * n.y or c.x < 0 or c.y < 0 or c.x >= n.x or c.y >= n.y:
+		return false
+	return deep[c.y * n.x + c.x] != 0
+
+
+## Whether the hero has been down in the forgotten mine: its floor shows on the open air's map.
+func has_deep() -> bool:
+	return deep.has(1)
 
 
 ## Landmarks that have just come into view go on the map and into the journal.
@@ -487,7 +520,8 @@ func for_save() -> Dictionary:
 	var known := {}
 	for file in seen:
 		known[file] = (seen[file] as Dictionary).keys()
-	return {"maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets, "full": full.keys()}
+	return {"maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets, "full": full.keys(),
+		"deep": _pack(deep) if has_deep() else ""}
 
 
 func load_from(data) -> void:
@@ -528,6 +562,10 @@ func load_from(data) -> void:
 		for file in saved_secrets:
 			if saved_secrets[file] is Array:
 				secrets[str(file)] = (saved_secrets[file] as Array).filter(func(s): return s is Array and s.size() == 2)
+	var saved_deep = data.get("deep", "")
+	if saved_deep is String and saved_deep != "":
+		var n := LostMine.grid_size()
+		deep = _unpack(saved_deep, n.x * n.y)
 	var saved_full = data.get("full", [])
 	if saved_full is Array:
 		for file in saved_full:

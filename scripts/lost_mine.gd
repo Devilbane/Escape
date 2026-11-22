@@ -598,6 +598,35 @@ static func sight(a: Vector3, b: Vector3) -> bool:
 	return true
 
 
+## The size of the mine's plot in cells (columns, rows of LAYOUT).
+static func grid_size() -> Vector2i:
+	return Vector2i(LAYOUT[0].length(), LAYOUT.size())
+
+
+## The cells of the mine seen from `pos` (down in it): every open cell within `radius` cells
+## with nothing but tunnel between, and the walls of rubble right next to those.
+static func seen_from(pos: Vector3, radius: int) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not holds(pos):
+		return out
+	var here := cell_at(pos)
+	for y in range(here.y - radius, here.y + radius + 1):
+		for x in range(here.x - radius, here.x + radius + 1):
+			var c := Vector2i(x, y)
+			if not cells().has(c) or Vector2(c - here).length() > radius + 0.5:
+				continue
+			var mid := floor_at(c) + Vector3(0, 0.1, 0)
+			if _open(c) and sight(pos, mid):
+				out.append(c)
+			elif not _open(c):
+				# Rubble shows where it chokes a tunnel the hero sees.
+				for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					if _open(c + d) and sight(pos, floor_at(c + d) + Vector3(0, 0.1, 0)):
+						out.append(c)
+						break
+	return out
+
+
 ## Whether a shot flying from `a` to `b` hits the rock of the mine (or comes up out of it).
 static func walled(a: Vector3, b: Vector3) -> bool:
 	return not sight(a, b)

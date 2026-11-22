@@ -207,6 +207,19 @@ func _run() -> void:
 	check(view.active, "down in the vault the cellar view is on")
 	check(sketcher.deep.visible, "down there the vault is drawn")
 	check(not BankHall.of(level).visible, "the hall over it hides, its stairwell shade with it")
+	# Nothing of the bank above hangs over the vault: its floor and window shutters fade like a roof.
+	await _wait(5)
+	var floating := sketcher._mine_open.get_children().filter(func(n): return n.has_meta("ymin") and float(n.get_meta("ymin")) >= -0.05 and not LightShadows.lifted(n))
+	check(floating.is_empty(), "the bank's floor fades down there (%d pieces still show)" % floating.size())
+	var shutters := sketcher._solid.get_children().filter(func(n): return n is BuiltShutters and not LightShadows.lifted(n))
+	check(shutters.is_empty(), "no window shutters float over the vault (%d)" % shutters.size())
+	# The stairs are drawn once with the vault and outlive the houses being drawn again.
+	sketcher.refresh()
+	await _wait(2)
+	var top_at := bank.cell_world(top.x, top.y)
+	var flights := sketcher._mine_open.get_children().filter(func(n): return n is Node3D and not n is MeshInstance3D and n.get_child_count() > 3 \
+			and Vector2((n as Node3D).global_position.x - top_at.x, (n as Node3D).global_position.z - top_at.z).length() < HouseSketch.CELL * 1.5)
+	check(not flights.is_empty(), "the vault's stairs are drawn")
 	check(game._under_roof(), "no weather falls into the vault")
 	if shots != "":
 		await _shot("vault_stairs")

@@ -57,6 +57,10 @@ var inventory_tab := "tasche"
 ## journal), and which level's map.
 var map_page := "karte"
 var _map_file := ""
+## The floor of the map shown (see MapView.storey); NO_STOREY until the window opens on a map,
+## which then shows the floor the hero stands on.
+var _map_storey := NO_STOREY
+const NO_STOREY := 99
 ## How far each level's map is zoomed and where it looks, kept while the game
 ## runs (level file -> [zoom, centre tile]; see MapView.zoom).
 var _map_zoom := {}
@@ -111,6 +115,7 @@ const SHORTCUTS := [
 	["Schwere Steinblöcke schieben", "E neben dem Block, oder ihn kurz anklicken; ziehen setzt ihn ab, bis zu 5 Felder von seinem Platz"],
 	["Möbel aufstellen (Bauplan-Knopf, „Einrichten“)", "Linksklick stellt ab, gedrückt ziehen verschiebt, R oder Rechtsklick dreht, Esc schließt"],
 	["Zoom", "+ und −, Mausrad"],
+	["Kartenebene wechseln (Oberfläche, Silbergrube)", "Bild ↑ und Bild ↓, oder die Pfeile oben links auf der Karte"],
 	["Karte zoomen und verschieben", "Mausrad, + und −, oder die Knöpfe oben rechts auf der Karte; 0 zeigt die ganze Karte, Ziehen verschiebt sie"],
 	["Pause, Spiel beenden", "Esc (noch einmal Esc spielt weiter)"],
 	["In Fenstern wählen", "Pfeiltasten oder Tab, Eingabe drückt den Knopf, Esc schließt"],
@@ -281,6 +286,7 @@ func open(kind: String) -> void:
 	inventory_tab = "tasche"
 	_store_scroll = 0
 	_map_file = ""
+	_map_storey = NO_STOREY
 	_shop_page = "kaufen"
 	trade.reset()
 	_selected = -1
@@ -5350,6 +5356,7 @@ func _build_map_page(journal: Journal) -> void:
 	_box.add_child(row)
 	var step := func(d: int):
 		_map_file = files[posmod(files.find(_map_file) + d, files.size())]
+		_map_storey = NO_STOREY
 		_rebuild()
 	var back := _item_button("<", step.bind(-1), files.size() > 1)
 	back.custom_minimum_size = Vector2(52, 44)
@@ -5370,7 +5377,13 @@ func _build_map_page(journal: Journal) -> void:
 	view.name = "MapView"
 	view.custom_minimum_size = Vector2(660, 360)
 	view.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if _map_file == here and game.player != null:
+	# The floor shown: the one picked, else the one the hero stands on (see MapView.storey).
+	var floors := MapView.storeys(journal, _map_file)
+	var hero_floor := MapView.hero_storey(game.player.global_position) if _map_file == here and game.player != null else MapView.GROUND
+	if not floors.has(_map_storey):
+		_map_storey = hero_floor if floors.has(hero_floor) else MapView.GROUND
+	view.storey = _map_storey
+	if _map_file == here and game.player != null and hero_floor == _map_storey:
 		var p: Vector3 = game.player.global_position / Level.TILE
 		view.hero_at = Vector2(p.x, p.z)
 		var f: Vector3 = game.player.facing()
@@ -5385,6 +5398,8 @@ func _build_map_page(journal: Journal) -> void:
 	columns.add_child(view)
 	view.resized.connect(view.queue_redraw)
 	_add_map_zoom(view)
+	if floors.size() > 1:
+		_add_map_storeys(view, floors)
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(280, 360)
@@ -5394,6 +5409,9 @@ func _build_map_page(journal: Journal) -> void:
 	legend.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	legend.add_theme_constant_override("separation", 3)
 	scroll.add_child(legend)
+	if view.storey == MapView.DEEP:
+		_deep_legend(legend, view)
+		return
 	var places := view.numbered_places()
 	_legend_title(legend, Lang.t("Orte"))
 	if places.is_empty():
@@ -5491,6 +5509,74 @@ func _map_zoom_changed(view: MapView, keep := true) -> void:
 		_zoom_fit.disabled = not view.can_zoom_out()
 
 
+## The legend of the forgotten mine's floor (see MapView.deep_places): its marks, numbered.
+func _deep_legend(legend: VBoxContainer, view: MapView) -> void:
+	_legend_title(legend, Lang.t("Orte"))
+	var places := view.deep_places()
+	if places.is_empty():
+		_legend_line(legend, Color(0, 0, 0, 0), Lang.t("Noch keine entdeckt."))
+	for i in places.size():
+		_legend_line(legend, places[i].color, "%d  %s" % [i + 1, Lang.t(places[i].name)])
+	# The same line as on the ground, so nothing below the map moves when the floor changes.
+	_add_label(Lang.t("Erkundet: %d %%") % floori(100.0 * game.journal.explored_share(_map_file)), 16, BLUE)
+
+
+## The floor buttons, in a column in the map's top left corner, over the map so the window keeps
+## its size: one floor up, the floor's name, one floor down. Page Up and Page Down do the same
+## (see _map_zoom_key). Only on a map with more than one floor the hero knows.
+func _add_map_storeys(view: MapView, floors: Array[int]) -> void:
+	var frame := PanelContainer.new()
+	frame.name = "MapStoreys"
+	frame.add_theme_stylebox_override("panel", UiKit.frame_style(Color(0.08, 0.06, 0.05, 0.82), UiKit.BRONZE, 2, 6))
+	frame.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	frame.offset_left = 8
+	frame.offset_top = 8
+	frame.mouse_filter = Control.MOUSE_FILTER_STOP
+	view.add_child(frame)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
+	frame.add_child(column)
+	var at := floors.find(_map_storey)
+	var up := _zoom_button("", Lang.t("Eine Ebene höher (Bild ↑)"), _step_storey.bind(-1))
+	var down := _zoom_button("", Lang.t("Eine Ebene tiefer (Bild ↓)"), _step_storey.bind(1))
+	for pair in [[up, "kind:chev_up"], [down, "kind:chev_down"]]:
+		var b: Button = pair[0]
+		b.custom_minimum_size = Vector2(STOREY_WIDTH, ZOOM_BUTTON.y)
+		var icon := ItemIcon.make(pair[1], 24, true)
+		icon.set_anchors_preset(Control.PRESET_CENTER)
+		icon.offset_left = -12
+		icon.offset_top = -12
+		icon.offset_right = 12
+		icon.offset_bottom = 12
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(icon)
+	up.disabled = at <= 0
+	down.disabled = at >= floors.size() - 1
+	var name: Label = game._make_label(game.TEXT_FONT, 16, game.GOLD)
+	name.name = "StoreyName"
+	name.text = Lang.t(MapView.storey_name(_map_storey))
+	name.custom_minimum_size = Vector2(STOREY_WIDTH, 24)
+	name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name.clip_text = true
+	column.add_child(up)
+	column.add_child(name)
+	column.add_child(down)
+
+
+## Wide enough for the longest floor name in both languages.
+const STOREY_WIDTH := 140
+
+
+## One floor of the map up (-1) or down (1), if there is one (see MapView.storeys).
+func _step_storey(d: int) -> void:
+	var floors := MapView.storeys(game.journal, _map_file)
+	var at := floors.find(_map_storey) + d
+	if at < 0 or at >= floors.size():
+		return
+	_map_storey = floors[at]
+	_rebuild()
+
+
 ## + and - zoom the open map round its middle, 0 shows it whole. True when
 ## the key was used.
 func _map_zoom_key(event: InputEvent) -> bool:
@@ -5506,6 +5592,10 @@ func _map_zoom_key(event: InputEvent) -> bool:
 			view.zoom_at(-1.0)
 		KEY_0, KEY_KP_0:
 			view.zoom_fit()
+		KEY_PAGEUP:
+			_step_storey(-1)
+		KEY_PAGEDOWN:
+			_step_storey(1)
 		_:
 			return false
 	return true

@@ -117,6 +117,16 @@ const NOTES := [
 const GATE_FIRST := "Ein steinernes Tor, alt wie der Berg, hinter einem Eisengitter, das eine schwere Kette und ein Schloss verschließen. Es rührt sich nicht. Von der anderen Seite klopft es dreimal."
 const GATE_AGAIN := "Das Tor ist fest verschlossen. Noch."
 
+## The stone portal round the hut's door: half the opening's width and the height of its arch's
+## spring (metres), and its stone.
+const PORTAL_HALF := 1.0
+const PORTAL_HIGH := 2.3
+const PORTAL_STONE := Color(0.47, 0.46, 0.43)
+## The row of cells where the rails out of the door end, under the ore cart.
+const RAIL_END := 23
+## The crane at the hut's corner: how high its arm is and how far it reaches out (metres).
+const CRANE_HIGH := 3.4
+const CRANE_REACH := 1.6
 ## Where the miners' lamps hang (cells).
 const LAMPS := [Vector2i(42, 30), Vector2i(46, 31), Vector2i(35, 35), Vector2i(31, 31), Vector2i(27, 29),
 	Vector2i(20, 31), Vector2i(12, 31), Vector2i(20, 38), Vector2i(12, 42), Vector2i(4, 35), Vector2i(52, 34),
@@ -349,6 +359,203 @@ static func furnish_yard(level: Level, parent: Node3D) -> void:
 	bucket.position = s.cell_world(44, 27) + Vector3(-0.3, 0.12, 0.3)
 	bucket.rotation = Vector3(1.4, 0.8, 0)
 	parent.add_child(bucket)
+
+
+## The mine's way in, as the old miners left it: a hewn stone portal round the hut's door with
+## one lantern still burning beside it, rails running out of the door to an ore cart full of
+## ore, a crane with a bucket hanging from its arm, a big cart wheel against the wall, barrels,
+## crates, tools and fallen stones, and the corners of the walls broken off ragged and high.
+## The way through the door stays free.
+static func furnish_entrance(level: Level, parent: Node3D) -> void:
+	var s := sketch()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 173
+	var stone := _mat("portal_stone", PORTAL_STONE)
+	var dark_stone := _mat("portal_stone_dark", PORTAL_STONE.darkened(0.18))
+	var wood := _mat("yard_old_wood", Color(0.36, 0.31, 0.26))
+	var iron := _mat("rusty_iron", Color(0.36, 0.25, 0.18), 0.4)
+	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
+	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var door_x := HUT.position.x + HUT.size.x / 2
+	# The face of the door's wall (north), the door's middle on it.
+	var face := s.node_world(door_x, HUT.position.y) + Vector3(HouseSketch.CELL * 0.5, 0, 0)
+	var out := Vector3(0, 0, -1)
+	var high := PORTAL_HIGH
+	# The portal, on both faces of the wall (the way in from the path, and what one sees of it
+	# from inside): two jambs of big hewn blocks, a round arch of wedge stones with a keystone,
+	# and a timber lintel across the opening under it.
+	for way in [out * 0.3, -out * 0.42]:
+		for side in [-1.0, 1.0]:
+			var y := 0.0
+			var k := 0
+			while y < high - 0.05:
+				var h := minf(rng.randf_range(0.42, 0.6), high - y)
+				var w := 0.56 if k % 2 == 0 else 0.46
+				_box(parent, face + way + Vector3(side * (PORTAL_HALF + w * 0.5), y + h * 0.5, 0), Vector3(w, h - 0.03, 0.4), stone if k % 3 else dark_stone, rng.randf_range(-0.03, 0.03))
+				y += h
+				k += 1
+			level._add_solid(face + way + Vector3(side * (PORTAL_HALF + 0.27), 0, 0), Vector3(0.56, high, 0.4))
+		var ring := 9
+		for i in ring:
+			var a := PI * (float(i) + 0.5) / float(ring)
+			var r := PORTAL_HALF + 0.25
+			var at: Vector3 = face + way + Vector3(-cos(a) * r, high + sin(a) * r, 0)
+			var wedge := _box(parent, at, Vector3(0.5 if i == ring / 2 else 0.4, 0.5 if i == ring / 2 else 0.42, 0.44 if i == ring / 2 else 0.4), stone if i % 2 else dark_stone)
+			wedge.rotation.z = a - PI * 0.5
+		_box(parent, face + way * 1.2 + Vector3(0, high - 0.12, 0), Vector3(PORTAL_HALF * 2.0 + 0.2, 0.22, 0.22), wood)
+	# The lantern on an iron bracket on the right-hand jamb: the one light left burning.
+	var lamp_at := face + out * 0.62 + Vector3(PORTAL_HALF + 0.3, 2.0, 0)
+	_box(parent, lamp_at + Vector3(0, 0.36, 0.18), Vector3(0.05, 0.05, 0.5), iron)
+	_box(parent, lamp_at + Vector3(0, 0.22, 0), Vector3(0.03, 0.26, 0.03), iron)
+	_box(parent, lamp_at, Vector3(0.22, 0.3, 0.22), _mat("lamp_glass", LAMP_COLOUR, 0.0, 2.5))
+	_box(parent, lamp_at + Vector3(0, 0.17, 0), Vector3(0.3, 0.05, 0.3), iron)
+	_box(parent, lamp_at - Vector3(0, 0.17, 0), Vector3(0.3, 0.05, 0.3), iron)
+	var glow := OmniLight3D.new()
+	glow.light_color = LAMP_COLOUR
+	glow.light_energy = 1.6
+	glow.omni_range = 6.5
+	glow.shadow_enabled = false
+	glow.position = lamp_at + out * 0.2
+	parent.add_child(glow)
+	# Rails out of the door, from the middle of the hut to an ore cart by the path.
+	var rail := _mat("rail", Color(0.3, 0.27, 0.25), 0.7)
+	var sleeper := _mat("sleeper", TIMBER.darkened(0.25))
+	var start := s.cell_world(door_x, HUT.position.y)
+	var end := s.cell_world(door_x, RAIL_END)
+	var steps := int(round(start.distance_to(end) / 0.66))
+	for k in steps + 1:
+		var at := start.lerp(end, float(k) / float(steps))
+		_box(parent, at + Vector3(rng.randf_range(-0.05, 0.05), 0.015, 0), Vector3(1.1, 0.03, 0.16), sleeper, rng.randf_range(-0.08, 0.08))
+	for side in [-0.38, 0.38]:
+		_box(parent, (start + end) * 0.5 + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, start.distance_to(end) + 0.6), rail)
+	# A short siding west of the way out, with the cart standing on it.
+	var siding := s.cell_world(door_x - 2, RAIL_END + 1)
+	for k in 4:
+		_box(parent, siding + Vector3(0, 0.015, -0.99 + k * 0.66), Vector3(1.1, 0.03, 0.16), sleeper, rng.randf_range(-0.08, 0.08))
+	for side in [-0.38, 0.38]:
+		_box(parent, siding + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, 2.2), rail)
+	var cart := siding + Vector3(0, 0, -0.2)
+	_box(parent, cart + Vector3(0, 0.62, 0), Vector3(1.05, 0.62, 1.45), wood)
+	for side in [-1.0, 1.0]:
+		_box(parent, cart + Vector3(side * 0.54, 0.62, 0), Vector3(0.05, 0.66, 1.5), iron)
+		_box(parent, cart + Vector3(0, 0.62, side * 0.74), Vector3(1.1, 0.66, 0.05), iron)
+	for i in 16:
+		var lump := _box(parent, cart + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.95, 1.12), rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.16, 0.3), ore if i % 5 else silver)
+		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+	for corner in [Vector3(-0.58, 0.22, -0.48), Vector3(0.58, 0.22, -0.48), Vector3(-0.58, 0.22, 0.48), Vector3(0.58, 0.22, 0.48)]:
+		parent.add_child(_wheel(cart + corner, 0.2, 0.08, iron, Vector3(0, 0, PI * 0.5)))
+	level._add_solid(cart, Vector3(1.2, 1.2, 1.6))
+	# The crane at the hut's north-east corner: a post, an arm out over the yard and a brace,
+	# a rope and a bucket hanging from its end.
+	var post := s.node_world(HUT.end.x, HUT.position.y) + Vector3(0.45, 0, -0.45)
+	_box(parent, post + Vector3(0, CRANE_HIGH * 0.5, 0), Vector3(0.26, CRANE_HIGH, 0.26), wood)
+	var arm_end := post + Vector3(0, CRANE_HIGH - 0.15, -CRANE_REACH)
+	_box(parent, (post + Vector3(0, CRANE_HIGH - 0.15, 0) + arm_end) * 0.5, Vector3(0.2, 0.2, CRANE_REACH + 0.3), wood)
+	var brace := _box(parent, post + Vector3(0, CRANE_HIGH - 0.75, -0.55), Vector3(0.14, 0.14, 1.5), wood)
+	brace.rotation.x = -0.75
+	_box(parent, arm_end + Vector3(0, -0.55, 0.1), Vector3(0.03, 1.1, 0.03), _mat("rope", Color(0.55, 0.47, 0.33)))
+	var pail := MeshInstance3D.new()
+	var tub := CylinderMesh.new()
+	tub.top_radius = 0.24
+	tub.bottom_radius = 0.19
+	tub.height = 0.36
+	pail.mesh = tub
+	pail.material_override = wood
+	pail.position = arm_end + Vector3(0, -1.28, 0.1)
+	parent.add_child(pail)
+	_box(parent, pail.position + Vector3(0, 0.08, 0), Vector3(0.5, 0.04, 0.04), iron)
+	level._add_solid(post, Vector3(0.36, CRANE_HIGH, 0.36))
+	# A big cart wheel leaning against the east wall.
+	var lean := s.node_world(HUT.end.x, HUT.position.y + 1) + Vector3(0.3, 0, 0.2)
+	var big := Node3D.new()
+	big.position = lean + Vector3(0, 0.72, 0)
+	big.rotation = Vector3(0, PI * 0.5, -0.22)
+	parent.add_child(big)
+	_spoked_wheel(big, 0.75, wood, iron)
+	level._add_solid(lean, Vector3(0.5, 1.4, 1.5))
+	# Barrels, crates and tools by the door, out of the way in.
+	for spot: Array in [[Vector3(1.75, 0, -0.75), "barrel_small", 0.0], [Vector3(2.3, 0, -1.5), "barrel_small", 1.2]]:
+		var at: Vector3 = face + spot[0]
+		level._place(spot[1], at, spot[2], parent)
+		level._add_solid(at, Vector3(0.8, 1.0, 0.8))
+	# Two old crates of grey boards, one on the other, the top one askew.
+	var crate_at := face + Vector3(1.7, 0, -2.6)
+	for k in 2:
+		var size := 0.75 - k * 0.15
+		var mid := crate_at + Vector3(0.05 * k, 0.75 * k + size * 0.5, 0)
+		_box(parent, mid, Vector3(size, size, size), wood, 0.3 + k * 0.5)
+		for edge in [-1.0, 1.0]:
+			_box(parent, mid + Vector3(0, edge * size * 0.42, 0), Vector3(size + 0.04, 0.08, size + 0.04), iron if k == 0 else wood, 0.3 + k * 0.5)
+	level._add_solid(crate_at, Vector3(0.8, 1.35, 0.8))
+	var tools := face + Vector3(-1.35, 0, -0.3)
+	for t in 2:
+		var h := _box(parent, tools + Vector3(t * 0.3, 0.6, 0), Vector3(0.05, 1.2, 0.05), wood)
+		h.rotation.z = 0.2
+		_box(parent, tools + Vector3(t * 0.3 + 0.12, 1.18 if t == 0 else 0.12, 0), Vector3(0.08, 0.06, 0.55) if t == 0 else Vector3(0.04, 0.3, 0.26), iron, 0.0)
+	# The corners of the walls broken off ragged: piers of loose blocks, higher at two corners.
+	for corner: Array in [[s.node_world(HUT.position.x, HUT.position.y), 1.4], [s.node_world(HUT.end.x, HUT.position.y), 0.7],
+			[s.node_world(HUT.position.x, HUT.end.y), 0.6], [s.node_world(HUT.end.x, HUT.end.y), 1.2]]:
+		var at: Vector3 = corner[0]
+		var y := HouseSketcher.WALL_HEIGHT
+		var top: float = HouseSketcher.WALL_HEIGHT + float(corner[1])
+		var k := 0
+		while y < top:
+			var h := rng.randf_range(0.3, 0.45)
+			_box(parent, at + Vector3(rng.randf_range(-0.08, 0.08), y + h * 0.5, rng.randf_range(-0.08, 0.08)), Vector3(0.6 - k * 0.06, h - 0.02, 0.6 - k * 0.06), stone if k % 2 else dark_stone, rng.randf_range(-0.2, 0.2))
+			y += h
+			k += 1
+	# Fallen stones and rubble along the walls' feet.
+	for i in 22:
+		var side := rng.randi_range(0, 3)
+		var t := rng.randf()
+		var a := s.node_world(HUT.position.x, HUT.position.y)
+		var b := s.node_world(HUT.end.x, HUT.end.y)
+		var at := Vector3(lerpf(a.x, b.x, t), 0, a.z - 0.45) if side == 0 else Vector3(b.x + 0.45, 0, lerpf(a.z, b.z, t)) if side == 1 \
+				else Vector3(lerpf(a.x, b.x, t), 0, b.z + 0.45) if side == 2 else Vector3(a.x - 0.45, 0, lerpf(a.z, b.z, t))
+		# Not in the way to the door.
+		if side == 0 and absf(at.x - face.x) < PORTAL_HALF + 0.7:
+			continue
+		var size := rng.randf_range(0.16, 0.42)
+		var block := _box(parent, at + Vector3(0, size * 0.4, 0), Vector3(size * 1.3, size, size), stone if i % 3 else dark_stone, rng.randf() * TAU)
+		block.rotation.x = rng.randf_range(-0.3, 0.3)
+
+
+static func _wheel(at: Vector3, radius: float, thick: float, mat: Material, turn: Vector3) -> MeshInstance3D:
+	var wheel := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = radius
+	cyl.bottom_radius = radius
+	cyl.height = thick
+	wheel.mesh = cyl
+	wheel.material_override = mat
+	wheel.position = at
+	wheel.rotation = turn
+	return wheel
+
+
+## A big spoked cart wheel under `parent`, in its XY plane: an iron-shod rim, spokes and a hub.
+static func _spoked_wheel(parent: Node3D, radius: float, wood: Material, iron: Material) -> void:
+	var torus := TorusMesh.new()
+	torus.inner_radius = radius - 0.09
+	torus.outer_radius = radius
+	torus.rings = 24
+	var rim := MeshInstance3D.new()
+	rim.mesh = torus
+	rim.material_override = iron
+	rim.rotation.x = PI * 0.5
+	parent.add_child(rim)
+	var felloe := TorusMesh.new()
+	felloe.inner_radius = radius - 0.17
+	felloe.outer_radius = radius - 0.08
+	felloe.rings = 24
+	var wood_rim := MeshInstance3D.new()
+	wood_rim.mesh = felloe
+	wood_rim.material_override = wood
+	wood_rim.rotation.x = PI * 0.5
+	parent.add_child(wood_rim)
+	for i in 8:
+		_box(parent, Vector3.ZERO, Vector3(0.06, radius * 2.0 - 0.25, 0.05), wood, 0.0).rotation.z = PI * float(i) / 8.0
+	parent.add_child(_wheel(Vector3.ZERO, 0.12, 0.2, iron, Vector3(PI * 0.5, 0, 0)))
 
 
 ## Whether `at` lies over the open shaft (within `margin` of it), where nothing lies on the boards.

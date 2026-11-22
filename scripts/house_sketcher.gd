@@ -1432,6 +1432,7 @@ func _redraw() -> void:
 		add_child(_hut_props)
 		LostMine.furnish_hut(_hut_props)
 		LostMine.furnish_yard(game.level, _hut_props)
+		LostMine.furnish_entrance(game.level, _hut_props)
 	if _deep_props == null:
 		_deep_props = Node3D.new()
 		_deep_props.name = "LostMine"
@@ -1805,7 +1806,12 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {
 			var slope: Vector3 = foot - peak
 			foot = peak + slope * ((peak.y - wall_top + EAVE_DROP) / (peak.y - foot.y))
 		if _abandoned and not demolish and posmod(cz if ridge_x else cx, 3) == 1 and posmod((cx if ridge_x else cz) + (1 if sign_ > 0.0 else 0), 3) == 0:
+			_rafters(foot, peak, eave - 0.15)
 			continue
+		# Here and there on an empty house the lower half of a board has broken off, down to the rafters.
+		if _abandoned and not demolish and posmod(cx * 7 + cz * 3 + (1 if sign_ > 0.0 else 0), 5) == 2:
+			_rafters(foot, peak, eave - 0.15)
+			foot = foot.lerp(peak, 0.5)
 		if demolish:
 			_slanted(foot, peak, HouseSketch.CELL, 0.15, colour, true)
 		else:
@@ -1834,6 +1840,46 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {
 			knee.position = mid + along * sign_ + Vector3(0, wall_top + HouseSketch.SLAB_THICK * 0.5, 0)
 			knee.set_meta("ymin", eave)
 			_solid.add_child(knee)
+
+
+## The bare rafters under a fallen-in roof board, from `foot` (the eaves) up to `peak`: three
+## dark beams across the cell's width, and a purlin halfway up.
+## `ymin` hides them with the storey under them.
+func _rafters(foot: Vector3, peak: Vector3, ymin: float) -> void:
+	var slope := peak - foot
+	var along := slope.normalized()
+	var up := (Vector3.UP - along * along.dot(Vector3.UP)).normalized()
+	var side := along.cross(up)
+	var wood := _rafter_wood()
+	for k in [-0.42, 0.0, 0.42]:
+		var beam := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(slope.length() + 0.1, 0.14, 0.12)
+		beam.mesh = box
+		beam.material_override = wood
+		beam.transform = Transform3D(Basis(along, up, side), foot + slope * 0.5 + side * HouseSketch.CELL * k - up * 0.1)
+		beam.set_meta("ymin", ymin)
+		_solid.add_child(beam)
+	var purlin := MeshInstance3D.new()
+	var bar := BoxMesh.new()
+	bar.size = Vector3(0.12, 0.12, HouseSketch.CELL)
+	purlin.mesh = bar
+	purlin.material_override = wood
+	purlin.transform = Transform3D(Basis(along, up, side), foot + slope * 0.45 - up * 0.2)
+	purlin.set_meta("ymin", ymin)
+	_solid.add_child(purlin)
+
+
+## The grey, weathered wood of bare rafters, darker than the boards still on the roof.
+static var _old_rafter: StandardMaterial3D = null
+
+
+static func _rafter_wood() -> StandardMaterial3D:
+	if _old_rafter == null:
+		_old_rafter = StandardMaterial3D.new()
+		_old_rafter.albedo_color = Color(0.27, 0.22, 0.17)
+		_old_rafter.roughness = 0.95
+	return _old_rafter
 
 
 ## How far a roof's eaves reach down past the top of the wall under them (metres).

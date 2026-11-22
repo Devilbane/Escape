@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Lighter snow on the spruces, one shelf per tier; Furnishing tool: pick the piece the mouse is on, not the floor under it (+48 more)
+Escape! dev status | Working on: No snow on the upper floors of the walk-in buildings | Shipped this week: Lighter snow on the spruces, one shelf per tier; Furnishing tool: pick the piece the mouse is on, not the floor under it (+48 more)

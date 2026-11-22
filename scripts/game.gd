@@ -777,12 +777,14 @@ func _setup_world() -> void:
 	# as the hero walks towards them. The camera hangs about 27 m from the hero, so the
 	# first ring reaches past everything around the hero (46 m): a prop on the hero's
 	# side of a ring edge used to be shaded differently from one on the other side, and
-	# a bench flipped between the two as the hero walked past it. Only the far rings are wide.
+	# a bench flipped between the two as the hero walked past it. Only the far ring is wide.
+	# Two rings, not four: every ring draws the shadow casters in it once more each
+	# frame. The first covers all the usual view; the second, coarser, only the far
+	# land seen when zoomed in close.
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	moon.directional_shadow_max_distance = 200.0
 	moon.directional_shadow_fade_start = 1.0
 	moon.directional_shadow_split_1 = 0.23
-	moon.directional_shadow_split_2 = 0.4
-	moon.directional_shadow_split_3 = 0.6
 	# Blend the rings so no hard edge of shade sweeps over the props as the hero walks.
 	moon.directional_shadow_blend_splits = true
 	add_child(moon)
@@ -3456,10 +3458,12 @@ func load_level(index: int, restock := true) -> void:
 	_update_hud()
 	# Every shader the new level needs is built in its first, still dark
 	# frame, and the time that takes does not count (see LevelWarmup). The
-	# lamps round the hero cast their shadows from that frame on, so their
-	# shaders are built in it too (see LightShadows).
-	light_shadows.refresh(true)
+	# lamps round the hero cast their shadows from that frame on, and for that
+	# frame alone two faint lamps with shadows light the whole level, so the
+	# shaders of every lamp that gains its shadows later are built in it too
+	# (see LightShadows.warm_up).
 	LevelWarmup.begin(level)
+	light_shadows.refresh(true)
 
 
 func _show_title(text: String, sub: String, prompt: String) -> void:

@@ -294,8 +294,8 @@ func _run() -> void:
 		if not v.goes_to_bed():
 			continue
 		var step := String(v.bed_trip.get("step", ""))
-		if v.role == SmithCottage.OWNER:
-			continue # In his own bed on the ground floor, see below.
+		if v.role == SmithCottage.OWNER or v.role == VillageHalls.KEEPERS.guild:
+			continue # In their own bed on the ground floor or down in the cellar, see below.
 		if step == "upstairs":
 			upstairs += 1
 			check(not v.visible and v.at_home, "%s sleeps upstairs, out of sight" % v.role)
@@ -315,8 +315,11 @@ func _run() -> void:
 		var home: Dictionary = v.bed_trip.get("house", {})
 		if v.role == SmithCottage.OWNER:
 			check(home.get("owner", "") == SmithCottage.OWNER and String(v.bed_trip.get("step", "")) == "asleep", "Gorm sleeps in his own bed in his cottage")
+		elif v.role == VillageHalls.KEEPERS.guild:
+			# Ragna sleeps in the guildhall's cellar (see GuildHall, tests/guild_hall.gd).
+			check(home.get("owner", "") == VillageHalls.KEEPERS.guild, "Ragna sleeps in her own guildhall")
 		else:
-			check(not home.has("owner"), "%s does not sleep in the smith's cottage" % v.role)
+			check(not home.has("owner"), "%s does not sleep in the smith's cottage or the guildhall" % v.role)
 	# Morning: everyone walks out.
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)

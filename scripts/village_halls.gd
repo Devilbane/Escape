@@ -7,8 +7,8 @@ extends RefCounted
 ## opens them like the villagers' houses). Usability first: a door in the middle of the front, a
 ## free way from it to the counter or desk, where the hall's keeper works by day (see KEEPERS and
 ## VillagePosts): Mira behind the shop counter, Clerk Gero at his desk in the Crown office among
-## the land registers, Guild Master Ragna at hers in the guildhall, between its tavern corner and
-## its training corner.
+## the land registers, Guild Master Ragna at hers in the guildhall, under the guild's banners (the
+## guildhall has two storeys, a roof to train on and a cellar, see GuildHall).
 ##
 ## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
 
@@ -45,6 +45,9 @@ static func style(ch: String) -> Dictionary:
 	if KINDS.get(ch, "") == "mill":
 		# A square stone storey under the kit's tower (see MillTower), no upper floor or roof.
 		return {"max_w": MILL_W, "max_d": MILL_W, "door_x": 0.0, "tower": true}
+	if KINDS.get(ch, "") == "guild":
+		# Two storeys under a flat roof one trains on, a cellar under it (see GuildHall).
+		return GuildHall.STYLE
 	if KINDS.get(ch, "") in BIG:
 		return {"max_w": BIG_W, "max_d": BIG_D, "door_x": 0.0}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
@@ -159,49 +162,9 @@ static func _office(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	_benches(walk_in, rec, inside, Color(0.25, 0.35, 0.8))
 
 
-## The guildhall: the guild master's desk at the back under the guild's banners, a tavern corner on
-## the left (barrels, tables and stools) and a training corner on the right (a rack of weapons and a
-## straw dummy).
+## The guildhall: two storeys and a roof to train on, a cellar under it (see GuildHall).
 static func _guild(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
-	var room: Rect2 = rec.room
-	var floor_y: float = rec.floor
-	var back := room.position.y
-	var half := room.size.x * 0.5
-	for x: float in [-1.6, 1.6]:
-		var flag := WalkInFurniture.banner(Color(0.6, 0.2, 0.15), 1.6)
-		flag.position = Vector3(x, floor_y + 2.6, back)
-		inside.add_child(flag)
-	# The tavern corner.
-	for k in 2:
-		var cask := WalkInFurniture.barrel()
-		cask.position = Vector3(-half + 0.45 + k * 0.7, floor_y, back + 0.45)
-		inside.add_child(cask)
-	walk_in._solid(rec, Vector3(-half + 0.8, floor_y + 0.5, back + 0.45), Vector3(1.5, 1.0, 0.75))
-	var table_x := -half + 1.5
-	for table_z: float in [back + 2.6, room.end.y - 1.8]:
-		var table := WalkInFurniture.table(0.55)
-		table.position = Vector3(table_x, floor_y, table_z)
-		inside.add_child(table)
-		walk_in._solid(rec, Vector3(table_x, floor_y + 0.4, table_z), Vector3(1.1, 0.8, 1.1))
-		for dx: float in [-0.85, 0.85]:
-			var stool := WalkInFurniture.stool()
-			stool.position = Vector3(table_x + dx, floor_y, table_z)
-			inside.add_child(stool)
-		var mug := WalkInFurniture.mug()
-		mug.position = Vector3(table_x + 0.15, floor_y + 0.79, table_z - 0.1)
-		inside.add_child(mug)
-	# The training corner.
-	var rack_w := 1.8
-	var rack := WalkInFurniture.weapon_rack(rack_w)
-	rack.position = Vector3(half - rack_w * 0.5 - 0.2, floor_y, back + 0.2)
-	inside.add_child(rack)
-	walk_in._solid(rec, rack.position + Vector3(0, 0.75, 0), Vector3(rack_w, 1.5, 0.4))
-	for dz: float in [2.6, room.size.y - 1.8]:
-		var dummy := WalkInFurniture.dummy()
-		dummy.position = Vector3(half - 1.3, floor_y, back + dz)
-		dummy.rotation.y = -0.5
-		inside.add_child(dummy)
-		walk_in._solid(rec, dummy.position + Vector3(0, 0.8, 0), Vector3(0.6, 1.6, 0.6))
+	GuildHall.furnish(walk_in, rec, inside)
 
 
 ## The mill room: the millstones in the front corner on the left, under their hopper, with the

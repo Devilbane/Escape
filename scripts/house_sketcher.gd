@@ -1421,6 +1421,9 @@ func _redraw() -> void:
 			own_shelter = shelter
 	(game.level as Outdoor).roofs = roofs
 	(game.level as Outdoor).shelters = shelters
+	# The cellars under the village's halls (the guildhall's, see GuildHall), under their floors.
+	holes.append_array((game.level as Outdoor).hall_holes)
+	ceilinged.append_array((game.level as Outdoor).hall_holes)
 	game.level.set_floor_holes(holes, ceilinged, buried)
 	cellar_view.holes = holes
 	if _hut_props == null:

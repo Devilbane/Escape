@@ -64,7 +64,8 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	var uw := w + JETTY * 2.0
 	var ud := d + JETTY * 2.0
 	var cx := rng.randf_range(-0.3, 0.3) * uw
-	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx, "tower": bool(style.get("tower", false))}
+	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx, "tower": bool(style.get("tower", false)),
+			"flat": bool(style.get("flat", false))}
 	var parts := {}
 	_shape(shape, parts, parts, parts, parts)
 	var eaves := PLINTH + GROUND + UPPER
@@ -100,8 +101,13 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 	var cx: float = shape.cx
 	var top := PLINTH + GROUND
 	var eaves := top + UPPER
-	# Stone plinth, stone ground floor and the jutting upper floor.
-	_box(low, "stone", Vector3(0, PLINTH * 0.5, 0), Vector3(w + 0.1, PLINTH, d + 0.1))
+	# A flat roof one walks on (the guildhall, see GuildHall): built hollow, its upper floor is a room
+	# with stairs up through the deck, so GuildHall builds that storey itself.
+	var flat := bool(shape.get("flat", false))
+	var hollow_flat := flat and low != front
+	# Stone plinth, stone ground floor and the jutting upper floor. A hollow flat-roofed hall has
+	# stairs down through its floor: no lid on the plinth, the boards are the floor.
+	_box(low, "stone", Vector3(0, PLINTH * 0.5, 0), Vector3(w + 0.1, PLINTH, d + 0.1), Basis(), 2.0, [4] if hollow_flat else [])
 	if low == front:
 		_box(low, "plaster", Vector3(0, PLINTH + GROUND * 0.5, 0), Vector3(w, GROUND, d))
 	else:
@@ -124,8 +130,10 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 	if tower:
 		_beams(up, w + 0.1, d + 0.1, top)
 	else:
-		if roof == null:
-			_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud))
+		if hollow_flat:
+			pass # Under a flat roof the deck lies on the upper floor (no lid of plaster under it to hold snow).
+		elif roof == null:
+			_box(up, "plaster", Vector3(0, top + UPPER * 0.5, 0), Vector3(uw, UPPER, ud), Basis(), 2.0, [4] if flat else [])
 		else:
 			# A floor above one walks into (see hollow with a hatch): its back and side walls and its
 			# underside, its front wall and its lid apart, so the roof and the front can hide.
@@ -143,14 +151,18 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 	_door(front, Vector3(door_x, PLINTH, d * 0.5), step)
 	for x: float in _window_spots(w, door_x):
 		_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), 0.0)
-	if not tower:
+	if not tower and not hollow_flat:
 		for x: float in _window_spots(uw, INF):
 			_window(up_face, Vector3(x, top + 1.3, ud * 0.5), 0.0)
 	for side: float in [-1.0, 1.0]:
-		if not tower:
+		if not tower and not hollow_flat:
 			_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
 		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
 	if tower:
+		return
+	if flat:
+		# The deck and its parapet instead of a pitched roof; hollow, the upper storey as a room.
+		GuildHall.roof_shell(up, shape)
 		return
 	# The roof, its gables and the chimney.
 	_gables(lid, uw, ud, eaves, ridge)
@@ -186,6 +198,8 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		for key: String in ["back", "right", "left"]:
 			groups[key] = {}
 		walls = {1: groups.back, 2: groups.right, 3: groups.left}
+	if bool(shape.get("flat", false)):
+		shape["floor_cut"] = GuildHall.layout(shape).well
 	var upper := hatch.size != Vector2.ZERO
 	if upper:
 		# A floor above one walks into: the roof, the upper front wall and the upper room apart.
@@ -194,9 +208,14 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		_shape(shape, groups.low, groups.front, groups.up, groups.low, walls, groups.roof, groups.up_front)
 	else:
 		_shape(shape, groups.low, groups.front, groups.up, groups.low, walls)
-	_room(shape, groups.inside, groups.front)
+	_room(shape, groups.inside, groups.front, walls)
 	if upper:
 		_upper_room(shape, groups.up_inside, groups.up_front, hatch)
+	if bool(shape.get("flat", false)):
+		# The upper storey as a room of its own, each wall apart (see GuildHall.upper_storey).
+		for key: String in GuildHall.UPPER_GROUPS:
+			groups[key] = {}
+		GuildHall.upper_storey(shape, groups)
 	var body: MeshInstance3D = shape.body
 	var out := {}
 	for key: String in groups:
@@ -218,15 +237,20 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 ## The room inside a hollow house (see hollow): into `parts` the floor boards and the inner faces
 ## of the back and side walls, into `front` what belongs to the front wall (its inner face with the
 ## doorway, the doorway's sides and lintel, the windows' inner panes), so it hides with it.
-static func _room(shape: Dictionary, parts: Dictionary, front: Dictionary) -> void:
+static func _room(shape: Dictionary, parts: Dictionary, front: Dictionary, walls := {}) -> void:
 	var w: float = shape.w
 	var d: float = shape.d
 	var door_x: float = shape.door_x
 	var t := WALL_THICK
 	var top := PLINTH + GROUND
 	var half := HouseDoor.WIDTH * 0.5
-	# The boards: over the whole ground floor, so the doorway gets a threshold.
-	_face(parts, "floor", Vector3(-w * 0.5, PLINTH + FLOOR_LIFT, d * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, d))
+	# The boards: over the whole ground floor, so the doorway gets a threshold (and open over
+	# stairs down, see GuildHall: `floor_cut`, x and z in the house's frame).
+	var cut: Rect2 = shape.get("floor_cut", Rect2())
+	var hole := Rect2()
+	if cut.size != Vector2.ZERO:
+		hole = Rect2(cut.position.x + w * 0.5, d * 0.5 - cut.end.y, cut.size.x, cut.size.y)
+	_face(parts, "floor", Vector3(-w * 0.5, PLINTH + FLOOR_LIFT, d * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, d), hole)
 	# The inner faces of the walls, each turned to the room.
 	_face(parts, "plaster", Vector3(-w * 0.5 + t, PLINTH, -d * 0.5 + t), Vector3.RIGHT, Vector3.UP, Vector2(w - t * 2.0, GROUND))
 	_face(parts, "plaster", Vector3(-w * 0.5 + t, PLINTH, d * 0.5 - t), Vector3.FORWARD, Vector3.UP, Vector2(d - t * 2.0, GROUND))
@@ -234,10 +258,11 @@ static func _room(shape: Dictionary, parts: Dictionary, front: Dictionary) -> vo
 	var right := w * 0.5 - t
 	_face(front, "plaster", Vector3(right, PLINTH, d * 0.5 - t), Vector3.LEFT, Vector3.UP, Vector2(w - t * 2.0, GROUND),
 			Rect2(right - door_x - half, 0.0, HouseDoor.WIDTH, HouseDoor.HEIGHT))
-	# The tops of the walls, seen from above once the floor above is hidden.
-	_face(parts, "plaster", Vector3(-w * 0.5, top, -d * 0.5 + t), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, t))
-	_face(parts, "plaster", Vector3(-w * 0.5, top, d * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, d - t * 2.0))
-	_face(parts, "plaster", Vector3(w * 0.5 - t, top, d * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, d - t * 2.0))
+	# The tops of the walls, seen from above once the floor above is hidden. With the walls apart
+	# (a hall, see hollow) each top goes with its wall, so it hides with it.
+	_face(walls.get(1, parts), "plaster", Vector3(-w * 0.5, top, -d * 0.5 + t), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, t))
+	_face(walls.get(3, parts), "plaster", Vector3(-w * 0.5, top, d * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, d - t * 2.0))
+	_face(walls.get(2, parts), "plaster", Vector3(w * 0.5 - t, top, d * 0.5 - t), Vector3.RIGHT, Vector3.FORWARD, Vector2(t, d - t * 2.0))
 	_face(front, "plaster", Vector3(-w * 0.5, top, d * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(w, t))
 	# The doorway's sides and the underside of its lintel, through the thickness of the wall.
 	_face(front, "plaster", Vector3(door_x - half, PLINTH, d * 0.5), Vector3.FORWARD, Vector3.UP, Vector2(t, HouseDoor.HEIGHT))
@@ -382,6 +407,7 @@ static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionar
 		"stone": _textured("stone", STONE_TEX, Color(0.9, 0.88, 0.85)),
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
+		"floor": _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5)),
 	}
 
 

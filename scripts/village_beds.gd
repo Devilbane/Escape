@@ -52,7 +52,11 @@ static func enter(v: Villager, at_once: bool) -> bool:
 		return false
 	var way := walk_in.door_points(house)
 	bed.by = v
-	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": [way[0], way[1], house.ladder], "t": 0.0, "clock": 0.0}
+	# Down the stairs first to a bed in a cellar (the guild master's, see GuildHall).
+	var path: Array = [way[0], way[1]]
+	path.append_array(house.get("inner_way", []))
+	path.append(house.ladder)
+	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": path, "t": 0.0, "clock": 0.0}
 	if at_once:
 		if _on_ground(house, bed):
 			_lie_on_ground(v)
@@ -282,7 +286,9 @@ static func rise(v: Villager) -> bool:
 static func _go_out(v: Villager, trip: Dictionary) -> void:
 	var walk_in: WalkIn = v.level.get("walk_in")
 	var way := walk_in.door_points(trip.house)
-	trip.way = [way[1], way[0]]
+	var inner: Array = (trip.house.get("inner_way", []) as Array).duplicate()
+	inner.reverse()
+	trip.way = inner + [way[1], way[0]]
 	trip.step = "out"
 	trip.clock = 0.0
 	trip.erase("hidden")
@@ -330,8 +336,9 @@ static func _walk(v: Villager, trip: Dictionary, delta: float) -> bool:
 	to.y = 0.0
 	var pace := v.walk_stride(delta)
 	if to.length() <= maxf(pace, ARRIVE) or trip.clock > GIVE_UP:
-		var at := goal
-		at.y = walk_in.floor_at(goal)
+		# The feet's height tells a floor from the one over it (see WalkIn.floor_at).
+		var at := Vector3(goal.x, v.global_position.y, goal.z)
+		at.y = walk_in.floor_at(at)
 		v.global_position = at
 		way.pop_front()
 		if trip.clock > GIVE_UP:

@@ -168,6 +168,7 @@ func _run() -> void:
 		check(keeper.global_position.distance_to(rec.posts[0].pos) < 0.4, "behind the %s's counter" % kind)
 		check(keeper.station.get("touch", 0.0) > 1.0, "the hero reaches the %s's keeper from in front of the counter" % kind)
 		check(lvl.station_at(rec.posts[0].front) == keeper.station, "standing before the %s's counter the hero touches the keeper's station" % kind)
+		check(VillagerPost.for_station(lvl, keeper.station) == "", "at their place in the %s its keeper deals" % kind)
 	# Nightfall: out of the door and home.
 	game.day_hour = 22.0
 	lvl.set_hour(22.0)
@@ -179,6 +180,14 @@ func _run() -> void:
 		var keeper: Villager = keepers[kind]
 		check(keeper.post_trip.is_empty(), "at nightfall the %s's keeper walks out again (%s, %s)" % [kind, keeper._task, keeper.post_trip])
 		check(walk_in.building_at(keeper.global_position).get("node") == null, "and is out of the %s (%s)" % [kind, keeper.global_position])
+		# Outside it they send the hero there, closed for the night now (see VillagerPost.HALL_LINES).
+		check(VillagerPost.for_station(lvl, keeper.station) == VillagerPost.hall_line(kind, true), "outside the %s at night its keeper says it is closed" % kind)
+		var rec: Dictionary = halls.filter(func(r): return r.kind == kind)[0]
+		var door_at := walk_in.door_points(rec)[0]
+		var home_at := lvl.cell_to_world(keeper.home)
+		check(not (rec.block as Rect2i).has_point(keeper.home) and Vector2(home_at.x - door_at.x, home_at.z - door_at.z).length() < Level.TILE * 2.5,
+				"the %s's keeper has their place before its door (%s)" % [kind, keeper.home])
+		check(Lang.EN.has(VillagerPost.hall_line(kind, false)) and Lang.EN.has(VillagerPost.hall_line(kind, true)), "English for the %s keeper's lines" % kind)
 	game.day_hour = 12.0
 	lvl.set_hour(12.0)
 

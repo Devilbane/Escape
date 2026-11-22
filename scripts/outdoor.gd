@@ -3755,13 +3755,15 @@ func _spawn_villagers() -> void:
 				continue
 			var v := Villager.new()
 			v.setup(self, ch, c)
+			# Whoever keeps a hall one walks into has their place before its door (see _keeper_home).
+			v.home = _keeper_home(ch, c)
 			add_child(v)
-			v.global_position = cell_to_world(c)
+			v.global_position = cell_to_world(v.home)
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
 			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter"}.get(ch, "npc")
-			var station := {"kind": kind, "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
 			if ch == "0":
@@ -3942,6 +3944,30 @@ func _build_forge(cell: Vector2i) -> void:
 	board.position = pos + Vector3(-1.5, 0, 1.6)
 	add_child(board)
 	_add_solid(pos + Vector3(-1.5, 0, 1.6), Vector3(0.5, 2.6, 0.5))
+
+
+## Where the villager of `role` (on map tile `cell`) has their place: the tile before the door of
+## the hall they keep, when it is one to walk into (see VillageHalls.KEEPERS), so they walk in and
+## out from there and wait there after closing time; else their own tile.
+func _keeper_home(role: String, cell: Vector2i) -> Vector2i:
+	var kind := VillageHalls.kept_by(role)
+	if kind == "":
+		return cell
+	for rec in walk_in.buildings:
+		if rec.kind == kind and rec.get("opened", false):
+			# A free tile out from the door, clear of the hall's own block, and a tile to the side
+			# of the way in, so whoever waits there never stands in the doorway.
+			var way := walk_in.door_points(rec)
+			var out := way[0] - way[1]
+			out.y = 0.0
+			out = out.normalized()
+			var side := Vector3(-out.z, 0, out.x)
+			for step in 4:
+				for aside: float in [1.0, -1.0]:
+					var before := world_to_cell(way[0] + out * step * TILE * 0.5 + side * aside * TILE)
+					if not (rec.block as Rect2i).has_point(before) and astar.is_in_boundsv(before) and not astar.is_point_solid(before):
+						return before
+	return cell
 
 
 ## Gives a particle effect its own fixed random seed. Particles otherwise draw their

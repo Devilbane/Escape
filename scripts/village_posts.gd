@@ -48,11 +48,17 @@ static func enter(v: Villager) -> void:
 	var way := walk_in.door_points(found.rec)
 	var post: Dictionary = found.post
 	v.post_trip = {"rec": found.rec, "post": post, "step": "in", "way": [way[0], way[1], post.pos], "clock": 0.0}
+	_pass_through(v, true)
 
 
 ## Whether she is in the hall (on the way in, at her place or on the way out).
 static func inside(v: Villager) -> bool:
 	return not v.post_trip.is_empty()
+
+
+## Whether she is at her place in the hall (not on the way in or out).
+static func at_post(v: Villager) -> bool:
+	return not v.post_trip.is_empty() and v.post_trip.step == "at"
 
 
 ## One physics tick of the "post" task.
@@ -67,6 +73,7 @@ static func step(v: Villager, delta: float) -> void:
 		"in":
 			if _walk(v, trip, delta):
 				trip.step = "at"
+				_pass_through(v, false)
 		"at":
 			v.turn_toward(Basis(Vector3.UP, float(trip.post.rot)) * Vector3.BACK, delta)
 			v.play(v.work_anim())
@@ -75,6 +82,7 @@ static func step(v: Villager, delta: float) -> void:
 		"out":
 			if _walk(v, trip, delta):
 				v.post_trip = {}
+				_pass_through(v, false)
 				v.end_post()
 
 
@@ -84,6 +92,7 @@ static func _go_out(v: Villager, trip: Dictionary) -> void:
 	trip.way = [way[1], way[0]]
 	trip.step = "out"
 	trip.clock = 0.0
+	_pass_through(v, true)
 
 
 ## Out on the street before the door at once (called away inside the hall by a fright, a slime).
@@ -95,6 +104,7 @@ static func leave_at_once(v: Villager) -> void:
 	v.global_position = walk_in.door_points(trip.rec)[0]
 	v.reset_physics_interpolation()
 	v.post_trip = {}
+	_pass_through(v, false)
 
 
 ## Behind her counter the hero reaches her from in front of it, not only on her own tile.
@@ -105,6 +115,18 @@ static func mind_station(v: Villager) -> void:
 		v.station["touch"] = TOUCH
 	else:
 		v.station.erase("touch")
+
+
+## On the way through the door the keeper does not bump into the hero (no body to collide with),
+## so the two never block each other in the doorway; at their place and outside they have it again.
+static func _pass_through(v: Villager, through: bool) -> void:
+	if through:
+		if v.collision_layer != 0:
+			v.set_meta("post_layer", v.collision_layer)
+			v.collision_layer = 0
+	elif v.has_meta("post_layer"):
+		v.collision_layer = int(v.get_meta("post_layer"))
+		v.remove_meta("post_layer")
 
 
 ## Walks the trip's way one tick, the feet on the floor, pushing the door open on the way. True

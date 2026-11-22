@@ -1947,6 +1947,10 @@ func _villager_unavailable(s: Dictionary) -> bool:
 		return false
 	player.face(s.pos - player.global_position)
 	player.play("Idle")
+	# A keeper away from their hall still hands out or takes back a task (and tells a secret)
+	# before sending the hero to the hall for the goods (see VillagerPost.HALL_LINES).
+	if VillagerPost.is_hall_line(line) and not s.npc.is_busy_talking() and (quests.talk(s.npc, true) or reputation.tell_secret(s.npc)):
+		return true
 	if not s.npc.is_busy_talking():
 		s.npc.say(Lang.t(line), player.global_position)
 	return true

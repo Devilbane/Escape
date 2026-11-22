@@ -1954,8 +1954,10 @@ func _physics_process(delta: float) -> void:
 		if _task == "watch" and not eaten and visible and threat == null and _blow_step(delta):
 			return
 		_end_horn()
-	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to.
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine":
+	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
+	# on the way through the door of their hall walks on while they speak, so neither they nor the
+	# hero get stuck in the doorway (see VillagePosts).
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)):
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")

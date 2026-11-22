@@ -94,7 +94,10 @@ const GATE_CELL := Vector2i(12, 3)
 ## Station kinds: a page of the foreman's log, the sealed gate.
 const NOTE := "grubenbuch"
 const GATE := "grubentor"
-const KINDS := [NOTE, GATE]
+## A miner's plank bed: the hero would rather not sleep down here.
+const BED := "grubenbett"
+const KINDS := [NOTE, GATE, BED]
+const BED_WARN := "Auf dem modrigen Stroh schlafen, hier unten, wo es nachts im Fels klopft? Lieber nicht."
 
 ## The compendium's entry, learnt the first time the hero climbs down.
 const LEARN := "Die vergessene Silbergrube: Unter der leeren Steigerhütte am Waldrand südlich des Dorfteichs führt eine Leiter in die Stollen, die zwölf Bergleute unter dem Wald gruben und dann verließen. Die Seiten des Steigerbuchs erzählen, warum."
@@ -105,11 +108,11 @@ const NOTES := [
 	["Steigerbuch, vierzigster Tag: Nachts klopft es im Fels. Drei Schläge, dann Stille. Die Männer sagen, das ist das Wasser. Wasser zählt nicht bis drei.", Vector2i(34, 34)],
 	["Steigerbuch, zweiundfünfzigster Tag: Die Ader führt nach Westen, tiefer als jede Karte. Hinter dem Silber ist der Fels behauen, glatt wie Tempelstein. Jemand hat hier vor uns gegraben, lange vor dem Dorf.", Vector2i(24, 28)],
 	["Steigerbuch, sechzigster Tag: Der Oststollen ist eingebrochen. Jorin und Matthes waren dahinter. Wir graben seit zwei Tagen. Das Klopfen ist lauter als unsere Hacken.", Vector2i(64, 42)],
-	["Steigerbuch, einundsiebzigster Tag: Nur noch vier von uns. Wir haben eine Nische für die Göttin der Tiefe ausgehauen und Kerzen entzündet. Sie antwortet nicht. Das Tor antwortet.", Vector2i(2, 34)],
+	["Steigerbuch, einundsiebzigster Tag: Nur noch vier von uns. Wir haben eine Nische für die Göttin der Tiefe ausgehauen und Kerzen entzündet. Sie antwortet nicht. Das Tor antwortet.", Vector2i(3, 36)],
 	["Letzter Eintrag: Ich habe das Tor am Ende der alten Gänge mit Eisen verkeilt und die Männer heimgeschickt. Wer dies findet: Öffne es nicht, ehe du weißt, wer auf der anderen Seite klopft. (A. Brenner)", Vector2i(20, 11)],
 ]
 ## What the gate says: the first time (kept in the compendium), and every time after.
-const GATE_FIRST := "Ein steinernes Tor, alt wie der Berg, mit eisernen Keilen verschlossen. Es rührt sich nicht. Von der anderen Seite klopft es dreimal."
+const GATE_FIRST := "Ein steinernes Tor, alt wie der Berg, hinter einem Eisengitter, das eine schwere Kette und ein Schloss verschließen. Es rührt sich nicht. Von der anderen Seite klopft es dreimal."
 const GATE_AGAIN := "Das Tor ist fest verschlossen. Noch."
 
 ## Where the miners' lamps hang (cells).
@@ -122,6 +125,8 @@ const LAMP_RANGE := 8.5
 ## The pale light of the old works' runes, cold and faint.
 const RUNE_COLOUR := Color(0.45, 0.62, 1.0)
 const TIMBER := Color(0.34, 0.23, 0.13)
+## How far a chest's middle stands from the wall at its back (half its depth and a little room).
+const CHEST_FROM_WALL := 0.55
 const IRON := Color(0.22, 0.22, 0.24)
 const SILVER := Color(0.82, 0.85, 0.9)
 ## Every this many cells along a straight tunnel stands a timber set (two posts and a cap).
@@ -180,8 +185,161 @@ static func sketch() -> HouseSketch:
 	s.pieces[HouseSketch.key_of(HUT.end.x - 1, HUT.position.y, HouseSketch.ORIENT_X)].kind = HouseSketch.WINDOW
 	# Companions find floors round the hut only (see HouseFloors): the tunnels' cells are theirs anyway.
 	s.floors_area = HUT
+	s.abandoned = true
 	_sketch = s
 	return s
+
+
+## The empty hut's inside (see HouseSketcher): nobody has swept it for years. Dust and dirt on the
+## boards, a broken stool and loose planks, cobwebs in the corners under the roof, and a little
+## cold light that falls in through the gaps in the roof, so it is not a black hole at night.
+static func furnish_hut(parent: Node3D) -> void:
+	var s := sketch()
+	var lo := s.node_world(HUT.position.x, HUT.position.y)
+	var hi := s.node_world(HUT.end.x, HUT.end.y)
+	var inner := HouseSketcher.THICK * 0.5 + 0.02
+	var top := HouseSketch.FLOOR_RISE + 0.004
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	# Dust and dirt in patches, thickest along the walls (not over the open shaft).
+	var dust := _mat("dust", Color(0.22, 0.19, 0.15, 0.32))
+	dust.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for i in 16:
+		var at := Vector3(rng.randf_range(lo.x + 0.5, hi.x - 0.5), top, rng.randf_range(lo.z + 0.5, hi.z - 0.5))
+		if _over_shaft(s, at, 0.6):
+			continue
+		_box(parent, at, Vector3(rng.randf_range(0.4, 0.9), 0.004, rng.randf_range(0.3, 0.7)), dust, rng.randf() * TAU)
+	# Loose planks, a toppled stool with a broken leg, a rag of sacking.
+	var wood := _mat("hut_wood", TIMBER.lightened(0.1))
+	var plank_at := s.cell_world(40, 27) + Vector3(0.2, top + 0.03, 0.1)
+	_box(parent, plank_at, Vector3(1.6, 0.05, 0.22), wood, 0.4)
+	_box(parent, plank_at + Vector3(0.1, 0.05, 0.25), Vector3(1.2, 0.05, 0.2), wood, 0.25)
+	var stool := s.cell_world(40, 26) + Vector3(-0.2, 0, -0.3)
+	var seat := _box(parent, stool + Vector3(0, 0.22, 0), Vector3(0.45, 0.06, 0.45), wood, 0.3)
+	seat.rotation.z = 1.25
+	for leg in [Vector3(0.14, 0.32, 0.14), Vector3(0.14, 0.32, -0.14), Vector3(0.12, 0.2, 0.0)]:
+		var l := _box(parent, stool + Vector3(leg.x + 0.12, leg.y * 0.5 + 0.04, leg.z), Vector3(0.05, leg.y, 0.05), wood)
+		l.rotation.z = 1.25 if leg.y > 0.3 else 0.3
+	_box(parent, s.cell_world(41, 27) + Vector3(-0.3, top + 0.01, 0.4), Vector3(0.7, 0.02, 0.5), _mat("sacking", Color(0.4, 0.34, 0.24)), 0.8)
+	# Cobwebs in the corners under the eaves, and one across the corner by the door.
+	var web := _mat("web", Color(0.85, 0.85, 0.82, 0.32))
+	web.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	web.cull_mode = BaseMaterial3D.CULL_DISABLED
+	web.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var high := HouseSketcher.WALL_HEIGHT - 0.05
+	for corner in [Vector2(lo.x + inner, lo.z + inner), Vector2(hi.x - inner, lo.z + inner), Vector2(lo.x + inner, hi.z - inner), Vector2(hi.x - inner, hi.z - inner)]:
+		var sx := 1.0 if corner.x < (lo.x + hi.x) * 0.5 else -1.0
+		var sz := 1.0 if corner.y < (lo.z + hi.z) * 0.5 else -1.0
+		parent.add_child(_cobweb(Vector3(corner.x, high, corner.y), Vector3(sx, 0, 0), Vector3(0, 0, sz), rng.randf_range(0.7, 1.1), web))
+	# A little moonlight through the gaps in the roof: cold and faint (by day it is lost).
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.6, 0.68, 0.9)
+	light.light_energy = 0.55
+	light.omni_range = 5.5
+	light.position = (lo + hi) * 0.5 + Vector3(0, 2.2, 0)
+	parent.add_child(light)
+
+
+## Round the hut outside, what the miners left when they went: a heap of grey ore with a glint
+## in it, a stack of pit planks, a pick and a shovel against the wall, a tipped-over cart with a
+## wheel off and a rusty bucket. East and west of the hut only: the path to its door stays clear.
+static func furnish_yard(level: Level, parent: Node3D) -> void:
+	var s := sketch()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 91
+	var wood := _mat("yard_wood", TIMBER.lightened(0.08))
+	var old_wood := _mat("yard_old_wood", Color(0.36, 0.31, 0.26))
+	var iron := _mat("rusty_iron", Color(0.36, 0.25, 0.18), 0.4)
+	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
+	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	# West of the hut: the ore heap and the plank stack.
+	var heap := s.cell_world(38, 26)
+	for i in 18:
+		var r := rng.randf_range(0.0, 0.9)
+		var a := rng.randf() * TAU
+		var lump := _box(parent, heap + Vector3(cos(a) * r, 0.12 + (0.9 - r) * 0.4 * rng.randf(), sin(a) * r), Vector3.ONE * rng.randf_range(0.2, 0.42), ore if i % 6 else silver)
+		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+	level._add_solid(heap, Vector3(1.6, 0.6, 1.6))
+	var stack := s.cell_world(38, 27) + Vector3(0.2, 0, 0.4)
+	for i in 5:
+		_box(parent, stack + Vector3(rng.randf_range(-0.05, 0.05), 0.06 + i * 0.1, 0), Vector3(2.0, 0.08, 0.26), old_wood if i % 2 else wood, rng.randf_range(-0.08, 0.08))
+		_box(parent, stack + Vector3(rng.randf_range(-0.05, 0.05), 0.06 + i * 0.1, 0.3), Vector3(1.9, 0.08, 0.26), wood if i % 2 else old_wood, rng.randf_range(-0.08, 0.08))
+	level._add_solid(stack + Vector3(0, 0, 0.15), Vector3(2.0, 0.5, 0.7))
+	# Against the hut's west wall: a pick and a shovel leaning.
+	var wall := s.node_world(HUT.position.x, HUT.position.y + 2)
+	var pick_at := wall + Vector3(-0.35, 0, -0.6)
+	var handle := _box(parent, pick_at + Vector3(0, 0.6, 0), Vector3(0.05, 1.2, 0.05), wood)
+	handle.rotation.z = -0.25
+	var head := _box(parent, pick_at + Vector3(-0.15, 1.18, 0), Vector3(0.08, 0.06, 0.6), iron)
+	head.rotation.z = -0.25
+	var shovel_at := wall + Vector3(-0.3, 0, 0.3)
+	var shaft := _box(parent, shovel_at + Vector3(0, 0.6, 0), Vector3(0.05, 1.2, 0.05), wood)
+	shaft.rotation.z = -0.22
+	var blade := _box(parent, shovel_at + Vector3(0.12, 0.1, 0), Vector3(0.04, 0.32, 0.26), iron)
+	blade.rotation.z = -0.22
+	# East of the hut: the tipped cart, a wheel lying beside it, spilt ore and a bucket.
+	var cart := s.cell_world(44, 26) + Vector3(0.2, 0, 0)
+	var body := _box(parent, cart + Vector3(0, 0.45, 0), Vector3(1.1, 0.7, 1.5), old_wood, 0.3)
+	body.rotation.z = 1.3
+	for z in [-0.5, 0.5]:
+		var wheel := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.22
+		cyl.bottom_radius = 0.22
+		cyl.height = 0.08
+		wheel.mesh = cyl
+		wheel.material_override = iron
+		wheel.position = cart + Vector3(-0.4 if z < 0.0 else 0.75, 0.04 if z > 0.0 else 0.62, z)
+		wheel.rotation = Vector3(0, 0.3, 0.0 if z > 0.0 else PI * 0.5)
+		parent.add_child(wheel)
+	for i in 7:
+		var lump := _box(parent, cart + Vector3(rng.randf_range(0.5, 1.2), 0.08, rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.15, 0.3), ore)
+		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+	level._add_solid(cart, Vector3(1.4, 0.9, 1.6))
+	var bucket := MeshInstance3D.new()
+	var pail := CylinderMesh.new()
+	pail.top_radius = 0.2
+	pail.bottom_radius = 0.16
+	pail.height = 0.32
+	bucket.mesh = pail
+	bucket.material_override = iron
+	bucket.position = s.cell_world(44, 27) + Vector3(-0.3, 0.12, 0.3)
+	bucket.rotation = Vector3(1.4, 0.8, 0)
+	parent.add_child(bucket)
+
+
+## Whether `at` lies over the open shaft (within `margin` of it), where nothing lies on the boards.
+static func _over_shaft(s: HouseSketch, at: Vector3, margin: float) -> bool:
+	var c := s.cell_world(SHAFT.x, SHAFT.y)
+	return absf(at.x - c.x) < HouseSketch.CELL * 0.5 + margin and absf(at.z - c.z) < HouseSketch.CELL * 0.5 + margin
+
+
+## A cobweb spun across a corner: a sagging sheet from `at` along the two walls (`a` and `b`, flat
+## unit directions) and down, with a few threads drawn finer over it.
+static func _cobweb(at: Vector3, a: Vector3, b: Vector3, size: float, mat: Material) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var down := Vector3(0, -size * 0.8, 0)
+	# A fan of thin strips from the corner out to the wall edges, sagging in the middle.
+	var rim: Array[Vector3] = []
+	for i in 7:
+		var t := float(i) / 6.0
+		var edge: Vector3 = (a * size).lerp(b * size, t) + down * (1.0 - absf(t - 0.5) * 2.0) * 0.5
+		rim.append(edge)
+	for i in 6:
+		st.add_vertex(at)
+		st.add_vertex(at + rim[i])
+		st.add_vertex(at + rim[i + 1])
+	# Between the wall edges and down the corner: the hanging part.
+	st.add_vertex(at + a * size)
+	st.add_vertex(at + down)
+	st.add_vertex(at + b * size)
+	st.generate_normals()
+	var m := MeshInstance3D.new()
+	m.mesh = st.commit()
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return m
 
 
 ## The keys of the pieces above the ground and the ladder: the hut (see HouseSketcher._redraw,
@@ -240,12 +398,17 @@ static func prompt(kind: String) -> String:
 			return Lang.t("Dagegenlaufen, um die Seite des Steigerbuchs zu lesen")
 		GATE:
 			return Lang.t("Dagegenlaufen, um das Tor zu untersuchen")
+		BED:
+			return Lang.t("Dagegenlaufen, um dich hinzulegen")
 	return ""
 
 
 ## The hero ran into a page of the log or the gate: it is read out (and the first time
 ## it goes into the compendium and trains Erkunden, like a writing on a wall).
 static func use(game: Node, s: Dictionary) -> void:
+	if s.kind == BED:
+		game.show_message(Lang.t(BED_WARN), 3.5)
+		return
 	var entry: String = s.get("text", GATE_FIRST)
 	var text := entry
 	if s.kind == GATE:
@@ -407,8 +570,24 @@ static func _lamp(parent: Node3D, c: Vector2i) -> void:
 
 
 ## A chest to search (see Level.search), its loot rolled like any dungeon chest's.
-static func _chest(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i, offset: Vector3, turn: float) -> void:
-	var pos := floor_at(c) + offset
+## It stands with its back against a wall of its cell (the one `offset` leans towards, if that is a
+## wall) and its front, where the lid opens, to the room.
+static func _chest(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i, offset: Vector3, _turn := 0.0) -> void:
+	var back := Vector2i.ZERO
+	var best := -INF
+	for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if cells().has(c + d):
+			continue
+		var lean := Vector2(d).dot(Vector2(offset.x, offset.z))
+		if lean > best:
+			best = lean
+			back = d
+	var along := Vector3(back.x, 0, back.y)
+	# Along the wall it keeps its offset; across, its back stands just off the wall.
+	var slide := offset - along * along.dot(offset)
+	var pos := floor_at(c) + slide + along * (HouseSketch.CELL * 0.5 - CHEST_FROM_WALL)
+	# The fitted chests open to their +Z: turned so that +Z points away from the wall.
+	var turn := atan2(-along.x, -along.z)
 	var chest := FittedChest.place(parent, "oak", pos, turn)
 	_solid(body, pos + Vector3(0, 0.45, 0), Vector3(1.2, 0.9, 1.2))
 	var obj: Dictionary = level._add_interactable("Truhe", pos, pos + Vector3(0, 2.0, 0), level.world_to_cell(pos))
@@ -464,6 +643,7 @@ static func _bunk_room(level: Level, parent: Node3D, body: StaticBody3D) -> void
 		for leg in [Vector3(-1, 0, -1), Vector3(1, 0, -1), Vector3(-1, 0, 1), Vector3(1, 0, 1)]:
 			_box(parent, mid + Vector3(leg.x * 0.38, 0.13, leg.z * 0.86), Vector3(0.08, 0.26, 0.08), wood)
 		_solid(body, mid + Vector3(0, 0.3, 0), long + Vector3(0, 0.6, 0))
+		level.stations.append({"kind": BED, "pos": mid, "cell": level.world_to_cell(mid), "used": false, "touch": 1.4})
 	_piece(level, parent, body, "table_medium_decorated_A", floor_at(Vector2i(34, 34)), PI * 0.5, Vector2(1.4, 1.8), 1.0)
 	_piece(level, parent, body, "stool", floor_at(Vector2i(35, 34)) + Vector3(0.2, 0, 0), 0.4, Vector2.ZERO)
 	_chest(level, parent, body, Vector2i(37, 33), Vector3(0.2, 0, -0.2), PI)
@@ -571,18 +751,21 @@ static func _cave_in(parent: Node3D, body: StaticBody3D, rng: RandomNumberGenera
 ## and a small figure, the fifth page on a stool beside it.
 static func _shrine(level: Level, parent: Node3D, body: StaticBody3D) -> void:
 	var stone := HouseLooks.temple_stone()
-	var altar := floor_at(Vector2i(4, 33)) + Vector3(0, 0, -0.3)
-	_box(parent, altar + Vector3(0, 0.5, 0), Vector3(1.8, 1.0, 0.9), stone)
-	_solid(body, altar + Vector3(0, 0.5, 0), Vector3(1.9, 1.0, 1.0))
+	# Against the west wall, facing east, out of the way from the north door to the south one.
+	var turn := PI * 0.5
+	var b := Basis(Vector3.UP, turn)
+	var altar := (floor_at(Vector2i(2, 34)) + floor_at(Vector2i(2, 35))) * 0.5 + Vector3(-0.3, 0, 0)
+	_box(parent, altar + Vector3(0, 0.5, 0), Vector3(1.8, 1.0, 0.9), stone, turn)
+	_solid(body, altar + Vector3(0, 0.5, 0), Vector3(1.0, 1.0, 1.9))
 	# The goddess: a rough stone figure with a pale glint for a face.
-	_box(parent, altar + Vector3(0, 1.35, -0.1), Vector3(0.35, 0.7, 0.3), stone)
-	_box(parent, altar + Vector3(0, 1.82, -0.1), Vector3(0.24, 0.26, 0.24), stone)
-	_box(parent, altar + Vector3(0, 1.84, 0.03), Vector3(0.14, 0.05, 0.02), _mat("rune", RUNE_COLOUR, 0.0, 3.0))
+	_box(parent, altar + b * Vector3(0, 1.35, -0.1), Vector3(0.35, 0.7, 0.3), stone, turn)
+	_box(parent, altar + b * Vector3(0, 1.82, -0.1), Vector3(0.24, 0.26, 0.24), stone, turn)
+	_box(parent, altar + b * Vector3(0, 1.84, 0.03), Vector3(0.14, 0.05, 0.02), _mat("rune", RUNE_COLOUR, 0.0, 3.0), turn)
 	for x in [-0.65, 0.65]:
-		level._place("candle_triple", altar + Vector3(x, 1.0, 0.1), 0.0, parent)
-	var coins := level._place("coin_stack_large", altar + Vector3(0.3, 1.0, 0.25), 0.4, parent)
+		level._place("candle_triple", altar + b * Vector3(x, 1.0, 0.1), turn, parent)
+	var coins := level._place("coin_stack_large", altar + b * Vector3(0.3, 1.0, 0.25), 0.4, parent)
 	coins.scale = Vector3.ONE * 0.45
-	_piece(level, parent, body, "stool", floor_at(Vector2i(2, 34)), 0.0, Vector2(0.8, 0.8), 0.7)
+	_piece(level, parent, body, "stool", floor_at(Vector2i(3, 36)), 0.0, Vector2(0.8, 0.8), 0.7)
 	_chest(level, parent, body, Vector2i(6, 36), Vector3(0.2, 0, 0.2), -PI * 0.5)
 
 
@@ -644,35 +827,57 @@ static func _page(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i,
 	level.stations.append({"kind": NOTE, "text": text, "pos": mid, "cell": level.world_to_cell(mid), "used": false, "touch": 1.6})
 
 
-## The sealed gate at the end of the old works: a stone door in a hewn frame,
-## iron bands and wedges across it, runes glowing round it. It does not open.
+## The sealed gate at the end of the old works: a stone door behind a grille of iron bars that
+## fills the passage from wall to wall and floor to roof, a heavy chain across it with a padlock,
+## and runes glowing round it. It does not open.
 static func _gate(level: Level, parent: Node3D, body: StaticBody3D) -> void:
 	var stone := HouseLooks.temple_stone()
-	var iron := _mat("iron", IRON, 0.6)
+	var iron := _mat("gate_iron", Color(0.42, 0.42, 0.46), 0.75)
+	var rust := _mat("gate_rust", Color(0.45, 0.26, 0.14), 0.3)
 	var glow := _mat("rune", RUNE_COLOUR, 0.0, 3.0)
 	var base := floor_at(GATE_CELL)
-	var face := base + Vector3(0, 0, -0.8)
-	# The frame: two jambs and a lintel standing out of the wall.
+	var face := base + Vector3(0, 0, -0.85)
+	var high := HouseSketch.DEPTH - 0.1
+	# The frame: two jambs from wall to bars and a lintel under the roof.
 	for side in [-1.0, 1.0]:
-		_box(parent, face + Vector3(side * 0.74, 1.2, 0.05), Vector3(0.3, 2.4, 0.3), stone)
-	_box(parent, face + Vector3(0, 2.42, 0.05), Vector3(1.8, 0.34, 0.34), stone)
-	# The door: dark stone, banded and wedged with iron.
-	_box(parent, face + Vector3(0, 1.12, -0.02), Vector3(1.2, 2.24, 0.2), _mat("gate_stone", Color(0.2, 0.2, 0.23)))
-	for y in [0.45, 1.15, 1.85]:
-		_box(parent, face + Vector3(0, y, 0.1), Vector3(1.26, 0.12, 0.05), iron)
-	for x in [-0.42, 0.42]:
-		var wedge := _box(parent, face + Vector3(x, 1.15, 0.16), Vector3(0.12, 0.5, 0.1), iron)
-		wedge.rotation.x = 0.35
-	# Runes round the door and a faint cold light from them.
+		_box(parent, face + Vector3(side * 0.86, high * 0.5, 0.05), Vector3(0.28, high, 0.34), stone)
+	_box(parent, face + Vector3(0, high - 0.17, 0.05), Vector3(2.0, 0.34, 0.38), stone)
+	# The door behind: dark stone with a glowing rune at its heart.
+	_box(parent, face + Vector3(0, (high - 0.34) * 0.5, -0.06), Vector3(1.44, high - 0.34, 0.16), _mat("gate_stone", Color(0.17, 0.17, 0.2)))
 	for i in 7:
 		var a := float(i) / 6.0 * PI
-		_box(parent, face + Vector3(cos(a) * 0.5, 2.0 + sin(a) * 0.14, 0.11), Vector3(0.07, 0.14, 0.02), glow)
-	_box(parent, face + Vector3(0, 1.15, 0.13), Vector3(0.22, 0.22, 0.02), glow)
+		_box(parent, face + Vector3(cos(a) * 0.5, 1.85 + sin(a) * 0.16, 0.03), Vector3(0.07, 0.14, 0.02), glow)
+	_box(parent, face + Vector3(0, 1.1, 0.03), Vector3(0.26, 0.26, 0.02), glow)
+	# The grille in front: upright bars from the floor to the lintel, three bands across.
+	var bars_z := 0.2
+	for i in 8:
+		var x := -0.63 + i * 0.18
+		_box(parent, face + Vector3(x, (high - 0.34) * 0.5, bars_z), Vector3(0.06, high - 0.34, 0.06), iron)
+		# Spikes at the foot, sunk into the flagstones.
+		_box(parent, face + Vector3(x, 0.04, bars_z), Vector3(0.1, 0.08, 0.1), rust)
+	for y in [0.3, 1.2, 2.0]:
+		_box(parent, face + Vector3(0, y, bars_z + 0.04), Vector3(1.46, 0.1, 0.05), iron)
+	# A heavy chain looped across the bars in an X, and a padlock where it meets.
+	var lock_at := face + Vector3(0, 1.15, bars_z + 0.14)
+	for end in [Vector3(-0.66, 1.9, 0), Vector3(0.66, 1.9, 0), Vector3(-0.66, 0.45, 0), Vector3(0.66, 0.45, 0)]:
+		var from: Vector3 = face + end + Vector3(0, 0, bars_z + 0.1)
+		var links := 6
+		for k in links:
+			var t := (float(k) + 0.5) / float(links)
+			var link := _box(parent, from.lerp(lock_at, t), Vector3(0.1, 0.05, 0.03), rust)
+			var d := lock_at - from
+			# Every other link turned a quarter round its length, as chain links are.
+			link.rotation = Vector3(0.0 if k % 2 == 0 else PI * 0.5, 0, atan2(d.y, d.x))
+	_box(parent, lock_at + Vector3(0, -0.06, 0.02), Vector3(0.26, 0.24, 0.12), _mat("padlock", Color(0.5, 0.42, 0.22), 0.8))
+	_box(parent, lock_at + Vector3(0, 0.1, 0.02), Vector3(0.18, 0.12, 0.04), iron)
+	_box(parent, lock_at + Vector3(0, -0.08, 0.085), Vector3(0.04, 0.08, 0.01), _mat("keyhole", Color(0.05, 0.05, 0.06)))
+	# Light: the runes' cold glow, and a lamp left hanging in front so the gate is seen from afar.
 	var light := OmniLight3D.new()
 	light.light_color = RUNE_COLOUR
-	light.light_energy = 0.9
-	light.omni_range = 5.0
-	light.position = face + Vector3(0, 1.6, 0.8)
+	light.light_energy = 1.6
+	light.omni_range = 6.0
+	light.position = face + Vector3(0, 1.6, 0.9)
 	parent.add_child(light)
-	_solid(body, face + Vector3(0, 1.2, 0), Vector3(1.8, 2.4, 0.4))
+	_lamp(parent, GATE_CELL + Vector2i(0, 1))
+	_solid(body, face + Vector3(0, high * 0.5, 0.1), Vector3(2.0, high, 0.5))
 	level.stations.append({"kind": GATE, "pos": base + Vector3(0, 0, -0.6), "cell": level.world_to_cell(base), "used": false, "touch": 1.6})

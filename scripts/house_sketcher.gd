@@ -1611,7 +1611,7 @@ func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> v
 	var thick := HouseSketch.COVER_THICK
 	var at := house.cell_world(x, y) + Vector3(0, -thick * 0.5, 0)
 	var size := Vector3(HouseSketch.CELL, thick, HouseSketch.CELL)
-	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH)
+	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH, true)
 	_collide(at, size)
 	# The mesh: fades away while the hero is in the cellar below it.
 	var mesh: Node = _solid.get_child(_solid.get_child_count() - 1)
@@ -1644,7 +1644,7 @@ func _solid_above(house: HouseSketch, keys: Array = []) -> void:
 		match piece.kind:
 			HouseSketch.SLAB:
 				var slab := Vector3(HouseSketch.CELL, HouseSketch.SLAB_THICK, HouseSketch.CELL)
-				_floor_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab, "wood", demolish)
+				_floor_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab, "wood", demolish, true)
 				_collide(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab)
 				_cover(house, p[1], p[2], p[0])
 				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK * 0.5)
@@ -1881,20 +1881,35 @@ func _wall_material(surface: String, demolish: bool) -> Material:
 
 ## A floor filling a box `size` big round `middle`: bare earth, the village
 ## square's flagstones or the cattle pen's boards (see HouseLooks). A floor
-## marked for demolition is tinted red.
-func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool) -> void:
+## marked for demolition is tinted red. The floor casts no shadow from the house's
+## lamps (LightShadows.FLOOR); one with a room under it (`lid`: a cellar ceiling, an
+## upper floor) gets a thin shadow-only board at its underside, so the light still
+## stays on its own side of it. The floor is always the last node added.
+func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool, lid := false) -> void:
+	if lid:
+		var under := MeshInstance3D.new()
+		var board := BoxMesh.new()
+		board.size = Vector3(size.x, 0.02, size.z)
+		under.mesh = board
+		under.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		under.position = middle + Vector3(0, _lift - size.y * 0.5 + 0.01, 0)
+		_into.add_child(under)
 	if demolish:
 		_visual_box(middle, size, _solid_material(DEMOLISH_COLOR))
-		return
-	match surface:
-		"stone":
-			_visual_box(middle, size, HouseLooks.flagstones())
-		"wood":
-			var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size)
-			boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
-			_into.add_child(boards)
-		_:
-			_visual_box(middle, size, BareEarth.material())
+	else:
+		match surface:
+			"stone":
+				_visual_box(middle, size, HouseLooks.flagstones())
+			"wood":
+				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size)
+				boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
+				_into.add_child(boards)
+			_:
+				_visual_box(middle, size, BareEarth.material())
+	var drawn := _into.get_child(_into.get_child_count() - 1)
+	drawn.set_meta(LightShadows.FLOOR, true)
+	# Added to the tree before the meta was set: take it off the walls' layer again.
+	(drawn as GeometryInstance3D).layers &= ~LightShadows.WALL_LAYER
 
 
 ## A flat tinted square over a grid cell (the blueprint of a dug cell).

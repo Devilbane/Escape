@@ -1,0 +1,3 @@
+- Built house floors no longer flicker in stripes as you walk over them by lamplight.
+- The sneaking hero no longer glows white near lamps, and the lantern over your head is a little softer.
+- The household shrine's marble is a softer grey-white with fine grey veins instead of glaring white.

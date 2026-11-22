@@ -1,6 +1,10 @@
 shader_type spatial;
+render_mode depth_draw_always;
 // A sneaking hero: any plain part (face, hair, trim, held gear) turns ash grey
 // and see-through. Parts drawn with tint.gdshader use tint_fade.gdshader instead.
+// depth_draw_always (here, in hair_fade and tint_fade): only the hero's front surface takes
+// the light of each lamp. Without it every layer behind (the back of the head, the body
+// under the cape) adds that light again, and the hero glares white near lamps.
 
 uniform sampler2D tex : source_color, filter_linear_mipmap;
 uniform bool use_tex = false;

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep house lamps off the spruces; indoor lamps go first for wall shadows; Walk into the tavern, the shop and the post office | Shipped this week: Line the temple's front with mossy stones; Stop built floors flickering; calm the sneaking hero and the shrine marble (+48 more)
+Escape! dev status | Working on: Keep house lamps off the spruces; indoor lamps go first for wall shadows | Shipped this week: Walk into the tavern, the shop and the post office; Line the temple's front with mossy stones (+48 more)

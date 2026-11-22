@@ -1,0 +1,1 @@
+- Furnishing your house: clicking a piece now picks what you see under the mouse, so a chest at the top of the stairs or under a wall torch can be grabbed and picked up again.

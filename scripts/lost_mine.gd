@@ -624,17 +624,19 @@ static func _tool_store(level: Level, parent: Node3D, body: StaticBody3D) -> voi
 	_piece(level, parent, body, "barrel_small", floor_at(Vector2i(44, 32)) + Vector3(-0.4, 0, 0.4), 0.0, Vector2(0.8, 0.8))
 	_piece(level, parent, body, "barrel_small", floor_at(Vector2i(45, 32)) + Vector3(-0.3, 0, 0.5), 1.0, Vector2(0.8, 0.8))
 	_piece(level, parent, body, "box_large", floor_at(Vector2i(47, 31)) + Vector3(0.3, 0, 0), 0.2, Vector2(1.2, 1.2))
-	# A rack of picks and shovels against the south wall.
+	# A rack of picks and shovels against the east wall (clear of the way out to the south).
 	var wood := _mat("timber", TIMBER)
 	var iron := _mat("iron", IRON, 0.6)
-	var rack := floor_at(Vector2i(46, 32)) + Vector3(0, 0, 0.72)
-	_box(parent, rack + Vector3(0, 1.3, 0), Vector3(1.6, 0.08, 0.12), wood)
+	var turn := PI * 0.5
+	var b := Basis(Vector3.UP, turn)
+	var rack := floor_at(Vector2i(47, 30)) + Vector3(0.72, 0, 0)
+	_box(parent, rack + b * Vector3(0, 1.3, 0), Vector3(1.6, 0.08, 0.12), wood, turn)
 	for i in 4:
 		var x := -0.6 + i * 0.4
-		var handle := _box(parent, rack + Vector3(x, 0.75, -0.08), Vector3(0.06, 1.4, 0.06), wood)
+		var handle := _box(parent, rack + b * Vector3(x, 0.75, -0.08), Vector3(0.06, 1.4, 0.06), wood, turn)
 		handle.rotation.z = 0.08
-		_box(parent, rack + Vector3(x + 0.05, 1.42, -0.08), Vector3(0.5 if i % 2 == 0 else 0.22, 0.07, 0.07), iron)
-	_solid(body, rack + Vector3(0, 0.8, -0.1), Vector3(1.7, 1.6, 0.4))
+		_box(parent, rack + b * Vector3(x + 0.05, 1.42, -0.08), Vector3(0.5 if i % 2 == 0 else 0.22, 0.07, 0.07), iron, turn)
+	_solid(body, rack + b * Vector3(0, 0.8, -0.1), Vector3(0.4, 1.6, 1.7))
 	_chest(level, parent, body, Vector2i(44, 29), Vector3(-0.2, 0, -0.2), PI * 0.5)
 
 

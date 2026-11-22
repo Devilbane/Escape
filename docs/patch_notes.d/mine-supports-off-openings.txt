@@ -1,1 +1,2 @@
 - The silver mine's roof supports no longer stand at room openings, where they looked like bars across the way
+- The rack of picks in the silver mine's tool store no longer blocks the way into the east tunnel

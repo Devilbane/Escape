@@ -29,8 +29,9 @@ const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Ka
 ## else is on the first.
 const SECOND_ROW := [WeaponRack.KIND, "leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
-const LIGHT_ENERGY := 2.4
+const LIGHT_ENERGY := 1.55
 const LIGHT_RANGE := 9.0
+const LAMP_ATTENUATION := 1.3
 ## How far over the ground a light on a flat roof stops reaching (see roof_reach).
 const ROOF_CLEARANCE := 0.4
 ## How far the back of the mounted torch's plate lies behind its origin.
@@ -375,7 +376,8 @@ func _add_light(parent: Node3D, at: Vector3, energy := LIGHT_ENERGY, reach := LI
 	light.light_color = Level.TORCH_COLOUR if flicker else GardenDecor.LAMP_COLOUR
 	light.light_energy = energy
 	light.omni_range = reach
-	light.omni_attenuation = Level.TORCH_ATTENUATION
+	# The steady garden lamp keeps its old, steeper fall-off; only flames burn soft (see Level.TORCH_ENERGY).
+	light.omni_attenuation = Level.TORCH_ATTENUATION if flicker else LAMP_ATTENUATION
 	light.position = at
 	parent.add_child(light)
 	if not flicker:

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Walk into the windmill and meet Korbinian the miller; keepers meet you at their shop | Shipped this week: CI: required check runs only core logic; quests by path, the rest nightly (+49 more)
+Escape! dev status | Working on: Move the winter braziers at the dining tables; Walk into the windmill and meet Korbinian the miller; keepers meet you at their shop | Shipped this week: CI: required check runs only core logic; quests by path, the rest nightly (+49 more)

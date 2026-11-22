@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the shop signs (HangingShield): a big shield on two chains with the shop's
-## mark on both faces, a name that fits written on a board under it (on both sides) and one too
+## mark painted on both faces (a painting with its normal map) in an iron rim, a name that fits written on a board under it (on both sides) and one too
 ## wide left off, every mark buildable, and every sign high enough to walk under.
 ## Run with: godot --headless -s tests/shop_signs.gd
 
@@ -26,9 +26,10 @@ func _initialize() -> void:
 	for sign: Node3D in [short, long, HangingShield.on_wall("tavern", 1.1, true), HangingShield.on_wall("shop", 1.1, false)]:
 		var shield := sign.get_node("Shield") as Node3D
 		check(shield != null, "%s has a shield" % sign.name)
-		var marks := shield.find_children("Mark*", "", false, false)
-		check(marks.size() == 2, "the mark is on both faces (%d)" % marks.size())
-		check((marks[0] as Node3D).scale.x > 2.0, "the mark is painted large")
+		var face := shield.get_node("Face") as MeshInstance3D
+		var mat := face.material_override as StandardMaterial3D
+		check(mat.albedo_texture != null and mat.normal_enabled, "the %s's mark is painted on its face, with relief" % shield.get_meta("mark"))
+		check(shield.has_node("Rim"), "the shield has its iron rim")
 		var chains := 0
 		for mi: MeshInstance3D in sign.find_children("*", "MeshInstance3D", false, false):
 			if mi.mesh is TorusMesh and mi.position.y > shield.position.y:
@@ -39,9 +40,12 @@ func _initialize() -> void:
 	var on_wall_low := VillageHouse.PLINTH + VillageHalls.SIGN_HIGH - HangingShield.CHAIN - HangingShield.TALL
 	check(on_wall_low >= HangingShield.CLEAR - 0.05, "a hall's sign is high enough to walk under (%.2f)" % on_wall_low)
 	for kind: String in HangingShield.LOOKS:
-		var pic := HangingShield.emblem(HangingShield.LOOKS[kind].mark)
-		check(pic.get_child_count() > 0, "the mark of %s has parts" % kind)
-		pic.free()
+		var mark: String = HangingShield.LOOKS[kind].mark
+		check(ResourceLoader.exists(HangingShield.PAINTINGS % [mark, ".jpg"]), "the mark of %s is painted (shield_%s.jpg)" % [kind, mark])
+		check(ResourceLoader.exists(HangingShield.PAINTINGS % [mark, "_n.png"]), "the mark of %s has its relief (shield_%s_n.png)" % [kind, mark])
+	# The painting maps onto the face the right way round on both sides.
+	check(HangingShield.painting_uv(Vector2(-HangingShield.WIDE * 0.5, 0), 1.0).is_equal_approx(Vector2(0, 0)), "the front's top left is the painting's")
+	check(HangingShield.painting_uv(Vector2(-HangingShield.WIDE * 0.5, 0), -1.0).is_equal_approx(Vector2(1, 0)), "the back is mirrored")
 	for kind: String in VillageHalls.KINDS.values():
 		check(HangingShield.LOOKS.has(kind), "the %s has its own shield" % kind)
 	check(Geometry2D.triangulate_polygon(HangingShield.outline()).size() > 0, "the shield's outline can be filled")

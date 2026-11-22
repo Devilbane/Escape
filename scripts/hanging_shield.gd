@@ -21,8 +21,11 @@ const CLEAR := 2.0
 ## The post: how tall, and how far its arm reaches out sideways (along +x).
 const POST_HIGH := 3.8
 const ARM_OUT := 1.35
-## How big the mark is painted on the shield, against the 0.3 m pictures of Effects.sign_icon.
-const MARK_SCALE := 2.5
+## The painted faces (see tools/make_shield_paintings.py): shield_<mark>.jpg and its normal map.
+const PAINTINGS := "res://assets/signs/shield_%s%s"
+## How far the rim's inner edge stands proud of the painted face, and how far apart its rivets are.
+const RIM_RISE := 0.018
+const RIVET_EVERY := 0.16
 
 ## The shield's field and the mark on it for each kind of place. The marks are pictures of
 ## Effects.sign_icon, or the extra ones drawn here (see emblem).
@@ -147,20 +150,43 @@ static func post_low_point(with_name: bool) -> float:
 	return shield_top - TALL * 0.78 - 0.13 if with_name else shield_top - TALL
 
 
-## The shield alone, its top middle at the origin, facing +z, with its mark on both faces.
+## The shield alone, its top middle at the origin, facing +z: a board painted with its mark on
+## both faces (see face_material), framed by a bevelled iron rim with rivets.
 static func shield_of(kind: String) -> Node3D:
 	var look := look_of(kind)
 	var shield := Node3D.new()
 	shield.name = "Shield"
 	shield.set_meta("mark", look.mark)
 	var field := MeshInstance3D.new()
+	field.name = "Face"
 	field.mesh = _shield()
-	field.material_override = _mat("field_%s" % look.field.to_html(), look.field, 0.75, 0.0, true)
+	field.material_override = face_material(look.mark, look.field)
 	shield.add_child(field)
+	var iron := _mat("rim_iron", Color(0.24, 0.23, 0.24), 0.5, 0.75, true)
 	var rim := MeshInstance3D.new()
+	rim.name = "Rim"
 	rim.mesh = _rim()
-	rim.material_override = _mat("rim", Color(0.55, 0.45, 0.3), 0.4, 0.7, true)
+	rim.material_override = iron
 	shield.add_child(rim)
+	# Rivets round the rim on both faces.
+	var rivet := SphereMesh.new()
+	rivet.radius = 0.022
+	rivet.height = 0.03
+	rivet.radial_segments = 8
+	rivet.rings = 4
+	var line := outline(RIM * 0.15)
+	var along := 0.0
+	var next := 0.0
+	for i in line.size():
+		var a := line[i]
+		var b := line[(i + 1) % line.size()]
+		var step := a.distance_to(b)
+		while next <= along + step:
+			var at := a.lerp(b, (next - along) / maxf(step, 0.0001))
+			for side: float in [1.0, -1.0]:
+				shield.add_child(_part(rivet, iron, Vector3(at.x, at.y, side * (THICK * 0.5 + RIM_RISE)), Basis(), Vector3(1, 1, 0.6)))
+			next += RIVET_EVERY
+		along += step
 	# Two rings on the top edge for the chains.
 	for x: float in [-WIDE * 0.38, WIDE * 0.38]:
 		var ring := TorusMesh.new()
@@ -169,13 +195,6 @@ static func shield_of(kind: String) -> Node3D:
 		ring.rings = 10
 		ring.ring_segments = 5
 		shield.add_child(_part(ring, _mat("iron", Color(0.18, 0.18, 0.2), 0.45, 0.6), Vector3(x, 0.02, 0), Basis(Vector3.UP, PI * 0.5) * Basis(Vector3.RIGHT, PI * 0.5)))
-	for side: float in [1.0, -1.0]:
-		var mark := emblem(look.mark)
-		mark.name = "Mark" if side > 0 else "MarkBack"
-		mark.scale = Vector3.ONE * MARK_SCALE
-		mark.position = Vector3(0, -TALL * 0.42, side * (THICK * 0.5 + 0.01))
-		mark.rotation.y = 0.0 if side > 0 else PI
-		shield.add_child(mark)
 	return shield
 
 
@@ -332,8 +351,65 @@ static func _shield() -> ArrayMesh:
 
 static func _rim() -> ArrayMesh:
 	if _rim_mesh == null:
-		_rim_mesh = _slab(outline(RIM), THICK * 0.6)
+		_rim_mesh = _frame(outline(), outline(RIM), THICK * 0.5)
 	return _rim_mesh
+
+
+## The painted face of a shield with `mark` (its painting, with relief from the normal map), or the
+## plain `field` colour when no painting was made for it.
+static func face_material(mark: String, field: Color) -> StandardMaterial3D:
+	var key := "face_" + mark
+	if _mats.has(key):
+		return _mats[key]
+	var path := PAINTINGS % [mark, ".jpg"]
+	if not ResourceLoader.exists(path):
+		return _mat("field_%s" % field.to_html(), field, 0.75, 0.0, true)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(path)
+	mat.roughness = 0.78
+	var normals := PAINTINGS % [mark, "_n.png"]
+	if ResourceLoader.exists(normals):
+		mat.normal_enabled = true
+		mat.normal_texture = load(normals)
+		mat.normal_scale = 1.0
+	_mats[key] = mat
+	return mat
+
+
+## An iron frame round the shield: between the `inner` outline (the board's edge) and the `outer`
+## one, its inner edge standing RIM_RISE proud of both faces and sloping down outwards (a bevel).
+## `half` is half the board's thickness. Both outlines have the same number of points.
+static func _frame(inner: PackedVector2Array, outer: PackedVector2Array, half: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hi := half + RIM_RISE
+	var lo := half * 0.7
+	for i in inner.size():
+		var j := (i + 1) % inner.size()
+		var a := inner[i]
+		var b := inner[j]
+		var c := outer[j]
+		var d := outer[i]
+		for side: float in [1.0, -1.0]:
+			var ai := Vector3(a.x, a.y, hi * side)
+			var bi := Vector3(b.x, b.y, hi * side)
+			var co := Vector3(c.x, c.y, lo * side)
+			var do_ := Vector3(d.x, d.y, lo * side)
+			var quad := [ai, co, bi, ai, do_, co] if side > 0 else [ai, bi, co, ai, co, do_]
+			for v: Vector3 in quad:
+				st.add_vertex(v)
+			# The inner wall down to the painted face.
+			var af := Vector3(a.x, a.y, half * side)
+			var bf := Vector3(b.x, b.y, half * side)
+			var wall := [ai, bi, bf, ai, bf, af] if side > 0 else [ai, bf, bi, ai, af, bf]
+			for v: Vector3 in wall:
+				st.add_vertex(v)
+		# The outer edge across the thickness.
+		for v: Vector3 in [Vector3(d.x, d.y, lo), Vector3(c.x, c.y, -lo), Vector3(c.x, c.y, lo),
+				Vector3(d.x, d.y, lo), Vector3(d.x, d.y, -lo), Vector3(c.x, c.y, -lo)]:
+			st.add_vertex(v)
+	st.generate_normals()
+	return st.commit()
 
 
 ## A flat slab of the outline `pts`, `thick` deep (centred on z = 0): both faces and the edge.
@@ -347,6 +423,7 @@ static func _slab(pts: PackedVector2Array, thick: float) -> ArrayMesh:
 		for i in range(0, tris.size(), 3):
 			var order := [tris[i], tris[i + 1], tris[i + 2]] if side < 0 else [tris[i], tris[i + 2], tris[i + 1]]
 			for k: int in order:
+				st.set_uv(painting_uv(pts[k], side))
 				st.add_vertex(Vector3(pts[k].x, pts[k].y, h * side))
 	for i in pts.size():
 		var a := pts[i]
@@ -355,8 +432,18 @@ static func _slab(pts: PackedVector2Array, thick: float) -> ArrayMesh:
 		st.set_normal(n)
 		for v: Vector3 in [Vector3(a.x, a.y, h), Vector3(b.x, b.y, h), Vector3(b.x, b.y, -h),
 				Vector3(a.x, a.y, h), Vector3(b.x, b.y, -h), Vector3(a.x, a.y, -h)]:
+			st.set_uv(painting_uv(Vector2(v.x, v.y), 1.0))
 			st.add_vertex(v)
+	st.generate_tangents()
 	return st.commit()
+
+
+## Where a point of the shield's face (x, y; its top middle at the origin) lies on its painting:
+## the painting spans WIDE across and TALL down. The back face (`side` -1) is mirrored, so the
+## mark reads the right way round from behind too.
+static func painting_uv(p: Vector2, side: float) -> Vector2:
+	var u := clampf(p.x / WIDE + 0.5, 0.0, 1.0)
+	return Vector2(u if side > 0 else 1.0 - u, clampf(-p.y / TALL, 0.0, 1.0))
 
 
 static func _mat(key: String, colour: Color, roughness := 0.8, metallic := 0.0, both_faces := false) -> StandardMaterial3D:

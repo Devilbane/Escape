@@ -78,6 +78,14 @@ func _run() -> void:
 		# The sign is high enough to walk under, and stands clear of the way to the door.
 		var sign := _sign_near(lvl, front)
 		check(sign != null, "the %s has a hanging sign" % name)
+		if sign != null and _wanted(name):
+			# Face to face with the shield, to see its painting.
+			var shield := sign.get_node("Shield") as Node3D
+			var mid := shield.global_position + shield.global_basis.y * -HangingShield.TALL * 0.5
+			var face := shield.global_basis.z.normalized()
+			if face.dot(Vector3(0, 0, 1)) < 0.0 and absf(face.z) > 0.5:
+				face = -face
+			await _shot(name + "_sign", mid + face * 2.3 + Vector3(0, 0.4, 0), mid)
 		if sign != null:
 			var low := INF
 			var hanging := sign.get_node("Shield").find_children("*", "MeshInstance3D", true, false)

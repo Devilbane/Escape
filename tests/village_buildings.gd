@@ -105,7 +105,9 @@ func _run() -> void:
 						seen[c + Vector2i(dx, dy)] = true
 	check(blocks > 0, "the village has house blocks")
 	check(houses.size() == blocks, "every house block gets a half-timbered house (%d of %d)" % [houses.size(), blocks])
-	check(lvl.spots.houses.size() + lvl.own_homes.size() == blocks and lvl.own_homes.size() == own, "every house has a door the villagers walk to")
+	# Ragna's home is the guildhall (see GuildHall), not a house block.
+	var halls := 1 if lvl.own_homes.has(VillageHalls.KEEPERS.guild) else 0
+	check(lvl.spots.houses.size() + lvl.own_homes.size() - halls == blocks and lvl.own_homes.size() - halls == own, "every house has a door the villagers walk to")
 	var looks := {}
 	for house in houses:
 		var box := _bounds(house)

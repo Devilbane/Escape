@@ -99,6 +99,8 @@ const NAVE_FRONT := 10.3
 ## A building's walls, by the way they face in its own frame: the front (its door, +z), the back,
 ## its left (-x) and right (+x).
 const SIDES := ["front", "back", "left", "right"]
+## The walls of an upper storey one walks into (the guildhall's, see GuildHall), by side.
+const STOREY_SIDES := ["storey_front", "storey_back", "storey_left", "storey_right"]
 const SIDE_NORMALS := {"front": Vector3(0, 0, 1), "back": Vector3(0, 0, -1), "left": Vector3(-1, 0, 0), "right": Vector3(1, 0, 0)}
 ## How near a wall (metres) a leaf of ivy counts as growing on it (see split_ivy).
 const ON_WALL := 0.45
@@ -146,6 +148,19 @@ func claim(node: Node3D, kind: String, block: Rect2i) -> Dictionary:
 		rec["wall_out"] = d * 0.5
 		rec["upper_from"] = rec.top - 0.3
 		rec["front_from"] = d * 0.5 - 0.4
+		if bool(shape.get("flat", false)):
+			# Two storeys and a roof one walks on, a cellar under them (see GuildHall): the hero is
+			# inside up to over the parapet, and the storey they stand on shows (see _show_storey).
+			var lay := GuildHall.layout(shape)
+			rec["wall_high"] = rec.top
+			rec["storey"] = GuildHall.GROUND_STOREY
+			rec["high"] = float(lay.deck) + 2.5
+			rec["eaves"] = lay.eaves
+			rec["deck"] = lay.deck
+			rec["storey_room"] = []
+			for side: String in STOREY_SIDES:
+				rec[side] = []
+				rec["ivy_" + side] = {}
 	else:
 		rec["room"] = NAVE
 		rec["floor"] = NAVE_FLOOR + 0.03
@@ -192,6 +207,11 @@ func split_ivy(node: Node3D, leaves: Dictionary) -> Dictionary:
 			var into: Dictionary = stay
 			if at.y >= float(rec.upper_from):
 				into = rec.ivy_up
+				if rec.has("storey_room") and at.y < float(rec.eaves):
+					# On a wall of an upper storey one walks into: it hides with that wall.
+					var up_side := _side_of(rec, at)
+					if up_side != "":
+						into = rec["ivy_storey_" + up_side]
 			elif rec.has("sided"):
 				var side := _side_of(rec, at)
 				if side != "":
@@ -228,7 +248,7 @@ func plant_ivy(ivy: Node3D) -> void:
 		return
 	for i in buildings.size():
 		var rec: Dictionary = buildings[i]
-		for group: String in ["up"] + SIDES:
+		for group: String in ["up"] + SIDES + STOREY_SIDES:
 			if not rec.has("ivy_" + group):
 				continue
 			var leaves: Dictionary = rec["ivy_" + group]
@@ -273,6 +293,10 @@ func open_house(house: Node3D) -> void:
 	if rec.has("sided"):
 		for side: String in ["back", "left", "right"]:
 			rec[side].append(meshes[side])
+	if rec.has("storey_room"):
+		rec.storey_room.append(meshes.storey_room)
+		for side: String in STOREY_SIDES:
+			rec[side].append(meshes[side])
 	var leaf: HouseDoor = house.get_meta("door_leaf")
 	rec.front.append(leaf)
 	rec["leaf"] = leaf
@@ -284,19 +308,23 @@ func open_house(house: Node3D) -> void:
 	var floor_y: float = rec.floor
 	var out := 0.15
 	# The walls, from their inner faces to a little past the outer ones, and the floor. Up to the
-	# floor above where one can climb to it (its own walls stand further out, on the jetty).
-	var high := float(rec.top) - UPPER_SLAB if upper else 4.0
-	_solid(rec, Vector3(0, high * 0.5, -d * 0.5 + (t - out) * 0.5), Vector3(w + out * 2.0, high, t + out))
+	# floor above where one can climb to it (its own walls stand further out, on the jetty), or up to
+	# the floor above in a hall with an upper storey one walks into (GuildHall lays its own floor,
+	# open over the stairs down).
+	var high := float(rec.top) - UPPER_SLAB if upper else float(rec.get("wall_high", 4.0))
+	var mid := high * 0.5
+	_solid(rec, Vector3(0, mid, -d * 0.5 + (t - out) * 0.5), Vector3(w + out * 2.0, high, t + out))
 	for s: float in [-1.0, 1.0]:
-		_solid(rec, Vector3(s * (w * 0.5 + (out - t) * 0.5), high * 0.5, 0), Vector3(t + out, high, d + out * 2.0))
+		_solid(rec, Vector3(s * (w * 0.5 + (out - t) * 0.5), mid, 0), Vector3(t + out, high, d + out * 2.0))
 	var gap_l := door_x - DOOR_GAP * 0.5
 	var gap_r := door_x + DOOR_GAP * 0.5
 	var z_front := d * 0.5 + (out - t) * 0.5
-	_solid(rec, Vector3((-w * 0.5 - out + gap_l) * 0.5, high * 0.5, z_front), Vector3(gap_l + w * 0.5 + out, high, t + out))
-	_solid(rec, Vector3((w * 0.5 + out + gap_r) * 0.5, high * 0.5, z_front), Vector3(w * 0.5 + out - gap_r, high, t + out))
+	_solid(rec, Vector3((-w * 0.5 - out + gap_l) * 0.5, mid, z_front), Vector3(gap_l + w * 0.5 + out, high, t + out))
+	_solid(rec, Vector3((w * 0.5 + out + gap_r) * 0.5, mid, z_front), Vector3(w * 0.5 + out - gap_r, high, t + out))
 	if upper:
 		_upper_solids(rec, w + VillageHouse.JETTY * 2.0, d + VillageHouse.JETTY * 2.0, hatch)
-	_solid(rec, Vector3(0, floor_y * 0.5, 0), Vector3(w, floor_y, d))
+	if not rec.has("storey_room"):
+		_solid(rec, Vector3(0, floor_y * 0.5, 0), Vector3(w, floor_y, d))
 	rec["door_shape"] = _solid(rec, Vector3(door_x, 1.4, d * 0.5 - t * 0.5), Vector3(DOOR_GAP, 2.8, t))
 	_ramp(rec, door_x, d * 0.5, floor_y)
 	if rec.kind == "house" and rec.has("owner"):
@@ -754,7 +782,11 @@ func building_at(pos: Vector3, margin := 0.0) -> Dictionary:
 		var node: Node3D = rec.node
 		var p := node.global_transform.affine_inverse() * pos
 		var room: Rect2 = rec.room
-		if p.y > float(rec.top) - UPPER_FROM:
+		if rec.has("high"):
+			# A hall of several storeys (the guildhall): its room from the cellar up to the deck.
+			if p.y > float(rec.high):
+				continue
+		elif p.y > float(rec.top) - UPPER_FROM:
 			# Up on the floor above one can climb to: its room, on the jetty, up to the eaves.
 			if rec.has("up_room") and p.y < float(rec.top) + VillageHouse.UPPER:
 				var up := room.grow(VillageHouse.JETTY)
@@ -783,11 +815,20 @@ func hero_upstairs_in(rec: Dictionary) -> bool:
 
 ## Whether a point lies in a room, out of the weather.
 func covers(pos: Vector3) -> bool:
-	return not building_at(pos).is_empty()
+	var rec := building_at(pos)
+	if rec.is_empty():
+		return false
+	if rec.has("deck"):
+		# Up on a roof one walks on (the guildhall's) the weather falls on the hero.
+		var p := (rec.node as Node3D).global_transform.affine_inverse() * pos
+		return p.y < float(rec.deck) - 0.3
+	return true
 
 
 ## How high the floor is at `pos` (world) for someone walking in: the boards in a room and its
-## doorway, the ramp up to a house door, the ground elsewhere.
+## doorway, the ramp up to a house door, the ground elsewhere. In a hall of several storeys (the
+## guildhall, see GuildHall) `pos.y` tells which: the floor nearest under someone whose feet are
+## about there, or the steps of the flight they are on.
 func floor_at(pos: Vector3) -> float:
 	for rec in buildings:
 		if not rec.get("opened", false):
@@ -799,6 +840,8 @@ func floor_at(pos: Vector3) -> float:
 		var in_door := absf(p.x - door.x) <= DOOR_GAP * 0.5 / node.scale.x + 0.2
 		var wall_out: float = rec.wall_out
 		var floor_y: float = rec.floor
+		if rec.has("layout") and room.grow(VillageHouse.JETTY).has_point(Vector2(p.x, p.z)):
+			return node.global_position.y + GuildHall.floor_y(rec.layout, p) * node.scale.y
 		if rec.has("up_room") and p.y > float(rec.top) - UPPER_FROM and room.grow(VillageHouse.JETTY).has_point(Vector2(p.x, p.z)):
 			return node.global_position.y + (float(rec.top) + VillageHouse.FLOOR_LIFT) * node.scale.y
 		if room.has_point(Vector2(p.x, p.z)) or (in_door and p.z >= room.end.y and p.z <= wall_out):
@@ -828,7 +871,7 @@ func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 	var best := {}
 	var best_d := reach
 	for rec in buildings:
-		if rec.kind != "house" or not rec.get("opened", false):
+		if (rec.kind != "house" and not rec.has("owner")) or not rec.get("opened", false):
 			continue
 		var owner := String(rec.get("owner", ""))
 		if owner != "" and owner != role:
@@ -854,11 +897,13 @@ func route(from: Vector3, to: Vector3) -> Array[Vector3]:
 	if a.is_empty() and b.is_empty():
 		return out
 	if not a.is_empty() and a.get("node") == b.get("node"):
+		out.append_array(_between_storeys(a, from, to))
 		out.append(to)
 		return out
 	var start := from
 	if not a.is_empty():
 		var way := door_points(a)
+		out.append_array(_between_storeys(a, from, way[1]))
 		out.append(way[1])
 		out.append(way[0])
 		start = way[0]
@@ -873,7 +918,23 @@ func route(from: Vector3, to: Vector3) -> Array[Vector3]:
 	if not b.is_empty():
 		out.append(way_in[0])
 		out.append(way_in[1])
+		out.append_array(_between_storeys(b, way_in[1], to))
 	out.append(to)
+	return out
+
+
+## The way up or down the stairs of a hall of several storeys (the guildhall, see GuildHall.way)
+## from the storey of `from` to that of `to` (world), or nothing.
+func _between_storeys(rec: Dictionary, from: Vector3, to: Vector3) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	if not rec.has("layout"):
+		return out
+	var node: Node3D = rec.node
+	var to_local := node.global_transform.affine_inverse()
+	var a := GuildHall.storey_of(rec.layout, (to_local * from).y)
+	var b := GuildHall.storey_of(rec.layout, (to_local * to).y)
+	for p: Vector3 in GuildHall.way(rec.layout, a, b):
+		out.append(node.global_transform * p)
 	return out
 
 
@@ -895,7 +956,10 @@ func tick(hero: Node3D, delta: float) -> void:
 		hero_in = now
 		hero_up = up
 		if not hero_in.is_empty():
+			_storey_of_hero(hero_in, at)
 			_show_inside(hero_in, true, up)
+	elif not hero_in.is_empty() and _storey_of_hero(hero_in, at):
+		_show_inside(hero_in, true, hero_up)
 	var cam := level.get_viewport().get_camera_3d() if level.is_inside_tree() else null
 	for rec in buildings:
 		if not rec.get("opened", false):
@@ -943,7 +1007,7 @@ func _covers(rec: Dictionary, cam: Vector3, hero_at: Vector3) -> bool:
 	var shape: Dictionary = node.get_meta("shape")
 	var out := VillageHouse.JETTY + VillageHouse.ROOF_OVERHANG
 	var top: float = rec.top
-	var high := VillageHouse.UPPER + float(shape.ridge) * 1.3
+	var high := VillageHouse.UPPER + (GuildHall.PARAPET + 0.3 if bool(shape.get("flat", false)) else float(shape.ridge) * 1.3)
 	var box := AABB(Vector3(-float(shape.w) * 0.5 - out, top, -float(shape.d) * 0.5 - out),
 			Vector3(float(shape.w) + out * 2.0, high, float(shape.d) + out * 2.0))
 	var to_local := node.global_transform.affine_inverse()
@@ -954,16 +1018,45 @@ func _covers(rec: Dictionary, cam: Vector3, hero_at: Vector3) -> bool:
 	return true
 
 
+## Notes which storey of a hall of several storeys (the guildhall) the hero at `at` stands on; true
+## when it changed.
+func _storey_of_hero(rec: Dictionary, at: Vector3) -> bool:
+	if not rec.has("layout"):
+		return false
+	var y := ((rec.node as Node3D).global_transform.affine_inverse() * at).y
+	var storey := GuildHall.storey_of(rec.layout, y)
+	if storey == int(rec.storey):
+		return false
+	rec.storey = storey
+	return true
+
+
 ## Shows the floor above and the roof unless the hero is inside or behind it (see _mind_cover).
 ## Up on the floor above of a house with one (see is_upstairs), its back and side walls and its
-## room show while its roof and its front wall stay hidden.
+## room show while its roof and its front wall stay hidden. In a hall of several storeys (the
+## guildhall) the storey the hero stands on shows, without whichever of its walls face the
+## camera, and nothing above it does: on the roof everything shows.
 func _show_up(rec: Dictionary) -> void:
 	var inside := bool(rec.inside)
 	var up := bool(rec.get("hero_up", false))
 	var off := not inside and bool(rec.get("roof_off", false))
+	var shown := not inside and not off
+	if rec.has("storey_room"):
+		var storey := int(rec.storey)
+		var room_shown := shown or (inside and storey >= GuildHall.UPPER_STOREY)
+		for part in rec.storey_room:
+			if is_instance_valid(part):
+				(part as Node3D).visible = room_shown
+		for side: String in SIDES:
+			var hide := not room_shown or (inside and storey == GuildHall.UPPER_STOREY and _faces_camera(rec, side))
+			for part in rec["storey_" + side]:
+				if is_instance_valid(part):
+					(part as Node3D).visible = not hide
+		if inside:
+			shown = storey == GuildHall.ROOF_STOREY
 	for part in rec.up:
 		if is_instance_valid(part):
-			(part as Node3D).visible = not inside and not off
+			(part as Node3D).visible = shown
 	for part in rec.get("up_walls", []):
 		if is_instance_valid(part):
 			(part as Node3D).visible = (not inside or up) and not off
@@ -982,18 +1075,27 @@ func _show_inside(rec: Dictionary, inside: bool, up := false) -> void:
 	rec.inside = inside
 	rec["hero_up"] = up
 	_show_up(rec)
+	var storey := int(rec.get("storey", 0))
+	if rec.has("layout"):
+		# Down in the cellar the whole hall is out of the way (CellarView hides the rest up there).
+		(rec.node as Node3D).visible = not (inside and storey == GuildHall.CELLAR_STOREY)
+		for key: int in rec.get("storey_lamps", {}):
+			var light: Light3D = rec.storey_lamps[key]
+			if is_instance_valid(light):
+				light.visible = inside and (key == storey or (key == GuildHall.CELLAR_STOREY and storey == GuildHall.GROUND_STOREY))
 	for side: String in SIDES:
 		if not rec.has(side):
 			continue
 		# A house hides its front (its door faces the street, towards the camera); a hall hides
-		# whichever walls face the camera.
-		var hide := inside and not up and (not rec.has("sided") or _faces_camera(rec, side))
+		# whichever walls face the camera. Upstairs (in a house, or in a hall of several storeys)
+		# the walls below stand.
+		var hide := inside and not up and storey == GuildHall.GROUND_STOREY and (not rec.has("sided") or _faces_camera(rec, side))
 		for part in rec[side]:
 			if is_instance_valid(part):
 				(part as Node3D).visible = not hide
 	var lamp: OmniLight3D = rec.get("lamp")
 	if lamp:
-		lamp.visible = inside
+		lamp.visible = inside and storey == GuildHall.GROUND_STOREY
 		lamp.position.y = float(rec.top) - 0.6 + (VillageHouse.UPPER if up else 0.0)
 	for glow in rec.get("glows", []):
 		if is_instance_valid(glow):

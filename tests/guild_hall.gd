@@ -165,6 +165,19 @@ func _run() -> void:
 	check(lvl.walk_in.covers(game.player.global_position), "the cellar is out of the weather")
 	if view != null:
 		check(view.active, "and the cellar shows as one under the ground (see CellarView)")
+		# Whoever stands on the ground floor over the cellar (Ragna at her desk) is out of sight.
+		check(not lvl.hero_sees(hall.global_transform * Vector3(0.5, lay.floor, -1.0)), "from the cellar the hero does not see the hall's floor above")
+		check(lvl.hero_sees(hall.global_transform * Vector3(1.5, GuildHall.CELLAR, 1.0)), "but sees whoever is down in the cellar")
+		# The earth's skirt hangs behind the cellar's stone walls, not in their plane (no flicker).
+		var skirt_in := INF
+		for mesh: MeshInstance3D in view.find_children("*", "MeshInstance3D", true, false):
+			if not mesh.material_override is ShaderMaterial:
+				continue
+			for p: Vector3 in mesh.mesh.get_faces():
+				if p.y < -0.1:
+					var local := hall.global_transform.affine_inverse() * (mesh.global_transform * p)
+					skirt_in = minf(skirt_in, maxf(absf(local.x), absf(local.z)) - GuildHall.HOLE)
+		check(skirt_in > 0.02 and skirt_in < 1.0, "the earth round the cellar hangs behind its walls, not in their plane (%.3f m)" % skirt_in)
 	reached = await _walk(way[0], 40.0)
 	check(reached, "and back out of the door (at %s)" % [game.player.global_position])
 	await _wait(3)

@@ -97,7 +97,13 @@ func _run() -> void:
 	var flags := 0
 	var stair_boards := 0
 	var planks := 0
+	# Only the hero's own house (the bank, see BankVault, is drawn into the same layer).
+	var low := plan.node_world(0, 0)
+	var high := plan.node_world(n.x, n.y)
+	var mine := Rect2(Vector2(minf(low.x, high.x), minf(low.z, high.z)), Vector2(absf(high.x - low.x), absf(high.z - low.z))).grow(0.5)
 	for m: MeshInstance3D in sketcher._solid.find_children("*", "MeshInstance3D", false, false):
+		if not mine.has_point(Vector2(m.global_position.x, m.global_position.z)):
+			continue
 		if m.material_override == HouseLooks.temple_stone():
 			stone += 1
 		elif m.material_override == HouseLooks.flagstones():

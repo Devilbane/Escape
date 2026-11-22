@@ -1302,6 +1302,7 @@ func _say(text: String) -> void:
 
 func _clear(node: Node3D) -> void:
 	for child in node.get_children():
+		node.remove_child(child)
 		child.queue_free()
 	_hover_key = ""
 
@@ -1319,6 +1320,7 @@ func _redraw() -> void:
 		_guns.remove_child(gun)
 		gun.queue_free()
 	for child in _body.get_children():
+		_body.remove_child(child)
 		child.queue_free()
 	if game == null or not game.level is Outdoor:
 		return

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Furnishing tool: pick the piece the mouse is on, not the floor under it | Shipped this week: Paint the shop shields by hand; Add a final scream when someone falls in a fight; Silver mine: the hut's entrance as a ruin (+47 more)
+Escape! dev status | Working on: No snow on the furniture in the hero's house; Furnishing tool: pick the piece the mouse is on, not the floor under it | Shipped this week: Paint the shop shields by hand; Add a final scream when someone falls in a fight; Silver mine: the hut's entrance as a ruin (+47 more)

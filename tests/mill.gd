@@ -72,7 +72,7 @@ func _run() -> void:
 	var rec: Dictionary = mills[0]
 	var tower: Node3D = null
 	for part in rec.up:
-		if part is Node3D and String((part as Node3D).name) == "MillTower":
+		if part is Node3D and (part as Node3D).has_meta("mill_tower"):
 			tower = part
 	check(tower != null, "the kit's tower stands on the mill's stone storey and hides with its floor above")
 	var turning: Windmill = null

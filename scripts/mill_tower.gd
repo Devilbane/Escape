@@ -27,7 +27,8 @@ static func raise(mill: Node3D, put: Callable) -> Node3D:
 	var top := VillageHouse.PLINTH + VillageHouse.GROUND
 	var at := mill.transform * Vector3(0, top - CUT * s, 0)
 	var node: Node3D = put.call(MODEL, at, mill.rotation.y, s)
-	node.name = "MillTower"
+	# Its name stays the kit's (building_...), so it is aged and checked like the other kit buildings.
+	node.set_meta("mill_tower", true)
 	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
 		if String(mi.name) == MODEL:
 			mi.mesh = cut_below(mi.mesh, CUT)

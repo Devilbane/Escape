@@ -5,6 +5,7 @@ const EN := {
 	"Müller Korbinian": "Korbinian the Miller",
 	"Müller": "Miller",
 	"Mühle": "Mill",
+	"Will, dass sein Stein nie stillsteht und das ganze Dorf sein Brot aus seinem Mehl backt.": "Wants his stone never to stand still and the whole village to bake its bread from his flour.",
 	"Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.": "Flour for the tavern, grain for the chicks: the mill grinds for everyone.",
 	"Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.": "Hear the sails? As long as the wind blows, my stone never stands still.",
 	"Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche.": "The chicks in the nests on the roofs are peeping for grain. I have some.",

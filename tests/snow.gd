@@ -161,6 +161,12 @@ func _world() -> void:
 		var centre := (rec.node as Node3D).global_position
 		check(room.has_point(Vector2(centre.x, centre.z)) and room.get_area() < block_area * 0.7, "%s keeps only its rooms bare (%s of a %.0f m² block)" % [rec.kind, room.size, block_area])
 	check(rooms >= 3 and bool(shaded.get_shader_parameter("rooms_on")), "the snow knows the rooms of the houses (%d)" % rooms)
+	# The temple keeps only its nave bare, not the grass round it.
+	for rec in lvl.walk_in.buildings:
+		if rec.kind == "temple":
+			var nave := lvl.temple_room(rec.node)
+			var block_area := float((rec.block as Rect2i).get_area()) * Outdoor.TILE * Outdoor.TILE
+			check(nave.has_area() and nave.get_area() < block_area * 0.7, "the temple keeps only its nave bare (%s of a %.0f m² block)" % [nave.size, block_area])
 	# Every storey under their roof is inside: the mask reaches up to the eaves, so no snow lies on
 	# the upper floor's furniture and stairs (the guildhall's first floor).
 	var mask: Texture2D = shaded.get_shader_parameter("room_mask")

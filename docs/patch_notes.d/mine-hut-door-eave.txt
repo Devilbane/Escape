@@ -1,0 +1,1 @@
+- Fixed: walking out of a built house's door no longer bumps the hero's head on the roof's eave, and the old mine hut can be entered again. Its entrance now has hewn, textured stonework and stone gables.

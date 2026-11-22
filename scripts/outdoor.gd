@@ -328,6 +328,9 @@ var spots := {"houses": [], "square": [], "well": [], "market": []}
 ## The door spots of houses that belong to one villager alone (see SmithCottage), by role: they go
 ## home to theirs at night, and nobody else does.
 var own_homes := {}
+## The holes in the ground under the halls with a cellar (the guildhall's, see GuildHall): Rect2
+## of x, z on the 2 m lattice, cut open with the house cellars' (see HouseSketcher._redraw).
+var hall_holes: Array = []
 ## The village houses' chimneys: each house's door spot (as in spots.houses)
 ## and the plume of smoke over its roof (see ChimneySmoke).
 var chimneys: Array[Dictionary] = []
@@ -2373,6 +2376,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
 	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
 	doors[ch] = front
+	if ch == "w" and walk_in.has(node):
+		# Ragna sleeps in the guildhall's cellar (see GuildHall).
+		own_homes[VillageHalls.KEEPERS.guild] = front
 	if ch != "R" and ch != "h" and ch != "ß":
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})

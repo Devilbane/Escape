@@ -1,7 +1,7 @@
 class_name WalkInFurniture
 extends RefCounted
 ## The furniture of the village buildings one can walk into (see WalkIn), made of plain boxes at load
-## time: a ladder up to the floor above in the villagers' houses, and the temple's pews, altar
+## time: a ladder up to the floor above and a table, shelf and stores in the villagers' houses, and the temple's pews, altar
 ## and flagstone floor. Their beds are CosyBeds.
 
 ## The altar: a block of pale stone (metres across, high, deep) with a cloth over it.
@@ -11,9 +11,9 @@ const PEW_DEPTH := 0.7
 const PEW_STEP := 1.45
 const SEAT := 0.48
 const BACK := 1.0
-## The ladder: how far apart its rails stand and its rungs climb.
+## The ladder: how far apart its rails stand, and how far in front of the hatch's edge.
 const LADDER_WIDE := 0.5
-const RUNG_STEP := 0.32
+const LADDER_BEFORE := 0.18
 
 static var _mats := {}
 
@@ -50,24 +50,20 @@ static func _box(parent: Node3D, size: Vector3, at: Vector3, mat: Material, turn
 	return mi
 
 
-## A wooden ladder leaning on a side wall from the floor at `floor_y` up to `top` (the floor above);
-## `side` is the way to that wall (-1 left, 1 right). Its own origin is at the wall's foot.
-static func ladder(floor_y: float, top: float, side: float) -> Node3D:
+## An upright wooden ladder up to the hatch of the floor above, `tall` metres from the floor to the
+## hatch's edge, for the villagers to climb the way the hero climbs a built ladder (see LadderPose):
+## its origin is on the floor under that edge, the climb goes along +x, the rails stand
+## LADDER_BEFORE in front of the edge and a rung comes every LadderPose.RUNG from the floor up.
+static func upright_ladder(tall: float) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Ladder"
-	var foot := Vector3(-side * 0.35, floor_y, 0)
-	var head := Vector3(side * 0.12, top, 0)
-	var along := head - foot
-	var length := along.length()
-	var tilt := Basis(Vector3(0, 0, 1), atan2(-along.x, along.y))
+	var x := -LADDER_BEFORE
 	for z: float in [-LADDER_WIDE * 0.5, LADDER_WIDE * 0.5]:
-		_box(root, Vector3(0.07, length, 0.07), (foot + head) * 0.5 + Vector3(0, 0, z), _wood(), tilt)
-	var rungs := int(length / RUNG_STEP)
-	for i in range(1, rungs):
-		var at := foot + along * (float(i) / rungs)
-		_box(root, Vector3(0.05, 0.05, LADDER_WIDE), at, _wood())
-	# The dark hatch in the floor above it leads up.
-	_box(root, Vector3(0.7, 0.02, LADDER_WIDE + 0.3), Vector3(side * -0.1, top - 0.01, 0), _plain("hatch", Color(0.05, 0.035, 0.03)))
+		_box(root, Vector3(0.07, tall, 0.07), Vector3(x, tall * 0.5, z), _wood())
+	var y := LadderPose.RUNG
+	while y < tall - 0.05:
+		_box(root, Vector3(0.05, 0.05, LADDER_WIDE), Vector3(x, y, 0), _wood())
+		y += LadderPose.RUNG
 	return root
 
 

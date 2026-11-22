@@ -1008,6 +1008,40 @@ func _end_horn() -> void:
 		play("Idle", 0.2)
 
 
+## Whether the body is posed bone by bone now (see pose_body).
+var _body_posed := false
+
+
+## Poses the body bone by bone (`pose` as ClimbPose.apply takes it), the clips held still: the
+## climb up and down a house ladder (see VillageBeds, LadderPose).
+func pose_body(pose: Dictionary) -> void:
+	var sk := _bones()
+	if sk == null:
+		return
+	if not _body_posed:
+		_body_posed = true
+		_anim.speed_scale = 1.0
+		_anim.play("Idle")
+		_anim.seek(0.0, true)
+		if _blow_base.is_empty():
+			_blow_base = ClimbPose.base_of(sk)
+		_anim.pause()
+		_current_anim = ""
+	_model.position.y = 0.0
+	ClimbPose.apply(sk, _blow_base, pose)
+
+
+## Back from pose_body to the clips.
+func unpose_body() -> void:
+	if not _body_posed:
+		return
+	_body_posed = false
+	var sk := _bones()
+	if sk != null:
+		ClimbPose.apply(sk, _blow_base, {})
+	_current_anim = ""
+
+
 # --- Defending the wall -------------------------------------------------------
 
 ## How far over the wall a defender strikes (metres, from his hands), how far
@@ -2619,9 +2653,9 @@ func meet() -> void:
 		_name_tag.visible = not is_asleep()
 
 
-## Whether the villager lies asleep in a bed the hero can see (see VillageBeds): no name over the head.
+## Whether the villager is asleep upstairs in their house (see VillageBeds): no name over the head.
 func is_asleep() -> bool:
-	return String(bed_trip.get("step", "")) == "asleep"
+	return String(bed_trip.get("step", "")) == "upstairs"
 
 
 ## The elder sees the newcomer and hands over the house.

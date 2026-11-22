@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Walk into the windmill and meet Korbinian the miller; keepers meet you at their shop; Give the forest's spruces real snow (+6 more) | Shipped this week: Smoother frames: lighter moon shadows, lamp-shadow shaders pre-built, off-screen animation stepped (+49 more)
+Escape! dev status | Working on: Walk into the windmill and meet Korbinian the miller; keepers meet you at their shop; Give the forest's spruces real snow (+5 more) | Shipped this week: Hang big painted shields on two chains as the village's shop signs (+49 more)

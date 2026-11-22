@@ -146,7 +146,8 @@ func tick(level: Outdoor, delta: float) -> void:
 		if s.until < 0.0:
 			s.until = _rng.randf_range(STAY.x, STAY.y)
 		s.until -= delta
-		if s.until <= 0.0 or level.village_alarm.raised:
+		# Up again when the rest is over, at the alarm, or when the stall calls (see FurnisherDay).
+		if s.until <= 0.0 or level.village_alarm.raised or not rests_here(v):
 			v.leave_meal()
 
 

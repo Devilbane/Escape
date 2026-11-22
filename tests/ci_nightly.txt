@@ -179,3 +179,4 @@ stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildi
 wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
 offscreen_anim.gd | 180 | fixed | pass | Off-screen bodies step their animations coarsely and catch up in view
 final_scream.gd | 120 | fixed | passfail | A fall in a fight brings a final scream that silences all other bubbles
+furnisher_day.gd | 200 | fixed | passfail | Ilse the furnisher keeps her stall through her opening hours and strolls, eats and rests outside them

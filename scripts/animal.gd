@@ -84,6 +84,7 @@ func footprint_moved() -> void:
 func _ready() -> void:
 	SmoothMotion.follow_ticks(self)
 	_trail = SnowTrail.new(kind)
+	OffscreenAnim.watch(self, maxf(1.0, float(_stats.scale)))
 	add_to_group(Footprint.GROUP)
 	_model = load("res://assets/animals/%s.glb" % _stats.model).instantiate()
 	_model.scale = Vector3.ONE * float(_stats.scale)

@@ -189,6 +189,7 @@ func _ready() -> void:
 	add_to_group(Footprint.GROUP)
 	_all.append(self)
 	SmoothMotion.follow_ticks(self)
+	OffscreenAnim.watch(self, maxf(1.0, float(_stats.scale)))
 	_rig = Node3D.new()
 	add_child(_rig)
 	_rig.scale = Vector3.ONE * float(_stats.scale)

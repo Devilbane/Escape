@@ -220,7 +220,6 @@ thunder_ore.gd | 120 | fixed | passfail | uses of thunder ore: Gorm forges the t
 ui_wheel.gd | 120 | fixed | passfail | the mouse wheel over an open window scrolls the window, never
 village_bell.gd | 120 | fixed | passfail | village's warning bell (tools/make_bell_sounds.py,
 village_talk.gd | 120 | fixed | passfail | villagers talking to each other (see VillageTalk):
-town_meals.gd | 300 | free | passfail | Shared meals: the townsfolk come one by one, sit at the tables on the square, talk and leave
 meal_garland.gd | 200 | free | passfail | Dining-area frame: tall ivy poles and ropes with lamps round the tables, lit at night, clear of every path
 meal_braziers.gd | 200 | free | passfail | Winter braziers by the dining tables: only in winter, lit, clear of seats and paths
 villager_post.gd | 120 | fixed | passfail | villager windows stay shut during an alarm or away from the post (VillagerPost)
@@ -299,3 +298,4 @@ stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildi
 wall_foot.gd | 120 | free | passfail | Grass, flowers and mossy stones at the foot of the buildings (along the walls only, doors kept clear, follow the seasons, cheap batches)
 house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere
+offscreen_anim.gd | 180 | fixed | pass | Off-screen bodies step their animations coarsely and catch up in view

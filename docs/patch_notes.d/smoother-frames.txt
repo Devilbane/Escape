@@ -1,0 +1,1 @@
+- Smoother play: less stutter when a lamp's shadows switch on as you walk, lighter moon shadows, and villagers, monsters and animals out of view cost less to animate

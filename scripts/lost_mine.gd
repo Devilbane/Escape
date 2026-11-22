@@ -534,6 +534,12 @@ static func _open(c: Vector2i) -> bool:
 	return cells().has(c) and cells()[c] != "x"
 
 
+## Whether cell `c` is a plain stretch of tunnel running along `ahead`: open to neither side.
+static func _straight(c: Vector2i, ahead: Vector2i) -> bool:
+	var side := Vector2i(ahead.y, ahead.x)
+	return not _open(c + side) and not _open(c - side)
+
+
 ## Timber sets along the miners' tunnels: where a straight tunnel runs between two
 ## walls, every SET_EVERY cells two posts against the walls carry a cap across.
 static func _timber_sets(parent: Node3D) -> void:
@@ -544,6 +550,11 @@ static func _timber_sets(parent: Node3D) -> void:
 		var along_z := _open(c + Vector2i(0, 1)) and _open(c + Vector2i(0, -1)) and not _open(c + Vector2i(1, 0)) and not _open(c + Vector2i(-1, 0))
 		var along_x := _open(c + Vector2i(1, 0)) and _open(c + Vector2i(-1, 0)) and not _open(c + Vector2i(0, 1)) and not _open(c + Vector2i(0, -1))
 		if not (along_z and c.y % SET_EVERY == 0) and not (along_x and c.x % SET_EVERY == 0):
+			continue
+		# None where the tunnel opens into a room or a crossing: from above a set there reads as
+		# bars across the way.
+		var ahead := Vector2i(0, 1) if along_z else Vector2i(1, 0)
+		if not _straight(c + ahead, ahead) or not _straight(c - ahead, ahead):
 			continue
 		var mid := floor_at(c)
 		var across := Vector3(1, 0, 0) if along_z else Vector3(0, 0, 1)

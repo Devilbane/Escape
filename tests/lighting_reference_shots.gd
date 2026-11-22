@@ -309,6 +309,7 @@ func _village() -> void:
 			continue
 		if not is_instance_valid(lvl) or game.level != lvl:
 			# The first shot, or the hero left the village (a door, a flight): load it again.
+			seed(20261122)
 			game.load_level(game._outdoor_index(), false)
 			game.state = game.State.PLAYING
 			await _wait(20)
@@ -368,6 +369,8 @@ func _dungeon(shot: Array) -> void:
 		return
 	var wait := SETTLE
 	if _place != shot[1]:
+		# The same dice for each floor whatever was taken before it: which wall torches burn.
+		seed(hash(shot[1]))
 		game.load_level(index, false)
 		game.state = game.State.PLAYING
 		wait += SETTLE_LONG

@@ -115,7 +115,7 @@ def main() -> int:
     rows.sort(key=lambda r: -r["dE"])
     print("%-34s %6s %6s %6s %6s %6s  %s" % ("shot", "lum", "dE", "hue", "dark", "bright", "ok"))
     for r in rows:
-        r["ok"] = matched(r)
+        r["ok"] = bool(matched(r))
         print("%-34s %6.2f %6.2f %6.2f %6.2f %6.2f  %s" % (r["name"], r["lum"], r["dE"], r["hue"], r["dark"], r["bright"], "yes" if r["ok"] else "-"))
     if rows:
         print("%-34s %6.2f %6.2f" % ("mean of %d" % len(rows), float(np.mean([r["lum"] for r in rows])), float(np.mean([r["dE"] for r in rows]))))

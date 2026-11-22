@@ -57,7 +57,7 @@ jobs:
         run: |
           mkdir -p shots
           SHOTS=$PWD/shots timeout 2400 xvfb-run -a -s "-screen 0 1280x720x24" \
-            ~/godot/godot --rendering-driver opengl3 --fixed-fps 60 -s tests/house_playtest.gd | tee test.log
+            ~/godot/godot --rendering-method gl_compatibility --rendering-driver opengl3 --fixed-fps 60 -s tests/house_playtest.gd | tee test.log
           grep -aq "^PASS" test.log
 
       - name: Keep the screenshots

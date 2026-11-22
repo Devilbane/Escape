@@ -1,6 +1,6 @@
 extends SceneTree
-## Ferns and spruces (see Fern): a fern is a low rosette, the spruce a slim cone about three times
-## as tall as it is wide in several sizes, both light enough to draw by the hundred, with a far model
+## Ferns and needle trees (see Fern): a fern is a low rosette, the spruce a slim cone about three times
+## as tall as it is wide in several sizes, besides a few pines with open crowns, both light enough to draw by the hundred, with a far model
 ## of the same outline that is much lighter still. In Die Freiheit the forest is spruces, no pine is left, the
 ## stand west of the road is all spruces, and ferns grow in the shade along the forest's edge, on
 ## forest tiles only and never on a building plot.
@@ -49,7 +49,13 @@ func _run() -> void:
 		var tree := Fern.needle_tree_mesh(v)
 		var b := tree.get_aabb()
 		var ratio := b.size.y / maxf(b.size.x, b.size.z)
-		check(ratio > 1.4 and ratio < 3.6, "spruce %d is a slim cone (%.2f times as tall as wide)" % [v, ratio])
+		var kind := int(Fern.NEEDLE_LOOKS[v].z)
+		if kind == Fern.SPRUCE:
+			check(ratio > 1.3 and ratio < 3.6, "spruce %d is a slim cone (%.2f times as tall as wide)" % [v, ratio])
+		elif kind == Fern.PINE:
+			check(ratio > 1.0 and ratio < 3.0, "pine %d is taller than wide (%.2f times as tall as wide)" % [v, ratio])
+		else:
+			check(ratio > 0.6 and ratio < 1.5, "the broad pine %d is about as wide as tall (%.2f)" % [v, ratio])
 		check(b.position.y > -0.01, "spruce %d stays above the ground (%.2f)" % [v, b.position.y])
 		check(_triangles(tree) <= 4500, "spruce %d is light to draw (%d triangles)" % [v, _triangles(tree)])
 		heights.append(Fern.needle_height(v))

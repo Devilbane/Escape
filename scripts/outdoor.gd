@@ -4387,6 +4387,8 @@ func _setup_astar() -> void:
 	for id in treasure_cells:
 		if TreasureMaps.blocks(self, id):
 			astar.set_point_solid(treasure_cells[id], true)
+	# The brazier between the dining tables stands in the way while it burns (see MealBraziers).
+	meals.braziers.block_paths(self)
 	# Villagers and the hero keep to the paths where they can.
 	for y in height:
 		for x in width:

@@ -36,6 +36,18 @@ const KEEP := 5.0
 ## How long a light's shadows take to fade in or out, in seconds: a light that
 ## gains or loses its shadows changes its look slowly instead of at once.
 const FADE := 1.2
+## The meta of a lamp inside a hero's built house (a candle stand, a wall torch, the fireplace).
+## Walls all round it, so it needs its shadows most: it is picked before every lamp in the
+## open, and a lamp in the open no longer takes its turn as the hero walks about. It never
+## lights the spruces (UNSHADOWED_LAYER), which take no shadows and so would glow through
+## the house's walls.
+const INDOOR := &"indoor_light"
+## The render layer of things drawn without shadows that stand round the houses: the spruces'
+## fronds (see spruce_needles.gdshader). Walls cannot stop light on them, so indoor lamps
+## leave them out of their light altogether (see _on_node_added and refresh).
+const UNSHADOWED_LAYER := 1 << 15
+## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
+const INDOOR_FIRST := 100.0
 ## The meta a light sets to never cast shadows.
 const NO_SHADOW := &"no_wall_shadow"
 ## The meta of a node whose drawn parts are walls (see the top).
@@ -78,6 +90,8 @@ func _on_node_added(node: Node) -> void:
 	if node is GeometryInstance3D:
 		if is_wall(node):
 			(node as GeometryInstance3D).layers |= WALL_LAYER
+		elif takes_no_shadows(node):
+			(node as GeometryInstance3D).layers |= UNSHADOWED_LAYER
 	elif node is OmniLight3D or node is SpotLight3D:
 		_lights[node.get_instance_id()] = node
 		var light: Light3D = node
@@ -112,11 +126,13 @@ func refresh(at_once := false) -> void:
 		if not light.is_inside_tree():
 			_picked.erase(id)
 			continue
+		if light.has_meta(INDOOR):
+			light.light_cull_mask &= ~UNSHADOWED_LAYER
 		var score := shadow_score(light, at)
 		if score == INF:
 			_drop(light, at_once or not light.is_visible_in_tree())
 			continue
-		ranked.append([score - (KEEP if _picked.has(id) else 0.0), light])
+		ranked.append([score - (KEEP if _picked.has(id) else 0.0) - (INDOOR_FIRST if light.has_meta(INDOOR) else 0.0), light])
 	ranked.sort_custom(func(a, b): return a[0] < b[0])
 	for i in ranked.size():
 		var light: Light3D = ranked[i][1]
@@ -204,6 +220,26 @@ static func lift(node: Node, lifted: bool) -> void:
 ## Whether a roof or storey is lifted off (see lift).
 static func lifted(node: Node) -> bool:
 	return node.get_meta(&"lifted", false)
+
+
+## Whether a drawn thing is drawn with a material that takes no shadows (a spruce's fronds),
+## up close or as a batch of many.
+static func takes_no_shadows(node: Node) -> bool:
+	var mat: Material = (node as GeometryInstance3D).material_override
+	var mesh: Mesh = null
+	if node is MeshInstance3D:
+		mesh = (node as MeshInstance3D).mesh
+	elif node is MultiMeshInstance3D and (node as MultiMeshInstance3D).multimesh != null:
+		mesh = (node as MultiMeshInstance3D).multimesh.mesh
+	if mat == null and mesh != null:
+		for i in mesh.get_surface_count():
+			if _unshadowed(mesh.surface_get_material(i)):
+				return true
+	return _unshadowed(mat)
+
+
+static func _unshadowed(mat: Material) -> bool:
+	return mat is ShaderMaterial and (mat as ShaderMaterial).shader == Fern.NEEDLE_SHADER
 
 
 ## Whether a drawn thing is part of a wall: it or one of its parents carries WALL, and it is

@@ -4,6 +4,9 @@ shader_type spatial;
 // Packed soil from BareEarth's picture (laid twice, turned, so it never tiles), with
 // grey rock showing through in lumps and seams, a band of darker, damper soil along
 // the cellar's rim, and the whole fading into darkness away from the cellar.
+// It lies under the ground, out of the sun: no shadows fall on it (the house's storeys above,
+// faded while the hero is down here, cast none across it).
+render_mode shadows_disabled;
 
 #include "res://shaders/detail.gdshaderinc"
 

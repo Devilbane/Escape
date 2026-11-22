@@ -57,16 +57,25 @@ const ALTAR_WALK := 1.7
 const RUG_SIZE := Vector2(2.2, 1.6)
 const SHELF_HIGH := 1.75
 const SHELF_OFF := 0.4
-## The beds of a house, on the floor above: as many as fit side by side along its back wall
-## beside the hatch, at most this many.
-const MAX_BEDS := 3
-## The house ladder (see _furnish_house): how far in from the side wall the hatch's edge is, how
-## far back from the front wall the ladder stands, and how far before the edge one stands at its foot.
-const LADDER_EDGE_IN := 0.6
-const LADDER_FROM_FRONT := 0.75
+## The beds of a house, on the floor above: two along its back wall from the side away from the
+## hatch, or one where the hatch leaves no room for a second. Two villagers to a house at most.
+const MAX_BEDS := 2
+## The house ladder (see _furnish_house): it stands by the side wall away from the door, the climb
+## going from that wall into the room. How far in from the wall the hatch's edge is (the climb's
+## edge), how far back from the front wall the middle of the ladder stands, how far from the edge
+## towards the wall one stands at its foot, and the hatch's size (from the edge to the wall, and
+## along it).
+const LADDER_EDGE_IN := 1.25
+const LADDER_FROM_FRONT := 0.6
 const LADDER_FOOT := 0.65
-## How much of the floor above the hatch and the way from it to the beds keep free (metres across).
-const HATCH_CLEAR := 1.7
+const HATCH := Vector2(0.9, 0.9)
+## Upstairs, round the hatch and the spot where the climb ends, the floor the beds keep clear of
+## (metres from the hatch's edge into the room, and before the hatch towards the back).
+const HATCH_CLEAR := Vector2(1.3, 0.45)
+## How thick the floor above is under its boards (its collision slab).
+const UPPER_SLAB := 0.3
+## Feet this far below the floor above count as up there (on the ladder, the head above the boards).
+const UPPER_FROM := 1.0
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
 const BED_WIDE := CosyBed.RIGHT - CosyBed.LEFT
 const BED_GAP := 0.1
@@ -91,7 +100,7 @@ const NAVE_FRONT := 10.3
 ## its left (-x) and right (+x).
 const SIDES := ["front", "back", "left", "right"]
 ## The walls of an upper storey one walks into (the guildhall's, see GuildHall), by side.
-const UP_SIDES := ["up_front", "up_back", "up_left", "up_right"]
+const STOREY_SIDES := ["storey_front", "storey_back", "storey_left", "storey_right"]
 const SIDE_NORMALS := {"front": Vector3(0, 0, 1), "back": Vector3(0, 0, -1), "left": Vector3(-1, 0, 0), "right": Vector3(1, 0, 0)}
 ## How near a wall (metres) a leaf of ivy counts as growing on it (see split_ivy).
 const ON_WALL := 0.45
@@ -102,6 +111,8 @@ var level: Node3D
 var buildings: Array = []
 ## The building the hero stands in, or {}.
 var hero_in: Dictionary = {}
+## Whether the hero is up on the floor above of that building (see is_upstairs).
+var hero_up := false
 
 
 func _init(lvl: Node3D) -> void:
@@ -146,8 +157,8 @@ func claim(node: Node3D, kind: String, block: Rect2i) -> Dictionary:
 			rec["high"] = float(lay.deck) + 2.5
 			rec["eaves"] = lay.eaves
 			rec["deck"] = lay.deck
-			rec["up_room"] = []
-			for side: String in UP_SIDES:
+			rec["storey_room"] = []
+			for side: String in STOREY_SIDES:
 				rec[side] = []
 				rec["ivy_" + side] = {}
 	else:
@@ -196,11 +207,11 @@ func split_ivy(node: Node3D, leaves: Dictionary) -> Dictionary:
 			var into: Dictionary = stay
 			if at.y >= float(rec.upper_from):
 				into = rec.ivy_up
-				if rec.has("up_room") and at.y < float(rec.eaves):
+				if rec.has("storey_room") and at.y < float(rec.eaves):
 					# On a wall of an upper storey one walks into: it hides with that wall.
 					var up_side := _side_of(rec, at)
 					if up_side != "":
-						into = rec["ivy_up_" + up_side]
+						into = rec["ivy_storey_" + up_side]
 			elif rec.has("sided"):
 				var side := _side_of(rec, at)
 				if side != "":
@@ -237,7 +248,7 @@ func plant_ivy(ivy: Node3D) -> void:
 		return
 	for i in buildings.size():
 		var rec: Dictionary = buildings[i]
-		for group: String in ["up"] + SIDES + UP_SIDES:
+		for group: String in ["up"] + SIDES + STOREY_SIDES:
 			if not rec.has("ivy_" + group):
 				continue
 			var leaves: Dictionary = rec["ivy_" + group]
@@ -264,15 +275,27 @@ func open_house(house: Node3D) -> void:
 	var rec := _record(house)
 	if rec.is_empty():
 		return
-	var meshes := VillageHouse.hollow(house, rec.has("sided"))
-	rec.up.append(meshes.up)
+	# A villagers' house has a floor above one climbs to; Gorm's cottage (see SmithCottage) does not.
+	var upper: bool = rec.kind == "house" and not rec.has("owner")
+	var hatch := hatch_of(house.get_meta("shape")) if upper else Rect2()
+	var meshes := VillageHouse.hollow(house, rec.has("sided"), hatch)
+	if upper:
+		# The floor above one climbs to: its roof hides with the rest of `up`, its walls stay while
+		# the hero is up there, its front wall hides, and its room shows only then.
+		rec.up.append(meshes.roof)
+		rec["up_walls"] = [meshes.up]
+		rec["up_front"] = [meshes.up_front]
+		rec["up_room"] = [meshes.up_inside]
+		meshes.up_inside.visible = false
+	else:
+		rec.up.append(meshes.up)
 	rec.front.append(meshes.front)
 	if rec.has("sided"):
 		for side: String in ["back", "left", "right"]:
 			rec[side].append(meshes[side])
-	if rec.has("up_room"):
-		rec.up_room.append(meshes.up_room)
-		for side: String in UP_SIDES:
+	if rec.has("storey_room"):
+		rec.storey_room.append(meshes.storey_room)
+		for side: String in STOREY_SIDES:
 			rec[side].append(meshes[side])
 	var leaf: HouseDoor = house.get_meta("door_leaf")
 	rec.front.append(leaf)
@@ -284,10 +307,11 @@ func open_house(house: Node3D) -> void:
 	var t := VillageHouse.WALL_THICK
 	var floor_y: float = rec.floor
 	var out := 0.15
-	# The walls, from their inner faces to a little past the outer ones (up to the floor above in a
-	# house with an upper storey one walks into), and the floor (GuildHall lays its own, open over
-	# the stairs down).
-	var high := float(rec.get("wall_high", 4.0))
+	# The walls, from their inner faces to a little past the outer ones, and the floor. Up to the
+	# floor above where one can climb to it (its own walls stand further out, on the jetty), or up to
+	# the floor above in a hall with an upper storey one walks into (GuildHall lays its own floor,
+	# open over the stairs down).
+	var high := float(rec.top) - UPPER_SLAB if upper else float(rec.get("wall_high", 4.0))
 	var mid := high * 0.5
 	_solid(rec, Vector3(0, mid, -d * 0.5 + (t - out) * 0.5), Vector3(w + out * 2.0, high, t + out))
 	for s: float in [-1.0, 1.0]:
@@ -297,7 +321,9 @@ func open_house(house: Node3D) -> void:
 	var z_front := d * 0.5 + (out - t) * 0.5
 	_solid(rec, Vector3((-w * 0.5 - out + gap_l) * 0.5, mid, z_front), Vector3(gap_l + w * 0.5 + out, high, t + out))
 	_solid(rec, Vector3((w * 0.5 + out + gap_r) * 0.5, mid, z_front), Vector3(w * 0.5 + out - gap_r, high, t + out))
-	if not rec.has("layout") and not rec.has("up_room"):
+	if upper:
+		_upper_solids(rec, w + VillageHouse.JETTY * 2.0, d + VillageHouse.JETTY * 2.0, hatch)
+	if not rec.has("storey_room"):
 		_solid(rec, Vector3(0, floor_y * 0.5, 0), Vector3(w, floor_y, d))
 	rec["door_shape"] = _solid(rec, Vector3(door_x, 1.4, d * 0.5 - t * 0.5), Vector3(DOOR_GAP, 2.8, t))
 	_ramp(rec, door_x, d * 0.5, floor_y)
@@ -427,34 +453,78 @@ func _body() -> StaticBody3D:
 
 # --- Furniture -------------------------------------------------------------------
 
+## Which way from the middle the house ladder stands: by the side wall away from the door.
+static func ladder_side(door_x: float) -> float:
+	return -1.0 if door_x >= 0.0 else 1.0
+
+
+## The hatch in the floor above a villagers' house (see VillageHouse.hollow), in the house's frame
+## (x, z): between the climb's edge and the side wall away from the door, near the front.
+static func hatch_of(shape: Dictionary) -> Rect2:
+	var side := ladder_side(float(shape.door_x))
+	var r := float(shape.w) * 0.5 - VillageHouse.WALL_THICK
+	var z := float(shape.d) * 0.5 - VillageHouse.WALL_THICK - LADDER_FROM_FRONT
+	var near := r - LADDER_EDGE_IN
+	var x0 := near if side > 0.0 else -(near + HATCH.x)
+	return Rect2(x0, z - HATCH.y * 0.5, HATCH.x, HATCH.y)
+
+
+## The floor above a house one can climb to: its slab round the hatch, and its walls (on the
+## jetty, `uw` x `ud`) up to the eaves.
+func _upper_solids(rec: Dictionary, uw: float, ud: float, hatch: Rect2) -> void:
+	var top: float = rec.top
+	var y := top + VillageHouse.FLOOR_LIFT - UPPER_SLAB * 0.5
+	var x0 := -uw * 0.5
+	var z0 := -ud * 0.5
+	_solid(rec, Vector3((x0 + hatch.position.x) * 0.5, y, 0), Vector3(hatch.position.x - x0, UPPER_SLAB, ud))
+	_solid(rec, Vector3((hatch.end.x - x0) * 0.5, y, 0), Vector3(-x0 - hatch.end.x, UPPER_SLAB, ud))
+	_solid(rec, Vector3(hatch.get_center().x, y, (z0 + hatch.position.y) * 0.5), Vector3(hatch.size.x, UPPER_SLAB, hatch.position.y - z0))
+	_solid(rec, Vector3(hatch.get_center().x, y, (hatch.end.y - z0) * 0.5), Vector3(hatch.size.x, UPPER_SLAB, -z0 - hatch.end.y))
+	var t := VillageHouse.WALL_THICK
+	var out := 0.15
+	var mid := top + VillageHouse.UPPER * 0.5
+	var high := VillageHouse.UPPER
+	for s: float in [-1.0, 1.0]:
+		_solid(rec, Vector3(0, mid, s * (ud * 0.5 + (out - t) * 0.5)), Vector3(uw + out * 2.0, high, t + out))
+		_solid(rec, Vector3(s * (uw * 0.5 + (out - t) * 0.5), mid, 0), Vector3(t + out, high, ud + out * 2.0))
+
+
 ## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
-## barrels and a crate in the back corner on the door's side, and in the front corner away from
-## the door an upright ladder up through a hatch to the floor above. The villagers sleep up there
-## (see VillageBeds): as many beds as fit along its back wall beside the hatch, kept as places
-## (`pos`, `rot`, `stand` like a bed one lies in, see Level.lie_spot). The ladder's climb is kept as
-## `ladder` (where one stands at its foot), `ladder_edge` (on the hatch's edge, on the floor),
-## `ladder_push` (the flat way from the foot to the top), `ladder_tall` and `ladder_top` (where one
-## steps off upstairs), all world.
+## barrels and a crate in the back corner on the door's side, and by the side wall away from the
+## door an upright ladder up through the hatch (see hatch_of) to the room on the floor above (see
+## VillageHouse.hollow), where the villagers sleep (see VillageBeds): MAX_BEDS beds along its back
+## wall, each kept as a place one lies in (`pos`, `rot`, `stand`, see Level.lie_spot). The climb is
+## kept as `ladder` (where one stands at its foot), `ladder_edge` (on the hatch's edge, on the
+## floor), `ladder_push` (the flat way from the foot to the top), `ladder_tall` and `ladder_top`
+## (where one steps off upstairs), all world, and the hero climbs it too (Player.LADDER_GROUP).
 func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 	var house: Node3D = rec.node
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
-	var side := -1.0 if door_x >= 0.0 else 1.0
+	var side := ladder_side(door_x)
 	var turn := house.transform.basis.orthonormalized()
-	# The ladder, its climb across the room towards the side wall.
-	var edge := Vector3(side * (room.end.x - LADDER_EDGE_IN), floor_y, room.end.y - LADDER_FROM_FRONT)
-	var tall := float(rec.top) - floor_y
+	var hatch := hatch_of(house.get_meta("shape"))
+	# The ladder: its climb goes from the side wall into the room.
+	var edge := Vector3(side * (room.end.x - LADDER_EDGE_IN), floor_y, hatch.get_center().y)
+	var tall := float(rec.top) + VillageHouse.FLOOR_LIFT - floor_y
 	var ladder := WalkInFurniture.upright_ladder(tall)
 	ladder.position = edge
-	ladder.rotation.y = 0.0 if side > 0.0 else PI
+	ladder.rotation.y = PI if side > 0.0 else 0.0
 	house.add_child(ladder)
-	_solid(rec, edge + Vector3(-side * WalkInFurniture.LADDER_BEFORE, 1.0, 0), Vector3(0.2, 2.0, WalkInFurniture.LADDER_WIDE + 0.1))
-	var push := turn * Vector3(side, 0, 0)
+	var push := turn * Vector3(-side, 0, 0)
 	rec["ladder_push"] = push
 	rec["ladder_edge"] = house.transform * edge
 	rec["ladder_tall"] = tall * house.scale.y
-	rec["ladder"] = house.transform * (edge - Vector3(side * LADDER_FOOT, 0, 0))
-	rec["ladder_top"] = house.transform * (edge + Vector3(side * LadderPose.TOP_FORWARD, tall, 0))
+	rec["ladder"] = house.transform * (edge + Vector3(side * LADDER_FOOT, 0, 0))
+	rec["ladder_top"] = house.transform * (edge + Vector3(-side * LadderPose.TOP_FORWARD, tall, 0))
+	var spot := Node3D.new()
+	spot.name = "LadderSpot"
+	house.add_child(spot)
+	spot.add_to_group(Player.LADDER_GROUP)
+	spot.set_meta("push", push)
+	spot.set_meta("edge", rec.ladder_edge)
+	spot.set_meta("foot", rec.ladder)
+	spot.set_meta("top", rec.ladder_top)
 	# The table in the middle, a little back from the way to the ladder, stools behind and beside it.
 	var table_at := Vector3(-side * 0.3, floor_y, room.get_center().y - 0.3)
 	var table := WalkInFurniture.table(0.55)
@@ -489,19 +559,42 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 	sack.position = corner + Vector3(side * 1.35, 0, 0.05)
 	house.add_child(sack)
 	_solid(rec, corner + Vector3(side * 0.35, 0.45, 0.3), Vector3(1.4, 0.9, 1.4))
-	# The beds upstairs: heads to the back wall, from the side wall away from the hatch.
+	_make_homely(rec, table_at, side)
+	_furnish_upstairs(rec, w, d, side, hatch)
+
+
+## The room on the floor above: MAX_BEDS beds along the back wall, heads to it, from the side wall
+## away from the hatch; a bed that would reach the floor kept clear round the hatch is left out
+## (one bed always stays). They show only while the hero is up there (see _show_inside).
+func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2) -> void:
+	var house: Node3D = rec.node
 	var t := VillageHouse.WALL_THICK
 	var upper := Rect2(-w * 0.5 - VillageHouse.JETTY + t, -d * 0.5 - VillageHouse.JETTY + t,
 			w + (VillageHouse.JETTY - t) * 2.0, d + (VillageHouse.JETTY - t) * 2.0)
 	var up_y := float(rec.top) + VillageHouse.FLOOR_LIFT
-	var count := clampi(int((upper.size.x - HATCH_CLEAR + BED_GAP) / (BED_WIDE + BED_GAP)), 1, MAX_BEDS)
+	var room := Node3D.new()
+	room.name = "Upstairs"
+	room.visible = false
+	house.add_child(room)
+	rec.up_room.append(room)
+	# The floor kept clear: the hatch, the spot the climb ends on and the way from it.
+	var inner_edge := hatch.position.x if side > 0.0 else hatch.end.x
+	var clear_x0 := inner_edge - HATCH_CLEAR.x if side > 0.0 else upper.position.x
+	var clear_x1 := upper.end.x if side > 0.0 else inner_edge + HATCH_CLEAR.x
+	var clear := Rect2(clear_x0, hatch.position.y - HATCH_CLEAR.y, clear_x1 - clear_x0, upper.end.y - hatch.position.y + HATCH_CLEAR.y)
 	var origin_z := upper.position.y + 0.02 - CosyBed.HEAD
-	for i in count:
+	for i in MAX_BEDS:
 		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP))
+		var foot_z := origin_z + CosyBed.FOOT + 0.55
+		var takes := Rect2(mid - BED_WIDE * 0.5, upper.position.y, BED_WIDE, origin_z + CosyBed.FOOT - upper.position.y)
+		if i > 0 and takes.intersects(clear):
+			break
 		var origin := Vector3(mid - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5, up_y, origin_z)
+		var bed := CosyBed.build(room, origin, 0.0, false)
+		bed.name = "VillagerBed%d" % i
+		_solid(rec, Vector3(mid, up_y + 0.5, origin_z + (CosyBed.HEAD + CosyBed.FOOT) * 0.5), Vector3(BED_WIDE, 1.0, CosyBed.FOOT - CosyBed.HEAD))
 		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
-				"stand": house.transform * Vector3(mid + 0.1, up_y, origin_z + CosyBed.FOOT + 0.55)})
-	_make_homely(rec, table_at, side)
+				"stand": house.transform * Vector3(mid + 0.1, up_y, foot_z)})
 
 
 ## What makes a villagers' house look lived in and warmly lit: a rug under the table, and a shelf
@@ -688,12 +781,36 @@ func building_at(pos: Vector3, margin := 0.0) -> Dictionary:
 			continue
 		var node: Node3D = rec.node
 		var p := node.global_transform.affine_inverse() * pos
-		if p.y > float(rec.get("high", rec.top)):
-			continue
 		var room: Rect2 = rec.room
+		if rec.has("high"):
+			# A hall of several storeys (the guildhall): its room from the cellar up to the deck.
+			if p.y > float(rec.high):
+				continue
+		elif p.y > float(rec.top) - UPPER_FROM:
+			# Up on the floor above one can climb to: its room, on the jetty, up to the eaves.
+			if rec.has("up_room") and p.y < float(rec.top) + VillageHouse.UPPER:
+				var up := room.grow(VillageHouse.JETTY)
+				if p.y > float(rec.top) and up.grow(margin / node.scale.x).has_point(Vector2(p.x, p.z)):
+					return rec
+			if p.y > float(rec.top):
+				continue
 		if room.grow(margin / node.scale.x).has_point(Vector2(p.x, p.z)):
 			return rec
 	return {}
+
+
+## Whether `pos` (world) is up on the floor above of the building `rec`: on its boards, or up the
+## ladder far enough to see over them.
+func is_upstairs(rec: Dictionary, pos: Vector3) -> bool:
+	if rec.is_empty() or not rec.has("up_room"):
+		return false
+	var p := (rec.node as Node3D).global_transform.affine_inverse() * pos
+	return p.y > float(rec.top) - UPPER_FROM
+
+
+## Whether the hero is up on the floor above of the house `rec` now.
+func hero_upstairs_in(rec: Dictionary) -> bool:
+	return hero_up and not rec.is_empty() and hero_in.get("node") == rec.get("node")
 
 
 ## Whether a point lies in a room, out of the weather.
@@ -725,6 +842,8 @@ func floor_at(pos: Vector3) -> float:
 		var floor_y: float = rec.floor
 		if rec.has("layout") and room.grow(VillageHouse.JETTY).has_point(Vector2(p.x, p.z)):
 			return node.global_position.y + GuildHall.floor_y(rec.layout, p) * node.scale.y
+		if rec.has("up_room") and p.y > float(rec.top) - UPPER_FROM and room.grow(VillageHouse.JETTY).has_point(Vector2(p.x, p.z)):
+			return node.global_position.y + (float(rec.top) + VillageHouse.FLOOR_LIFT) * node.scale.y
 		if room.has_point(Vector2(p.x, p.z)) or (in_door and p.z >= room.end.y and p.z <= wall_out):
 			return node.global_position.y + floor_y * node.scale.y
 		if rec.kind == "temple" and absf(p.x) <= PORCH_HALF and p.z > wall_out and p.z < PORCH_END:
@@ -830,15 +949,17 @@ func tick(hero: Node3D, delta: float) -> void:
 	var now := building_at(at, 0.1)
 	if now.is_empty() and not hero_in.is_empty() and not building_at(at, 0.6).is_empty():
 		now = hero_in # Still in the doorway: no flicker.
-	if now.get("node") != hero_in.get("node"):
-		if not hero_in.is_empty():
+	var up := is_upstairs(now, at)
+	if now.get("node") != hero_in.get("node") or up != hero_up:
+		if not hero_in.is_empty() and now.get("node") != hero_in.get("node"):
 			_show_inside(hero_in, false)
 		hero_in = now
+		hero_up = up
 		if not hero_in.is_empty():
 			_storey_of_hero(hero_in, at)
-			_show_inside(hero_in, true)
+			_show_inside(hero_in, true, up)
 	elif not hero_in.is_empty() and _storey_of_hero(hero_in, at):
-		_show_inside(hero_in, true)
+		_show_inside(hero_in, true, hero_up)
 	var cam := level.get_viewport().get_camera_3d() if level.is_inside_tree() else null
 	for rec in buildings:
 		if not rec.get("opened", false):
@@ -910,21 +1031,25 @@ func _storey_of_hero(rec: Dictionary, at: Vector3) -> bool:
 	return true
 
 
-## Shows the floor above and the roof unless the hero is inside or behind it (see _mind_cover). In
-## a hall of several storeys (the guildhall) the storey the hero stands on shows, without whichever
-## of its walls face the camera, and nothing above it does: on the roof everything shows.
+## Shows the floor above and the roof unless the hero is inside or behind it (see _mind_cover).
+## Up on the floor above of a house with one (see is_upstairs), its back and side walls and its
+## room show while its roof and its front wall stay hidden. In a hall of several storeys (the
+## guildhall) the storey the hero stands on shows, without whichever of its walls face the
+## camera, and nothing above it does: on the roof everything shows.
 func _show_up(rec: Dictionary) -> void:
 	var inside := bool(rec.inside)
-	var shown := not inside and not bool(rec.get("roof_off", false))
-	if rec.has("up_room"):
+	var up := bool(rec.get("hero_up", false))
+	var off := not inside and bool(rec.get("roof_off", false))
+	var shown := not inside and not off
+	if rec.has("storey_room"):
 		var storey := int(rec.storey)
 		var room_shown := shown or (inside and storey >= GuildHall.UPPER_STOREY)
-		for part in rec.up_room:
+		for part in rec.storey_room:
 			if is_instance_valid(part):
 				(part as Node3D).visible = room_shown
 		for side: String in SIDES:
 			var hide := not room_shown or (inside and storey == GuildHall.UPPER_STOREY and _faces_camera(rec, side))
-			for part in rec["up_" + side]:
+			for part in rec["storey_" + side]:
 				if is_instance_valid(part):
 					(part as Node3D).visible = not hide
 		if inside:
@@ -932,11 +1057,23 @@ func _show_up(rec: Dictionary) -> void:
 	for part in rec.up:
 		if is_instance_valid(part):
 			(part as Node3D).visible = shown
+	for part in rec.get("up_walls", []):
+		if is_instance_valid(part):
+			(part as Node3D).visible = (not inside or up) and not off
+	for part in rec.get("up_front", []):
+		if is_instance_valid(part):
+			(part as Node3D).visible = not inside and not off
+	for part in rec.get("up_room", []):
+		if is_instance_valid(part):
+			(part as Node3D).visible = inside and up
 
 
 ## Hides (or shows again) what stands between the camera and the room.
-func _show_inside(rec: Dictionary, inside: bool) -> void:
+## Up on the floor above (`up`), the roof and the upper front wall hide and the upper room shows,
+## while the ground floor's front wall stays (it is below the hero).
+func _show_inside(rec: Dictionary, inside: bool, up := false) -> void:
 	rec.inside = inside
+	rec["hero_up"] = up
 	_show_up(rec)
 	var storey := int(rec.get("storey", 0))
 	if rec.has("layout"):
@@ -950,14 +1087,16 @@ func _show_inside(rec: Dictionary, inside: bool) -> void:
 		if not rec.has(side):
 			continue
 		# A house hides its front (its door faces the street, towards the camera); a hall hides
-		# whichever walls face the camera. Upstairs in a hall of several storeys the walls below stand.
-		var hide := inside and storey == GuildHall.GROUND_STOREY and (not rec.has("sided") or _faces_camera(rec, side))
+		# whichever walls face the camera. Upstairs (in a house, or in a hall of several storeys)
+		# the walls below stand.
+		var hide := inside and not up and storey == GuildHall.GROUND_STOREY and (not rec.has("sided") or _faces_camera(rec, side))
 		for part in rec[side]:
 			if is_instance_valid(part):
 				(part as Node3D).visible = not hide
 	var lamp: OmniLight3D = rec.get("lamp")
 	if lamp:
 		lamp.visible = inside and storey == GuildHall.GROUND_STOREY
+		lamp.position.y = float(rec.top) - 0.6 + (VillageHouse.UPPER if up else 0.0)
 	for glow in rec.get("glows", []):
 		if is_instance_valid(glow):
 			(glow as Light3D).visible = inside

@@ -118,7 +118,7 @@ func _run() -> void:
 		var floor_y: float = lvl.walk_in.floor_at(hall.global_transform * (spot[0] as Vector3)) - hall.global_position.y
 		check(absf(floor_y - float(spot[1])) < 0.05, "the villagers' floor_at knows %s too (%.2f)" % [what, floor_y])
 	# The openings are open: nothing to stand on over the flights' upper ends but their steps.
-	var over_well := _ground(hall, Vector3((c.x0 + c.x1) * 0.5, lay.floor, c.top + 1.5))
+	var over_well := _ground(hall, Vector3((c.x0 + c.x1) * 0.5, lay.floor, c.top - 1.5))
 	check(over_well < float(lay.floor) - 0.5, "the stairs down open through the ground floor (%.2f)" % over_well)
 
 	# --- What stands where ----------------------------------------------------------------------
@@ -201,12 +201,12 @@ func _run() -> void:
 ## What of the hall shows now: the upper storey's room, all its walls, the roof.
 func _what_shows(rec: Dictionary) -> Dictionary:
 	var all_walls := true
-	for side: String in WalkIn.UP_SIDES:
+	for side: String in WalkIn.STOREY_SIDES:
 		for part in rec[side]:
 			if is_instance_valid(part) and not (part as Node3D).visible:
 				all_walls = false
 	var room := true
-	for part in rec.up_room:
+	for part in rec.storey_room:
 		if is_instance_valid(part) and not (part as Node3D).visible:
 			room = false
 	var roof: Node3D = rec.roof_node

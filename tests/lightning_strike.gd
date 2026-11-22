@@ -93,10 +93,10 @@ func _process(_delta: float) -> bool:
 	# Never into a house, under a roof or into a cellar.
 	check(lvl.open_sky(hero.global_position), "the open ground is under the open sky")
 	var p: Vector3 = hero.global_position
-	var roofs: Dictionary = lvl.shelters
-	lvl.shelters = {HouseGround.cell_at(p): 4.0}
+	var roofs: Dictionary = lvl.roofs
+	lvl.roofs = {HouseGround.cell_at(p): 4.0}
 	check(not lvl.open_sky(p), "under the roof of a built house is not")
-	lvl.shelters = roofs
+	lvl.roofs = roofs
 	lvl._cellar_holes = [Rect2(p.x - 3.0, p.z - 3.0, 6.0, 6.0)]
 	check(not lvl.open_sky(p), "a house cellar is not under the open sky")
 	hero.hp = hero.max_hp

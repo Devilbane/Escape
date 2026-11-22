@@ -14,6 +14,10 @@ class_name LevelWarmup
 ## The next frame runs with time standing still (Engine.time_scale 0), so
 ## the long wait is swallowed instead of being played out all at once.
 ## Afterwards everything is culled as before.
+##
+## A level can ask for more such frames (`passes`, see WeatherWarmup): before each further frame
+## one pass is run (it may switch on the haze of bad weather or show the rain), and its undo runs
+## once that frame is drawn. Time stands still until the last one is drawn.
 ## Tested by tests/level_warmup.gd.
 
 ## Large enough that no camera ever culls the object (see also Fog).
@@ -25,11 +29,17 @@ static var _waiting: Array[GeometryInstance3D] = []
 static var _drawn_at := -1
 ## The process frame it began in.
 static var _frame_at := 0
+## The further warm-up frames still to come: each an Array [do, undo] of Callables.
+static var _passes: Array = []
+## The undo of the pass whose frame is being drawn.
+static var _undo := Callable()
 
 
-## Called once the level is built and in the tree.
-static func begin(root: Node) -> void:
+## Called once the level is built and in the tree. `passes` (each [do, undo]) adds one warm-up
+## frame each, after the first.
+static func begin(root: Node, passes: Array = []) -> void:
 	finish()
+	_passes = passes.duplicate()
 	_collect(root)
 	Engine.time_scale = 0.0
 	_drawn_at = Engine.get_frames_drawn()
@@ -52,10 +62,27 @@ static func _tick() -> void:
 	if _drawn_at < 0:
 		return
 	if Engine.get_frames_drawn() > _drawn_at or Engine.get_process_frames() > _frame_at + 1:
-		finish()
+		_end_pass()
+		if _passes.is_empty():
+			finish()
+			return
+		var next: Array = _passes.pop_front()
+		(next[0] as Callable).call()
+		_undo = next[1]
+		_drawn_at = Engine.get_frames_drawn()
+		_frame_at = Engine.get_process_frames()
+
+
+static func _end_pass() -> void:
+	if _undo.is_valid():
+		var undo := _undo
+		_undo = Callable()
+		undo.call()
 
 
 static func finish() -> void:
+	_end_pass()
+	_passes.clear()
 	for g in _waiting:
 		if is_instance_valid(g) and g.has_meta(KEY):
 			var kept: Array = g.get_meta(KEY)

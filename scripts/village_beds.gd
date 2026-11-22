@@ -1,13 +1,18 @@
 class_name VillageBeds
 extends RefCounted
 ## The villagers go to bed in the houses one can walk into (see WalkIn). At nightfall a villager who
-## sleeps walks home as before; at the door they now step in, walk to the ladder in the front corner
-## and climb it, hand over hand and foot over foot the way the hero climbs a built ladder (see
-## LadderPose), up through the hatch to the floor above, where the beds are (see
-## WalkIn._furnish_house): three at most to a house, to whoever comes first, the rest sleep up there
-## all the same. Once their head is through the hatch they are gone from sight until the morning.
-## In the morning they climb down, hop off the last rungs, walk out of the door and go back to their
-## day.
+## sleeps walks home as before; at the door they now step in, walk to the ladder by the side wall
+## and climb it, hand over hand and foot over foot the way the hero climbs (see LadderPose), up
+## through the hatch to the room on the floor above (see WalkIn._furnish_upstairs). There they walk
+## to their bed, hop in and sleep (Gorm's cottage has his bed on the ground floor, see SmithCottage:
+## he walks to it and lies down in sight). Two beds to a house at most (WalkIn.MAX_BEDS): a villager whose
+## nearest house has no free bed goes in the old way and is gone until the morning. In the morning
+## they get up, walk to the hatch, climb down, hop off the last rungs, walk out of the door and go
+## back to their day.
+##
+## Upstairs a villager is seen only while the hero is up there too (the floor above is hidden while
+## the hero is on the ground floor, and walled in from outside); on the ladder, from the hero's
+## floor below, they are gone once their head is through the hatch.
 ##
 ## Called by Villager: `enter` from Villager._hide_inside when they reach the door at nightfall,
 ## `step` every physics tick of their "home" task, `rise` when the morning comes (see
@@ -16,8 +21,13 @@ extends RefCounted
 ## With WalkIn.houses off there are no houses to walk into, `enter` says no and the villagers
 ## vanish at the door as they always did.
 
-## On the ladder a villager is out of sight while their feet are higher than this below the hatch
-## (metres): the head is through it.
+## The steps of a trip that happen up on the floor above.
+const UPSTAIRS := ["to_bed", "hop", "upstairs", "rise", "hop_down", "to_hatch"]
+## Seconds: the hop onto the bed or down from it, and how long getting up takes.
+const HOP_TIME := 0.45
+const RISE_TIME := 2.2
+## On the ladder a villager is out of sight from below while their feet are higher than this below
+## the hatch (metres): the head is through it.
 const HIDDEN_BELOW := 1.2
 ## How near a path point counts as reached (metres), and how near the door it gets pushed open.
 const ARRIVE := 0.15
@@ -27,9 +37,9 @@ const DOOR_PUSH := 2.6
 const GIVE_UP := 20.0
 
 
-## Starts a villager's way to bed in the house nearest to them. With `at_once` they are in bed (or
-## upstairs) at once: a game loaded at night, a villager sent home on the spot. False when there is
-## no house to walk into nearby: they go in the old way.
+## Starts a villager's way to bed in the house nearest to them. With `at_once` they are in bed at
+## once: a game loaded at night, a villager sent home on the spot. False when there is no house to
+## walk into nearby, or no free bed in it: they go in the old way.
 static func enter(v: Villager, at_once: bool) -> bool:
 	var walk_in: WalkIn = v.level.get("walk_in") if v.level != null else null
 	if walk_in == null:
@@ -38,19 +48,18 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	if house.is_empty():
 		return false
 	var bed := _free_bed(house)
+	if bed.is_empty():
+		return false
 	var way := walk_in.door_points(house)
-	if not bed.is_empty():
-		bed.by = v
-	# In a house with its bed on the ground floor (see SmithCottage) they walk to the bed, not the ladder.
-	var goal: Vector3 = bed.stand if _on_ground(house, bed) else house.ladder
+	bed.by = v
 	# Down the stairs first to a bed in a cellar (the guild master's, see GuildHall).
 	var path: Array = [way[0], way[1]]
 	path.append_array(house.get("inner_way", []))
-	path.append(goal)
+	path.append(house.ladder)
 	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": path, "t": 0.0, "clock": 0.0}
 	if at_once:
 		if _on_ground(house, bed):
-			_lie_down(v)
+			_lie_on_ground(v)
 		else:
 			_settle(v)
 	return true
@@ -63,7 +72,7 @@ static func _on_ground(house: Dictionary, bed: Dictionary) -> bool:
 
 
 ## Into a bed on the ground floor: lies down in it, in sight, with the name hidden like upstairs.
-static func _lie_down(v: Villager) -> void:
+static func _lie_on_ground(v: Villager) -> void:
 	var trip := v.bed_trip
 	var bed: Dictionary = trip.bed
 	v.unpose_body()
@@ -85,30 +94,56 @@ static func _free_bed(house: Dictionary) -> Dictionary:
 	return {}
 
 
-## Whether the villager is out of sight at home: in the house the old way, upstairs, or on the
-## ladder with the head through the hatch.
+## Whether the hero is up on the floor above of the house of `trip`.
+static func _hero_up(v: Villager, trip: Dictionary) -> bool:
+	var walk_in: WalkIn = v.level.get("walk_in") if v.level != null else null
+	return walk_in != null and walk_in.hero_upstairs_in(trip.house)
+
+
+## Whether the villager is out of sight at home: in the house the old way, upstairs while the hero
+## is not, or on the ladder with the head through the hatch.
 static func unseen(v: Villager) -> bool:
-	return v.bed_trip.is_empty() or v.bed_trip.step == "upstairs" or bool(v.bed_trip.get("hidden", false))
+	var trip := v.bed_trip
+	if trip.is_empty():
+		return true
+	if String(trip.step) in UPSTAIRS:
+		return not _hero_up(v, trip)
+	return bool(trip.get("hidden", false))
 
 
-## Straight upstairs without the walk and the climb: in bed, or by the hatch when no bed is left.
+## Shows or hides the villager as `unseen` says, where the walls let the hero see (see InsideView).
+static func _mind_sight(v: Villager) -> void:
+	if v.bed_trip.is_empty():
+		return # Out of the door: the villager's own day sees to it.
+	var show := not unseen(v) and not v.has_meta(InsideView.HIDDEN)
+	if v.visible != show:
+		v.visible = show
+
+
+## Straight into bed upstairs without the walk and the climb.
 static func _settle(v: Villager) -> void:
 	var trip := v.bed_trip
-	var bed: Dictionary = trip.bed
 	v.unpose_body()
-	v.lean_on_pillow(false)
-	if bed.is_empty():
-		v.global_position = trip.house.ladder_top
-		v.play("Idle", 0.0)
-	else:
-		v.global_position = Level.lie_spot(bed.pos, float(bed.rot), v.body_scale())
-		v.rotation.y = float(bed.rot)
+	trip.erase("hidden")
+	trip.step = "upstairs"
+	_lie_down(v, trip, true)
+	_mind_sight(v)
+	v.reset_physics_interpolation()
+
+
+## Into the bed of the trip: at once (`at_once`) or with the clip.
+static func _lie_down(v: Villager, trip: Dictionary, at_once: bool) -> void:
+	var bed: Dictionary = trip.bed
+	v.global_position = Level.lie_spot(bed.pos, float(bed.rot), v.body_scale())
+	# Lying down falls backwards: face the foot of the bed.
+	v.rotation.y = float(bed.rot)
+	if at_once:
 		v.play("Lie_Down", 0.0)
 		v.anim_to_end()
-	v.visible = false
-	trip.step = "upstairs"
-	trip.erase("hidden")
-	v.reset_physics_interpolation()
+		v.lean_on_pillow(true)
+	else:
+		v.play("Lie_Down", 0.15)
+		v.lean_on_pillow(true, 0.9)
 
 
 ## Starts the climb up (`up`) or down the house's ladder from where the villager stands.
@@ -119,8 +154,8 @@ static func _start_climb(v: Villager, trip: Dictionary, up: bool) -> void:
 	var from := v.global_position - edge
 	from.y = 0.0
 	var tall: float = house.ladder_tall
-	trip["keys"] = LadderPose.up_keys(tall, from.dot(push)) if up else LadderPose.down_keys(tall, LadderPose.TOP_FORWARD)
-	trip["aside"] = from.dot(Vector3(-push.z, 0, push.x)) if up else 0.0
+	trip["keys"] = LadderPose.up_keys(tall, from.dot(push)) if up else LadderPose.down_keys(tall, from.dot(push))
+	trip["aside"] = from.dot(Vector3(-push.z, 0, push.x))
 	trip.t = 0.0
 	trip.step = "climb" if up else "climb_down"
 	v.rotation.y = atan2(push.x, push.z)
@@ -140,11 +175,9 @@ static func _climb(v: Villager, trip: Dictionary, delta: float) -> bool:
 			+ side * float(trip.get("aside", 0.0)) * float(state.side) + Vector3(0, height, 0)
 	v.rotation.y = atan2(push.x, push.z)
 	v.pose_body(state.pose)
-	var hidden := height > float(house.ladder_tall) - HIDDEN_BELOW
-	if hidden != bool(trip.get("hidden", false)):
-		trip["hidden"] = hidden
-		# Back in sight only where the walls let the hero see (see InsideView).
-		v.visible = not hidden and not v.has_meta(InsideView.HIDDEN)
+	# Seen from below until the head is through the hatch; from above all the way.
+	trip["hidden"] = height > float(house.ladder_tall) - HIDDEN_BELOW and not _hero_up(v, trip)
+	_mind_sight(v)
 	return trip.t >= LadderPose.length(keys)
 
 
@@ -162,38 +195,81 @@ static func step(v: Villager, delta: float) -> void:
 				if trip.step == "out":
 					_done(v)
 				elif _on_ground(trip.house, trip.bed):
-					_lie_down(v)
+					_lie_on_ground(v)
 				else:
 					_start_climb(v, trip, true)
 		"climb":
 			if _climb(v, trip, delta):
-				_settle(v)
-		"upstairs", "asleep":
+				v.unpose_body()
+				v.play("Idle", 0.15)
+				trip.erase("hidden")
+				trip.step = "to_bed"
+				trip.way = [trip.bed.stand]
+				trip.clock = 0.0
+		"to_bed":
+			if _walk(v, trip, delta):
+				trip.step = "hop"
+				trip.t = 0.0
+				trip["from"] = v.global_position
+		"hop":
+			trip.t = float(trip.t) + delta
+			var k := minf(1.0, trip.t / HOP_TIME)
+			var spot := Level.lie_spot(trip.bed.pos, float(trip.bed.rot), v.body_scale())
+			v.global_position = (trip.from as Vector3).lerp(spot, k) + Vector3(0, sin(k * PI) * 0.5, 0)
+			v.play("Idle", 0.1)
+			if k >= 1.0:
+				_lie_down(v, trip, false)
+				trip.step = "upstairs"
+		"upstairs":
 			pass
+		"rise":
+			trip.t = float(trip.t) + delta
+			if trip.t >= RISE_TIME:
+				trip.step = "hop_down"
+				trip.t = 0.0
+				trip["from"] = v.global_position
+		"hop_down":
+			trip.t = float(trip.t) + delta
+			var k := minf(1.0, trip.t / HOP_TIME)
+			var stand: Vector3 = trip.bed.stand
+			v.global_position = (trip.from as Vector3).lerp(stand, k) + Vector3(0, sin(k * PI) * 0.4, 0)
+			v.play("Idle", 0.15)
+			if k >= 1.0:
+				trip.step = "to_hatch"
+				trip.way = [trip.house.ladder_top]
+				trip.clock = 0.0
+		"to_hatch":
+			if _walk(v, trip, delta):
+				_start_climb(v, trip, false)
 		"climb_down":
 			if _climb(v, trip, delta):
 				v.unpose_body()
 				v.play("Idle", 0.15)
 				v.reset_physics_interpolation()
 				_go_out(v, trip)
+	_mind_sight(v)
 
 
-## The morning: down the ladder and out of the door. Returns whether the villager was in a house one
-## walks into (and is on the way out now).
+## The morning: out of bed, to the hatch, down the ladder and out of the door. Returns whether the
+## villager was in a house one walks into (and is on the way out now).
 static func rise(v: Villager) -> bool:
 	var trip := v.bed_trip
 	if trip.is_empty():
 		return false
+	trip.t = 0.0
 	trip.clock = 0.0
 	match String(trip.step):
-		"upstairs", "climb":
-			v.lean_on_pillow(false)
+		"upstairs", "hop":
+			v.play("Lie_StandUp", 0.2)
+			v.lean_on_pillow(false, 0.4)
+			trip.step = "rise"
+		"climb", "to_bed":
+			# Not in bed yet: straight back down from the top of the ladder.
+			v.unpose_body()
 			v.global_position = trip.house.ladder_top
 			v.reset_physics_interpolation()
-			trip["hidden"] = true
-			v.visible = false
 			_start_climb(v, trip, false)
-		"climb_down":
+		"rise", "hop_down", "to_hatch", "climb_down":
 			pass
 		"asleep":
 			# Up out of the bed on the ground floor, onto the floor beside it, and out.
@@ -273,7 +349,7 @@ static func _walk(v: Villager, trip: Dictionary, delta: float) -> bool:
 	v.global_position = next
 	v.face_way(to, delta)
 	var door: Vector3 = (trip.house.node as Node3D).global_transform * (trip.house.door as Vector3)
-	if Vector2(door.x - next.x, door.z - next.z).length() < DOOR_PUSH:
+	if not String(trip.step) in UPSTAIRS and Vector2(door.x - next.x, door.z - next.z).length() < DOOR_PUSH:
 		var leaf = trip.house.get("leaf")
 		if leaf != null and is_instance_valid(leaf) and not (leaf as HouseDoor).is_open():
 			(leaf as HouseDoor).swing()

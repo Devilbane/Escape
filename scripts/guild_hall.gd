@@ -28,7 +28,7 @@ extends RefCounted
 ## The style of the hall's VillageHouse (see VillageHalls.style).
 const STYLE := {"max_w": 9.8, "max_d": 8.6, "door_x": 0.0, "flat": true}
 ## The groups of the upper storey's meshes (see VillageHouse.hollow): each wall apart, and the room.
-const UPPER_GROUPS := ["up_front", "up_back", "up_left", "up_right", "up_room"]
+const UPPER_GROUPS := ["storey_front", "storey_back", "storey_left", "storey_right", "storey_room"]
 ## The storeys, as WalkIn keeps them (rec.storey): the cellar, the ground floor, the upper floor, the roof.
 const CELLAR_STOREY := -1
 const GROUND_STOREY := 0
@@ -228,10 +228,10 @@ static func upper_storey(shape: Dictionary, groups: Dictionary) -> void:
 	var top: float = lay.top
 	var high := VillageHouse.UPPER
 	var mid := top + high * 0.5
-	VillageHouse._box(groups.up_front, "plaster", Vector3(0, mid, ud * 0.5 - t * 0.5), Vector3(uw, high, t))
-	VillageHouse._box(groups.up_back, "plaster", Vector3(0, mid, -ud * 0.5 + t * 0.5), Vector3(uw, high, t))
+	VillageHouse._box(groups.storey_front, "plaster", Vector3(0, mid, ud * 0.5 - t * 0.5), Vector3(uw, high, t))
+	VillageHouse._box(groups.storey_back, "plaster", Vector3(0, mid, -ud * 0.5 + t * 0.5), Vector3(uw, high, t))
 	for side: float in [-1.0, 1.0]:
-		var group: Dictionary = groups.up_right if side > 0.0 else groups.up_left
+		var group: Dictionary = groups.storey_right if side > 0.0 else groups.storey_left
 		VillageHouse._box(group, "plaster", Vector3(side * (uw * 0.5 - t * 0.5), mid, 0), Vector3(t, high, ud - t * 2.0))
 		# The window in the middle of the wall, as on the solid house (see VillageHouse._shape).
 		var outer := Vector3(side * uw * 0.5, top + 1.3, 0)
@@ -239,16 +239,16 @@ static func upper_storey(shape: Dictionary, groups: Dictionary) -> void:
 		VillageHouse._inner_window(group, outer, Vector3(side * (uw * 0.5 - t), top + 1.3, 0), side * PI * 0.5)
 	for x: float in VillageHouse._window_spots(uw, INF):
 		var outer := Vector3(x, top + 1.3, ud * 0.5)
-		VillageHouse._window(groups.up_front, outer, 0.0)
-		VillageHouse._inner_window(groups.up_front, outer, Vector3(x, top + 1.3, ud * 0.5 - t), 0.0)
+		VillageHouse._window(groups.storey_front, outer, 0.0)
+		VillageHouse._inner_window(groups.storey_front, outer, Vector3(x, top + 1.3, ud * 0.5 - t), 0.0)
 	# The boards, open over the stairs up from the ground floor.
 	var room: Rect2 = lay.up_room
 	var well: Rect2 = lay.stairwell
 	var hole := Rect2(well.position.x - room.position.x, room.end.y - well.end.y, well.size.x, well.size.y)
-	VillageHouse._face(groups.up_room, "floor", Vector3(room.position.x, lay.up_floor, room.end.y), Vector3.RIGHT, Vector3.FORWARD, room.size, hole)
+	VillageHouse._face(groups.storey_room, "floor", Vector3(room.position.x, lay.up_floor, room.end.y), Vector3.RIGHT, Vector3.FORWARD, room.size, hole)
 	# The wall tops round the room, seen from above once the roof is off.
-	VillageHouse._face(groups.up_room, "plaster", Vector3(-uw * 0.5, lay.eaves - 0.001, ud * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(uw, t))
-	VillageHouse._face(groups.up_room, "plaster", Vector3(-uw * 0.5, lay.eaves - 0.001, -ud * 0.5 + t), Vector3.RIGHT, Vector3.FORWARD, Vector2(uw, t))
+	VillageHouse._face(groups.storey_room, "plaster", Vector3(-uw * 0.5, lay.eaves - 0.001, ud * 0.5), Vector3.RIGHT, Vector3.FORWARD, Vector2(uw, t))
+	VillageHouse._face(groups.storey_room, "plaster", Vector3(-uw * 0.5, lay.eaves - 0.001, -ud * 0.5 + t), Vector3.RIGHT, Vector3.FORWARD, Vector2(uw, t))
 
 
 # --- Opening the hall ------------------------------------------------------------------
@@ -317,7 +317,7 @@ static func _flights(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside: 
 			wedge.append(Vector3(x, f.high, f.top))
 		walk_in._wedge(rec, wedge)
 	var upper := _group_node(hall, "GuildUpper")
-	rec.up_room.append(upper)
+	rec.storey_room.append(upper)
 	var cellar := Node3D.new()
 	cellar.name = "GuildCellar"
 	cellar.transform = hall.transform

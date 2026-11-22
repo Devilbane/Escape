@@ -159,13 +159,17 @@ static func restore(world: Node3D) -> void:
 		_spawn(world, rec)
 
 
-## Presses a print at `at` facing `heading` (radians about the up axis).
-static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", _daylight := 1.0) -> MeshInstance3D:
+## Presses a print at `at` facing `heading` (radians about the up axis). On the ground it lies at
+## HEIGHT; up on something (a house's roof) pass `up`, the way the surface faces there: it lies on
+## that surface at `at`'s height, tilted with it.
+static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", _daylight := 1.0, up := Vector3.ZERO) -> MeshInstance3D:
 	restore(world)
 	_live = _live.filter(func(n): return is_instance_valid(n))
 	while _live.size() >= MAX:
 		_drop_one()
 	var rec := [kind, at.x, at.z, heading, size]
+	if up != Vector3.ZERO:
+		rec.append_array([at.y, up.normalized()])
 	_records.append(rec)
 	return _spawn(world, rec)
 
@@ -184,9 +188,13 @@ static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
 	# Far prints are not drawn at all, which keeps a big pool cheap.
 	mi.visibility_range_end = 45.0
 	world.add_child(mi)
-	mi.global_position = Vector3(at.x, HEIGHT, at.z)
-	mi.rotation.y = heading + FRONT
-	mi.scale = Vector3(size, 1.0, size)
+	var turn := Basis(Vector3.UP, heading + FRONT).scaled(Vector3(size, 1.0, size))
+	if rec.size() > 6:
+		# Up on a roof: on its surface and tilted with it.
+		var up: Vector3 = rec[6]
+		mi.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, up)) * turn, Vector3(at.x, float(rec[5]), at.z) + up * HEIGHT)
+	else:
+		mi.global_transform = Transform3D(turn, Vector3(at.x, HEIGHT, at.z))
 	mi.set_meta("print_kind", kind)
 	mi.set_meta("print_rec", rec)
 	_live.append(mi)

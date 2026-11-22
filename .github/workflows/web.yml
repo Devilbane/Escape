@@ -21,13 +21,18 @@ env:
   GODOT_VERSION: 4.7.2
 
 jobs:
-  # Decides whether the tests have to run. A pull request that changes only documentation (docs/, *.md,
-  # the balance sheets) cannot break a headless test, so its shards are skipped and `tests` still reports
-  # green. Everything else (pushes to main, the nightly run, manual runs, any other change) runs in full.
+  # Decides what has to run. A pull request that changes only documentation (docs/, *.md, the balance sheets)
+  # cannot break a headless test, so its shards are skipped and `tests` still reports green. Every other pull
+  # request, push and merge queue entry runs the required tests (tests/ci_manifest.txt), the quest tests whose
+  # files it touches and, as a warning only, the other test files it changed (tests/ci_select.sh). The nightly
+  # and manual runs run everything (docs/testing.md, "What goes in the required check").
   scope:
     runs-on: ubuntu-latest
     outputs:
       full: ${{ steps.scope.outputs.full }}
+      nightly: ${{ steps.scope.outputs.nightly }}
+      quests: ${{ steps.scope.outputs.quests }}
+      extra: ${{ steps.scope.outputs.extra }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,20 +40,28 @@ jobs:
       - id: scope
         env:
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event.pull_request.base.sha }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
-          if [ "$EVENT" != "pull_request" ]; then echo "full=true" >> "$GITHUB_OUTPUT"; echo "Full run ($EVENT)."; exit 0; fi
-          other=$(git diff --name-only "$BASE"...HEAD | grep -Ev '^(docs/|balance/|.*\.md$|\.gitattributes$|LICENSE)' || true)
-          if [ -n "$other" ]; then
-            echo "full=true" >> "$GITHUB_OUTPUT"; echo "Code changed, full run:"; echo "$other"
-          else
-            echo "full=false" >> "$GITHUB_OUTPUT"; echo "Only documentation changed: the tests are skipped."
+          if [ "$EVENT" = schedule ] || [ "$EVENT" = workflow_dispatch ]; then
+            { echo "full=true"; echo "nightly=true"; echo "quests=all"; echo "extra="; } >> "$GITHUB_OUTPUT"
+            echo "Full run ($EVENT): every test."; exit 0
           fi
+          echo "nightly=false" >> "$GITHUB_OUTPUT"
+          if ! changed=$(git diff --name-only "$BASE"...HEAD 2>/dev/null); then
+            { echo "full=true"; echo "quests=all"; echo "extra="; } >> "$GITHUB_OUTPUT"
+            echo "No base to compare with ($EVENT): the required and all quest tests."; exit 0
+          fi
+          other=$(echo "$changed" | grep -Ev '^(docs/|balance/|.*\.md$|\.gitattributes$|LICENSE)' || true)
+          if [ "$EVENT" = pull_request ] && [ -z "$other" ]; then
+            echo "full=false" >> "$GITHUB_OUTPUT"; echo "Only documentation changed: the tests are skipped."; exit 0
+          fi
+          echo "full=true" >> "$GITHUB_OUTPUT"
+          echo "$changed" | grep . | tests/ci_select.sh | tee -a "$GITHUB_OUTPUT"
 
   # The fast checks: the gate for pull requests, and what the Windows build on main waits for
   # (desktop.yml). The browser export is optional and lives in browser.yml.
   # The tests are split into parallel shards of about equal length (tests/ci_shard.sh, the list is
-  # tests/ci_manifest.txt, the measured lengths tests/ci_timings.txt).
+  # tests/ci_manifest.txt plus the picked quest tests, the measured lengths tests/ci_timings.txt).
   # `tests` at the end gathers them into one check: that single name is what branch protection requires
   # and what the Windows build waits for, however many shards there are.
   shard:
@@ -56,6 +69,56 @@ jobs:
     needs: scope
     if: needs.scope.outputs.full == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot and the imported project
+        uses: ./.github/actions/godot-setup
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
+          save-import: ${{ github.event_name != 'pull_request' && matrix.shard == 0 }}
+
+      - name: Tests of this shard
+        env:
+          CI_QUESTS: ${{ needs.scope.outputs.quests }}
+        run: tests/ci_shard.sh blocking ${{ matrix.shard }} 6
+
+  # The test files a pull request or push changed that are not required (tests/ci_nightly.txt, or not listed
+  # anywhere yet), so a new or edited test runs once. Not part of `tests`, so it never blocks a merge. It starts
+  # only once `tests` has reported, so it never takes a runner that the required shards are waiting for (GitHub
+  # runs only so many jobs at once), and auto-merge does not wait for it.
+  extra:
+    name: extra-tests
+    needs: [scope, tests]
+    if: ${{ !cancelled() && needs.scope.outputs.nightly == 'false' && needs.scope.outputs.extra != '' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Godot and the imported project
+        uses: ./.github/actions/godot-setup
+        with:
+          godot-version: ${{ env.GODOT_VERSION }}
+
+      - name: Changed tests that are not required (a failure is only a warning)
+        env:
+          CI_EXTRA: ${{ needs.scope.outputs.extra }}
+        run: tests/ci_shard.sh extra 0 1
+
+  # Every test that is not required (tests/ci_nightly.txt and tests listed nowhere yet), in the nightly and
+  # manual runs only, alongside the required shards (which then run every quest test too). A failure is a
+  # warning on that run; fix it the next day.
+  nightly:
+    name: nightly-tests (${{ matrix.shard }})
+    needs: scope
+    if: needs.scope.outputs.nightly == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -67,59 +130,9 @@ jobs:
         uses: ./.github/actions/godot-setup
         with:
           godot-version: ${{ env.GODOT_VERSION }}
-          save-import: ${{ github.event_name != 'pull_request' && matrix.shard == 0 }}
 
-      - name: Tests of this shard
-        run: tests/ci_shard.sh blocking ${{ matrix.shard }} 8
-
-  # Every test in tests/ that the manifest does not list. A new test runs from the day it is added, but
-  # only warns until it is listed (see docs/testing.md). Not part of `tests`, so it never blocks a merge.
-  # On a pull request these shards start only once `tests` has reported, so they never take a runner that
-  # the blocking shards or `tests` are waiting for (GitHub runs only so many jobs at once), and auto-merge
-  # does not wait for them. On main and at night they run alongside the blocking shards (extra-main below),
-  # so the Windows build, which waits for the whole run, is not held up.
-  extra:
-    name: extra-tests (${{ matrix.shard }})
-    needs: [scope, tests]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.scope.outputs.full == 'true' }}
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Godot and the imported project
-        uses: ./.github/actions/godot-setup
-        with:
-          godot-version: ${{ env.GODOT_VERSION }}
-
-      - name: Extra tests of this shard (a failure is only a warning)
-        run: tests/ci_shard.sh extra ${{ matrix.shard }} 4
-
-  # The same extra shards on main, at night and on manual runs, started together with the blocking ones.
-  extra-main:
-    name: extra-tests (${{ matrix.shard }})
-    needs: scope
-    if: github.event_name != 'pull_request' && needs.scope.outputs.full == 'true'
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [0, 1, 2, 3]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Godot and the imported project
-        uses: ./.github/actions/godot-setup
-        with:
-          godot-version: ${{ env.GODOT_VERSION }}
-
-      - name: Extra tests of this shard (a failure is only a warning)
-        run: tests/ci_shard.sh extra ${{ matrix.shard }} 4
+      - name: Nightly tests of this shard (a failure is only a warning)
+        run: tests/ci_shard.sh nightly ${{ matrix.shard }} 8
 
   # The one required check. It passes when every blocking shard passed, or when the shards were skipped
   # on purpose (a documentation-only pull request).

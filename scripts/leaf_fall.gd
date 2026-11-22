@@ -15,7 +15,8 @@ const TINTS := [Color(0.78, 0.5, 0.16), Color(0.7, 0.28, 0.12), Color(0.62, 0.12
 		Color(0.88, 0.76, 0.22), Color(0.5, 0.28, 0.1), Color(0.38, 0.2, 0.08)]
 
 var anchor := Vector3.ZERO
-var material := StandardMaterial3D.new()
+## Leaves out the inside of the houses (see Weather.particle_material).
+var material := Weather.particle_material(Weather._leaf_texture(), Weather.AS_PLACED, true, Color(1, 1, 1, 0.0))
 var _rng := RandomNumberGenerator.new()
 var _pos := PackedVector3Array()
 var _speed := PackedFloat32Array()
@@ -29,12 +30,6 @@ func _init() -> void:
 	visible = false
 	var quad := QuadMesh.new()
 	quad.size = Vector2(SIZE, SIZE)
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.vertex_color_use_as_albedo = true
-	material.albedo_texture = Weather._leaf_texture()
-	material.albedo_color = Color(1, 1, 1, 0.0)
 	quad.material = material
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D

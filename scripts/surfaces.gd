@@ -75,7 +75,7 @@ static func ground(level: Level, p: Vector3) -> String:
 static func step_ground(level: Level, p: Vector3) -> String:
 	var kind := ground(level, p)
 	var outdoor := level as Outdoor
-	if outdoor and kind != WOOD and kind != PUDDLE and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM and not outdoor.is_sheltered(p):
+	if outdoor and kind != WOOD and kind != PUDDLE and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM and not outdoor.is_roofed(p):
 		return SNOW
 	return kind
 

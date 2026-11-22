@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, depth_draw_always;
 // The same as tint.gdshader, but the part can fade, for a sneaking hero.
 // See gear_material.gdshaderinc.
 

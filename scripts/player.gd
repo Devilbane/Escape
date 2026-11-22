@@ -276,6 +276,11 @@ var _fill: OmniLight3D
 ## is left of its brightness and reach on a moonless night.
 var night_dim := 0.0
 const NIGHT_LANTERN_ENERGY := 0.55
+## How bright the lantern over the hero's head burns, open and hooded (sneaking). It hangs
+## close over the hero, so it lights them far more than the ground round them: kept low
+## enough that the hero never glares white.
+const LANTERN_ENERGY := 0.85
+const SNEAK_LANTERN_ENERGY := 0.35
 const NIGHT_LANTERN_RANGE := 0.62
 ## The hand torch that burns in the pitch-black places (see HandTorch).
 var torch: HandTorch
@@ -419,7 +424,7 @@ func _ready() -> void:
 	# A warm lantern glow around the hero, so the way ahead is never pitch black.
 	_lantern = OmniLight3D.new()
 	_lantern.light_color = Color(1.0, 0.75, 0.5)
-	_lantern.light_energy = 1.1
+	_lantern.light_energy = LANTERN_ENERGY
 	_lantern.omni_range = 8.5
 	# A soft falloff: no hard-edged disc of light on the snow.
 	_lantern.omni_attenuation = 1.8
@@ -500,12 +505,12 @@ func set_night_dim(dim: float) -> void:
 ## The lantern as bright and wide as the hood and the night allow. A hooded
 ## lantern: just enough to see the floor, too little to be seen by.
 func _light_lantern() -> void:
-	_lantern.light_energy = (0.45 if sneaking else 1.1) * lerpf(1.0, NIGHT_LANTERN_ENERGY, night_dim)
+	_lantern.light_energy = (SNEAK_LANTERN_ENERGY if sneaking else LANTERN_ENERGY) * lerpf(1.0, NIGHT_LANTERN_ENERGY, night_dim)
 	_lantern.omni_range = (5.0 if sneaking else 8.5) * lerpf(1.0, NIGHT_LANTERN_RANGE, night_dim)
 	# At night the lantern sits lower and further forward, so it lights the face
 	# as much as the hair, and a gentle cool fill keeps the hero readable.
 	_lantern.position = Vector3(0, lerpf(3.2, 2.3, night_dim), lerpf(0.6, 1.2, night_dim))
-	_fill.light_energy = 0.35 * night_dim * (0.6 if sneaking else 1.0)
+	_fill.light_energy = 0.25 * night_dim * (0.6 if sneaking else 1.0)
 	_fill.visible = night_dim > 0.05
 
 

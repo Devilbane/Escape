@@ -131,7 +131,7 @@ func _process(_delta: float) -> bool:
 			check(game.player.torch.lit, "in the open the torch burns on until it is put out")
 			game.torch_action()
 			check(not game.player.torch.lit and game.player.torch.left > 0.0, "put out, it keeps what is left of it")
-			check(is_equal_approx(game.player._lantern.light_energy, 1.1), "and the lantern shines as before")
+			check(is_equal_approx(game.player._lantern.light_energy, Player.LANTERN_ENERGY), "and the lantern shines as before")
 			_finish()
 			return true
 	return false

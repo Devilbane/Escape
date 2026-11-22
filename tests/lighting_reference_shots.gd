@@ -291,6 +291,11 @@ func _village() -> void:
 		game.set_weather(shot[3], 100.0)
 		game._weather_look = Weather.look(game.weather)
 		lvl.set_winter_wear(winter, true)
+		if wait > SETTLE and place != "street":
+			# Up to the surface first: CellarView keeps the cellar the hero went down into, so a
+			# jump from one cellar straight into another would leave the first one showing.
+			game.player.global_position = places["street"]
+			await _wait(3)
 		game.player.global_position = places[place]
 		game.player.velocity = Vector3.ZERO
 		_dress_hero(shot[6])

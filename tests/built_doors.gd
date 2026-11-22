@@ -10,6 +10,8 @@ extends SceneTree
 ##   one opens for it; the hero still gets through their own locked door.
 ## - Monsters other than people (a slime, say) do not open even an unlocked door.
 ## - A gate in a garden wall gets a leaf of its own.
+## - Under a pitched roof the eave over a door does not catch the hero's head: the hero walks in
+##   and out of the old hut over the silver mine (see LostMine.HUT).
 ## Run with: godot --headless --fixed-fps 60 -s tests/built_doors.gd
 ## With SHOTS=<folder> and a display it also saves pictures of the door.
 
@@ -257,7 +259,30 @@ func _run() -> void:
 	check(not door.may_pass(bandit), "but not a locked one")
 	door.locked = false
 	bandit.queue_free()
+	await _through_roofed_door()
 	_end()
+
+
+## In and out through the door of the old mine hut, whose pitched roof's eave hangs over the door.
+func _through_roofed_door() -> void:
+	var hero: Player = game.player
+	var s := LostMine.sketch()
+	var x := LostMine.HUT.position.x + LostMine.HUT.size.x / 2
+	var outside := s.cell_world(x, LostMine.HUT.position.y - 1)
+	var inside := s.cell_world(x, LostMine.HUT.position.y)
+	for way: Array in [[outside, "ui_down", inside.z, "walks into the roofed hut through its door"], [inside, "ui_up", outside.z, "walks out again"]]:
+		hero.global_position = (way[0] as Vector3) + Vector3(0, 0.1, 0)
+		hero.reset_physics_interpolation()
+		await _wait(5)
+		Input.action_press(way[1])
+		var goal: float = way[2]
+		var start_z := hero.global_position.z
+		for i in 240:
+			await _wait(1)
+			if absf(hero.global_position.z - start_z) >= absf(goal - start_z) - 0.2:
+				break
+		Input.action_release(way[1])
+		check(absf(hero.global_position.z - start_z) >= absf(goal - start_z) - 0.2, "the hero %s (z %.2f, aiming for %.2f)" % [way[3], hero.global_position.z, goal])
 
 
 func _shot(name: String, from: Vector3, look: Vector3) -> void:

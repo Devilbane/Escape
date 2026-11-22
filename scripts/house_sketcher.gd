@@ -1801,6 +1801,9 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {
 		colour = OLD_ROOF.lerp(MOSS, 0.55 if posmod(cx + cz, 2) == 0 else 0.15)
 	for sign_ in [-1.0, 1.0]:
 		var foot: Vector3 = mid + across * sign_ + Vector3(0, eave, 0)
+		# What one bumps into ends over the wall, a slab's height up: the eave below it is only seen,
+		# so it never catches the head of someone walking out of a door under it.
+		var stop: Vector3 = foot
 		# Down to the wall's top on the house's outside, along the same slope, and a hand over it.
 		if bool(open.get("across%d" % int(sign_), false)):
 			var slope: Vector3 = foot - peak
@@ -1808,17 +1811,18 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {
 		if _abandoned and not demolish and posmod(cz if ridge_x else cx, 3) == 1 and posmod((cx if ridge_x else cz) + (1 if sign_ > 0.0 else 0), 3) == 0:
 			_rafters(foot, peak, eave - 0.15)
 			continue
+		_slanted(stop, peak, HouseSketch.CELL, 0.15, colour, true, false)
 		# Here and there on an empty house the lower half of a board has broken off, down to the rafters.
 		if _abandoned and not demolish and posmod(cx * 7 + cz * 3 + (1 if sign_ > 0.0 else 0), 5) == 2:
 			_rafters(foot, peak, eave - 0.15)
 			foot = foot.lerp(peak, 0.5)
 		if demolish:
-			_slanted(foot, peak, HouseSketch.CELL, 0.15, colour, true)
+			_slanted(foot, peak, HouseSketch.CELL, 0.15, colour, false)
 		else:
-			_slanted(foot, peak, HouseSketch.CELL, 0.15, colour, true, false)
 			_tiled_board(foot, peak, HouseSketch.CELL, eave - 0.15)
 	var along := Vector3(half - 0.05, 0, 0) if ridge_x else Vector3(0, 0, half - 0.05)
-	var gable: Material = _solid_material(colour) if demolish else HouseLooks.stair_wood()
+	# An empty house's gables are stone, like its walls; a lived-in house's are timber.
+	var gable: Material = _solid_material(colour) if demolish else (HouseLooks.temple_stone() if _abandoned else HouseLooks.stair_wood())
 	for sign_ in [-1.0, 1.0]:
 		var prism := MeshInstance3D.new()
 		var mesh := PrismMesh.new()

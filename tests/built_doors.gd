@@ -181,6 +181,13 @@ func _run() -> void:
 	check(said_lock == "" and door.locked, "Shift+E locks the hero's own door (%s)" % said_lock)
 	check(door._locks[0].visible and door._locks[1].visible, "a padlock shows on both faces")
 	check(plan.locked.has(door_key), "the lock is kept in the plan")
+	# Double click on the door unlocks and locks it again (and is not a sneak toggle).
+	await _wait(40) # the hero is busy with the last lock for a moment (Interact)
+	var dc1: bool = game._lock_door_by_double_click(at)
+	check(dc1 and not door.locked and not plan.locked.has(door_key), "a double click on the door unlocks it")
+	await _wait(40)
+	check(game._lock_door_by_double_click(at) and door.locked and plan.locked.has(door_key), "a double click locks it again")
+	check(not game._lock_door_by_double_click(at + Vector3(6, 0, 6)), "a double click away from the door is left to sneaking")
 	hero.global_position = at + Vector3(3.0, 0.1, 4.0)
 	hero.reset_physics_interpolation()
 	await _shot("door_locked", at + Vector3(0.9, 1.5, 2.0), at + Vector3(0.4, 1.2, 0))
@@ -212,7 +219,26 @@ func _run() -> void:
 		if hero.global_position.z < at.z - 1.6:
 			break
 	Input.action_release("ui_up")
-	check(widest > 0.9 and hero.global_position.z < at.z - 1.0, "the owner walks through their locked door (%.2f, z %.2f)" % [widest, hero.global_position.z - at.z])
+	check(widest == 0.0 and hero.global_position.z > at.z + 0.3, "the owner cannot walk into their own locked door, it stays shut (%.2f, z %.2f)" % [widest, hero.global_position.z - at.z])
+	check(game.door_action(door, false) == Lang.t("Abgeschlossen."), "E does not open a locked door either")
+	hero.global_position = at + Vector3(0, 0.1, 1.6)
+	hero.reset_physics_interpolation()
+	await _wait(3)
+	await _wait(40)
+	check(game._lock_door_by_double_click(at) and not door.locked, "the owner unlocks it with a double click first")
+	hero.global_position = at + Vector3(0, 0.1, 2.0)
+	hero.reset_physics_interpolation()
+	await _wait(5)
+	widest = 0.0
+	Input.action_press("ui_up")
+	for i in 400:
+		await _wait(1)
+		widest = maxf(widest, door.openness())
+		if hero.global_position.z < at.z - 1.6:
+			break
+	Input.action_release("ui_up")
+	check(widest > 0.9 and hero.global_position.z < at.z - 1.0, "once unlocked the owner walks through (%.2f, z %.2f)" % [widest, hero.global_position.z - at.z])
+	door.set_locked(true)
 	hero.global_position = at + Vector3(4.0, 0.1, -4.0)
 	hero.reset_physics_interpolation()
 	await _wait(int((BuiltDoor.HOLD + BuiltDoor.OPEN_TIME + 0.4) * 60))

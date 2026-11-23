@@ -13,9 +13,9 @@ extends Node3D
 ##   push an unlocked door open; slimes, beasts, the dead and every other
 ##   monster are stopped by a shut door as by a wall, and get in only through
 ##   a door someone else holds open.
-## - The owner can lock it (Shift+E, `set_locked`): a locked door shows a
-##   padlock on both faces and opens only for its owner and their companions,
-##   so villagers, animals and monsters stay out.
+## - The owner can lock it (double click or Shift+E, `set_locked`): a locked door
+##   shows a padlock on both faces and opens for nobody, not even its owner or
+##   their companions, until the owner unlocks it again.
 ##
 ## The node stands on the floor in the middle of the opening; its x axis runs
 ## along the wall, z through it.
@@ -117,9 +117,7 @@ func openness() -> float:
 func may_pass(body: Node) -> bool:
 	if body is Enemy and not opens_doors(body):
 		return false
-	if not locked:
-		return true
-	return own and hero != null and (body == hero or body is Pet)
+	return not locked
 
 
 ## Whether a monster knows how to open a door (people do; a slime does not).
@@ -128,7 +126,7 @@ static func opens_doors(e: Enemy) -> bool:
 
 
 ## The hero's E at the door: opens it and keeps it open, or shuts it. Returns
-## "" or why not (a locked door of someone else).
+## "" or why not (a locked door: unlock it first).
 func use(from: Vector3) -> String:
 	if not may_pass(hero):
 		return Lang.t("Abgeschlossen.")

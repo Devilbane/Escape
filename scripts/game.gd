@@ -2415,19 +2415,41 @@ func window_action(pair: BuiltShutters) -> String:
 func door_action(door: BuiltDoor, lock: bool) -> String:
 	if not player.can_act():
 		return Lang.t("Gerade nicht.")
-	learn("Türen und Tore, die du baust, gehen auf, wenn du hineinläufst, und fallen hinter dir wieder zu. Taste E öffnet eine Tür und hält sie offen oder schließt sie. Umschalt+E schließt deine eigene Tür ab: Dann kommen nur du und deine Gefährten hindurch, keine Dorfbewohner, Tiere oder Ungeheuer. Ein Vorhängeschloss an der Tür zeigt, dass sie abgeschlossen ist.")
+	learn("Türen und Tore, die du baust, gehen auf, wenn du hineinläufst, und fallen hinter dir wieder zu. Taste E öffnet eine Tür und hält sie offen oder schließt sie. Doppelklick oder Umschalt+E schließt deine eigene Tür ab: Dann kommt niemand hindurch, auch du nicht, bis du wieder aufschließt. Ein Vorhängeschloss an der Tür zeigt, dass sie abgeschlossen ist.")
 	player.face(door.global_position - player.global_position)
 	if lock:
 		if not door.own:
 			return Lang.t("Das ist nicht deine Tür.")
 		player.play_once("Interact", 0.3)
 		door.set_locked(not door.locked)
-		show_message(Lang.t("Abgeschlossen: Nur du und deine Gefährten kommen hindurch.") if door.locked else Lang.t("Aufgeschlossen."), 2.0)
+		show_message(Lang.t("Abgeschlossen: Niemand kommt hindurch, bis du wieder aufschließt.") if door.locked else Lang.t("Aufgeschlossen."), 2.0)
 		return ""
 	var why := door.use(player.global_position)
 	if why == "":
 		player.play_once("Interact", 0.3)
 	return why
+
+
+## A double click on one of the hero's own built doors (at `point` on the
+## floor) locks or unlocks it, like Shift+E. Returns whether the click was
+## for a door, so it does not also toggle sneaking.
+func _lock_door_by_double_click(point: Vector3) -> bool:
+	if house_sketcher == null or player == null or level == null or not level is Outdoor:
+		return false
+	var door := house_sketcher.door_near(point, DOOR_CLICK_REACH)
+	if door == null or not door.own:
+		return false
+	if door_in_reach() != door:
+		show_message(Lang.t("Geh näher an die Tür, um sie abzuschließen."), 1.6)
+		return true
+	var why := door_action(door, true)
+	if why != "":
+		show_message(why, 1.6)
+	return true
+
+
+## How close to a door (metres) a double click counts as aimed at it.
+const DOOR_CLICK_REACH := 1.0
 
 
 ## Sets a crate from the bag down right under the hero, who ends up standing
@@ -8384,7 +8406,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					elif _grab_stone(event.position):
 						_mouse_held = false
 					elif event.double_click:
-						_toggle_sneak()
+						if not _lock_door_by_double_click(point):
+							_toggle_sneak()
 					else:
 						_click(point)
 

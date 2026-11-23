@@ -77,14 +77,14 @@ func _process_modification() -> void:
 	var skeleton := get_skeleton()
 	if skeleton == null or _base.is_empty():
 		return
-	var clip := player.current_animation if player != null else ""
+	var clip: String = player.current_animation if player != null else ""
 	# Paused means someone else poses the body bone by bone (a ladder, the alarm horn).
-	var want := 1.0 if carries_in(clip) and player.is_playing() else 0.0
-	var dt := get_physics_process_delta_time() if player != null and player.callback_mode_process == AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS else get_process_delta_time()
+	var want: float = 1.0 if carries_in(clip) and player.is_playing() else 0.0
+	var dt: float = get_physics_process_delta_time() if player != null and player.callback_mode_process == AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS else get_process_delta_time()
 	_on = move_toward(_on, want, EASE * maxf(dt, 0.001))
 	if _on <= 0.0:
 		return
-	var moving := clip != "Idle" and want > 0.0
+	var moving: bool = clip != "Idle" and want > 0.0
 	var rock := 0.0
 	var phase := 0.0
 	if moving and player.current_animation_length > 0.0:

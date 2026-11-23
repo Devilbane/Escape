@@ -578,6 +578,7 @@ static func _lamp(parent: Node3D, at: Vector3) -> OmniLight3D:
 	lamp.light_color = WalkIn.LAMP_COLOUR
 	lamp.light_energy = WalkIn.LAMP_ENERGY
 	lamp.omni_range = WalkIn.LAMP_RANGE
+	lamp.omni_attenuation = WalkIn.LAMP_FALLOFF
 	lamp.position = at
 	lamp.visible = false
 	parent.add_child(lamp)

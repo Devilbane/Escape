@@ -4594,6 +4594,7 @@ func _process(delta: float) -> void:
 	if inside != _inside:
 		_inside = inside
 		_roof.visible = not inside
+		SnowPrints.set_indoors(inside)
 		if not inside:
 			_house_fade.reset(self)
 		if inside and house_given and not _entered_once:

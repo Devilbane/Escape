@@ -1,0 +1,1 @@
+- Snow footprints from a roof no longer show on the floor below when you step into a house.

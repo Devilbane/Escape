@@ -140,6 +140,17 @@ static func clear() -> void:
 	_records.clear()
 
 
+## Prints up on a roof (or anything above the ground) are meant for the outside view. While the hero is
+## indoors the roof is cut away, so they would float over the rooms below: hide them until the hero is out again.
+static func set_indoors(indoors: bool) -> void:
+	_indoors = indoors
+	for n in _live:
+		if is_instance_valid(n) and (n as Node).has_meta("print_high"):
+			(n as MeshInstance3D).visible = not indoors
+
+
+static var _indoors := false
+
 ## The prints of the day are kept as plain records, so they outlast the world they were pressed in:
 ## going into a house or a dungeon frees the open air, and coming back lays them down again.
 static var _records: Array = []
@@ -195,6 +206,9 @@ static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
 		mi.global_transform = Transform3D(Basis(Quaternion(Vector3.UP, up)) * turn, Vector3(at.x, float(rec[5]), at.z) + up * HEIGHT)
 	else:
 		mi.global_transform = Transform3D(turn, Vector3(at.x, HEIGHT, at.z))
+	if rec.size() > 6:
+		mi.set_meta("print_high", true)
+		mi.visible = not _indoors
 	mi.set_meta("print_kind", kind)
 	mi.set_meta("print_rec", rec)
 	_live.append(mi)

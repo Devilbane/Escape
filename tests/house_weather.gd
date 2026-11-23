@@ -182,6 +182,11 @@ func _snow_checks() -> void:
 	check(SnowPrints._records.size() == before + 2, "footprints on the roof")
 	var rec: Array = SnowPrints._records[SnowPrints._records.size() - 1]
 	check(rec.size() > 6 and absf(float(rec[5]) - 3.1) < 0.05, "the roof's print lies on the roof, not on the floor (%s)" % [rec])
+	var high: Node = SnowPrints._live[SnowPrints._live.size() - 1]
+	SnowPrints.set_indoors(true)
+	check(not (high as MeshInstance3D).visible, "roof prints are hidden while the hero is indoors")
+	SnowPrints.set_indoors(false)
+	check((high as MeshInstance3D).visible, "roof prints show again outside")
 	slab.queue_free()
 	check(Surfaces.step_ground(o, inside) != Surfaces.SNOW, "steps inside do not crunch in snow")
 	check(Surfaces.step_ground(o, outside) == Surfaces.SNOW or Surfaces.ground(o, outside) == Surfaces.WOOD, "steps outside crunch")

@@ -97,6 +97,24 @@ func _run() -> void:
 	check(hi - lo > 0.5 and lo >= WindGusts.FORCE.x and hi <= WindGusts.FORCE.y, "gusts differ in force (%.2f to %.2f)" % [lo, hi])
 	check(WindGusts._pace(0.3) < WindGusts._pace(1.6), "a strong gust carries its pieces faster than a light one")
 
+	# Snow: flakes lift only where snow really lies.
+	var winter_day := SkyCommand.day_for(Seasons.TEST_DAY, true)
+	lvl.set_season(winter_day)
+	lvl.snow.set_amount(0.0)
+	wind._now += 200.0
+	wind._move()
+	wind._move_flakes()
+	check(wind.gust(1.0) == 0, "no flakes lift while no snow lies")
+	lvl.snow.set_amount(1.0)
+	var flakes := wind.gust(1.0)
+	check(flakes > 0, "flakes lift once snow lies (%d)" % flakes)
+	for m: Dictionary in wind._flakes:
+		check(wind.snow_lies_at(m.from), "a flake starts where snow lies, not under a roof, on water or by a fire")
+	wind._now += 200.0
+	wind._move_flakes()
+	lvl.snow.set_amount(0.0)
+	lvl.set_season(Seasons.TEST_DAY)
+
 	var storm := FlagWind.wind_for(Weather.STORM).x
 	var fog := FlagWind.wind_for(Weather.FOG).x
 	check(storm > fog, "a storm blows harder than fog")

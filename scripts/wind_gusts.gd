@@ -55,6 +55,8 @@ const FORCE := Vector2(0.3, 1.6)
 ## The tiles pieces may fly over and land on.
 const OPEN := SurfaceLife.GROUND + SurfaceLife.PATH + SurfaceLife.SQUARE
 ## The winter flurry: flakes per gust, their size (metres), how far they are blown and how high.
+## How thick the snow must lie (0 to 1, see SnowCover.amount) before the wind lifts any.
+const SNOW_MIN := 0.25
 const FLAKES := 80
 const FLAKE_SIZE := 0.07
 const FLAKE_TRAVEL := Vector2(18.0, 40.0)
@@ -349,9 +351,36 @@ static func ease_out(t: float) -> float:
 	return run / (1.0 - RAMP * 0.5)
 
 
+## Whether the snow on the ground is thick enough to be lifted (see SnowCover).
+func _snow_thick() -> bool:
+	var cover = life.level.get("snow")
+	return cover != null and cover.lies() and cover.amount >= SNOW_MIN
+
+
+## Whether snow lies on the ground at `at`: open ground (not water, not under a tree, a wall or a
+## building), not under a roof and not near a fire, where the cover keeps clear (see SnowCover.set_warm).
+func snow_lies_at(at: Vector3) -> bool:
+	if not _snow_thick():
+		return false
+	if not OPEN.contains(life.level.cell_char(life.level.world_to_cell(at))):
+		return false
+	if life.level.has_method("is_roofed") and life.level.is_roofed(at):
+		return false
+	for h: Vector4 in life.level.get("warm_spots") if "warm_spots" in life.level else []:
+		if Vector2(h.x - at.x, h.z - at.z).length() < h.w + 0.5:
+			return false
+	for r: Rect2 in life._holes + life._built:
+		if r.has_point(Vector2(at.x, at.z)):
+			return false
+	return true
+
+
 ## Winter: a flurry of snow lifts off the ground round the hero, drifts along the wind and
 ## settles again (one MultiMesh of tiny flat flakes, hidden between gusts).
 func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
+	# Only where snow really lies: none on the ground, no flakes to lift.
+	if not _snow_thick():
+		return
 	if _snow == null:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -372,8 +401,14 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 		_snow.extra_cull_margin = 60.0
 		add_child(_snow)
 	var count := mini((_snow.multimesh as MultiMesh).instance_count - _flakes.size(), roundi(FLAKES * s * quality_scale()))
-	for i in count:
+	var taken := 0
+	for i in count * 3:
+		if taken >= count:
+			break
 		var at := hero + Vector3(_rng.randf_range(-FAR, FAR), 0, _rng.randf_range(-FAR, FAR)) * 0.8
+		if not snow_lies_at(at):
+			continue
+		taken += 1
 		var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
 		_flakes.append({
 			"from": at + Vector3(0, 0.05, 0),
@@ -383,8 +418,8 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 			"lift": _rng.randf_range(FLAKE_LIFT.x, FLAKE_LIFT.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 			"fh": _noise_freqs(), "ph": _noise_phases(), "fl": _noise_freqs(), "pl": _noise_phases(),
 		})
-	moved += count
-	_snow.visible = true
+	moved += taken
+	_snow.visible = _flakes.size() > 0
 
 
 func _move_flakes() -> void:

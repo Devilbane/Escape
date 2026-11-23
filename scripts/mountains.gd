@@ -147,9 +147,9 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 					var d: Array = corner.call(1, 1)
 					# Alternate the diagonal so the facets do not line up.
 					if (ix + iz) % 2 == 0:
-						faces += _face(st, a, b, d) + _face(st, a, d, c)
+						faces += _smooth_face(st, a, b, d) + _smooth_face(st, a, d, c)
 					else:
-						faces += _face(st, a, b, c) + _face(st, b, d, c)
+						faces += _smooth_face(st, a, b, c) + _smooth_face(st, b, d, c)
 			if faces == 0:
 				continue
 			var node := MeshInstance3D.new()
@@ -294,7 +294,7 @@ static func _paint(p: Vector3, n: Vector3, noise: FastNoiseLite, rng: RandomNumb
 
 ## One triangle with the smooth normals and colours of its corners (each `[position, normal, colour]`); 1
 ## if it was added. Faces that lie wholly below the ground are left out.
-static func _face(st: SurfaceTool, a: Array, b: Array, c: Array) -> int:
+static func _smooth_face(st: SurfaceTool, a: Array, b: Array, c: Array) -> int:
 	if maxf(a[0].y, maxf(b[0].y, c[0].y)) <= 0.05:
 		return 0
 	var n: Vector3 = (b[0] - a[0]).cross(c[0] - a[0])
@@ -307,4 +307,35 @@ static func _face(st: SurfaceTool, a: Array, b: Array, c: Array) -> int:
 		st.set_color(v[2])
 		st.set_normal(v[1])
 		st.add_vertex(v[0])
+	return 1
+
+
+## One flat-shaded triangle in its own shade of stone; 1 if it was added.
+## Faces that lie wholly below the ground are left out.
+static func _face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, rng: RandomNumberGenerator) -> int:
+	if maxf(a.y, maxf(b.y, c.y)) <= 0.05:
+		return 0
+	var n := (b - a).cross(c - a).normalized()
+	if n.y > 0.0:
+		# Godot's front faces wind clockwise as seen from the outside (above).
+		var swap := b
+		b = c
+		c = swap
+	else:
+		n = -n
+	var top := (a.y + b.y + c.y) / 3.0 + SINK
+	var colour := ROCK.lerp(ROCK_DARK, clampf((0.85 - n.y) * 1.6, 0.0, 1.0))
+	if n.y > 0.72 and top < 8.0:
+		colour = colour.lerp(MOSS, clampf((n.y - 0.72) * 3.0, 0.0, 0.6))
+	colour = colour.lerp(ROCK_HIGH, smoothstep(9.0, 16.0, top) * 0.7)
+	# Snow lies on the high, gentle faces.
+	if top > 14.0 and n.y > 0.45:
+		colour = colour.lerp(SNOW, clampf((top - 14.0) / 5.0, 0.0, 1.0) * clampf((n.y - 0.45) * 3.0, 0.0, 1.0))
+	colour = colour.lerp(EARTH, 1.0 - smoothstep(0.2, 1.2, top))
+	colour *= rng.randf_range(0.92, 1.06)
+	colour.a = 1.0
+	st.set_color(colour)
+	st.set_normal(n)
+	for p in [a, b, c]:
+		st.add_vertex(p)
 	return 1

@@ -501,8 +501,8 @@ static func _sconces(hall: Node3D, size: Vector2) -> void:
 		var wall := Vector3(spot[0].x, SCONCE_HIGH, spot[0].y)
 		var out := Vector3(spot[1].x, 0, spot[1].y)
 		var side := Vector3(absf(out.z), 0, absf(out.x))
-		_box(hall, wall + out * 0.02 + Vector3(0, 0.05, 0), side * 0.14 + out.abs() * 0.03 + Vector3(0, 0.36, 0), iron)
-		_box(hall, wall + out * 0.13, out.abs() * 0.22 + Vector3(0.03, 0.03, 0.03), iron)
+		_box(hall, side * 0.14 + out.abs() * 0.03 + Vector3(0, 0.36, 0), wall + out * 0.02 + Vector3(0, 0.05, 0), iron)
+		_box(hall, out.abs() * 0.22 + Vector3(0.03, 0.03, 0.03), wall + out * 0.13, iron)
 		var cup := wall + out * 0.25
 		_cylinder(hall, 0.07, 0.02, cup, _mat("brass", BRASS, 0.7))
 		_cylinder(hall, 0.025, 0.16, cup + Vector3(0, 0.09, 0), _mat("wax", Color(0.96, 0.92, 0.8)))

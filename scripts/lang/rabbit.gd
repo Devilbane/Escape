@@ -3,4 +3,5 @@ extends RefCounted
 
 const EN := {
 	"Kaninchen": "Rabbit",
+	"Kaninchenbau": "Rabbit warren",
 }

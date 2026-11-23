@@ -28,9 +28,12 @@ const KINDS := {
 	# The rabbit hops (its Walk is one hop, its Gallop a bounding run), so it has no planted feet to keep
 	# in step (see Stride) and plays at its own pace. Shy and quick, it stays near its burrow.
 	"kaninchen": {"model": "Rabbit", "scale": 0.4, "walk": 1.3, "run": 5.5, "shy": 7.0, "roam": 3},
+	# A baby rabbit of the warren (see Warren): small, huddling round its burrow, and when the hero comes
+	# near it does not run off but dives into the burrow, to come out again once the hero has gone.
+	"kit": {"model": "Rabbit", "scale": 0.22, "walk": 1.0, "run": 4.5, "shy": 6.0, "roam": 2, "burrow": true},
 }
 ## Which map letter places which animal (see Outdoor).
-const LETTERS := {"D": "reh", "V": "hirsch", "&": "fuchs", "£": "kaninchen"}
+const LETTERS := {"D": "reh", "V": "hirsch", "&": "fuchs", "£": "kaninchen", "€": "kit"}
 ## A sneaking hero is noticed only this much closer.
 ## A path point counts as reached this close (metres), inside the turning circle.
 const ARRIVE := 0.5
@@ -48,7 +51,7 @@ var level: Level
 var kind := "reh"
 var home := Vector2i.ZERO
 ## "graze", "idle", "stroll" or "flee"; also "approach" (coming for the
-## food the hero carries) and "eat".
+## food the hero carries), "eat" and "hidden" (a kit down in its burrow).
 var state := "idle"
 var _stats: Dictionary
 var _model: Node3D
@@ -69,6 +72,8 @@ var _trail: SnowTrail
 var _stuck_watch := StuckWatch.new()
 var _hold := 0.0
 var _retry := Vector3.INF
+## Where a kit dives in (the middle of its home tile) and how long it stays down.
+var _burrow_at := Vector3.ZERO
 
 
 func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
@@ -76,6 +81,7 @@ func setup(owner_level: Level, animal_kind: String, cell: Vector2i) -> void:
 	kind = animal_kind
 	home = cell
 	_stats = KINDS[kind]
+	_burrow_at = owner_level.cell_to_world(cell)
 	_rng.seed = hash(kind) + cell.x * 131 + cell.y * 7
 
 
@@ -110,6 +116,35 @@ func shy_distance() -> float:
 
 func is_fleeing() -> bool:
 	return state == "flee"
+
+
+## Whether this animal runs to a burrow when frightened and hides in it (a baby rabbit).
+func has_burrow() -> bool:
+	return bool(_stats.get("burrow", false))
+
+
+func is_hidden() -> bool:
+	return state == "hidden"
+
+
+## A kit that reached its burrow is gone from the world for a while: it is neither seen nor in
+## anyone's way.
+func _hide() -> void:
+	_path.clear()
+	_begin("hidden", _rng.randf_range(6.0, 12.0))
+	visible = false
+	remove_from_group(Footprint.GROUP)
+	global_position = _burrow_at
+	reset_physics_interpolation()
+
+
+## Comes out of the burrow again and sits at its mouth.
+func _emerge() -> void:
+	visible = true
+	add_to_group(Footprint.GROUP)
+	global_position = _burrow_at
+	reset_physics_interpolation()
+	_begin("idle", _rng.randf_range(0.5, 2.0))
 
 
 ## The key in the level's taken list that marks this animal as the hero's.
@@ -157,9 +192,15 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	var hero: Node3D = level.player
-	_trail.follow(level, global_position)
 	var away := global_position - hero.global_position
 	away.y = 0.0
+	if state == "hidden":
+		# Down in the burrow: comes up again once the hero is well away from it.
+		_timer -= delta
+		if _timer <= 0.0 and away.length() > shy_distance() * CALM_FACTOR and not hero.get("dead"):
+			_emerge()
+		return
+	_trail.follow(level, global_position)
 	if state == "eat":
 		_timer -= delta
 		if _timer <= 0.0:
@@ -197,7 +238,9 @@ func _physics_process(delta: float) -> void:
 				_stand_stuck(_path.back() if state == "stroll" else Vector3.INF)
 				return
 			if _path.is_empty():
-				if state == "flee" and away.length() < shy_distance() * CALM_FACTOR:
+				if state == "flee" and has_burrow():
+					_hide()
+				elif state == "flee" and away.length() < shy_distance() * CALM_FACTOR:
 					# Still too close for comfort: on it runs.
 					_flee_from(hero.global_position)
 				else:
@@ -289,6 +332,16 @@ func bolt_from(danger: Vector3) -> void:
 
 ## Bolts to the spot near home that lies farthest from the hero.
 func _flee_from(danger: Vector3) -> void:
+	if has_burrow():
+		# A kit dives into its burrow, wherever it is.
+		if state != "flee":
+			Effects.float_text(level, global_position + Vector3(0, 1.0, 0), "!", Color(1.0, 0.95, 0.7, 0.9))
+		if _flat(global_position - _burrow_at).length() < ARRIVE or not _set_path(_burrow_at):
+			_hide()
+			return
+		state = "flee"
+		_speed = _stats.run
+		return
 	var best := Vector2i(-1, -1)
 	var best_score := -INF
 	var here := level.world_to_cell(global_position)

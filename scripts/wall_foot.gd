@@ -350,6 +350,39 @@ static func node(grown: Dictionary) -> Node3D:
 	return root
 
 
+## Snow lies at least this thick (0 to 1, see SnowCover) and the fringe is buried under it: the
+## grass, flowers and the band of moss all vanish, so the snow runs right up to the wall's foot.
+## The snow follows the weather, not the calendar, so this holds in any season.
+const BURIED_FROM := 0.3
+
+
+## Buries the fringe under `root` (see node) in the snow, or digs it out again, as `cover` (how thick
+## the snow lies, 0 to 1) passes BURIED_FROM. The stones stay: the snow settles on them.
+static func bury(root: Node3D, cover: float) -> void:
+	if root == null:
+		return
+	var on := cover >= BURIED_FROM
+	if bool(root.get_meta("buried", false)) == on:
+		return
+	root.set_meta("buried", on)
+	_show(root)
+
+
+## Shows or hides each batch by the season's stage and by the snow (see bury).
+static func _show(root: Node3D) -> void:
+	var winter := int(root.get_meta("season_stage", -1)) == IvySeasons.WINTER
+	var buried := bool(root.get_meta("buried", false))
+	for child in root.get_children():
+		var mmi := child as MultiMeshInstance3D
+		if mmi == null or not mmi.has_meta("grown"):
+			continue
+		match String(mmi.get_meta("kind")):
+			"grass", "lining":
+				mmi.visible = not buried
+			"flower", "band":
+				mmi.visible = not buried and not winter
+
+
 ## Dresses the fringe under `root` (see node) for season day `day`. Does nothing while the stage holds.
 static func apply(root: Node3D, day: int) -> void:
 	if root == null:
@@ -396,7 +429,6 @@ static func apply(root: Node3D, day: int) -> void:
 				# Autumn takes the flowers day by day, as it turns the grass, until only
 				# AUTUMN_FLOWERS of them bloom; winter takes them all.
 				var keep := 1.0 - straw * (1.0 - AUTUMN_FLOWERS)
-				mmi.visible = at != IvySeasons.WINTER
 				var shown := 0
 				for i in mm.instance_count:
 					var t: Transform3D = grown[0][i]
@@ -409,13 +441,13 @@ static func apply(root: Node3D, day: int) -> void:
 				mmi.set_meta("shown", shown)
 			"band":
 				# Under the snow in winter; browner as autumn turns the grass.
-				mmi.visible = at != IvySeasons.WINTER
 				for i in mm.instance_count:
 					var c: Color = grown[1][i]
 					var a := c.a
 					c = c.lerp(c * BAND_AUTUMN, straw)
 					c.a = a
 					mm.set_instance_color(i, c)
+	_show(root)
 
 
 ## The shared mesh of a kind.

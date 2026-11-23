@@ -5489,6 +5489,7 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 	else:
 		# Back from a house or a dungeon the day's prints lie in the snow again.
 		SnowPrints.restore(self)
+	WallFoot.bury(wall_foot, cover)
 	if snow:
 		snow.set_amount(cover, daylight, moon)
 		SnowSweep.advance(self, cover)

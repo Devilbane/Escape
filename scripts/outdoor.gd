@@ -425,6 +425,15 @@ const LAMP_NIGHT := 3.2
 const LAMP_REACH := 8.0
 const CANDLE_GLOW := 5.0
 var _lamps: Array[OmniLight3D] = []
+## Where the birds perch on the street lamps in winter: the top of each post and two spots on its arm.
+var _lamp_perches: Array[Vector3] = []
+## Every street lamp on a map tile: {"foot": its post, "arm": the flat unit direction its arm reaches,
+## "walkway": the offset in tiles to the nearest walkway or zero}. For the tests.
+var lamp_spots: Array[Dictionary] = []
+## How many tiles round a street lamp to look for a walkway to turn its arm towards, and how far from
+## the walkway's edge its post stands (m).
+const LAMP_SEEK := 6
+const LAMP_EDGE_GAP := 0.9
 ## Where a street lamp's light hangs over its foot (in its lantern).
 const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
 ## The bandits' campfires light up their camp at night too.
@@ -753,13 +762,8 @@ func build() -> void:
 		var market: Array[Vector3] = []
 		market.assign(spots.market)
 		birds = VillageBirds.new(self, nests, pecking, market, hash(level_name + "voegel"))
-		# In winter they sit about on the lamp posts: the top of the post and its arm (see
-		# VillageProps.build_lamp: the post 3.1 m high, the arm at 2.9 m running out along +Z).
-		for lamp in _lamps:
-			var foot := lamp.position - LAMP_LIGHT_AT
-			birds.winter_perches.append(foot + Vector3(0, 3.11, 0))
-			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.5))
-			birds.winter_perches.append(foot + Vector3(0, 2.91, 0.95))
+		# In winter they sit about on the lamp posts: the top of the post and its arm (see _build_lantern).
+		birds.winter_perches.append_array(_lamp_perches)
 		add_child(birds)
 	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
 	_build_forest()
@@ -1449,7 +1453,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"p":
 			_put_layout(pos, VillageClutter.PUMPKINS, 1.2)
 		"l":
-			_build_lantern(pos)
+			_build_lantern(pos, c)
 		"r":
 			var rock: String = ["rock_single_A", "rock_single_C", "rock_single_E"][_rng.randi() % 3]
 			var at := pos + _jitter(0.4)
@@ -1784,15 +1788,52 @@ func _build_bench(c: Vector2i) -> void:
 
 ## A street lamp: an old timber post on a stone foot with an iron lantern
 ## hanging from its arm (see VillageProps.build_lamp), its panes and the
-## candle in it glowing at night.
-func _build_lantern(pos: Vector3) -> void:
-	VillageProps.build_lamp(self, pos, _lantern_panes())
+## candle in it glowing at night. A lamp on a map tile (`cell`) turns its arm
+## towards the nearest walkway (see _walkway_dir) and, with one right beside it,
+## steps up to the edge of that walkway, so the lantern hangs over the path.
+func _build_lantern(pos: Vector3, cell := Vector2i(-1, -1)) -> void:
+	var yaw := 0.0
+	if cell.x >= 0:
+		var away := _walkway_dir(cell)
+		if away != Vector3.ZERO:
+			var dir := away.normalized()
+			yaw = VillageProps.lamp_yaw(dir)
+			# A walkway right beside it (not diagonal): step up to its edge.
+			if absf(away.x) + absf(away.z) == 1.0:
+				pos += dir * (TILE * 0.5 - LAMP_EDGE_GAP)
+	var turn := Basis(Vector3.UP, yaw)
+	if cell.x >= 0:
+		lamp_spots.append({"foot": pos, "arm": turn * Vector3(0, 0, 1), "walkway": _walkway_dir(cell)})
+	VillageProps.build_lamp(self, pos, _lantern_panes(), yaw)
 	# A few icicles on it while snow lies (see SnowCaps).
-	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT)
+	var frost := SnowCaps.lamp_node(pos, VillageProps.LANTERN_AT, yaw)
 	if frost:
 		add_child(frost)
-	_lantern_glow(pos + LAMP_LIGHT_AT, pos + VillageProps.LANTERN_AT)
+	_lantern_glow(pos + turn * LAMP_LIGHT_AT, pos + turn * VillageProps.LANTERN_AT)
+	_lamp_perches.append(pos + Vector3(0, 3.11, 0))
+	_lamp_perches.append(pos + turn * Vector3(0, 2.91, 0.5))
+	_lamp_perches.append(pos + turn * Vector3(0, 2.91, 0.95))
 	_add_solid(pos, Vector3(0.7, 3, 0.7))
+
+
+## Where the nearest walkway (a dirt path or the paved square) within LAMP_SEEK tiles lies from a
+## lamp's tile, as a flat offset in tiles. Zero when there is none.
+func _walkway_dir(cell: Vector2i) -> Vector3:
+	var best := Vector3.ZERO
+	var best_d := INF
+	for dy in range(-LAMP_SEEK, LAMP_SEEK + 1):
+		for dx in range(-LAMP_SEEK, LAMP_SEEK + 1):
+			if dx == 0 and dy == 0:
+				continue
+			var c := cell + Vector2i(dx, dy)
+			var surface := ground_at(c)
+			if surface != Surfaces.PATH and surface != Surfaces.PAVING:
+				continue
+			var d := float(dx * dx + dy * dy)
+			if d < best_d:
+				best_d = d
+				best = Vector3(dx, 0, dy)
+	return best
 
 
 ## The glass of the lanterns, shared by all of them: lit at nightfall with the

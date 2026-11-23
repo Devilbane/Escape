@@ -303,3 +303,4 @@ woods_life.gd 24
 workbench_crafting.gd 18
 world_preload.gd 17
 zarek_mage.gd 24
+granite_wall.gd 3

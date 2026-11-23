@@ -1,0 +1,1 @@
+- Fixed flickering on the windows (sill boards and glazing bars) and on the rails over the doorstep, including the silver mine's hut entrance

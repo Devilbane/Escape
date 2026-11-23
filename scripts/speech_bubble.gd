@@ -39,7 +39,7 @@ const GROUP := "speech_bubbles"
 
 ## The final scream that has the stage right now (see FinalScream): while it
 ## shows, no other bubble may appear.
-static var silenced_by: SpeechBubble = null
+static var silenced_by: Node = null
 
 
 ## Whether a final scream holds everyone's attention right now.

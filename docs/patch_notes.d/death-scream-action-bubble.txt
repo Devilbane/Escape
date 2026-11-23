@@ -1,0 +1,1 @@
+- A creature's, villager's or the hero's death scream now bursts out as a comic action bubble, like the fight words.

@@ -1,0 +1,1 @@
+- Spruces look the same near and far (the simpler far look is only used on the Performance setting).

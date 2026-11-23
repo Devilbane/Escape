@@ -1,7 +1,7 @@
 class_name Mountains
 ## The high mountains far east of the wolf hollow: every "=" tile of the
 ## open-air map is solid rock, and this builds the rock as low-poly,
-## flat-shaded meshes in the style of the dragon's mountain (LairMountain),
+## smooth-shaded meshes in the style of the dragon's mountain (LairMountain),
 ## weathered like the village stone (AgedStone.rock_material).
 ##
 ## The rock rises steeply right where the walkable ground ends, then climbs
@@ -116,6 +116,19 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 				h = 0.0
 			row.append(Vector3(x, h - SINK, z))
 		points.append(row)
+	# Smooth shading: every grid point gets one normal (the area-weighted mean of the
+	# triangles that meet there) and one colour, shared by all of them. Faces then blend
+	# into each other with no hard facet edges, and the snow laid over the rock (see
+	# SnowCover) lifts along the same normals on both sides of a seam, so no thin line of
+	# bare rock shows through it.
+	var normals := _vertex_normals(points, nx, nz)
+	var paint := []
+	for iz in nz + 1:
+		var row := []
+		for ix in nx + 1:
+			var p: Vector3 = points[iz][ix]
+			row.append(_paint(p, normals[iz][ix], noise, rng))
+		paint.append(row)
 	# Weathered like the village stone (see AgedStone.rock_material).
 	var mat := AgedStone.rock_material()
 	var per := int(CHUNK * tile / STEP)
@@ -126,15 +139,17 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 			var faces := 0
 			for iz in range(cz, mini(cz + per, nz)):
 				for ix in range(cx, mini(cx + per, nx)):
-					var a: Vector3 = points[iz][ix]
-					var b: Vector3 = points[iz][ix + 1]
-					var c: Vector3 = points[iz + 1][ix]
-					var d: Vector3 = points[iz + 1][ix + 1]
+					var corner := func(dx: int, dz: int) -> Array:
+						return [points[iz + dz][ix + dx], normals[iz + dz][ix + dx], paint[iz + dz][ix + dx]]
+					var a: Array = corner.call(0, 0)
+					var b: Array = corner.call(1, 0)
+					var c: Array = corner.call(0, 1)
+					var d: Array = corner.call(1, 1)
 					# Alternate the diagonal so the facets do not line up.
 					if (ix + iz) % 2 == 0:
-						faces += _face(st, a, b, d, rng) + _face(st, a, d, c, rng)
+						faces += _smooth_face(st, a, b, d) + _smooth_face(st, a, d, c)
 					else:
-						faces += _face(st, a, b, c, rng) + _face(st, b, d, c, rng)
+						faces += _smooth_face(st, a, b, c) + _smooth_face(st, b, d, c)
 			if faces == 0:
 				continue
 			var node := MeshInstance3D.new()
@@ -218,6 +233,81 @@ static func _height(dist: Dictionary, north: Dictionary, x: float, z: float, noi
 	if edge != INF:
 		h = minf(h, 0.4 + maxf(0.0, z - edge) * SOUTH_SLOPE)
 	return h
+
+
+## The smooth normal of every grid point: the mean of the (upward) normals of the triangles around it,
+## weighted by their area, built on the same diagonals as the mesh.
+static func _vertex_normals(points: Array, nx: int, nz: int) -> Array:
+	var sums := []
+	for iz in nz + 1:
+		var row := []
+		for ix in nx + 1:
+			row.append(Vector3.ZERO)
+		sums.append(row)
+	for iz in nz:
+		for ix in nx:
+			var a: Vector3 = points[iz][ix]
+			var b: Vector3 = points[iz][ix + 1]
+			var c: Vector3 = points[iz + 1][ix]
+			var d: Vector3 = points[iz + 1][ix + 1]
+			var tris := []
+			if (ix + iz) % 2 == 0:
+				tris = [[a, b, d, Vector2i(ix, iz), Vector2i(ix + 1, iz), Vector2i(ix + 1, iz + 1)],
+						[a, d, c, Vector2i(ix, iz), Vector2i(ix + 1, iz + 1), Vector2i(ix, iz + 1)]]
+			else:
+				tris = [[a, b, c, Vector2i(ix, iz), Vector2i(ix + 1, iz), Vector2i(ix, iz + 1)],
+						[b, d, c, Vector2i(ix + 1, iz), Vector2i(ix + 1, iz + 1), Vector2i(ix, iz + 1)]]
+			for t in tris:
+				var n: Vector3 = (t[1] - t[0]).cross(t[2] - t[0])
+				if n.y < 0.0:
+					n = -n
+				for k in 3:
+					var at: Vector2i = t[3 + k]
+					sums[at.y][at.x] += n
+	for iz in nz + 1:
+		for ix in nx + 1:
+			var n: Vector3 = sums[iz][ix]
+			sums[iz][ix] = n.normalized() if n.length() > 0.0001 else Vector3.UP
+	return sums
+
+
+## The colour of one grid point: rock, moss, snow or earth by height and slope. Snow lies in patches (a
+## noise shifts where it starts and how steep it may be), so it thins out and rock shows through on the
+## steeper slopes instead of a hard line between white and grey faces.
+static func _paint(p: Vector3, n: Vector3, noise: FastNoiseLite, rng: RandomNumberGenerator) -> Color:
+	var top := p.y + SINK
+	var patch := noise.get_noise_2d(p.x * 4.0 + 50.0, p.z * 4.0)
+	var colour := ROCK.lerp(ROCK_DARK, clampf((0.85 - n.y) * 1.6, 0.0, 1.0))
+	if n.y > 0.72 and top < 8.0:
+		colour = colour.lerp(MOSS, clampf((n.y - 0.72) * 3.0, 0.0, 0.6))
+	colour = colour.lerp(ROCK_HIGH, smoothstep(9.0, 16.0, top) * 0.7)
+	# Snow lies on the high, gentle slopes, in patches.
+	var line := 14.0 + patch * 2.5
+	var steep := 0.45 + patch * 0.12
+	if top > line and n.y > steep:
+		colour = colour.lerp(SNOW, clampf((top - line) / 5.0, 0.0, 1.0) * clampf((n.y - steep) * 3.0, 0.0, 1.0))
+	colour = colour.lerp(EARTH, 1.0 - smoothstep(0.2, 1.2, top))
+	colour *= rng.randf_range(0.95, 1.04)
+	colour.a = 1.0
+	return colour
+
+
+## One triangle with the smooth normals and colours of its corners (each `[position, normal, colour]`); 1
+## if it was added. Faces that lie wholly below the ground are left out.
+static func _smooth_face(st: SurfaceTool, a: Array, b: Array, c: Array) -> int:
+	if maxf(a[0].y, maxf(b[0].y, c[0].y)) <= 0.05:
+		return 0
+	var n: Vector3 = (b[0] - a[0]).cross(c[0] - a[0])
+	if n.y > 0.0:
+		# Godot's front faces wind clockwise as seen from the outside (above).
+		var swap := b
+		b = c
+		c = swap
+	for v in [a, b, c]:
+		st.set_color(v[2])
+		st.set_normal(v[1])
+		st.add_vertex(v[0])
+	return 1
 
 
 ## One flat-shaded triangle in its own shade of stone; 1 if it was added.

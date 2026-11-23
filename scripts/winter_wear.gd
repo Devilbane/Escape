@@ -65,6 +65,8 @@ const ORDER := "0123456789KOGMYZS¢"
 const SIDES := 12
 const TAG := "WinterWear"
 const SPIKE := 0.05
+## How far a band's inner wall sits behind its outer one (see _thicken).
+const WALL := 0.05
 
 
 ## The look of one person: fur, hat ("" when a hat or a helmet is worn already), the hat's cloth and
@@ -246,10 +248,29 @@ static func _band(st: SurfaceTool, y0: float, y1: float, rx0: float, rz0: float,
 			st.add_vertex(p)
 
 
+## Gives a band body so it reads as a solid roll of cloth or fur and not as a see-through ring: an
+## inner wall set back by WALL and a rim joining it to the outer wall at the top and at the bottom.
+static func _thicken(st: SurfaceTool, y0: float, y1: float, rx0: float, rz0: float, rx1: float, rz1: float, colour: Color, cx := 0.0, cz := 0.0, from := 0.0, to := TAU) -> void:
+	_band(st, y0, y1, rx0 - WALL, rz0 - WALL, rx1 - WALL, rz1 - WALL, colour.darkened(0.25), cx, cz, from, to)
+	st.set_color(colour)
+	var n := maxi(1, int(SIDES * (to - from) / TAU))
+	for i in n:
+		var a0 := lerpf(from, to, float(i) / n)
+		var a1 := lerpf(from, to, float(i + 1) / n)
+		for rim in [[y0, rx0, rz0], [y1, rx1, rz1]]:
+			var o0 := _on(a0, rim[0], rim[1], rim[2], cx, cz)
+			var o1 := _on(a1, rim[0], rim[1], rim[2], cx, cz)
+			var i0 := _on(a0, rim[0], rim[1] - WALL, rim[2] - WALL, cx, cz)
+			var i1 := _on(a1, rim[0], rim[1] - WALL, rim[2] - WALL, cx, cz)
+			for p in [o0, o1, i1, o0, i1, i0]:
+				st.add_vertex(p)
+
+
 ## A fur band with a ragged edge: the band itself in the fur's colour, and a tuft over every
 ## segment in its tip colour, standing up (`dir` 1) or hanging down (-1) from the edge.
 static func _fur_band(st: SurfaceTool, y0: float, y1: float, rx: float, rz: float, fur: Array, up := true, cx := 0.0, cz := 0.0, from := 0.0, to := TAU, thick := 0.0) -> void:
 	_band(st, y0, y1, rx, rz, rx + thick, rz + thick, fur[0], cx, cz, from, to)
+	_thicken(st, y0, y1, rx, rz, rx + thick, rz + thick, fur[0], cx, cz, from, to)
 	var n := maxi(1, int(SIDES * 1.5 * (to - from) / TAU))
 	var edge := y1 if up else y0
 	for i in n:
@@ -316,7 +337,7 @@ static func _collar(fur: Array) -> ArrayMesh:
 ## A fur mantle over the shoulders: a wide ring, ragged at its lower edge, and the collar on it.
 static func _mantle(fur: Array) -> ArrayMesh:
 	var st := _start()
-	_fur_band(st, 1.03, 1.16, 0.63, 0.44, fur, false, 0.0, 0.0, 0.0, TAU, 0.02)
+	_fur_band(st, 1.03, 1.16, 0.56, 0.42, fur, false, 0.0, 0.0, 0.0, TAU, 0.02)
 	_fur_band(st, 1.16, 1.3, 0.44, 0.36, fur, true, 0.0, 0.0, 0.0, TAU, 0.06)
 	return _finish(st)
 
@@ -324,7 +345,7 @@ static func _mantle(fur: Array) -> ArrayMesh:
 ## The hem of the coat: a fur band round the hips.
 static func _hem(fur: Array) -> ArrayMesh:
 	var st := _start()
-	_fur_band(st, 0.44, 0.58, 0.45, 0.39, fur, false, 0.0, 0.0, 0.0, TAU, 0.03)
+	_fur_band(st, 0.44, 0.58, 0.42, 0.36, fur, false, 0.0, 0.0, 0.0, TAU, 0.03)
 	return _finish(st)
 
 
@@ -333,6 +354,8 @@ static func _scarf(wool: Color, kid: bool) -> ArrayMesh:
 	var st := _start()
 	_band(st, 1.1, 1.18, 0.45, 0.38, 0.47, 0.4, wool, 0.0, 0.0)
 	_band(st, 1.18, 1.25, 0.47, 0.4, 0.45, 0.38, wool.lightened(0.28), 0.0, 0.0)
+	_thicken(st, 1.1, 1.18, 0.45, 0.38, 0.47, 0.4, wool)
+	_thicken(st, 1.18, 1.25, 0.47, 0.4, 0.45, 0.38, wool.lightened(0.28))
 	var drop := 0.34 if kid else 0.48
 	_box(st, Vector3(0.2, 1.15 - drop * 0.5, 0.43), Vector3(0.17, drop, 0.045), wool)
 	_box(st, Vector3(0.2, 1.15 - drop + 0.06, 0.435), Vector3(0.17, 0.05, 0.05), wool.lightened(0.28))

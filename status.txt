@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Turn the alchemist's brazier into a gently glowing goo pot; Calm torch arm and hand lanterns for villagers and hero | Shipped this week: Furnish the post office with parcels, a letter sack and real letters; Lay flat-roof boards tight so snow lies smooth; Lighten footprints in the snow (+47 more)
+Escape! dev status | Working on: Calm torch arm and hand lanterns for villagers and hero | Shipped this week: Turn the alchemist's brazier into a gently glowing goo pot; Furnish the post office with parcels, a letter sack and real letters (+48 more)

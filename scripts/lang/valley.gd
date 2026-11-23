@@ -3,6 +3,9 @@ extends RefCounted
 
 const EN := {
 	"Brücke": "Bridge",
+	"Weizenfeld": "Wheat field",
+	"Maisfeld": "Maize field",
+	"Sonnenblumenfeld": "Sunflower field",
 	"Fluss": "River",
 	"Brücke über den Fluss": "Bridge over the river",
 }

@@ -48,6 +48,8 @@ const INDOOR := &"indoor_light"
 ## fronds (see spruce_needles.gdshader). Walls cannot stop light on them, so indoor lamps
 ## leave them out of their light altogether (see _on_node_added and refresh).
 const UNSHADOWED_LAYER := 1 << 15
+## The render layer everything is drawn on unless told otherwise.
+const DEFAULT_LAYER := 1
 ## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
 const INDOOR_FIRST := 100.0
 ## The meta of the two warm-up lamps (see warm_up): the picking leaves them alone.
@@ -107,7 +109,10 @@ func _on_node_added(node: Node) -> void:
 		if is_wall(node):
 			(node as GeometryInstance3D).layers |= WALL_LAYER
 		elif takes_no_shadows(node):
-			(node as GeometryInstance3D).layers |= UNSHADOWED_LAYER
+			# Moved off the default layer, not only onto this one: a light reaches whatever shares a
+			# layer with its cull mask, so with layer 1 kept the indoor lamps still lit the spruces.
+			var geo := node as GeometryInstance3D
+			geo.layers = (geo.layers & ~DEFAULT_LAYER) | UNSHADOWED_LAYER
 	elif node is OmniLight3D or node is SpotLight3D:
 		var light: Light3D = node
 		if light.has_meta(WARM):

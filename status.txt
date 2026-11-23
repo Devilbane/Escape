@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add Spooknortz the revenant and the sewers' secrets (sewers part 3); Keep the hero beside the bed after waking and centre them on the mattress | Shipped this week: Mage tower: skill books, clear walkways, bare top room; Remove wind-blown snow gusts (+48 more)
+Escape! dev status | Working on: Add Spooknortz the revenant and the sewers' secrets (sewers part 3) | Shipped this week: Keep the hero beside the bed after waking and centre them on the mattress; Mage tower: skill books, clear walkways, bare top room (+48 more)

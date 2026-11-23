@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Draw Elsbeth's speech bubble larger while the hero is in the temple | Shipped this week: Show villagers by plain name; they tell their job in the chat; Send late comers out of the temple again (+48 more)
+Escape! dev status | Shipped this week: Draw Elsbeth's speech bubble larger while the hero is in the temple; Show villagers by plain name; they tell their job in the chat (+48 more)

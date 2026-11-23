@@ -51,16 +51,17 @@ func _run() -> void:
 	var started_count := wind.gust(1.0)
 	check(started_count > 0, "a gust sets some pieces flying (%d)" % started_count)
 	check(started_count <= WindGusts.MAX_PIECES, "a gust moves no more than the cap")
-	var origins := {}
+	# (Pairs, not a dictionary keyed by the entry: the entry's own contents change when it lands.)
+	var origins: Array = []
 	for m: Dictionary in wind._moving:
-		origins[m.entry] = (m.entry[2] as Vector3)
+		origins.append([m.entry, (m.entry[2] as Vector3)])
 	wind._now += 100.0
 	wind._move()
 	check(wind.active() == 0, "the gust is over and every piece has landed")
 	var shifted := 0
-	for e in origins:
-		var o: Vector3 = origins[e]
-		var now: Vector3 = e[2]
+	for pair: Array in origins:
+		var o: Vector3 = pair[1]
+		var now: Vector3 = pair[0][2]
 		if Vector2(o.x - now.x, o.z - now.z).length() > 0.3:
 			shifted += 1
 		var ch := lvl.cell_char(lvl.world_to_cell(now))

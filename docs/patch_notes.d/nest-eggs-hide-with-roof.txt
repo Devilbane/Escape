@@ -1,1 +1,2 @@
 - Eggs and chicks in a rooftop nest now hide together with the roof instead of floating in the air.
+- Roof nests now sit fully on the ridge instead of hanging half in the air past its end.

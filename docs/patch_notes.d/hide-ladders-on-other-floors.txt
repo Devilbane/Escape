@@ -1,0 +1,1 @@
+- Ladders in a built house no longer show from the cellar or from a floor below them; they fade away with the floor they belong to.

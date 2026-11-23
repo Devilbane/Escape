@@ -45,6 +45,7 @@ healing_potions.gd | 300 | fixed | PASS:_healing_potions | Healing potions test 
 save_slots.gd | 120 | free | pass | Several saved games test
 stay_awake.gd | 120 | fixed | pass | Stay awake and save test
 sleep_till_morning.gd | 120 | fixed | pass | Sleep till morning test
+bed_rise.gd | 120 | fixed | pass | Going to bed and getting up (nobody sinks into the floor or mattress, the blanket lies over the sleeper and is thrown back flat)
 camp.gd | 120 | fixed | pass | Camp with bedroll and campfire test
 rescue.gd | 120 | fixed | pass | Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
 item_compare.gd | 120 | free | pass | Item comparison in the inventories' details box
@@ -117,3 +118,4 @@ forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walka
 house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere
 carry_arm.gd | 60 | free | passfail | The torch and lamp arm reaches forward and rocks only gently; lamps hang upright; villagers mix lamps and torches
+ground_items.gd | 60 | free | pass | Items on the floor (every item has a flat model, stackables pile up, no floating glow)

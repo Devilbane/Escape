@@ -13,6 +13,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
+	preload("res://scripts/lang/temple_morning.gd"),
 	preload("res://scripts/lang/graphics.gd"),
 	preload("res://scripts/lang/post_office.gd"),
 	preload("res://scripts/lang/locked_halls.gd"),
@@ -44,6 +45,7 @@ const PARTS := [
 	preload("res://scripts/lang/blessing.gd"),
 	preload("res://scripts/lang/villager_post.gd"),
 	preload("res://scripts/lang/mill.gd"),
+	preload("res://scripts/lang/tavern_brewer.gd"),
 	preload("res://scripts/lang/elementals.gd"),
 	preload("res://scripts/lang/teleport.gd"),
 	preload("res://scripts/lang/sky_command.gd"),
@@ -95,6 +97,7 @@ const PARTS := [
 	preload("res://scripts/lang/elder_lair.gd"),
 	preload("res://scripts/lang/wandering_merchant.gd"),
 	preload("res://scripts/lang/fox.gd"),
+	preload("res://scripts/lang/rabbit.gd"),
 	preload("res://scripts/lang/companions.gd"),
 	preload("res://scripts/lang/pouch.gd"),
 	preload("res://scripts/lang/weather.gd"),

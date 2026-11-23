@@ -1,0 +1,1 @@
+- Dropped items now lie on the floor as real objects (swords, boots, rings, books, potions and more) instead of floating as glowing bubbles, and several of one kind pile up.

@@ -246,6 +246,8 @@ func _check_speeds() -> void:
 		var stats: Dictionary = Animal.KINDS[kind]
 		var rig: String = Stride.rig_of(str(stats.model))
 		var size := float(stats.scale)
+		if rig == "":
+			continue  # the rabbit hops: no planted feet
 		check(_fits(rig, "Walk", size, minf(float(stats.walk) * 1.4, Stride.top_speed(rig, "Walk", size))), "%s walks with planted hooves" % kind)
 		check(_fits(rig, "Gallop", size, float(stats.run)), "%s bolts with planted hooves" % kind)
 	for kind: String in Companions.SPECIES:

@@ -368,7 +368,7 @@ func _run() -> void:
 	# Morning: everyone walks out.
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)
-	await _wait(60 * 14)
+	await _wait(60 * 30) # Getting up takes its time: the stretch, the yawn, the ladder.
 	var still := lvl.villagers.filter(func(v): return not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed()))
 	check(still.is_empty(), "in the morning everyone is out of the houses again (%s)" % [still.map(func(v): return v.role + ":" + String(v.bed_trip.get("step", "")))])
 	check(lvl.villagers.all(func(v): return v.global_position.y < 0.3), "and back on the ground")

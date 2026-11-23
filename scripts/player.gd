@@ -717,6 +717,57 @@ func body_scale() -> float:
 	return _model.scale.x
 
 
+## Whether the body is posed bone by bone for going to bed or getting up (see BedRise).
+var _bed_posed := false
+var _bed_base := {}
+
+
+## Poses the hero as `state` (see BedRise.at) in the bed at `bed_pos` turned by `rot`: the body is
+## put where the pose says (the hips on the mattress, the feet on the floor), the weapon put away.
+func bed_pose(state: Dictionary, bed_pos: Vector3, rot: float, side := -1.0) -> void:
+	if _skeleton == null:
+		_skeleton = _model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if _skeleton == null:
+		return
+	if not _bed_posed:
+		_bed_posed = true
+		_anim.speed_scale = 1.0
+		_anim.play("Idle")
+		_anim.seek(0.0, true)
+		if _bed_base.is_empty():
+			_bed_base = ClimbPose.base_of(_skeleton)
+		_anim.pause()
+		_current_anim = ""
+		BedRise.arm(_model, false)
+	global_position = BedRise.pose(_model, _skeleton, _bed_base, state, bed_pos, rot, side)
+	reset_physics_interpolation()
+	set_asleep(bool(state.shut))
+	BedRise.yawn(_model, float(state.yawn))
+
+
+## Back from bed_pose to the clips: standing at `spot`, facing `towards`, the weapon in hand again.
+func bed_pose_end(spot: Vector3, towards: Vector3) -> void:
+	if not _bed_posed:
+		return
+	_bed_posed = false
+	if _skeleton != null:
+		ClimbPose.apply(_skeleton, _bed_base, {})
+	BedRise.clear(_model)
+	BedRise.arm(_model, true)
+	BedRise.yawn(_model, 0.0)
+	set_asleep(false)
+	global_position = spot
+	reset_physics_interpolation()
+	face(towards)
+	_current_anim = ""
+	play("Idle", 0.2)
+
+
+## Whether the hero is posed for bed (see bed_pose).
+func in_bed_pose() -> bool:
+	return _bed_posed
+
+
 ## Opens the eyes and gets up from lying on the back, the way a knocked-down
 ## hero does (GET_UP_ANIM, GET_UP_TIME seconds).
 func get_up_from_bed() -> void:
@@ -3275,7 +3326,7 @@ func on_ladder() -> bool:
 ## Whether the drawn hero is kept out of walls now: not while seated, lying, climbing
 ## (that keeps clear on its own, see ClimbPose) or dead, which put the model where it belongs.
 func _keeps_clear_of_walls() -> bool:
-	if dead or _seated or _pit_climb or _horn != null or _climb >= 0.0 or _ladder_t >= 0.0 or _clearance_pivot == null:
+	if dead or _seated or _bed_posed or _pit_climb or _horn != null or _climb >= 0.0 or _ladder_t >= 0.0 or _clearance_pivot == null:
 		return false
 	return not (_current_anim.begins_with("Lie_") or _current_anim.begins_with("Sit_") or _current_anim.begins_with("Death"))
 

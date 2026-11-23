@@ -73,7 +73,7 @@ func _process(_delta: float) -> bool:
 				kinds[a.kind] = kinds.get(a.kind, 0) + 1
 				for anim in ["Idle", "Walk", "Gallop", "Eating"]:
 					check(a._anim.has_animation(anim), "%s has the animation %s" % [a.kind, anim])
-				check(lvl.is_open(a.home), "%s lives on open ground" % a.kind)
+				check(lvl.is_open(a.home), "%s lives on open ground (%s)" % [a.kind, a.home])
 				check(not lvl.enemies.has(a), "%s is not an enemy" % a.kind)
 				check(a.find_children("*", "CollisionObject3D", true, false).is_empty(), "%s takes up no room" % a.kind)
 				# They live in the woods, well away from the village square.
@@ -81,6 +81,9 @@ func _process(_delta: float) -> bool:
 			print("animals in the woods: ", kinds)
 			check(kinds.get("reh", 0) >= 3, "does graze in the woods")
 			check(kinds.has("hirsch") and kinds.has("fuchs"), "stags and foxes live in the woods")
+			check(kinds.get("kaninchen", 0) >= 6, "rabbits live at the forest edges and meadows")
+			for kind in Animal.KINDS:
+				check(SnowTrail.FEET.has(kind), "%s leaves tracks in the snow" % kind)
 			deer = lvl.animals.filter(func(a): return a.kind == "reh")[0]
 			_far_away()
 			stage_frames = 0

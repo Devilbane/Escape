@@ -47,32 +47,64 @@ func _run() -> void:
 	check(not WindGusts.enabled(), "the Performance preset has no gusts")
 	Graphics.preset = Graphics.BALANCED
 
+	# In autumn most litter is heaps of fallen leaves: single leaves must lift off them and be carried
+	# downwind, not shuffle on the spot.
+	var autumn_first := SkyCommand.autumn_from(Seasons.TEST_DAY)
+	lvl.set_season(autumn_first)
+	check(life.fallen != null, "autumn's fallen leaves lie on the ground")
 	var before := life.litter_total
 	var started_count := wind.gust(1.0)
-	check(started_count > 0, "a gust sets some pieces flying (%d)" % started_count)
+	check(started_count > 0, "a gust sets some leaves flying (%d)" % started_count)
 	check(started_count <= WindGusts.MAX_PIECES, "a gust moves no more than the cap")
-	# (Pairs, not a dictionary keyed by the entry: the entry's own contents change when it lands.)
-	var origins: Array = []
-	for m: Dictionary in wind._moving:
-		origins.append([m.entry, (m.entry[2] as Vector3)])
+	var flying: Array = wind._moving.duplicate()
+	check(wind._leaves != null or wind._moving.size() > 0, "the leaves fly as single leaves")
+	var fixed := 0
+	for m: Dictionary in flying:
+		var from: Vector3 = m.from
+		var to: Vector3 = m.to
+		var flat := Vector2(to.x - from.x, to.z - from.z)
+		check(flat.length() >= WindGusts.MIN_CROSS * 0.99, "a leaf is carried at least a third of the screen (%.1f m)" % flat.length())
+		check(flat.normalized().x > 0.7, "it goes downwind, left to right across the screen")
+		check(WindGusts.OPEN.contains(lvl.cell_char(lvl.world_to_cell(to))), "it lands on open ground")
+		var home := false
+		for e: Array in life._cell_litter.get(lvl.world_to_cell(from), []):
+			if (e[4] == "leaf" or e[4] == "fallen") and Vector2(e[2].x - from.x, e[2].z - from.z).length() < 1.0:
+				home = true
+				break
+		if home:
+			fixed += 1
+		# Carried on, never back and forth: its way along the wind only ever grows.
+		var dir := flat.normalized()
+		var last := -1.0e9
+		var steps_back := 0
+		for step in 21:
+			var at := wind.pose(m, step / 20.0).origin
+			var along := Vector2(at.x - from.x, at.z - from.z).dot(dir)
+			if along < last - 0.5:
+				steps_back += 1
+			last = along
+		check(steps_back == 0, "a leaf never goes back against the wind")
+		check(absf(wind.pose(m, 1.0).origin.y - from.y) < 0.1, "it comes down on the ground")
+	check(fixed > flying.size() / 2, "leaves start where leaves really lie (%d of %d)" % [fixed, flying.size()])
+	# Half way through a flight the leaves are well away from where they lay.
+	if flying.size() > 0:
+		var far := 0
+		for m: Dictionary in flying:
+			var mid := wind.pose(m, 0.5).origin
+			if Vector2(mid.x - m.from.x, mid.z - m.from.z).length() > WindGusts.MIN_CROSS * 0.3:
+				far += 1
+		check(far == flying.size(), "half way, every leaf is well on its way, not on the spot (%d of %d)" % [far, flying.size()])
+	wind._now = wind._now + 3.0
+	wind._move()
+	check(wind._leaves != null and wind._leaves.visible, "the flying leaves are drawn")
 	wind._now += 100.0
 	wind._move()
-	check(wind.active() == 0, "the gust is over and every piece has landed")
-	var shifted := 0
-	for pair: Array in origins:
-		var o: Vector3 = pair[1]
-		var now: Vector3 = pair[0][2]
-		if Vector2(o.x - now.x, o.z - now.z).length() > 0.3:
-			shifted += 1
-		if pair[0][4] == "leaf" or pair[0][4] == "straw":
-			check(Vector2(o.x - now.x, o.z - now.z).length() >= WindGusts.MIN_CROSS * 0.99, "a leaf is carried at least a third of the screen")
-		var ch := lvl.cell_char(lvl.world_to_cell(now))
-		check(WindGusts.OPEN.contains(ch), "a piece landed on open ground, not '%s'" % ch)
-	check(shifted > 0, "pieces lie somewhere else after the gust (%d of %d)" % [shifted, origins.size()])
+	check(wind.active() == 0 and not wind._leaves.visible, "the gust is over and every leaf has settled and faded")
 	check(life.litter_total == before, "no litter was added or lost")
 	check(wind.gust(0.4) >= 0, "a weak gust works too")
 	wind._now += 100.0
 	wind._move()
+	lvl.set_season(Seasons.TEST_DAY)
 
 	# Feather-like: a leaf's height is zero at both ends, rises early and sinks slowly.
 	check(WindGusts.height_share(0.0, 0.5) < 0.001 and WindGusts.height_share(1.0, 0.5) < 0.001, "a leaf starts and lands on the ground")

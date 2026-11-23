@@ -1,7 +1,7 @@
 class_name Animal
 extends Node3D
 ## A peaceful animal of the woods between the graveyard and the village:
-## does, stags and foxes graze and stroll around the meadow they live on,
+## does, stags, foxes and rabbits graze and stroll around the meadow they live on,
 ## and bolt when the hero comes close. They never fight and cannot be hurt,
 ## and they take up no room, so they never stand in anyone's way.
 ##
@@ -15,7 +15,7 @@ extends Node3D
 ## The hero has at most one of each kind.
 ##
 ## Models: "Ultimate Animated Animals" by Quaternius (CC0, see
-## assets/animals/LICENSE.txt).
+## assets/animals/LICENSE.txt); the rabbit is "Rabbit" by CDmir (CC0, same file).
 
 ## model: file in assets/animals; scale fits it to the hero's size; walk and
 ## run: speeds (m/s; the legs keep pace with them, see Stride);
@@ -25,9 +25,12 @@ const KINDS := {
 	"reh": {"model": "Deer", "scale": 0.45, "walk": 1.3, "run": 7.5, "shy": 11.0, "roam": 4},
 	"hirsch": {"model": "Stag", "scale": 0.45, "walk": 1.2, "run": 7.0, "shy": 9.0, "roam": 4},
 	"fuchs": {"model": "Fox", "scale": 0.4, "walk": 1.5, "run": 6.5, "shy": 8.0, "roam": 5},
+	# The rabbit hops (its Walk is one hop, its Gallop a bounding run), so it has no planted feet to keep
+	# in step (see Stride) and plays at its own pace. Shy and quick, it stays near its burrow.
+	"kaninchen": {"model": "Rabbit", "scale": 0.4, "walk": 1.3, "run": 5.5, "shy": 7.0, "roam": 3},
 }
 ## Which map letter places which animal (see Outdoor).
-const LETTERS := {"D": "reh", "V": "hirsch", "&": "fuchs"}
+const LETTERS := {"D": "reh", "V": "hirsch", "&": "fuchs", "£": "kaninchen"}
 ## A sneaking hero is noticed only this much closer.
 ## A path point counts as reached this close (metres), inside the turning circle.
 const ARRIVE := 0.5

@@ -81,8 +81,15 @@ const STEM_CELL_LENGTH := 3.2
 const TENDRIL_CHANCE := 0.16
 ## Bunches of blue grapes hang from the vine now and then (GRAPE_CHANCE per stem piece), never closer
 ## than GRAPE_SPACING metres to one another, for a splash of colour among the leaves.
+## The chance is the average over the whole vine, spread unevenly: grapes_clump() makes rich patches
+## (CLUMP_RICH of the space, CLUMP_RICH_FACTOR times the chance) with near-bare vine in between
+## (CLUMP_POOR_FACTOR), so bunches hang in clusters with gaps. Mean factor ~0.65 of the old, even spread.
 const GRAPE_CHANCE := 0.12
-const GRAPE_SPACING := 0.9
+const GRAPE_SPACING := 0.5
+const CLUMP_CELL := 1.6
+const CLUMP_RICH := 0.28
+const CLUMP_RICH_FACTOR := 2.1
+const CLUMP_POOR_FACTOR := 0.08
 ## Blue and red grapes, one in GRAPE_RED_SHARE bunches red.
 const GRAPE_COLOUR := Color(0.08, 0.1, 0.3)
 const GRAPE_RED := Color(0.4, 0.04, 0.09)
@@ -799,7 +806,7 @@ static func _stem(a: Vector3, b: Vector3, n: Vector3, wall: Dictionary, base: fl
 	var basis := Basis(x * thick, dir * (length + 0.03), n)
 	(leaves.stems as Array).append(Transform3D(basis, mid + n * 0.03))
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
-	if rng.randf() < GRAPE_CHANCE:
+	if rng.randf() < GRAPE_CHANCE * grapes_clump(mid):
 		_grapes(mid - Vector3.UP * 0.1 + n * 0.04 + x * rng.randf_range(-0.08, 0.08), n, wall, windows, window_room, doors, ground, rng, leaves)
 
 
@@ -893,7 +900,7 @@ static func _roof_stem(a: Vector3, b: Vector3, n: Vector3, frac: float, branch: 
 	var x := dir.cross(n).normalized()
 	(leaves.stems as Array).append(Transform3D(Basis(x * thick, dir * (length + 0.03), n), mid + n * 0.03))
 	(leaves.stem_colours as Array).append(STEM_COLOUR * rng.randf_range(0.8, 1.2))
-	if rng.randf() < GRAPE_CHANCE:
+	if rng.randf() < GRAPE_CHANCE * grapes_clump(mid):
 		_grapes(mid + n * 0.06, n, {}, windows, 1.0, [], 0.0, rng, leaves)
 
 
@@ -1435,8 +1442,16 @@ static func _grapes_into(root: Node3D, leaves: Dictionary) -> void:
 
 ## How likely a stem piece is to carry an extra bunch in autumn, and how close such bunches may hang
 ## to any other (metres): autumn is harvest time, and the vines hang heavy with grapes.
-const AUTUMN_GRAPE_CHANCE := 0.35
+const AUTUMN_GRAPE_CHANCE := 0.23
 const AUTUMN_GRAPE_SPACING := 0.45
+
+
+## How much of the usual grape chance applies at `at`: a patch of CLUMP_CELL metres is either rich or
+## poor, decided by a hash of the patch (so it is the same every time the vine is grown).
+static func grapes_clump(at: Vector3) -> float:
+	var c := Vector3i((at / CLUMP_CELL).floor())
+	var r := float(hash(c) & 0xffff) / 65535.0
+	return CLUMP_RICH_FACTOR if r < CLUMP_RICH else CLUMP_POOR_FACTOR
 
 
 ## The grid cell (half a metre) of `at`, for finding near stems and bunches quickly.
@@ -1486,7 +1501,7 @@ static func _autumn_grapes(leaves: Dictionary, xf: Array, colours: Array, normal
 	for st: Transform3D in leaves.get("stems", []):
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash(st.origin.snapped(Vector3.ONE * 0.01))
-		if rng.randf() >= AUTUMN_GRAPE_CHANCE:
+		if rng.randf() >= AUTUMN_GRAPE_CHANCE * grapes_clump(st.origin):
 			continue
 		var n := st.basis.z.normalized()
 		var spot := st.origin + n * 0.05

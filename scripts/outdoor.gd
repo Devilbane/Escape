@@ -95,10 +95,10 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µcAXQWHJUDV&@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS¢µü"
+const VILLAGERS := "0123456789KOGMYZS¢µüö"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -314,6 +314,8 @@ var village_alarm := VillageAlarm.new()
 var meals := TownMeals.new()
 ## Idle townsfolk resting on the benches round the fountain (see BenchRest).
 var bench_rest := BenchRest.new()
+## The morning gathering in the temple (see TempleMorning).
+var temple_morning := TempleMorning.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -665,6 +667,9 @@ var snow: SnowCover
 ## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
 var ice := 0.0
 var ice_cover: IceCover
+## The snow dust the herald's broom kicks up (see SweepDust), made when he first sweeps.
+var sweep_dust: SweepDust
+
 ## Reeds and cattails round the ponds, with their caps of snow (see PondReeds).
 var pond_reeds: PondReeds
 ## Every pond tile (see IceCover).
@@ -833,6 +838,8 @@ func build() -> void:
 	snow.set_warm(warm_spots)
 	snow.set_shelter(roofs, width, height, TILE)
 	snow.set_awnings(meals.awnings)
+	# The footpaths the herald swept stay swept when the village is built again (see SnowSweep).
+	SnowSweep.attach(self)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
@@ -1218,7 +1225,7 @@ func _tree_material(mat: Material, wind := true) -> Material:
 ## returns how far the tree reaches (metres), or -1 when it was left out.
 func _plant(name: String, pos: Vector3, rot: float, s: float) -> float:
 	var reach := _reach_of(name, s)
-	if on_plot(pos, reach):
+	if on_plot(pos, reach) or Mountains.near_rock(self, pos.x, pos.z, Mountains.TREE_CLEARANCE):
 		return -1.0
 	# Spruces in smaller batches, so each one turns into its far model at about its own distance.
 	var chunk := (SPRUCE_CHUNK if name.begins_with("spruce:") else GROUND_CHUNK) * TILE
@@ -1450,7 +1457,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var rot := _rng.randf() * TAU
 			var size := _rng.randf_range(1.1, 1.4)
 			var reach := _reach_of(tree, size)
-			if not on_plot(at, reach):
+			if not on_plot(at, reach) and not Mountains.near_rock(self, at.x, at.z, Mountains.TREE_CLEARANCE):
 				_clearable.append({"at": at, "reach": reach, "nodes": [_put(tree, at, rot, size),
 						_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.4, 4, 1.4))]})
 		"p":
@@ -2243,6 +2250,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 		for ix in steps.x + 1:
 			var at := Vector3(inner.position.x + inner.size.x * ix / steps.x, 0.0, inner.position.y + inner.size.y * iy / steps.y)
 			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
+					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) \
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
@@ -2255,7 +2263,8 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 	for iy in ceili(block.size.y / UNDERGROWTH_CHECK):
 		for ix in ceili(block.size.x / UNDERGROWTH_CHECK):
 			var at := Vector3(block.position.x + (ix + 0.5) * UNDERGROWTH_CHECK, 0.0, block.position.y + (iy + 0.5) * UNDERGROWTH_CHECK)
-			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5):
+			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
+					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE):
 				continue
 			var covered := false
 			for i in placed.size():
@@ -3551,7 +3560,7 @@ func _plant_bushes() -> void:
 				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
 				# Never over the temple glass's light on the grass (bare_ground), a full bush's
 				# width (AgedStone.grow_bush) away.
-				if _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+				if Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) or _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
@@ -4219,6 +4228,14 @@ func _build_chopping_log(v: Villager, cell: Vector2i) -> void:
 	var chips := Effects.make_wood_chips()
 	chips.position = Villager.BITE_POINT
 	spot.add_child(chips)
+	# The woodcutter's sign stands just past one end of his trunk
+	# (clear of his axe and of the way to the trunk), facing back toward the road behind him.
+	var board := Effects.shop_sign(Lang.t("Holzplatz"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "axe")
+	WeatheredProps.weather_plain(board)
+	board.position = Villager.LOG_CENTRE + Vector3(Villager.LOG_LENGTH * 0.5 + 0.7, -Villager.LOG_CENTRE.y, 0)
+	board.rotation.y = PI
+	spot.add_child(board)
+	_add_solid(spot.to_global(board.position), Vector3(0.5, 2.6, 0.5))
 	var centre := spot.to_global(Villager.LOG_CENTRE)
 	var size := Vector3(Villager.LOG_LENGTH, 0.5, r * 2.0)
 	if absf(face.x) > 0.5:
@@ -4639,6 +4656,7 @@ func _process(delta: float) -> void:
 	village_wall.tick(self, delta)
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
+	temple_morning.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:
@@ -4669,7 +4687,8 @@ func _process(delta: float) -> void:
 	_mind_the_moon(delta)
 	_check_basket(delta)
 	_herald_timer -= delta
-	if _herald and _herald_timer <= 0.0 and not night:
+	# Not while he sits in the temple for the morning gathering (see TempleMorning).
+	if _herald and _herald_timer <= 0.0 and not night and not _herald.serves():
 		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
 		_call_the_village()
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
@@ -5344,6 +5363,7 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		SnowPrints.restore(self)
 	if snow:
 		snow.set_amount(cover, daylight, moon)
+		SnowSweep.advance(self, cover)
 	if pond_reeds != null:
 		pond_reeds.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
@@ -5372,6 +5392,9 @@ func set_ice(value: float) -> void:
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_roofed(at):
 		return
+	# Ground swept bare of snow takes no prints (see SnowSweep).
+	if at.y <= PRINT_ABOVE and SnowSweep.is_bare(self, at):
+		return
 	# Up on something (a house's roof): the print lies on what is underfoot there, not on the ground.
 	var up := Vector3.ZERO
 	if at.y > PRINT_ABOVE:
@@ -5380,6 +5403,7 @@ func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> voi
 			return
 		up = hit.normal
 		at = hit.position
+	SnowPrints.set_daylight(snow.daylight)
 	SnowPrints.leave(self, at, heading, size, kind, snow.daylight, up)
 
 

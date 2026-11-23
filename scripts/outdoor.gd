@@ -665,6 +665,9 @@ var snow: SnowCover
 ## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
 var ice := 0.0
 var ice_cover: IceCover
+## The snow dust the herald's broom kicks up (see SweepDust), made when he first sweeps.
+var sweep_dust: SweepDust
+
 ## Reeds and cattails round the ponds, with their caps of snow (see PondReeds).
 var pond_reeds: PondReeds
 ## Every pond tile (see IceCover).
@@ -833,6 +836,8 @@ func build() -> void:
 	snow.set_warm(warm_spots)
 	snow.set_shelter(roofs, width, height, TILE)
 	snow.set_awnings(meals.awnings)
+	# The footpaths the herald swept stay swept when the village is built again (see SnowSweep).
+	SnowSweep.attach(self)
 	_floor_shape = CollisionShape3D.new()
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
@@ -5354,6 +5359,7 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		SnowPrints.restore(self)
 	if snow:
 		snow.set_amount(cover, daylight, moon)
+		SnowSweep.advance(self, cover)
 	if pond_reeds != null:
 		pond_reeds.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
@@ -5381,6 +5387,9 @@ func set_ice(value: float) -> void:
 ## is the shape (see SnowPrints.KINDS), the animals leave paws, hooves and bird feet.
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_roofed(at):
+		return
+	# Ground swept bare of snow takes no prints (see SnowSweep).
+	if at.y <= PRINT_ABOVE and SnowSweep.is_bare(self, at):
 		return
 	# Up on something (a house's roof): the print lies on what is underfoot there, not on the ground.
 	var up := Vector3.ZERO

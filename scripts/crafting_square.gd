@@ -8,7 +8,7 @@ extends RefCounted
 ## Map letters (outdoor levels, see Outdoor):
 ##   +  fine metalwork bench (a small anvil, a crucible, rings and wire)
 ##   %  gem cutter's wheel (a grinding wheel and glittering stones)
-##   *  alchemist's table (bottles, and a cauldron bubbling over a fire)
+##   *  alchemist's table (bottles, and a small brazier of bubbling goo)
 ##   $  your storage chest: the same chest as the one at home
 ## Gorm's forge (forging, melting, mending) stands right beside them, on the
 ## north side of the square (see Outdoor._build_forge).
@@ -210,28 +210,49 @@ static func _dress_alchemy(level: Node, pos: Vector3) -> void:
 		neck.height = 0.1
 		_mesh(level, neck, bottle, top + Vector3(-0.2 + (i % 2) * 0.25, body.height + 0.05, -0.9 + i * 0.22))
 	var at := pos + CAULDRON
-	var brew := _mat(Color(0.2, 0.7, 0.2), 0.3)
+	# A shallow bowl of thick goo that glows softly, with slow bubbles, a wisp of
+	# steam and a dim light: a cooking brazier, not a beacon.
+	var brew := _mat(Color(0.2, 0.55, 0.22), 0.25)
 	brew.emission_enabled = true
-	brew.emission = Color(0.35, 1.0, 0.3)
-	brew.emission_energy_multiplier = 1.2
+	brew.emission = Color(0.3, 0.85, 0.3)
+	brew.emission_energy_multiplier = 0.45
 	var surface := CylinderMesh.new()
-	surface.top_radius = 0.4
-	surface.bottom_radius = 0.4
+	surface.top_radius = 0.31
+	surface.bottom_radius = 0.31
 	surface.height = 0.02
-	_mesh(level, surface, brew, at + Vector3(0, 0.72, 0))
-	var fire := Effects.make_flame()
-	fire.position = at + Vector3(0, 0.12, 0)
-	fire.scale = Vector3.ONE * 0.8
-	level.add_child(fire)
-	var bubbles := Effects.make_sparkles(Color(0.5, 1.0, 0.45))
-	bubbles.emission_sphere_radius = 0.3
-	bubbles.position = at + Vector3(0, 0.95, 0)
+	_mesh(level, surface, brew, at + Vector3(0, 0.46, 0))
+	var coals := Effects.make_flame()
+	coals.amount = 5
+	coals.position = at + Vector3(0, 0.1, 0)
+	coals.scale = Vector3.ONE * 0.3
+	level.add_child(coals)
+	var bubbles := Effects.make_sparkles(Color(0.55, 1.0, 0.5, 0.8))
+	bubbles.amount = 5
+	bubbles.lifetime = 2.4
+	bubbles.emission_sphere_radius = 0.22
+	bubbles.spread = 15.0
+	bubbles.gravity = Vector3(0, 0.12, 0)
+	bubbles.scale_amount_min = 0.35
+	bubbles.scale_amount_max = 0.6
+	bubbles.position = at + Vector3(0, 0.5, 0)
 	level.add_child(bubbles)
+	var steam := Effects.make_sparkles(Color(0.85, 0.95, 0.85, 0.28))
+	steam.amount = 6
+	steam.lifetime = 3.2
+	steam.emission_sphere_radius = 0.18
+	steam.spread = 12.0
+	steam.gravity = Vector3(0, 0.16, 0)
+	steam.initial_velocity_min = 0.05
+	steam.initial_velocity_max = 0.15
+	steam.scale_amount_min = 0.8
+	steam.scale_amount_max = 1.5
+	steam.position = at + Vector3(0, 0.55, 0)
+	level.add_child(steam)
 	var light := OmniLight3D.new()
-	light.light_color = Color(0.45, 1.0, 0.4)
-	light.light_energy = 1.4
-	light.omni_range = 5.5
-	light.position = at + Vector3(0, 1.4, 0)
+	light.light_color = Color(0.45, 0.95, 0.4)
+	light.light_energy = 0.3
+	light.omni_range = 2.4
+	light.position = at + Vector3(0, 0.8, 0)
 	level.add_child(light)
 
 

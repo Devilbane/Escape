@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Hide roof footprints while the hero is indoors | Shipped this week: Windows build on DirectX 12 (Forward+), with Quality, Balanced and Performance graphics; Clear windows and candle-lit rooms in walkable buildings (+48 more)
+Escape! dev status | Working on: Furnish menu: clear "Remove" tool for placed furniture; Hide roof footprints while the hero is indoors | Shipped this week: Windows build on DirectX 12 (Forward+), with Quality, Balanced and Performance graphics; Clear windows and candle-lit rooms in walkable buildings (+48 more)

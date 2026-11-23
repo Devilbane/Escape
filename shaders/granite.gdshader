@@ -30,14 +30,14 @@ void fragment() {
 	float pink = smoothstep(0.42, 0.7, fbm(p * 2.3 + 3.0));
 	float coarse = fbm(p * 7.0 + 11.0);
 	vec3 col = albedo_color * (0.84 + 0.3 * blotch) * (0.92 + 0.16 * stone_id);
-	col = mix(col, col * vec3(1.04, 0.98, 0.97), pink * 0.35);
+	col = mix(col, col * vec3(1.02, 0.99, 0.98), pink * 0.3);
 	col *= 0.93 + 0.14 * coarse;
 	// Quartz (pale), feldspar (warm) and mica or hornblende (dark): the speckle of granite.
 	float quartz = smoothstep(0.7, 0.82, vnoise(p * 46.0)) * band(46.0, px);
 	float feldspar = smoothstep(0.72, 0.84, vnoise(p * 38.0 + 17.0)) * band(38.0, px);
 	float mica = smoothstep(0.74, 0.86, vnoise(p * 62.0 + 29.0)) * band(62.0, px);
 	col = mix(col, vec3(0.88, 0.89, 0.9), quartz * 0.45);
-	col = mix(col, vec3(0.72, 0.66, 0.63), feldspar * 0.3);
+	col = mix(col, vec3(0.68, 0.65, 0.63), feldspar * 0.25);
 	col = mix(col, vec3(0.1, 0.1, 0.11), mica * 0.7);
 	col *= 1.0 + (vnoise(p * 140.0) - 0.5) * 0.14 * band(140.0, px);
 	// Lichen on the upward faces, low in contrast.

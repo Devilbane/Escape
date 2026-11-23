@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test for the chimneys of the village houses: each ends in a timber rim round an open,
 ## soot-dark flue, the snow lies on the rim only (never in the opening), and the smoke's spot lies
-## over the opening.
+## over the opening. No bird nests by a chimney.
 ## Run with: godot --headless -s tests/chimney_flue.gd
 
 var failures := 0
@@ -47,4 +47,10 @@ func _house(house: Node3D, label: String) -> void:
 	if not flue.is_empty():
 		var inner := (flue[0].a as Vector3).y
 		check(inner < top_y - 0.03, label + ": the opening lies below the rim's top")
+	# No nest by the chimney, where the birds would be smoked: on the ridge instead.
+	if house.has_meta("chimney"):
+		var mouth: Vector3 = house.global_transform * (house.get_meta("chimney") as Vector3)
+		var nest := AgedStone.nest_spot(tris, house.global_position.y, [mouth])
+		check(nest != Vector3.INF, label + ": a nest finds a spot")
+		check(Vector2(nest.x - mouth.x, nest.z - mouth.z).length() >= AgedStone.NEST_SMOKE_CLEAR, label + ": the nest keeps clear of the chimney")
 	house.queue_free()

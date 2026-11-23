@@ -54,7 +54,7 @@ func _run() -> void:
 	var origins := {}
 	for m: Dictionary in wind._moving:
 		origins[m.entry] = (m.entry[2] as Vector3)
-	wind._clock = 100.0
+	wind._now += 100.0
 	wind._move()
 	check(wind.active() == 0, "the gust is over and every piece has landed")
 	var shifted := 0
@@ -68,7 +68,7 @@ func _run() -> void:
 	check(shifted > 0, "pieces lie somewhere else after the gust (%d of %d)" % [shifted, origins.size()])
 	check(life.litter_total == before, "no litter was added or lost")
 	check(wind.gust(0.4) >= 0, "a weak gust works too")
-	wind._clock = 100.0
+	wind._now += 100.0
 	wind._move()
 
 	# Feather-like: a leaf's height is zero at both ends, rises early and sinks slowly.
@@ -88,7 +88,7 @@ func _run() -> void:
 		wind.gust(1.0)
 		lo = minf(lo, wind.force)
 		hi = maxf(hi, wind.force)
-		wind._clock = 100.0
+		wind._now += 100.0
 		wind._move()
 		wind._move_flakes()
 	check(hi - lo > 0.5 and lo >= WindGusts.FORCE.x and hi <= WindGusts.FORCE.y, "gusts differ in force (%.2f to %.2f)" % [lo, hi])

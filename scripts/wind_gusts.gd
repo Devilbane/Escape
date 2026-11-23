@@ -27,17 +27,23 @@ const EVERY_OTHER := Vector2(60.0, 140.0)
 ## Pieces one gust moves, before the wind's strength and the quality preset.
 const PIECES := Vector2i(10, 18)
 const MAX_PIECES := 40
+## No new gust starts while this many pieces are still in the air (gusts may overlap).
+const MAX_IN_AIR := 120
 ## Pieces are taken from this far round the hero (metres).
 const NEAR := 2.5
 const FAR := 15.0
 ## How far a piece travels in a breeze (metres), by what it is: leaves float far, chips skid.
-const TRAVEL := {"leaf": Vector2(14.0, 30.0), "straw": Vector2(8.0, 16.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
+const TRAVEL := {"leaf": Vector2(24.0, 48.0), "straw": Vector2(12.0, 26.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
 ## How high it is lifted (metres).
 const LIFT := {"leaf": Vector2(1.0, 2.2), "straw": Vector2(0.6, 1.5), "chip": Vector2(0.05, 0.2), "fallen": Vector2(0.02, 0.06)}
 ## How long a flight takes (seconds): slow, like a feather's.
-const DURATION := Vector2(6.0, 9.5)
+const DURATION := Vector2(14.0, 22.0)
+## The flight time the wobble and turning speeds were tuned for, and how much quicker than that
+## they go: a long flight is not a slow one.
+const TUNED_FOR := 7.75
+const LIVELY := 1.4
 ## The gust sweeps along the wind: the furthest piece starts this long after the nearest (seconds).
-const SWEEP := 2.0
+const SWEEP := 3.0
 ## How much the wind's direction turns between gusts (radians, at most).
 const TURN := 0.7
 ## How hard a gust blows on top of the weather's wind (1 is the weather's breeze): drawn at random
@@ -49,13 +55,14 @@ const OPEN := SurfaceLife.GROUND + SurfaceLife.PATH + SurfaceLife.SQUARE
 ## The winter flurry: flakes per gust, their size (metres), how far they are blown and how high.
 const FLAKES := 80
 const FLAKE_SIZE := 0.07
-const FLAKE_TRAVEL := Vector2(10.0, 26.0)
+const FLAKE_TRAVEL := Vector2(18.0, 40.0)
 const FLAKE_LIFT := Vector2(0.3, 2.2)
 
 var life: SurfaceLife
-## The pieces in the air: {entry, from, to, delay, dur, lift, axis, spin, yaw, light, and the settings of its erratic motion}.
+## The pieces in the air: {entry, from, to, start, dur, lively, lift, axis, spin, yaw, light, and the settings of its erratic motion}.
 var _moving: Array = []
-var _clock := 0.0
+## Seconds the node has run, and the clock every flight is told by (see _move).
+var _now := 0.0
 var _timer := 0.0
 ## The way the wind blows now (angle on the ground plane).
 var _angle := 0.0
@@ -118,8 +125,8 @@ func active() -> int:
 
 
 func _process(delta: float) -> void:
+	_now += delta
 	if active() > 0:
-		_clock += delta
 		_move()
 		_move_flakes()
 	if not enabled() or life.level.player == null:
@@ -138,12 +145,11 @@ func _process(delta: float) -> void:
 ## Blows one gust now, with the wind at strength `s`: sets pieces of litter near the hero flying
 ## (in winter a flurry of snow). Returns how many pieces it set flying.
 func gust(s: float) -> int:
-	if life.level.player == null or active() > 0:
+	if life.level.player == null or active() > MAX_IN_AIR:
 		return 0
 	_angle += _rng.randf_range(-TURN, TURN)
 	var dir := Vector3(cos(_angle), 0, sin(_angle))
 	var hero: Vector3 = life.level.player.global_position
-	_clock = 0.0
 	gusts += 1
 	# Weather and the gust's own force together.
 	force = lerpf(FORCE.x, FORCE.y, pow(_rng.randf(), 1.4))
@@ -173,6 +179,8 @@ func _pool(hero: Vector3) -> Array:
 			for e: Array in life._cell_litter.get(c + Vector2i(dx, dy), []):
 				if not TRAVEL.has(e[4]) or (e[4] == "fallen" and not life._autumn):
 					continue
+				if e.size() > 5 and e[5]:
+					continue
 				var o: Vector3 = e[2]
 				var d := Vector2(o.x - hero.x, o.z - hero.z).length()
 				if d < NEAR or d > FAR or not is_instance_valid(e[0]):
@@ -198,13 +206,19 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 			return false
 	var lift: Vector2 = LIFT[kind]
 	var light := kind == "leaf" or kind == "straw"
+	var dur := (_rng.randf_range(DURATION.x, DURATION.y) if light else _rng.randf_range(1.2, 2.2)) / _pace(s)
+	var lively := dur / TUNED_FOR * LIVELY if light else 1.0
+	if e.size() > 5:
+		e[5] = true
+	else:
+		e.append(true)
 	_moving.append({
 		"entry": e, "from": from, "to": to,
-		"delay": clampf((from - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.4),
-		"dur": (_rng.randf_range(DURATION.x, DURATION.y) if light else _rng.randf_range(1.2, 2.2)) / _pace(s),
+		"start": _now + clampf((from - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.4),
+		"dur": dur, "lively": lively,
 		"lift": _rng.randf_range(lift.x, lift.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 		"axis": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(0.2, 1), _rng.randf_range(-1, 1)).normalized(),
-		"spin": _rng.randf_range(2.0, 5.0) if light else _rng.randf_range(0.05, 0.3),
+		"spin": _rng.randf_range(2.0, 5.0) * lively if light else _rng.randf_range(0.05, 0.3),
 		"fh": _noise_freqs(), "ph": _noise_phases(),
 		"fl": _noise_freqs(), "pl": _noise_phases(),
 		"fa": _noise_freqs(), "pa": _noise_phases(),
@@ -265,7 +279,7 @@ func _move() -> void:
 		var e: Array = m.entry
 		if not is_instance_valid(e[0]):
 			continue
-		var t := clampf((_clock - m.delay) / m.dur, 0.0, 1.0)
+		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
 		var flat: Transform3D = e[3]
 		var yawed := Basis(Vector3.UP, m.yaw + m.spin)
 		var key := "%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]
@@ -275,19 +289,22 @@ func _move() -> void:
 			var home := Transform3D(yawed * flat.basis, flat.origin + (m.to - m.from))
 			e[2] = home.origin
 			e[3] = home
+			if e.size() > 5:
+				e[5] = false
 			if not lifted:
 				(e[0] as MultiMesh).set_instance_transform(e[1], home)
 			continue
 		left.append(m)
 		if t <= 0.0 or lifted:
 			continue
-		var share := height_share(t, erratic(t, m.fh, m.ph))
+		var k: float = m.lively
+		var share := height_share(t, erratic(t * k, m.fh, m.ph))
 		var along: Vector3 = (m.to as Vector3) - (m.from as Vector3)
 		var side_axis := Vector3.UP.cross(along).normalized()
 		# Pushed this way and that on the way, but always on along the wind.
 		var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
-		var sway := side_axis * erratic(t, m.fl, m.pl) * 2.4 * calm
-		var surge := erratic(t, m.fl.zxy, m.pl.yzx) * 0.04 * calm
+		var sway := side_axis * erratic(t * k, m.fl, m.pl) * 2.4 * calm
+		var surge := erratic(t * k, m.fl.zxy, m.pl.yzx) * 0.04 * calm
 		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
 		# the leaf flips edge-on and back, it bobs very slightly, and it surges a little.
 		var secs: float = t * m.dur
@@ -296,8 +313,8 @@ func _move() -> void:
 		var basis := flat.basis
 		if m.light:
 			# Its own wild turning on all axes, never the same as its neighbour's.
-			var yaw: float = m.yaw * t + m.spin * t + erratic(t, m.fa, m.pa) * 2.2 * calm
-			basis = Basis(along.normalized(), flip * 1.1 * calm) * Basis(m.axis, erratic(t, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t, m.fa.yzx, m.pb.zxy) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
+			var yaw: float = m.yaw * t + m.spin * t + erratic(t * k, m.fa, m.pa) * 2.2 * calm
+			basis = Basis(along.normalized(), flip * 1.1 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t * k, m.fa.yzx, m.pb.zxy) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
 		else:
 			basis = Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
 		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share + bob, 0)
@@ -332,15 +349,15 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 		_snow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_snow.extra_cull_margin = 60.0
 		add_child(_snow)
-	var count := mini((_snow.multimesh as MultiMesh).instance_count, roundi(FLAKES * s * quality_scale()))
+	var count := mini((_snow.multimesh as MultiMesh).instance_count - _flakes.size(), roundi(FLAKES * s * quality_scale()))
 	for i in count:
 		var at := hero + Vector3(_rng.randf_range(-FAR, FAR), 0, _rng.randf_range(-FAR, FAR)) * 0.8
 		var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
 		_flakes.append({
 			"from": at + Vector3(0, 0.05, 0),
 			"to": at + way * _rng.randf_range(FLAKE_TRAVEL.x, FLAKE_TRAVEL.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6),
-			"delay": clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
-			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s),
+			"start": _now + clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
+			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s), "lively": LIVELY * 2.0,
 			"lift": _rng.randf_range(FLAKE_LIFT.x, FLAKE_LIFT.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 			"fh": _noise_freqs(), "ph": _noise_phases(), "fl": _noise_freqs(), "pl": _noise_phases(),
 		})
@@ -354,16 +371,16 @@ func _move_flakes() -> void:
 	var mm := _snow.multimesh
 	var left: Array = []
 	for m: Dictionary in _flakes:
-		var t := clampf((_clock - m.delay) / m.dur, 0.0, 1.0)
+		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
 		if t < 1.0:
 			left.append(m)
 	# Flakes in the air first; the rest of the instances are folded away to nothing.
 	var i := 0
 	for m: Dictionary in left:
-		var t := clampf((_clock - m.delay) / m.dur, 0.0, 1.0)
+		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
 		var at: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t))
-		var share := height_share(t, erratic(t, m.fh, m.ph))
-		var swing := erratic(t, m.fl, m.pl) * 1.2 * smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
+		var share := height_share(t, erratic(t * m.lively, m.fh, m.ph))
+		var swing := erratic(t * m.lively, m.fl, m.pl) * 1.2 * smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
 		at += Vector3(0, m.lift * share, 0) + Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * swing
 		var scale_by := 1.0 if t > 0.0 else 0.0
 		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * scale_by), at))

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Animate going to bed and waking up with a blanket | Shipped this week: Add rabbits to forest edges and meadows; Add hedgehogs to the woods and the village; Gather the village in the temple every morning (+47 more)
+Escape! dev status | Shipped this week: Animate going to bed and waking up with a blanket; Add rabbits to forest edges and meadows; Add hedgehogs to the woods and the village (+47 more)

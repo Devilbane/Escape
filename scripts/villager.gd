@@ -376,12 +376,21 @@ var _kid: KidPlay
 var _head_top := -1.0
 
 
+## The name a villager is called by, without the job title: the last word of the
+## role's name ("Schmied Gorm" is Gorm, "Fritz" stays Fritz). A new villager
+## named "Title Name" follows this by itself; what they do is told in the chat
+## when asked (see VillagerJobs).
+static func plain_name(role_char: String) -> String:
+	var parts := String(ROLES[role_char].name).split(" ", false)
+	return parts[parts.size() - 1]
+
+
 func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 	level = owner_level
 	role = role_char
 	home = cell
 	_info = ROLES[role]
-	display_name = Lang.t(_info.name)
+	display_name = Lang.t(plain_name(role))
 	_rng.seed = hash(role) + cell.x * 31 + cell.y
 	brave = not shelters()
 

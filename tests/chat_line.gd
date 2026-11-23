@@ -160,3 +160,14 @@ func _replies() -> void:
 	who._bubble_hold = 0.0
 	talk.answer(who, "Wo ist die Schmiede?")
 	check(who.is_talking(), "an ordinary line gets the villager's usual words")
+	who._bubble_time = 0.0
+	who._bubble_hold = 0.0
+	# Asked about their work, they tell it; the name over their head is the plain name.
+	check(VillagerJobs.asks("Was ist deine Arbeit?") and VillagerJobs.asks("what is your work?") and VillagerJobs.asks("job?"), "questions about work are recognised")
+	check(not VillagerJobs.asks("Hallo") and not VillagerJobs.asks("network"), "other words are not")
+	talk.answer(who, "what is your job?")
+	check(who.is_talking(), "the villager answers about their work")
+	for role in Villager.ROLES:
+		check(VillagerJobs.answer(role) != "", "%s has an answer about work" % role)
+		check(not Villager.plain_name(role).contains(" "), "%s is shown by a plain name" % role)
+	check(Villager.plain_name("1") == "Gorm" and Villager.plain_name("5") == "Fritz", "titles are dropped, single names stay")

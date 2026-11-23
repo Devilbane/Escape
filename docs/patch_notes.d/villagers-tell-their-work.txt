@@ -1,0 +1,1 @@
+- Villagers are shown by their plain name; ask one about their work in the chat ("what is your job?") and they tell you what they do.

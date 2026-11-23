@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Tame window glow and show spruce snow at night on DirectX 12 | Shipped this week: Let wind gusts stir fallen leaves and light litter; Turn garland lights into glowing mushrooms (+48 more)
+Escape! dev status | Working on: Make gust leaves lift and land gently, with the reference's flip and bob; Tame window glow and show spruce snow at night on DirectX 12 | Shipped this week: Let wind gusts stir fallen leaves and light litter; Turn garland lights into glowing mushrooms (+48 more)

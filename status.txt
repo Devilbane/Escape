@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the snowy mountains look natural (smooth shading, no seam lines) | Shipped this week: Fix z-fighting on training dummy base; Make frozen Fritz look like real ice; Hide trunk and branches on the forest pines (+47 more)
+Escape! dev status | Working on: Remove silver mine light beams, rebuild ore cart; Make the snowy mountains look natural (smooth shading, no seam lines) | Shipped this week: Fix z-fighting on training dummy base; Make frozen Fritz look like real ice; Hide trunk and branches on the forest pines (+47 more)

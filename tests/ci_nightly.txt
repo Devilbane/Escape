@@ -184,3 +184,4 @@ lighting_reference_shots.gd | 600 | fixed | passfail | Lighting reference pictur
 granite_wall.gd | 60 | free | pass | Village wall in natural granite and the aged wooden gate (rounded chipped stones, boards, iron)
 street_lamps.gd | 120 | free | passfail | Street lamps: each lamp on a map tile reaches its arm and lantern towards the nearest walkway and stands at its edge
 wind_gusts.gd | 120 | free | passfail | Wind gusts: now and then the wind stirs leaves, straw and chips near the hero, none in Performance
+chimney_flue.gd | 60 | free | pass | Village chimneys end in a rim round an open flue: snow lies on the rim only

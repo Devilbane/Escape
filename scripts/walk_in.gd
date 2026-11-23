@@ -111,6 +111,9 @@ const NAVE_WALL := 16.0
 const NAVE_FLOOR := 1.0
 const NAVE_DOOR_X := Vector2(-2.0, 2.0)
 const NAVE_DOOR_Z := 11.0
+## How high the doorway's opening is and how tall the kit's door leaf is (kit metres, measured from the meshes).
+const NAVE_DOORWAY_TOP := 7.67
+const DOOR_LEAF_HEIGHT := 6.72
 const NAVE_WALL_OUT := 12.0
 const PORCH_HALF := 4.0
 const PORCH_LANDING := 15.2
@@ -398,6 +401,8 @@ func open_temple(chapel: Node3D) -> void:
 		chapel.add_child(hinge)
 		chapel.remove_child(door_piece)
 		door_piece.position = Vector3.ZERO
+		# The kit's leaf is 6.72 tall but its doorway 7.67: stretch it so no gap shows over the door.
+		door_piece.scale.y = NAVE_DOORWAY_TOP / DOOR_LEAF_HEIGHT
 		hinge.leaf = door_piece
 		hinge.add_child(door_piece)
 		rec["leaf"] = hinge

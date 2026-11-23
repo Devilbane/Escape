@@ -3,9 +3,10 @@ extends RefCounted
 ## The frame round the dining tables on the village square (see TownMeals): tall
 ## wooden poles round the whole eating area, a rope running from the top of each
 ## pole to the next and sagging between them, poles and ropes overgrown with ivy,
-## and many small lamps hanging from the ropes on short cords. By day the lamps
-## are little amber globes; at dusk they light up with the tables' lanterns and
-## light the area softly through the night (set_glow).
+## and many small lamps hanging from the ropes on short strings. The lamps are
+## little glowing mushrooms (an amber cap on a pale stem); by day they are dim, at
+## dusk they light up with the tables' lanterns and light the area softly through
+## the night (set_glow).
 ##
 ## The ivy is the village's own: its leaves, stems and grapes join the village's
 ## ivy (AgedStone.ivy_node), so they turn with the seasons like every other vine
@@ -18,7 +19,7 @@ extends RefCounted
 ## it (block). The tiles inside the frame stay open, and between the blocked
 ## tiles round it there is a way in on every side.
 ##
-## Light: the globes glow by themselves (an emissive MultiMesh, no light each),
+## Light: the mushrooms glow by themselves (an emissive MultiMesh, no light each),
 ## and each throws its own soft light round it without costing a real light: a
 ## halo of warm light in the air and on the ivy round the globe (HALO), and a
 ## wide, soft pool of light on the ground below every other globe, leaning in
@@ -49,6 +50,11 @@ const LAMP_EVERY := 0.8
 const LAMP_CLEAR := 0.45
 const LAMP_DROP := Vector2(0.12, 0.36)
 const GLOBE_RADIUS := 0.07
+## A mushroom lamp: its stem's length and thickness, and how much of the cap's glow the stem shows.
+const STEM_LENGTH := 0.07
+const STEM_RADIUS := 0.02
+const STEM_COLOUR := Color(0.93, 0.85, 0.7)
+const STEM_GLOW := 0.35
 ## The globes: their glass by day, the colour they glow in and how brightly at night.
 const GLASS := Color(0.86, 0.68, 0.38)
 const GLOW_COLOUR := Color(1.0, 0.72, 0.38)
@@ -93,6 +99,7 @@ var lamps: Array[Vector3] = []
 var leaf_count := 0
 var _globes: MultiMeshInstance3D
 var _globe_mat: StandardMaterial3D
+var _stem_mat: StandardMaterial3D
 ## The halos' and the pools' additive materials (their "glow" follows set_glow).
 var halo_mat: ShaderMaterial
 var pool_mat: ShaderMaterial
@@ -223,16 +230,16 @@ func _rope(b: WeatheredProps.Builder, a: Vector3, c: Vector3, rng: RandomNumberG
 	_rope_ivy(a, c, length, rng, leaves)
 	# The lamps, evenly along the rope, each on a cord of its own length.
 	var count := int(floor((length - LAMP_CLEAR * 2.0) / LAMP_EVERY))
-	var iron := WeatheredProps.IRON_COLOUR * 0.8
+	var string := ROPE_COLOUR * 0.8
 	for k in count + 1:
 		var along := LAMP_CLEAR + (length - LAMP_CLEAR * 2.0) * (float(k) / maxf(count, 1))
 		var hang := rope_at(a, c, along / length)
 		var drop := rng.randf_range(LAMP_DROP.x, LAMP_DROP.y)
 		var globe := hang - Vector3(0, drop + GLOBE_RADIUS, 0)
-		b.bar(hang, globe + Vector3(0, GLOBE_RADIUS + 0.03, 0), 0.006, iron, WeatheredProps.IRON, 3)
-		# A little iron cap over the globe.
-		b.cylinder(globe + Vector3(0, GLOBE_RADIUS * 0.55, 0), GLOBE_RADIUS * 0.75, 0.015, 0.06, iron, WeatheredProps.IRON, 6)
-		globes.append(Transform3D(Basis(), globe))
+		# A little mushroom, size and turn varying from lamp to lamp, tied to the rope by a short string at its cap's top.
+		var size := 0.9 + 0.2 * fposmod(k * 0.618, 1.0)
+		b.bar(hang, globe + Vector3(0, GLOBE_RADIUS * size, 0), 0.006, string, WeatheredProps.WOOD, 3)
+		globes.append(Transform3D(Basis(Vector3.UP, k * 2.4).scaled(Vector3.ONE * size), globe))
 		lamps.append(globe)
 
 
@@ -287,20 +294,39 @@ func _rope_ivy(a: Vector3, c: Vector3, length: float, rng: RandomNumberGenerator
 			_grapes(top - Vector3(0, 0.08, 0), rng, leaves)
 
 
-## The lamps' globes: one MultiMesh of small glass balls that glow at night (see set_glow).
+## The lamps' mushrooms: one MultiMesh of small mushrooms (a domed cap over a pale stem) that glow at night (see set_glow).
 func _add_globes(node: Node3D, globes: Array[Transform3D]) -> void:
-	var ball := SphereMesh.new()
-	ball.radius = GLOBE_RADIUS
-	ball.height = GLOBE_RADIUS * 2.0
-	ball.radial_segments = 8
-	ball.rings = 4
+	var dome := SphereMesh.new()
+	dome.radius = GLOBE_RADIUS
+	dome.height = GLOBE_RADIUS
+	dome.is_hemisphere = true
+	dome.radial_segments = 8
+	dome.rings = 3
+	var stalk := CylinderMesh.new()
+	stalk.top_radius = STEM_RADIUS
+	stalk.bottom_radius = STEM_RADIUS * 1.3
+	stalk.height = STEM_LENGTH
+	stalk.radial_segments = 6
+	stalk.rings = 1
 	_globe_mat = StandardMaterial3D.new()
 	_globe_mat.albedo_color = GLASS
 	_globe_mat.roughness = 0.3
 	_globe_mat.emission_enabled = true
 	_globe_mat.emission = GLOW_COLOUR
 	_globe_mat.emission_energy_multiplier = 0.0
-	ball.material = _globe_mat
+	_stem_mat = StandardMaterial3D.new()
+	_stem_mat.albedo_color = STEM_COLOUR
+	_stem_mat.roughness = 0.8
+	_stem_mat.emission_enabled = true
+	_stem_mat.emission = GLOW_COLOUR
+	_stem_mat.emission_energy_multiplier = 0.0
+	var ball := ArrayMesh.new()
+	# The cap's flat underside sits at the lamp's point (where the light is), the stem hangs below it.
+	for part in [[dome, Transform3D(Basis(), Vector3.ZERO), _globe_mat], [stalk, Transform3D(Basis(), Vector3(0, -STEM_LENGTH * 0.5, 0)), _stem_mat]]:
+		var st := SurfaceTool.new()
+		st.append_from(part[0], 0, part[1])
+		st.commit(ball)
+		ball.surface_set_material(ball.get_surface_count() - 1, part[2])
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = ball
@@ -493,6 +519,8 @@ func set_glow(glow: float) -> void:
 		light.visible = lit > 0.01
 	if _globe_mat:
 		_globe_mat.emission_energy_multiplier = GLOBE_GLOW * lit
+	if _stem_mat:
+		_stem_mat.emission_energy_multiplier = GLOBE_GLOW * STEM_GLOW * lit
 	for mat in [halo_mat, pool_mat]:
 		if mat:
 			mat.set_shader_parameter("glow", lit)

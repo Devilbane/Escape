@@ -198,3 +198,4 @@ staff_spell.gd | 120 | fixed | passfail | Elsbeth raises her staff and intones a
 crop_fields_shots.gd | 60 | free | pass | Crop fields (wheat, maize and sunflowers follow the seasons; screenshots with SHOTS)
 warren.gd | 120 | fixed | pass | Rabbit warren: baby rabbits huddle by their burrow, dive in when the hero comes near, come out again
 village_cat.gd | 180 | fixed | pass | The village cat (strolls, leaps onto the smithy's anvil at bedtime, sleeps curled up, purrs near the hero, stretches and hops down)
+valley_folk.gd | 180 | fixed | pass | The valley folk (seasonal jobs, spots, noon rest, walking to a job)

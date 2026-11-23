@@ -15,8 +15,8 @@ const SUNFLOWER := "☼"
 const LETTERS := "≡‡☼"
 ## Soil under the crops (the ground draws the same dark earth as the pumpkin field).
 const NAMES := {"≡": "wheat", "‡": "maize", "☼": "sunflower"}
-## Plants in a row and between rows (metres): a tile is 4 m, so 8 x 8 tufts of wheat, 4 x 4 maize and sunflowers.
-const SPACING := {"≡": 0.5, "‡": 1.0, "☼": 1.0}
+## Plants in a row and between rows (metres): a tile is 4 m, so 7 x 7 tufts of wheat, 4 x 4 maize and sunflowers.
+const SPACING := {"≡": 0.57, "‡": 1.0, "☼": 1.0}
 ## Full height of a plant (metres, before the season scales it).
 const HEIGHT := {"≡": 1.0, "‡": 1.9, "☼": 1.75}
 
@@ -119,13 +119,28 @@ static func _wheat(st: _Soup) -> void:
 	rng.seed = 11
 	var stalk := Color(0.86, 0.74, 0.38)
 	var ear := Color(0.92, 0.72, 0.28)
-	# Nine stalks in a loose bunch, each with an ear.
-	for i in 9:
+	var awn := Color(0.96, 0.86, 0.5)
+	# Six stalks in a loose bunch: a curved stem, a drooping leaf, and an ear of paired kernels with awns.
+	for i in 6:
 		var base := Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2))
-		var lean := Vector3(rng.randf_range(-0.07, 0.07), 0, rng.randf_range(-0.07, 0.07))
+		var lean := Vector3(rng.randf_range(-0.09, 0.09), 0, rng.randf_range(-0.09, 0.09))
 		var h := HEIGHT[WHEAT] * rng.randf_range(0.85, 1.0)
-		st.blade(base, base + lean + Vector3(0, h * 0.8, 0), 0.016, 0.008, stalk)
-		st.blade(base + lean + Vector3(0, h * 0.8, 0), base + lean * 1.5 + Vector3(0, h, 0), 0.03, 0.004, ear)
+		var top := base + lean + Vector3(0, h * 0.78, 0)
+		st.leaf(base, top, 0.02, 0.01, stalk, lean * 0.6, 1.0, Vector3.ZERO, 2)
+		var turn := rng.randf() * TAU
+		var out := Vector3(cos(turn), 0, sin(turn))
+		st.leaf(base + Vector3(0, h * 0.25, 0), base + out * 0.3 + Vector3(0, h * 0.55, 0), 0.05, 0.004, Color(0.6, 0.66, 0.3), out * 0.25 + Vector3(0, -0.25, 0), 1.0, Vector3.ZERO, 3)
+		# The ear: six pairs of kernels climbing the stalk, each pair a little smaller, long awns above.
+		for k in 6:
+			var y := top + Vector3(lean.x * 0.3 * k * 0.1, k * 0.055, lean.z * 0.3 * k * 0.1)
+			var w := 0.05 - k * 0.005
+			var side := Vector3(cos(turn), 0, sin(turn))
+			st.leaf(y, y + side * w + Vector3(0, 0.05, 0), 0.026, 0.01, ear, Vector3.ZERO, 1.0, Vector3.ZERO, 1)
+			st.leaf(y, y - side * w + Vector3(0, 0.05, 0), 0.026, 0.01, ear, Vector3.ZERO, 1.0, Vector3.ZERO, 1)
+		var tip := top + Vector3(lean.x * 0.3, 0.36, lean.z * 0.3)
+		for k in 2:
+			var o := Vector3(cos(turn + k * 3.1), 0, sin(turn + k * 2.1)) * 0.05
+			st.leaf(tip - Vector3(0, 0.06, 0), tip + o + Vector3(0, 0.16, 0), 0.008, 0.002, awn, o, 1.0, Vector3.ZERO, 1)
 
 
 static func _maize(st: _Soup) -> void:
@@ -133,54 +148,128 @@ static func _maize(st: _Soup) -> void:
 	rng.seed = 12
 	var green := Color(0.5, 0.64, 0.24)
 	var leaf := Color(0.42, 0.6, 0.2)
-	var cob := Color(0.95, 0.78, 0.25)
+	var husk := Color(0.62, 0.72, 0.34)
+	var kern := Color(0.97, 0.8, 0.22)
 	for k in 2:
 		var base := Vector3(-0.2 + k * 0.4, 0, rng.randf_range(-0.15, 0.15))
 		var h: float = HEIGHT[MAIZE] * rng.randf_range(0.9, 1.0)
-		st.blade(base, base + Vector3(0, h, 0), 0.05, 0.02, green)
-		# Long arching leaves.
-		for j in 6:
-			var turn := TAU * (j / 6.0) + k
+		st.leaf(base, base + Vector3(0.03, h, 0.02), 0.06, 0.025, green, Vector3(0.05, 0, 0), 0.0)
+		# Long arching leaves with a drooping tip and a pale midrib.
+		for j in 7:
+			var turn := TAU * (j / 7.0) * 1.0 + k * 1.3
 			var out := Vector3(cos(turn), 0, sin(turn))
-			var y := h * (0.28 + 0.1 * j)
-			st.blade(base + Vector3(0, y, 0), base + out * 0.55 + Vector3(0, y + 0.1, 0), 0.07, 0.005, leaf)
-		# A cob in its husk, and the tassel at the top.
-		st.blade(base + Vector3(0.05, h * 0.55, 0), base + Vector3(0.13, h * 0.68, 0.04), 0.05, 0.03, cob)
-		st.blade(base + Vector3(0, h, 0), base + Vector3(0.05, h + 0.22, 0), 0.02, 0.004, Color(0.86, 0.8, 0.46))
+			var y := h * (0.22 + 0.095 * j)
+			st.leaf(base + Vector3(0, y, 0), base + out * 0.62 + Vector3(0, y + 0.18, 0), 0.1, 0.006, leaf, Vector3(0, -0.5 - 0.05 * j, 0), 1.0)
+		# Two cobs: green husk leaves round a core of yellow kernel rows, silk at the tip.
+		for c in 2:
+			var cy := h * (0.5 + 0.12 * c)
+			var dir := Vector3(cos(k * 2.0 + c * 3.0), 0, sin(k * 2.0 + c * 3.0))
+			var a := base + dir * 0.05 + Vector3(0, cy, 0)
+			var b := a + dir * 0.1 + Vector3(0, 0.3, 0)
+			st.leaf(a, b, 0.07, 0.05, kern, Vector3.ZERO, 0.0, Vector3.ZERO, 2)
+			for q in 3:
+				var o := Vector3(cos(q * 2.1), 0, sin(q * 2.1)) * 0.035
+				st.leaf(a + o, b + o * 0.6, 0.05, 0.012, husk, o * 0.4, 0.0, Vector3.ZERO, 2)
+			st.leaf(b, b + dir * 0.03 + Vector3(0, 0.1, 0), 0.012, 0.002, Color(0.8, 0.62, 0.35), Vector3(0.02, 0, 0), 0.0, Vector3.ZERO, 1)
+		# The tassel: a fan of thin spikes at the top.
+		for t in 5:
+			var o := Vector3(cos(t * 1.26), 0, sin(t * 1.26)) * 0.16
+			st.leaf(base + Vector3(0.03, h, 0.02), base + o + Vector3(0.03, h + 0.2, 0.02), 0.014, 0.003, Color(0.86, 0.8, 0.46), o * 0.3, 0.0, Vector3.ZERO, 1)
 
 
 static func _sunflower(st: _Soup) -> void:
 	var stalk := Color(0.38, 0.5, 0.2)
+	var leaf := Color(0.34, 0.52, 0.18)
 	var h: float = HEIGHT[SUNFLOWER]
-	st.blade(Vector3.ZERO, Vector3(0, h, 0), 0.045, 0.03, stalk)
-	st.blade(Vector3(0, h * 0.35, 0), Vector3(0.4, h * 0.38, 0.1), 0.09, 0.005, stalk)
-	st.blade(Vector3(0, h * 0.5, 0), Vector3(-0.4, h * 0.52, -0.1), 0.09, 0.005, stalk)
-	# The head looks south, toward the camera: a ring of petals round a dark disc.
-	var head := Vector3(0, h, 0.04)
+	# A thick stem bowing a little toward the head, and broad heart-shaped leaves along it.
+	st.leaf(Vector3.ZERO, Vector3(0, h, 0.05), 0.07, 0.045, stalk, Vector3(0, 0, 0.12), 0.0)
+	for j in 5:
+		var turn := j * 2.4
+		var out := Vector3(cos(turn), 0, sin(turn))
+		var y := h * (0.2 + 0.13 * j)
+		var l := 0.46 - 0.04 * j
+		st.leaf(Vector3(0, y, 0), out * l + Vector3(0, y + 0.1, 0), 0.26, 0.01, leaf, Vector3(0, -0.28, 0), 1.0)
+	# The head looks south, toward the camera: green sepals behind, two rings of petals, the seed disc.
+	var head := Vector3(0, h, 0.07)
+	st.ring(head + Vector3(0, 0, -0.03), 0.27, 0.27, 0.03, Color(0.3, 0.42, 0.14), 14)
 	var petal := Color(1.0, 0.8, 0.12)
-	for j in 14:
-		var a := TAU * j / 14.0
+	var petal2 := Color(0.96, 0.7, 0.08)
+	for j in 13:
+		var a := TAU * (j + 0.5) / 13.0
 		var out := Vector3(cos(a), sin(a), 0.0)
-		st.blade(head + out * 0.14, head + out * 0.5, 0.11, 0.015, petal, Vector3(0, 0, 1))
-	st.disc(head + Vector3(0, 0, 0.03), 0.24, Color(0.32, 0.19, 0.08))
+		st.leaf(head + out * 0.2, head + out * 0.58 + Vector3(0, 0, 0.04), 0.11, 0.02, petal2, Vector3(0, 0, 1), 0.0)
+	for j in 17:
+		var a := TAU * j / 17.0
+		var out := Vector3(cos(a), sin(a), 0.0)
+		st.leaf(head + out * 0.16 + Vector3(0, 0, 0.02), head + out * 0.52 + Vector3(0, 0, 0.1), 0.12, 0.02, petal, Vector3(0, 0, 1), 0.0)
+	# The seed disc: rings of brown and gold with a dark middle, like the spiral of seeds.
+	st.disc(head + Vector3(0, 0, 0.05), 0.25, Color(0.4, 0.26, 0.1), 16)
+	st.disc(head + Vector3(0, 0, 0.065), 0.19, Color(0.3, 0.18, 0.07), 16)
+	st.disc(head + Vector3(0, 0, 0.075), 0.12, Color(0.45, 0.3, 0.1), 14)
+	st.disc(head + Vector3(0, 0, 0.085), 0.06, Color(0.22, 0.13, 0.05), 10)
+	for j in 24:
+		var a := j * 2.39996
+		var r := 0.24 * sqrt((j + 1.0) / 24.0)
+		st.disc(head + Vector3(cos(a) * r, sin(a) * r, 0.095), 0.022, Color(0.62, 0.45, 0.16), 5)
 
 
-## A bag of triangles with vertex colours.
+## The veined leaf texture all plants share: a pale midrib, fine side veins and a little speckle; the vertex
+## colour gives the hue.
+static var _leaf_tex: ImageTexture
+
+
+static func _leaf_texture_cached() -> ImageTexture:
+	if _leaf_tex == null:
+		_leaf_tex = _leaf_texture()
+	return _leaf_tex
+
+
+static func _leaf_texture() -> ImageTexture:
+	var img := Image.create(32, 64, true, Image.FORMAT_RGBA8)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for y in 64:
+		for x in 32:
+			var u := (x + 0.5) / 32.0
+			var v := (y + 0.5) / 64.0
+			var shade := 0.9 + rng.randf() * 0.1
+			var mid := absf(u - 0.5)
+			if mid < 0.045:
+				shade = 1.12
+			else:
+				# Side veins run outwards and up from the midrib.
+				var d := fposmod(v * 9.0 - mid * 3.2, 1.0)
+				if d < 0.12:
+					shade *= 1.07
+				elif d > 0.86:
+					shade *= 0.9
+			var g := clampf(shade * 0.9, 0.0, 1.0)
+			img.set_pixel(x, y, Color(g, g, g * 0.97, 1.0))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## A bag of triangles with vertex colours and texture coordinates.
 class _Soup extends RefCounted:
 	var verts := PackedVector3Array()
 	var cols := PackedColorArray()
 	var norms := PackedVector3Array()
+	var uvs := PackedVector2Array()
 
-	func tri(a: Vector3, b: Vector3, c: Vector3, col: Color) -> void:
+	func tri(a: Vector3, b: Vector3, c: Vector3, col: Color, ua := Vector2.ZERO, ub := Vector2.ZERO, uc := Vector2.ZERO) -> void:
 		var n := (b - a).cross(c - a).normalized()
+		var us := [ua, ub, uc]
+		var i := 0
 		for p in [a, b, c]:
 			verts.append(p)
 			cols.append(col)
 			norms.append(n)
+			uvs.append(us[i])
+			i += 1
 
-	## A tapered, flat blade from `a` to `b`, `wa` wide at the start and `wb` at the end, its width along
-	## `side` (a horizontal direction across it, turned to face away from the way it points by default).
-	func blade(a: Vector3, b: Vector3, wa: float, wb: float, col: Color, side := Vector3.ZERO) -> void:
+	## A curved leaf or stem from `a` to `b`: it bends by `bend` towards its tip (quadratic), swells in the
+	## middle by `belly` (0 for a straight stem), and is built from four segments with one face, the material draws both sides.
+	func leaf(a: Vector3, b: Vector3, wa: float, wb: float, col: Color, bend: Vector3, belly: float, side := Vector3.ZERO, segs := 4) -> void:
 		var along := (b - a).normalized()
 		var across := side
 		if across == Vector3.ZERO:
@@ -188,35 +277,42 @@ class _Soup extends RefCounted:
 			if across.length() < 0.01:
 				across = Vector3.RIGHT
 			across = across.normalized()
-		var l := a - across * wa * 0.5
-		var r := a + across * wa * 0.5
-		var tl := b - across * wb * 0.5
-		var tr := b + across * wb * 0.5
-		# Both faces, so no plant disappears seen from behind.
-		tri(l, r, tr, col)
-		tri(l, tr, tl, col)
-		tri(l, tr, r, col)
-		tri(l, tl, tr, col)
-		# A second blade across the first gives the stalk some body.
-		if side == Vector3.ZERO:
-			var across2 := across.cross(along).normalized()
-			var l2 := a - across2 * wa * 0.5
-			var r2 := a + across2 * wa * 0.5
-			var tl2 := b - across2 * wb * 0.5
-			var tr2 := b + across2 * wb * 0.5
-			tri(l2, r2, tr2, col)
-			tri(l2, tr2, tl2, col)
-			tri(l2, tr2, r2, col)
-			tri(l2, tl2, tr2, col)
+		var n := segs
+		var prev_l := Vector3.ZERO
+		var prev_r := Vector3.ZERO
+		for i in n + 1:
+			var t := float(i) / n
+			var mid := a.lerp(b, t) + bend * t * t
+			var w := lerpf(wa, wb, t) * (1.0 + 0.5 * belly * sin(PI * t))
+			var l := mid - across * w * 0.5
+			var r := mid + across * w * 0.5
+			if i > 0:
+				var t0 := float(i - 1) / n
+				tri(prev_l, prev_r, r, col, Vector2(0, t0), Vector2(1, t0), Vector2(1, t))
+				tri(prev_l, r, l, col, Vector2(0, t0), Vector2(1, t), Vector2(0, t))
+			prev_l = l
+			prev_r = r
 
-	func disc(mid: Vector3, radius: float, col: Color) -> void:
-		for j in 10:
-			var a0 := TAU * j / 10.0
-			var a1 := TAU * (j + 1) / 10.0
+	## A short band round a point (a flat ring facing +Z), for the sepals behind a flower head.
+	func ring(mid: Vector3, r0: float, r1: float, depth: float, col: Color, sides: int) -> void:
+		for j in sides:
+			var a0 := TAU * j / sides
+			var a1 := TAU * (j + 1) / sides
+			var p0 := mid + Vector3(cos(a0), sin(a0), 0) * r0
+			var p1 := mid + Vector3(cos(a1), sin(a1), 0) * r0
+			var q0 := mid + Vector3(cos(a0), sin(a0), depth) * r1
+			var q1 := mid + Vector3(cos(a1), sin(a1), depth) * r1
+			tri(p0, p1, q1, col, Vector2(0.5, 0), Vector2(0.5, 0), Vector2(0.5, 1))
+			tri(p0, q1, q0, col, Vector2(0.5, 0), Vector2(0.5, 1), Vector2(0.5, 1))
+
+	func disc(mid: Vector3, radius: float, col: Color, sides := 10) -> void:
+		for j in sides:
+			var a0 := TAU * j / sides
+			var a1 := TAU * (j + 1) / sides
 			var p0 := mid + Vector3(cos(a0), sin(a0), 0) * radius
 			var p1 := mid + Vector3(cos(a1), sin(a1), 0) * radius
-			tri(mid, p0, p1, col)
-			tri(mid, p1, p0, col)
+			tri(mid, p0, p1, col, Vector2(0.5, 0.5), Vector2(0.5, 0.5), Vector2(0.5, 0.5))
+			tri(mid, p1, p0, col, Vector2(0.5, 0.5), Vector2(0.5, 0.5), Vector2(0.5, 0.5))
 
 	func finish() -> ArrayMesh:
 		var arrays := []
@@ -224,11 +320,13 @@ class _Soup extends RefCounted:
 		arrays[Mesh.ARRAY_VERTEX] = verts
 		arrays[Mesh.ARRAY_COLOR] = cols
 		arrays[Mesh.ARRAY_NORMAL] = norms
+		arrays[Mesh.ARRAY_TEX_UV] = uvs
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		var mat := StandardMaterial3D.new()
 		mat.vertex_color_use_as_albedo = true
 		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
+		mat.albedo_texture = CropFields._leaf_texture_cached()
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.roughness = 0.9
 		mesh.surface_set_material(0, mat)

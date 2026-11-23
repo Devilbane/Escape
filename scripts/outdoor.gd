@@ -434,8 +434,8 @@ var lamp_spots: Array[Dictionary] = []
 ## the walkway's edge its post stands (m).
 const LAMP_SEEK := 6
 const LAMP_EDGE_GAP := 0.9
-## Where a street lamp's light hangs over its foot (in its lantern).
-const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
+## Where a street lamp's light hangs over its foot: the middle of its lantern's glass.
+const LAMP_LIGHT_AT := VillageProps.LANTERN_AT - Vector3(0, 0.03, 0)
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
 ## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their

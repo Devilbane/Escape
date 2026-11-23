@@ -33,7 +33,7 @@ const MAX_IN_AIR := 120
 const NEAR := 2.5
 const FAR := 15.0
 ## How far a piece travels in a breeze (metres), by what it is: leaves float far, chips skid.
-const TRAVEL := {"leaf": Vector2(24.0, 48.0), "straw": Vector2(12.0, 26.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
+const TRAVEL := {"leaf": Vector2(50.0, 90.0), "straw": Vector2(25.0, 50.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
 ## How high it is lifted (metres).
 const LIFT := {"leaf": Vector2(1.0, 2.2), "straw": Vector2(0.6, 1.5), "chip": Vector2(0.05, 0.2), "fallen": Vector2(0.02, 0.06)}
 ## How long a flight takes (seconds): slow, like a feather's.
@@ -43,7 +43,7 @@ const DURATION := Vector2(14.0, 22.0)
 const TUNED_FOR := 7.75
 const LIVELY := 2.0
 ## The gust sweeps along the wind: the furthest piece starts this long after the nearest (seconds).
-const SWEEP := 3.0
+const SWEEP := 5.0
 ## How much the wind's direction turns between gusts (radians, at most).
 const TURN := 0.7
 ## How hard a gust blows on top of the weather's wind (1 is the weather's breeze): drawn at random
@@ -267,9 +267,9 @@ func _noise_phases() -> Vector3:
 ## the piece's own restlessness: it is lifted gently, then wanders up and down, surging and
 ## dropping at random with only a slight sink, and settles in the last stretch. Zero at both ends.
 static func height_share(t: float, n: float) -> float:
-	# Lifted gently over the first seconds, let down just as gently over the last 40 percent.
+	# Lifted gently over the first seconds, let down just as gently over the last 30 percent.
 	var rise := smoothstep(0.0, 0.15, t)
-	var settle := smoothstep(0.0, 0.4, 1.0 - t)
+	var settle := smoothstep(0.0, 0.3, 1.0 - t)
 	return rise * settle * (1.0 - 0.25 * t) * clampf(0.85 + 0.2 * n, 0.6, 1.0)
 
 
@@ -324,9 +324,9 @@ func _move() -> void:
 
 ## Fast at first as the gust takes it, slower as it drifts down.
 static func ease_out(t: float) -> float:
-	# Snatched up and driven off quickly, as in the reference (a leaf crosses a screen in a second or
-	# two), then slowing to a drift for the long rest of the flight.
-	return (1.0 - pow(1.0 - t, 3.2)) * smoothstep(0.0, 0.05, t)
+	# Snatched up and driven off, as in the reference (a leaf crosses a screen in a second or two),
+	# and still carried on at close to that pace for the whole flight: only a mild slowing at the end.
+	return lerpf(t, lerpf(t, 1.0 - pow(1.0 - t, 1.8), 0.5), smoothstep(0.0, 0.04, t))
 
 
 ## Winter: a flurry of snow lifts off the ground round the hero, drifts along the wind and

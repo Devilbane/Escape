@@ -5,18 +5,19 @@ extends SkeletonModifier3D
 ## hands meet under the face. Like CarryArm it runs after the clips and eases in and out, and only
 ## while a sitting or standing idle plays (the sleeper is paused on nothing else).
 ##
-## The angles (degrees) are a first estimate by analogy with CarryArm's measured left arm, the
-## right arm mirrored (the Y and Z turns flipped); they still want measuring on the rig.
+## The angles (degrees) were fitted on the rig (the left hand under the chin, a little in front of
+## the face, the elbow out to the side and forward of the shoulder). The right arm uses the same
+## numbers with the Z and Y turns flipped, which mirrors it (tests/sleep_arms.gd checks both).
 
 const UPPER := ["upperarm.l", "upperarm.r"]
 const LOWER := ["lowerarm.l", "lowerarm.r"]
 ## The upper arm swings forward (REACH, about the bone's Z), turns in (IN, Y) and rolls (ROLL, X).
-const REACH := -35.0
-const IN := -25.0
-const ROLL := 30.0
+const REACH := -32.0
+const IN := 64.0
+const ROLL := 25.0
 ## The elbow folds the forearm up (BEND about Z, FOLD about X).
-const BEND := 105.0
-const FOLD := 25.0
+const BEND := -90.0
+const FOLD := 47.0
 ## The clips this goes with.
 const CLIPS := ["Sit_Chair_Idle", "Idle"]
 ## How fast the arms ease in and out (per second).

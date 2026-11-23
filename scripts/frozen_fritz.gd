@@ -28,11 +28,14 @@ const MUFFLED := [
 	"Fffrrrr... noch... ein... Bier...",
 ]
 const SNOW := Color(0.95, 0.97, 1.0)
-const ICE := Color(0.72, 0.89, 1.0, 0.78)
+const ICE := Color(0.85, 0.95, 1.0, 0.7)
 
 static var _tint: StandardMaterial3D
 static var _snow_mat: StandardMaterial3D
 static var _ice_mat: StandardMaterial3D
+static var _frost_tex: ImageTexture
+static var _frost_normal: ImageTexture
+static var _frost_glints: ImageTexture
 
 ## Where a bird can sit on him, in the villager's own space: the head, the mug, the raised arm.
 var perches: Array[Vector3] = []
@@ -93,6 +96,10 @@ func thaw() -> void:
 func _build() -> void:
 	var model: Node3D = _body._model
 	var bones := _body._bones()
+	# The pose is held, but the bones must really be in it before anything is hung on them, or the
+	# icicles would hang where the arm was a moment ago.
+	_body._anim.advance(0.0)
+	bones.force_update_all_bone_transforms()
 	var size: float = model.scale.x
 	# Everything that is shown on him gets an icy sheen: skin, clothes and mug alike.
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
@@ -180,16 +187,74 @@ func _icicle(at: Vector3, length: float, radius: float) -> void:
 	add_child(mi)
 
 
+## The frost the ice is made of, made once: (colour with alpha, bump, sparkles). Patches of white rime
+## on pale blue ice, a bumpy surface for the light to break on, and a few tiny glints.
+static func _frost() -> Array:
+	if _frost_tex != null:
+		return [_frost_tex, _frost_normal, _frost_glints]
+	var side := 128
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.fractal_octaves = 4
+	noise.frequency = 0.04
+	noise.seed = 11
+	var base: Image = noise.get_seamless_image(side, side)
+	var frost := Image.create(side, side, true, Image.FORMAT_RGBA8)
+	for y in side:
+		for x in side:
+			var v: float = base.get_pixel(x, y).r
+			var rime := smoothstep(0.42, 0.78, v)
+			var c := Color(0.62, 0.82, 0.97).lerp(Color(0.97, 0.99, 1.0), rime)
+			c.a = lerpf(0.3, 0.85, rime)
+			frost.set_pixel(x, y, c)
+	frost.generate_mipmaps()
+	var bump := base.duplicate() as Image
+	bump.convert(Image.FORMAT_RGB8)
+	bump.bump_map_to_normal_map(5.0)
+	bump.generate_mipmaps()
+	var glints := Image.create(side, side, true, Image.FORMAT_RGBA8)
+	glints.fill(Color.BLACK)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	for i in 36:
+		glints.set_pixel(rng.randi() % side, rng.randi() % side, Color(0.85, 0.95, 1.0))
+	glints.generate_mipmaps()
+	_frost_tex = ImageTexture.create_from_image(frost)
+	_frost_normal = ImageTexture.create_from_image(bump)
+	_frost_glints = ImageTexture.create_from_image(glints)
+	return [_frost_tex, _frost_normal, _frost_glints]
+
+
+## Frost on the material: rime patches, a bumpy surface and a few glints, wrapped round the body
+## from all sides (the textures of the models are an atlas, so UVs would not do).
+static func _frosted(mat: StandardMaterial3D, scale: float) -> void:
+	var tex: Array = _frost()
+	mat.albedo_texture = tex[0]
+	mat.normal_enabled = true
+	mat.normal_texture = tex[1]
+	mat.normal_scale = 0.7
+	mat.emission_enabled = true
+	mat.emission_texture = tex[2]
+	mat.emission = Color(0.8, 0.93, 1.0)
+	mat.emission_energy_multiplier = 1.4
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(scale, scale, scale)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+
+
+## The sheen over everything on him: a thin frosty shell, not a polished one. Dull and pale, white at
+## the edges where it is thickest, patchy with rime.
 static func _tint_material() -> StandardMaterial3D:
 	if _tint == null:
 		_tint = StandardMaterial3D.new()
-		_tint.albedo_color = Color(0.45, 0.72, 1.0, 0.42)
+		_tint.albedo_color = Color(0.85, 0.94, 1.0, 0.55)
 		_tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_tint.roughness = 0.25
-		_tint.metallic_specular = 0.9
-		_tint.emission_enabled = true
-		_tint.emission = Color(0.2, 0.4, 0.6)
-		_tint.emission_energy_multiplier = 0.3
+		_tint.roughness = 0.7
+		_tint.metallic_specular = 0.25
+		_tint.rim_enabled = true
+		_tint.rim = 0.8
+		_tint.rim_tint = 0.2
+		_frosted(_tint, 1.3)
 	return _tint
 
 
@@ -201,14 +266,18 @@ static func _snow_material() -> StandardMaterial3D:
 	return _snow_mat
 
 
+## Icicles and the sheet under his boots: clearer than the shell, but still scratched and cloudy, with
+## no hard glare.
 static func _ice_material() -> StandardMaterial3D:
 	if _ice_mat == null:
 		_ice_mat = StandardMaterial3D.new()
 		_ice_mat.albedo_color = ICE
 		_ice_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_ice_mat.roughness = 0.12
-		_ice_mat.metallic_specular = 1.0
-		_ice_mat.emission_enabled = true
-		_ice_mat.emission = Color(0.35, 0.6, 0.85)
-		_ice_mat.emission_energy_multiplier = 0.35
+		_ice_mat.roughness = 0.35
+		_ice_mat.metallic_specular = 0.45
+		_ice_mat.rim_enabled = true
+		_ice_mat.rim = 0.6
+		_ice_mat.rim_tint = 0.3
+		_frosted(_ice_mat, 2.5)
+		_ice_mat.emission_energy_multiplier = 1.0
 	return _ice_mat

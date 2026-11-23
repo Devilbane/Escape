@@ -118,6 +118,20 @@ func _run() -> void:
 	hero.global_position.y = 0.0
 	await _wait(90)
 	check(cat._purring > 0.9, "it purrs when the hero is near (%.2f)" % cat._purring)
+	# Purring or not, it lies perfectly still on the anvil: no bouncing, only the breath.
+	var low := INF
+	var high := -INF
+	var bl := INF
+	var bh := -INF
+	for i in 180:
+		await process_frame
+		low = minf(low, cat.global_position.y)
+		high = maxf(high, cat.global_position.y)
+		bl = minf(bl, cat._body.position.y)
+		bh = maxf(bh, cat._body.position.y)
+	check(bh - bl < 0.0001, "the body does not bob either (%.5f)" % (bh - bl))
+	check(high - low < 0.0001, "the sleeping cat does not bounce (%.5f)" % (high - low))
+	check(cat.global_position.distance_to(cat.anvil_top) < 0.0001, "it stays put on the anvil while purring")
 	hero.global_position = cat.anvil_top + cat.out_dir * 14.0
 	await _wait(120)
 	check(cat._purring < 0.1, "it stops purring when the hero leaves")

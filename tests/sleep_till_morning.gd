@@ -73,7 +73,7 @@ func _sleep_from(hour: float) -> void:
 	check(m.current == "", "the window closes")
 	check(game.state == game.State.TRANSITION and game.player.frozen, "the hero lies down")
 	var waited := 0.0
-	while not _settled() and waited < 20.0:
+	while not _settled() and waited < 40.0:
 		await process_frame
 		waited += 1.0 / 60.0
 

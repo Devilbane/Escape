@@ -11,7 +11,7 @@ const EN := {
 	"Dorf – Mühle": "Village – Mill",
 	"Dorf – Gilde": "Village – Guild",
 	"Dorf – Burg": "Village – Castle",
-	"Hinweis": "Notice",
+	"Aushang": "Notice",
 	"Nur gestempelte": "Only stamped",
 	"Pakete werden": "parcels are",
 	"befördert": "carried",

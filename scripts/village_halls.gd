@@ -188,7 +188,7 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		["Königliche Post", []],
 		["Postdienste", ["Briefe: zu Fuß", "Pakete: per Karren", "Eilpost: per Reiter"]],
 		["Postwege", ["Dorf – Mühle", "Dorf – Gilde", "Dorf – Burg"]],
-		["Hinweis", ["Nur gestempelte", "Pakete werden", "befördert"]],
+		["Aushang", ["Nur gestempelte", "Pakete werden", "befördert"]],
 	]
 	for i in notices.size():
 		var side := -1.0 if i % 2 == 0 else 1.0

@@ -122,6 +122,9 @@ const GATE_AGAIN := "Das Tor ist fest verschlossen. Noch."
 const PORTAL_HALF := 1.0
 const PORTAL_HIGH := 2.3
 const PORTAL_STONE := Color(0.47, 0.46, 0.43)
+## How high a rail's middle lies: its top (0.07) stands clear of the door's threshold top (0.06), so the
+## two never flicker where the rails cross the doorstep.
+const RAIL_LIFT := 0.055
 ## The row of cells where the rails out of the door end, under the ore cart.
 const RAIL_END := 23
 ## The crane at the hut's corner: how high its arm is and how far it reaches out (metres).
@@ -428,13 +431,13 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 		var at := start.lerp(end, float(k) / float(steps))
 		_box(parent, at + Vector3(rng.randf_range(-0.05, 0.05), 0.015, 0), Vector3(1.1, 0.03, 0.16), sleeper, rng.randf_range(-0.08, 0.08))
 	for side in [-0.38, 0.38]:
-		_box(parent, (start + end) * 0.5 + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, start.distance_to(end) + 0.6), rail)
+		_box(parent, (start + end) * 0.5 + Vector3(side, RAIL_LIFT, 0), Vector3(0.07, 0.03, start.distance_to(end) + 0.6), rail)
 	# A short siding west of the way out, with the cart standing on it.
 	var siding := s.cell_world(door_x - 2, RAIL_END + 1)
 	for k in 4:
 		_box(parent, siding + Vector3(0, 0.015, -0.99 + k * 0.66), Vector3(1.1, 0.03, 0.16), sleeper, rng.randf_range(-0.08, 0.08))
 	for side in [-0.38, 0.38]:
-		_box(parent, siding + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, 2.2), rail)
+		_box(parent, siding + Vector3(side, RAIL_LIFT, 0), Vector3(0.07, 0.03, 2.2), rail)
 	var cart := siding + Vector3(0, 0, -0.2)
 	_ore_cart(parent, cart, rng, wood, iron, ore, silver)
 	level._add_solid(cart, Vector3(1.2, 1.2, 1.6))

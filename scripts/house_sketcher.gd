@@ -2332,8 +2332,9 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	for sign_ in [-1.0, 1.0]:
 		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 - 0.03) + Vector3(0, SILL + high * 0.5, 0)
 		_visual_box(at, _along(axis, across, 0.06, high, jamb_deep + 0.02), wood)
-	var sill_deep := jamb_deep + 0.1
-	_visual_box(mid + across * _outside * 0.05 + Vector3(0, SILL + 0.03, 0), _along(axis, across, opening + 0.2, 0.06, sill_deep), wood)
+	# Its inner face lies a hair inside the jambs' face (never in the same plane, which flickers).
+	var sill_deep := jamb_deep + 0.08
+	_visual_box(mid + across * _outside * 0.06 + Vector3(0, SILL + 0.03, 0), _along(axis, across, opening + 0.2, 0.06, sill_deep), wood)
 	# The pane and its glazing bars: one upright and one across, on both faces.
 	# One walks into this house, so its glass is clear from both sides: what lights it at night is
 	# the light the hero has put up inside, shining out through it (only the houses one cannot walk
@@ -2349,7 +2350,8 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	else:
 		_pane(mid + Vector3(0, SILL + high * 0.5, 0), across * _outside, Vector2(opening - 0.1, high))
 	_visual_box(mid + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, 0.05, high, 0.06), wood)
-	_visual_box(mid + Vector3(0, SILL + high * 0.55, 0), _along(axis, across, opening - 0.1, 0.05, 0.06), wood)
+	# The bar across is a hair deeper than the upright, so their faces never share a plane.
+	_visual_box(mid + Vector3(0, SILL + high * 0.55, 0), _along(axis, across, opening - 0.1, 0.05, 0.07), wood)
 	# The pane itself stops the hero too: a window is no way through.
 	_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, high, 0))
 	var shutters_at := mid + across * _outside * (jamb_deep * 0.5 + 0.07) + Vector3(0, SILL + 0.07, 0)

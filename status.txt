@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Hide roof nest eggs and chicks with the roof; Wind leaves: faster, more of them, wider area | Shipped this week: Hold torches and lamps far out in front, measured on the rig; Fix post office posters spilling onto walls (+48 more)
+Escape! dev status | Working on: Hide roof nest eggs and chicks with the roof | Shipped this week: Wind leaves: faster, more of them, wider area; Hold torches and lamps far out in front, measured on the rig (+48 more)

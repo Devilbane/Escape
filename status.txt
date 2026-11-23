@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Remove wind-blown snow gusts | Shipped this week: Add the sewer labyrinth: circuits, chambers and returning vermin (sewers part 2); Let snow cover the lawn up to the house walls (+48 more)
+Escape! dev status | Shipped this week: Remove wind-blown snow gusts; Add the sewer labyrinth: circuits, chambers and returning vermin (sewers part 2) (+48 more)

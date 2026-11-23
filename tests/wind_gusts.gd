@@ -47,6 +47,12 @@ func _run() -> void:
 	check(not WindGusts.enabled(), "the Performance preset has no gusts")
 	Graphics.preset = Graphics.BALANCED
 
+	# Down in a cellar, the vault or the mine no wind blows.
+	lvl.hero_cellar = [Rect2(-1000, -1000, 2000, 2000)]
+	check(wind.below_cover() and wind.gust(1.0) == 0, "no gust blows while the hero is down in a cellar")
+	lvl.hero_cellar = []
+	check(not wind.below_cover(), "gusts blow again up on the ground")
+
 	# In autumn most litter is heaps of fallen leaves: single leaves must lift off them and be carried
 	# downwind, not shuffle on the spot.
 	var autumn_first := SkyCommand.autumn_from(Seasons.TEST_DAY)

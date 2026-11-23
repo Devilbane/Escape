@@ -150,12 +150,26 @@ func strength() -> float:
 	return FlagWind.wind_for(life.level.get("weather") if "weather" in life.level else "").x
 
 
+## Whether the hero is under cover or down below the ground (a cellar, the bank's vault, the forgotten
+## mine): no wind reaches there, so no leaf or snowflake flies.
+func below_cover() -> bool:
+	var lvl := life.level
+	if lvl.player == null:
+		return false
+	return lvl.hero_under_cover() or LostMine.holds(lvl.player.global_position)
+
+
 func active() -> int:
 	return _moving.size() + _flakes.size() + _puffs.size()
 
 
 func _process(delta: float) -> void:
 	_now += delta
+	if active() > 0 and below_cover():
+		# The hero went down or inside: whatever was flying is gone.
+		_moving.clear()
+		_flakes.clear()
+		_puffs.clear()
 	if active() > 0:
 		_move()
 		_move_flakes()
@@ -176,7 +190,7 @@ func _process(delta: float) -> void:
 ## Blows one gust now, with the wind at strength `s`: sets leaves lying near the hero flying (in
 ## winter a flurry of snow). Returns how many pieces it set flying.
 func gust(s: float) -> int:
-	if life.level.player == null or active() > MAX_IN_AIR:
+	if life.level.player == null or active() > MAX_IN_AIR or below_cover():
 		return 0
 	_angle = PREVAILING + _rng.randf_range(-TURN, TURN)
 	var dir := Vector3(cos(_angle), 0, sin(_angle))

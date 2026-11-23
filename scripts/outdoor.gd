@@ -795,6 +795,8 @@ func build() -> void:
 		birds.market = free
 	_flush_plants()
 	_build_woods_life()
+	# The village's hedgehogs fetch apples from its apple trees (see WoodsLife.assign_hoards).
+	woods.assign_hoards.call_deferred(square_trees)
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	surface_life = SurfaceLife.new(self)
 	surface_life.set_autumn(Weather.is_autumn(season_day))

@@ -73,13 +73,9 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	var ud := d + JETTY * 2.0
 	var cx := rng.randf_range(-0.3, 0.3) * uw
 	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx, "tower": bool(style.get("tower", false)),
-<<<<<<< HEAD
 			"flat": bool(style.get("flat", false)), "mage": bool(style.get("mage", false))}
-=======
-			"flat": bool(style.get("flat", false))}
 	if style.has("ladder_side"):
 		shape["ladder_side"] = float(style.ladder_side)
->>>>>>> origin/main
 	# A hall may set its side windows toward the door (see VillageHalls.style): `side_front` metres
 	# from the front of the room instead of in the middle, to leave the wall beside them clear.
 	shape["side_z"] = d * 0.5 - WALL_THICK - float(style.side_front) if style.has("side_front") else 0.0

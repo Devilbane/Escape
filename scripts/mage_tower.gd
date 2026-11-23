@@ -380,15 +380,15 @@ static func _entrance(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside:
 	_put(walk_in, rec, inside, WalkInFurniture.rug(Vector2(2.0, room.size.y - 1.6)), Vector3(0, y + 0.002, 0.2))
 	# The table with the crystal ball, in front of the tapestries, the way to the door kept free.
 	var table := WalkInFurniture.table(0.5)
-	_put(walk_in, rec, inside, table, Vector3(0, y, back + 1.7), 0.0, Vector3(1.0, 0.8, 1.0))
-	_ball(inside, 0.17, Vector3(0, y + 0.97, back + 1.7), _glow("crystal", GLOW, 2.5))
-	WalkInFurniture._cylinder(inside, 0.12, 0.05, Vector3(0, y + 0.8, back + 1.7), _mat("brass", Color(0.78, 0.6, 0.3), 0.4))
+	_put(walk_in, rec, inside, table, Vector3(0, y, back + 1.3), 0.0, Vector3(0.8, 0.8, 0.7))
+	_ball(inside, 0.17, Vector3(0, y + 0.97, back + 1.3), _glow("crystal", GLOW, 2.5))
+	WalkInFurniture._cylinder(inside, 0.12, 0.05, Vector3(0, y + 0.8, back + 1.3), _mat("brass", Color(0.78, 0.6, 0.3), 0.4))
 	var light := OmniLight3D.new()
 	light.name = "CrystalGlow"
 	light.light_color = GLOW
 	light.light_energy = 0.7
 	light.omni_range = 4.0
-	light.position = Vector3(0, y + 1.1, back + 1.7)
+	light.position = Vector3(0, y + 1.1, back + 1.3)
 	inside.add_child(light)
 	# A stand of staves and wands by the back wall's left tapestry, a bench under the right one.
 	_put(walk_in, rec, inside, WalkInFurniture.weapon_rack(1.1), Vector3(room.position.x + 1.3 + 1.9, y, back + 0.22), 0.0, Vector3(1.1, 1.5, 0.4))
@@ -396,7 +396,7 @@ static func _entrance(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside:
 	# Two suits of armour flanking the door, a chandelier over the runner, banners of the tower beside the door
 	# and crystal lamps on the side walls.
 	for x: float in [-1.55, 1.55]:
-		_put(walk_in, rec, inside, suit_of_armor(), Vector3(x, y, -0.9), PI * 0.5 if x < 0.0 else -PI * 0.5, Vector3(0.6, 1.9, 0.5))
+		_put(walk_in, rec, inside, suit_of_armor(), Vector3(x, y, -0.9), PI * 0.5 if x < 0.0 else -PI * 0.5, Vector3(0.4, 1.9, 0.3))
 	var chandel := chandelier(0.6, 0.7, 8)
 	chandel.position = Vector3(0, y + 2.45, 0.2)
 	inside.add_child(chandel)
@@ -411,7 +411,7 @@ static func _entrance(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside:
 		lamp.rotation.y = -side * PI * 0.5
 		inside.add_child(lamp)
 	var hover := floating_candles(5, 0.75)
-	hover.position = Vector3(0, y + 1.5, back + 1.7)
+	hover.position = Vector3(0, y + 1.5, back + 1.3)
 	inside.add_child(hover)
 	var star := star_chart(Vector2(0.9, 0.9))
 	star.position = Vector3(room.position.x + 0.05, y + 1.2, 1.4)
@@ -419,7 +419,7 @@ static func _entrance(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside:
 	inside.add_child(star)
 	# Candle stands in the back corners, the way from the door to the stairs kept free.
 	for x: float in [room.position.x + 0.35, room.end.x - 0.35]:
-		_put(walk_in, rec, inside, candle_stand(), Vector3(x, y, back + 0.35), 0.0, Vector3(0.4, 1.4, 0.4))
+		_put(walk_in, rec, inside, candle_stand(), Vector3(x, y, back + 0.35), 0.0, Vector3(0.25, 1.4, 0.25))
 
 
 ## A tall iron stand with a ring of lit candles.
@@ -449,7 +449,7 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	# Bookcases along the back wall (the left wall stays clear: the stairs up come out there).
 	var x := left + 1.2
 	while x + 1.1 < room.end.x - 0.2:
-		_put(walk_in, rec, upper, WalkInFurniture.bookcase(2.2, 2.3, 0.42), Vector3(x + 0.0, y, back + 0.22), 0.0, Vector3(2.2, 2.3, 0.42))
+		_put(walk_in, rec, upper, skill_bookcase(2.2, 2.3, 0.42, int(x * 10.0)), Vector3(x + 0.0, y, back + 0.22), 0.0, Vector3(2.2, 2.3, 0.42))
 		x += 2.25
 	# The reading corner: a rug, the long table with a candle, and the seats round it.
 	var mid := Vector3(-0.9, y, -0.6)
@@ -460,16 +460,16 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	_put(walk_in, rec, upper, WalkInFurniture.table_candle(), mid + Vector3(-0.7, 0.8, -0.1))
 	_put(walk_in, rec, upper, WalkInFurniture.chair(), mid + Vector3(-0.5, 0, -0.95), 0.0)
 	_put(walk_in, rec, upper, WalkInFurniture.chair(), mid + Vector3(0.6, 0, -0.95), 0.0)
-	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(-1.6, 0, 0.0), PI * 0.5, Vector3(0.95, 0.9, 0.95))
-	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(1.6, 0, 0.0), -PI * 0.5, Vector3(0.95, 0.9, 0.95))
-	_put(walk_in, rec, upper, sofa_chair(1.9), mid + Vector3(0, 0, 1.55), PI, Vector3(1.9, 0.9, 0.95))
+	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(-1.6, 0, 0.0), PI * 0.5)
+	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(1.6, 0, 0.0), -PI * 0.5)
+	_put(walk_in, rec, upper, sofa_chair(1.9), mid + Vector3(0, 0, 1.55), PI)
 	# A globe on a stand, a floor lamp, a side table with a book by the sofa chair.
-	_put(walk_in, rec, upper, globe(), Vector3(room.end.x - 0.6, y, room.end.y - 0.7), 0.4, Vector3(0.7, 1.4, 0.7))
-	_put(walk_in, rec, upper, WalkInFurniture.table(0.28), mid + Vector3(-1.6, 0, 1.2), 0.0, Vector3(0.56, 0.75, 0.56))
+	_put(walk_in, rec, upper, globe(), Vector3(room.end.x - 0.6, y, room.end.y - 0.7), 0.4, Vector3(0.4, 1.4, 0.4))
+	_put(walk_in, rec, upper, WalkInFurniture.table(0.28), mid + Vector3(-1.6, 0, 1.2), 0.0)
 	WalkInFurniture._box(upper, Vector3(0.3, 0.05, 0.22), mid + Vector3(-1.6, 0.8, 1.2), _mat("book_red", Color(0.5, 0.16, 0.15)), Basis(Vector3.UP, 0.4))
 	# Books and scrolls on the table, a clock on the right wall, a ladder against the bookcases, plants,
 	# a skull on the first bookcase and a chandelier over the reading corner.
-	var stack := book_stack(5)
+	var stack := book_stack(5, 20)
 	stack.position = mid + Vector3(0.45, 0.8, 0.12)
 	upper.add_child(stack)
 	var scroll_a := scroll()
@@ -480,11 +480,11 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	open_book.name = "OpenBook"
 	_put(walk_in, rec, upper, grandfather_clock(), Vector3(left + 0.4, y, -2.6), PI * 0.5, Vector3(0.56, 2.2, 0.4))
 	_put(walk_in, rec, upper, WalkInFurniture.upright_ladder(2.2), Vector3(left + 3.9, y, back + 0.5), 0.0)
-	_put(walk_in, rec, upper, potted_plant(1.1), Vector3(room.end.x - 0.45, y, back + 0.55), 0.0, Vector3(0.45, 1.1, 0.45))
+	_put(walk_in, rec, upper, potted_plant(1.1), Vector3(room.end.x - 0.45, y, back + 0.55))
 	var head := skull()
 	head.position = Vector3(left + 2.3, y + 2.3, back + 0.25)
 	upper.add_child(head)
-	var heap := book_stack(3)
+	var heap := book_stack(3, 12)
 	heap.position = Vector3(mid.x - 2.5, y, mid.z + 1.8)
 	upper.add_child(heap)
 	var big := chandelier(0.7, 0.5, 10)
@@ -505,7 +505,7 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	var hovering := floating_candles(4, 0.55)
 	hovering.position = mid + Vector3(0.1, 1.15, 0.0)
 	upper.add_child(hovering)
-	_put(walk_in, rec, upper, crystal_orb(Color(0.45, 0.8, 1.0)), Vector3(room.end.x - 1.2, y, back + 0.6), 0.0, Vector3(0.4, 1.1, 0.4))
+	_put(walk_in, rec, upper, crystal_orb(Color(0.45, 0.8, 1.0)), Vector3(room.end.x - 1.2, y, back + 0.6))
 	var chart := star_chart(Vector2(1.5, 1.5))
 	chart.position = Vector3(room.end.x - 0.05, y + 0.9, 0.2)
 	chart.rotation.y = -PI * 0.5
@@ -575,17 +575,15 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 		rec.beds.append({"pos": hall.transform * origin, "rot": hall.rotation.y, "by": null, "stand": stand})
 		rec["ladder"] = stand
 		rec["ladder_top"] = stand
-		# A chest at the foot of the bed.
-		_put(walk_in, rec, roof, WalkInFurniture.crate(0.7), Vector3(origin.x + 0.1, y, origin.z + CosyBed.FOOT + 0.45), 0.0, Vector3(0.9, 0.6, 0.6))
 	rec["owner"] = OWNERS[0]
 	rec["owners"] = OWNERS
 	# A wardrobe in the back corner on the right, a bookcase between the beds' tables.
-	_put(walk_in, rec, roof, WalkInFurniture.bookcase(1.5, 2.2, 0.5), Vector3(right - 0.3, y, back + 3.0), -PI * 0.5, Vector3(1.5, 2.2, 0.5))
+	_put(walk_in, rec, roof, skill_bookcase(1.5, 2.2, 0.5, 40), Vector3(right - 0.3, y, back + 3.0), -PI * 0.5, Vector3(1.5, 2.2, 0.5))
 	# A table with candles and a stool by the right wall, and the telescope at the window in front.
-	_put(walk_in, rec, roof, WalkInFurniture.table(0.45), Vector3(right - 1.0, y, 1.0), 0.0, Vector3(0.9, 0.8, 0.9))
+	_put(walk_in, rec, roof, WalkInFurniture.table(0.45), Vector3(right - 1.0, y, 1.0), 0.0, Vector3(0.6, 0.8, 0.6))
 	_put(walk_in, rec, roof, WalkInFurniture.table_candle(), Vector3(right - 1.0, y + 0.79, 1.0))
 	_put(walk_in, rec, roof, WalkInFurniture.stool(), Vector3(right - 1.9, y, 1.0))
-	_put(walk_in, rec, roof, telescope(), Vector3(room.position.x + 1.5 + 1.5, y, room.end.y - 0.9), 0.0, Vector3(0.9, 1.2, 0.9))
+	_put(walk_in, rec, roof, telescope(), Vector3(room.position.x + 1.5 + 1.5, y, room.end.y - 0.9), 0.0, Vector3(0.4, 1.2, 0.4))
 	# A chandelier, crystal lamps over the beds, a plant, a pile of books by the bookcase and a skull on the bedside tables.
 	var hang := chandelier(0.5, 0.4, 8)
 	hang.position = Vector3(0.3, y + TOP_H - 0.45, 0.2)
@@ -594,7 +592,7 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 		var lamp_b := crystal_lamp()
 		lamp_b.position = Vector3(float(spec[0]) + 0.5, y + 1.7, back + 0.05)
 		roof.add_child(lamp_b)
-	_put(walk_in, rec, roof, potted_plant(1.0), Vector3(room.position.x + 0.5, y, room.end.y - 0.6), 0.0, Vector3(0.45, 1.0, 0.45))
+	_put(walk_in, rec, roof, potted_plant(1.0), Vector3(room.position.x + 0.5, y, room.end.y - 0.6))
 	var night_chart := star_chart(Vector2(1.4, 1.4))
 	night_chart.position = Vector3(room.position.x + 0.05, y + 0.9, -0.2)
 	night_chart.rotation.y = PI * 0.5
@@ -602,7 +600,7 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	var night_candles := floating_candles(3, 0.35)
 	night_candles.position = Vector3(0.45, y + 1.5, back + 0.9)
 	roof.add_child(night_candles)
-	var pile := book_stack(4)
+	var pile := book_stack(4, 30)
 	pile.position = Vector3(right - 1.0, y + 0.8, 1.0) + Vector3(0.1, 0, 0.1)
 	roof.add_child(pile)
 	_storey_lamp(rec, roof, GuildHall.ROOF_STOREY, Vector3(0, y + 2.2, 0.0))
@@ -672,7 +670,7 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 	_put(walk_in, rec, cellar, WalkInFurniture.crate(0.7), Vector3(-1.2, y, h - 0.45), 0.2, Vector3(0.7, 0.7, 0.7))
 	_put(walk_in, rec, cellar, WalkInFurniture.crate(0.6), Vector3(3.3, y, h - 0.4), 0.0, Vector3(0.6, 0.6, 0.6))
 	# A lectern with an open spellbook beside the circle, a skull on it.
-	_put(walk_in, rec, cellar, lectern(), Vector3(0.2, y, 1.9), PI * 0.8, Vector3(0.6, 1.2, 0.6))
+	_put(walk_in, rec, cellar, lectern(), Vector3(0.2, y, 1.9), PI * 0.8, Vector3(0.35, 1.2, 0.35))
 	# Crystals growing round the circle's edge and in the corners, a skull and a scroll on the bench, herbs
 	# drying from the ceiling, toadstools in the damp corner, chains on the back wall, a big book on the lectern.
 	for spec: Array in [[0.9, -1.2, 0.5], [3.4, -0.6, 0.7], [3.5, 1.9, 0.45], [-1.6, -3.4, 0.6]]:
@@ -680,7 +678,7 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 	_put(walk_in, rec, cellar, toadstools(), Vector3(-1.5, y, 3.3))
 	_put(walk_in, rec, cellar, skull(), Vector3(h - 0.55, y + 0.95, 1.7), -2.0)
 	_put(walk_in, rec, cellar, scroll(), Vector3(h - 0.55, y + 0.95, -0.2), 1.1)
-	_put(walk_in, rec, cellar, book_stack(3), Vector3(h - 0.5, y + 0.95, 0.0))
+	_put(walk_in, rec, cellar, book_stack(3, 7), Vector3(h - 0.5, y + 0.95, 0.0))
 	for x: float in [-1.6, 0.0, 1.0]:
 		var herbs := herb_bunch(0.5 + 0.1 * absf(x))
 		herbs.position = Vector3(x + 0.3, -0.2, -h + 0.5)
@@ -699,8 +697,8 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 	hover.position = Vector3(2.0, y + 1.0, 0.3)
 	cellar.add_child(hover)
 	_put(walk_in, rec, cellar, alembic(), Vector3(h - 0.55, y + 0.95, 1.0), -PI * 0.5)
-	_put(walk_in, rec, cellar, crystal_orb(Color(0.45, 1.0, 0.7)), Vector3(1.6, y, 3.2), 0.0, Vector3(0.4, 1.1, 0.4))
-	_put(walk_in, rec, cellar, crystal_orb(), Vector3(-1.6, y, -3.3), 0.0, Vector3(0.4, 1.1, 0.4))
+	_put(walk_in, rec, cellar, crystal_orb(Color(0.45, 1.0, 0.7)), Vector3(1.6, y, 3.2))
+	_put(walk_in, rec, cellar, crystal_orb(), Vector3(-1.6, y, -3.3))
 	var book := floating_book()
 	book.position = Vector3(0.2, y + 1.55, 1.9)
 	book.rotation.y = 0.8
@@ -1199,18 +1197,56 @@ static func skull() -> Node3D:
 	return root
 
 
-## A stack of `n` books of different sizes, lying a little crooked.
-static func book_stack(n := 4) -> Node3D:
+## A stack of `n` of the skill books lying one on another, a little crooked (see Bookshelf.book_mesh).
+static func book_stack(n := 4, first := 0) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Books"
-	var colours := [Color(0.5, 0.16, 0.15), Color(0.16, 0.3, 0.45), Color(0.2, 0.4, 0.25), Color(0.55, 0.4, 0.15), Color(0.35, 0.18, 0.4)]
 	var y := 0.0
 	for i in n:
-		var h := 0.035 + 0.012 * float(i % 3)
-		var colour: Color = colours[i % colours.size()]
-		WalkInFurniture._box(root, Vector3(0.3 - 0.02 * i, h, 0.22 - 0.01 * i), Vector3(0.01 * i, y + h * 0.5, 0), _mat("book_" + colour.to_html(false), colour), Basis(Vector3.UP, 0.25 * float(i) - 0.3))
-		WalkInFurniture._box(root, Vector3(0.26 - 0.02 * i, h * 0.7, 0.2 - 0.01 * i), Vector3(0.012 * i, y + h * 0.5, 0.01), _mat("page", Color(0.9, 0.85, 0.7)), Basis(Vector3.UP, 0.25 * float(i) - 0.3))
-		y += h
+		var look := Bookshelf.book_look(first + i)
+		var size: Vector3 = look.size
+		var scale := minf(0.42, 0.34 / size.y)
+		var book := MeshInstance3D.new()
+		book.mesh = Bookshelf.book_mesh(first + i)
+		# Lying flat: the book's height along x, its spine to +z.
+		book.basis = Basis(Vector3.UP, 0.3 * float(i) - 0.35) * Basis(Vector3.FORWARD, PI * 0.5).scaled(Vector3.ONE * scale)
+		var thick := size.x * scale
+		book.position = Vector3(0.01 * i, y + thick * 0.5, 0)
+		root.add_child(book)
+		y += thick
+	return root
+
+
+## A bookcase `wide` x `high` and `deep` whose boards carry the skill books of the game (the bound books of
+## the hero's own shelf, see Bookshelf): upright in rows with gaps, a few leaning, a couple lying on top.
+static func skill_bookcase(wide: float, high: float, deep: float, first := 0) -> Node3D:
+	var root := WalkInFurniture.shelf(wide, high, deep)
+	root.name = "Bookcase"
+	var boards := 4
+	var gap := (high - 0.2) / (boards - 1)
+	var index := first
+	for b in boards - 1:
+		var y := 0.15 + b * gap + 0.02
+		var x := -wide * 0.5 + 0.12
+		var i := 0
+		while true:
+			index += 1
+			var look := Bookshelf.book_look(index)
+			var size: Vector3 = look.size
+			var scale := minf(minf(0.92, (gap - 0.12) / size.y), deep * 0.92 / size.z)
+			if x + size.x * scale > wide * 0.5 - 0.1:
+				break
+			if (i + b * 2) % 11 != 6:
+				var book := MeshInstance3D.new()
+				book.mesh = Bookshelf.book_mesh(index)
+				var lean := 0.0
+				if (i * 5 + b) % 13 == 3:
+					lean = 0.22
+				book.basis = Basis(Vector3.FORWARD, lean).scaled(Vector3.ONE * scale)
+				book.position = Vector3(x + size.x * scale * 0.5 + lean * size.y * scale * 0.3, y + size.y * scale * 0.5, deep * 0.5 - size.z * scale * 0.5 - 0.02)
+				root.add_child(book)
+			x += size.x * scale + 0.012
+			i += 1
 	return root
 
 

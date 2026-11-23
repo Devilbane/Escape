@@ -4769,8 +4769,10 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
-		# Awake again: the eyes open before the night lifts.
+		# Awake again: the eyes open before the night lifts, the blanket lies thrown back.
 		player.set_asleep(false)
+		if not bed.is_empty():
+			BedBlanket.push_off(level, bed.pos, bed.get("rot", 0.0), true)
 		_rest_injury(goddess)
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
@@ -4785,8 +4787,12 @@ func rest_till_morning() -> void:
 		player.cure()
 		# Out of a bed of a self-built house beside its foot (see HouseFurnisher), else beside the bed of the room.
 		var side: Vector3 = bed.get("side", level.bed_side)
-		player.global_position = side if side != Vector3.ZERO else player.global_position
-		player.face(Vector3.BACK)
+		var stand := side if side != Vector3.ZERO else player.global_position
+		if player.in_bed_pose():
+			player.bed_pose_end(stand, Vector3.BACK)
+		else:
+			player.global_position = stand
+			player.face(Vector3.BACK)
 		player.play("Idle")
 		_snap_camera()
 		_update_hud()
@@ -4991,6 +4997,12 @@ signal logged_out(saved: bool)
 ## unseen.
 func _log_out(saved: bool) -> void:
 	logged_out.emit(saved)
+	# Out of the bed pose, standing beside the bed, for the game that goes on (a test, the title).
+	if player.in_bed_pose():
+		var bed := _nearest_bed()
+		var rot: float = bed.get("rot", 0.0)
+		var spot := _bedside(bed, Vector3(sin(rot), 0.0, cos(rot))) if not bed.is_empty() else player.global_position
+		player.bed_pose_end(spot, Vector3.BACK)
 	if not quit_on_log_out:
 		_show_start_title(Lang.t("Gute Nacht"), Lang.t("Dein Spiel ist gespeichert.") if saved else Lang.t("Speichern fehlgeschlagen!"))
 		return
@@ -5138,24 +5150,22 @@ func _wake_at_camp(data: Dictionary, done: Callable) -> bool:
 	return true
 
 
-## A little hop up onto the mattress, then the hero lies down with the head
-## on the pillows and the feet towards the foot of the bed (see Level.lie_spot).
+## Goes to bed (see BedRise): a few steps to the side of the bed, then the hero sits on its rim, swings the
+## legs up, lies back with the head on the pillows and pulls the blanket up (see BedBlanket). The weapon is
+## put away first: nobody goes to bed with a knife in their hand.
 func _climb_into_bed(tween: Tween, bed: Dictionary) -> void:
 	var rot: float = bed.get("rot", 0.0)
 	var foot := Vector3(sin(rot), 0.0, cos(rot))
-	var spot := _bed_lie_spot(bed)
+	var side := BedRise.choose_side(level, bed.pos, rot, _bedside(bed, foot), [player.get_rid()])
+	var spot := BedRise.beside(bed.pos, rot, side)
 	var from := player.global_position
 	player.velocity = Vector3.ZERO
 	player.face(spot - from)
-	player.play("Jump_Idle", 0.1)
+	player.play("Walking_A", 0.1)
 	tween.tween_method(func(t: float):
-		player.global_position = from.lerp(spot, t) + Vector3(0, sin(t * PI) * 0.6, 0), 0.0, 1.0, 0.45)
-	tween.tween_callback(func():
-		# Lying down falls backwards, so face the foot of the bed.
-		player.face(foot)
-		player.play("Lie_Down", 0.15)
-		# Settling down, the head comes to rest up on the pillows.
-		player.lean_on_pillow(true, 0.9))
+		player.global_position = from.lerp(spot, t), 0.0, 1.0, 0.4)
+	BedRise.play(tween, player, BedRise.TUCK_KEYS, bed.pos, rot, side, [
+		[BedRise.BLANKET_ON_AT, func(): BedBlanket.tuck(level, bed.pos, rot)]])
 
 
 # --- Waking up -----------------------------------------------------------------
@@ -5206,16 +5216,15 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	state = State.TRANSITION
 	var rot: float = bed.get("rot", 0.0)
 	var foot := Vector3(sin(rot), 0.0, cos(rot))
-	var lie := _bed_lie_spot(bed)
 	var floor_spot := _bedside(bed, foot)
+	var side := BedRise.choose_side(level, bed.pos, rot, floor_spot, [player.get_rid()])
+	var beside := BedRise.beside(bed.pos, rot, side)
 	player.frozen = true
 	player.path.clear()
 	player.velocity = Vector3.ZERO
-	player.global_position = lie
-	player.reset_physics_interpolation()
-	player.face(foot)
-	player.lie_asleep()
-	player.lean_on_pillow(true)
+	# Lying asleep under the blanket, in the pose the bed was gone to.
+	player.bed_pose(BedRise.at(BedRise.RISE_KEYS, 0.0, side), bed.pos, rot, side)
+	BedBlanket.tuck(level, bed.pos, rot, true)
 	var fox_wakes := false
 	if is_instance_valid(pet) and pet.kind == "fuchs":
 		var basket := level.fox_bed_near(bed.pos)
@@ -5225,29 +5234,25 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	_fall_asleep()
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_interval(WAKE_SLEEP)
+	tween.tween_callback(_stop_snoozing)
+	# The blanket is pushed off, the legs swing out, the hero sits on the rim, stretches and yawns (the
+	# yawn with its own sound), the fox wakes and hops out of its basket, and the hero slides down.
+	BedRise.play(tween, player, BedRise.RISE_KEYS, bed.pos, rot, side, [
+		[BedRise.BLANKET_OFF_AT, func(): BedBlanket.push_off(level, bed.pos, rot)],
+		[BedRise.YAWN_AT, func():
+			Sfx.play(self, "yawn", -4.0, player.global_position)
+			var slot := player.find_child("HeadSlot", true, false) as Node3D
+			var head := slot.global_position if slot else player.global_position
+			Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true)],
+		[BedRise.FOX_AT, func():
+			if fox_wakes and is_instance_valid(pet):
+				pet.wake_up(floor_spot)]])
+	# Standing beside the bed: a few steps to the open floor.
 	tween.tween_callback(func():
-		_stop_snoozing()
-		player.set_asleep(false))
-	# A moment later, once the last Z has drifted off, a big yawn.
-	tween.tween_interval(WAKE_YAWN)
-	tween.tween_callback(func():
-		var slot := player.find_child("HeadSlot", true, false) as Node3D
-		var head := slot.global_position if slot else player.global_position
-		Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true))
-	tween.tween_interval(WAKE_STRETCH)
-	if fox_wakes:
-		tween.tween_callback(func():
-			if is_instance_valid(pet):
-				pet.wake_up(floor_spot))
-		tween.tween_interval(WAKE_FOX)
-	tween.tween_callback(player.get_up_from_bed)
-	tween.tween_interval(Player.GET_UP_TIME)
-	# Standing on the mattress: turn towards the floor and hop down.
-	tween.tween_callback(func():
-		player.face(floor_spot - player.global_position)
-		player.play("Jump_Idle", 0.1))
+		player.bed_pose_end(beside, floor_spot - beside)
+		player.play("Walking_A", 0.1))
 	tween.tween_method(func(t: float):
-		player.global_position = lie.lerp(floor_spot, t) + Vector3(0, sin(t * PI) * 0.5, 0), 0.0, 1.0, WAKE_HOP)
+		player.global_position = beside.lerp(floor_spot, t), 0.0, 1.0, 0.4)
 	tween.tween_callback(func():
 		player.global_position = floor_spot
 		player.play("Idle", 0.2)

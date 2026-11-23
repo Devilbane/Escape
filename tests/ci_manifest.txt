@@ -45,6 +45,7 @@ healing_potions.gd | 300 | fixed | PASS:_healing_potions | Healing potions test 
 save_slots.gd | 120 | free | pass | Several saved games test
 stay_awake.gd | 120 | fixed | pass | Stay awake and save test
 sleep_till_morning.gd | 120 | fixed | pass | Sleep till morning test
+bed_rise.gd | 120 | fixed | pass | Going to bed and getting up (nobody sinks into the floor or mattress, the blanket lies over the sleeper and is thrown back flat)
 camp.gd | 120 | fixed | pass | Camp with bedroll and campfire test
 rescue.gd | 120 | fixed | pass | Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
 item_compare.gd | 120 | free | pass | Item comparison in the inventories' details box

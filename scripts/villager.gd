@@ -1039,6 +1039,29 @@ func pose_body(pose: Dictionary) -> void:
 	ClimbPose.apply(sk, _blow_base, pose)
 
 
+## Poses the body for going to bed or getting up as `state` says (see BedRise): put where the pose
+## says, in the bed at `bed_pos` turned by `rot`, the clips held still.
+func bed_pose(state: Dictionary, bed_pos: Vector3, rot: float, side := -1.0) -> void:
+	var sk := _bones()
+	if sk == null:
+		return
+	if not _body_posed:
+		pose_body({})
+	rotation.y = 0.0
+	global_position = BedRise.pose(_model, sk, _blow_base, state, bed_pos, rot, side)
+	reset_physics_interpolation()
+
+
+## Upright again at `spot` after bed_pose, facing `towards`.
+func bed_pose_end(spot: Vector3, towards: Vector3) -> void:
+	unpose_body()
+	BedRise.clear(_model)
+	global_position = spot
+	if towards.length() > 0.01:
+		rotation.y = atan2(towards.x, towards.z)
+	reset_physics_interpolation()
+
+
 ## Back from pose_body to the clips.
 func unpose_body() -> void:
 	if not _body_posed:

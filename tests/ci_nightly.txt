@@ -183,3 +183,4 @@ furnisher_day.gd | 200 | fixed | passfail | Ilse the furnisher keeps her stall t
 lighting_reference_shots.gd | 600 | fixed | passfail | Lighting reference pictures (village, rooms, cellars, mine, dungeons; weather, moon, the hero's light). With SHOTS=<folder> it saves them for tools/lighting_compare.py
 granite_wall.gd | 60 | free | pass | Village wall in natural granite and the aged wooden gate (rounded chipped stones, boards, iron)
 street_lamps.gd | 120 | free | passfail | Street lamps: each lamp on a map tile reaches its arm and lantern towards the nearest walkway and stands at its edge
+wind_gusts.gd | 120 | free | passfail | Wind gusts: now and then the wind stirs leaves, straw and chips near the hero, none in Performance

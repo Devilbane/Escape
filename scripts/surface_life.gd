@@ -183,6 +183,8 @@ var fallen_total := 0
 ## How many clusters of them the wind heaped up along walls and paving (see _drift_spots).
 var drifted := 0
 var _autumn := false
+## The gusts that now and then stir the light litter (see WindGusts).
+var gusts: WindGusts
 
 static var _textures := {}
 static var _meshes := {}
@@ -202,6 +204,8 @@ func _ready() -> void:
 	_place_creatures()
 	if _autumn:
 		_drop_leaves()
+	gusts = WindGusts.new(self)
+	add_child(gusts)
 
 
 ## Autumn or not: in autumn the fallen leaves lie on the ground (laid the first time).

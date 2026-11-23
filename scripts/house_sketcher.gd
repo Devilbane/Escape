@@ -177,6 +177,8 @@ var _covered := {}
 var _fade_state := ""
 var _redo_button: Button
 var _status: Label
+## Whether the slab being built is a flat roof under the open sky (see _floor_box).
+var _open_roof := false
 var _hover_key := ""
 var _refresh_in := 0.0
 var _frame_shift := Vector3.ZERO
@@ -1720,7 +1722,10 @@ func _solid_above(house: HouseSketch, keys: Array = []) -> void:
 		match piece.kind:
 			HouseSketch.SLAB:
 				var slab := Vector3(HouseSketch.CELL, HouseSketch.SLAB_THICK, HouseSketch.CELL)
+				# A slab with nothing built over it is a flat roof in the open: its boards lie tight.
+				_open_roof = not house.pieces.has(HouseSketch.key_of(p[1], p[2], HouseSketch.CELL_ORIENT, p[0] + 1))
 				_floor_box(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab, "wood", demolish, true)
+				_open_roof = false
 				_collide(mid + Vector3(0, base + HouseSketch.SLAB_THICK * 0.5, 0), slab)
 				_cover(house, p[1], p[2], p[0])
 				_hide_under(house, p[1], p[2], base + HouseSketch.SLAB_THICK * 0.5)
@@ -2143,7 +2148,7 @@ func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool,
 			"stone":
 				_visual_box(middle, size, HouseLooks.flagstones())
 			"wood":
-				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size)
+				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size, _open_roof)
 				boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
 				_into.add_child(boards)
 			_:

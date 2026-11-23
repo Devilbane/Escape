@@ -80,8 +80,9 @@ static func stair_wood() -> StandardMaterial3D:
 
 ## A floor of the pen's boards filling a box `size` big round `middle`: boards
 ## along x side by side, each its own shade of weathered timber with a thin gap
-## between. The same floor always gets the same boards.
-static func plank_floor(middle: Vector3, size: Vector3) -> MeshInstance3D:
+## between (`tight`: none, for a roof, where snow lies on the boards and the gaps would show as
+## dashes and seams). The same floor always gets the same boards.
+static func plank_floor(middle: Vector3, size: Vector3, tight := false) -> MeshInstance3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector3i(roundi(middle.x * 10.0), roundi(middle.y * 10.0), roundi(middle.z * 10.0)))
 	var b := WeatheredProps.Builder.new()
@@ -92,7 +93,7 @@ static func plank_floor(middle: Vector3, size: Vector3) -> MeshInstance3D:
 	for i in count:
 		var z := -size.z * 0.5 + wide * (float(i) + 0.5)
 		var colour := WeatheredProps.vary(WeatheredProps.TIMBER[rng.randi() % WeatheredProps.TIMBER.size()], rng, PLANK_VARY)
-		b.box(Vector3(0, -size.y * 0.5, z), Vector3(size.x, size.y, wide - PLANK_GAP), colour, WeatheredProps.WOOD)
+		b.box(Vector3(0, -size.y * 0.5, z), Vector3(size.x, size.y, wide if tight else wide - PLANK_GAP), colour, WeatheredProps.WOOD)
 	var holder := Node3D.new()
 	var mi := b.finish(holder, middle)
 	holder.remove_child(mi)

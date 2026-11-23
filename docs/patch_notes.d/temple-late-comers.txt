@@ -1,0 +1,1 @@
+- Villagers who reach the temple late now turn back or leave again instead of staying there for good.

@@ -73,6 +73,7 @@ func _test() -> void:
 
 	# Speech shows in a bubble over the head (and goes into the event log); the
 	# name tag stays while the barber talks and after.
+	game.player.global_position = benno.global_position
 	benno._update_bubble(1.0)
 	check(benno._bubble.is_shown(), "a speech bubble shows over the head")
 	check(_tag(benno).visible and _tag(benno).modulate.a > 0.95, "the name tag stays while he talks")
@@ -80,6 +81,14 @@ func _test() -> void:
 	for i in 10:
 		benno._update_bubble(0.5)
 	check(_tag(benno).visible and _tag(benno).modulate.a > 0.95, "the name tag stays after the talk")
+
+	# Out of the hero's sight (far off behind the houses) the name is hidden, in sight it is back.
+	game.player.global_position = benno.global_position + Vector3(0, 0, 400)
+	benno._update_bubble(1.0)
+	check(game.level.has_line_of_sight(game.player.global_position, benno.global_position) == _tag(benno).visible, "the name follows the line of sight")
+	game.player.global_position = benno.global_position
+	benno._update_bubble(1.0)
+	check(_tag(benno).visible, "in sight the name is shown again")
 
 	# The elder's welcome counts as a talk too.
 	aldo.greet_newcomer(game.player)

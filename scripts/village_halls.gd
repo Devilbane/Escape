@@ -162,6 +162,27 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		small.rotation.y = side * 0.4
 		inside.add_child(small)
 		walk_in._solid(rec, Vector3(x, floor_y + 0.4, z - 0.4), Vector3(0.8, 0.8, 1.7))
+	# Post things on the counter: ledger and quill and a scale to the left, stamp, wax and a few letters to the right.
+	var top := floor_y + COUNTER_HIGH
+	var cz := back + BEHIND + COUNTER_DEEP * 0.5
+	var on_top := [
+		[WalkInFurniture.ledger_and_quill(), Vector3(-1.1, 0, 0.0), 0.2],
+		[WalkInFurniture.parcel_scale(), Vector3(-0.4, 0, 0.0), 0.0],
+		[WalkInFurniture.stamp_and_ink(), Vector3(0.45, 0, -0.08), 0.0],
+		[WalkInFurniture.wax_and_seal(), Vector3(0.95, 0, 0.05), 0.0],
+	]
+	# Pulled in on a narrow counter (the items span about 2.6 metres).
+	var squeeze := minf(1.0, (minf(room.size.x * 0.55, 4.2) - 0.7) / 2.6)
+	for item in on_top:
+		var thing: Node3D = item[0]
+		thing.position = Vector3(item[1].x * squeeze, top, cz + item[1].z)
+		thing.rotation.y = item[2]
+		inside.add_child(thing)
+	for k in 3:
+		var letter := WalkInFurniture.envelope(0.2)
+		letter.position = Vector3((1.4 + k * 0.03) * squeeze, top + 0.004 + k * 0.01, cz + 0.1)
+		letter.rotation = Vector3(-PI * 0.5, 0.3 * k - 0.2, 0)
+		inside.add_child(letter)
 	# Notices on the side walls toward the door, clear of the windows and sconces by the back wall.
 	var notices := [
 		["Königliche Post", []],

@@ -630,6 +630,57 @@ static func _poster_text(poster_root: Node3D, text: String, down: float, colour:
 	poster_root.add_child(label)
 
 
+## What lies on a post office counter, built from boxes. Each is origin-on-the-surface.
+## An ink pad with a stamp (a wooden handle on a rubber block) beside it.
+static func stamp_and_ink() -> Node3D:
+	var root := Node3D.new()
+	root.name = "StampAndInk"
+	_box(root, Vector3(0.14, 0.03, 0.1), Vector3(0, 0.015, 0), _plain("ink_tin", Color(0.2, 0.2, 0.24), 0.5))
+	_box(root, Vector3(0.11, 0.008, 0.075), Vector3(0, 0.032, 0), _plain("ink", Color(0.45, 0.08, 0.1), 0.8))
+	_box(root, Vector3(0.07, 0.015, 0.07), Vector3(0.2, 0.0075, 0.02), _plain("rubber", Color(0.15, 0.12, 0.1)))
+	_cylinder(root, 0.02, 0.09, Vector3(0.2, 0.06, 0.02), _wood())
+	return root
+
+
+## A stick of red sealing wax with a brass seal and a candle stub.
+static func wax_and_seal() -> Node3D:
+	var root := Node3D.new()
+	root.name = "WaxAndSeal"
+	_box(root, Vector3(0.14, 0.02, 0.025), Vector3(0, 0.01, 0), _plain("wax", Color(0.55, 0.12, 0.1), 0.6), Basis(Vector3.UP, 0.4))
+	var brass := _plain("brass", Color(0.7, 0.52, 0.2), 0.4)
+	_cylinder(root, 0.03, 0.012, Vector3(0.14, 0.006, 0.04), brass)
+	_cylinder(root, 0.012, 0.07, Vector3(0.14, 0.046, 0.04), brass)
+	_cylinder(root, 0.025, 0.09, Vector3(-0.15, 0.045, -0.02), _plain("candle", Color(0.85, 0.8, 0.62)))
+	return root
+
+
+## A parcel scale: a wooden post and beam with a pan hanging at each end, a brass weight in one.
+static func parcel_scale() -> Node3D:
+	var root := Node3D.new()
+	root.name = "ParcelScale"
+	var brass := _plain("brass", Color(0.7, 0.52, 0.2), 0.4)
+	_box(root, Vector3(0.14, 0.02, 0.1), Vector3(0, 0.01, 0), _wood())
+	_box(root, Vector3(0.03, 0.34, 0.03), Vector3(0, 0.19, 0), _wood())
+	_box(root, Vector3(0.5, 0.02, 0.02), Vector3(0, 0.36, 0), brass)
+	for x: float in [-0.23, 0.23]:
+		_box(root, Vector3(0.006, 0.18, 0.006), Vector3(x, 0.27, 0), brass)
+		_cylinder(root, 0.09, 0.015, Vector3(x, 0.18, 0), brass)
+	_cylinder(root, 0.03, 0.04, Vector3(0.23, 0.205, 0), _plain("weight", Color(0.3, 0.3, 0.32), 0.4))
+	return root
+
+
+## An open ledger with a quill standing in an inkwell.
+static func ledger_and_quill() -> Node3D:
+	var root := Node3D.new()
+	root.name = "LedgerAndQuill"
+	_box(root, Vector3(0.36, 0.03, 0.26), Vector3(0, 0.015, 0), _plain("ledger_cover", Color(0.3, 0.16, 0.1)))
+	for x: float in [-0.085, 0.085]:
+		_box(root, Vector3(0.16, 0.02, 0.23), Vector3(x, 0.04, 0), _plain("poster_paper", Color(0.7, 0.62, 0.45), 1.0))
+	_cylinder(root, 0.025, 0.05, Vector3(0.3, 0.025, 0.02), _plain("ink_tin", Color(0.2, 0.2, 0.24), 0.5))
+	_box(root, Vector3(0.012, 0.22, 0.012), Vector3(0.3, 0.13, 0.02), _plain("quill", Color(0.9, 0.88, 0.8)), Basis(Vector3.BACK, -0.25))
+	return root
+
+
 ## A long cloth banner `high` metres long hanging flat on a wall (at -z), in `colour` with a pale band.
 static func banner(colour: Color, high: float) -> Node3D:
 	var root := Node3D.new()

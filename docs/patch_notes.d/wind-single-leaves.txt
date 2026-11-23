@@ -1,0 +1,1 @@
+- Wind gusts now carry single leaves downwind across the screen instead of shuffling heaps in place.

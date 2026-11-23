@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Lighten footprints in the snow | Shipped this week: Make gust leaves lift and land gently, with the reference's flip and bob; Tame window glow and show spruce snow at night on DirectX 12 (+48 more)
+Escape! dev status | Working on: Lay flat-roof boards tight so snow lies smooth; Lighten footprints in the snow | Shipped this week: Make gust leaves lift and land gently, with the reference's flip and bob; Tame window glow and show spruce snow at night on DirectX 12 (+48 more)

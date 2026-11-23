@@ -9,10 +9,15 @@ extends SkeletonModifier3D
 
 const UPPER := "upperarm.l"
 const LOWER := "lowerarm.l"
-## The pose in degrees (ClimbPose's convention): how far the upper arm is raised forward and how
-## far the elbow is bent.
-const REACH := 84.0
-const BEND := 10.0
+## The pose in degrees, found by measuring the rig (tests/carry_arm.gd checks where the hand ends up):
+## the upper arm swings forward (REACH, about the bone's Z), turns outward (OUT, Y) and rolls (ROLL, X),
+## and the elbow (BEND, Z, and FOLD, X) opens so the forearm carries the hand straight out in front,
+## at shoulder height and a little off to the side, well clear of the belly.
+const REACH := -60.0
+const OUT := 50.0
+const ROLL := 40.0
+const BEND := 40.0
+const FOLD := 40.0
 ## How far the arm rocks with each step (degrees), walking and running.
 const ROCK_WALK := 3.0
 const ROCK_RUN := 5.0
@@ -65,8 +70,8 @@ static func carries_in(clip: String) -> bool:
 	return clip in CLIPS
 
 
-## The arm's angles (degrees) at `phase` (0..1) of a clip's cycle: the upper arm's raise and the
-## elbow's bend. `rock` is the amplitude (see ROCK_WALK); the bend lags the raise a little, so the
+## The arm's swing (degrees) at `phase` (0..1) of a clip's cycle: the upper arm's REACH and the
+## elbow's BEND. `rock` is the amplitude (see ROCK_WALK); the bend lags the raise a little, so the
 ## forearm follows the shoulder instead of moving with it.
 static func angles(phase: float, rock: float) -> Vector2:
 	var steps := TAU * 2.0 * phase
@@ -96,7 +101,7 @@ func _process_modification() -> void:
 	var la := skeleton.find_bone(LOWER)
 	# The clip's own arm, then the carry pose over the idle arm by how far it is on: no jump when
 	# the arm takes hold or lets go.
-	var ua_pose := (_base.ua as Quaternion) * Quaternion(Vector3.BACK, -deg_to_rad(a.x))
-	var la_pose := (_base.la as Quaternion) * Quaternion(Vector3.BACK, -deg_to_rad(a.y))
+	var ua_pose := (_base.ua as Quaternion) * Quaternion(Vector3.BACK, deg_to_rad(a.x)) * Quaternion(Vector3.UP, deg_to_rad(OUT)) * Quaternion(Vector3.RIGHT, deg_to_rad(ROLL))
+	var la_pose := (_base.la as Quaternion) * Quaternion(Vector3.BACK, deg_to_rad(a.y)) * Quaternion(Vector3.RIGHT, deg_to_rad(FOLD))
 	skeleton.set_bone_pose_rotation(ua, skeleton.get_bone_pose_rotation(ua).slerp(ua_pose, _on))
 	skeleton.set_bone_pose_rotation(la, skeleton.get_bone_pose_rotation(la).slerp(la_pose, _on))

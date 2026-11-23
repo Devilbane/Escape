@@ -95,7 +95,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤‖"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüö"
@@ -879,7 +879,7 @@ func _build_ground() -> void:
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if "~;".contains(ch) else 0.0
+			var wet := 1.0 if "~;≈‖".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 			# Scree on the mountain ground, and at the foot of the rock.
@@ -934,7 +934,7 @@ func _build_shore() -> Image:
 	var water := {}
 	for y in height:
 		for x in width:
-			if "~;".contains(cell_char(Vector2i(x, y))):
+			if "~;≈‖".contains(cell_char(Vector2i(x, y))):
 				water[Vector2i(x, y)] = true
 	if water.is_empty():
 		return img
@@ -1513,8 +1513,10 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			SternGate.build_outlet(self, c)
 		"?", ">":
 			TreasureMaps.place(self, c, ch)
-		"~", ";":
-			var pond_water := {"water": "teich" if ch == "~" else "senke", "pos": pos,
+		"‖":
+			RiverBridge.build(self, c)
+		"~", ";", "≈":
+			var pond_water := {"water": "teich" if ch == "~" else ("fluss" if ch == "≈" else "senke"), "pos": pos,
 					"reach": TILE * 0.5, "round": false, "surface": 0.04, "cell": c}
 			pond_water["shape"] = _add_box(_walls_body, pos + Vector3(0, 0.5, 0), Vector3(TILE, 1, TILE))
 			fishing_waters.append(pond_water)
@@ -3352,7 +3354,7 @@ func _temple_stones(chapel: Node3D, middle: Vector3, door: Vector3, out: Vector3
 ## glass's light, not in water, not inside a building (see _footprints).
 func _fringe_ground(at: Vector3, stone := false) -> bool:
 	var c := world_to_cell(at)
-	if c.x < 0 or c.y < 0 or c.x >= width or c.y >= height or "~;#".contains(cell_char(c)):
+	if c.x < 0 or c.y < 0 or c.x >= width or c.y >= height or "~;≈‖#".contains(cell_char(c)):
 		return false
 	var p := Vector2(at.x, at.z)
 	for outline: PackedVector2Array in _footprints.get(c, []):

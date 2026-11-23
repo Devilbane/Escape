@@ -64,7 +64,7 @@ const GROUND := ".,Pa:'0123456789KOGMYZScAXQWHJUDV&£@{}-/"
 const UNDER := "TdrgtpN"
 const PATH := ",aP"
 const SQUARE := ":"
-const WATER := "~;"
+const WATER := "~;≈‖"
 
 ## How many pieces of each kind lie on one tile, on average. (Twigs were
 ## halved once: the ground looked too cluttered with sticks.)

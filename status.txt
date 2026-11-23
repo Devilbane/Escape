@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep indoor lamps from lighting the spruces outside | Shipped this week: Animate going to bed and waking up with a blanket; Add rabbits to forest edges and meadows; Add hedgehogs to the woods and the village (+47 more)
+Escape! dev status | Shipped this week: Keep indoor lamps from lighting the spruces outside; Animate going to bed and waking up with a blanket; Add rabbits to forest edges and meadows (+47 more)

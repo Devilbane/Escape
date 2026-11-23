@@ -249,6 +249,11 @@ var _staff_spell: StaffSpell
 var _sheathe_in := -1.0
 var _calm_check := 0.0
 var display_name := ""
+## How often the name tag looks whether the hero can see its villager (seconds), when it last
+## did and what it found (see _name_in_sight).
+const SIGHT_EVERY := 0.25
+var _sight_in := 0.0
+var _in_sight := true
 var _info: Dictionary
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -317,6 +322,8 @@ var chat_broken := false
 var singing := false
 ## Whether we stay seated through the chat (the drinker on his bench).
 var _chat_sitting := false
+## Seconds a pose struck in a chat still holds (see strike_pose).
+var _pose_time := 0.0
 ## The torch in the hand at night (see carries_torch), made the first night
 ## it is needed, the left hand's own things hidden while it burns, and the
 ## light it throws.
@@ -374,12 +381,21 @@ var _kid: KidPlay
 var _head_top := -1.0
 
 
+## The name a villager is called by, without the job title: the last word of the
+## role's name ("Schmied Gorm" is Gorm, "Fritz" stays Fritz). A new villager
+## named "Title Name" follows this by itself; what they do is told in the chat
+## when asked (see VillagerJobs).
+static func plain_name(role_char: String) -> String:
+	var parts := String(ROLES[role_char].name).split(" ", false)
+	return parts[parts.size() - 1]
+
+
 func setup(owner_level: Outdoor, role_char: String, cell: Vector2i) -> void:
 	level = owner_level
 	role = role_char
 	home = cell
 	_info = ROLES[role]
-	display_name = Lang.t(_info.name)
+	display_name = Lang.t(plain_name(role))
 	_rng.seed = hash(role) + cell.x * 31 + cell.y
 	brave = not shelters()
 
@@ -2219,7 +2235,10 @@ func _physics_process(delta: float) -> void:
 		"chat":
 			if chat_partner and is_instance_valid(chat_partner):
 				_turn_to(chat_partner.global_position - global_position, delta)
-			play(_info.work if _chat_sitting else "Idle")
+			if _pose_time > 0.0:
+				_pose_time -= delta
+			else:
+				play(_info.work if _chat_sitting else "Idle")
 	_task_time -= delta
 	if _task != "walk" and _task_time <= 0.0:
 		if _task == "idle" and not _retry.is_empty():
@@ -2916,6 +2935,8 @@ func serves() -> bool:
 func cancel_service() -> void:
 	_service_after_post = {}
 	if _task == "service":
+		if service_step() == "going":
+			end_service()
 		return
 	TempleMorning.finish(self)
 	if _task == "walk" and get_meta("then", "") == "service":
@@ -3012,6 +3033,17 @@ func meet() -> void:
 		_name_tag.visible = not is_asleep()
 
 
+## Whether the hero has a line of sight to this villager (checked a few times a second, not every
+## frame): a name over someone the hero cannot see would give them away.
+func _name_in_sight(delta: float) -> bool:
+	_sight_in -= delta
+	if _sight_in <= 0.0:
+		_sight_in = SIGHT_EVERY
+		_in_sight = level == null or level.player == null \
+				or level.has_line_of_sight(level.player.global_position, global_position)
+	return _in_sight
+
+
 ## Whether the villager is asleep in their house, upstairs or in a bed on the ground floor (see
 ## VillageBeds): no name over the head.
 func is_asleep() -> bool:
@@ -3048,6 +3080,9 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	# cover each other and neither could be read.
 	for other in _neighbours():
 		other.hush()
+	# Elsbeth's words (the morning speech, her spell) carry further for a hero who stands in the temple
+	# with the roof lifted off and the camera high above: the bubble is drawn larger there.
+	_bubble.zoom = TempleMorning.BUBBLE_ZOOM if role == TempleMorning.SPEAKER and level != null and level.hero_indoors else 1.0
 	_bubble.show_line(display_name, text, true)
 	Events.say(display_name, text, global_position)
 	_bubble_time = time
@@ -3130,9 +3165,10 @@ func _update_bubble(delta: float) -> void:
 	# into the event log, see Events.say). When it runs out the bubble fades.
 	if _bubble_time <= 0.0 and _bubble.is_shown():
 		_bubble.hide_line()
-	# Asleep in bed the name is gone from over the head; it is back when they get up.
+	# Asleep in bed, or out of the hero's sight (inside a house, behind a wall), the name is
+	# gone from over the head; it is back when they get up or come into view.
 	if _name_tag:
-		_name_tag.visible = is_known() and not is_asleep()
+		_name_tag.visible = is_known() and not is_asleep() and _name_in_sight(delta)
 	# The bubble takes the place of the quest mark while we talk.
 	if _name_tag and _name_tag.visible:
 		_name_tag.modulate.a = 1.0
@@ -3348,6 +3384,47 @@ func stand_for_chat(partner: Villager) -> void:
 	chat_broken = false
 
 
+## Walks to `spot` (a point on the ground) and waits there for `partner`, as for a chat: the
+## mages' practice duel stands apart (see MageDuel). Returns false when there is no way.
+func join_chat_at(partner: Villager, spot: Vector3) -> bool:
+	var cells := level.grid_path(level.world_to_cell(global_position), level.world_to_cell(spot))
+	if cells.is_empty() and level.world_to_cell(global_position) != level.world_to_cell(spot):
+		return false
+	_path.clear()
+	for c in cells.slice(1, maxi(1, cells.size() - 1)):
+		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER), 0, _rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER)))
+	_path.append(Vector3(spot.x, 0, spot.z))
+	_speed = WALK_SPEED
+	_leave_post()
+	_task = "walk"
+	set_meta("then", "chat")
+	_chat_sitting = false
+	chat_partner = partner
+	chat_broken = false
+	return true
+
+
+## Whether a walk to a chat has ended short of its place: we stand idle with the partner still set.
+func is_stopped_for_chat() -> bool:
+	return chat_partner != null and _task == "idle"
+
+
+## Stops where we are and waits for the partner (a walk that ended short of its spot, see MageDuel).
+func settle_for_chat() -> void:
+	_path.clear()
+	_start("chat", CHAT_WAIT)
+
+
+## Strikes a pose in a chat (a spell cast, a flinch) that holds for `time` seconds before they
+## stand idle again.
+func strike_pose(anim: String, time: float) -> void:
+	if not _anim.has_animation(anim):
+		return
+	_current_anim = anim
+	_anim.play(anim, 0.1)
+	_pose_time = time
+
+
 ## Standing with the partner, ready to talk.
 func in_chat_place() -> bool:
 	return chat_partner != null and _task == "chat"
@@ -3355,7 +3432,12 @@ func in_chat_place() -> bool:
 
 ## Still on the way to the partner.
 func heading_to_chat() -> bool:
-	return chat_partner != null and _task == "walk" and get_meta("then", "") == "chat"
+	if chat_partner == null:
+		return false
+	# Stopped a moment after getting stuck, then the same walk again (see _mind_progress).
+	if _task == "idle" and _retry.get("then", "") == "chat":
+		return true
+	return _task == "walk" and get_meta("then", "") == "chat"
 
 
 ## A line of a chat, said to the partner.
@@ -3369,6 +3451,7 @@ func leave_chat() -> void:
 	var waiting := _task == "chat" or heading_to_chat()
 	chat_partner = null
 	chat_broken = false
+	_pose_time = 0.0
 	bump_cool = BUMP_COOLDOWN
 	if waiting:
 		_path.clear()

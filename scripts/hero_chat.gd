@@ -83,6 +83,12 @@ func answer(who: Villager, text: String) -> void:
 		return
 	if VillageTalk._flat(who.global_position, game.player.global_position) > REPLY_RANGE * 1.5:
 		return
+	# Asked about their work, they tell it (see VillagerJobs).
+	if VillagerJobs.asks(text) and not who.is_frozen():
+		who.meet()
+		var job := VillagerJobs.answer(who.role)
+		who.say(job, game.player.global_position, VillageTalk.line_time(job))
+		return
 	var reply := reply_to(text)
 	# Frozen solid, he only mumbles whatever was said.
 	if reply == "" or who.is_frozen():
@@ -120,7 +126,7 @@ static func _has_word(low: String, words: Array) -> bool:
 			var before_ok: bool = at == 0 or not _is_letter(low[at - 1])
 			var end: int = at + w.length()
 			# A greeting may carry an ending ("grüße", "grüß dich").
-			var after_ok: bool = end >= low.length() or not _is_letter(low[end]) or w == "grüß"
+			var after_ok: bool = end >= low.length() or not _is_letter(low[end]) or w == "grüß" or w == "arbeit" or w == "beruf"
 			if before_ok and after_ok:
 				return true
 			from = at + 1

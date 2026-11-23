@@ -14,6 +14,7 @@ rarity_colours.gd | 120 | free | pass | Rarity colours (item names in the colour
 coin_metals.gd | 120 | fixed | pass | Coins look like their metal (copper, iron, polished silver, blinking gold)
 village_worries.gd | 120 | free | pass | Villagers grumble about the weather and take fright test
 drinking_songs.gd | 120 | free | pass | Fritz sings drinking songs test
+mage_duel.gd | 300 | free | pass | Aldo and Odo hold a practice duel (MageDuel): spells, banter, breaks off when spoken to or on alarm
 village_rumours.gd | 120 | free | pass | Townsfolk small talk, rumours and stories test
 grate_tentacles.gd | 300 | fixed | pass | Grate tentacles test
 reputation.gd | 120 | free | pass | Villager reputation test

@@ -189,6 +189,30 @@ func _test() -> void:
 		check(not VillagePosts.locked(village, shop), "the shop is open again once the shopkeeper is back at her counter")
 	Events.bus().speech_said.disconnect(hear)
 
+	# One who comes late, when the service is long over, is turned back or sent out at once: nobody
+	# stays in the temple (the miller once sat there for good).
+	var late: Villager
+	for v: Villager in village.villagers:
+		if v.role == "\u00fc":
+			late = v
+	if late != null:
+		for case in ["far", "inside"]:
+			village.hour = 7.9
+			village.temple_morning.phase = "idle"
+			village.temple_morning.seats = found.seats.duplicate(true)
+			var spot: Dictionary = village.temple_morning.seats[0]
+			spot["taker"] = late
+			var trip: Dictionary = village.temple_morning._trip(village, spot, false)
+			late._start("idle", 1.0)
+			if case == "inside":
+				late.global_position = (trip.in_way as Array)[0]
+				late.service_trip = trip
+				late._start("service", 10.0)
+				late.service_trip.step = "going"
+			else:
+				late.go_to_service(trip)
+			_run(village, 60.0, func(): village.hour = 7.9)
+			check(not late.serves(), "a late comer is out again (%s): step %s" % [case, late.service_step()])
 	# Not twice a day.
 	village.hour = 6.0
 	_run(village, 1.0)

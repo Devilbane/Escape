@@ -28,6 +28,8 @@ const END := 7.85
 ## watch and the drinker at the tavern. Elsbeth is the one who speaks (SPEAKER).
 const STAY_AWAY := ["3", "%", "4", "5"]
 const SPEAKER := "O"
+## How much larger her speech bubble is drawn while the hero is inside (see Villager.say).
+const BUBBLE_ZOOM := 1.6
 ## Seconds each line of the speech is up, and the pause after the last one, and how long the
 ## answers from the pews take before the village gets up.
 const LINE_TIME := 5.5
@@ -361,6 +363,16 @@ static func step(v: Villager, delta: float) -> void:
 		return
 	v.keep_task(10.0)
 	trip.clock = float(trip.clock) + delta
+	# Nobody stays on past the service: whoever comes late, or whom the gathering forgot (it is
+	# over, or its hour is), is sent out or turned back at the door.
+	var morning: TempleMorning = v.level.temple_morning
+	var over: bool = morning.phase == "idle" or morning.phase == "leave" or v.level.hour >= END
+	if over:
+		if String(trip.step) == "going":
+			v.end_service()
+			return
+		if float(trip.leave_in) < 0.0 or float(trip.leave_in) > RISE_SPREAD.y + 1.0:
+			trip.leave_in = randf_range(0.0, RISE_SPREAD.y)
 	var walk_in: WalkIn = v.level.walk_in
 	var spot: Dictionary = trip.spot
 	match String(trip.step):

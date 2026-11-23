@@ -392,6 +392,7 @@ static func triangles(node: Node3D, with_self := false) -> Array:
 		for s in mi.mesh.get_surface_count():
 			var mat := mi.mesh.surface_get_material(s)
 			var glass := mat != null and mat.resource_name.begins_with("window")
+			var flue := mat != null and mat.resource_name == "flue"
 			var arrays := mi.mesh.surface_get_arrays(s)
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
@@ -417,6 +418,8 @@ static func triangles(node: Node3D, with_self := false) -> Array:
 				var tri := {"a": a, "b": b, "c": c, "n": n, "area": area}
 				if glass:
 					tri["glass"] = true
+				if flue:
+					tri["flue"] = true
 				if uvs.size() > 0:
 					tri["uv"] = (uvs[i0] + uvs[i1] + uvs[i2]) / 3.0
 				out.append(tri)

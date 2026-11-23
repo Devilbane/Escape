@@ -6,8 +6,8 @@ class_name AgedStone
 ##
 ## Ivy and nests are found on any building's own meshes: ivy roots where a
 ## large, upright outer wall meets the ground (never beside the door) and
-## climbs that wall, and a nest sits on the highest flat ledge (a chimney or
-## a tower top). All the ivy of the village is one MultiMesh of leaves, drawn
+## climbs that wall, and a nest sits on the ridge of its roof, or on the highest flat ledge (a
+## tower top) when it has no pitched roof, never by a chimney, where it would be smoked. All the ivy of the village is one MultiMesh of leaves, drawn
 ## in one go.
 
 const SHADER := preload("res://shaders/aged_stone.gdshader")
@@ -139,6 +139,10 @@ const LEAF_COLOURS := [Color(0.34, 0.52, 0.17), Color(0.24, 0.42, 0.15), Color(0
 ## this large (square metres).
 const NEST_HEIGHT := 3.5
 const NEST_LEDGE := 0.2
+## The flattest a roof slope may be for a nest on its ridge (the y of its normal; flatter is a ledge).
+const NEST_SLOPE := 0.3
+## How far from a chimney's mouth or a fire a nest keeps (metres, across the ground).
+const NEST_SMOKE_CLEAR := 1.5
 
 static var _mats := {}
 static var _grained := {}
@@ -471,17 +475,30 @@ static func rooted(planes: Array, ground: float, old := false, foot_max := 0.0) 
 
 
 ## The highest flat ledge high up, where a nest can sit (INF if none).
-static func nest_spot(tris: Array, ground: float) -> Vector3:
-	var best := Vector3.INF
+static func nest_spot(tris: Array, ground: float, smoky: Array = []) -> Vector3:
+	# On the ridge of a pitched roof first: its highest corner where the slopes meet.
+	var ridge := Vector3.INF
+	var ledge := Vector3.INF
 	for t: Dictionary in tris:
-		if (t.n as Vector3).y < 0.85 or t.area < NEST_LEDGE:
-			continue
-		var centre: Vector3 = (t.a + t.b + t.c) / 3.0
-		if centre.y < ground + NEST_HEIGHT:
-			continue
-		if best == Vector3.INF or centre.y > best.y:
-			best = centre
-	return best
+		var n: Vector3 = t.n
+		if n.y >= NEST_SLOPE and n.y < 0.85 and t.area >= NEST_LEDGE:
+			for p: Vector3 in [t.a, t.b, t.c]:
+				if p.y >= ground + NEST_HEIGHT and (ridge == Vector3.INF or p.y > ridge.y) and not _smoked(p, smoky):
+					ridge = p
+		elif n.y >= 0.85 and t.area >= NEST_LEDGE:
+			var centre: Vector3 = (t.a + t.b + t.c) / 3.0
+			if centre.y >= ground + NEST_HEIGHT and (ledge == Vector3.INF or centre.y > ledge.y) and not _smoked(centre, smoky):
+				ledge = centre
+	return ridge if ridge != Vector3.INF else ledge
+
+
+## Whether a spot lies in the smoke of a chimney or a fire (`smoky`, world space): straight over
+## it or close beside it, where a nest would be smoked out.
+static func _smoked(p: Vector3, smoky: Array) -> bool:
+	for s: Vector3 in smoky:
+		if Vector2(p.x - s.x, p.z - s.z).length() < NEST_SMOKE_CLEAR and p.y > s.y - 2.0:
+			return true
+	return false
 
 
 ## Whether a point (on the wall's plane) lies on the wall.

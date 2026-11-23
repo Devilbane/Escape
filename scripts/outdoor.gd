@@ -434,8 +434,8 @@ var lamp_spots: Array[Dictionary] = []
 ## the walkway's edge its post stands (m).
 const LAMP_SEEK := 6
 const LAMP_EDGE_GAP := 0.9
-## Where a street lamp's light hangs over its foot (in its lantern).
-const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
+## Where a street lamp's light hangs over its foot: the middle of its lantern's glass.
+const LAMP_LIGHT_AT := VillageProps.LANTERN_AT - Vector3(0, 0.03, 0)
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
 ## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their
@@ -3221,7 +3221,13 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			grapes[i] = (grapes[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF
 		if rng.randf() < nest_chance:
-			spot = AgedStone.nest_spot(tris, ground)
+			# Never by a chimney or a fire, where the birds would be smoked.
+			var smoky: Array = []
+			if node.has_meta("chimney"):
+				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
+			for w: Vector4 in warm_spots:
+				smoky.append(Vector3(w.x, w.y, w.z) + offset)
+			spot = AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()

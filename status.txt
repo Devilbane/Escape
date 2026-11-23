@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Fix post office posters spilling onto walls | Shipped this week: Play the wake-up sequence after every sleep; Keep indoor lamps from lighting the spruces outside; Animate going to bed and waking up with a blanket (+47 more)
+Escape! dev status | Working on: Hold torches and lamps far out in front, measured on the rig; Fix post office posters spilling onto walls | Shipped this week: Play the wake-up sequence after every sleep; Keep indoor lamps from lighting the spruces outside; Animate going to bed and waking up with a blanket (+47 more)

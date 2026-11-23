@@ -20,8 +20,8 @@ const HEIGHT := 0.085
 const FRONT := PI
 ## The pressed grey. A print is lit like the snow round it, so it is always the same share darker than the
 ## snow and takes on the colour of the hour's light (pink at dusk, pale blue at night) instead of
-## standing out as a cold grey dot. The grey itself is neutral, with no blue in it.
-const GREY := Color(0.5, 0.5, 0.5, 0.92)
+## standing out as a dark dot. A soft light grey, like a shallow dent in the snow, with only a hint of cool in it.
+const GREY := Color(0.74, 0.76, 0.79, 0.8)
 
 static var _shapes := {}
 static var _textures := {}

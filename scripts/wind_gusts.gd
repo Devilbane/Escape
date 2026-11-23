@@ -57,6 +57,11 @@ const OPEN := SurfaceLife.GROUND + SurfaceLife.PATH + SurfaceLife.SQUARE
 ## The winter flurry: flakes per gust, their size (metres), how far they are blown and how high.
 ## How thick the snow must lie (0 to 1, see SnowCover.amount) before the wind lifts any.
 const SNOW_MIN := 0.25
+## The foggy snow dust that flies with the flakes: soft puffs per gust, their size (metres, they grow as
+## they go) and how faint they are at their thickest.
+const PUFFS := 36
+const PUFF_SIZE := Vector2(1.2, 2.8)
+const PUFF_ALPHA := 0.17
 const FLAKES := 80
 const FLAKE_SIZE := 0.07
 const FLAKE_TRAVEL := Vector2(18.0, 40.0)
@@ -76,6 +81,9 @@ var _rng := RandomNumberGenerator.new()
 ## The flurry of snow: its MultiMesh (made the first winter gust) and the flakes in the air.
 var _snow: MultiMeshInstance3D
 var _flakes: Array = []
+## The dust puffs: their MultiMesh (made with the first flurry) and the ones in the air.
+var _dust: MultiMeshInstance3D
+var _puffs: Array = []
 ## Gusts so far and pieces they moved (for the tests).
 var gusts := 0
 var moved := 0
@@ -125,7 +133,7 @@ func strength() -> float:
 
 
 func active() -> int:
-	return _moving.size() + _flakes.size()
+	return _moving.size() + _flakes.size() + _puffs.size()
 
 
 func _process(delta: float) -> void:
@@ -133,6 +141,7 @@ func _process(delta: float) -> void:
 	if active() > 0:
 		_move()
 		_move_flakes()
+		_move_puffs()
 	if not enabled() or life.level.player == null:
 		return
 	_timer -= delta
@@ -394,6 +403,7 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		mat.billboard_keep_scale = true
 		mat.albedo_color = Color(0.95, 0.97, 1.0, 0.9)
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_snow.material_override = mat
@@ -420,6 +430,91 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 		})
 	moved += taken
 	_snow.visible = _flakes.size() > 0
+	_dust_up(dir, s, hero)
+
+
+## The foggy dust that rides with the snow: big, faint, soft puffs that swell as they drift on and
+## fade in and out, started where snow lies like the flakes.
+func _dust_up(dir: Vector3, s: float, hero: Vector3) -> void:
+	if _dust == null:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE
+		mm.mesh = quad
+		mm.instance_count = int(PUFFS * 1.5)
+		_dust = MultiMeshInstance3D.new()
+		_dust.name = "SnowDust"
+		_dust.multimesh = mm
+		var soft := GradientTexture2D.new()
+		soft.fill = GradientTexture2D.FILL_RADIAL
+		soft.fill_from = Vector2(0.5, 0.5)
+		soft.fill_to = Vector2(1.0, 0.5)
+		soft.width = 64
+		soft.height = 64
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(1, 1, 1, 1))
+		ramp.set_color(1, Color(1, 1, 1, 0))
+		soft.gradient = ramp
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		mat.billboard_keep_scale = true
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.vertex_color_use_as_albedo = true
+		mat.albedo_texture = soft
+		mat.albedo_color = Color(0.92, 0.95, 1.0, 1.0)
+		mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		_dust.material_override = mat
+		_dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_dust.extra_cull_margin = 60.0
+		add_child(_dust)
+	var count := mini((_dust.multimesh as MultiMesh).instance_count - _puffs.size(), roundi(PUFFS * s * quality_scale()))
+	var taken := 0
+	for i in count * 3:
+		if taken >= count:
+			break
+		var at := hero + Vector3(_rng.randf_range(-FAR, FAR), 0, _rng.randf_range(-FAR, FAR)) * 0.8
+		if not snow_lies_at(at):
+			continue
+		taken += 1
+		var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.4, 0.4))
+		_puffs.append({
+			"from": at + Vector3(0, 0.3, 0),
+			"to": at + way * _rng.randf_range(FLAKE_TRAVEL.x, FLAKE_TRAVEL.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6),
+			"start": _now + clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
+			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s),
+			"lift": _rng.randf_range(0.3, 1.2),
+			"size": _rng.randf_range(PUFF_SIZE.x, PUFF_SIZE.y),
+			"fh": _noise_freqs(), "ph": _noise_phases(),
+		})
+	_dust.visible = _puffs.size() > 0
+
+
+func _move_puffs() -> void:
+	if _puffs.is_empty():
+		return
+	var mm := _dust.multimesh
+	var left: Array = []
+	for m: Dictionary in _puffs:
+		if _now - m.start < m.dur:
+			left.append(m)
+	var i := 0
+	for m: Dictionary in left:
+		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
+		var at: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t))
+		at.y += m.lift * height_share(t, erratic(t * 2.0, m.fh, m.ph))
+		var fade := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.4, 1.0 - t)
+		var size: float = m.size * (0.6 + 0.8 * t) * (1.0 if t > 0.0 else 0.0)
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * size), at))
+		mm.set_instance_color(i, Color(1, 1, 1, PUFF_ALPHA * fade))
+		i += 1
+	for k in range(i, mm.instance_count):
+		mm.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+	_puffs = left
+	if left.is_empty():
+		_dust.visible = false
 
 
 func _move_flakes() -> void:

@@ -110,8 +110,13 @@ func _run() -> void:
 	check(flakes > 0, "flakes lift once snow lies (%d)" % flakes)
 	for m: Dictionary in wind._flakes:
 		check(wind.snow_lies_at(m.from), "a flake starts where snow lies, not under a roof, on water or by a fire")
+	check(wind._puffs.size() > 0 and wind._dust.visible, "foggy dust puffs fly with the flakes (%d)" % wind._puffs.size())
+	for m: Dictionary in wind._puffs:
+		check(wind.snow_lies_at(m.from), "a dust puff starts where snow lies")
 	wind._now += 200.0
 	wind._move_flakes()
+	wind._move_puffs()
+	check(wind.active() == 0 and not wind._dust.visible, "flakes and dust are gone when the gust is over")
 	lvl.snow.set_amount(0.0)
 	lvl.set_season(Seasons.TEST_DAY)
 

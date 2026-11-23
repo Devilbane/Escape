@@ -58,6 +58,12 @@ static func hanging(yaw: float, size: float, time: float) -> Basis:
 	return Basis.from_euler(Vector3(0.07 * sin(time * 3.1), yaw, 0.05 * sin(time * 2.3 + 1.0))).scaled(Vector3.ONE * size)
 
 
+## The turn of a torch held out in front: its flame always up in the world, however the arm is
+## raised, leaning a little away from its bearer (`yaw` is the way the bearer faces).
+static func held_up(yaw: float, size: float) -> Basis:
+	return Basis.from_euler(Vector3(0.12, yaw, 0.0)).scaled(Vector3.ONE * size)
+
+
 static func _add(parent: Node3D, part: MeshInstance3D) -> void:
 	if _iron == null:
 		_iron = StandardMaterial3D.new()

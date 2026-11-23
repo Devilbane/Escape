@@ -95,10 +95,10 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µcAXQWHJUDV&@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS¢µü"
+const VILLAGERS := "0123456789KOGMYZS¢µüö"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -434,8 +434,8 @@ var lamp_spots: Array[Dictionary] = []
 ## the walkway's edge its post stands (m).
 const LAMP_SEEK := 6
 const LAMP_EDGE_GAP := 0.9
-## Where a street lamp's light hangs over its foot (in its lantern).
-const LAMP_LIGHT_AT := Vector3(0, 2.6, 1.1)
+## Where a street lamp's light hangs over its foot: the middle of its lantern's glass.
+const LAMP_LIGHT_AT := VillageProps.LANTERN_AT - Vector3(0, 0.03, 0)
 ## The bandits' campfires light up their camp at night too.
 var _fires: Array[Vector3] = []
 ## The fireplaces, candle stands and torches in the self-built houses (see HouseFurnisher): their
@@ -3226,7 +3226,13 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			grapes[i] = (grapes[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF
 		if rng.randf() < nest_chance:
-			spot = AgedStone.nest_spot(tris, ground)
+			# Never by a chimney or a fire, where the birds would be smoked.
+			var smoky: Array = []
+			if node.has_meta("chimney"):
+				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
+			for w: Vector4 in warm_spots:
+				smoky.append(Vector3(w.x, w.y, w.z) + offset)
+			spot = AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
@@ -4218,6 +4224,14 @@ func _build_chopping_log(v: Villager, cell: Vector2i) -> void:
 	var chips := Effects.make_wood_chips()
 	chips.position = Villager.BITE_POINT
 	spot.add_child(chips)
+	# The woodcutter's sign stands just past one end of his trunk
+	# (clear of his axe and of the way to the trunk), facing back toward the road behind him.
+	var board := Effects.shop_sign(Lang.t("Holzplatz"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "axe")
+	WeatheredProps.weather_plain(board)
+	board.position = Villager.LOG_CENTRE + Vector3(Villager.LOG_LENGTH * 0.5 + 0.7, -Villager.LOG_CENTRE.y, 0)
+	board.rotation.y = PI
+	spot.add_child(board)
+	_add_solid(spot.to_global(board.position), Vector3(0.5, 2.6, 0.5))
 	var centre := spot.to_global(Villager.LOG_CENTRE)
 	var size := Vector3(Villager.LOG_LENGTH, 0.5, r * 2.0)
 	if absf(face.x) > 0.5:
@@ -5383,6 +5397,7 @@ func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> voi
 			return
 		up = hit.normal
 		at = hit.position
+	SnowPrints.set_daylight(snow.daylight)
 	SnowPrints.leave(self, at, heading, size, kind, snow.daylight, up)
 
 

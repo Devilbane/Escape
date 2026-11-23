@@ -146,6 +146,9 @@ static func sconce() -> Node3D:
 	glow.omni_range = SCONCE_RANGE
 	glow.omni_attenuation = 1.6
 	glow.position = Vector3(0, 0.2, 0.55)
+	# Walls all round it: picked for its wall shadows before the lamps in the open (see
+	# LightShadows.INDOOR), or its light fell through the house's walls onto the ivy and the snow.
+	glow.set_meta(LightShadows.INDOOR, true)
 	glow.visible = false
 	root.add_child(glow)
 	return root
@@ -688,4 +691,141 @@ static func banner(colour: Color, high: float) -> Node3D:
 	_box(root, Vector3(0.9, 0.05, 0.05), Vector3(0, 0, 0.03), _wood())
 	_box(root, Vector3(0.7, high, 0.02), Vector3(0, -high * 0.5, 0.02), _plain("banner_%s" % colour.to_html(false), colour))
 	_box(root, Vector3(0.7, 0.1, 0.025), Vector3(0, -high * 0.3, 0.025), _plain("banner_band", Color(0.92, 0.82, 0.5)))
+	return root
+
+
+# --- The tavern's furniture (see VillageHalls._tavern) ------------------------------
+
+## A keg lying on a wooden cradle, bound with iron hoops, its brass tap on the front face (+z).
+## The origin is on the floor (or the counter) under its middle.
+static func keg() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Keg"
+	var along := Basis(Vector3.RIGHT, PI * 0.5)
+	_cylinder(root, 0.24, 0.56, Vector3(0, 0.34, 0), _wood(), along)
+	for z: float in [-0.19, 0.0, 0.19]:
+		_cylinder(root, 0.248, 0.04, Vector3(0, 0.34, z), _plain("iron", Color(0.22, 0.22, 0.24), 0.5), along)
+	for z: float in [-0.17, 0.17]:
+		_box(root, Vector3(0.5, 0.1, 0.05), Vector3(0, 0.05, z), _wood())
+	var brass := _plain("brass", Color(0.78, 0.6, 0.3), 0.4)
+	_cylinder(root, 0.025, 0.12, Vector3(0, 0.27, 0.34), brass, along)
+	_box(root, Vector3(0.025, 0.07, 0.025), Vector3(0, 0.33, 0.37), brass)
+	return root
+
+
+## A beer tap on the bar: a brass column with a lever on top and a spout over the drip tray.
+static func beer_tap() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BeerTap"
+	var brass := _plain("brass", Color(0.78, 0.6, 0.3), 0.4)
+	_cylinder(root, 0.03, 0.3, Vector3(0, 0.15, 0), brass)
+	_cylinder(root, 0.045, 0.04, Vector3(0, 0.02, 0), brass)
+	_box(root, Vector3(0.02, 0.09, 0.02), Vector3(0, 0.34, 0.03), _plain("tap_grip", Color(0.3, 0.2, 0.12)), Basis(Vector3.RIGHT, -0.4))
+	_box(root, Vector3(0.025, 0.025, 0.09), Vector3(0, 0.26, 0.06), brass)
+	return root
+
+
+## A drip tray with a grid, to stand under the taps.
+static func drip_tray(wide: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "DripTray"
+	_box(root, Vector3(wide, 0.025, 0.16), Vector3(0, 0.0125, 0), _plain("iron", Color(0.22, 0.22, 0.24), 0.5))
+	return root
+
+
+## A high-backed wooden chair with arms, facing +z: Fritz's seat. Its seat is SEAT_HIGH off the floor.
+static func chair() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Chair"
+	var wood := _wood()
+	_box(root, Vector3(0.5, 0.05, 0.5), Vector3(0, 0.46, 0), wood)
+	for x: float in [-0.22, 0.22]:
+		for z: float in [-0.22, 0.22]:
+			_box(root, Vector3(0.05, 0.46, 0.05), Vector3(x, 0.23, z), wood)
+		_box(root, Vector3(0.05, 0.05, 0.46), Vector3(x, 0.72, 0), wood)
+		_box(root, Vector3(0.05, 0.26, 0.05), Vector3(x, 0.59, 0.2), wood)
+	_box(root, Vector3(0.5, 0.5, 0.05), Vector3(0, 0.75, -0.24), wood)
+	return root
+
+
+## A plank bench `wide` metres long, facing +z.
+static func bench(wide: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Bench"
+	var wood := _wood()
+	_box(root, Vector3(wide, 0.05, 0.3), Vector3(0, 0.46, 0), wood)
+	for x: float in [-wide * 0.5 + 0.2, wide * 0.5 - 0.2]:
+		_box(root, Vector3(0.06, 0.44, 0.26), Vector3(x, 0.22, 0), wood)
+	return root
+
+
+## A rail on the wall (back on the wall at -z) with `count` tankards hanging side by side on pegs.
+static func mug_rail(wide: float, count: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "MugRail"
+	_box(root, Vector3(wide, 0.08, 0.03), Vector3(0, 0, 0.015), _wood())
+	for i in count:
+		var mug := mug()
+		mug.scale = Vector3.ONE * 1.1
+		mug.position = Vector3(-wide * 0.5 + (i + 0.5) * wide / count, -0.17, 0.08)
+		root.add_child(mug)
+		_box(root, Vector3(0.02, 0.02, 0.08), Vector3(mug.position.x, -0.02, 0.07), _plain("iron", Color(0.22, 0.22, 0.24), 0.5))
+	return root
+
+
+## A stub of candle in a dish for a table, its flame lit with emission and no light of its own.
+static func table_candle() -> Node3D:
+	var root := Node3D.new()
+	root.name = "TableCandle"
+	_cylinder(root, 0.05, 0.015, Vector3(0, 0.008, 0), _plain("brass", Color(0.78, 0.6, 0.3), 0.4))
+	_cylinder(root, 0.022, 0.07, Vector3(0, 0.05, 0), _plain("wax", Color(0.95, 0.92, 0.82), 0.6))
+	var flame := MeshInstance3D.new()
+	var drop := SphereMesh.new()
+	drop.radius = 0.014
+	drop.height = 0.055
+	flame.mesh = drop
+	var hot := StandardMaterial3D.new()
+	hot.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hot.albedo_color = Color(1.0, 0.78, 0.4)
+	flame.material_override = hot
+	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	flame.position = Vector3(0, 0.115, 0)
+	root.add_child(flame)
+	return root
+
+
+## A stone hearth `wide` metres across against a wall (back at -z, open to +z): a fire burning on
+## logs under a mantel, a chimney breast above it, and a warm light ("HearthGlow") that WalkIn
+## shows while the hero is inside. A fire, no electricity: the tavern's own warmth.
+static func hearth(wide: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Hearth"
+	var stone := _plain("hearth_stone", Color(0.46, 0.43, 0.4), 0.95)
+	var soot := _plain("hearth_soot", Color(0.07, 0.06, 0.06), 1.0)
+	var deep := 0.55
+	var high := 1.2
+	var mouth := wide * 0.58
+	for x: float in [-(wide + mouth) * 0.25, (wide + mouth) * 0.25]:
+		_box(root, Vector3((wide - mouth) * 0.5, high, deep), Vector3(x, high * 0.5, deep * 0.5), stone)
+	_box(root, Vector3(mouth, high - 0.75, deep), Vector3(0, 0.75 + (high - 0.75) * 0.5, deep * 0.5), stone)
+	_box(root, Vector3(mouth, 0.75, 0.04), Vector3(0, 0.375, 0.03), soot)
+	_box(root, Vector3(wide + 0.1, 0.06, deep + 0.1), Vector3(0, high + 0.03, deep * 0.5 + 0.03), _wood())
+	_box(root, Vector3(wide * 0.6, 1.4, 0.34), Vector3(0, high + 0.06 + 0.7, 0.17), stone)
+	_box(root, Vector3(wide, 0.05, deep + 0.2), Vector3(0, 0.025, deep * 0.5 + 0.1), stone)
+	var log := _plain("hearth_log", Color(0.3, 0.2, 0.12))
+	_cylinder(root, 0.07, mouth * 0.8, Vector3(0, 0.12, 0.2), log, Basis(Vector3.BACK, PI * 0.5))
+	_cylinder(root, 0.06, mouth * 0.7, Vector3(0, 0.2, 0.3), log, Basis(Vector3.BACK, PI * 0.5))
+	var flame := Effects.make_flame()
+	flame.name = "HearthFlame"
+	flame.scale = Vector3.ONE * 1.3
+	flame.position = Vector3(0, 0.3, 0.25)
+	root.add_child(flame)
+	var glow := OmniLight3D.new()
+	glow.name = "HearthGlow"
+	glow.light_color = Color(1.0, 0.62, 0.3)
+	glow.light_energy = 1.2
+	glow.omni_range = 6.0
+	glow.omni_attenuation = 1.4
+	glow.position = Vector3(0, 0.6, 0.8)
+	root.add_child(glow)
 	return root

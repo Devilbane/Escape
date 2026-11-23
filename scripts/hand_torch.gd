@@ -110,6 +110,9 @@ func _process(delta: float) -> void:
 	if not is_instance_valid(_holder):
 		_make_holder()
 	_time += delta
+	# The arm reaches the torch out in front: the flame stays up whichever way the hand turns.
+	if is_instance_valid(_holder):
+		_holder.global_basis = HandLamp.held_up(player._model.global_rotation.y, player._model.scale.x)
 	# The flame flickers, and gutters when it is nearly burnt down.
 	var low := clampf(left / LOW, 0.35, 1.0)
 	_light.light_energy = LIGHT_ENERGY * low * (0.85 + 0.15 * sin(_time * 13.0) * sin(_time * 7.3))

@@ -84,6 +84,7 @@ const GOALS := {
 	"Z": "Will jedem im Dorf einen neuen Look verpassen, sogar dem Gelehrten.",
 	"Y": "Will jede Münze des Tals in seinem Tresor sehen.",
 	"S": "Will eine Mauer um das ganze Dorf bauen.",
+	"ö": "Will das beste Bier im Tal brauen und Fritz dazu bringen, seine Zeche zu zahlen.",
 }
 
 ## Who is tied to whom. Every exchange is a list of lines, said in turn by
@@ -136,6 +137,9 @@ const TIES := [
 		["Mira, deine Zinsen sind wieder fällig.", "Schon wieder? Du verdienst an meinem Brot mehr als ich.", "So ist das nun mal mit dem Gold."],
 		["Ein guter Monat für den Laden, Mira?", "Gut genug, dass du nichts davon erfährst, Goldwin."]],
 		"after": {"dolche": [["Ich höre, deine gestohlenen Dolche sind zurück.", "Dank {hero}. Und nein, die verpfände ich dir nicht."]]}},
+	{"a": "ö", "b": "5", "kind": "freunde", "talks": [
+		["Fritz, dein Platz am Feuer ist frei.", "Ohne mich wäre dein Wirtshaus leer, Eberhard.", "Ohne dich wäre mein Fass voll."],
+		["Wann zahlst du endlich deine Zeche?", "Wenn der Mond aus Käse ist.", "Dann schreibe ich dir den Käse auch an."]]},
 	{"a": "5", "b": "Z", "kind": "freunde", "talks": [
 		["Benno, schneid mir die Haare. Umsonst, unter Freunden.", "Unter Freunden kostet es das Doppelte, Fritz.", "Dann lass ich sie wachsen."],
 		["Weißt du schon, was die Leute reden?", "Natürlich. Beim Barbier hört man alles.", "Und im Wirtshaus den Rest."]],

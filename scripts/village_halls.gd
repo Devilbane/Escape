@@ -15,7 +15,7 @@ extends RefCounted
 ## The map letters of the halls and what they are.
 const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild", "u": "mill"}
 ## Who keeps which hall (villager roles), working behind its counter or desk by day.
-const KEEPERS := {"shop": "6", "office": "¢", "guild": "G", "mill": "ü"}
+const KEEPERS := {"tavern": "ö", "shop": "6", "office": "¢", "guild": "G", "mill": "ü"}
 ## How big a hall may grow (metres, inside its block): wider and deeper than a home, and the big
 ## halls on their three-by-three blocks bigger still.
 const MAX_W := 9.4
@@ -97,28 +97,98 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 			_mill(walk_in, rec, inside)
 
 
-## Barrels along the back wall behind the bar, two tables with stools either side of the way in.
+## The tavern: kegs and barrels along the back wall to either side of the keeper's place (the
+## middle stays free for him), a rail of tankards over the bar, taps and mugs on the bar, a hearth
+## on the left wall with a rug before it, and two tables near the door with benches and a candle
+## each. Fritz's table stands by the hearth, with a high-backed chair for him (see TavernBrewer).
 static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
 	var back := room.position.y
-	_along_back(walk_in, rec, inside, func(): return WalkInFurniture.barrel(), 0.75, 0.42)
-	var table_z := room.end.y - 1.6
+	var hall: Node3D = rec.node
+	var half := room.size.x * 0.5
+	var counter_w := minf(room.size.x * 0.55, 4.2)
+	# Barrels along the back wall beyond the counter's ends, the keeper's middle left clear.
+	var z := back + 0.21 + 0.05
 	for side: float in [-1.0, 1.0]:
-		var x := side * (room.size.x * 0.5 - 1.2)
+		var x := side * (counter_w * 0.5 + 0.5)
+		var count := 0
+		while absf(x) < half - 0.4:
+			var barrel := WalkInFurniture.barrel()
+			barrel.position = Vector3(x, floor_y, z)
+			inside.add_child(barrel)
+			x += side * 0.75
+			count += 1
+		if count > 0:
+			walk_in._solid(rec, Vector3(side * (counter_w * 0.5 + 0.5 + (count - 1) * 0.375), floor_y + 0.5, z), Vector3(count * 0.75, 1.0, 0.42))
+	# A rail of tankards on the wall over the keeper's head.
+	var rail := WalkInFurniture.mug_rail(minf(counter_w, 3.0), 5)
+	rail.position = Vector3(0, floor_y + 1.75, back)
+	inside.add_child(rail)
+	# On the bar: a keg on its cradle at the end, three taps over a drip tray, and mugs.
+	var top := floor_y + COUNTER_HIGH
+	var bar_z := back + BEHIND + COUNTER_DEEP * 0.5
+	var keg := WalkInFurniture.keg()
+	keg.position = Vector3(-counter_w * 0.5 + 0.45, top, bar_z - 0.05)
+	inside.add_child(keg)
+	var tray := WalkInFurniture.drip_tray(1.0)
+	tray.position = Vector3(0.3, top, bar_z + 0.12)
+	inside.add_child(tray)
+	for x: float in [-0.1, 0.3, 0.7]:
+		var tap := WalkInFurniture.beer_tap()
+		tap.position = Vector3(x, top, bar_z - 0.02)
+		inside.add_child(tap)
+	for x: float in [-0.6, 1.25, 1.55]:
+		var mug := WalkInFurniture.mug()
+		mug.position = Vector3(x, top, bar_z + 0.08)
+		inside.add_child(mug)
+	# The hearth on the left wall, a rug before it.
+	var hearth_z := back + room.size.y * 0.5 + 0.2
+	var hearth := WalkInFurniture.hearth(1.5)
+	hearth.position = Vector3(room.position.x, floor_y, hearth_z)
+	hearth.rotation.y = PI * 0.5
+	inside.add_child(hearth)
+	walk_in._solid(rec, Vector3(room.position.x + 0.3, floor_y + 0.7, hearth_z), Vector3(0.6, 1.4, 1.6))
+	var rug := WalkInFurniture.rug(Vector2(1.6, 1.3))
+	rug.position = Vector3(room.position.x + 1.3, floor_y, hearth_z)
+	rug.rotation.y = PI * 0.5
+	inside.add_child(rug)
+	rec["glows"] = [hearth.get_node("HearthGlow")]
+	(hearth.get_node("HearthGlow") as Light3D).visible = false
+	# A notice by the door side.
+	var notice := WalkInFurniture.poster("Wirtshaus", ["Bier vom Fass", "Suppe, Brot, Käse", "Anschreiben: Fritz"])
+	notice.position = Vector3(half, floor_y + 1.85, back + room.size.y * 0.5 + 0.4)
+	notice.rotation.y = -PI * 0.5
+	inside.add_child(notice)
+	# Two tables with benches; Fritz's, on the left by the hearth, has his chair on the door side.
+	var table_z := room.end.y - 1.7
+	for side: float in [-1.0, 1.0]:
+		var x := side * (half - 1.3)
 		var table := WalkInFurniture.table(0.55)
 		table.position = Vector3(x, floor_y, table_z)
 		inside.add_child(table)
 		walk_in._solid(rec, Vector3(x, floor_y + 0.4, table_z), Vector3(1.1, 0.8, 1.1))
+		var candle := WalkInFurniture.table_candle()
+		candle.position = Vector3(x, floor_y + 0.79, table_z)
+		inside.add_child(candle)
 		for dz: float in [-0.85, 0.85]:
-			var stool := WalkInFurniture.stool()
-			stool.position = Vector3(x, floor_y, table_z + dz)
-			inside.add_child(stool)
-	# Mugs on the bar.
-	for x: float in [-0.9, -0.5, 0.7]:
-		var mug := WalkInFurniture.mug()
-		mug.position = Vector3(x, floor_y + COUNTER_HIGH, back + BEHIND + COUNTER_DEEP * 0.5)
-		inside.add_child(mug)
+			var seat: Node3D
+			if side < 0.0 and dz > 0.0:
+				seat = WalkInFurniture.chair()
+				seat.rotation.y = PI
+			else:
+				seat = WalkInFurniture.bench(1.3)
+				seat.rotation.y = 0.0 if dz < 0.0 else PI
+			seat.position = Vector3(x, floor_y, table_z + dz)
+			inside.add_child(seat)
+	# Fritz's seat: on the chair, facing the table; the brewer brings his beer and stands beside it.
+	var chair_at := Vector3(-(half - 1.3), floor_y, table_z + 0.85)
+	var mug_spot := WalkInFurniture.mug()
+	mug_spot.position = Vector3(-(half - 1.3), floor_y + 0.79, table_z + 0.25)
+	mug_spot.visible = false
+	inside.add_child(mug_spot)
+	rec["seats"] = [{"role": TavernBrewer.GUEST, "pos": hall.transform * chair_at, "rot": hall.rotation.y + PI,
+			"serve": hall.transform * Vector3(-(half - 1.3) + 1.05, floor_y, table_z + 0.45), "mug": mug_spot}]
 
 
 ## Shelves of goods along the back wall, sacks and crates by the side walls.

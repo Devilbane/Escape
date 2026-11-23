@@ -622,6 +622,8 @@ var day := 0
 var season_day := 0
 ## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
 var crop_fields: CropFields
+## Spooknortz's nights in the village (see SpookRaid).
+var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).
 var valley_events: ValleyEvents
 var _crop_cells := {}
@@ -867,6 +869,9 @@ func build() -> void:
 	valley_events = ValleyEvents.new()
 	add_child(valley_events)
 	valley_events.setup(self)
+	spook_raid = SpookRaid.new()
+	add_child(spook_raid)
+	spook_raid.setup(self)
 	# The old dragon's little helpers, who gather the loot at night.
 	if doors.has("E"):
 		add_child(DragonHelpers.new(self, doors.E))

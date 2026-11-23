@@ -38,4 +38,11 @@ const EN := {
 	"Spooknortz erzählt: „Ich war einmal ein Dörfler wie du. Jetzt klaue ich Äpfel und Kerzen, und keiner merkt, dass ich tot bin.“": "Spooknortz tells: \"I was a villager like you once. Now I steal apples and candles, and nobody notices that I am dead.\"",
 	"Spooknortz erzählt: „In der Kammer ganz im Norden hat ein Maurer einmal Münzen in die Wand gesteckt. Such nach Ziegeln, die nicht ganz passen.“": "Spooknortz tells: \"In the chamber right in the north a mason once put coins into the wall. Look for bricks that do not quite fit.\"",
 	"Spooknortz erzählt: „Das Ungeziefer in den Kammern kommt immer wieder. Lauf nur im Kreis, dann ist es zurück, wenn du das nächste Mal vorbeikommst.“": "Spooknortz tells: \"The vermin in the chambers always comes back. Just run in circles, and it is back by the time you pass again.\"",
+	"Eine Gestalt huscht durch die dunklen Gassen. Auf dem Rücken trägt sie etwas, das klirrt.": "A figure slips through the dark lanes. On its back it carries something that clinks.",
+	"Am Morgen fehlen im Dorf wieder ein paar Kerzen, Äpfel und ein Löffel. Wer wohl nachts durch die Gassen schleicht?": "In the morning a few candles, apples and a spoon are missing in the village again. Who might be sneaking through the lanes at night?",
+	"„Erwischt!“ Spooknortz lässt das Bündel fallen und rennt zum Gully zurück.": "\"Caught you!\" Spooknortz drops the bundle and runs back to the drain.",
+	"Spooknortz legt den Finger an die Lippen und huscht weiter. Noch hat er nichts gestohlen.": "Spooknortz puts a finger to his lips and slips on. He has not stolen anything yet.",
+	"Du hast das Diebesgut schon. Spooknortz huscht davon.": "You have the stolen goods already. Spooknortz slips away.",
+	"Spooknortz lässt das Bündel fallen, aber deine Tasche ist voll. Er rafft es wieder an sich und huscht davon.": "Spooknortz drops the bundle, but your bag is full. He snatches it up again and slips away.",
+	"Dagegenlaufen, um den Dieb zu stellen": "Run into him to catch the thief",
 }

@@ -20,7 +20,8 @@ extends RefCounted
 const KIND := "spooknortz"
 const WALL := "sewer_wall"
 const NICHE := "sewer_niche"
-const KINDS := [KIND, WALL, NICHE]
+const THIEF := "sewer_thief"
+const KINDS := [KIND, WALL, NICHE, THIEF]
 
 const NAME := "Spooknortz"
 ## The enemy kind his body is (a revenant: a ghoul, raised from a grave).
@@ -63,6 +64,7 @@ const TALES := [
 
 const WALL_PROMPT := "Dagegenlaufen, um die lockere Wand aufzubrechen"
 const TALK_PROMPT := "Dagegenlaufen, um mit Spooknortz zu reden"
+const THIEF_PROMPT := "Dagegenlaufen, um den Dieb zu stellen"
 const NICHE_PROMPT := "Dagegenlaufen, um die lockeren Ziegel zu lösen"
 const WALL_OPENED := "Die lockeren Ziegel kippen zur Seite. Dahinter führt ein niedriger Gang weiter, und von dort riecht es nach Kerzenwachs."
 const NICHE_OPENED := "Die Ziegel lösen sich. Dahinter liegen Münzen, so lange vergessen, dass sie grün angelaufen sind."
@@ -98,6 +100,8 @@ static func prompt(kind: String) -> String:
 			return Lang.t(TALK_PROMPT)
 		NICHE:
 			return Lang.t(NICHE_PROMPT)
+		THIEF:
+			return Lang.t(THIEF_PROMPT)
 	return ""
 
 
@@ -105,6 +109,11 @@ static func prompt(kind: String) -> String:
 
 static func slain(game: Node) -> bool:
 	return game.lore.has(SLAIN)
+
+
+## Whether he is out for blood: the hero chose to fight him.
+static func hostile() -> bool:
+	return _hostile
 
 
 static func friends(game: Node) -> bool:
@@ -178,6 +187,11 @@ static func use(game: Node, s: Dictionary) -> void:
 			Sfx.play(game, "secret", -4.0)
 			game.show_message(Lang.t(NICHE_OPENED), 4.0, GOLD)
 			game.level.coins_collected.emit(randi_range(NICHE_COINS[0], NICHE_COINS[1]), CoinPile.MONEY, 0)
+		THIEF:
+			# Caught in the village at night (see SpookRaid).
+			var raid = game.level.get("spook_raid")
+			if raid != null:
+				raid.caught(game)
 		KIND:
 			if slain(game):
 				game.show_message(Lang.t(GONE), 3.0)

@@ -1,1 +1,1 @@
-- The silver mine's ore cart is now a proper wooden mine cart, and the glaring light beams in the tunnels are gone.
+- The silver mine's ore cart is now a proper wooden mine cart, its crates and barrels look old and worn, and the glaring light beams in the tunnels are gone.

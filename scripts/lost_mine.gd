@@ -471,7 +471,7 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 	# Barrels, crates and tools by the door, out of the way in.
 	for spot: Array in [[Vector3(1.75, 0, -0.75), "barrel_small", 0.0], [Vector3(2.3, 0, -1.5), "barrel_small", 1.2]]:
 		var at: Vector3 = face + spot[0]
-		level._place(spot[1], at, spot[2], parent)
+		_age_prop(level._place(spot[1], at, spot[2], parent))
 		level._add_solid(at, Vector3(0.8, 1.0, 0.8))
 	# Two old crates of grey boards, one on the other, the top one askew.
 	var crate_at := face + Vector3(1.7, 0, -2.6)
@@ -1344,8 +1344,23 @@ static func _chest(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i
 
 
 ## A dungeon kit piece (see Level._place) with a solid box round its foot.
+## Gives a clean kit prop (a crate, a barrel) the worn grain, grime and rust of the props
+## outside, so it does not shine among the old mine's things. A model with a palette keeps its
+## colours, one with plain colours takes them darkened and aged.
+static func _age_prop(node: Node) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var source := mi.get_active_material(0) as StandardMaterial3D
+		if source == null or source.emission_enabled:
+			continue
+		if source.albedo_texture:
+			mi.material_override = WeatheredProps.palette_material(source.albedo_texture, WeatheredProps.IRON)
+		else:
+			mi.material_override = WeatheredProps.colour_material(source.albedo_color.darkened(0.3), WeatheredProps.WOOD)
+
+
 static func _piece(level: Level, parent: Node3D, body: StaticBody3D, piece: String, at: Vector3, turn: float, foot: Vector2, high := 1.2) -> Node3D:
 	var node := level._place(piece, at, turn, parent)
+	_age_prop(node)
 	if foot != Vector2.ZERO:
 		_solid(body, at + Vector3(0, high * 0.5, 0), Vector3(foot.x, high, foot.y))
 	return node

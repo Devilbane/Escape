@@ -189,6 +189,11 @@ func set_amount(value: float, daylight_in := 1.0, moon := 0.0) -> void:
 
 
 ## Whether there is any snow on the world.
+## Down in a cellar the surface's snow stays off whatever is left in view (see CellarView).
+func set_underground(on: bool) -> void:
+	material.set_shader_parameter("underground", on)
+
+
 func lies() -> bool:
 	return _covered
 

@@ -51,24 +51,27 @@ func _run() -> void:
 	var started_count := wind.gust(1.0)
 	check(started_count > 0, "a gust sets some pieces flying (%d)" % started_count)
 	check(started_count <= WindGusts.MAX_PIECES, "a gust moves no more than the cap")
-	var origins := {}
+	# (Pairs, not a dictionary keyed by the entry: the entry's own contents change when it lands.)
+	var origins: Array = []
 	for m: Dictionary in wind._moving:
-		origins[m.entry] = (m.entry[2] as Vector3)
-	wind._clock = 100.0
+		origins.append([m.entry, (m.entry[2] as Vector3)])
+	wind._now += 100.0
 	wind._move()
 	check(wind.active() == 0, "the gust is over and every piece has landed")
 	var shifted := 0
-	for e in origins:
-		var o: Vector3 = origins[e]
-		var now: Vector3 = e[2]
+	for pair: Array in origins:
+		var o: Vector3 = pair[1]
+		var now: Vector3 = pair[0][2]
 		if Vector2(o.x - now.x, o.z - now.z).length() > 0.3:
 			shifted += 1
+		if pair[0][4] == "leaf" or pair[0][4] == "straw":
+			check(Vector2(o.x - now.x, o.z - now.z).length() >= WindGusts.MIN_CROSS * 0.99, "a leaf is carried at least a third of the screen")
 		var ch := lvl.cell_char(lvl.world_to_cell(now))
 		check(WindGusts.OPEN.contains(ch), "a piece landed on open ground, not '%s'" % ch)
 	check(shifted > 0, "pieces lie somewhere else after the gust (%d of %d)" % [shifted, origins.size()])
 	check(life.litter_total == before, "no litter was added or lost")
 	check(wind.gust(0.4) >= 0, "a weak gust works too")
-	wind._clock = 100.0
+	wind._now += 100.0
 	wind._move()
 
 	# Feather-like: a leaf's height is zero at both ends, rises early and sinks slowly.
@@ -88,11 +91,34 @@ func _run() -> void:
 		wind.gust(1.0)
 		lo = minf(lo, wind.force)
 		hi = maxf(hi, wind.force)
-		wind._clock = 100.0
+		wind._now += 100.0
 		wind._move()
 		wind._move_flakes()
 	check(hi - lo > 0.5 and lo >= WindGusts.FORCE.x and hi <= WindGusts.FORCE.y, "gusts differ in force (%.2f to %.2f)" % [lo, hi])
 	check(WindGusts._pace(0.3) < WindGusts._pace(1.6), "a strong gust carries its pieces faster than a light one")
+
+	# Snow: flakes lift only where snow really lies.
+	var winter_day := SkyCommand.day_for(Seasons.TEST_DAY, true)
+	lvl.set_season(winter_day)
+	lvl.snow.set_amount(0.0)
+	wind._now += 200.0
+	wind._move()
+	wind._move_flakes()
+	check(wind.gust(1.0) == 0, "no flakes lift while no snow lies")
+	lvl.snow.set_amount(1.0)
+	var flakes := wind.gust(1.0)
+	check(flakes > 0, "flakes lift once snow lies (%d)" % flakes)
+	for m: Dictionary in wind._flakes:
+		check(wind.snow_lies_at(m.from), "a flake starts where snow lies, not under a roof, on water or by a fire")
+	check(wind._puffs.size() > 0 and wind._dust.visible, "foggy dust puffs fly with the flakes (%d)" % wind._puffs.size())
+	for m: Dictionary in wind._puffs:
+		check(wind.snow_lies_at(m.from), "a dust puff starts where snow lies")
+	wind._now += 200.0
+	wind._move_flakes()
+	wind._move_puffs()
+	check(wind.active() == 0 and not wind._dust.visible, "flakes and dust are gone when the gust is over")
+	lvl.snow.set_amount(0.0)
+	lvl.set_season(Seasons.TEST_DAY)
 
 	var storm := FlagWind.wind_for(Weather.STORM).x
 	var fog := FlagWind.wind_for(Weather.FOG).x

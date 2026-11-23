@@ -297,7 +297,7 @@ func open_house(house: Node3D) -> void:
 	if rec.is_empty():
 		return
 	# A villagers' house has a floor above one climbs to; Gorm's cottage (see SmithCottage) does not.
-	var upper: bool = rec.kind == "house" and not rec.has("owner")
+	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern"
 	var hatch := hatch_of(house.get_meta("shape")) if upper else Rect2()
 	var meshes := VillageHouse.hollow(house, rec.has("sided"), hatch)
 	if upper:
@@ -354,6 +354,8 @@ func open_house(house: Node3D) -> void:
 		_furnish_house(rec, w, d, door_x)
 	else:
 		VillageHalls.furnish(self, rec)
+		if rec.kind == "tavern":
+			_loft(rec, w, d, hatch)
 	_lamp(rec)
 	_sconces(rec)
 	# Only a building one cannot walk into throws the light of its lit panes on the ground (see
@@ -487,10 +489,18 @@ static func ladder_side(door_x: float) -> float:
 	return -1.0 if door_x >= 0.0 else 1.0
 
 
+## The ladder's side of a built house: a hall may choose it (shape "ladder_side", see
+## VillageHalls.style), a house puts it away from the door.
+static func ladder_side_of(shape: Dictionary) -> float:
+	if shape.has("ladder_side"):
+		return float(shape.ladder_side)
+	return ladder_side(float(shape.door_x))
+
+
 ## The hatch in the floor above a villagers' house (see VillageHouse.hollow), in the house's frame
 ## (x, z): between the climb's edge and the side wall away from the door, near the front.
 static func hatch_of(shape: Dictionary) -> Rect2:
-	var side := ladder_side(float(shape.door_x))
+	var side := ladder_side_of(shape)
 	var r := float(shape.w) * 0.5 - VillageHouse.WALL_THICK
 	var z := float(shape.d) * 0.5 - VillageHouse.WALL_THICK - LADDER_FROM_FRONT
 	var near := r - LADDER_EDGE_IN
@@ -518,21 +528,13 @@ func _upper_solids(rec: Dictionary, uw: float, ud: float, hatch: Rect2) -> void:
 		_solid(rec, Vector3(s * (uw * 0.5 + (out - t) * 0.5), mid, 0), Vector3(t + out, high, ud + out * 2.0))
 
 
-## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
-## barrels and a crate in the back corner on the door's side, and by the side wall away from the
-## door an upright ladder up through the hatch (see hatch_of) to the room on the floor above (see
-## VillageHouse.hollow), where the villagers sleep (see VillageBeds): MAX_BEDS beds along its back
-## wall, each kept as a place one lies in (`pos`, `rot`, `stand`, see Level.lie_spot). The climb is
-## kept as `ladder` (where one stands at its foot), `ladder_edge` (on the hatch's edge, on the
-## floor), `ladder_push` (the flat way from the foot to the top), `ladder_tall` and `ladder_top`
-## (where one steps off upstairs), all world, and the hero climbs it too (Player.LADDER_GROUP).
-func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
+## The ladder up through the hatch, by the side wall `side` is on, with the places the climb is
+## kept as (see _furnish_house).
+func _put_ladder(rec: Dictionary, side: float, hatch: Rect2) -> void:
 	var house: Node3D = rec.node
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
-	var side := ladder_side(door_x)
 	var turn := house.transform.basis.orthonormalized()
-	var hatch := hatch_of(house.get_meta("shape"))
 	# The ladder: its climb goes from the side wall into the room.
 	var edge := Vector3(side * (room.end.x - LADDER_EDGE_IN), floor_y, hatch.get_center().y)
 	var tall := float(rec.top) + VillageHouse.FLOOR_LIFT - floor_y
@@ -554,6 +556,33 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 	spot.set_meta("edge", rec.ladder_edge)
 	spot.set_meta("foot", rec.ladder)
 	spot.set_meta("top", rec.ladder_top)
+
+
+## The tavern's loft: the brewer's ladder up to a room with his bed (see VillageBeds), the ladder
+## on the side of the wall away from the door's tables (see VillageHalls.style); he is the only
+## one who sleeps here.
+func _loft(rec: Dictionary, w: float, d: float, hatch: Rect2) -> void:
+	var side := ladder_side_of(shape_of(rec))
+	_put_ladder(rec, side, hatch)
+	_furnish_upstairs(rec, w, d, side, hatch, 1)
+	rec["owner"] = VillageHalls.KEEPERS.tavern
+
+
+## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
+## barrels and a crate in the back corner on the door's side, and by the side wall away from the
+## door an upright ladder up through the hatch (see hatch_of) to the room on the floor above (see
+## VillageHouse.hollow), where the villagers sleep (see VillageBeds): MAX_BEDS beds along its back
+## wall, each kept as a place one lies in (`pos`, `rot`, `stand`, see Level.lie_spot). The climb is
+## kept as `ladder` (where one stands at its foot), `ladder_edge` (on the hatch's edge, on the
+## floor), `ladder_push` (the flat way from the foot to the top), `ladder_tall` and `ladder_top`
+## (where one steps off upstairs), all world, and the hero climbs it too (Player.LADDER_GROUP).
+func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
+	var house: Node3D = rec.node
+	var room: Rect2 = rec.room
+	var floor_y: float = rec.floor
+	var side := ladder_side(door_x)
+	var hatch := hatch_of(house.get_meta("shape"))
+	_put_ladder(rec, side, hatch)
 	# The table in the middle, a little back from the way to the ladder, stools behind and beside it.
 	var table_at := Vector3(-side * 0.3, floor_y, room.get_center().y - 0.3)
 	var table := WalkInFurniture.table(0.55)
@@ -595,7 +624,7 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 ## The room on the floor above: MAX_BEDS beds along the back wall, heads to it, from the side wall
 ## away from the hatch; a bed that would reach the floor kept clear round the hatch is left out
 ## (one bed always stays). They show only while the hero is up there (see _show_inside).
-func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2) -> void:
+func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2, beds := MAX_BEDS) -> void:
 	var house: Node3D = rec.node
 	var t := VillageHouse.WALL_THICK
 	var upper := Rect2(-w * 0.5 - VillageHouse.JETTY + t, -d * 0.5 - VillageHouse.JETTY + t,
@@ -612,7 +641,7 @@ func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: 
 	var clear_x1 := upper.end.x if side > 0.0 else inner_edge + HATCH_CLEAR.x
 	var clear := Rect2(clear_x0, hatch.position.y - HATCH_CLEAR.y, clear_x1 - clear_x0, upper.end.y - hatch.position.y + HATCH_CLEAR.y)
 	var origin_z := upper.position.y + 0.02 - CosyBed.HEAD
-	for i in MAX_BEDS:
+	for i in beds:
 		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP))
 		var foot_z := origin_z + CosyBed.FOOT + 0.55
 		var takes := Rect2(mid - BED_WIDE * 0.5, upper.position.y, BED_WIDE, origin_z + CosyBed.FOOT - upper.position.y)

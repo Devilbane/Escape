@@ -326,6 +326,8 @@ var _torch_time := 0.0
 ## holds it out in front, only rocking gently with the steps (see CarryArm).
 var _lamp := false
 var _carry_arm: CarryArm
+## The arms of a sleeper with the head in the hands (see SleepArms and slump).
+var _sleep_arms: SleepArms
 ## Where the woodcutter (or the smith) stands to work and which way he faces
 ## then (INF: neither, or nothing to strike), the chips (or sparks) that fly
 ## at each blow, and the blow under way: whether the blade or hammer has
@@ -2649,6 +2651,19 @@ func _holds_pose() -> bool:
 	return _task == "post" and (post_trip.get("seated", false) or not String(post_trip.get("serve", "")).is_empty())
 
 
+## Leans the seated body forward (`lean` radians about the hips) and sinks and moves it
+## forward by `down` and `forward` metres: Fritz asleep with his head in his hands. All 0 sits
+## upright again.
+func slump(lean: float, down: float, forward: float) -> void:
+	_model.rotation.x = lean
+	_model.position.y = -down
+	_model.position.z = forward
+	if _sleep_arms == null and lean > 0.0:
+		_sleep_arms = SleepArms.attach(_bones(), _anim)
+	if _sleep_arms != null:
+		_sleep_arms.active = lean > 0.0
+
+
 ## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
 func hold_mug(on: bool) -> void:
 	var mug := _model.find_child("Mug", true, false) as Node3D
@@ -2831,6 +2846,9 @@ func _hide_inside(inside: bool, at_the_door := false) -> void:
 	if not inside:
 		# Called out of a house one walks into in a hurry: straight out of the door.
 		VillageBeds.leave_at_once(self)
+	elif _task == "home" and night and role == TavernBrewer.GUEST and TavernBrewer.doze(self):
+		# Fritz sleeps at his table in the tavern, not in a bed (see TavernBrewer).
+		return
 	elif _task == "home" and night and VillageBeds.enter(self, _settling or not at_the_door):
 		# In through the door of a house one walks into, and on to bed (see VillageBeds).
 		at_home = true

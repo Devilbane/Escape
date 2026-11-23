@@ -81,6 +81,22 @@ const ROLES := {
 	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [], "sex": "female",
 		"colors": [Color(0.9, 0.75, 0.45), Color(0.55, 0.45, 0.3), Color(0.85, 0.55, 0.3)], "plan": "work", "work": "PickUp",
 		"lines": ["Die Kürbisse sind dieses Jahr riesig!", "Das Korn muss rein, bevor der Frost kommt.", "Hast du Hunger? Im Wirtshaus gibt es Suppe."]},
+	# The people of the farming valley (see ValleyFolk): day plan "farm", a job after job by the season.
+	"φ": {"name": "Bauer Hannes", "model": "Barbarian", "show": ["Barbarian_Hat"],
+		"colors": [Color(0.62, 0.5, 0.34), Color(0.38, 0.32, 0.26), Color(0.78, 0.66, 0.38)], "plan": "farm", "work": "PickUp",
+		"lines": ["Willkommen im Tal! Hier wächst alles, was das Dorf zum Leben braucht.", "Weizen, Mais und Sonnenblumen: Mehr braucht ein Bauer nicht.", "Seit dem Marktplatz im Dorf gibt es endlich Käufer für meine Ernte. Bald ist Markttag!", "Pass auf die Krähen auf, die sind schlauer, als sie aussehen."]},
+	"ψ": {"name": "Bäuerin Gerda", "model": "Rogue", "show": [], "sex": "female", "hair": {"style": "natural", "color": "ginger"},
+		"colors": [Color(0.78, 0.45, 0.4), Color(0.45, 0.36, 0.3), Color(0.92, 0.88, 0.8)], "plan": "farm", "work": "PickUp",
+		"lines": ["Hannes sagt, ich arbeite zu viel. Er sagt es von der Bank aus.", "Frisch vom Feld schmeckt alles besser. Frag nicht, woher ich das weiß.", "Lotte ist mein Sonnenschein. Sie läuft nur ständig davon.", "Im Winter gibt es Rüben, im Frühling Rüben, und dazwischen auch Rüben."]},
+	"χ": {"name": "Knecht Veit", "model": "Barbarian", "show": [],
+		"colors": [Color(0.45, 0.55, 0.62), Color(0.4, 0.34, 0.28), Color(1, 1, 1)], "plan": "farm", "work": "Interact",
+		"lines": ["Säcke tragen, Wasser holen, Zäune flicken: Ich kann alles. Nur Leitern mag ich nicht.", "Der Fluss führt gutes Wasser, aber nass ist er auch.", "Hannes ist ein guter Herr. Er schreit nur manchmal."]},
+	"ω": {"name": "Lotte", "model": "Rogue", "show": [], "scale": 0.7, "hair": {"style": "short", "color": "blond", "tails": true, "smile": true}, "skin": SKIN_ROSY,
+		"colors": [Color(0.95, 0.7, 0.4), Color(0.5, 0.4, 0.32), Color(1, 1, 1)], "plan": "wander", "work": "Cheer",
+		"lines": ["Ich helfe Mama beim Ernten! Meistens esse ich nur die Beeren.", "Die Vogelscheuche hat mir zugezwinkert. Wirklich!", "Hast du die Brücke gesehen? Darunter wohnt ein Troll. Sagt Veit."]},
+	"λ": {"name": "Hirte Moritz", "model": "Rogue", "show": ["Rogue_Cape"],
+		"colors": [Color(0.5, 0.58, 0.4), Color(0.4, 0.36, 0.3), Color(0.62, 0.5, 0.34)], "plan": "farm", "work": "Idle",
+		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
 		"colors": [Color(0.75, 0.35, 0.3), Color(0.35, 0.4, 0.3), Color(0.6, 0.45, 0.3)], "plan": "work", "work": "2H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Holla! Du kommst vom Friedhof? Da geht doch keiner hin.", "Folge dem Weg, dann kommst du ins Dorf.", "Ein Baum am Tag, so hält man den Wald gesund.", "Am Waldteich westlich vom Dorf schnüren oft Füchse durchs Gras."]},
@@ -378,6 +394,8 @@ var _seed_spot := Vector3.INF
 var _skeleton: Skeleton3D
 ## The game of tag, cartwheels and somersaults this child plays (see KidPlay), once begun.
 var _kid: KidPlay
+## The job a farmer of the valley is at (see ValleyFolk.pick): {id, say, spot, face, anim}.
+var _job := {}
 var _head_top := -1.0
 
 
@@ -1892,6 +1910,8 @@ func _next_task() -> void:
 				_walk_to(VillageFarm.herd_spot(level, role, _rng.randf()), WALK_SPEED * 1.4, "work")
 			else:
 				_walk_to(_nearby(5), RUN_SPEED, "idle")
+		"farm":
+			_farm_day()
 		"carry":
 			# Between the well and the houses, with a stop at each.
 			var at_well := level.world_to_cell(global_position) == home
@@ -1902,6 +1922,20 @@ func _next_task() -> void:
 				_walk_to(houses[_rng.randi() % houses.size()] if not houses.is_empty() else _nearby(6), WALK_SPEED, "idle")
 			else:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+
+
+## The farming valley's day plan (see ValleyFolk): the next job of the season, walked to and worked at.
+func _farm_day() -> void:
+	var job := ValleyFolk.pick(self, String(_job.get("id", "")))
+	if job.is_empty():
+		_job = {}
+		_start("work", _rng.randf_range(6.0, 10.0))
+		return
+	_job = job
+	if _rng.randf() < ValleyFolk.SAY_CHANCE and level.player != null \
+			and level.player.global_position.distance_to(global_position) < ValleyFolk.SAY_RANGE:
+		Effects.head_text(level, self, 2.6 * float(_info.get("scale", 1.0)), Lang.t(job.say), Color(0.96, 0.9, 0.7))
+	_walk_to(job.spot, WALK_SPEED, "work")
 
 
 ## Now and then, with nothing to do, off to sit on a free bench by the fountain
@@ -2406,7 +2440,9 @@ func _do(task: String, delta: float) -> void:
 	if task == "sit":
 		play(_info.work)
 		return
-	var work: String = _info.work
+	var work: String = _job.get("anim", _info.work)
+	if _job.has("face") and task == "work":
+		_turn_to((_job.face as Vector3) - global_position, delta)
 	if _anim.get_animation(work).loop_mode != Animation.LOOP_NONE:
 		play(work)
 		return

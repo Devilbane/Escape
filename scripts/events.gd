@@ -54,6 +54,8 @@ signal quest_item_given()
 signal reputation_rose(role: String, new_level: int)
 ## The hero bought something from the villager with this role letter.
 signal traded(role: String)
+## Someone paid the hero a few copper for a small favour (see ValleyEvents): the amount and what to say.
+signal gift_paid(copper: int, text: String)
 ## New landmarks came into view and went onto the map (see Journal).
 signal map_grew(names: Array)
 ## The hero has seen the whole of a map, the level file named (see

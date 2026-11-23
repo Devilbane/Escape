@@ -256,7 +256,7 @@ static func height_share(t: float, n: float) -> float:
 	# Lifted gently over the first third, let down just as gently over the last 40 percent.
 	var rise := smoothstep(0.0, 0.35, t)
 	var settle := smoothstep(0.0, 0.4, 1.0 - t)
-	return rise * settle * (1.0 - 0.25 * t) * clampf(0.55 + 0.5 * n, 0.05, 1.2)
+	return rise * settle * (1.0 - 0.25 * t) * clampf(0.85 + 0.2 * n, 0.6, 1.0)
 
 
 func _move() -> void:
@@ -286,13 +286,13 @@ func _move() -> void:
 		var side_axis := Vector3.UP.cross(along).normalized()
 		# Pushed this way and that on the way, but always on along the wind.
 		var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
-		var sway := side_axis * erratic(t, m.fl, m.pl) * 1.8 * calm
+		var sway := side_axis * erratic(t, m.fl, m.pl) * 2.4 * calm
 		var surge := erratic(t, m.fl.zxy, m.pl.yzx) * 0.04 * calm
 		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
-		# the leaf flips edge-on and back, it bobs about 1.4 times a second, and it surges a little.
+		# the leaf flips edge-on and back, it bobs very slightly, and it surges a little.
 		var secs: float = t * m.dur
 		var flip: float = sin(secs * TAU * m.flip_hz + m.flip_ph)
-		var bob: float = sin(secs * TAU * 1.4 + m.bob_ph) * 0.15 * calm
+		var bob: float = sin(secs * TAU * 1.4 + m.bob_ph) * 0.025 * calm
 		var basis := flat.basis
 		if m.light:
 			# Its own wild turning on all axes, never the same as its neighbour's.

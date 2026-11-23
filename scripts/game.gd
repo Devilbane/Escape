@@ -597,6 +597,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if is_instance_valid(_parked):
+		_parked.free()
 	for link in _bus_links():
 		var heard: Signal = link[0]
 		if heard.is_connected(link[1]):
@@ -3325,10 +3327,154 @@ func _on_lightning(at: Vector3) -> void:
 
 # --- Flow -------------------------------------------------------------------
 
+## The open-air map, set aside while the hero is in a building they walked into by a door
+## (see go_inside), so stepping out again puts it back instead of building the whole village,
+## forest and mountains anew (that took many seconds). Null when nothing is set aside.
+var _parked: Outdoor = null
+var _parked_index := -1
+## The day it was set aside on: a night slept indoors grows the mined rocks back on the way out.
+var _parked_day := 0
+## What the map was built from when it was set aside (see _outdoor_fingerprint).
+var _parked_print := 0
+## Set by go_inside for the next load_level: the open air it leaves is set aside, not freed.
+var _park_next := false
+## Set by _leave_building for the next load_level: the open air set aside may come back.
+var _resume_next := false
+
+
+## What the open-air map is built from that a stay indoors could change. When any of it
+## changed, the map set aside is stale and is built anew on the way out.
+func _outdoor_fingerprint(file: String) -> int:
+	return var_to_str([
+		hero_name, escaped, looted.get(file, {}), builds.get(file, []), floors.get(file, []),
+		interiors, treasure_maps.state, home_given, home_claimed, met.keys(), secrets_found,
+		companions, following, has_fox, home_upgrades.keys(), quests.for_save(), Plots.all(),
+	]).hash()
+
+
+## Takes the open air out of the scene tree and keeps it (see _parked).
+func _park_outdoor() -> void:
+	_drop_parked()
+	_parked = level as Outdoor
+	_parked_index = level_index
+	_parked_day = day
+	# The house builder's tools are made new for the map on the way out (see load_level).
+	for tool in [plot_marker, house_sketcher, house_furnisher]:
+		if is_instance_valid(tool):
+			tool.queue_free()
+	_parked.set_meta(Level.PARKED, true)
+	remove_child(_parked)
+	_parked_print = _outdoor_fingerprint(level_files[_parked_index].get_file())
+
+
+## Forgets the open air set aside, if any.
+func _drop_parked() -> void:
+	if is_instance_valid(_parked):
+		_parked.queue_free()
+	_parked = null
+	_parked_index = -1
+
+
+## Puts the open air set aside back as the level, when it is the one asked for and nothing it
+## was built from changed meanwhile. False (and the map set aside is dropped) otherwise.
+func _resume_parked(index: int) -> bool:
+	if not is_instance_valid(_parked) or index != _parked_index \
+			or _outdoor_fingerprint(level_files[index].get_file()) != _parked_print:
+		_drop_parked()
+		return false
+	level = _parked
+	_parked = null
+	_parked_index = -1
+	level.remove_meta(Level.PARKED)
+	add_child(level)
+	return true
+
+
+## The house builder's tools of the open air: marking a plot, sketching and furnishing a house.
+func _make_build_tools() -> void:
+	plot_marker = null
+	house_sketcher = null
+	house_furnisher = null
+	if level is Outdoor:
+		plot_marker = PlotMarker.new()
+		plot_marker.game = self
+		level.add_child(plot_marker)
+		house_sketcher = HouseSketcher.new()
+		house_sketcher.game = self
+		level.add_child(house_sketcher)
+		house_furnisher = HouseFurnisher.new()
+		house_furnisher.game = self
+		level.add_child(house_furnisher)
+		plot_marker.refresh()
+
+
+## The rest of load_level for the open air set aside (see _resume_parked): only what every
+## arrival sets. The map, what lies on it and its signals are as the hero left them, and its
+## shaders are built already, so there is no warm-up frame (see LevelWarmup).
+func _load_parked(index: int) -> void:
+	level_index = index
+	tutorial.restart()
+	writing_card.hide_now()
+	var file := level_files[index].get_file()
+	level.taken = looted[file]
+	level.built = builds[file]
+	level.floor_items = floors[file]
+	level.night = DayNight.is_night(day_hour)
+	level.world_hours = world_hours
+	level.secret_bonus = secrets_found
+	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
+	_make_build_tools()
+	level.player = player
+	player.level = level
+	player.frozen = false
+	player.controllable = true
+	player.revive(level.cell_to_world(level.start_cell), false)
+	player.face(Vector3.BACK)
+	# Its slimes are still out there (see _keep_slimes).
+	wild_slimes = []
+	_slimes_fresh = false
+	if day != _parked_day:
+		# A night went by indoors: what was mined or felled grows back (see _new_day).
+		Mines.refresh_crystals(level, day, true)
+		QuarryRocks.refresh(level, day, true)
+		WoodLogs.refresh(level, day, true)
+	_spawn_pet()
+	apply_companion_perk()
+	_refresh_seals()
+	if horrors:
+		horrors.watch(level)
+	level.owned_companions = companions.map(func(c): return c.kind)
+	_pending_crate = null
+	_end_drag()
+	_set_atmosphere(true)
+	Graphics.lamp_match = Graphics.LAMP_MATCH
+	level.day = day
+	level.season_day = season_day()
+	level.set_hour(day_hour)
+	level.set_weather(weather)
+	_pending_search = {}
+	_pending_station = {}
+	_snap_camera()
+	_update_hud()
+	light_shadows.refresh(true)
+
+
 func load_level(index: int, restock := true) -> void:
+	var park := _park_next
+	var resume := _resume_next
+	_park_next = false
+	_resume_next = false
 	if level:
 		_keep_slimes()
-		level.queue_free()
+		if park and level is Outdoor and not Level.is_outdoor_file(level_files[index]):
+			_park_outdoor()
+		else:
+			level.queue_free()
+	if Level.is_outdoor_file(level_files[index]):
+		if resume and _resume_parked(index):
+			_load_parked(index)
+			return
+		_drop_parked()
 	level_index = index
 	tutorial.restart()
 	writing_card.hide_now()
@@ -3367,20 +3513,7 @@ func load_level(index: int, restock := true) -> void:
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
-	plot_marker = null
-	house_sketcher = null
-	house_furnisher = null
-	if level is Outdoor:
-		plot_marker = PlotMarker.new()
-		plot_marker.game = self
-		level.add_child(plot_marker)
-		house_sketcher = HouseSketcher.new()
-		house_sketcher.game = self
-		level.add_child(house_sketcher)
-		house_furnisher = HouseFurnisher.new()
-		house_furnisher.game = self
-		level.add_child(house_furnisher)
-		plot_marker.refresh()
+	_make_build_tools()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
 	level.player = player
@@ -3717,6 +3850,7 @@ func begin_new_game() -> void:
 	if not _name_box.visible:
 		return
 	hero_name = _name_edit.text.strip_edges()
+	_drop_parked()
 	if hero_name == "":
 		hero_name = Lang.t("Namenlos")
 	save_slot = _new_slot
@@ -4145,6 +4279,7 @@ func _read_save(path := "") -> Dictionary:
 
 
 func _apply_save(data: Dictionary) -> void:
+	_drop_parked()
 	hero_name = data.get("name", Lang.t("Namenlos"))
 	coins = int(data.coins)
 	# A game saved before copper became the money held ancient gold coins:
@@ -7426,6 +7561,7 @@ func go_inside(building: String, house := 0, leaf: HouseDoor = null) -> void:
 		tween.tween_interval(HouseDoor.OPEN_TIME)
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.5)
 	tween.tween_callback(func():
+		_park_next = true
 		load_level(interiors[building], false)
 		player.frozen = false
 		state = State.PLAYING
@@ -7633,6 +7769,7 @@ func _leave_building(all_the_way := false, door := "") -> void:
 	if inside_house > 0:
 		building += str(inside_house)
 	inside_house = 0
+	_resume_next = true
 	load_level(_outdoor_index(), false)
 	if door != "" and level is Outdoor and level.doors.has(door):
 		player.global_position = level.doors[door]

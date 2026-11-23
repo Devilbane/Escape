@@ -176,6 +176,13 @@ func setup(owner_level: Outdoor, animal_kind: String, cell: Vector2i, look := ""
 	_rng.seed = hash(kind) + cell.x * 131 + cell.y * 7 + hash(look)
 
 
+## Known again whenever it is in the tree: the open air set aside while the hero is indoors
+## takes it out and puts it back (see Game._park_outdoor).
+func _enter_tree() -> void:
+	if not _all.has(self):
+		_all.append(self)
+
+
 func _exit_tree() -> void:
 	_all.erase(self)
 
@@ -187,7 +194,6 @@ func footprint_moved() -> void:
 
 func _ready() -> void:
 	add_to_group(Footprint.GROUP)
-	_all.append(self)
 	SmoothMotion.follow_ticks(self)
 	OffscreenAnim.watch(self, maxf(1.0, float(_stats.scale)))
 	_rig = Node3D.new()

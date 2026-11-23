@@ -61,6 +61,7 @@ smith_stock.gd | 120 | fixed | passfail | Forge shows needed and missing materia
 purse.gd | 120 | fixed | pass | Purse test (coins and gems take no bag or pouch slot)
 quarry_door.gd | 120 | fixed | pass | The house beside the stonemason's quarry can be reached on foot
 player_houses.gd | 120 | fixed | pass | Town houses for many heroes test
+house_exit_quick.gd | 180 | fixed | pass | Stepping out of a building is quick (the open air waits, set aside, and comes back as it was)
 crafting.gd | 120 | free | pass | Recipes and ingredient pouch test
 workbench_crafting.gd | 120 | free | pass | Workbench crafting test
 hero_level.gd | 300 | fixed | pass | Hero level and experience test

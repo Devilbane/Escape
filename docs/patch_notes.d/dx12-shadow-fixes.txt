@@ -1,0 +1,5 @@
+- No sunlight or moonlight shines into a house any more while its roof is lifted to show the hero.
+- Birds sitting on a lifted roof no longer hang in the air in front of the camera.
+- Evening shadows are shorter: the low dusk sun no longer throws one huge shadow across the square.
+- The candles in the villagers' houses shine brighter, so their windows glow at night.
+- Fog, rain and snow haze no longer lay one milky film over the whole village on DirectX 12.

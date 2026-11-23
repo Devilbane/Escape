@@ -84,6 +84,18 @@ const LAMP_MATCH_DUNGEON := 3.0
 static var lamp_match := LAMP_MATCH
 
 
+## How thick the air's haze (Environment fog: rain, snow, fog weather) is drawn on the modern
+## renderer. OpenGL mixes the haze into the picture as screen colours, the modern renderer as
+## light, where the same pale haze over darker things (people, trees, roofs) shows far stronger:
+## winter fog laid one even milky film over the whole village. Half as thick looks as it did.
+const FOG_MATCH := 0.5
+
+
+## The haze's density to draw with, for its density as the weather sets it.
+static func fog(density: float) -> float:
+	return density * FOG_MATCH if modern() else density
+
+
 ## The sun's or moon's strength to draw with, for its strength as the game sets it. `night` is
 ## how much of the light is the moon's (DayNight.moon_at): the moon keeps its own strength, as the
 ## village by night looked far too bright with the sun's factor (the dungeons' faint light from

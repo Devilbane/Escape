@@ -28,6 +28,8 @@ uniform float max_distance = 90.0;
 // The heights of the cloud layers above the ground, and the thin haze left on the ground.
 uniform vec3 layers = vec3(2.4, 3.3, 4.3);
 uniform float ground_haze = 0.18;
+// How much thinner the clouds are drawn on the modern renderer (see the end of fragment()).
+uniform float modern_thin = 0.55;
 
 void vertex() {
 #if CURRENT_RENDERER == RENDERER_COMPATIBILITY
@@ -82,4 +84,9 @@ void fragment() {
 	// An even haze covers everything, so it is lighter than patchy clouds.
 	ALPHA = clamp(alpha * reach * strength * mix(1.0, 0.6, even), 0.0, 0.9);
 	ALPHA = gl_alpha(haze, ALPHA);
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	// Measured against OpenGL on the village square (tests/lighting_reference_shots.gd): the banks
+	// still came out thicker on the modern renderer, and winter's softened banks one milky film.
+	ALPHA *= modern_thin;
+#endif
 }

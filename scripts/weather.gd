@@ -366,7 +366,7 @@ static func apply(env: Environment, sun: DirectionalLight3D, weather_look: Dicti
 	haze.a = 1.0
 	env.background_color = env.background_color.lerp(haze, clampf((1.0 - dim) * 0.8, 0.0, 1.0))
 	env.fog_enabled = weather_look.fog > 0.0005
-	env.fog_density = weather_look.fog
+	env.fog_density = Graphics.fog(weather_look.fog)
 	env.fog_light_color = haze
 	env.fog_light_energy = 1.0
 	env.fog_sun_scatter = 0.0

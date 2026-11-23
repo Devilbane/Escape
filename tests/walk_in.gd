@@ -211,7 +211,7 @@ func _run() -> void:
 	check(not walk_in.building_at(hero.global_position).is_empty(), "the hero walks in through the door (%s)" % hero.global_position)
 	check(absf(hero.global_position.y - float(rec.floor)) < 0.2, "and stands on the floor (%.2f)" % hero.global_position.y)
 	check(walk_in.hero_in.get("node") == house, "the house knows the hero is inside")
-	check(not (rec.up[0] as Node3D).visible, "the floor above and the roof are hidden")
+	check(not WalkIn.drawn(rec.up[0] as Node3D), "the floor above and the roof are hidden")
 	check(not (rec.front[0] as Node3D).visible, "the front wall is hidden")
 	check((rec.lamp as OmniLight3D).visible, "the lamp is lit")
 	check(lvl.is_sheltered(hero.global_position) and lvl.hero_indoors, "inside, the weather stays out")
@@ -230,7 +230,7 @@ func _run() -> void:
 	check(lvl.blow_blocked(out_window + Vector3(-5.0, 0, 0), by_window), "but no blow lands through its pane")
 	await _walk(-inward, 4.0)
 	check(walk_in.building_at(hero.global_position, 0.3).is_empty(), "and walks out again (%s)" % hero.global_position)
-	check((rec.up[0] as Node3D).visible and (rec.front[0] as Node3D).visible, "outside, the house is whole again")
+	check(WalkIn.drawn(rec.up[0] as Node3D) and (rec.front[0] as Node3D).visible, "outside, the house is whole again")
 	check(not (rec.lamp as OmniLight3D).visible, "the lamp is out")
 
 	# A click inside walks round through the door.
@@ -262,11 +262,11 @@ func _run() -> void:
 	await _wait(20)
 	check(hero.global_position.y > float(rec.ladder_top.y) - 0.2, "and stands on the floor above (%.2f)" % hero.global_position.y)
 	check(walk_in.hero_upstairs_in(rec), "up in the house's upper room")
-	check(rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible), "its roof is hidden")
+	check(rec.up.all(func(p): return not is_instance_valid(p) or not WalkIn.drawn(p as Node3D)), "its roof is hidden")
 	for key: String in ["up_walls", "up_front", "up_room"]:
 		check((rec[key][0] as MeshInstance3D).mesh.get_surface_count() > 0, "the floor above's %s is built" % key)
 	check((rec.node as Node3D).find_child("WalkRoof", false, false) != null and ((rec.node as Node3D).get_node("WalkRoof") as MeshInstance3D).mesh.get_surface_count() > 0, "and its roof apart")
-	check((rec.up_walls[0] as Node3D).visible and not (rec.up_front[0] as Node3D).visible, "its upper walls stand, the upper front wall is hidden")
+	check(WalkIn.drawn(rec.up_walls[0] as Node3D) and not WalkIn.drawn(rec.up_front[0] as Node3D), "its upper walls stand, the upper front wall is hidden")
 	check(rec.up_room.all(func(p): return (p as Node3D).visible), "the upper room and its beds show")
 	check(walk_in.covers(hero.global_position), "out of the weather up there")
 	await _walk(push, 1.0)
@@ -295,7 +295,7 @@ func _run() -> void:
 	await _walk(t_in, 3.5)
 	check(walk_in.hero_in.get("node") == t_rec.node, "the hero walks into the temple (%s)" % hero.global_position)
 	check(absf(hero.global_position.y - float(t_rec.floor) * (t_rec.node as Node3D).scale.y) < 0.2, "onto its floor (%.2f)" % hero.global_position.y)
-	check(t_rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible), "its roof and spire are hidden")
+	check(t_rec.up.all(func(p): return not is_instance_valid(p) or not WalkIn.drawn(p as Node3D)), "its roof and spire are hidden")
 	await _wait(30)
 	check(float(t_rec.fade) > 0.5, "its front wall fades")
 	var see_through: Array = t_rec.get("fade_meshes", []).filter(func(m): return m.stone or not m.plain.is_empty())
@@ -319,12 +319,12 @@ func _run() -> void:
 	await _wait(10)
 	var cam_at: Vector3 = game.camera.global_position
 	check(walk_in._covers(behind_rec, cam_at, hero.global_position), "standing right behind a house its roof covers the hero")
-	check(bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible),
+	check(bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or not WalkIn.drawn(p as Node3D)),
 			"and its roof and floor above are lifted off")
 	_place(behind_node.global_position + Vector3(0, 0.1, behind_d * 0.5 + 6.0))
 	game._snap_camera()
 	await _wait(60)
-	check(not bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or (p as Node3D).visible),
+	check(not bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or WalkIn.drawn(p as Node3D)),
 			"in front of it again the roof is back")
 
 	# --- The villagers' night ------------------------------------------------------------

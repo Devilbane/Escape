@@ -44,7 +44,7 @@ const KEYS := [
 	{"hour": 17.5, "bg": Color(0.5, 0.46, 0.57), "amb": Color(0.7, 0.68, 0.78), "amb_e": 0.52,
 		"sun": Color(1.0, 0.8, 0.6), "sun_e": 0.88, "pitch": -38.0, "sat": 0.95, "glow": 0.0, "moon": 0.0},
 	{"hour": 19.5, "bg": Color(0.55, 0.32, 0.3), "amb": Color(0.8, 0.58, 0.55), "amb_e": 0.42,
-		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -16.0, "sat": 0.95, "glow": 0.55, "moon": 0.0},
+		"sun": Color(1.0, 0.52, 0.3), "sun_e": 0.6, "pitch": -26.0, "sat": 0.95, "glow": 0.55, "moon": 0.0},
 	{"hour": 21.0, "bg": Color(0.015, 0.03, 0.09), "amb": Color(0.28, 0.42, 1.0), "amb_e": 0.06,
 		"sun": Color(0.4, 0.58, 1.0), "sun_e": 0.25, "pitch": -60.0, "sat": 1.05, "glow": 1.0, "moon": 1.0},
 	{"hour": 24.0, "bg": Color(0.015, 0.03, 0.09), "amb": Color(0.28, 0.42, 1.0), "amb_e": 0.06,
@@ -63,7 +63,7 @@ const KEYS := [
 const SUN_STEPS := [
 	{"hour": 5.0, "pitch": -20.0, "yaw": -95.0},
 	{"hour": 7.0, "pitch": -38.0, "yaw": -35.0},
-	{"hour": 18.5, "pitch": -16.0, "yaw": 25.0},
+	{"hour": 18.5, "pitch": -26.0, "yaw": 25.0},
 	{"hour": 21.0, "pitch": -60.0, "yaw": 30.0},
 ]
 const SUN_SWING := 0.04

@@ -1,0 +1,708 @@
+class_name Sewers
+extends RefCounted
+## The village's sewers, under the open-air map and not a level of their own: like the forgotten mine
+## (see LostMine) and the bank's vault (see BankVault) they are a house sketch drawn on the map by
+## HouseSketcher, every piece already built. Everything lies under whole ground (a buried ceiling,
+## HouseSketch.BURIED); the grass, the streets and the houses stay as they are on top, and down
+## there the surface hides as in any cellar (see CellarView).
+##
+## The water comes from the valley's river: a little stream runs up the pass beside the road to the
+## village gate and dives under it through an iron grating (SewerSurface.MOUTH). Down here it runs as
+## the channel of the main drain, slowly, with the village's leaves and rubbish on it, under the
+## village to the north-west corner and out through the outfall into a river in the forest
+## (SewerSurface.OUTFALL). A brick walkway runs beside the channel, behind a low kerb.
+##
+## Ways down from the surface: two manhole hatches in the village (SewerSurface.HATCH; the hero heaves
+## the lid open and climbs down a ladder, see use) and the street drains (SewerSurface.GRILLE), which
+## only let light and the sound of the street through. Cells are 2 m wide, one letter each:
+##   "c"  the channel: water, behind a kerb, nobody walks in it
+##   "w"  the walkway beside it, and the passages to the shafts
+##   "s"  a shaft under a hatch: open to the sky, a ladder up to the street
+## The drain's route is ROUTE, one corner after the other (cells of the plot).
+
+## The plot the sewers are drawn on (map tiles): the village's west side, from the grating at the
+## gate up to the outfall in the north-west corner.
+const PLOT := Rect2i(37, 17, 13, 31)
+## The channel's middle line, corner to corner in the direction of the flow (cells of the plot).
+const ROUTE := [Vector2i(15, 57), Vector2i(15, 6), Vector2i(2, 6), Vector2i(2, 4)]
+## The manhole hatches: the map tile of each, the cell of its shaft, the way its ladder leans up (the
+## street cell next to the shaft that the hero climbs off at), and the cells of the passage to the walkway.
+const HATCHES := [
+	{"tile": Vector2i(42, 40), "cell": Vector2i(10, 46), "dir": "e", "passage": [Vector2i(11, 46), Vector2i(12, 46), Vector2i(13, 46)]},
+	{"tile": Vector2i(40, 21), "cell": Vector2i(6, 8), "dir": "s", "passage": []},
+]
+## The street drains' tiles (their light shafts down here, see build).
+const GRILLES := [Vector2i(44, 41), Vector2i(44, 38), Vector2i(44, 34), Vector2i(42, 20)]
+## The lamps on the walls: every this many cells of the walkway.
+const LAMP_EVERY := 8
+
+const BRICK_COLOUR := Color(0.62, 0.3, 0.17)
+const IRON := Color(0.2, 0.2, 0.22)
+const LAMP_COLOUR := Color(1.0, 0.72, 0.42)
+const DAYLIGHT := Color(0.78, 0.9, 1.0)
+## How high the kerb beside the channel is (the water lies below it).
+const KERB_HIGH := 0.55
+const WATER_RISE := 0.3
+const W := preload("res://scripts/weathered_props.gd")
+
+const KIND_LID := SewerSurface.LID
+const LEARN := "Die Kanalisation: Unter dem Dorf läuft der Bach aus dem Tal durch einen gemauerten Gang, vom Gitter am Dorftor bis zum Auslauf im Nordwesten. Das Wasser trägt den Unrat des Dorfes mit sich fort. Hinab geht es durch die Kanalluken und über Leitern."
+const ENTERED := "Du steigst in die Kanalisation hinab. Es riecht nach Moder, und irgendwo rauscht Wasser."
+const LID_OPENED := "Du stemmst den schweren Deckel auf. Eine Leiter führt hinab in die Dunkelheit."
+const LID_PROMPT := "Dagegenlaufen, um die Kanalluke zu öffnen"
+
+## The luke lids the hero has opened this session (tile -> true).
+static var opened := {}
+
+static var _sketch: HouseSketch = null
+static var _cells := {}
+static var _channel := {}
+static var _mats := {}
+static var _brick: StandardMaterial3D = null
+static var _floor: StandardMaterial3D = null
+static var _told := false
+
+
+## Every dug cell of the sewers: Vector2i (plot cells) -> its letter (see the class notes).
+static func cells() -> Dictionary:
+	if _cells.is_empty():
+		_lay()
+	return _cells
+
+
+## The channel's cells, each with the way the water flows through it (a unit step).
+static func channel() -> Dictionary:
+	if _cells.is_empty():
+		_lay()
+	return _channel
+
+
+static func _lay() -> void:
+	var flow := {}
+	for i in ROUTE.size() - 1:
+		var a: Vector2i = ROUTE[i]
+		var b: Vector2i = ROUTE[i + 1]
+		var step := Vector2i(signi(b.x - a.x), signi(b.y - a.y))
+		var at := a
+		while true:
+			flow[at] = step
+			if at == b:
+				break
+			at += step
+	# The last cell flows on as the leg before it ended: out through the outfall.
+	for c: Vector2i in flow:
+		_channel[c] = flow[c]
+		_cells[c] = "c"
+	# The walkway on the left of the flow (looking along it); the corners take the inside one.
+	for c: Vector2i in flow:
+		var step: Vector2i = flow[c]
+		var left := Vector2i(step.y, -step.x)
+		var w := c + left
+		if not flow.has(w) and not _cells.has(w):
+			_cells[w] = "w"
+	# The corner cells next to a turn, so the walkway runs round it unbroken.
+	var corners: Array[Vector2i] = []
+	for i in range(1, ROUTE.size() - 1):
+		corners.append(ROUTE[i])
+	for corner in corners:
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+			var w: Vector2i = corner + d
+			var near_walk := false
+			for e: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if _cells.get(w + e, "") == "w":
+					near_walk = true
+			if near_walk and not flow.has(w) and not _cells.has(w) and _touches_channel(w, flow):
+				_cells[w] = "w"
+	for hatch: Dictionary in HATCHES:
+		_cells[hatch.cell] = "s"
+		for c: Vector2i in hatch.passage:
+			_cells[c] = "w"
+
+
+static func _touches_channel(c: Vector2i, flow: Dictionary) -> bool:
+	for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+		if flow.has(c + d):
+			return true
+	return false
+
+
+## The sewers as a house sketch, every piece built: dug cells with brick floors and walls, the buried
+## ceiling over all of them but the shafts, and a ladder in every shaft.
+static func sketch() -> HouseSketch:
+	if _sketch != null:
+		return _sketch
+	var s := HouseSketch.new()
+	s.plot = PLOT
+	var built := HouseSketch.BUILT
+	for c: Vector2i in cells():
+		s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.CELL_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.DIG, "state": built, "floor": "brick", "wall": "brick"}
+		if cells()[c] != "s":
+			s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.COVER_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.COVER, "state": built, "surface": HouseSketch.BURIED}
+	for hatch: Dictionary in HATCHES:
+		var c: Vector2i = hatch.cell
+		s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.LADDER_ORIENTS[hatch.dir], HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.LADDER, "state": built}
+	_sketch = s
+	return s
+
+
+## The hatch spec standing on map tile `c`, or {}.
+static func hatch_at(c: Vector2i) -> Dictionary:
+	for hatch: Dictionary in HATCHES:
+		if hatch.tile == c:
+			return hatch
+	return {}
+
+
+## Whether map tile `c` lies over the sewers: no plot may be marked out there (see Plots.problem).
+static func covers_tile(c: Vector2i) -> bool:
+	if not PLOT.has_point(c):
+		return false
+	var first := (c - PLOT.position) * HouseSketch.CELLS_PER_TILE
+	for dy in HouseSketch.CELLS_PER_TILE:
+		for dx in HouseSketch.CELLS_PER_TILE:
+			if cells().has(first + Vector2i(dx, dy)):
+				return true
+	return false
+
+
+## The sewers' cell under a world point (plot cells), whether or not it is dug.
+static func cell_at(pos: Vector3) -> Vector2i:
+	var origin := sketch().node_world(0, 0)
+	return Vector2i(floori((pos.x - origin.x) / HouseSketch.CELL), floori((pos.z - origin.z) / HouseSketch.CELL))
+
+
+## Whether a world point lies down in the sewers (below the ground, within its cells).
+static func holds(pos: Vector3) -> bool:
+	return pos.y < -1.0 and cells().has(cell_at(pos))
+
+
+## The middle of a cell's floor.
+static func floor_at(c: Vector2i) -> Vector3:
+	return sketch().cell_world(c.x, c.y) + Vector3(0, -HouseSketch.DEPTH, 0)
+
+
+## Whether `a` and `b` are on two sides of the ground: one down in the sewers, the other not.
+static func apart(a: Vector3, b: Vector3) -> bool:
+	return holds(a) != holds(b)
+
+
+## The map tile above a plot cell.
+static func tile_of(c: Vector2i) -> Vector2i:
+	return PLOT.position + Vector2i(floori(c.x / 2.0), floori(c.y / 2.0))
+
+
+# --- Hints, the lids and the first descent --------------------------------------
+
+static func prompt(kind: String) -> String:
+	if kind == KIND_LID:
+		return Lang.t(LID_PROMPT)
+	return ""
+
+
+## The hero ran into a hatch's lid: they heave it open (it stays open).
+static func use(game: Node, s: Dictionary) -> void:
+	if s.kind != KIND_LID:
+		return
+	s["used"] = true
+	opened[s.key] = true
+	SewerSurface.swing_open(s)
+	Sfx.play(game, "secret", -4.0)
+	game.show_message(Lang.t(LID_OPENED), 4.0)
+
+
+## Down in the sewers (every frame the hero is): the first time the compendium learns of them.
+static func entered(game: Node) -> void:
+	if _told or game.lore.has(LEARN):
+		_told = true
+		return
+	_told = true
+	Events.teach(LEARN)
+	Events.tell(Lang.t(ENTERED), Color(0.7, 0.85, 0.6))
+
+
+# --- The look: brick -------------------------------------------------------------
+
+## The wall brick: orange-red courses with grimy mortar, laid in world space (triplanar).
+static func brick_material() -> StandardMaterial3D:
+	if _brick == null:
+		_brick = _brick_stuff(1.0, 0.62)
+	return _brick
+
+
+## The floor: darker, wetter brick underfoot.
+static func floor_material() -> StandardMaterial3D:
+	if _floor == null:
+		_floor = _brick_stuff(0.55, 0.32)
+	return _floor
+
+
+static func _brick_stuff(darker: float, rough: float) -> StandardMaterial3D:
+	var size := 256
+	var rows := 16
+	var wide := 46
+	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var height := PackedFloat32Array()
+	height.resize(size * size)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("kanalziegel")
+	var mortar := Color(0.36, 0.33, 0.28)
+	for row in rows:
+		var shift := (row % 2) * wide / 2
+		var tint := BRICK_COLOUR.lerp(Color(0.5, 0.36, 0.2), rng.randf() * 0.45)
+		for y in range(row * size / rows, (row + 1) * size / rows):
+			var local_y := y - row * size / rows
+			for x in size:
+				var bx := (x + shift) % wide
+				var cell := int(((x + shift) / wide) + row * 7)
+				var shade := 0.82 + 0.3 * fposmod(sin(float(cell) * 12.9898) * 43758.5453, 1.0)
+				var col := tint * shade
+				var h := 1.0
+				if bx < 2 or local_y < 2:
+					col = mortar
+					h = 0.0
+				else:
+					# A brick's edge is rounded and its face pitted.
+					var edge := minf(minf(float(bx - 2), float(wide - bx)), minf(float(local_y - 2), float(size / rows - local_y)))
+					h = clampf(0.55 + edge * 0.18, 0.0, 1.0) - rng.randf() * 0.12
+					col = col.lerp(Color(0.2, 0.15, 0.1), rng.randf() * 0.18)
+				height[y * size + x] = h
+				img.set_pixel(x, y, Color(col.r * darker, col.g * darker, col.b * darker))
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.normal_enabled = true
+	mat.normal_texture = ImageTexture.create_from_image(_normals_of(height, size, 2.4))
+	mat.uv1_triplanar = true
+	mat.uv1_world_triplanar = true
+	mat.uv1_scale = Vector3.ONE * 0.8
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.roughness = rough
+	return mat
+
+
+## The kerb and block stone: dressed blocks in courses with a rough face and worn edges.
+static func stone_material() -> StandardMaterial3D:
+	if _mats.has("stone_blocks"):
+		return _mats["stone_blocks"]
+	var size := 256
+	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var height := PackedFloat32Array()
+	height.resize(size * size)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("kanalstein")
+	var course := 64
+	for row in size / course:
+		var wide := 104 if row % 2 == 0 else 152
+		var shift := (row * 37) % wide
+		var tint := Color(0.46, 0.45, 0.4).lerp(Color(0.38, 0.4, 0.36), rng.randf())
+		for y in range(row * course, (row + 1) * course):
+			for x in size:
+				var bx := (x + shift) % wide
+				var local_y := y - row * course
+				var grain := rng.randf()
+				var col := tint * (0.86 + 0.24 * grain)
+				var h := 0.8 - grain * 0.25
+				if bx < 3 or local_y < 3:
+					col = Color(0.2, 0.2, 0.18)
+					h = 0.0
+				else:
+					var edge := minf(minf(float(bx - 3), float(wide - bx)), minf(float(local_y - 3), float(course - local_y)))
+					h = clampf(h * (0.5 + edge * 0.1), 0.0, 1.0)
+					# Green damp creeping up from the foot of the course.
+					col = col.lerp(Color(0.22, 0.3, 0.16), clampf(0.5 - float(local_y) / course, 0.0, 0.5) * 0.4 * rng.randf())
+				height[y * size + x] = h
+				img.set_pixel(x, y, Color(col.r, col.g, col.b))
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.normal_enabled = true
+	mat.normal_texture = ImageTexture.create_from_image(_normals_of(height, size, 3.0))
+	mat.uv1_triplanar = true
+	mat.uv1_world_triplanar = true
+	mat.uv1_scale = Vector3.ONE * 0.7
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	mat.roughness = 0.78
+	_mats["stone_blocks"] = mat
+	return mat
+
+
+## A normal map from a height field (size x size, wrapping), `strength` times as steep.
+static func _normals_of(height: PackedFloat32Array, size: int, strength: float) -> Image:
+	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	for y in size:
+		for x in size:
+			var dx := height[y * size + (x + 1) % size] - height[y * size + (x + size - 1) % size]
+			var dy := height[((y + 1) % size) * size + x] - height[((y + size - 1) % size) * size + x]
+			var n := Vector3(-dx * strength, -dy * strength, 1.0).normalized()
+			img.set_pixel(x, y, Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5))
+	return img
+
+
+# --- What stands down there --------------------------------------------------------
+
+## Builds everything down here that is no part of the sketch, under `parent` (shown only while the
+## hero is down in a cellar): the kerb and the water of the channel with the rubbish it carries, the
+## sluice where the stream comes in, the outfall's bars, the lamps and the light shafts under the
+## street drains. The kerb stops the hero (nobody wades the channel); so do the bars.
+static func build(_level: Level, parent: Node3D) -> void:
+	var body := StaticBody3D.new()
+	body.name = "SewerSolids"
+	parent.add_child(body)
+	_channel_water(parent, body)
+	_sluice(parent, body)
+	_outfall_bars(parent, body)
+	_lamps(parent)
+	_ribs(parent)
+	_litter(parent)
+	_pipes(parent)
+	for tile: Vector2i in GRILLES:
+		_light_shaft(parent, tile)
+	for hatch: Dictionary in HATCHES:
+		_hatch_light(parent, hatch)
+
+
+## The channel: one water sheet and kerb per cell, a block of solid over it, and the leaves and
+## rubbish drifting along each straight stretch.
+static func _channel_water(parent: Node3D, body: StaticBody3D) -> void:
+	var stone: Material = stone_material()
+	var kerb_w := 0.3
+	for c: Vector2i in channel():
+		var mid := floor_at(c)
+		_solid(body, mid + Vector3(0, 0.7, 0), Vector3(HouseSketch.CELL - 0.04, 1.4, HouseSketch.CELL - 0.04))
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if cells().get(c + d, "") != "w":
+				continue
+			# A kerb on the walkway's side of the cell.
+			var at := mid + Vector3(d.x, 0, d.y) * (HouseSketch.CELL * 0.5 - kerb_w * 0.5)
+			var size := Vector3(kerb_w, KERB_HIGH, HouseSketch.CELL) if d.x != 0 else Vector3(HouseSketch.CELL, KERB_HIGH, kerb_w)
+			_box(parent, at + Vector3(0, (KERB_HIGH - 0.08) * 0.5, 0), size - Vector3(0, 0.08, 0) if d.x != 0 else size - Vector3(0, 0.08, 0), stone)
+			# The capstone overhangs the kerb a little on both sides, its edge worn.
+			var cap := Vector3(kerb_w + 0.1, 0.1, HouseSketch.CELL + 0.02) if d.x != 0 else Vector3(HouseSketch.CELL + 0.02, 0.1, kerb_w + 0.1)
+			_box(parent, at + Vector3(0, KERB_HIGH - 0.04, 0), cap, stone)
+		var sheet := MeshInstance3D.new()
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(HouseSketch.CELL, HouseSketch.CELL)
+		sheet.mesh = plane
+		sheet.material_override = _water(_channel[c])
+		sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sheet.position = mid + Vector3(0, WATER_RISE, 0)
+		parent.add_child(sheet)
+	# Rubbish on every straight stretch.
+	for i in ROUTE.size() - 1:
+		var a: Vector2i = ROUTE[i]
+		var b: Vector2i = ROUTE[i + 1]
+		var from := floor_at(a)
+		var to := floor_at(b)
+		var flow := StreamFlow.new()
+		flow.from = from + Vector3(0, WATER_RISE + 0.03, 0)
+		flow.to = to + Vector3(0, WATER_RISE + 0.03, 0)
+		flow.width = HouseSketch.CELL - 0.5
+		flow.speed = 0.4
+		flow.count = clampi(int(from.distance_to(to) * 1.4), 12, 60)
+		flow.rubbish = true
+		flow.palette = StreamFlow.RUBBISH
+		parent.add_child(flow)
+
+
+static func _water(step: Vector2i) -> ShaderMaterial:
+	var key := "water_%d_%d" % [step.x, step.y]
+	if not _mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = preload("res://shaders/sewer_water.gdshader")
+		m.set_shader_parameter("flow", Vector2(step.x, step.y))
+		_mats[key] = m
+	return _mats[key]
+
+
+## Where the stream comes in: the south wall of the channel's first cell has an iron grille in it,
+## daylight and foam behind it.
+static func _sluice(parent: Node3D, body: StaticBody3D) -> void:
+	var c: Vector2i = ROUTE[0]
+	var wall := floor_at(c) + Vector3(0, 0, HouseSketch.CELL * 0.5 - 0.1)
+	var iron := _mat("iron", IRON, 0.6)
+	var high := 1.7
+	for i in 7:
+		_box(parent, wall + Vector3(-0.75 + i * 0.25, 0.3 + high * 0.5, -0.04), Vector3(0.06, high, 0.06), iron)
+	for y: float in [0.5, 1.2, 1.9]:
+		_box(parent, wall + Vector3(0, y, -0.02), Vector3(1.7, 0.08, 0.06), iron)
+	_box(parent, wall + Vector3(0, 0.3 + high * 0.5, 0.03), Vector3(1.8, high, 0.04), _mat("day", DAYLIGHT.darkened(0.2), 0.0, 1.6))
+	var light := OmniLight3D.new()
+	light.light_color = DAYLIGHT
+	light.light_energy = 2.2
+	light.omni_range = 7.0
+	light.position = wall + Vector3(0, 1.4, -0.7)
+	parent.add_child(light)
+	_solid(body, wall + Vector3(0, 1.2, 0), Vector3(2.0, 2.4, 0.3))
+
+
+## The outfall's bars across the tunnel's end (both cells: the channel and the walkway), and the green
+## daylight of the forest behind them.
+static func _outfall_bars(parent: Node3D, body: StaticBody3D) -> void:
+	var c: Vector2i = ROUTE[ROUTE.size() - 1]
+	var mid := floor_at(c) + Vector3(-HouseSketch.CELL * 0.5, 0, -HouseSketch.CELL * 0.5)
+	var iron := _mat("iron", IRON, 0.6)
+	var wide := HouseSketch.CELL * 2.0 - 0.3
+	var high := HouseSketch.DEPTH - 0.4
+	var n := 14
+	for i in n + 1:
+		_box(parent, mid + Vector3(-wide * 0.5 + i * wide / n, high * 0.5, 0.05), Vector3(0.05, high, 0.05), iron)
+	for y: float in [0.3, high * 0.5, high - 0.2]:
+		_box(parent, mid + Vector3(0, y, 0.05), Vector3(wide, 0.07, 0.07), iron)
+	_box(parent, mid + Vector3(0, high * 0.5, -0.1), Vector3(wide, high, 0.04), _mat("forest_light", Color(0.7, 0.9, 0.7), 0.0, 1.2))
+	_solid(body, mid + Vector3(0, high * 0.5, 0.05), Vector3(wide, high, 0.3))
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.8, 1.0, 0.8)
+	light.light_energy = 1.6
+	light.omni_range = 7.0
+	light.position = mid + Vector3(0, 1.5, 1.2)
+	parent.add_child(light)
+
+
+## A lamp on the wall every LAMP_EVERY cells of the walkway, away from the channel.
+static func _lamps(parent: Node3D) -> void:
+	var n := 0
+	for c: Vector2i in cells():
+		if cells()[c] != "w":
+			continue
+		n += 1
+		if n % LAMP_EVERY != 0:
+			continue
+		# The wall: the open side facing away from the channel.
+		var out := Vector2i.ZERO
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if not cells().has(c + d):
+				out = d
+		if out == Vector2i.ZERO:
+			continue
+		var wall := floor_at(c) + Vector3(out.x, 0, out.y) * (HouseSketch.CELL * 0.5 - 0.05)
+		var at := wall - Vector3(out.x, 0, out.y) * 0.25 + Vector3(0, 1.6, 0)
+		var iron := _mat("iron", IRON, 0.6)
+		_box(parent, wall - Vector3(out.x, 0, out.y) * 0.05 + Vector3(0, 1.6, 0), Vector3(0.16, 0.36, 0.16), iron)
+		_box(parent, at, Vector3(0.2, 0.26, 0.2), _mat("lamp_glass", LAMP_COLOUR, 0.0, 2.5))
+		var light := OmniLight3D.new()
+		light.light_color = LAMP_COLOUR
+		light.light_energy = 1.7
+		light.omni_range = 6.5
+		light.position = at - Vector3(out.x, 0, out.y) * 0.3
+		parent.add_child(light)
+
+
+## A shaft of daylight down from a street drain: a pale beam and a pool of light on the floor.
+static func _light_shaft(parent: Node3D, tile: Vector2i) -> void:
+	var top := Vector3(tile.x * Level.TILE, 0.0, tile.y * Level.TILE)
+	var beam := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.45
+	cone.bottom_radius = 0.8
+	cone.height = HouseSketch.DEPTH - 0.1
+	cone.radial_segments = 10
+	beam.mesh = cone
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(DAYLIGHT.r, DAYLIGHT.g, DAYLIGHT.b, 0.035)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	beam.material_override = m
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	beam.position = top + Vector3(0, -HouseSketch.DEPTH * 0.5 - 0.02, 0)
+	parent.add_child(beam)
+	var light := SpotLight3D.new()
+	light.light_color = DAYLIGHT
+	light.light_energy = 3.0
+	light.spot_range = HouseSketch.DEPTH + 1.0
+	light.spot_angle = 28.0
+	light.position = top + Vector3(0, -0.1, 0)
+	light.rotation_degrees = Vector3(-90, 0, 0)
+	parent.add_child(light)
+
+
+## A little daylight down a manhole's shaft, so it is seen from the walkway.
+static func _hatch_light(parent: Node3D, hatch: Dictionary) -> void:
+	var at := sketch().cell_world(hatch.cell.x, hatch.cell.y)
+	var light := OmniLight3D.new()
+	light.light_color = DAYLIGHT
+	light.light_energy = 1.4
+	light.omni_range = 5.0
+	light.position = at + Vector3(0, -0.8, 0)
+	parent.add_child(light)
+
+
+static func _mat(key: String, colour: Color, metal := 0.0, glow := 0.0) -> StandardMaterial3D:
+	if not _mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.albedo_color = colour
+		m.roughness = 0.9 if metal == 0.0 else 0.45
+		m.metallic = metal
+		if glow > 0.0:
+			m.emission_enabled = true
+			m.emission = colour
+			m.emission_energy_multiplier = glow
+		_mats[key] = m
+	return _mats[key]
+
+
+static func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	m.mesh = box
+	m.material_override = mat
+	m.position = at
+	parent.add_child(m)
+	return m
+
+
+static func _solid(body: StaticBody3D, at: Vector3, size: Vector3) -> void:
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = at
+	body.add_child(shape)
+
+
+# --- The vault: brick ribs, litter and pipes ----------------------------------------
+
+## Brick arch ribs across the tunnel every RIB_EVERY cells of a straight stretch: the barrel vault's
+## ribs spring from the walls and meet over the walkway and the channel. The ceiling itself is the ground
+## the view is cut through, so the ribs are what shows of the vault from above.
+const RIB_EVERY := 3
+const RIB_SPRING := 1.55
+
+static func _ribs(parent: Node3D) -> void:
+	var brick: Material = brick_material()
+	for i in ROUTE.size() - 1:
+		var a: Vector2i = ROUTE[i]
+		var b: Vector2i = ROUTE[i + 1]
+		var step := Vector2i(signi(b.x - a.x), signi(b.y - a.y))
+		var left := Vector2i(step.y, -step.x)
+		var count := maxi(absi(b.x - a.x), absi(b.y - a.y))
+		for k in range(2, count - 1, RIB_EVERY):
+			var c := a + step * k
+			# Not over a passage or a shaft: the tunnel is wider there.
+			if cells().get(c + left * 2, "") != "" or cells().get(c - left, "") != "":
+				continue
+			var at := floor_at(c) + Vector3(left.x, 0, left.y) * (HouseSketch.CELL * 0.5)
+			_arch(parent, at, Vector3(left.x, 0, left.y), Vector3(step.x, 0, step.y), HouseSketch.CELL * 2.0, brick)
+
+
+## One arch rib: a half ellipse across the tunnel `width` wide, from the springing up under the ground,
+## 0.34 m of brick deep and 0.4 m thick along the tunnel.
+static func _arch(parent: Node3D, at: Vector3, across: Vector3, along: Vector3, width: float, mat: Material) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rx := width * 0.5
+	var ry := HouseSketch.DEPTH - RIB_SPRING - 0.12
+	var thick := 0.4
+	var depth := 0.34
+	var n := 16
+	for i in n:
+		var a0 := PI * float(i) / n
+		var a1 := PI * float(i + 1) / n
+		var in0 := across * (cos(a0) * (rx - depth)) + Vector3(0, RIB_SPRING + sin(a0) * (ry - depth), 0)
+		var in1 := across * (cos(a1) * (rx - depth)) + Vector3(0, RIB_SPRING + sin(a1) * (ry - depth), 0)
+		var out0 := across * (cos(a0) * rx) + Vector3(0, RIB_SPRING + sin(a0) * ry, 0)
+		var out1 := across * (cos(a1) * rx) + Vector3(0, RIB_SPRING + sin(a1) * ry, 0)
+		var h := along * (thick * 0.5)
+		var toward := (in0 + in1) * 0.5
+		var soffit_n := Vector3(-toward.x, RIB_SPRING - toward.y, -toward.z).normalized()
+		# The soffit (underside), the two faces and the top.
+		_quad(st, in0 - h, in1 - h, in1 + h, in0 + h, soffit_n)
+		_quad(st, in0 - h, out0 - h, out1 - h, in1 - h, -along)
+		_quad(st, in1 + h, out1 + h, out0 + h, in0 + h, along)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.position = at
+	parent.add_child(mi)
+
+
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, normal: Vector3) -> void:
+	var flip := (b - a).cross(c - a).dot(normal) > 0.0
+	var order := [a, c, b, a, d, c] if flip else [a, b, c, a, c, d]
+	for v: Vector3 in order:
+		st.set_normal(normal)
+		st.add_vertex(v)
+
+
+## Rubbish washed up along the walkway and stacked against the wall: sodden crates, sacks, a barrel,
+## heaps of straw and bones, here and there, never in the way of the channel's walk (always on the
+## wall side of the walkway).
+static func _litter(parent: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("kanalunrat")
+	var b := W.Builder.new()
+	var n := 0
+	for c: Vector2i in cells():
+		if cells()[c] != "w":
+			continue
+		n += 1
+		if n % 5 != 2:
+			continue
+		var out := Vector2i.ZERO
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if not cells().has(c + d):
+				out = d
+		if out == Vector2i.ZERO:
+			continue
+		var wall := Vector3(out.x, 0, out.y)
+		var side := Vector3(-out.y, 0, out.x)
+		var base := floor_at(c) + wall * (HouseSketch.CELL * 0.5 - 0.45) + side * rng.randf_range(-0.5, 0.5)
+		match rng.randi() % 4:
+			0:
+				_crate(b, base, rng)
+				_crate(b, base + side * 0.7 + wall * 0.05, rng)
+			1:
+				b.cylinder(base, 0.34, 0.3, 0.8, W.vary(Color(0.42, 0.3, 0.18), rng, 0.1), W.WOOD, 12)
+				for y: float in [0.15, 0.6]:
+					b.cylinder(base + Vector3(0, y, 0), 0.355, 0.355, 0.05, W.vary(Color(0.25, 0.25, 0.27), rng, 0.05), W.IRON, 12)
+			2:
+				for k in 5:
+					var off := side * rng.randf_range(-0.5, 0.5) + wall * rng.randf_range(-0.2, 0.2)
+					b.frustum(base + off, Vector2(0.4, 0.34), Vector2(0.14, 0.12), 0.3 + rng.randf() * 0.2, W.vary(Color(0.5, 0.42, 0.28), rng, 0.12), W.WOOD,
+							Basis.from_euler(Vector3(0, rng.randf() * TAU, 0)))
+			_:
+				for k in 9:
+					var off := side * rng.randf_range(-0.55, 0.55) + wall * rng.randf_range(-0.3, 0.3)
+					b.bar(base + off + Vector3(0, 0.04, 0), base + off + Vector3(rng.randf_range(-0.3, 0.3), 0.05, rng.randf_range(-0.3, 0.3)), 0.03 + rng.randf() * 0.02,
+							Color(0.78, 0.74, 0.62).lerp(Color(0.5, 0.45, 0.35), rng.randf()), W.FRESH, 5)
+	b.finish(parent)
+
+
+static func _crate(b: W.Builder, at: Vector3, rng: RandomNumberGenerator) -> void:
+	var turn := Basis.from_euler(Vector3(0, rng.randf_range(-0.5, 0.5), 0))
+	var wood := W.vary(Color(0.4, 0.28, 0.17), rng, 0.1)
+	b.box(at, Vector3(0.62, 0.5, 0.62), wood, W.WOOD, turn)
+	for y: float in [0.06, 0.4]:
+		b.box(at + Vector3(0, y, 0), Vector3(0.66, 0.06, 0.66), W.vary(Color(0.3, 0.2, 0.12), rng, 0.1), W.WOOD, turn)
+	b.box(at + Vector3(0, 0.5, 0), Vector3(0.6, 0.04, 0.6), W.vary(Color(0.33, 0.24, 0.15), rng, 0.1), W.WOOD, turn)
+
+
+## Iron pipes along the wall at the height of a man, with brackets, one of them rusted through.
+static func _pipes(parent: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("kanalrohre")
+	var b := W.Builder.new()
+	var n := 0
+	for c: Vector2i in cells():
+		if cells()[c] != "w":
+			continue
+		n += 1
+		if n % 9 != 4:
+			continue
+		var out := Vector2i.ZERO
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if not cells().has(c + d):
+				out = d
+		if out == Vector2i.ZERO:
+			continue
+		var wall := Vector3(out.x, 0, out.y)
+		var side := Vector3(-out.y, 0, out.x)
+		var base := floor_at(c) + wall * (HouseSketch.CELL * 0.5 - 0.16) + Vector3(0, 1.3, 0)
+		var iron := W.vary(Color(0.3, 0.27, 0.25), rng, 0.08)
+		b.bar(base - side * 1.0, base + side * 1.0, 0.09, iron, W.IRON, 10)
+		for k: float in [-0.9, 0.0, 0.9]:
+			b.box(base + side * k - Vector3(0, 0.12, 0) - wall * 0.06, Vector3(0.12, 0.24, 0.1) if side.x == 0.0 else Vector3(0.1, 0.24, 0.12), Color(0.22, 0.2, 0.2), W.IRON)
+		# A coupling in the middle.
+		b.bar(base - side * 0.08, base + side * 0.08, 0.12, W.vary(Color(0.36, 0.2, 0.1), rng, 0.1), W.IRON, 10)
+		# The rust-through: a green-black streak down the wall under it.
+		b.box(base - Vector3(0, 1.2, 0) + wall * 0.07 + side * 0.4, Vector3(0.1, 1.2, 0.01) if side.x == 0.0 else Vector3(0.01, 1.2, 0.1), Color(0.1, 0.14, 0.08), W.FRESH)
+	b.finish(parent)

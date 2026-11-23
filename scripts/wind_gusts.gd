@@ -308,8 +308,8 @@ func _move() -> void:
 		var side_axis := Vector3.UP.cross(along).normalized()
 		# Pushed this way and that on the way, but always on along the wind.
 		var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
-		var sway := side_axis * erratic(t * k, m.fl, m.pl) * 2.4 * calm
-		var surge := erratic(t * k, _roll(m.fl, 1), _roll(m.pl, 2)) * 0.04 * calm
+		var sway := side_axis * erratic(t * k, m.fl, m.pl) * 1.5 * calm
+		var surge := erratic(t * k, _roll(m.fl, 1), _roll(m.pl, 2)) * 0.025 * calm
 		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
 		# the leaf flips edge-on and back, it bobs very slightly, and it surges a little.
 		var secs: float = t * m.dur
@@ -318,8 +318,8 @@ func _move() -> void:
 		var basis := flat.basis
 		if m.light:
 			# Its own wild turning on all axes, never the same as its neighbour's.
-			var yaw: float = m.yaw * t + m.spin * t + erratic(t * k, m.fa, m.pa) * 2.2 * calm
-			basis = Basis(along.normalized(), flip * 1.1 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t * k, _roll(m.fa, 2), _roll(m.pb, 1)) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
+			var yaw: float = m.yaw * t + m.spin * t + erratic(t * k, m.fa, m.pa) * 1.4 * calm
+			basis = Basis(along.normalized(), flip * 0.7 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 1.2 * calm) * Basis(m.axis2, erratic(t * k, _roll(m.fa, 2), _roll(m.pb, 1)) * 1.0 * calm) * Basis(Vector3.UP, yaw) * flat.basis
 		else:
 			basis = Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
 		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share + bob, 0)

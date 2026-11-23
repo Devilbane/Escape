@@ -259,6 +259,12 @@ static func book_look(i: int) -> Dictionary:
 	return {"size": Vector3(width, height, depth), "cover": SPINES[rng.randi() % SPINES.size()], "binding": binding}
 
 
+## The bound book in place `i` for other furnishings (a library's bookcases, a pile on a desk): its look and
+## its mesh, the same books that stand on the hero's shelf.
+static func book_mesh(i: int) -> ArrayMesh:
+	return _book_mesh(i)
+
+
 ## The mesh of the book in place `i`, built once (see _build_book).
 static func _book_mesh(i: int) -> ArrayMesh:
 	if not _books.has(i):

@@ -55,6 +55,11 @@ func _run() -> void:
 		layer.visible = false
 	var hour := float(OS.get_environment("HOUR")) if OS.get_environment("HOUR") != "" else 12.0
 	game.day_hour = hour
+	if OS.get_environment("SEASON") == "autumn":
+		for day in 400:
+			if Weather.is_autumn(day):
+				lvl.set_season(day)
+				break
 	game._set_atmosphere(true)
 	lvl.set_hour(hour)
 	var rec: Dictionary = lvl.walk_in.buildings.filter(func(r): return r.kind == "mage")[0]
@@ -70,6 +75,10 @@ func _run() -> void:
 	await _shot("3_library")
 	_stand(hall, Vector3(0.3, lay.deck, 1.0))
 	await _shot("4_sleeping_room")
+	_stand(hall, Vector3(0.0, lay.deck, 0.2))
+	await _shot("4b_top_middle")
+	_stand(hall, Vector3(-2.0, lay.deck, -1.5))
+	await _shot("4c_top_back")
 	_stand(hall, Vector3(1.0, GuildHall.CELLAR, 1.0))
 	await _shot("5_experiment_room")
 	game.delete_save(game.save_path())

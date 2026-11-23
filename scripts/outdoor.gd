@@ -3260,6 +3260,11 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var offset := global_position
 		var tris := AgedStone.triangles(node)
 		var ground := node.global_position.y
+		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
+			# The mage tower's top room and roof stay bare: ivy there floats inside the room or
+			# flickers on the deck's rim (see MageTower).
+			var limit := ground + float(GuildHall.layout(node.get_meta("shape")).deck) - 0.05
+			tris = tris.filter(func(t: Dictionary) -> bool: return maxf(t.a.y, maxf(t.b.y, t.c.y)) <= limit)
 		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
 		var leaves := {"xforms": [], "colours": []}
 		# Window panes the house builder noted (see VillageHouse), in world space.

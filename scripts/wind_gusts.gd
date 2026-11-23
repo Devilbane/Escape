@@ -209,6 +209,7 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 		"fl": _noise_freqs(), "pl": _noise_phases(),
 		"fa": _noise_freqs(), "pa": _noise_phases(),
 		"fb": _noise_freqs(), "pb": _noise_phases(),
+		"flip_hz": _rng.randf_range(3.0, 5.0), "flip_ph": _rng.randf_range(0.0, TAU), "bob_ph": _rng.randf_range(0.0, TAU),
 		"axis2": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(-1, 1), _rng.randf_range(-1, 1)).normalized(),
 		"yaw": _rng.randf_range(-1.5, 1.5) if light else _rng.randf_range(-0.5, 0.5),
 		"light": light,
@@ -286,14 +287,19 @@ func _move() -> void:
 		var calm := minf(1.0, t / 0.1) * minf(1.0, (1.0 - t) / 0.15)
 		var sway := side_axis * erratic(t, m.fl, m.pl) * 1.8 * calm
 		var surge := erratic(t, m.fl.zxy, m.pl.yzx) * 0.04 * calm
+		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
+		# the leaf flips edge-on and back, it bobs about 1.4 times a second, and it surges a little.
+		var secs: float = t * m.dur
+		var flip: float = sin(secs * TAU * m.flip_hz + m.flip_ph)
+		var bob: float = sin(secs * TAU * 1.4 + m.bob_ph) * 0.15 * calm
 		var basis := flat.basis
 		if m.light:
 			# Its own wild turning on all axes, never the same as its neighbour's.
 			var yaw: float = m.yaw * t + m.spin * t + erratic(t, m.fa, m.pa) * 2.2 * calm
-			basis = Basis(m.axis, erratic(t, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t, m.fa.yzx, m.pb.zxy) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
+			basis = Basis(along.normalized(), flip * 1.1 * calm) * Basis(m.axis, erratic(t, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t, m.fa.yzx, m.pb.zxy) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
 		else:
 			basis = Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
-		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share, 0)
+		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share + bob, 0)
 		(e[0] as MultiMesh).set_instance_transform(e[1], Transform3D(basis, origin + (flat.origin - m.from)))
 	_moving = left
 

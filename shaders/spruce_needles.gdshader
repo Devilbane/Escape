@@ -127,6 +127,13 @@ void fragment() {
 			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3, 0.45, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
 			ALBEDO = mix(ALBEDO, snow_albedo, thick);
 			EMISSION = snow_glow * thick;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+			// The snow on the ground, the roofs and the bushes gives its moonlit glow (snow_look's
+			// emission) as it is, not turned into light by gl_colour; so does this snow (gl_screen
+			// undoes the gl_colour below), or on a dark night the spruces stood black and bare over
+			// the pale ground.
+			EMISSION = gl_screen(EMISSION);
+#endif
 			// Lit as the snow on the ground is, from above, not as the leaning frond under it.
 			NORMAL = normalize(mix(NORMAL, snow_normal, thick));
 		}

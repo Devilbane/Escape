@@ -1,0 +1,1 @@
+- On DirectX 12 lit windows no longer glow white-hot, and the snow on the spruces shows on dark nights.

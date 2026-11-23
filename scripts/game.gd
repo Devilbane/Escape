@@ -2410,14 +2410,14 @@ func window_action(pair: BuiltShutters) -> String:
 func door_action(door: BuiltDoor, lock: bool) -> String:
 	if not player.can_act():
 		return Lang.t("Gerade nicht.")
-	learn("Türen und Tore, die du baust, gehen auf, wenn du hineinläufst, und fallen hinter dir wieder zu. Taste E öffnet eine Tür und hält sie offen oder schließt sie. Umschalt+E schließt deine eigene Tür ab: Dann kommen nur du und deine Gefährten hindurch, keine Dorfbewohner, Tiere oder Ungeheuer. Ein Vorhängeschloss an der Tür zeigt, dass sie abgeschlossen ist.")
+	learn("Türen und Tore, die du baust, gehen auf, wenn du hineinläufst, und fallen hinter dir wieder zu. Taste E öffnet eine Tür und hält sie offen oder schließt sie. Doppelklick oder Umschalt+E schließt deine eigene Tür ab: Dann kommt niemand hindurch, auch du nicht, bis du wieder aufschließt. Ein Vorhängeschloss an der Tür zeigt, dass sie abgeschlossen ist.")
 	player.face(door.global_position - player.global_position)
 	if lock:
 		if not door.own:
 			return Lang.t("Das ist nicht deine Tür.")
 		player.play_once("Interact", 0.3)
 		door.set_locked(not door.locked)
-		show_message(Lang.t("Abgeschlossen: Nur du und deine Gefährten kommen hindurch.") if door.locked else Lang.t("Aufgeschlossen."), 2.0)
+		show_message(Lang.t("Abgeschlossen: Niemand kommt hindurch, bis du wieder aufschließt.") if door.locked else Lang.t("Aufgeschlossen."), 2.0)
 		return ""
 	var why := door.use(player.global_position)
 	if why == "":

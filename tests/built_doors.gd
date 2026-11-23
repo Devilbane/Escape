@@ -216,7 +216,25 @@ func _run() -> void:
 		if hero.global_position.z < at.z - 1.6:
 			break
 	Input.action_release("ui_up")
-	check(widest > 0.9 and hero.global_position.z < at.z - 1.0, "the owner walks through their locked door (%.2f, z %.2f)" % [widest, hero.global_position.z - at.z])
+	check(widest == 0.0 and hero.global_position.z > at.z + 0.3, "the owner cannot walk into their own locked door, it stays shut (%.2f, z %.2f)" % [widest, hero.global_position.z - at.z])
+	check(game.door_action(door, false) == "Abgeschlossen.", "E does not open a locked door either")
+	hero.global_position = at + Vector3(0, 0.1, 1.6)
+	hero.reset_physics_interpolation()
+	await _wait(3)
+	check(game._lock_door_by_double_click(at) and not door.locked, "the owner unlocks it with a double click first")
+	hero.global_position = at + Vector3(0, 0.1, 2.0)
+	hero.reset_physics_interpolation()
+	await _wait(5)
+	widest = 0.0
+	Input.action_press("ui_up")
+	for i in 400:
+		await _wait(1)
+		widest = maxf(widest, door.openness())
+		if hero.global_position.z < at.z - 1.6:
+			break
+	Input.action_release("ui_up")
+	check(widest > 0.9 and hero.global_position.z < at.z - 1.0, "once unlocked the owner walks through (%.2f, z %.2f)" % [widest, hero.global_position.z - at.z])
+	door.set_locked(true)
 	hero.global_position = at + Vector3(4.0, 0.1, -4.0)
 	hero.reset_physics_interpolation()
 	await _wait(int((BuiltDoor.HOLD + BuiltDoor.OPEN_TIME + 0.4) * 60))

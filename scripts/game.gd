@@ -548,6 +548,7 @@ func _bus_links() -> Array:
 		[bus.quest_done, reputation.on_quest_done],
 		[bus.quest_item_given, update_after_quest],
 		[bus.reputation_rose, reputation_rose],
+		[bus.gift_paid, _on_gift_paid],
 		[bus.traded, reputation.on_trade],
 		[bus.map_grew, map_notice],
 		[bus.map_explored, map_explored],
@@ -1948,6 +1949,10 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == AppleTree.STATION:
 		player.face(s.pos - player.global_position)
 		AppleTree.pick(self, s)
+	elif s.kind == ValleyEvents.KIND:
+		player.face(s.pos - player.global_position)
+		if level is Outdoor and level.valley_events != null:
+			level.valley_events.help(s.what)
 	elif s.kind == HouseFurniture.CANDLE_STATION:
 		player.face(s.pos - player.global_position)
 		house_furnisher.toggle_candles(s)
@@ -6304,6 +6309,12 @@ func quest_reward(id: String) -> void:
 	quest_news(Lang.t("Auftrag abgeschlossen: %s\nBelohnung: %s") % [Lang.t(q.title), Quests.reward_text(id)], GOLD, 4.5)
 
 
+## A few copper for a small favour (see ValleyEvents): into the purse, and a word about it.
+func _on_gift_paid(copper: int, text: String) -> void:
+	_on_coins_collected(copper)
+	show_message(text, 3.5)
+
+
 ## A villager thinks better of the hero now: friendly, trusted or honoured.
 ## Several at once (word of mouth after a task) are told together, once the
 ## reward has been read.
@@ -8082,6 +8093,7 @@ func _process(delta: float) -> void:
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			GardenDecor.GRILL: Lang.t("Dagegenlaufen, um Wildfleisch oder einen Barsch zu grillen und zu essen"),
 			AppleTree.STATION: AppleTree.station_prompt(self, station) if station.kind == AppleTree.STATION else "",
+			ValleyEvents.KIND: ValleyEvents.prompt(station),
 			HouseFurniture.CANDLE_STATION: Lang.t("Klicken, um die Kerzen zu löschen oder anzuzünden"),
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),

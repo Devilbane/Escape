@@ -1,0 +1,1 @@
+- The village cat now lies perfectly still on the anvil when it sleeps (it no longer bounces up and down), only breathing gently.

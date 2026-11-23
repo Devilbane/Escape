@@ -131,6 +131,22 @@ static func _drop_one() -> void:
 	gone.queue_free()
 
 
+## A broom swept the ground within `radius` metres of `at` (see SnowSweep): the prints there are gone with the snow.
+## Prints up on a roof stay.
+static func wipe(at: Vector3, radius: float) -> void:
+	var keep: Array = []
+	var gone := false
+	for i in range(_live.size() - 1, -1, -1):
+		var n: Node = _live[i]
+		if not is_instance_valid(n) or n.has_meta("print_high"):
+			continue
+		var rec: Array = n.get_meta("print_rec", [])
+		if rec.size() > 3 and Vector2(float(rec[1]) - at.x, float(rec[2]) - at.z).length() < radius:
+			_live.remove_at(i)
+			_records.erase(rec)
+			n.queue_free()
+
+
 ## The snow is gone, or a new day starts: every print goes.
 static func clear() -> void:
 	for n in _live:

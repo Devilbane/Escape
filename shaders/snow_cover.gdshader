@@ -26,6 +26,14 @@ uniform bool holes_on = false;
 // On while the hero is down in a cellar: what is left of the map there (the ladder, the stairs, the walls)
 // shows no snow, which belongs to the open air above.
 uniform bool underground = false;
+// The ground the herald has swept with his broom (see SnowSweep): R is the hour of snowfall (plus one) it was swept at, G how
+// close it lies to the middle of the stroke, one pixel for each swept_step metres from the world's corner. It fills in again
+// as snow falls: swept_refill hours of snowfall after the stroke it is white once more.
+uniform sampler2D swept_mask : filter_linear, repeat_disable, hint_default_black;
+uniform bool swept_on = false;
+uniform float swept_fall = 0.0;
+uniform float swept_refill = 1.5;
+uniform float swept_step = 0.3;
 // The rooms of the buildings one walks into (see SnowCover.set_rooms): R is how high they reach
 // and G from which height (the upper storey's overhang), both in SHELTER_SCALE metres, in ROOM_STEP pixels from the world's corner, so the snow stops at their
 // walls and stays off every storey under their roof.
@@ -79,7 +87,18 @@ void fragment() {
 			dug = texture(hole_mask, hole_uv).r;
 		}
 	}
-	if (underground || dug > 0.75 || (dug > 0.25 && world_pos.y < -0.05) || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n) || snow_sheltered(world_pos)) {
+	// Swept bare: the stroke's edge is ragged (noise moves it in and out) and a few small patches of snow stand.
+	float swept = 0.0;
+	if (swept_on && world_pos.y < 0.3) {
+		vec2 swept_uv = (xz + vec2(0.5 * tile)) / (grid_size * tile);
+		if (swept_uv.x >= 0.0 && swept_uv.y >= 0.0 && swept_uv.x <= 1.0 && swept_uv.y <= 1.0) {
+			vec2 sw = texture(swept_mask, swept_uv).rg;
+			float fresh = clamp((swept_fall - (sw.r - 1.0)) / swept_refill, 0.0, 1.0);
+			float edge = 0.3 + 0.4 * snow_noise(xz * 4.0 + 3.0) + 0.45 * smoothstep(0.62, 0.8, snow_noise(xz * 2.6 + 11.0));
+			swept = step(edge, sw.g * (1.0 - fresh) * step(0.5, sw.r));
+		}
+	}
+	if (swept > 0.5 || underground || dug > 0.75 || (dug > 0.25 && world_pos.y < -0.05) || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n) || snow_sheltered(world_pos)) {
 		discard;
 	}
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);

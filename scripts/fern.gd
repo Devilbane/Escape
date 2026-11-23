@@ -190,8 +190,8 @@ static func needle_pine(st: SurfaceTool, trunk: SurfaceTool, variant: int, tall:
 	var tip := lean + Vector3(0, top, 0)
 	_limb(trunk, Vector3.ZERO, mid, foot_r, foot_r * 0.62, PINE_BARK)
 	_limb(trunk, mid, tip, foot_r * 0.62, 0.03, PINE_BARK_HIGH)
-	var crown_from := top * (0.3 if broad else 0.36)
-	var levels := 8 if broad else 10
+	var crown_from := top * (0.2 if broad else 0.22)
+	var levels := 10 if broad else 12
 	var reach := REACH * full * (1.8 if broad else 1.15)
 	for lv in levels:
 		var t := (float(lv) + shape.randf_range(-0.2, 0.2)) / (levels - 1)
@@ -199,7 +199,7 @@ static func needle_pine(st: SurfaceTool, trunk: SurfaceTool, variant: int, tall:
 		var at := lean * (y / top) + Vector3(0, y, 0)
 		# How far the branches reach at this height: a rounded cone, or widest near the flat top.
 		var spread := (0.35 + 0.95 * sin(PI * clampf(t * 0.85 + 0.12, 0.0, 1.0))) if not broad else lerpf(0.55, 1.15, pow(clampf(t, 0.0, 1.0), 0.6)) * (0.6 if t > 0.95 else 1.0)
-		var branches := shape.randi_range(3, 4) if lv < levels - 1 else 1
+		var branches := shape.randi_range(4, 5) if lv < levels - 1 else 1
 		var turn := shape.randf() * TAU
 		# The shade of the tufts at this height (see spruce_needles.gdshader: the lower are darker).
 		var shade := Color.WHITE * lerpf(NEEDLE_FOOT_SHADE + 0.08, NEEDLE_TOP_SHADE, clampf(t, 0.0, 1.0))
@@ -210,9 +210,11 @@ static func needle_pine(st: SurfaceTool, trunk: SurfaceTool, variant: int, tall:
 			var dir := Vector3(cos(a), rise, sin(a)).normalized()
 			var end := at + dir * length
 			if lv < levels - 1:
-				_limb(trunk, at, end, foot_r * 0.28 * (1.2 - t * 0.6), 0.02, PINE_BARK_HIGH.lerp(PINE_BARK, 0.35))
+				# Only a short stub of the branch shows; the tufts cover the rest, so no bare sticks
+				# radiate out of the crown when seen from above.
+				_limb(trunk, at, at.lerp(end, 0.3), foot_r * 0.28 * (1.2 - t * 0.6), foot_r * 0.2, PINE_BARK_HIGH.lerp(PINE_BARK, 0.35))
 			# A big tuft at the branch's end, and smaller ones along it.
-			var tufts := [[1.0, 1.0], [shape.randf_range(0.7, 0.8), 0.9], [shape.randf_range(0.45, 0.6), 0.8]]
+			var tufts := [[1.0, 1.0], [shape.randf_range(0.7, 0.8), 0.9], [shape.randf_range(0.45, 0.6), 0.9], [shape.randf_range(0.15, 0.25), 0.9]]
 			if length > 1.2:
 				tufts.append([shape.randf_range(0.25, 0.35), 0.7])
 			# Far off, the two biggest tufts of a branch keep its outline.

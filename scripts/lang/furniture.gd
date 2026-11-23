@@ -4,6 +4,9 @@ extends RefCounted
 
 const EN := {
 	"Raumausstatterin Ilse": "Ilse the furnisher",
+	"Du zündest die Kerzen an.": "You light the candles.",
+	"Du löschst die Kerzen.": "You put the candles out.",
+	"Klicken, um die Kerzen zu löschen oder anzuzünden": "Click to put the candles out or light them",
 	"Ein Haus ist erst ein Heim, wenn ein Bett darin steht.": "A house is not a home until there is a bed in it.",
 	"Betten, Truhen, Regale, Kamine: Ich liefere alles bis an Euer Grundstück.": "Beds, chests, shelves, fireplaces: I deliver everything to your plot.",
 	"Stellt die Möbel im Bauplan auf, mit \"Einrichten\".": "Set the furniture up in your blueprint, with \"Furnish\".",
@@ -41,7 +44,7 @@ const EN := {
 	"Dieselbe Werkbank wie auf dem Handwerkerplatz: Ringe, Ketten und feiner Draht.": "The same bench as on the crafting square: rings, chains and fine wire.",
 	"Dasselbe Schleifrad wie auf dem Handwerkerplatz: rohe Edelsteine schleifen.": "The same wheel as on the crafting square: cut rough gems.",
 	"Derselbe Tisch wie auf dem Handwerkerplatz: Tränke und Tinkturen brauen.": "The same table as on the crafting square: brew potions and tinctures.",
-	"Ein eiserner Leuchter mit drei Kerzen. Er erhellt den Raum, und nachts sieht man dich in seinem Licht.": "An iron stand with three candles. It lights the room, and at night you are seen in its light.",
+	"Ein eiserner Leuchter mit drei Kerzen. Er erhellt den Raum, und nachts sieht man dich in seinem Licht. Ein Klick löscht die Kerzen oder zündet sie wieder an.": "An iron stand with three candles. It lights the room, and at night you are seen in its light. A click puts the candles out or lights them again.",
 	"Eine Fackel in einer Halterung, an eine Wand gehängt. Sie erhellt den Raum, und nachts sieht man dich in ihrem Licht.": "A torch in a bracket, hung on a wall. It lights the room, and at night you are seen in its light.",
 	"Ein gerahmtes Gemälde der Berge im Abendrot, für eine Wand.": "A framed painting of the mountains at dusk, for a wall.",
 	"Ein gerahmtes Gemälde eines stillen Sees unter dem Mond, für eine Wand.": "A framed painting of a still lake under the moon, for a wall.",

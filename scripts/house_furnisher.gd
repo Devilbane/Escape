@@ -207,13 +207,40 @@ func refresh() -> void:
 			_draw_piece(house, p, is_mine)
 	refresh_books()
 	# Where a fire or a lamp burns in a house, the hero is seen at night (see Outdoor.is_lit).
-	var lit: Array[Vector3] = []
-	for light: Node3D in _pieces.find_children("*", "OmniLight3D", true, false):
-		lit.append(light.global_position if light.is_inside_tree() else light.position)
-	game.level.house_lights = lit
+	_note_lights()
 	_fade(true)
 	if active:
 		_update_bar()
+
+
+## Tells the level where a light burns in a house (a candle stand put out gives none).
+func _note_lights() -> void:
+	var lit: Array[Vector3] = []
+	for light: Node3D in _pieces.find_children("*", "OmniLight3D", true, false):
+		if light.visible:
+			lit.append(light.global_position if light.is_inside_tree() else light.position)
+	game.level.house_lights = lit
+
+
+## The hero clicks their candle stand: its candles go out or are lit again, flames and light
+## together, and the piece keeps it in the books (see CandleStand).
+func toggle_candles(station: Dictionary) -> void:
+	var at: Dictionary = station.get("piece", {})
+	for p in furniture.placed:
+		if p.kind == HouseFurniture.CANDLE_KIND and p.storey == at.get("storey") and p.x == at.get("x") and p.y == at.get("y"):
+			var on: bool = p.has(CandleStand.OUT)
+			if on:
+				p.erase(CandleStand.OUT)
+			else:
+				p[CandleStand.OUT] = 1
+			furniture.save(game.hero_name)
+			var stand = station.get("stand")
+			if stand is Node3D and is_instance_valid(stand):
+				CandleStand.set_lit(stand, on)
+			_note_lights()
+			Sfx.play(game, "swing", -6.0, station.pos)
+			game.show_message(Lang.t("Du zündest die Kerzen an.") if on else Lang.t("Du löschst die Kerzen."), 1.6)
+			return
 
 
 ## One piece, solid, and (in the hero's own house) a station.
@@ -343,8 +370,15 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.35, 0.4, 0.06), iron, Vector3(0, 0.03, 0))
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.04, 0.05, 1.3), iron, Vector3(0, 0.68, 0))
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.25, 0.08, 0.06), iron, Vector3(0, 1.34, 0))
-			level._place("candle_triple", Vector3(0, 1.37, 0), 0.0, root)
-			_add_light(root, Vector3(0, 1.9, 0)).set_meta(LightShadows.INDOOR, true)
+			var candles := level._place("candle_triple", Vector3(0, 1.37, 0), 0.0, root)
+			var glow := _add_light(root, Vector3(0, 1.9, 0))
+			glow.set_meta(LightShadows.INDOOR, true)
+			# A click puts the candles out: flames and light together, and it is kept (see toggle_candles).
+			CandleStand.prepare(root, candles, glow)
+			CandleStand.set_lit(root, not piece.has(CandleStand.OUT))
+			station.spot = Vector3(0, 1.5, 0)
+			station.stand = root
+			station.piece = {"storey": piece.get("storey", 0), "x": piece.get("x", 0), "y": piece.get("y", 0)}
 			solids.append({"at": Vector3.ZERO, "size": Vector3(0.6, 1.4, 0.6)})
 		"fackel":
 			var holder := Node3D.new()

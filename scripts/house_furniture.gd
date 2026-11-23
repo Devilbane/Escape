@@ -24,6 +24,9 @@ extends RefCounted
 ## Pure data, kept in Storage apart from the saved games like the house plan.
 
 const RECORD := "furniture"
+## The station of a candle stand: a click puts its candles out or lights them (see HouseFurnisher.toggle_candles).
+const CANDLE_STATION := "kerzen"
+const CANDLE_KIND := "leuchter"
 
 ## The kinds, in the order the furnisher shows them: picture, name, what it does, price in copper,
 ## size in grid cells (across, deep) and the window its station opens (see Game._use_station).
@@ -49,8 +52,8 @@ const KINDS := {
 		"text": "Dasselbe Schleifrad wie auf dem Handwerkerplatz: rohe Edelsteine schleifen."},
 	"alchemie": {"icon": "kind:potion", "name": "Alchemistentisch", "price": 250, "size": Vector2i(2, 1), "station": "werkbank", "bench": "*",
 		"text": "Derselbe Tisch wie auf dem Handwerkerplatz: Tränke und Tinkturen brauen."},
-	"leuchter": {"icon": "kind:torch", "name": "Standleuchter", "price": 50, "size": Vector2i(1, 1), "station": "", "light": true,
-		"text": "Ein eiserner Leuchter mit drei Kerzen. Er erhellt den Raum, und nachts sieht man dich in seinem Licht."},
+	"leuchter": {"icon": "kind:torch", "name": "Standleuchter", "price": 50, "size": Vector2i(1, 1), "station": CANDLE_STATION, "light": true,
+		"text": "Ein eiserner Leuchter mit drei Kerzen. Er erhellt den Raum, und nachts sieht man dich in seinem Licht. Ein Klick löscht die Kerzen oder zündet sie wieder an."},
 	"fackel": {"icon": "kind:torch", "name": "Wandfackel", "price": 25, "size": Vector2i(1, 1), "station": "", "wall": true, "light": true,
 		"text": "Eine Fackel in einer Halterung, an eine Wand gehängt. Sie erhellt den Raum, und nachts sieht man dich in ihrem Licht."},
 	"bild_berge": {"icon": "kind:map", "name": "Gemälde: Berge", "price": 75, "size": Vector2i(1, 1), "station": "", "wall": true, "painting": 0,
@@ -75,9 +78,9 @@ const KINDS := {
 	AppleTree.KIND: {"icon": "kind:sapling", "name": "Apfelbaum-Setzling", "price": 60, "size": Vector2i(1, 1), "station": AppleTree.STATION, "garden": true,
 		"text": "Ein junger Apfelbaum zum Einpflanzen. Er wächst mit den Jahren: im zweiten Jahr blüht er und trägt die ersten Äpfel, ab dem dritten ist er ein großer Baum. Im Sommer und Herbst pflückst du Äpfel."},
 }
-## What a garden tree keeps of its life in the books (see AppleTree): the season day it was
-## planted on and the season it was last picked in.
-const GROWTH := ["planted", "picked"]
+## What a piece keeps in the books besides where it stands: a garden tree its life (see AppleTree: the
+## season day it was planted on and the season it was last picked in), a candle stand that it is put out.
+const GROWTH := ["planted", "picked", CandleStand.OUT]
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
 	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen", WeaponRack.KIND]],

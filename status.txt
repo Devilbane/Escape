@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Show dropped items as real objects lying on the floor; Gather the village in the temple every morning; Lock owned house doors by double-click | Shipped this week: Move woodcutter sign next to Bruno's chopping trunk; Keep indoor lamps from lighting the outside of their houses (+48 more)
+Escape! dev status | Working on: Show dropped items as real objects lying on the floor; Gather the village in the temple every morning | Shipped this week: Lock owned house doors by double-click; Move woodcutter sign next to Bruno's chopping trunk (+48 more)

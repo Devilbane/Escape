@@ -2143,7 +2143,7 @@ func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool,
 			"stone":
 				_visual_box(middle, size, HouseLooks.flagstones())
 			"wood":
-				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size)
+				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size, lid)
 				boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
 				_into.add_child(boards)
 			_:

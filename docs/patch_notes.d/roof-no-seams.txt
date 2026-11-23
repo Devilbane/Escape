@@ -1,0 +1,1 @@
+- Flat roofs no longer show seams and dashes between the boards under the snow.

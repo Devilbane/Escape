@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the big smithy chimney glow and throw embers | Shipped this week: Elsbeth intones a spell with her staff, which then glows; Stretch the temple door to fill its doorway (+48 more)
+Escape! dev status | Shipped this week: Make the big smithy chimney glow and throw embers; Elsbeth intones a spell with her staff, which then glows (+48 more)

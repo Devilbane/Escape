@@ -37,6 +37,9 @@ uniform vec3 green_3 = vec3(0.19, 0.53, 0.42);
 uniform vec3 green_4 = vec3(0.14, 0.45, 0.48);
 uniform vec3 green_5 = vec3(0.11, 0.36, 0.33);
 // How many of a tree's ferns are dark all through, and how many have fronds of three greens.
+// The far model (see Fern.FAR_WIDTH): its fronds are broader and have fewer segments, so its snow
+// stripe is narrowed to the near one's width and its level test is looser, to look the same.
+uniform bool far_model = false;
 uniform float dark_ferns = 0.12;
 uniform float mixed_ferns = 0.25;
 
@@ -97,7 +100,7 @@ void fragment() {
 	ALBEDO = tex.rgb * tint;
 	if (amount > 0.001) {
 		// The fronds' normals lean up already (see Fern._card): a level frond is nearly 1.
-		float level = smoothstep(0.6, 0.88, rest_normal.y);
+		float level = far_model ? smoothstep(0.45, 0.75, rest_normal.y) : smoothstep(0.6, 0.88, rest_normal.y);
 		// Only on the upper side: from below, a frond shows its green.
 		float above = step(0.0, dot(CAMERA_POSITION_WORLD - rest_pos, rest_normal));
 		float n = snow_noise(rest_pos.xz * 2.2 + rest_pos.y * 1.3) * 0.6 + snow_noise(rest_pos.xz * 7.0 + 3.0) * 0.4;
@@ -117,6 +120,9 @@ void fragment() {
 			// near the trunk stay green, so every tier shows green at the centre and white
 			// outside, with green between one tier and the next (not a pillar of snow).
 			float wide = 0.1 + 0.14 * smoothstep(0.5, 0.9, lies);
+			if (far_model) {
+				wide *= 0.58;
+			}
 			float ridge = 1.0 - smoothstep(wide - 0.03, wide, abs(UV.x - 0.5));
 			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3, 0.45, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
 			ALBEDO = mix(ALBEDO, snow_albedo, thick);

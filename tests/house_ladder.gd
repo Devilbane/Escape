@@ -23,6 +23,7 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
+	WalkIn.lock_halls = false # these tests walk into halls at any hour (see tests/village_halls.gd for the locks)
 	Storage.use(Storage.Memory.new())
 	Plots.reload()
 	HouseSketch.reload()

@@ -128,6 +128,7 @@ const STRAY := 2.0
 
 
 func _initialize() -> void:
+	WalkIn.lock_halls = false # these tests walk into halls at any hour (see tests/village_halls.gd for the locks)
 	if OS.get_environment("LIST") != "":
 		for s: Array in VILLAGE + DUNGEONS:
 			print(s[0])

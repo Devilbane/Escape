@@ -42,6 +42,22 @@ static func post_of(v: Villager) -> Dictionary:
 	return {}
 
 
+## Whether the hall `rec` is locked: it has a keeper (see VillageHalls.KEEPERS) who is not inside it
+## and awake (not on the way in, at her place or on the way out). Halls without a keeper, or that
+## cannot be walked into at a counter, stay open.
+static func locked(level: Node, rec: Dictionary) -> bool:
+	var role: String = VillageHalls.KEEPERS.get(String(rec.get("kind", "")), "")
+	if role == "" or (rec.get("posts", []) as Array).is_empty():
+		return false
+	var people = level.get("villagers")
+	if people == null:
+		return false
+	for v: Villager in people:
+		if v.role == role:
+			return v.post_trip.is_empty() or v.post_trip.get("rec") != rec
+	return false
+
+
 ## Whether the villager should go to her post now: she keeps a hall and the day is calm.
 static func wants(v: Villager) -> bool:
 	return not v.night and not v.level.village_alarm.raised and not post_of(v).is_empty()

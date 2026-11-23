@@ -20,6 +20,7 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
+	WalkIn.lock_halls = false # these tests walk into halls at any hour (see tests/village_halls.gd for the locks)
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
 

@@ -43,6 +43,11 @@ const DOOR_GAP := 1.24
 const RAMP := 1.0
 ## How long between two pushes on a door the hero stands at (seconds).
 const PUSH_EVERY := 0.4
+## Whether a hall whose keeper is not inside and awake keeps its door locked (see VillagePosts.locked);
+## tests that walk into halls at any hour switch it off.
+static var lock_halls := true
+## How long between two "the door is locked" words to the hero (seconds).
+const LOCKED_EVERY := 4.0
 ## The warm light in a house while the hero is inside.
 const LAMP_COLOUR := Color(1.0, 0.76, 0.48)
 const LAMP_ENERGY := 1.4
@@ -1059,13 +1064,23 @@ func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
 	if leaf == null or not is_instance_valid(leaf):
 		return
 	rec.push = float(rec.push) - delta
+	rec["lock_wait"] = float(rec.get("lock_wait", 0.0)) - delta
 	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
-	if Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH and rec.push <= 0.0:
+	var near := Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH
+	# A hall without its keeper inside and awake is locked, unless the hero is inside it already
+	# (they are never shut in).
+	var locked := lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec)
+	rec["locked"] = locked
+	if near and locked:
+		if float(rec.lock_wait) <= 0.0:
+			rec.lock_wait = LOCKED_EVERY
+			Events.tell(Lang.t("Die Tür ist verschlossen. Ihr Besitzer ist nicht da."), Color(1.0, 0.8, 0.5), 2.5)
+	elif near and rec.push <= 0.0:
 		rec.push = PUSH_EVERY
 		(leaf as HouseDoor).swing()
 	var shape: CollisionShape3D = rec.get("door_shape")
 	if shape:
-		shape.disabled = (leaf as HouseDoor).openness() > 0.25
+		shape.disabled = (leaf as HouseDoor).openness() > 0.25 and not locked
 
 
 ## The roof of a house or hall that hides the hero behind it from the camera, head to foot, is

@@ -1,0 +1,1 @@
+- Mira no longer walks out of her shop through the wall at nightfall, and a shop, office or guildhall whose keeper is not inside and awake keeps its door locked.

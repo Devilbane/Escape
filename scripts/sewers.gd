@@ -18,6 +18,11 @@ extends RefCounted
 ##   "c"  the channel: water, behind a kerb, nobody walks in it
 ##   "w"  the walkway beside it, and the passages to the shafts
 ##   "s"  a shaft under a hatch: open to the sky, a ladder up to the street
+##   "r"  a chamber of the labyrinth: a bigger vault with pillars to run round (see ROOMS)
+## Beside the walkway lies the labyrinth (see PASSAGES, ROOMS): two circuits, each leaving the walkway
+## by a narrow passage, running through a chamber and coming back to the walkway further on, so the
+## hero can go round and round without ever turning back. The vermin of the chambers (see MOBS)
+## come back RESPAWN_AFTER seconds after they fell, about a lap later, out of sight.
 ## The drain's route is ROUTE, one corner after the other (cells of the plot).
 
 ## The plot the sewers are drawn on (map tiles): the village's west side, from the grating at the
@@ -33,6 +38,30 @@ const HATCHES := [
 ]
 ## The street drains' tiles (their light shafts down here, see build).
 const GRILLES := [Vector2i(44, 41), Vector2i(44, 38), Vector2i(44, 34), Vector2i(42, 20)]
+## The narrow arched passages of the labyrinth, one cell wide: [first cell, last cell] in a straight line.
+## Each runs from the walkway (x 14) to a chamber, or from chamber to chamber.
+const PASSAGES := [
+	[Vector2i(8, 52), Vector2i(13, 52)], [Vector2i(4, 38), Vector2i(4, 48)], [Vector2i(8, 34), Vector2i(13, 34)],
+	[Vector2i(9, 20), Vector2i(13, 20)], [Vector2i(4, 12), Vector2i(4, 16)], [Vector2i(5, 12), Vector2i(13, 12)],
+]
+## The chambers, 7 x 7 cells (14 m) or so: Rect2i of cells. (A cell of stone stays between the middle chamber
+## and the cellar of the village hall to its north-east, or the two would join into one pit.)
+const ROOMS := [Rect2i(1, 49, 7, 7), Rect2i(1, 31, 7, 7), Rect2i(2, 17, 7, 7)]
+## The pillars in the chambers, left standing in the dug stone: something to run round or hide behind.
+const PILLARS := [Vector2i(4, 52), Vector2i(6, 54), Vector2i(4, 34), Vector2i(2, 36), Vector2i(5, 20), Vector2i(3, 18)]
+## The vermin of the labyrinth: [kind of Enemy.KINDS (wildlife), cell].
+const MOBS := [
+	["schleim", Vector2i(3, 53)], ["schleim", Vector2i(5, 50)], ["spinne", Vector2i(2, 54)],
+	["fledermaus", Vector2i(4, 43)], ["fledermaus", Vector2i(10, 52)],
+	["spinne", Vector2i(2, 32)], ["spinne", Vector2i(6, 37)], ["schleim", Vector2i(6, 32)],
+	["schleim", Vector2i(4, 22)], ["schleim", Vector2i(7, 19)], ["spinne", Vector2i(2, 22)],
+	["fledermaus", Vector2i(9, 12)],
+]
+## Seconds until a fallen one is back at its post: a lap of the bigger circuit (about 115 m at the
+## hero's pace, Player.SPEED) with the fights on the way, so the chambers fill up just as the next
+## lap begins. It only returns while the hero is farther than RESPAWN_AWAY metres from its post.
+const RESPAWN_AFTER := 75.0
+const RESPAWN_AWAY := 16.0
 ## The lamps on the walls: every this many cells of the walkway.
 const LAMP_EVERY := 8
 
@@ -117,6 +146,23 @@ static func _lay() -> void:
 		_cells[hatch.cell] = "s"
 		for c: Vector2i in hatch.passage:
 			_cells[c] = "w"
+	for room: Rect2i in ROOMS:
+		for y in range(room.position.y, room.end.y):
+			for x in range(room.position.x, room.end.x):
+				_cells[Vector2i(x, y)] = "r"
+	for pass_: Array in PASSAGES:
+		var a: Vector2i = pass_[0]
+		var b: Vector2i = pass_[1]
+		var step := Vector2i(signi(b.x - a.x), signi(b.y - a.y))
+		var at := a
+		while true:
+			if not _cells.has(at):
+				_cells[at] = "w"
+			if at == b:
+				break
+			at += step
+	for c: Vector2i in PILLARS:
+		_cells.erase(c)
 
 
 static func _touches_channel(c: Vector2i, flow: Dictionary) -> bool:
@@ -212,12 +258,83 @@ static func use(game: Node, s: Dictionary) -> void:
 
 ## Down in the sewers (every frame the hero is): the first time the compendium learns of them.
 static func entered(game: Node) -> void:
+	_rouse_vermin(game)
 	if _told or game.lore.has(LEARN):
 		_told = true
 		return
 	_told = true
 	Events.teach(LEARN)
 	Events.tell(Lang.t(ENTERED), Color(0.7, 0.85, 0.6))
+
+
+# --- The vermin of the labyrinth ----------------------------------------------------
+
+## The vermin of the chambers (see MOBS), one entry each: {"kind", "cell", "enemy", "fell"}; `fell` is
+## the time it fell, in seconds (-1 while it lives).
+static var _vermin: Array = []
+## A fixed time of the clock, in seconds (for the tests; -1 lets it run).
+static var clock_stopped := -1.0
+
+
+static func now() -> float:
+	return clock_stopped if clock_stopped >= 0.0 else Time.get_ticks_msec() / 1000.0
+
+
+## The vermin of the labyrinth.
+static func vermin() -> Array:
+	if _vermin.size() != MOBS.size():
+		_vermin.clear()
+		for m: Array in MOBS:
+			_vermin.append({"kind": m[0], "cell": m[1], "enemy": null, "fell": -1.0})
+	return _vermin
+
+
+## Down in the sewers (every frame the hero is): each one not standing yet is set at its post, once
+## RESPAWN_AFTER seconds have passed since it fell and the hero is not near its post.
+static func _rouse_vermin(game: Node) -> void:
+	var level: Level = game.level
+	var hero: Vector3 = game.player.global_position
+	for g: Dictionary in vermin():
+		var e = g.enemy
+		var alive: bool = e != null and is_instance_valid(e) and not e.dead
+		if alive and e.level == level:
+			continue
+		if e != null and is_instance_valid(e) and e.dead and float(g.fell) < 0.0:
+			continue
+		if float(g.fell) >= 0.0:
+			if now() - float(g.fell) < RESPAWN_AFTER:
+				continue
+			var post := floor_at(g.cell)
+			if Vector2(hero.x - post.x, hero.z - post.z).length() < RESPAWN_AWAY:
+				continue
+			g.fell = -1.0
+		g.enemy = _raise(level, g)
+
+
+static func _raise(level: Level, g: Dictionary) -> Enemy:
+	var e := Enemy.new()
+	e.kind = g.kind
+	e.level = level
+	level.add_child(e)
+	e.global_position = floor_at(g.cell)
+	e.reset_physics_interpolation()
+	e.died.connect(func():
+		level.enemy_killed.emit(e)
+		g.fell = now()
+		var purse: Array = Enemy.KINDS[e.kind].get("purse", [0, 0])
+		level.drop_kill_loot(e, randi_range(purse[0], purse[1])))
+	level.enemies = level.enemies.filter(func(x): return is_instance_valid(x))
+	level.enemies.append(e)
+	return e
+
+
+## The vermin standing now (for the tests).
+static func standing() -> Array:
+	var out: Array = []
+	for g: Dictionary in vermin():
+		if g.enemy != null and is_instance_valid(g.enemy) and not g.enemy.dead:
+			out.append(g.enemy)
+	return out
 
 
 # --- The look: brick -------------------------------------------------------------
@@ -459,12 +576,18 @@ static func _outfall_bars(parent: Node3D, body: StaticBody3D) -> void:
 ## A lamp on the wall every LAMP_EVERY cells of the walkway, away from the channel.
 static func _lamps(parent: Node3D) -> void:
 	var n := 0
+	var m := 0
 	for c: Vector2i in cells():
-		if cells()[c] != "w":
+		if cells()[c] == "r":
+			m += 1
+			if m % 12 != 5:
+				continue
+		elif cells()[c] != "w":
 			continue
-		n += 1
-		if n % LAMP_EVERY != 0:
-			continue
+		else:
+			n += 1
+			if n % LAMP_EVERY != 0:
+				continue
 		# The wall: the open side facing away from the channel.
 		var out := Vector2i.ZERO
 		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
@@ -632,7 +755,7 @@ static func _litter(parent: Node3D) -> void:
 	var b := W.Builder.new()
 	var n := 0
 	for c: Vector2i in cells():
-		if cells()[c] != "w":
+		if not "wr".contains(cells()[c]):
 			continue
 		n += 1
 		if n % 5 != 2:

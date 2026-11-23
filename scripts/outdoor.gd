@@ -5388,6 +5388,7 @@ func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> voi
 			return
 		up = hit.normal
 		at = hit.position
+	SnowPrints.set_daylight(snow.daylight)
 	SnowPrints.leave(self, at, heading, size, kind, snow.daylight, up)
 
 

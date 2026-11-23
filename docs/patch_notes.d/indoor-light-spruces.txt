@@ -1,0 +1,1 @@
+- Wall torches and lamps inside your house no longer light up the spruces outside.

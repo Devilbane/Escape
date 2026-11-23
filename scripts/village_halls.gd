@@ -203,8 +203,13 @@ static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	mug_spot.position = Vector3(-(half - 1.3), floor_y + 0.79, table_z + 0.25)
 	mug_spot.visible = false
 	inside.add_child(mug_spot)
-	rec["seats"] = [{"role": TavernBrewer.GUEST, "pos": hall.transform * chair_at, "rot": hall.rotation.y + PI,
-			"serve": hall.transform * Vector3(-(half - 1.3) + 1.05, floor_y, table_z + 0.45), "mug": mug_spot}]
+	# Fritz's second place, for sleeping off the night: standing before the bar, folded over it
+	# (see TavernBrewer.doze). By day he only ever sits at his table.
+	var bar_front := Vector3(-counter_w * 0.25, floor_y, back + BEHIND + COUNTER_DEEP + 0.45)
+	rec["seats"] = [{"role": TavernBrewer.GUEST, "kind": "table", "pos": hall.transform * chair_at, "rot": hall.rotation.y + PI,
+			"serve": hall.transform * Vector3(-(half - 1.3) + 1.05, floor_y, table_z + 0.45), "mug": mug_spot},
+			{"role": TavernBrewer.GUEST, "kind": "counter", "pos": hall.transform * bar_front, "rot": hall.rotation.y + PI,
+			"serve": hall.transform * bar_front, "mug": mug_spot}]
 
 
 ## Shelves of goods along the back wall, sacks and crates by the side walls.

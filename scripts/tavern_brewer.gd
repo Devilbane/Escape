@@ -38,6 +38,9 @@ const HEAR_RANGE := 16.0
 const SLUMP := 0.75
 const SLUMP_DOWN := 0.12
 const SLUMP_FORWARD := 0.22
+## Over the bar he stands, so he folds further forward.
+const COUNTER_SLUMP := 1.0
+const COUNTER_FORWARD := 0.05
 const SNORE_EVERY := Vector2(3.5, 4.5)
 const SNORE_DB := -8.0
 
@@ -52,14 +55,14 @@ const TALKS := [
 
 
 ## The tavern's record and Fritz's seat in it ({"rec", "seat"}), or {} when it cannot be walked into.
-static func seat_of(level: Node) -> Dictionary:
+static func seat_of(level: Node, kind := "table") -> Dictionary:
 	var walk_in: WalkIn = level.get("walk_in")
 	if walk_in == null:
 		return {}
 	for rec in walk_in.buildings:
 		if rec.kind == "tavern" and rec.get("opened", false):
 			for seat: Dictionary in rec.get("seats", []):
-				if seat.role == GUEST:
+				if seat.role == GUEST and seat.get("kind", "table") == kind:
 					return {"rec": rec, "seat": seat}
 	return {}
 
@@ -121,7 +124,10 @@ static func sleeping(trip: Dictionary) -> bool:
 static func doze(v: Villager) -> bool:
 	if v.role != GUEST or seat_of(v.level).is_empty() or v.level.village_alarm.raised:
 		return false
-	var found := seat_of(v.level)
+	# One place for the night: slumped at his table, or folded over the bar.
+	var found := seat_of(v.level, "counter" if randf() < 0.4 else "table")
+	if found.is_empty():
+		found = seat_of(v.level)
 	VillagePosts.enter_guest(v, found.rec, found.seat, INF)
 	v.post_trip["sleeping"] = true
 	v.begin_post()
@@ -130,8 +136,12 @@ static func doze(v: Villager) -> bool:
 
 ## Fritz asleep at his table: slumped forward, a snore now and then (heard near him), a "Zzz" rising.
 static func sleep_step(v: Villager, trip: Dictionary, delta: float) -> void:
-	v.play("Sit_Chair_Idle")
-	v.slump(SLUMP, SLUMP_DOWN, SLUMP_FORWARD)
+	if trip.post.get("kind", "table") == "counter":
+		v.play("Idle")
+		v.slump(COUNTER_SLUMP, 0.0, COUNTER_FORWARD)
+	else:
+		v.play("Sit_Chair_Idle")
+		v.slump(SLUMP, SLUMP_DOWN, SLUMP_FORWARD)
 	trip["snore_in"] = float(trip.get("snore_in", 1.0)) - delta
 	if float(trip.snore_in) > 0.0:
 		return
@@ -153,16 +163,17 @@ static func guest_step(v: Villager, trip: Dictionary, delta: float) -> bool:
 			trip["seated"] = true
 			trip["sit_clock"] = 0.0
 		trip.sit_clock = float(trip.sit_clock) + delta
-		if float(trip.sit_clock) < SIT_TIME:
+		var at_bar: bool = trip.post.get("kind", "table") == "counter"
+		if float(trip.sit_clock) < SIT_TIME and not at_bar:
 			v.play("Sit_Chair_Down")
 			return false
 		if not v.night:
 			if float(trip.get("rise", -1.0)) < 0.0:
 				trip["rise"] = 0.0
 				v.slump(0.0, 0.0, 0.0)
-			v.play("Sit_Chair_StandUp")
+			v.play("Idle" if at_bar else "Sit_Chair_StandUp")
 			trip.rise = float(trip.rise) + delta
-			return float(trip.rise) >= SIT_TIME
+			return float(trip.rise) >= (0.3 if at_bar else SIT_TIME)
 		sleep_step(v, trip, delta)
 		return false
 	if not trip.get("seated", false):

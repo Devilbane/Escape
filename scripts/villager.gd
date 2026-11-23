@@ -324,6 +324,8 @@ var _torch_time := 0.0
 ## holds it out in front, only rocking gently with the steps (see CarryArm).
 var _lamp := false
 var _carry_arm: CarryArm
+## The arms of a sleeper with the head in the hands (see SleepArms and slump).
+var _sleep_arms: SleepArms
 ## Where the woodcutter (or the smith) stands to work and which way he faces
 ## then (INF: neither, or nothing to strike), the chips (or sparks) that fly
 ## at each blow, and the blow under way: whether the blade or hammer has
@@ -2652,6 +2654,10 @@ func slump(lean: float, down: float, forward: float) -> void:
 	_model.rotation.x = lean
 	_model.position.y = -down
 	_model.position.z = forward
+	if _sleep_arms == null and lean > 0.0:
+		_sleep_arms = SleepArms.attach(_bones(), _anim)
+	if _sleep_arms != null:
+		_sleep_arms.active = lean > 0.0
 
 
 ## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).

@@ -80,6 +80,9 @@ signal plates_changed(pressed: int, total: int)
 signal gate_opened(pos: Vector3)
 
 const TILE := 4.0
+## Meta of the open-air map while it is set aside out of the scene tree (see Game._park_outdoor):
+## what leaves the tree with it then only pauses, nothing is let go or undone.
+const PARKED := &"parked_outdoor"
 const ASSET_DIR := "res://assets/dungeon/"
 const KIT_DIR := "res://assets/kit/"
 ## Floors, walls, pillars and furniture from Omie's 3D Modular Dungeon Kit

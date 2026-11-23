@@ -2977,6 +2977,9 @@ func _tick_clock(delta: float) -> void:
 ## dusk and dawn look the same whatever the moon.
 func _moonlight() -> void:
 	var bright := _night_light()
+	# Down in the mine the sky's light casts no shadows: the trees and houses on the ground
+	# above must not throw theirs onto the mine floor.
+	_moon.shadow_enabled = _mine_dark < 0.5
 	# The hero's lantern shrinks to a small pool as the night darkens (not down in the mine:
 	# there it shines as in a dungeon).
 	if player:

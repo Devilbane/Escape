@@ -114,7 +114,7 @@ static func needle_tree_mesh(variant := 0, far := false) -> ArrayMesh:
 			needle_tree(st, trunk, rng, look.x, look.y, far)
 		else:
 			needle_pine(st, trunk, variant, look.x, look.y, int(look.z) == BROAD, far)
-		st.set_material(material(true))
+		st.set_material(needle_far_material() if far else material(true))
 		trunk.set_material(bark_material())
 		_cache[key] = trunk.commit(st.commit())
 	return _cache[key]
@@ -297,6 +297,17 @@ static func material(needles: bool) -> Material:
 			m.roughness = 0.9
 			_mats[needles] = m
 	return _mats[needles]
+
+
+## The far needle tree's fronds: the same shader, told to match the near model's snow (see
+## spruce_needles.gdshader, `far_model`). Shared.
+static func needle_far_material() -> Material:
+	if not _mats.has("far"):
+		var sm: ShaderMaterial = (material(true) as ShaderMaterial).duplicate()
+		sm.set_shader_parameter("far_model", true)
+		sm.set_meta("own_snow", true)
+		_mats["far"] = sm
+	return _mats["far"]
 
 
 ## The needle tree's trunk: plain bark, colour from the vertices. Shared.

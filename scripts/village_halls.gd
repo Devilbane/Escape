@@ -253,7 +253,8 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		letter.position = Vector3((1.4 + k * 0.03) * squeeze, top + 0.004 + k * 0.01, cz + 0.1)
 		letter.rotation = Vector3(-PI * 0.5, 0.3 * k - 0.2, 0)
 		inside.add_child(letter)
-	# Notices on the side walls toward the door, clear of the windows and sconces by the back wall.
+	# Notices on the side walls toward the door: the windows sit in the middle of each side wall, so
+	# they hang beside them (a poster is 0.7 m wide) and are never papered over a pane.
 	var notices := [
 		["Königliche Post", []],
 		["Postdienste", ["Briefe: zu Fuß", "Pakete: per Karren", "Eilpost: per Reiter"]],
@@ -263,7 +264,7 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	for i in notices.size():
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var notice := WalkInFurniture.poster(notices[i][0], notices[i][1])
-		var nz := room.end.y - 1.5 - (i / 2) * 1.1
+		var nz := minf(1.2 + (i / 2) * 0.9, room.end.y - 0.5)
 		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, nz)
 		notice.rotation.y = -side * PI * 0.5
 		inside.add_child(notice)

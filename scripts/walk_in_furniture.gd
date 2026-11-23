@@ -594,6 +594,10 @@ static func dummy() -> Node3D:
 	return root
 
 
+## Widest a line of text on a poster may be, inside its 0.7 m paper.
+const POSTER_TEXT_WIDTH := 0.6
+
+
 ## A notice on parchment hanging flat on a wall (at -z), 0.7 x 0.95 metres: a gold `title` over short
 ## `lines` of dark ink (German, translated by Lang). With no lines it shows the post's horn instead.
 static func poster(title: String, lines: Array) -> Node3D:
@@ -602,7 +606,7 @@ static func poster(title: String, lines: Array) -> Node3D:
 	_box(root, Vector3(0.7, 0.95, 0.015), Vector3(0, -0.475, 0.02), _plain("poster_paper", Color(0.7, 0.62, 0.45), 1.0))
 	_box(root, Vector3(0.74, 0.03, 0.025), Vector3(0, 0.0, 0.025), _wood())
 	_box(root, Vector3(0.74, 0.03, 0.025), Vector3(0, -0.95, 0.025), _wood())
-	_poster_text(root, Lang.t(title), 0.15, Color(0.45, 0.1, 0.08), 0.0075)
+	_poster_text(root, Lang.t(title), 0.15, Color(0.45, 0.1, 0.08), 0.16)
 	if lines.is_empty():
 		var gold := _plain("poster_gold", Color(0.75, 0.55, 0.15), 0.5)
 		var bell := MeshInstance3D.new()
@@ -616,15 +620,23 @@ static func poster(title: String, lines: Array) -> Node3D:
 		root.add_child(bell)
 		_cylinder(root, 0.05, 0.06, Vector3(-0.2, -0.7, 0.04), gold, Basis(Vector3.BACK, PI * 0.5 + 0.5))
 	for i in lines.size():
-		_poster_text(root, Lang.t(lines[i]), 0.3 + i * 0.16, Color(0.15, 0.1, 0.06), 0.0055)
+		_poster_text(root, Lang.t(lines[i]), 0.3 + i * 0.16, Color(0.15, 0.1, 0.06), 0.11)
 	return root
 
 
-static func _poster_text(poster_root: Node3D, text: String, down: float, colour: Color, pixel: float) -> void:
+## Text on a poster, shrunk until it sits inside the paper: no taller than `height` metres and
+## no wider than the paper, so it never spills onto the wall.
+static func _poster_text(poster_root: Node3D, text: String, down: float, colour: Color, height: float) -> void:
+	var font: Font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	var size := 48
+	var pixel := height / float(size)
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * pixel
+	if width > POSTER_TEXT_WIDTH:
+		pixel *= POSTER_TEXT_WIDTH / width
 	var label := Label3D.new()
 	label.text = text
-	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
-	label.font_size = 48
+	label.font = font
+	label.font_size = size
 	label.pixel_size = pixel
 	label.outline_size = 0
 	label.modulate = colour

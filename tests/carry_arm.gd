@@ -23,7 +23,7 @@ func _init() -> void:
 		hi = Vector2(maxf(hi.x, a.x), maxf(hi.y, a.y))
 	check(lo.x > CarryArm.REACH - 6.0 and hi.x < CarryArm.REACH + 6.0, "the raise only rocks a few degrees")
 	check(lo.y > CarryArm.BEND - 6.0 and hi.y < CarryArm.BEND + 6.0, "the bend only rocks a few degrees")
-	check(CarryArm.REACH > 45.0, "the arm reaches forward")
+	check(CarryArm.REACH > 75.0 and CarryArm.BEND < 25.0, "the arm reaches out nearly straight in front, the light well clear of the body")
 	var still := CarryArm.angles(0.37, 0.0)
 	check(is_equal_approx(still.x, CarryArm.REACH) and is_equal_approx(still.y, CarryArm.BEND), "no rock when standing")
 	var steps := 0
@@ -39,6 +39,9 @@ func _init() -> void:
 		var b := HandLamp.hanging(yaw, 1.2, 0.7)
 		check(absf(b.y.normalized().y) > 0.99, "the lamp hangs upright (yaw %.1f)" % yaw)
 		check(is_equal_approx(b.get_scale().x, 1.2), "the lamp keeps the bearer's scale")
+	for yaw in [0.0, 1.7, -2.4]:
+		var up := HandLamp.held_up(yaw, 1.0)
+		check(up.y.normalized().y > 0.98, "a held torch keeps its flame up (yaw %.1f)" % yaw)
 	var lamps := 0
 	var torches := 0
 	for role: String in Villager.ROLES:

@@ -4207,19 +4207,22 @@ func _adopt_cat(smithy: Node3D) -> void:
 	village_cat = cat
 
 
-## The fire of the big smithy behind the little forge (block "j"): the top of its chimney glows and
-## flickers like the little forge's stack, embers drift out of it, and a flame and a few embers
-## flicker in the furnace's mouth. The effects stand at the model's fire spots (SMITHY_FIRES) in the
+## The fire of the big smithy behind the little forge (block "j"): the coals in its furnace's mouth
+## glow and flicker, a flame and embers drift out of the top of its chimney, and a few more embers
+## rise in the mouth. The effects stand at the model's fire spots (SMITHY_FIRES) in the
 ## open air, not inside the model, so they keep their size; no real light, so nothing leaks through
 ## the walls. `s` is the model's scale.
 func _smithy_fire(node: Node3D, s: float) -> void:
 	var mouth_at: Vector3 = node.transform * Vector3(SMITHY_FIRES[0].x, SMITHY_FIRES[0].y, SMITHY_FIRES[0].z)
 	var top: Vector3 = node.transform * Vector3(SMITHY_FIRES[1].x, SMITHY_FIRES[1].y, SMITHY_FIRES[1].z)
+	# The coals in the furnace's mouth glow and flicker (a small emissive ball, no flat plate, no
+	# real light).
 	var glow := MeshInstance3D.new()
-	glow.name = "SmithyChimneyGlow"
-	var slab := BoxMesh.new()
-	slab.size = Vector3(0.3, 0.02, 0.3) * s
-	glow.mesh = slab
+	glow.name = "SmithyMouthGlow"
+	var ball := SphereMesh.new()
+	ball.radius = 0.07 * s
+	ball.height = 0.14 * s
+	glow.mesh = ball
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.3, 0.06, 0.02)
 	mat.emission_enabled = true
@@ -4227,7 +4230,7 @@ func _smithy_fire(node: Node3D, s: float) -> void:
 	mat.emission_energy_multiplier = 2.0
 	glow.material_override = mat
 	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	glow.position = top
+	glow.position = mouth_at
 	add_child(glow)
 	var tween := glow.create_tween().set_loops()
 	tween.tween_property(mat, "emission_energy_multiplier", 3.0, 0.4)

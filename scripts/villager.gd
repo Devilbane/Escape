@@ -3055,6 +3055,9 @@ func say(text: String, look_at := Vector3.INF, time := SAY_TIME, in_chat := fals
 	# cover each other and neither could be read.
 	for other in _neighbours():
 		other.hush()
+	# Elsbeth's words (the morning speech, her spell) carry further for a hero who stands in the temple
+	# with the roof lifted off and the camera high above: the bubble is drawn larger there.
+	_bubble.zoom = TempleMorning.BUBBLE_ZOOM if role == TempleMorning.SPEAKER and level != null and level.hero_indoors else 1.0
 	_bubble.show_line(display_name, text, true)
 	Events.say(display_name, text, global_position)
 	_bubble_time = time

@@ -28,6 +28,8 @@ const END := 7.85
 ## watch and the drinker at the tavern. Elsbeth is the one who speaks (SPEAKER).
 const STAY_AWAY := ["3", "%", "4", "5"]
 const SPEAKER := "O"
+## How much larger her speech bubble is drawn while the hero is inside (see Villager.say).
+const BUBBLE_ZOOM := 1.6
 ## Seconds each line of the speech is up, and the pause after the last one, and how long the
 ## answers from the pews take before the village gets up.
 const LINE_TIME := 5.5

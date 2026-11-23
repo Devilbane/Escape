@@ -204,6 +204,13 @@ static func _shop(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	_by_the_sides(walk_in, rec, inside)
 
 
+## Half the width of a side window with its frame, and the space left between it and a notice.
+const WINDOW_HALF := 0.55
+const NOTICE_GAP := 0.15
+## How far a notice keeps from the wall candle's sconce.
+const SCONCE_CLEAR := 0.4
+
+
 ## Pigeonholes for the letters on the back wall, parcels (stamped and not yet stamped) stacked by the
 ## side walls and a sack of letters by the door.
 static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
@@ -253,19 +260,30 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		letter.position = Vector3((1.4 + k * 0.03) * squeeze, top + 0.004 + k * 0.01, cz + 0.1)
 		letter.rotation = Vector3(-PI * 0.5, 0.3 * k - 0.2, 0)
 		inside.add_child(letter)
-	# Notices on the side walls toward the door: the windows sit in the middle of each side wall, so
-	# they hang beside them (a poster is 0.7 m wide) and are never papered over a pane.
+	# Notices on the side walls. The window is in the middle of each side wall and a sconce hangs
+	# in its back half, so the notices take the clear stretches of wall: first the one between the
+	# window and the door, then the one between the window and the sconce.
 	var notices := [
 		["Königliche Post", []],
 		["Postdienste", ["Briefe: zu Fuß", "Pakete: per Karren", "Eilpost: per Reiter"]],
 		["Postwege", ["Dorf – Mühle", "Dorf – Gilde", "Dorf – Burg"]],
 		["Aushang", ["Nur gestempelte", "Pakete werden", "befördert"]],
 	]
-	for i in notices.size():
+	var half := 0.35 + NOTICE_GAP
+	var slots := []
+	var front := WINDOW_HALF + half
+	while front <= room.end.y - 0.4 and slots.size() < 2:
+		slots.append(front)
+		front += 0.7 + NOTICE_GAP
+	var sconce_z := room.position.y + room.size.y * 0.25
+	var behind := -(WINDOW_HALF + half)
+	while behind >= sconce_z + SCONCE_CLEAR + half - NOTICE_GAP and slots.size() < 4:
+		slots.append(behind)
+		behind -= 0.7 + NOTICE_GAP
+	for i in mini(notices.size(), slots.size() * 2):
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var notice := WalkInFurniture.poster(notices[i][0], notices[i][1])
-		var nz := minf(1.2 + (i / 2) * 0.9, room.end.y - 0.5)
-		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, nz)
+		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, slots[i / 2])
 		notice.rotation.y = -side * PI * 0.5
 		inside.add_child(notice)
 	var letters := WalkInFurniture.letter_sack()

@@ -136,11 +136,6 @@ const LAMP_ENERGY := 2.6
 const LAMP_RANGE := 8.5
 ## The one lamp still burning: at the foot of the ladder.
 const LIT_LAMP := Vector2i(42, 30)
-## Where moonlight falls through cracks in the roof (cells), its colour and strength.
-const MOON_CRACKS := [Vector2i(31, 31), Vector2i(20, 38), Vector2i(10, 30), Vector2i(57, 36), Vector2i(64, 34), Vector2i(3, 26),
-	Vector2i(12, 43), Vector2i(17, 17), Vector2i(8, 21), Vector2i(4, 33)]
-const MOON_COLOUR := Color(0.62, 0.72, 1.0)
-const MOON_ENERGY := 4.0
 ## Where water stands in puddles on the floor (cells).
 const PUDDLES := [Vector2i(14, 31), Vector2i(26, 31), Vector2i(20, 35), Vector2i(4, 39), Vector2i(16, 42), Vector2i(3, 23),
 	Vector2i(8, 28), Vector2i(12, 44), Vector2i(60, 34), Vector2i(66, 34), Vector2i(69, 32), Vector2i(58, 37), Vector2i(64, 41),
@@ -443,15 +438,7 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 	for side in [-0.38, 0.38]:
 		_box(parent, siding + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, 2.2), rail)
 	var cart := siding + Vector3(0, 0, -0.2)
-	_box(parent, cart + Vector3(0, 0.62, 0), Vector3(1.05, 0.62, 1.45), wood)
-	for side in [-1.0, 1.0]:
-		_box(parent, cart + Vector3(side * 0.54, 0.62, 0), Vector3(0.05, 0.66, 1.5), iron)
-		_box(parent, cart + Vector3(0, 0.62, side * 0.74), Vector3(1.1, 0.66, 0.05), iron)
-	for i in 16:
-		var lump := _box(parent, cart + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.95, 1.12), rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.16, 0.3), ore if i % 5 else silver)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
-	for corner in [Vector3(-0.58, 0.22, -0.48), Vector3(0.58, 0.22, -0.48), Vector3(-0.58, 0.22, 0.48), Vector3(0.58, 0.22, 0.48)]:
-		parent.add_child(_wheel(cart + corner, 0.2, 0.08, iron, Vector3(0, 0, PI * 0.5)))
+	_ore_cart(parent, cart, rng, wood, iron, ore, silver)
 	level._add_solid(cart, Vector3(1.2, 1.2, 1.6))
 	# The crane at the hut's north-east corner: a post, an arm out over the yard and a brace,
 	# a rope and a bucket hanging from its end.
@@ -565,6 +552,65 @@ static func _wheel(at: Vector3, radius: float, thick: float, mat: Material, turn
 	wheel.position = at
 	wheel.rotation = turn
 	return wheel
+
+
+## A wooden mine cart standing on its rails (long way along Z): a tub of planks that widens
+## towards the rim, an iron band round the rim and two more round the belly, corner straps,
+## a mound of rough ore heaped over the top, two axles with iron-rimmed wheels and a
+## coupling hook on each end.
+static func _ore_cart(parent: Node3D, at: Vector3, rng: RandomNumberGenerator, wood: Material, iron: Material, ore: Material, silver: Material) -> void:
+	var plank := wood
+	# The floor and the four slanting walls (each leans out by about 0.2 rad).
+	_box(parent, at + Vector3(0, 0.42, 0), Vector3(0.78, 0.07, 1.14), wood)
+	for side in [-1.0, 1.0]:
+		var wall := _box(parent, at + Vector3(side * 0.43, 0.7, 0), Vector3(0.07, 0.6, 1.3), plank)
+		wall.rotation.z = -side * 0.2
+		var end := _box(parent, at + Vector3(0, 0.7, side * 0.66), Vector3(1.02, 0.6, 0.07), plank)
+		end.rotation.x = side * 0.14
+		# Plank seams on the long walls.
+		for k in [-0.15, 0.1]:
+			var seam := _box(parent, at + Vector3(side * (0.45 + 0.05 * absf(k)), 0.7 + k, 0), Vector3(0.015, 0.012, 1.3), iron)
+			seam.rotation.z = -side * 0.2
+	# Iron bands: a heavy one round the rim, two round the belly, corner straps.
+	for z in [-0.58, 0.0, 0.58]:
+		for side in [-1.0, 1.0]:
+			var band := _box(parent, at + Vector3(side * 0.47, 0.71, z), Vector3(0.045, 0.64, 0.07), iron)
+			band.rotation.z = -side * 0.2
+		_box(parent, at + Vector3(0, 0.42, z), Vector3(0.9, 0.05, 0.07), iron)
+	for side in [-1.0, 1.0]:
+		_box(parent, at + Vector3(side * 0.5, 1.02, 0), Vector3(0.07, 0.07, 1.36), iron)
+		_box(parent, at + Vector3(0, 1.0, side * 0.69), Vector3(1.08, 0.07, 0.07), iron)
+	# Axles, wheels with an iron tyre and hub, and a coupling hook at each end.
+	for z in [-0.4, 0.4]:
+		_box(parent, at + Vector3(0, 0.24, z), Vector3(0.9, 0.05, 0.05), iron)
+		for side in [-1.0, 1.0]:
+			var hub := at + Vector3(side * 0.42, 0.24, z)
+			var turn := Vector3(0, 0, PI * 0.5)
+			parent.add_child(_wheel(hub, 0.2, 0.05, iron, turn))
+			parent.add_child(_wheel(hub - Vector3(side * 0.01, 0, 0), 0.16, 0.07, wood, turn))
+			parent.add_child(_wheel(hub + Vector3(side * 0.04, 0, 0), 0.06, 0.06, iron, turn))
+	for side in [-1.0, 1.0]:
+		_box(parent, at + Vector3(0, 0.36, side * 0.78), Vector3(0.06, 0.06, 0.22), iron)
+		var hook := _box(parent, at + Vector3(0, 0.36, side * 0.9), Vector3(0.14, 0.06, 0.06), iron)
+		hook.rotation.y = 0.5
+	# The load: a rough mound of ore and a few bright lumps of silver, no square tiles.
+	for i in 18:
+		var a := rng.randf() * TAU
+		var r := rng.randf_range(0.0, 0.34)
+		var lump := MeshInstance3D.new()
+		var ball := SphereMesh.new()
+		ball.radial_segments = 6
+		ball.rings = 4
+		var size := rng.randf_range(0.16, 0.3)
+		ball.radius = size * 0.5
+		ball.height = size
+		lump.mesh = ball
+		lump.material_override = ore if i % 6 else silver
+		var rise := 1.0 - r / 0.4
+		lump.position = at + Vector3(cos(a) * r * 1.1, 0.95 + rise * 0.14 + rng.randf_range(0.0, 0.05), sin(a) * r * 1.7)
+		lump.scale = Vector3(rng.randf_range(0.9, 1.4), rng.randf_range(0.7, 1.0), rng.randf_range(0.9, 1.3))
+		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		parent.add_child(lump)
 
 
 ## A big spoked cart wheel under `parent`, in its XY plane: an iron-shod rim, spokes and a hub.
@@ -907,7 +953,6 @@ static func build(level: Level, parent: Node3D) -> void:
 			_lamp(parent, c)
 		else:
 			_dead_lamp(parent, c, rng)
-	_moonlight(parent)
 	_puddles(parent, rng)
 	_cobwebs(parent, rng)
 	_tool_store(level, parent, body)
@@ -947,55 +992,6 @@ static func _dead_lamp(parent: Node3D, c: Vector2i, rng: RandomNumberGenerator) 
 	_box(hang, Vector3(0, -0.55, 0), Vector3(0.22, 0.28, 0.22), glass)
 	_box(hang, Vector3(0, -0.39, 0), Vector3(0.3, 0.05, 0.3), iron)
 	_box(hang, Vector3(0, -0.71, 0), Vector3(0.3, 0.05, 0.3), iron)
-
-
-## Pale moonlight falling through cracks in the roof where the earth above is thin: a cold
-## beam of dust down to a bright patch on the floor.
-static func _moonlight(parent: Node3D) -> void:
-	var beam := _mat("moon_beam", Color(MOON_COLOUR, 0.07), 0.0, 0.6)
-	beam.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	beam.cull_mode = BaseMaterial3D.CULL_DISABLED
-	beam.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	var patch := _mat("moon_patch", Color(MOON_COLOUR, 0.16), 0.0, 0.8)
-	patch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	patch.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	patch.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	var crack := _mat("moon_crack", MOON_COLOUR, 0.0, 2.0)
-	for c: Vector2i in MOON_CRACKS:
-		var mid := floor_at(c)
-		var light := SpotLight3D.new()
-		light.light_color = MOON_COLOUR
-		light.light_energy = MOON_ENERGY
-		light.spot_range = HouseSketch.DEPTH + 3.0
-		light.spot_angle = 50.0
-		light.spot_attenuation = 0.6
-		light.position = mid + Vector3(0, HouseSketch.DEPTH - 0.05, 0)
-		light.rotation.x = -PI * 0.5
-		parent.add_child(light)
-		var shaft := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.12
-		cyl.bottom_radius = 0.55
-		cyl.height = HouseSketch.DEPTH
-		cyl.cap_top = false
-		cyl.cap_bottom = false
-		shaft.mesh = cyl
-		shaft.material_override = beam
-		shaft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		shaft.position = mid + Vector3(0, HouseSketch.DEPTH * 0.5, 0)
-		parent.add_child(shaft)
-		var spot := MeshInstance3D.new()
-		var disc := CylinderMesh.new()
-		disc.top_radius = 0.6
-		disc.bottom_radius = 0.6
-		disc.height = 0.005
-		spot.mesh = disc
-		spot.material_override = patch
-		spot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		spot.position = mid + Vector3(0, 0.02, 0)
-		parent.add_child(spot)
-		_box(parent, mid + Vector3(0, HouseSketch.DEPTH - 0.02, 0), Vector3(0.5, 0.02, 0.08), crack, 0.7)
 
 
 ## Water seeping through the rock into puddles on the floor: dark and still, with a wet rim.

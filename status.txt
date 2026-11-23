@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make gust leaves lift and land gently, with the reference's flip and bob | Shipped this week: Tame window glow and show spruce snow at night on DirectX 12; Let wind gusts stir fallen leaves and light litter (+48 more)
+Escape! dev status | Working on: Lighten footprints in the snow; Make gust leaves lift and land gently, with the reference's flip and bob | Shipped this week: Tame window glow and show spruce snow at night on DirectX 12; Let wind gusts stir fallen leaves and light litter (+48 more)

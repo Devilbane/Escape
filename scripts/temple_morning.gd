@@ -361,6 +361,16 @@ static func step(v: Villager, delta: float) -> void:
 		return
 	v.keep_task(10.0)
 	trip.clock = float(trip.clock) + delta
+	# Nobody stays on past the service: whoever comes late, or whom the gathering forgot (it is
+	# over, or its hour is), is sent out or turned back at the door.
+	var morning: TempleMorning = v.level.temple_morning
+	var over: bool = morning.phase == "idle" or morning.phase == "leave" or v.level.hour >= END
+	if over:
+		if String(trip.step) == "going":
+			v.end_service()
+			return
+		if float(trip.leave_in) < 0.0 or float(trip.leave_in) > RISE_SPREAD.y + 1.0:
+			trip.leave_in = randf_range(0.0, RISE_SPREAD.y)
 	var walk_in: WalkIn = v.level.walk_in
 	var spot: Dictionary = trip.spot
 	match String(trip.step):

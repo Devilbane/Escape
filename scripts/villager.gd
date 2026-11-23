@@ -2921,6 +2921,8 @@ func serves() -> bool:
 func cancel_service() -> void:
 	_service_after_post = {}
 	if _task == "service":
+		if service_step() == "going":
+			end_service()
 		return
 	TempleMorning.finish(self)
 	if _task == "walk" and get_meta("then", "") == "service":

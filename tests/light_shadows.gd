@@ -202,6 +202,14 @@ func _run() -> void:
 	game.player.global_position = plan.cell_world(2, 2) + Vector3(200, 0, 0)
 	shadows.refresh(true)
 	check(torch_light != null and not torch_light.shadow_enabled, "a torch far from the hero casts no shadows")
+	# Without its wall shadows an indoor lamp would shine through the walls onto the snow outside.
+	var torch_mask := torch_light.light_cull_mask if torch_light != null else 0
+	check(torch_light != null and torch_mask == 0, "and lights nothing, so none of it falls through the walls")
+	game.player.global_position = plan.cell_world(2, 2)
+	shadows.refresh(true)
+	check(torch_light != null and torch_light.shadow_enabled and torch_light.light_cull_mask != 0 and not (torch_light.light_cull_mask & LightShadows.UNSHADOWED_LAYER), "back near it, it lights the room again (spruces still left out)")
+	game.player.global_position = plan.cell_world(2, 2) + Vector3(200, 0, 0)
+	shadows.refresh(true)
 	# Many lights at once: only the budget's nearest.
 	var many: Array = []
 	for i in LightShadows.BUDGET + 4:

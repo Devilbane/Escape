@@ -204,6 +204,7 @@ static func warm_up(parent: Node, at := Vector3.ZERO) -> Array[Light3D]:
 
 func _pick(light: Light3D, at_once: bool) -> void:
 	var id := light.get_instance_id()
+	_walled_in(light, true)
 	if _picked.has(id) and not _fading.has(id):
 		return
 	_picked[id] = true
@@ -222,12 +223,28 @@ func _drop(light: Light3D, at_once: bool) -> void:
 	_picked.erase(id)
 	if not light.shadow_enabled:
 		_fading.erase(id)
+		_walled_in(light, false)
 		return
 	if at_once:
 		light.shadow_enabled = false
 		_fading.erase(id)
+		_walled_in(light, false)
 	else:
 		_fading[id] = light
+
+
+## An indoor lamp (INDOOR) lights only while it casts its wall shadows: one left without them (more
+## lit houses in view than the budget) would shine straight through its house's walls onto the ivy
+## and the snow outside, so once its shadows have faded it lights nothing until it is picked again.
+static func _walled_in(light: Light3D, shadowed: bool) -> void:
+	if not light.has_meta(INDOOR):
+		return
+	if shadowed and light.has_meta(&"cull_was"):
+		light.light_cull_mask = light.get_meta(&"cull_was")
+		light.remove_meta(&"cull_was")
+	elif not shadowed and not light.has_meta(&"cull_was"):
+		light.set_meta(&"cull_was", light.light_cull_mask)
+		light.light_cull_mask = 0
 
 
 ## Moves the fading shadows a step towards their goal; a light whose shadows
@@ -245,6 +262,7 @@ func _fade(step: float) -> void:
 			_fading.erase(id)
 			if goal == 0.0:
 				light.shadow_enabled = false
+				_walled_in(light, false)
 
 
 ## Whether a light is picked to cast shadows (its shadows may still be fading in).

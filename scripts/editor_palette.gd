@@ -96,7 +96,7 @@ const OUTDOOR_GROUPS := [
 	["Dorf und Lager", "gzlexπqFv!@NfC+%*$?_\\§¤"],
 	["Dorfbewohner", "0123456789KOGMYZS¢µüö"],
 	["Wilde Gegner", "cAXQWHJU{}-/"],
-	["Tiere", "DV&£"],
+	["Tiere", "DV&£€"],
 ]
 
 const OUTDOOR_NAMES := {
@@ -119,7 +119,7 @@ const OUTDOOR_NAMES := {
 	"O": "Priesterin", "G": "Gildenmeister", "M": "Postmeister", "Y": "Bankier", "Z": "Barbier", "S": "Steinmetz",
 	"c": "Halsabschneider", "A": "Wilderer", "X": "Schläger", "Q": "Räuberhauptmann", "W": "Wolf", "H": "Ork",
 	"J": "Yeti", "U": "Spinne", "{": "Felstroll", "}": "Bergork", "-": "Eiswolf", "/": "Klippenschütze",
-	"D": "Reh", "V": "Hirsch", "&": "Fuchs", "£": "Kaninchen",
+	"D": "Reh", "V": "Hirsch", "&": "Fuchs", "£": "Kaninchen", "€": "Kaninchenbau",
 }
 
 const OUTDOOR_NOTES := {

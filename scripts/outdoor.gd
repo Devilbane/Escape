@@ -95,7 +95,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüö"
@@ -4323,6 +4323,9 @@ func _spawn_wild() -> void:
 ## Lets the does, stags and foxes out onto their meadows.
 func _spawn_animals() -> void:
 	for s in _animal_spots:
+		if s.kind == "kit":
+			_spawn_warren(s.cell)
+			continue
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
 		if taken.has(a.tame_key()):
@@ -4331,6 +4334,21 @@ func _spawn_animals() -> void:
 			continue
 		add_child(a)
 		a.global_position = cell_to_world(s.cell)
+		animals.append(a)
+
+
+## A burrow on the meadow with its huddle of baby rabbits (see Warren).
+func _spawn_warren(cell: Vector2i) -> void:
+	var centre := cell_to_world(cell)
+	var hole := Warren.burrow()
+	add_child(hole)
+	hole.global_position = centre
+	for i in Warren.KITS:
+		var a := Animal.new()
+		a.setup(self, "kit", cell)
+		a._rng.seed += i * 977
+		add_child(a)
+		a.global_position = Warren.start_of(centre, i)
 		animals.append(a)
 
 

@@ -22,7 +22,7 @@ Rabbit.glb  "Rabbit" by CDmir / Cestmir Dammer (kelgar.org), CC0, from
             https://opengameart.org/content/rabbit-0 (rabbit-FBX.7z). Built with tools/build_rabbit.gd:
             the fur shell mesh was dropped, the skin shrunk to 512 px, the model scaled to the size of
             the other animals, and only Idle (its alert pose), Walk (a hop), Gallop (its run) and
-            Eating (sitting) were kept.
+            Eating (sitting) were kept. The baby rabbits of the warren are the same model, smaller.
 
 Donkey.glb  "Donkey" from "Ultimate Animated Animals" (July 2021) by Quaternius, CC0 like the
             others (the wandering merchant's donkey). Converted to .glb the same way, keeping

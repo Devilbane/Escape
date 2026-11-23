@@ -59,7 +59,7 @@ const BIOMES := {
 }
 const BIOME_REACH := 6
 ## Tiles where litter may lie: walkable ground ...
-const GROUND := ".,Pa:'0123456789KOGMYZScAXQWHJUDV&£@{}-/"
+const GROUND := ".,Pa:'0123456789KOGMYZScAXQWHJUDV&£€@{}-/"
 ## ... and under trees, rocks, graves, stumps and tents (no creatures there).
 const UNDER := "TdrgtpN"
 const PATH := ",aP"

@@ -1,0 +1,1 @@
+- The bookcases and book piles in the mage tower now hold the same bound skill books as your own bookshelf.

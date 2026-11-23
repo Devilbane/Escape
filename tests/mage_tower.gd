@@ -102,6 +102,20 @@ func _run() -> void:
 		"halfway down to the cellar": [Vector3((c.x0 + c.x1) * 0.5, GuildHall.ramp(c, (c.foot + c.top) * 0.5), (c.foot + c.top) * 0.5), GuildHall.ramp(c, (c.foot + c.top) * 0.5)],
 		"the cellar's floor": [Vector3(1.0, GuildHall.CELLAR, 2.0), GuildHall.CELLAR],
 	}
+	# --- Walking the floors ---------------------------------------------------------------------
+	# The hero is 1.1 m wide (see Player.radius): from the foot of each floor's stairs a hero-sized
+	# disc must reach nearly everything that is free, so no room is split into pockets by furniture.
+	await _physics(3)
+	var floors := {
+		"the entrance hall": [lay.room, lay.floor, Vector2(0.0, 1.0)],
+		"the library": [lay.up_room, lay.up_floor, Vector2(0.0, 2.5)],
+		"the sleeping room": [lay.up_room, lay.deck, Vector2(0.0, 2.5)],
+	}
+	for what: String in floors:
+		var f: Array = floors[what]
+		var area := _reach(hall, f[0], float(f[1]), f[2])
+		check(area.free > 40, "%s has room to walk (%d free cells)" % [what, area.free])
+		check(area.reached >= area.free * 0.9, "%s is one open space: %d of %d free cells reached" % [what, area.reached, area.free])
 	for what: String in spots:
 		var spot: Array = spots[what]
 		var y := _ground(hall, spot[0])
@@ -121,6 +135,14 @@ func _run() -> void:
 	check(upper.find_children("SofaChair*", "", true, false).size() == 2 and upper.find_children("Sofa", "", true, false).size() == 1, "the library has two sofa chairs and a sofa")
 	check(upper.find_children("ReadingTable", "", true, false).size() == 1, "and a reading table")
 	check(upper.find_children("Bookcase*", "", true, false).size() >= 3, "and tall bookcases")
+	# Their books are the skill books of the game (the bound books of the hero's own shelf, see Bookshelf).
+	var cases := upper.find_children("Bookcase*", "", true, false)
+	var bound := 0
+	for shelf: Node in cases:
+		for child in shelf.get_children():
+			if child is MeshInstance3D and (child.mesh == Bookshelf.book_mesh(0) or Bookshelf._books.values().has(child.mesh)):
+				bound += 1
+	check(bound >= 30, "the library's bookcases hold the skill-book models (%d of them)" % bound)
 	var roof: Node3D = rec.get("roof_node")
 	check(roof != null and roof.find_children("AldoBed", "", true, false).size() == 1 and roof.find_children("OdoBed", "", true, false).size() == 1, "two beds stand in the sleeping room")
 	var cellar: Node3D = rec.get("cellar_node")
@@ -195,6 +217,38 @@ func _run() -> void:
 
 
 ## What of the tower shows now: the room above the hero, the top room's walls (all of them), the roof.
+## Flood fill over `room` (in the hall's frame, 0.3 m cells) with a hero-sized cylinder: how many
+## cells are free and how many of those one reaches from `start` (x, z).
+func _reach(hall: Node3D, room: Rect2, y: float, start: Vector2) -> Dictionary:
+	var space := (game.level as Node3D).get_world_3d().direct_space_state
+	var shape := CylinderShape3D.new()
+	shape.radius = 0.5
+	shape.height = 0.7
+	var step := 0.3
+	var cols := int(room.size.x / step)
+	var rows := int(room.size.y / step)
+	var free := {}
+	for i in cols:
+		for j in rows:
+			var local := Vector3(room.position.x + (i + 0.5) * step, y + 0.7, room.position.y + (j + 0.5) * step)
+			var query := PhysicsShapeQueryParameters3D.new()
+			query.shape = shape
+			query.transform = Transform3D(Basis(), hall.global_transform * local)
+			if space.intersect_shape(query, 1).is_empty():
+				free[Vector2i(i, j)] = true
+	var from := Vector2i(int((start.x - room.position.x) / step), int((start.y - room.position.y) / step))
+	var seen := {}
+	var todo: Array = [from]
+	while not todo.is_empty():
+		var at: Vector2i = todo.pop_back()
+		if seen.has(at) or not free.has(at):
+			continue
+		seen[at] = true
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			todo.append(at + d)
+	return {"free": free.size(), "reached": seen.size()}
+
+
 func _what_shows(rec: Dictionary) -> Dictionary:
 	var room := true
 	for part in rec.storey_room:

@@ -218,6 +218,7 @@ const OUTDOOR := {
 	"D": "doe",
 	"V": "stag",
 	"&": "fox",
+	"£": "rabbit",
 	# The crafting square (CraftingSquare.LETTERS).
 	"+": "fine metalwork bench",
 	"%": "gem cutter's wheel",

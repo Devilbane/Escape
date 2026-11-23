@@ -95,7 +95,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüö"

@@ -96,6 +96,7 @@ const PARTS := [
 	preload("res://scripts/lang/elder_lair.gd"),
 	preload("res://scripts/lang/wandering_merchant.gd"),
 	preload("res://scripts/lang/fox.gd"),
+	preload("res://scripts/lang/rabbit.gd"),
 	preload("res://scripts/lang/companions.gd"),
 	preload("res://scripts/lang/pouch.gd"),
 	preload("res://scripts/lang/weather.gd"),

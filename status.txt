@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Keep indoor lamps from lighting the spruces outside; Animate going to bed and waking up with a blanket; Add rabbits to forest edges and meadows (+47 more)
+Escape! dev status | Working on: Play the wake-up sequence after every sleep | Shipped this week: Keep indoor lamps from lighting the spruces outside; Animate going to bed and waking up with a blanket; Add rabbits to forest edges and meadows (+47 more)

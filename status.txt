@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Stretch the temple door to fill its doorway; Show Fritz clearly inside his ice, fix floating snow and icicles | Shipped this week: Widen the tavern, add Eberhard's loft, Fritz sleeps at his table; Give Smith Gorm a textured bandana (+48 more)
+Escape! dev status | Working on: Stretch the temple door to fill its doorway | Shipped this week: Show Fritz clearly inside his ice, fix floating snow and icicles; Widen the tavern, add Eberhard's loft, Fritz sleeps at his table (+48 more)

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Soft light on the hero's face, fountain statue glow, gentler room lamps | Shipped this week: Give village chimneys an open flue with a snow-covered rim; Calm torch arm and hand lanterns for villagers and hero (+48 more)
+Escape! dev status | Shipped this week: Soft light on the hero's face, fountain statue glow, gentler room lamps; Give village chimneys an open flue with a snow-covered rim (+48 more)

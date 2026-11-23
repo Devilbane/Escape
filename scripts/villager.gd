@@ -134,6 +134,9 @@ const ROLES := {
 	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [],
 		"colors": [Color(0.92, 0.9, 0.84), Color(0.55, 0.5, 0.42), Color(0.9, 0.88, 0.82)], "plan": "shop", "work": "Interact",
 		"lines": ["Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.", "Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.", "Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche."]},
+	"ö": {"name": "Brauer Eberhard", "model": "Barbarian", "show": ["Mug"],
+		"colors": [Color(0.62, 0.4, 0.22), Color(0.36, 0.3, 0.24), Color(1, 1, 1)], "plan": "stay", "work": "Interact",
+		"lines": ["Frisch gezapft, frisch gebraut: Mein Bier kennt keinen Kater. Fast keinen.", "Der Hopfen wächst am Waldrand. Der Rest ist Geduld und Wasser.", "Fritz zahlt irgendwann. Bis dahin schreibe ich an.", "Setz dich ans Feuer, die Fässer laufen nicht davon."]},
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
@@ -387,6 +390,9 @@ func _ready() -> void:
 	add_child(_model)
 	Breath.attach(_model)
 	_dress()
+	# The brewer's mug shows only while he carries a beer (see hold_mug).
+	if role == TavernBrewer.BREWER:
+		hold_mug(false)
 	# A woman built on the Rogue model gets her own body (see BodyLook); the
 	# dyes stay on, they belong to the parts, not to the meshes.
 	BodyLook.apply(_model, _info.get("sex", BodyLook.DEFAULT))
@@ -1670,6 +1676,9 @@ func _next_task() -> void:
 			else:
 				_start("work", 6.0)
 		"work", "sit":
+			# Fritz drops into the tavern to sit by the hearth (see TavernBrewer).
+			if role == TavernBrewer.GUEST and TavernBrewer.wants(self) and TavernBrewer.visit(self):
+				return
 			# The woodcutter keeps to his trunk through his shift (see WoodcutterShift).
 			var on_shift := role == "3" and WoodcutterShift.at_work(level.hour)
 			var on_break := role == "3" and WoodcutterShift.on_break(level.hour)
@@ -2002,7 +2011,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)):
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2101,6 +2110,11 @@ func join_play(friend: Villager, at: Vector3, time: float) -> void:
 func _walk(delta: float, hero: Node3D) -> void:
 	if _path.is_empty():
 		var then: String = get_meta("then", "idle")
+		if then == "tavern":
+			# Before the tavern's door: in to his chair (see TavernBrewer).
+			if TavernBrewer.arrive(self):
+				return
+			then = "idle"
 		var time := _rng.randf_range(2.0, 5.0)
 		if then in ["work", "sit"]:
 			time = _rng.randf_range(8.0, 16.0)
@@ -2455,6 +2469,29 @@ func day_plan() -> String:
 	if role == FurnisherDay.ROLE and level != null and level.hour >= 0.0:
 		return FurnisherDay.plan_at(level.hour)
 	return String(_info.plan)
+
+
+## Walks to `target` and then does `then` (the tavern visit, see TavernBrewer).
+func walk_to_then(target: Vector3, then: String) -> void:
+	_walk_to(target, WALK_SPEED, then)
+
+
+## Starts the "post" task after VillagePosts set the trip up.
+func begin_post() -> void:
+	_start("post", 10.0)
+
+
+## Whether the villager sits at a table in the tavern or carries a beer to it: they go on with that
+## while they talk (see TavernBrewer).
+func _holds_pose() -> bool:
+	return _task == "post" and (post_trip.get("seated", false) or not String(post_trip.get("serve", "")).is_empty())
+
+
+## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
+func hold_mug(on: bool) -> void:
+	var mug := _model.find_child("Mug", true, false) as Node3D
+	if mug != null:
+		mug.visible = on
 
 
 ## The animation of their work (behind the counter, see VillagePosts).

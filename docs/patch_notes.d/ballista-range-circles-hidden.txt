@@ -1,0 +1,1 @@
+- The orange range circles of the guild's ballistas no longer pop up at random on the village square.

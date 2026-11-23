@@ -225,6 +225,7 @@ const OUTDOOR := {
 	"V": "stag",
 	"&": "fox",
 	"£": "rabbit",
+	"€": "rabbit warren: a burrow with a huddle of baby rabbits that dive into it when the hero comes near (see Warren)",
 	# The crafting square (CraftingSquare.LETTERS).
 	"+": "fine metalwork bench",
 	"%": "gem cutter's wheel",

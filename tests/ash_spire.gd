@@ -300,5 +300,5 @@ func _rest_in_bed() -> void:
 	game.state = game.State.PLAYING
 	game.hero_name = HERO
 	game.rest_at_inn()
-	await _wait(600)
+	await _wait(1800)
 	check(p.hp == p.max_hp, "a night in the hidden bed heals (hp %d/%d, state %s)" % [p.hp, p.max_hp, game.state])

@@ -51,6 +51,7 @@ func _lowest(sk: Skeleton3D, bed_pos: Vector3, rot: float) -> Dictionary:
 
 
 func _run() -> void:
+	check(is_equal_approx(BedRise.LYING.x, (CosyBed.LEFT + CosyBed.RIGHT) * 0.5), "the hero lies in the middle of the mattress")
 	var space := Node3D.new()
 	root.add_child(space)
 	var bed_pos := Vector3(40, 0, 40)

@@ -18,7 +18,7 @@ extends RefCounted
 ##   "c"  the channel: water, behind a kerb, nobody walks in it
 ##   "w"  the walkway beside it, and the passages to the shafts
 ##   "s"  a shaft under a hatch: open to the sky, a ladder up to the street
-##   "r"  a chamber of the labyrinth: a bigger vault with pillars to run round (see ROOMS)
+##   "r"  a chamber of the labyrinth (and Spooknortz' hidden den, see Spooknortz): a bigger vault with pillars to run round (see ROOMS)
 ## Beside the walkway lies the labyrinth (see PASSAGES, ROOMS): two circuits, each leaving the walkway
 ## by a narrow passage, running through a chamber and coming back to the walkway further on, so the
 ## hero can go round and round without ever turning back. The vermin of the chambers (see MOBS)
@@ -161,6 +161,12 @@ static func _lay() -> void:
 			if at == b:
 				break
 			at += step
+	# The hidden den behind the false wall (see Spooknortz): a passage and a chamber.
+	for c: Vector2i in Spooknortz.PASSAGE:
+		_cells[c] = "w"
+	for y in range(Spooknortz.DEN.position.y, Spooknortz.DEN.end.y):
+		for x in range(Spooknortz.DEN.position.x, Spooknortz.DEN.end.x):
+			_cells[Vector2i(x, y)] = "r"
 	for c: Vector2i in PILLARS:
 		_cells.erase(c)
 
@@ -242,7 +248,7 @@ static func tile_of(c: Vector2i) -> Vector2i:
 static func prompt(kind: String) -> String:
 	if kind == KIND_LID:
 		return Lang.t(LID_PROMPT)
-	return ""
+	return Spooknortz.prompt(kind)
 
 
 ## The hero ran into a hatch's lid: they heave it open (it stays open).
@@ -259,6 +265,7 @@ static func use(game: Node, s: Dictionary) -> void:
 ## Down in the sewers (every frame the hero is): the first time the compendium learns of them.
 static func entered(game: Node) -> void:
 	_rouse_vermin(game)
+	Spooknortz.tend(game)
 	if _told or game.lore.has(LEARN):
 		_told = true
 		return
@@ -459,7 +466,7 @@ static func _normals_of(height: PackedFloat32Array, size: int, strength: float) 
 ## hero is down in a cellar): the kerb and the water of the channel with the rubbish it carries, the
 ## sluice where the stream comes in, the outfall's bars, the lamps and the light shafts under the
 ## street drains. The kerb stops the hero (nobody wades the channel); so do the bars.
-static func build(_level: Level, parent: Node3D) -> void:
+static func build(level: Level, parent: Node3D) -> void:
 	var body := StaticBody3D.new()
 	body.name = "SewerSolids"
 	parent.add_child(body)
@@ -474,6 +481,7 @@ static func build(_level: Level, parent: Node3D) -> void:
 		_light_shaft(parent, tile)
 	for hatch: Dictionary in HATCHES:
 		_hatch_light(parent, hatch)
+	Spooknortz.build_world(level, parent, body)
 
 
 ## The channel: one water sheet and kerb per cell, a block of solid over it, and the leaves and

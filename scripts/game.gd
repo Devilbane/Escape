@@ -1882,6 +1882,8 @@ func _use_station(s: Dictionary) -> void:
 		LostMine.use(self, s)
 	elif s.kind == Sewers.KIND_LID:
 		Sewers.use(self, s)
+	elif Spooknortz.KINDS.has(s.kind):
+		Spooknortz.use(self, s)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)
@@ -5432,13 +5434,12 @@ func _bedside(bed: Dictionary, foot: Vector3) -> Vector3:
 
 ## The waking up in bed (see BedRise), appended to `tween`: the blanket is pushed off, the legs swing out,
 ## the hero sits on the rim, stretches and yawns (the yawn with its own sound), the fox wakes and hops out
-## of its basket (`fox_wakes`), and the hero slides down and walks a few steps to the open floor.
-## `done` runs once the hero stands there and can be moved again.
+## of its basket (`fox_wakes`), and the hero slides down and stands beside the bed, where they stay.
+## `done` runs once the hero can be moved again.
 func _rise_from_bed(tween: Tween, bed: Dictionary, side: float, fox_wakes: bool, done: Callable) -> void:
 	var rot: float = bed.get("rot", 0.0)
 	var foot := Vector3(sin(rot), 0.0, cos(rot))
 	var floor_spot := _bedside(bed, foot)
-	var beside := BedRise.beside(bed.pos, rot, side)
 	BedRise.play(tween, player, BedRise.RISE_KEYS, bed.pos, rot, side, [
 		[BedRise.BLANKET_OFF_AT, func(): BedBlanket.push_off(level, bed.pos, rot)],
 		[BedRise.YAWN_AT, func():
@@ -5449,15 +5450,11 @@ func _rise_from_bed(tween: Tween, bed: Dictionary, side: float, fox_wakes: bool,
 		[BedRise.FOX_AT, func():
 			if fox_wakes and is_instance_valid(pet):
 				pet.wake_up(floor_spot)]])
-	# Standing beside the bed: a few steps to the open floor.
+	# The hero stays exactly where the get-out animation left them, beside the bed, facing away from it:
+	# no walk to another spot and no snap, only the clips take over from the posed bones.
 	tween.tween_callback(func():
-		player.bed_pose_end(beside, floor_spot - beside)
-		player.play("Walking_A", 0.1))
-	tween.tween_method(func(t: float):
-		player.global_position = beside.lerp(floor_spot, t), 0.0, 1.0, 0.4)
-	tween.tween_callback(func():
-		player.global_position = floor_spot
-		player.play("Idle", 0.2)
+		var stand := player.global_position
+		player.bed_pose_end(stand, Basis(Vector3.UP, rot) * Vector3(side, 0.0, 0.0))
 		player.frozen = false
 		done.call())
 

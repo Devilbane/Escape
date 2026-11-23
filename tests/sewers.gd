@@ -210,6 +210,7 @@ func _run() -> void:
 	check(game._in_lost_mine(), "no daylight reaches down there")
 	check(view.pit.size() == Sewers.cells().size(), "the whole drain is one cellar (%d of %d)" % [view.pit.size(), Sewers.cells().size()])
 	await _check_vermin()
+	await _check_den()
 	if shots != "":
 		for spot: Array in [["room1", Vector2i(3, 51)], ["room2", Vector2i(5, 35)], ["room3", Vector2i(6, 22)], ["walkway", Vector2i(14, 40)]]:
 			game.player.global_position = Sewers.floor_at(spot[1]) + Vector3(0, 0.1, 0)
@@ -265,6 +266,108 @@ func _check_vermin() -> void:
 
 func _stands(g: Dictionary) -> bool:
 	return g.enemy != null and is_instance_valid(g.enemy) and not g.enemy.dead
+
+
+## Spooknortz's den: a false wall the hero breaks open, the secret behind it, the revenant by day and not
+## at night, his window and what it does, the stolen goods and the walled-up coins.
+func _hour(h: float) -> void:
+	game.day_hour = h
+	game.level.set_hour(h)
+
+
+func _check_den() -> void:
+	for text in [Spooknortz.DEN_FOUND, Spooknortz.MET, Spooknortz.FRIEND, Spooknortz.SLAIN, Spooknortz.NICHE_FOUND, Spooknortz.WALL_PROMPT, Spooknortz.TALK_PROMPT,
+			Spooknortz.NICHE_PROMPT, Spooknortz.WALL_OPENED, Spooknortz.NICHE_OPENED, Spooknortz.AWAY, Spooknortz.GONE] + Spooknortz.TALES:
+		check(Lang.EN.has(text), "English for: " + text)
+	for key in ["title", "goal", "offer", "remind", "done"]:
+		check(Lang.EN.has(Quests.ALL[Spooknortz.QUEST][key]), "English for the quest's %s" % key)
+	check(Items.ALL.has(Spooknortz.BUNDLE) and Lang.EN.has(Items.ALL[Spooknortz.BUNDLE].name), "the bundle of stolen goods is an item")
+	for id: String in Spooknortz.WARES:
+		check(Items.ALL.has(id), "his ware %s exists" % id)
+	var cells := Sewers.cells()
+	for c: Vector2i in Spooknortz.PASSAGE:
+		check(cells.has(c), "the passage cell %s is dug" % c)
+	check(cells.has(Spooknortz.SPOT), "he has his place in the den")
+	check(not cells.has(Spooknortz.WALL_CELL + Vector2i(1, 0)) and not cells.has(Spooknortz.WALL_CELL + Vector2i(-1, 0)), "the passage is one cell wide")
+	var view: CellarView = game.house_sketcher.cellar_view
+	_hour(12.0)
+	game.player.global_position = Sewers.floor_at(Vector2i(4, 54)) + Vector3(0, 0.1, 0)
+	game._snap_camera()
+	await _wait(10)
+	var wall: Array = game.level.stations.filter(func(s): return s.kind == Spooknortz.WALL)
+	var talk: Array = game.level.stations.filter(func(s): return s.kind == Spooknortz.KIND)
+	var niche: Array = game.level.stations.filter(func(s): return s.kind == Spooknortz.NICHE)
+	check(wall.size() == 1 and talk.size() == 1 and niche.size() == 1, "the wall, the revenant and the niche each have a station (%d, %d, %d)" % [wall.size(), talk.size(), niche.size()])
+	check(not Spooknortz.opened and Spooknortz._veil.visible and not Spooknortz._wall_shape.disabled, "the wall is shut and the den hidden at first")
+	check(Spooknortz._figure == null, "he is not about while the wall is shut")
+	if shots != "":
+		await _shot("den_wall")
+	# Running into the wall breaks it open.
+	game._use_station(wall[0])
+	await _wait(60)
+	check(Spooknortz.opened and game.lore.has(Spooknortz.DEN_FOUND), "the wall gives way and the compendium learns of the den")
+	check(Spooknortz._wall_shape.disabled and not Spooknortz._veil.visible, "the way is open and the den shows")
+	# By day he rests in his den.
+	game.player.global_position = Sewers.floor_at(Vector2i(4, 58)) + Vector3(0, 0.1, 0)
+	game._snap_camera()
+	await _wait(10)
+	check(Spooknortz._figure != null and is_instance_valid(Spooknortz._figure), "by day Spooknortz rests in his den")
+	if shots != "":
+		await _shot("den_open")
+	check(not game.level.enemies.has(Spooknortz._figure), "at rest he cannot be struck")
+	# At night he is out.
+	_hour(23.5)
+	await _wait(10)
+	check(Spooknortz._figure == null, "at night the den is empty")
+	game._use_station(talk[0])
+	check(game.menus.current == "", "the window stays shut while he is out")
+	_hour(12.0)
+	await _wait(10)
+	check(Spooknortz._figure != null, "by day he is back")
+	# His window.
+	game.coins = 300
+	game._use_station(talk[0])
+	check(game.menus.current == Spooknortz.KIND, "running into him opens his window")
+	await _wait(5)
+	if shots != "":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(shots.path_join("den_window.png"))
+	var frame: Rect2 = game.menus._panel.get_global_rect()
+	var before: int = int(Items.ALL["amulett_tempo"].price * Spooknortz.MARKUP)
+	Spooknortz._buy(game.menus, "amulett_tempo")
+	check(game.player.bag.has("amulett_tempo") and game.coins == 300 - before, "buying a ware takes its price (%d copper left)" % game.coins)
+	Spooknortz._listen(game.menus)
+	check(game.lore.has(Spooknortz.TALES[0]) and game.lore.has(Spooknortz.MET), "listening teaches a rumour and the compendium learns of him")
+	Spooknortz._listen(game.menus)
+	check(game.lore.has(Spooknortz.TALES[1]), "the next rumour comes next")
+	Spooknortz._fetch_goods(game.menus)
+	check(game.quests.is_active(Spooknortz.QUEST) and game.player.bag.has(Spooknortz.BUNDLE), "he hands over the stolen goods and the task starts")
+	var had: int = game.coins
+	Spooknortz._befriend(game.menus)
+	check(game.lore.has(Spooknortz.FRIEND) and game.coins == had - Spooknortz.GIFT, "a gift makes him a friend")
+	check(Spooknortz._price(game, "amulett_tempo") < before, "a friend pays less")
+	await _wait(5)
+	check(game.menus._panel.get_global_rect() == frame, "nothing in his window moved while the hero chose (%s, was %s)" % [game.menus._panel.get_global_rect(), frame])
+	# The walled-up coins.
+	var paid := [0]
+	game.level.coins_collected.connect(func(n, _m, _x): paid[0] += n)
+	game.menus.close()
+	game._use_station(niche[0])
+	check(Spooknortz.plundered and paid[0] >= Spooknortz.NICHE_COINS[0] and game.lore.has(Spooknortz.NICHE_FOUND), "the loose bricks hide coins (%d)" % paid[0])
+	var once: int = paid[0]
+	game._use_station(niche[0])
+	check(paid[0] == once, "they give coins only once")
+	# Fighting him: he turns on the hero and falls like any monster.
+	game._use_station(talk[0])
+	Spooknortz._fight(game.menus)
+	var e := Spooknortz._figure
+	check(game.menus.current == "" and game.level.enemies.has(e) and Spooknortz._hostile, "choosing to fight sets him on the hero")
+	e.take_hit(9999, e.global_position + Vector3(1, 0, 0))
+	await _wait(20)
+	check(game.lore.has(Spooknortz.SLAIN) and Spooknortz._figure == null, "he falls to dust")
+	game._use_station(talk[0])
+	check(game.menus.current == "", "no window opens over his dust")
+	check(view.active, "all the while the sewers stay drawn")
 
 
 func _shot(name: String) -> void:

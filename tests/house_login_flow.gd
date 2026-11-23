@@ -139,7 +139,12 @@ func _run() -> void:
 	var hero: Vector3 = game.player.global_position
 	check(game.level is Outdoor, "the game continues in the open air")
 	check(game.house_sketcher != null and game.house_sketcher.holds(hero), "after the load the hero stands in the built house (at %s, bed side %s)" % [hero, bed.side])
-	check(Vector2(hero.x - bed.side.x, hero.z - bed.side.z).length() < 2.0, "the hero got up beside the bed (%.2f m off)" % Vector2(hero.x - bed.side.x, hero.z - bed.side.z).length())
+	# The hero gets up beside the bed's side rail, where the get-out animation leaves them (see BedRise).
+	var rot: float = bed.get("rot", 0.0)
+	var side := BedRise.choose_side(game.level, bed.pos, rot, bed.side, [game.player.get_rid()])
+	var beside := BedRise.beside(bed.pos, rot, side)
+	var off := Vector2(hero.x - beside.x, hero.z - beside.z).length()
+	check(off < 0.5, "the hero got up beside the bed (%.2f m off)" % off)
 	_end()
 
 

@@ -289,7 +289,7 @@ void fragment() {
 	// The rounded outer edges of the building (see StoneLook.edge_data).
 	vec2 bevel = edge_bevel(edge_d * obj_scale, edge_round);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump + bevel.x, dFdy(height) * bump + bevel.y), 0.0)).xyz);
-	EMISSION = glow_colour * window * glow;
+	EMISSION = gl_glow(glow_colour, window * glow);
 	ALBEDO = gl_colour(ALBEDO);
 	EMISSION = gl_colour(EMISSION);
 }

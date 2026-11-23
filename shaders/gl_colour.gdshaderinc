@@ -37,6 +37,19 @@ vec3 gl_screen(vec3 c) {
 	return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
 }
 
+// The glow of a lit thing (a window pane at night): `colour` (a screen colour, as the game picks
+// colours) shining `strength` times as bright, as the value to give EMISSION before
+// EMISSION = gl_colour(EMISSION). Turning colour * strength into light as one screen colour blows up
+// past 1 (a window at 2.6 shone nine times as bright as its colour, a white-hot blob on the modern
+// renderer): the colour is turned into light first and the strength scales that.
+vec3 gl_glow(vec3 colour, float strength) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return colour * strength;
+#else
+	return gl_screen(gl_colour(colour) * strength);
+#endif
+}
+
 // How opaque to draw a layer of `colour` (light, as the shader hands it to ALBEDO) that OpenGL
 // draws `alpha` opaque, for a see-through layer laid over the picture (render_mode blend_mix):
 // fog banks, mist. OpenGL mixes such a layer with what lies behind it as screen colours, the

@@ -1,0 +1,1 @@
+- Sleeping till morning in a bed now plays the whole waking up (stretch, yawn, getting out) instead of jumping to the bedside.

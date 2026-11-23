@@ -4926,10 +4926,6 @@ func rest_till_morning() -> void:
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 1.2)
 	tween.tween_callback(func():
 		_stop_snoozing()
-		# Awake again: the eyes open before the night lifts, the blanket lies thrown back.
-		player.set_asleep(false)
-		if not bed.is_empty():
-			BedBlanket.push_off(level, bed.pos, bed.get("rot", 0.0), true)
 		_rest_injury(goddess)
 		if _dawn_between(day_hour, DayNight.WAKE_HOUR):
 			_new_day(true)
@@ -4942,23 +4938,28 @@ func rest_till_morning() -> void:
 			snow_cover = 0.0
 		player.hp = player.max_hp
 		player.cure()
-		# Out of a bed of a self-built house beside its foot (see HouseFurnisher), else beside the bed of the room.
-		var side: Vector3 = bed.get("side", level.bed_side)
-		var stand := side if side != Vector3.ZERO else player.global_position
-		if player.in_bed_pose():
-			player.bed_pose_end(stand, Vector3.BACK)
-		else:
-			player.global_position = stand
-			player.face(Vector3.BACK)
-		player.play("Idle")
-		_snap_camera()
 		_update_hud()
 		var saved := save_game()
-		player.frozen = false
-		state = State.PLAYING
 		var woke := Lang.t("Ausgeruht! Hier unten ist es immer Nacht, aber du bist wieder bei Kräften.") if AshSpire.is_floor(level) else Lang.t("Ausgeruht! Ein neuer Morgen in den Bergen.")
-		show_message(woke + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5))
-	tween.tween_property(_fade, "color:a", 0.0, 1.0)
+		show_message(woke + ("" if saved else "\n" + Lang.t("Speichern fehlgeschlagen!")), 3.5)
+		# The night lifts while the hero is still lying there: the waking up plays from the bed.
+		create_tween().tween_property(_fade, "color:a", 0.0, 1.0))
+	if bed.is_empty():
+		tween.tween_callback(func():
+			var stand := level.bed_side if level.bed_side != Vector3.ZERO else player.global_position
+			player.global_position = stand
+			player.face(Vector3.BACK)
+			player.set_asleep(false)
+			player.play("Idle")
+			_snap_camera()
+			player.frozen = false
+			state = State.PLAYING)
+	else:
+		var rot: float = bed.get("rot", 0.0)
+		var floor_spot := _bedside(bed, Vector3(sin(rot), 0.0, cos(rot)))
+		var side := BedRise.choose_side(level, bed.pos, rot, floor_spot, [player.get_rid()])
+		_rise_from_bed(tween, bed, side, false, func():
+			state = State.PLAYING)
 
 
 ## The camp's "rest by the fire" on a dungeon floor (see Camp): the hero
@@ -5375,7 +5376,6 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	var foot := Vector3(sin(rot), 0.0, cos(rot))
 	var floor_spot := _bedside(bed, foot)
 	var side := BedRise.choose_side(level, bed.pos, rot, floor_spot, [player.get_rid()])
-	var beside := BedRise.beside(bed.pos, rot, side)
 	player.frozen = true
 	player.path.clear()
 	player.velocity = Vector3.ZERO
@@ -5392,28 +5392,7 @@ func _wake_in_bed(data: Dictionary, done: Callable) -> bool:
 	var tween := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	tween.tween_interval(WAKE_SLEEP)
 	tween.tween_callback(_stop_snoozing)
-	# The blanket is pushed off, the legs swing out, the hero sits on the rim, stretches and yawns (the
-	# yawn with its own sound), the fox wakes and hops out of its basket, and the hero slides down.
-	BedRise.play(tween, player, BedRise.RISE_KEYS, bed.pos, rot, side, [
-		[BedRise.BLANKET_OFF_AT, func(): BedBlanket.push_off(level, bed.pos, rot)],
-		[BedRise.YAWN_AT, func():
-			Sfx.play(self, "yawn", -4.0, player.global_position)
-			var slot := player.find_child("HeadSlot", true, false) as Node3D
-			var head := slot.global_position if slot else player.global_position
-			Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true)],
-		[BedRise.FOX_AT, func():
-			if fox_wakes and is_instance_valid(pet):
-				pet.wake_up(floor_spot)]])
-	# Standing beside the bed: a few steps to the open floor.
-	tween.tween_callback(func():
-		player.bed_pose_end(beside, floor_spot - beside)
-		player.play("Walking_A", 0.1))
-	tween.tween_method(func(t: float):
-		player.global_position = beside.lerp(floor_spot, t), 0.0, 1.0, 0.4)
-	tween.tween_callback(func():
-		player.global_position = floor_spot
-		player.play("Idle", 0.2)
-		player.frozen = false
+	_rise_from_bed(tween, bed, side, fox_wakes, func():
 		_waking = false
 		state = State.PLAYING
 		done.call())
@@ -5439,6 +5418,38 @@ func _bedside(bed: Dictionary, foot: Vector3) -> Vector3:
 		if side != cell:
 			return level.cell_to_world(side)
 	return bed.pos + foot * 2.2
+
+
+## The waking up in bed (see BedRise), appended to `tween`: the blanket is pushed off, the legs swing out,
+## the hero sits on the rim, stretches and yawns (the yawn with its own sound), the fox wakes and hops out
+## of its basket (`fox_wakes`), and the hero slides down and walks a few steps to the open floor.
+## `done` runs once the hero stands there and can be moved again.
+func _rise_from_bed(tween: Tween, bed: Dictionary, side: float, fox_wakes: bool, done: Callable) -> void:
+	var rot: float = bed.get("rot", 0.0)
+	var foot := Vector3(sin(rot), 0.0, cos(rot))
+	var floor_spot := _bedside(bed, foot)
+	var beside := BedRise.beside(bed.pos, rot, side)
+	BedRise.play(tween, player, BedRise.RISE_KEYS, bed.pos, rot, side, [
+		[BedRise.BLANKET_OFF_AT, func(): BedBlanket.push_off(level, bed.pos, rot)],
+		[BedRise.YAWN_AT, func():
+			Sfx.play(self, "yawn", -4.0, player.global_position)
+			var slot := player.find_child("HeadSlot", true, false) as Node3D
+			var head := slot.global_position if slot else player.global_position
+			Effects.float_text(level, head + Vector3(0, 0.8, 0), Lang.t("Gähn!"), Color(0.85, 0.9, 1.0), true)],
+		[BedRise.FOX_AT, func():
+			if fox_wakes and is_instance_valid(pet):
+				pet.wake_up(floor_spot)]])
+	# Standing beside the bed: a few steps to the open floor.
+	tween.tween_callback(func():
+		player.bed_pose_end(beside, floor_spot - beside)
+		player.play("Walking_A", 0.1))
+	tween.tween_method(func(t: float):
+		player.global_position = beside.lerp(floor_spot, t), 0.0, 1.0, 0.4)
+	tween.tween_callback(func():
+		player.global_position = floor_spot
+		player.play("Idle", 0.2)
+		player.frozen = false
+		done.call())
 
 
 # --- Time away ----------------------------------------------------------------

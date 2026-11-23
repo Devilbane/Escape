@@ -71,6 +71,16 @@ func _run() -> void:
 	wind._clock = 100.0
 	wind._move()
 
+	# Feather-like: a leaf's height is zero at both ends, rises early and sinks slowly.
+	check(WindGusts.height_share(0.0, 3.0) < 0.001 and WindGusts.height_share(1.0, 3.0) < 0.001, "a leaf starts and lands on the ground")
+	check(WindGusts.height_share(0.15, 3.0) > WindGusts.height_share(0.8, 3.0), "it rises early and sinks slowly")
+	# Frequent in autumn, rare in other seasons.
+	var autumn_day := SkyCommand.autumn_from(Seasons.TEST_DAY)
+	lvl.set_season(autumn_day)
+	var in_autumn := wind.every()
+	lvl.set_season(Seasons.TEST_DAY)
+	check(in_autumn.y < wind.every().x, "gusts are frequent in autumn and rare in spring")
+
 	var storm := FlagWind.wind_for(Weather.STORM).x
 	var fog := FlagWind.wind_for(Weather.FOG).x
 	check(storm > fog, "a storm blows harder than fog")

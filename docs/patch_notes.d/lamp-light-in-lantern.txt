@@ -1,0 +1,1 @@
+- Street lamp light and glow now sit inside the lantern instead of floating above it.

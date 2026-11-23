@@ -839,6 +839,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		Weather.clear_air(_env)
 		if player:
 			player.set_night_dim(0.0)
+			player.set_dark(1.0)
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
@@ -2985,6 +2986,8 @@ func _moonlight() -> void:
 	# there it shines as in a dungeon).
 	if player:
 		player.set_night_dim((1.0 - bright) * (1.0 - _mine_dark))
+		# The soft light on the hero's face: at night, down in the mine and under a roof.
+		player.set_dark(maxf(maxf(DayNight.glow_at(day_hour), _mine_dark), _shelter * 0.7))
 	bright *= lerpf(1.0, MINE_LIGHT, _mine_dark)
 	if bright >= 1.0:
 		return

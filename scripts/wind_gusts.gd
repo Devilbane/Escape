@@ -41,7 +41,7 @@ const DURATION := Vector2(14.0, 22.0)
 ## The flight time the wobble and turning speeds were tuned for, and how much quicker than that
 ## they go: a long flight is not a slow one.
 const TUNED_FOR := 7.75
-const LIVELY := 1.4
+const LIVELY := 2.0
 ## The gust sweeps along the wind: the furthest piece starts this long after the nearest (seconds).
 const SWEEP := 3.0
 ## How much the wind's direction turns between gusts (radians, at most).
@@ -267,8 +267,8 @@ func _noise_phases() -> Vector3:
 ## the piece's own restlessness: it is lifted gently, then wanders up and down, surging and
 ## dropping at random with only a slight sink, and settles in the last stretch. Zero at both ends.
 static func height_share(t: float, n: float) -> float:
-	# Lifted gently over the first third, let down just as gently over the last 40 percent.
-	var rise := smoothstep(0.0, 0.35, t)
+	# Lifted gently over the first seconds, let down just as gently over the last 40 percent.
+	var rise := smoothstep(0.0, 0.15, t)
 	var settle := smoothstep(0.0, 0.4, 1.0 - t)
 	return rise * settle * (1.0 - 0.25 * t) * clampf(0.85 + 0.2 * n, 0.6, 1.0)
 
@@ -324,7 +324,9 @@ func _move() -> void:
 
 ## Fast at first as the gust takes it, slower as it drifts down.
 static func ease_out(t: float) -> float:
-	return lerpf(smoothstep(0.0, 1.0, t), 1.0 - pow(1.0 - t, 1.6), 0.5)
+	# Snatched up and driven off quickly, as in the reference (a leaf crosses a screen in a second or
+	# two), then slowing to a drift for the long rest of the flight.
+	return (1.0 - pow(1.0 - t, 3.2)) * smoothstep(0.0, 0.05, t)
 
 
 ## Winter: a flurry of snow lifts off the ground round the hero, drifts along the wind and

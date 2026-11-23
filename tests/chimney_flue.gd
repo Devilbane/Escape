@@ -23,7 +23,7 @@ func _process(_delta: float) -> bool:
 		rng.seed = s
 		_house(VillageHouse.build(Vector2(9, 8), rng, StandardMaterial3D.new()), "house %d" % s)
 		_house(VillageHouse.build_narrow(Vector2(4.5, 8), s + 1, rng, StandardMaterial3D.new()), "narrow house %d" % s)
-	print("chimney_flue: ", "ok" if failures == 0 else "%d failures" % failures)
+	print("PASS: chimney flue" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 	return true
 

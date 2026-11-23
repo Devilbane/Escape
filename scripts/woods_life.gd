@@ -10,13 +10,22 @@ extends Node3D
 ## * Red squirrels (see Squirrel): they bound about at the foot of their tree
 ##   and run up the trunk when the hero comes close.
 ##
+## * Hedgehogs (see Hedgehog): asleep in a ball under their tree by day, snuffling about
+##   from dusk to dawn, and rolled up when the hero comes close. They live in the
+##   woods and also in the village and at its edge.
+##
 ## None of it fights or can be hurt. The birds are one MultiMesh and only fly
 ## while the hero is near, the squirrels are a few small meshes: the whole of
 ## it costs next to nothing.
 
-## At most this many trees hold a bird, and this many a squirrel.
+## At most this many trees hold a bird, this many a squirrel, and this many a hedgehog
+## (the hedgehogs under trees in the village and at its edge are counted apart).
 const MAX_BIRDS := 26
 const MAX_SQUIRRELS := 9
+const MAX_HEDGEHOGS := 7
+const MAX_VILLAGE_HEDGEHOGS := 4
+## The least distance between two hedgehog homes (tiles).
+const HEDGEHOG_SPACING := 8
 ## The least distance between two bird trees, and between two squirrel trees (tiles).
 const BIRD_SPACING := 3
 const SQUIRREL_SPACING := 9
@@ -28,6 +37,7 @@ const PERCH_BELOW := 0.2
 
 var birds: VillageBirds
 var squirrels: Array[Squirrel] = []
+var hedgehogs: Array[Hedgehog] = []
 
 
 ## Builds the wildlife of `level` from the trees it recorded: dictionaries with
@@ -72,6 +82,28 @@ func _init(level: Level, trees: Array, seed_text: String) -> void:
 		var s := Squirrel.new()
 		s.setup(level, t)
 		squirrels.append(s)
+	# The hedgehogs live under any tree with open ground beside it: out in the woods, and
+	# in the village and at its edge, among the gardens and hedges.
+	var all := trees.filter(func(t: Dictionary): return level.is_open(t.cell))
+	for i in range(all.size() - 1, 0, -1):
+		_swap(all, i, rng.randi_range(0, i))
+	var den: Array[Vector3] = []
+	var wild_count := 0
+	var village_count := 0
+	for t: Dictionary in all:
+		var in_village: bool = t.in_village
+		if (in_village and village_count >= MAX_VILLAGE_HEDGEHOGS) or (not in_village and wild_count >= MAX_HEDGEHOGS - MAX_VILLAGE_HEDGEHOGS):
+			continue
+		if _too_close(den, t.pos, HEDGEHOG_SPACING * Level.TILE):
+			continue
+		den.append(t.pos)
+		if in_village:
+			village_count += 1
+		else:
+			wild_count += 1
+		var h := Hedgehog.new()
+		h.setup(level, t)
+		hedgehogs.append(h)
 
 
 func _ready() -> void:
@@ -79,6 +111,8 @@ func _ready() -> void:
 		add_child(birds)
 	for s in squirrels:
 		add_child(s)
+	for h in hedgehogs:
+		add_child(h)
 
 
 static func _swap(list: Array, a: int, b: int) -> void:

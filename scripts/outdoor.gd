@@ -95,7 +95,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüö"
@@ -464,6 +464,11 @@ var warm_spots: Array[Vector4] = []
 ## The fires of the smithy model (building_blacksmith_red): the logs in the furnace's mouth and the
 ## fire on top of its chimney, in the model's own frame, with how far round them it is warm.
 const SMITHY_FIRES: Array[Vector4] = [Vector4(0.22, 0.14, 0.24, 0.24), Vector4(0.21, 0.91, -0.14, 0.14)]
+## Where the face of the old anvil beside the big smithy's chimney is, in the model's own frame:
+## the village cat jumps up there to sleep in the warmth (see VillageCat).
+const SMITHY_ANVIL := Vector3(-0.04, 0.206, 0.52)
+## The village cat that naps on that anvil (null without the big smithy).
+var village_cat: VillageCat
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
 ## The glass of the street lamps' lanterns, glowing at night.
@@ -613,6 +618,9 @@ var day := 0
 ## The season day the world is on (see Seasons, Game.season_day, set_season): what winter, autumn
 ## and the flowers in the gardens go by.
 var season_day := 0
+## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
+var crop_fields: CropFields
+var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
@@ -722,6 +730,7 @@ func build() -> void:
 	_rng.seed = hash(level_name)
 	add_child(_walls_body)
 	_plot_areas.clear()
+	_crop_cells.clear()
 	for deed in Plots.all():
 		_plot_areas.append(plot_area(deed.rect))
 	_build_ground()
@@ -730,6 +739,7 @@ func build() -> void:
 			var c := Vector2i(x, y)
 			_build_outdoor_cell(c, cell_char(c))
 	_build_blocks()
+	_plant_crops()
 	if Corral.present(self):
 		Corral.build_props(self)
 		if Corral.has_shelter(self):
@@ -795,6 +805,8 @@ func build() -> void:
 		birds.market = free
 	_flush_plants()
 	_build_woods_life()
+	# The village's hedgehogs fetch apples from its apple trees (see WoodsLife.assign_hoards).
+	woods.assign_hoards.call_deferred(square_trees)
 	# Leaves, twigs, rubble and little crawling creatures on the ground.
 	surface_life = SurfaceLife.new(self)
 	surface_life.set_autumn(Weather.is_autumn(season_day))
@@ -874,12 +886,12 @@ func _build_ground() -> void:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
 			var path := 1.0 if ",aP\\".contains(ch) else 0.0
-			var soil := 1.0 if (fence.has_point(c) and not ",aP\\".contains(ch)) or ch == "y" or CAMP.contains(ch) else 0.0
+			var soil := 1.0 if (fence.has_point(c) and not ",aP\\".contains(ch)) or ch == "y" or CropFields.LETTERS.contains(ch) or CAMP.contains(ch) else 0.0
 			# Paving stones: path and soil together mean the square.
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
 				path = 1.0
 				soil = 1.0
-			var wet := 1.0 if "~;".contains(ch) else 0.0
+			var wet := 1.0 if "~;≈‖".contains(ch) else 0.0
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 			# Scree on the mountain ground, and at the foot of the rock.
@@ -934,7 +946,7 @@ func _build_shore() -> Image:
 	var water := {}
 	for y in height:
 		for x in width:
-			if "~;".contains(cell_char(Vector2i(x, y))):
+			if "~;≈‖".contains(cell_char(Vector2i(x, y))):
 				water[Vector2i(x, y)] = true
 	if water.is_empty():
 		return img
@@ -1433,6 +1445,14 @@ func _jitter(amount: float) -> Vector3:
 
 # --- Tiles --------------------------------------------------------------------
 
+## Plants the fields of the farming valley for the season the world is in.
+func _plant_crops() -> void:
+	if _crop_cells.is_empty():
+		return
+	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"))
+	crop_fields.set_season(season_day)
+
+
 func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 	var pos := cell_to_world(c)
 	match ch:
@@ -1513,12 +1533,20 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			SternGate.build_outlet(self, c)
 		"?", ">":
 			TreasureMaps.place(self, c, ch)
-		"~", ";":
-			var pond_water := {"water": "teich" if ch == "~" else "senke", "pos": pos,
+		"‖":
+			RiverBridge.build(self, c)
+		"~", ";", "≈":
+			var pond_water := {"water": "teich" if ch == "~" else ("fluss" if ch == "≈" else "senke"), "pos": pos,
 					"reach": TILE * 0.5, "round": false, "surface": 0.04, "cell": c}
 			pond_water["shape"] = _add_box(_walls_body, pos + Vector3(0, 0.5, 0), Vector3(TILE, 1, TILE))
 			fishing_waters.append(pond_water)
 			_pond_waters.append(pond_water)
+		"≡", "‡", "☼":
+			# Wheat, maize and sunflowers (see CropFields): the plants are planted for all tiles at once.
+			if not _crop_cells.has(ch):
+				_crop_cells[ch] = []
+			_crop_cells[ch].append(pos)
+			_add_solid(pos, Vector3(TILE * 0.9, 1, TILE * 0.9))
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -2445,6 +2473,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
 				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
 			_smithy_fire(node, s)
+			_adopt_cat(node)
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -3356,7 +3385,7 @@ func _temple_stones(chapel: Node3D, middle: Vector3, door: Vector3, out: Vector3
 ## glass's light, not in water, not inside a building (see _footprints).
 func _fringe_ground(at: Vector3, stone := false) -> bool:
 	var c := world_to_cell(at)
-	if c.x < 0 or c.y < 0 or c.x >= width or c.y >= height or "~;#".contains(cell_char(c)):
+	if c.x < 0 or c.y < 0 or c.x >= width or c.y >= height or "~;≈‖#".contains(cell_char(c)):
 		return false
 	var p := Vector2(at.x, at.z)
 	for outline: PackedVector2Array in _footprints.get(c, []):
@@ -4160,6 +4189,15 @@ func _chimney_fire(top: Vector3) -> void:
 	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
 
 
+## The village cat of the big smithy: it strolls about and naps on the old anvil by its chimney.
+func _adopt_cat(smithy: Node3D) -> void:
+	var cat := VillageCat.new()
+	cat.name = "VillageCat"
+	cat.setup(self, smithy.transform * SMITHY_ANVIL, smithy.transform.basis * Vector3(0, 0, 1))
+	add_child(cat)
+	village_cat = cat
+
+
 ## The fire of the big smithy behind the little forge (block "j"): the top of its chimney glows and
 ## flickers like the little forge's stack, embers drift out of it, and a flame and a few embers
 ## flicker in the furnace's mouth. The effects stand at the model's fire spots (SMITHY_FIRES) in the
@@ -4327,6 +4365,9 @@ func _spawn_wild() -> void:
 ## Lets the does, stags and foxes out onto their meadows.
 func _spawn_animals() -> void:
 	for s in _animal_spots:
+		if s.kind == "kit":
+			_spawn_warren(s.cell)
+			continue
 		var a := Animal.new()
 		a.setup(self, s.kind, s.cell)
 		if taken.has(a.tame_key()):
@@ -4335,6 +4376,21 @@ func _spawn_animals() -> void:
 			continue
 		add_child(a)
 		a.global_position = cell_to_world(s.cell)
+		animals.append(a)
+
+
+## A burrow on the meadow with its huddle of baby rabbits (see Warren).
+func _spawn_warren(cell: Vector2i) -> void:
+	var centre := cell_to_world(cell)
+	var hole := Warren.burrow()
+	add_child(hole)
+	hole.global_position = centre
+	for i in Warren.KITS:
+		var a := Animal.new()
+		a.setup(self, "kit", cell)
+		a._rng.seed += i * 977
+		add_child(a)
+		a.global_position = Warren.start_of(centre, i)
 		animals.append(a)
 
 
@@ -4692,6 +4748,8 @@ func set_season(day_of_season: int) -> void:
 	if surface_life != null:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
+	if crop_fields != null:
+		crop_fields.set_season(day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
 	var at := IvySeasons.stage(day_of_season)
 	if at == _tree_stage:

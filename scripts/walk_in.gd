@@ -1324,7 +1324,15 @@ static func _lift(part: Node, lifted: bool) -> void:
 		return
 	var node := part as Node3D
 	if not _casts(node):
-		node.visible = not lifted
+		# Remember whether it was shown, so putting it back never un-hides what is hidden on
+		# purpose (the faint range circle of a ballista, see HouseBallista.show_range).
+		if lifted:
+			if not node.has_meta(&"lift_was_visible"):
+				node.set_meta(&"lift_was_visible", node.visible)
+			node.visible = false
+		elif node.has_meta(&"lift_was_visible"):
+			node.visible = bool(node.get_meta(&"lift_was_visible"))
+			node.remove_meta(&"lift_was_visible")
 		return
 	node.set_meta(&"walk_in_lifted", lifted)
 	if node is GeometryInstance3D and not _is_particles(node):

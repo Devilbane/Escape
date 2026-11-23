@@ -45,6 +45,7 @@ extends RefCounted
 const WATERS := {
 	"brunnen": [["", 25, ""], ["muenze", 50, ""], ["goldkarpfen", 10, ""]],
 	"teich": [["", 18, ""], ["barsch", 60, ""], ["silberhecht", 12, "daemmerung"], ["flasche", 7, ""], ["schleimflasche", 12, ""], ["siegelring", 2, ""]],
+	"fluss": [["", 18, ""], ["barsch", 60, ""], ["silberhecht", 20, "daemmerung"], ["flasche", 6, ""], ["muenze", 8, ""]],
 	"senke": [["", 15, ""], ["barsch", 60, ""], ["mondforelle", 15, "nacht"], ["flasche", 7, ""], ["schleimflasche", 12, ""]],
 }
 ## An old bottle full of pond slime: the ponds' slimes leave it in the mud.

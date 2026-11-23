@@ -49,7 +49,7 @@ const OUTDOOR_MARKS := {
 	"u": ["building", "Windmühle"], "s": ["building", "Tempel"], "k": ["building", "Amt der Krone"],
 	"o": ["building", "Post"], "w": ["building", "Abenteurergilde"], "b": ["building", "Bank der Krone"],
 	"^": ["home", "Weberzeile"], ";": ["water", "Teich"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
-	"~": ["water", "Teich"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
+	"~": ["water", "Teich"], "‖": ["building", "Brücke"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
 	"S": ["building", "Steinmetz"], "[": ["building", "Bergschenke"], "]": ["lair", "Mine"],
 	")": ["lair", "Hort des Großen Alten"],
 }

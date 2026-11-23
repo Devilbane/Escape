@@ -3,7 +3,7 @@ extends Node
 ## Now and then a gust of wind stirs the light litter lying around the hero: fallen leaves tumble
 ## along the ground for a few metres, straw and wood chips skid, and a heap of autumn leaves
 ## shifts a little before it settles again. Not constant jitter: a gust comes every half minute or
-## so, lifts a handful of pieces near the hero and is over in two seconds.
+## so, lifts a dozen or so pieces near the hero and is over in four seconds.
 ##
 ## It is cheap. Nothing new is drawn: the pieces are the litter's own MultiMesh instances (see
 ## SurfaceLife), moved a little each frame while a gust lasts and left where they land (the next
@@ -17,18 +17,18 @@ extends Node
 ## Seconds between gusts under clear skies (at a wind strength of 1), at random in this range.
 const EVERY := Vector2(30.0, 70.0)
 ## Pieces one gust moves, before the wind's strength and the quality preset.
-const PIECES := Vector2i(5, 10)
-const MAX_PIECES := 24
+const PIECES := Vector2i(10, 18)
+const MAX_PIECES := 40
 ## Pieces are taken from this far round the hero (metres).
 const NEAR := 2.5
 const FAR := 15.0
 ## How far a piece travels in a breeze (metres), by what it is: leaves fly, chips skid.
-const TRAVEL := {"leaf": Vector2(1.8, 4.5), "straw": Vector2(1.2, 3.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
+const TRAVEL := {"leaf": Vector2(6.0, 14.0), "straw": Vector2(3.0, 8.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
 ## How high it is thrown (metres) and how long it takes (seconds).
-const LIFT := {"leaf": Vector2(0.35, 0.9), "straw": Vector2(0.25, 0.6), "chip": Vector2(0.05, 0.2), "fallen": Vector2(0.02, 0.06)}
-const DURATION := Vector2(1.1, 2.1)
+const LIFT := {"leaf": Vector2(1.0, 2.2), "straw": Vector2(0.6, 1.5), "chip": Vector2(0.05, 0.2), "fallen": Vector2(0.02, 0.06)}
+const DURATION := Vector2(2.4, 3.6)
 ## The gust sweeps along the wind: the furthest piece starts this long after the nearest (seconds).
-const SWEEP := 0.8
+const SWEEP := 1.2
 ## How much the wind's direction turns between gusts (radians, at most).
 const TURN := 0.7
 ## The tiles pieces may fly over and land on.
@@ -153,7 +153,8 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 		"dur": _rng.randf_range(DURATION.x, DURATION.y),
 		"lift": _rng.randf_range(lift.x, lift.y) * (0.7 + 0.3 * s),
 		"axis": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(0.2, 1), _rng.randf_range(-1, 1)).normalized(),
-		"spin": _rng.randf_range(1.5, 3.2) if light else _rng.randf_range(0.05, 0.3),
+		"spin": _rng.randf_range(5.0, 11.0) if light else _rng.randf_range(0.05, 0.3),
+		"flutter": _rng.randf_range(5.0, 9.0),
 		"yaw": _rng.randf_range(-2.5, 2.5) if light else _rng.randf_range(-0.5, 0.5),
 	})
 	return true
@@ -195,9 +196,10 @@ func _move() -> void:
 		if t <= 0.0 or lifted:
 			continue
 		var eased := 1.0 - (1.0 - t) * (1.0 - t)
-		var up: float = sin(PI * t) * m.lift
+		var up: float = pow(sin(PI * t), 0.8) * m.lift * (1.0 + 0.18 * sin(t * m.flutter * 3.0))
 		var tumble := Basis(m.axis, sin(PI * t) * m.spin)
 		var basis := tumble * Basis(Vector3.UP, m.yaw * eased) * flat.basis
-		var origin: Vector3 = (m.from as Vector3).lerp(m.to, eased) + Vector3(0, up, 0) + (flat.origin - m.from)
+		var side: Vector3 = Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * sin(t * m.flutter * 2.0) * 0.8 * sin(PI * t)
+		var origin: Vector3 = (m.from as Vector3).lerp(m.to, pow(t, 0.8)) + side + Vector3(0, up, 0) + (flat.origin - m.from)
 		(e[0] as MultiMesh).set_instance_transform(e[1], Transform3D(basis, origin))
 	_moving = left

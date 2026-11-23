@@ -35,6 +35,11 @@ const JOBS := {
 	"ü": "Ich bin der Müller. Ich mahle Korn zu Mehl und verkaufe Körner.",
 	"ö": "Ich bin der Brauer. Ich braue Bier und zapfe es im Wirtshaus.",
 	"S": "Ich bin der Steinmetz. Ich haue Steinblöcke zurecht, die du zum Bauen kaufen kannst.",
+	"φ": "Ich bin Bauer im Tal. Ich pflüge, säe und ernte Weizen, Mais und Sonnenblumen, und im Dorf kaufen sie es mir ab.",
+	"ψ": "Ich bin Bäuerin im Tal. Ich säe, jäte, hole Wasser und bringe die Ernte ein, und nebenbei koche ich.",
+	"χ": "Ich bin Knecht auf dem Hof. Ich schleppe Säcke und Wasser, hacke Holz und flicke, was kaputt ist.",
+	"ω": "Meine Arbeit? Ich helfe Mama! Und ich jage die Krähen!",
+	"λ": "Ich bin Hirte. Ich hüte die Schafe im Tal und achte darauf, dass keins im Mais landet.",
 	"%": "Ich bin Wanderhändler. Ich komme jede dritte Nacht mit seltenen Waren ins Dorf.",
 }
 

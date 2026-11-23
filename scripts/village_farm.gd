@@ -23,6 +23,9 @@ const HERDS := [
 	{"kind": "dog", "at": Vector2i(57, 40), "count": 1, "coats": ["black"]},
 	{"kind": "cow", "at": Vector2i(59, 26), "count": 2, "coats": [""], "pen": Corral.PEN},
 	{"kind": "bull", "at": Vector2i(58, 26), "count": 1, "coats": [""], "pen": Corral.PEN},
+	# The farming valley (see ValleyFolk): the shepherd's flock and his dog on the east meadow.
+	{"kind": "sheep", "at": Vector2i(100, 80), "count": 6, "coats": [""]},
+	{"kind": "dog", "at": Vector2i(102, 82), "count": 1, "coats": [""]},
 ]
 ## Where Pip stands to mind the goats, next to the herd's home tile.
 const PIP_AT := Vector2i(42, 31)

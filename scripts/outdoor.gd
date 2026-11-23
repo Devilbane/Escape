@@ -94,11 +94,13 @@ signal lightning(pos: Vector3)
 
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
+## The first map row of the farming valley, south of the village.
+const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλ"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
-const VILLAGERS := "0123456789KOGMYZS¢µüö"
+const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -620,6 +622,8 @@ var day := 0
 var season_day := 0
 ## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
 var crop_fields: CropFields
+## The small funny happenings in the valley (see ValleyEvents).
+var valley_events: ValleyEvents
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
@@ -860,6 +864,9 @@ func build() -> void:
 	_spawn_wild()
 	_spawn_animals()
 	farm_animals = VillageFarm.spawn(self)
+	valley_events = ValleyEvents.new()
+	add_child(valley_events)
+	valley_events.setup(self)
 	# The old dragon's little helpers, who gather the loot at night.
 	if doors.has("E"):
 		add_child(DragonHelpers.new(self, doors.E))

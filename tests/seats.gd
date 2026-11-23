@@ -73,7 +73,7 @@ func _test() -> void:
 	for e in lv.enemies:
 		e.set_physics_process(false)
 
-	var seats: Array = lv.stations.filter(func(s): return s.kind == Seats.KIND)
+	var seats: Array = lv.stations.filter(func(s): return s.kind == Seats.KIND and not s.has("indoor"))
 	var benches := 0
 	for y in lv.height:
 		for x in lv.width:

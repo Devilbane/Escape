@@ -1,0 +1,1 @@
+- The hero no longer gets caught on the corner of the bed when walking from the sleeping room to the stairs in the mage's tower.

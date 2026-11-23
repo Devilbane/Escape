@@ -392,7 +392,8 @@ static func _entrance(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside:
 	inside.add_child(light)
 	# A stand of staves and wands by the back wall's left tapestry, a bench under the right one.
 	_put(walk_in, rec, inside, WalkInFurniture.weapon_rack(1.1), Vector3(room.position.x + 1.3 + 1.9, y, back + 0.22), 0.0, Vector3(1.1, 1.5, 0.4))
-	_put(walk_in, rec, inside, WalkInFurniture.bench(1.5), Vector3(room.end.x - 1.3 - 1.9, y, back + 0.3), 0.0, Vector3(1.5, 0.5, 0.35))
+	_put(walk_in, rec, inside, WalkInFurniture.bench(1.5), Vector3(room.end.x - 1.3 - 1.9 + 0.5, y, back + 0.3))
+	Seats.add_indoor(walk_in, rec, Vector3(room.end.x - 1.3 - 1.9 + 0.5, y, back + 0.3), 0.0, Vector3(1.5, 0.5, 0.35), 0.485, [-0.4, 0.4], 1.0)
 	# Two suits of armour flanking the door, a chandelier over the runner, banners of the tower beside the door
 	# and crystal lamps on the side walls.
 	for x: float in [-1.55, 1.55]:
@@ -459,10 +460,15 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	_put(walk_in, rec, upper, table, mid, 0.0, Vector3(2.2, 0.85, 1.0))
 	_put(walk_in, rec, upper, WalkInFurniture.table_candle(), mid + Vector3(-0.7, 0.8, -0.1))
 	_put(walk_in, rec, upper, WalkInFurniture.chair(), mid + Vector3(-0.5, 0, -0.95), 0.0)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(-0.5, 0, -0.95), 0.0, Vector3(0.5, 0.9, 0.5))
 	_put(walk_in, rec, upper, WalkInFurniture.chair(), mid + Vector3(0.6, 0, -0.95), 0.0)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(0.6, 0, -0.95), 0.0, Vector3(0.5, 0.9, 0.5))
 	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(-1.6, 0, 0.0), PI * 0.5)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(-1.6, 0, 0.0), PI * 0.5, Vector3(0.95, 0.9, 0.9), 0.45)
 	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(1.6, 0, 0.0), -PI * 0.5)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(1.6, 0, 0.0), -PI * 0.5, Vector3(0.95, 0.9, 0.9), 0.45)
 	_put(walk_in, rec, upper, sofa_chair(1.9), mid + Vector3(0, 0, 1.55), PI)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(0, 0, 1.55), PI, Vector3(1.9, 0.9, 0.9), 0.45, [-0.5, 0.5])
 	# A globe on a stand, a floor lamp, a side table with a book by the sofa chair.
 	_put(walk_in, rec, upper, globe(), Vector3(room.end.x - 0.6, y, room.end.y - 0.7), 0.4, Vector3(0.4, 1.4, 0.4))
 	_put(walk_in, rec, upper, WalkInFurniture.table(0.28), mid + Vector3(-1.6, 0, 1.2), 0.0)
@@ -524,7 +530,7 @@ static func sofa_chair(wide := 0.95) -> Node3D:
 	var dark := _mat("velvet_dark", VELVET_DARK, 0.95)
 	var deep := 0.9
 	WalkInFurniture._box(root, Vector3(wide, 0.16, deep), Vector3(0, 0.1, 0), wood)
-	WalkInFurniture._box(root, Vector3(wide - 0.36, 0.2, deep - 0.3), Vector3(0, 0.28, 0.08), velvet)
+	WalkInFurniture._box(root, Vector3(wide - 0.36, 0.2, deep - 0.3), Vector3(0, 0.35, 0.08), velvet)
 	WalkInFurniture._box(root, Vector3(wide, 0.62, 0.22), Vector3(0, 0.58, -deep * 0.5 + 0.11), dark)
 	for s: float in [-1.0, 1.0]:
 		WalkInFurniture._box(root, Vector3(0.18, 0.42, deep), Vector3(s * (wide * 0.5 - 0.09), 0.37, 0), dark)
@@ -583,6 +589,7 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	_put(walk_in, rec, roof, WalkInFurniture.table(0.45), Vector3(right - 1.0, y, 1.0), 0.0, Vector3(0.6, 0.8, 0.6))
 	_put(walk_in, rec, roof, WalkInFurniture.table_candle(), Vector3(right - 1.0, y + 0.79, 1.0))
 	_put(walk_in, rec, roof, WalkInFurniture.stool(), Vector3(right - 1.9, y, 1.0))
+	Seats.add_indoor(walk_in, rec, Vector3(right - 1.9, y, 1.0), 0.0, Vector3(0.4, 0.5, 0.4))
 	_put(walk_in, rec, roof, telescope(), Vector3(room.position.x + 1.5 + 1.5, y, room.end.y - 0.9), 0.0, Vector3(0.4, 1.2, 0.4))
 	# A chandelier, crystal lamps over the beds, a plant, a pile of books by the bookcase and a skull on the bedside tables.
 	var hang := chandelier(0.5, 0.4, 8)

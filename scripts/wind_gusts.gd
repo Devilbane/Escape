@@ -250,12 +250,13 @@ func _noise_phases() -> Vector3:
 
 
 ## How high a piece is at `t` (0 to 1) of its flight, as a share of its lift, with `n` (see erratic)
-## the piece's own restlessness: it is taken up quickly, then wanders up and down, surging and
+## the piece's own restlessness: it is lifted gently, then wanders up and down, surging and
 ## dropping at random with only a slight sink, and settles in the last stretch. Zero at both ends.
 static func height_share(t: float, n: float) -> float:
-	var rise := pow(minf(1.0, t / 0.1), 1.5)
-	var settle := pow(minf(1.0, (1.0 - t) / 0.15), 1.5)
-	return rise * settle * (1.0 - 0.35 * t) * clampf(0.55 + 0.5 * n, 0.05, 1.2)
+	# Lifted gently over the first third, let down just as gently over the last 40 percent.
+	var rise := smoothstep(0.0, 0.35, t)
+	var settle := smoothstep(0.0, 0.4, 1.0 - t)
+	return rise * settle * (1.0 - 0.25 * t) * clampf(0.55 + 0.5 * n, 0.05, 1.2)
 
 
 func _move() -> void:
@@ -284,7 +285,7 @@ func _move() -> void:
 		var along: Vector3 = (m.to as Vector3) - (m.from as Vector3)
 		var side_axis := Vector3.UP.cross(along).normalized()
 		# Pushed this way and that on the way, but always on along the wind.
-		var calm := minf(1.0, t / 0.1) * minf(1.0, (1.0 - t) / 0.15)
+		var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
 		var sway := side_axis * erratic(t, m.fl, m.pl) * 1.8 * calm
 		var surge := erratic(t, m.fl.zxy, m.pl.yzx) * 0.04 * calm
 		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
@@ -306,7 +307,7 @@ func _move() -> void:
 
 ## Fast at first as the gust takes it, slower as it drifts down.
 static func ease_out(t: float) -> float:
-	return 1.0 - pow(1.0 - t, 1.6)
+	return lerpf(smoothstep(0.0, 1.0, t), 1.0 - pow(1.0 - t, 1.6), 0.5)
 
 
 ## Winter: a flurry of snow lifts off the ground round the hero, drifts along the wind and
@@ -362,7 +363,7 @@ func _move_flakes() -> void:
 		var t := clampf((_clock - m.delay) / m.dur, 0.0, 1.0)
 		var at: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t))
 		var share := height_share(t, erratic(t, m.fh, m.ph))
-		var swing := erratic(t, m.fl, m.pl) * 1.2 * minf(1.0, t / 0.1) * minf(1.0, (1.0 - t) / 0.15)
+		var swing := erratic(t, m.fl, m.pl) * 1.2 * smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
 		at += Vector3(0, m.lift * share, 0) + Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * swing
 		var scale_by := 1.0 if t > 0.0 else 0.0
 		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * scale_by), at))

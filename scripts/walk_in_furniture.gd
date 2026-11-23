@@ -505,7 +505,7 @@ static func dummy() -> Node3D:
 	root.name = "Dummy"
 	var wood := _wood()
 	var straw := _plain("straw", Color(0.85, 0.72, 0.4))
-	_box(root, Vector3(0.5, 0.06, 0.5), Vector3(0, 0.03, 0), wood)
+	_box(root, Vector3(0.5, 0.06, 0.5), Vector3(0, 0.042, 0), wood)
 	_cylinder(root, 0.05, 1.5, Vector3(0, 0.75, 0), wood)
 	_cylinder(root, 0.2, 0.6, Vector3(0, 1.15, 0), straw)
 	_box(root, Vector3(0.9, 0.08, 0.08), Vector3(0, 1.3, 0), wood)

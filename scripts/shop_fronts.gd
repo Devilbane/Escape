@@ -264,7 +264,7 @@ static func _office(root: Node3D, reach: float) -> Array:
 		crown.scale = Vector3.ONE * 1.2
 		root.add_child(crown)
 		_box(root, Vector3(0.6, 0.08, 0.025), Vector3(sx, 1.2, 0.485), _mat("gold_band", Color(0.92, 0.75, 0.3), 0.4, 0.5))
-		_box(root, Vector3(0.4, 0.05, 0.4), Vector3(sx, 0.025, 0.45), _mat("post_wood", Color(0.3, 0.2, 0.12)))
+		_box(root, Vector3(0.4, 0.05, 0.4), Vector3(sx, 0.037, 0.45), _mat("post_wood", Color(0.3, 0.2, 0.12)))
 		parts.append([Vector3(sx, 1.1, 0.45), Vector3(0.4, 2.2, 0.4)])
 	return parts
 

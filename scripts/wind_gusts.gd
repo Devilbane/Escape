@@ -6,6 +6,9 @@ extends Node
 ## leaves shifts a little. In winter there are no leaves to carry: the gust whirls up a flurry of
 ## snow instead (see _flurry).
 ##
+## No two gusts are alike: each has a force of its own (see FORCE), from a light, slow drift that
+## lifts a few leaves a little way to a strong, fast blow that carries many of them high and far.
+##
 ## Autumn is the season of wind: a gust every ten to thirty seconds. In the other seasons they are
 ## rare (one every minute or two).
 ##
@@ -37,6 +40,10 @@ const DURATION := Vector2(6.0, 9.5)
 const SWEEP := 2.0
 ## How much the wind's direction turns between gusts (radians, at most).
 const TURN := 0.7
+## How hard a gust blows on top of the weather's wind (1 is the weather's breeze): drawn at random
+## for every gust, mostly light and slow, now and then strong and fast. It sets how many pieces are
+## taken, how high and far they go and how quickly.
+const FORCE := Vector2(0.3, 1.6)
 ## The tiles pieces may fly over and land on.
 const OPEN := SurfaceLife.GROUND + SurfaceLife.PATH + SurfaceLife.SQUARE
 ## The winter flurry: flakes per gust, their size (metres), how far they are blown and how high.
@@ -52,6 +59,8 @@ var _clock := 0.0
 var _timer := 0.0
 ## The way the wind blows now (angle on the ground plane).
 var _angle := 0.0
+## The force of the gust now, and of the last one (for the tests).
+var force := 1.0
 var _rng := RandomNumberGenerator.new()
 ## The flurry of snow: its MultiMesh (made the first winter gust) and the flakes in the air.
 var _snow: MultiMeshInstance3D
@@ -136,6 +145,9 @@ func gust(s: float) -> int:
 	var hero: Vector3 = life.level.player.global_position
 	_clock = 0.0
 	gusts += 1
+	# Weather and the gust's own force together.
+	force = lerpf(FORCE.x, FORCE.y, pow(_rng.randf(), 1.4))
+	s *= force
 	if _winter():
 		_flurry(dir, s, hero)
 		return _flakes.size()
@@ -175,7 +187,7 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 	var kind: String = e[4]
 	var from: Vector3 = e[2]
 	var span: Vector2 = TRAVEL[kind]
-	var dist := _rng.randf_range(span.x, span.y) * (0.6 + 0.4 * s)
+	var dist := _rng.randf_range(span.x, span.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6)
 	# A little off the wind's own way, as every piece catches it differently.
 	var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
 	var to := from + way * dist
@@ -189,8 +201,8 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 	_moving.append({
 		"entry": e, "from": from, "to": to,
 		"delay": clampf((from - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.4),
-		"dur": _rng.randf_range(DURATION.x, DURATION.y) if light else _rng.randf_range(1.2, 2.2),
-		"lift": _rng.randf_range(lift.x, lift.y) * (0.7 + 0.3 * s),
+		"dur": (_rng.randf_range(DURATION.x, DURATION.y) if light else _rng.randf_range(1.2, 2.2)) / _pace(s),
+		"lift": _rng.randf_range(lift.x, lift.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 		"axis": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(0.2, 1), _rng.randf_range(-1, 1)).normalized(),
 		"spin": _rng.randf_range(2.0, 5.0) if light else _rng.randf_range(0.05, 0.3),
 		"flutter": _rng.randf_range(2.5, 4.5),
@@ -211,6 +223,12 @@ func _clear_way(a: Vector3, b: Vector3) -> bool:
 		if r.grow(0.4).has_point(Vector2(b.x, b.z)):
 			return false
 	return true
+
+
+## How much faster than usual a gust of strength `s` carries its pieces: a light one is slow,
+## a strong one quick.
+static func _pace(s: float) -> float:
+	return clampf(0.55 + 0.45 * s, 0.6, 1.5)
 
 
 ## How high a piece is at `t` (0 to 1) of its flight, as a share of its lift: up quickly, then a
@@ -291,10 +309,10 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 		var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
 		_flakes.append({
 			"from": at + Vector3(0, 0.05, 0),
-			"to": at + way * _rng.randf_range(FLAKE_TRAVEL.x, FLAKE_TRAVEL.y) * (0.6 + 0.4 * s),
+			"to": at + way * _rng.randf_range(FLAKE_TRAVEL.x, FLAKE_TRAVEL.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6),
 			"delay": clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
-			"dur": _rng.randf_range(DURATION.x, DURATION.y),
-			"lift": _rng.randf_range(FLAKE_LIFT.x, FLAKE_LIFT.y),
+			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s),
+			"lift": _rng.randf_range(FLAKE_LIFT.x, FLAKE_LIFT.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 			"flutter": _rng.randf_range(2.5, 5.0),
 		})
 	moved += count

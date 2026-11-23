@@ -81,6 +81,19 @@ func _run() -> void:
 	lvl.set_season(Seasons.TEST_DAY)
 	check(in_autumn.y < wind.every().x, "gusts are frequent in autumn and rare in spring")
 
+	# Every gust has its own force, from light and slow to strong and fast.
+	var lo := 9.0
+	var hi := 0.0
+	for i in 40:
+		wind.gust(1.0)
+		lo = minf(lo, wind.force)
+		hi = maxf(hi, wind.force)
+		wind._clock = 100.0
+		wind._move()
+		wind._move_flakes()
+	check(hi - lo > 0.5 and lo >= WindGusts.FORCE.x and hi <= WindGusts.FORCE.y, "gusts differ in force (%.2f to %.2f)" % [lo, hi])
+	check(WindGusts._pace(0.3) < WindGusts._pace(1.6), "a strong gust carries its pieces faster than a light one")
+
 	var storm := FlagWind.wind_for(Weather.STORM).x
 	var fog := FlagWind.wind_for(Weather.FOG).x
 	check(storm > fog, "a storm blows harder than fog")

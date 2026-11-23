@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give village chimneys an open flue with a snow-covered rim; Calm torch arm and hand lanterns for villagers and hero | Shipped this week: Turn the alchemist's brazier into a gently glowing goo pot; Furnish the post office with parcels, a letter sack and real letters (+48 more)
+Escape! dev status | Working on: Give village chimneys an open flue with a snow-covered rim | Shipped this week: Calm torch arm and hand lanterns for villagers and hero; Turn the alchemist's brazier into a gently glowing goo pot (+48 more)

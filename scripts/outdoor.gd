@@ -2444,6 +2444,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for hot: Vector4 in SMITHY_FIRES:
 				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
 				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
+			_smithy_fire(node, s)
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -4153,6 +4154,57 @@ func _chimney_fire(top: Vector3) -> void:
 	tween.tween_property(mat, "emission_energy_multiplier", 1.6, 0.5)
 	tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.25)
 	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
+
+
+## The fire of the big smithy behind the little forge (block "j"): the top of its chimney glows and
+## flickers like the little forge's stack, embers drift out of it, and a flame and a few embers
+## flicker in the furnace's mouth. The effects stand at the model's fire spots (SMITHY_FIRES) in the
+## open air, not inside the model, so they keep their size; no real light, so nothing leaks through
+## the walls. `s` is the model's scale.
+func _smithy_fire(node: Node3D, s: float) -> void:
+	var mouth_at: Vector3 = node.transform * Vector3(SMITHY_FIRES[0].x, SMITHY_FIRES[0].y, SMITHY_FIRES[0].z)
+	var top: Vector3 = node.transform * Vector3(SMITHY_FIRES[1].x, SMITHY_FIRES[1].y, SMITHY_FIRES[1].z)
+	var glow := MeshInstance3D.new()
+	glow.name = "SmithyChimneyGlow"
+	var slab := BoxMesh.new()
+	slab.size = Vector3(0.3, 0.02, 0.3) * s
+	glow.mesh = slab
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.06, 0.02)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.45, 0.1)
+	mat.emission_energy_multiplier = 2.0
+	glow.material_override = mat
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow.position = top
+	add_child(glow)
+	var tween := glow.create_tween().set_loops()
+	tween.tween_property(mat, "emission_energy_multiplier", 3.0, 0.4)
+	tween.tween_property(mat, "emission_energy_multiplier", 1.6, 0.5)
+	tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.3)
+	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
+	var flame := Effects.make_flame()
+	flame.position = top + Vector3(0, 0.03 * s, 0)
+	flame.scale = Vector3.ONE * 0.4 * s
+	_fixed_seed(flame, 4)
+	add_child(flame)
+	# Embers lift out of the top of the chimney and drift off on the breeze.
+	var embers := Effects.make_forge_embers()
+	embers.name = "SmithyEmbers"
+	embers.emission_box_extents = Vector3(0.12, 0.02, 0.12) * s
+	embers.amount = 10
+	embers.scale = Vector3.ONE * clampf(s, 0.5, 1.5)
+	_fixed_seed(embers, 5)
+	embers.position = top + Vector3(0, 0.05 * s, 0)
+	add_child(embers)
+	# A few more flicker in the furnace's mouth.
+	var low := Effects.make_forge_embers()
+	low.name = "SmithyMouthEmbers"
+	low.emission_box_extents = Vector3(0.1, 0.02, 0.1) * s
+	low.amount = 6
+	_fixed_seed(low, 6)
+	low.position = mouth_at
+	add_child(low)
 
 
 ## The smith's anvil on his own tile, between him and his forge (`face`

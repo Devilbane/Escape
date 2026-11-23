@@ -72,8 +72,8 @@ func _run() -> void:
 	wind._move()
 
 	# Feather-like: a leaf's height is zero at both ends, rises early and sinks slowly.
-	check(WindGusts.height_share(0.0, 3.0) < 0.001 and WindGusts.height_share(1.0, 3.0) < 0.001, "a leaf starts and lands on the ground")
-	check(WindGusts.height_share(0.15, 3.0) > WindGusts.height_share(0.8, 3.0), "it rises early and sinks slowly")
+	check(WindGusts.height_share(0.0, 0.5) < 0.001 and WindGusts.height_share(1.0, 0.5) < 0.001, "a leaf starts and lands on the ground")
+	check(WindGusts.height_share(0.5, 1.0) > WindGusts.height_share(0.5, -1.0), "it wanders up and down on the way, as its restlessness goes")
 	# Frequent in autumn, rare in other seasons.
 	var autumn_day := SkyCommand.autumn_from(Seasons.TEST_DAY)
 	lvl.set_season(autumn_day)

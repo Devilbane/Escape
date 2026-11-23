@@ -1,8 +1,8 @@
 class_name WindGusts
 extends Node
 ## Now and then a gust of wind sweeps up the light litter lying around the hero: fallen leaves
-## rise as high as a person, drift on across the screen and sink back to the ground like feathers,
-## turning and bobbing as they go; straw rides along, wood chips only skid and a heap of autumn
+## rise as high as a person and are blown on across the screen, chaotic and erratic (each pushed up, down and sideways on its own and turning every which way) but always along the wind, until they settle again,
+## straw rides along, wood chips only skid and a heap of autumn
 ## leaves shifts a little. In winter there are no leaves to carry: the gust whirls up a flurry of
 ## snow instead (see _flurry).
 ##
@@ -53,7 +53,7 @@ const FLAKE_TRAVEL := Vector2(10.0, 26.0)
 const FLAKE_LIFT := Vector2(0.3, 2.2)
 
 var life: SurfaceLife
-## The pieces in the air: {entry, from, to, delay, dur, lift, axis, spin, yaw, flutter}.
+## The pieces in the air: {entry, from, to, delay, dur, lift, axis, spin, yaw, light, and the settings of its erratic motion}.
 var _moving: Array = []
 var _clock := 0.0
 var _timer := 0.0
@@ -205,7 +205,11 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 		"lift": _rng.randf_range(lift.x, lift.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 		"axis": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(0.2, 1), _rng.randf_range(-1, 1)).normalized(),
 		"spin": _rng.randf_range(2.0, 5.0) if light else _rng.randf_range(0.05, 0.3),
-		"flutter": _rng.randf_range(2.5, 4.5),
+		"fh": _noise_freqs(), "ph": _noise_phases(),
+		"fl": _noise_freqs(), "pl": _noise_phases(),
+		"fa": _noise_freqs(), "pa": _noise_phases(),
+		"fb": _noise_freqs(), "pb": _noise_phases(),
+		"axis2": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(-1, 1), _rng.randf_range(-1, 1)).normalized(),
 		"yaw": _rng.randf_range(-1.5, 1.5) if light else _rng.randf_range(-0.5, 0.5),
 		"light": light,
 	})
@@ -231,13 +235,26 @@ static func _pace(s: float) -> float:
 	return clampf(0.55 + 0.45 * s, 0.6, 1.5)
 
 
-## How high a piece is at `t` (0 to 1) of its flight, as a share of its lift: up quickly, then a
-## long, slow sink like a feather's, with a little bobbing on the way. Zero at both ends.
-static func height_share(t: float, wobble: float) -> float:
-	var rise := pow(minf(1.0, t / 0.12), 1.5)
-	var sink := 1.0 - smoothstep(0.3, 1.0, t)
-	var settle := pow(minf(1.0, (1.0 - t) / 0.08), 1.5)
-	return rise * sink * settle * (1.0 + 0.15 * sin(t * wobble * 2.2))
+## A restless value between -1 and 1 that wanders as `t` runs (three sines of unrelated speed).
+static func erratic(t: float, f: Vector3, ph: Vector3) -> float:
+	return (sin(f.x * t + ph.x) + 0.6 * sin(f.y * t + ph.y) + 0.4 * sin(f.z * t + ph.z)) * 0.5
+
+
+func _noise_freqs() -> Vector3:
+	return Vector3(_rng.randf_range(8.0, 22.0), _rng.randf_range(14.0, 34.0), _rng.randf_range(22.0, 48.0))
+
+
+func _noise_phases() -> Vector3:
+	return Vector3(_rng.randf_range(0.0, TAU), _rng.randf_range(0.0, TAU), _rng.randf_range(0.0, TAU))
+
+
+## How high a piece is at `t` (0 to 1) of its flight, as a share of its lift, with `n` (see erratic)
+## the piece's own restlessness: it is taken up quickly, then wanders up and down, surging and
+## dropping at random with only a slight sink, and settles in the last stretch. Zero at both ends.
+static func height_share(t: float, n: float) -> float:
+	var rise := pow(minf(1.0, t / 0.1), 1.5)
+	var settle := pow(minf(1.0, (1.0 - t) / 0.15), 1.5)
+	return rise * settle * (1.0 - 0.35 * t) * clampf(0.55 + 0.5 * n, 0.05, 1.2)
 
 
 func _move() -> void:
@@ -262,16 +279,21 @@ func _move() -> void:
 		left.append(m)
 		if t <= 0.0 or lifted:
 			continue
-		var share := height_share(t, m.flutter)
+		var share := height_share(t, erratic(t, m.fh, m.ph))
 		var along: Vector3 = (m.to as Vector3) - (m.from as Vector3)
 		var side_axis := Vector3.UP.cross(along).normalized()
-		# A feather swings from side to side as it sinks, rocking with each swing.
-		var swing := sin(t * m.flutter * TAU * 0.5)
-		var sway := side_axis * swing * 0.9 * (1.0 - t) * minf(1.0, t / 0.1)
-		var rock := Basis(along.normalized(), swing * 0.55 * share) if m.light else Basis()
-		var tilt := Basis(m.axis, absf(sin(t * m.spin * 1.4)) * 0.5 * share) if m.light else Basis()
-		var basis := rock * tilt * Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
-		var origin: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t)) + sway + Vector3(0, m.lift * share, 0)
+		# Pushed this way and that on the way, but always on along the wind.
+		var calm := minf(1.0, t / 0.1) * minf(1.0, (1.0 - t) / 0.15)
+		var sway := side_axis * erratic(t, m.fl, m.pl) * 1.8 * calm
+		var surge := erratic(t, m.fl.zxy, m.pl.yzx) * 0.04 * calm
+		var basis := flat.basis
+		if m.light:
+			# Its own wild turning on all axes, never the same as its neighbour's.
+			var yaw: float = m.yaw * t + m.spin * t + erratic(t, m.fa, m.pa) * 2.2 * calm
+			basis = Basis(m.axis, erratic(t, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t, m.fa.yzx, m.pb.zxy) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
+		else:
+			basis = Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
+		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share, 0)
 		(e[0] as MultiMesh).set_instance_transform(e[1], Transform3D(basis, origin + (flat.origin - m.from)))
 	_moving = left
 
@@ -313,7 +335,7 @@ func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
 			"delay": clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
 			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s),
 			"lift": _rng.randf_range(FLAKE_LIFT.x, FLAKE_LIFT.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
-			"flutter": _rng.randf_range(2.5, 5.0),
+			"fh": _noise_freqs(), "ph": _noise_phases(), "fl": _noise_freqs(), "pl": _noise_phases(),
 		})
 	moved += count
 	_snow.visible = true
@@ -333,8 +355,8 @@ func _move_flakes() -> void:
 	for m: Dictionary in left:
 		var t := clampf((_clock - m.delay) / m.dur, 0.0, 1.0)
 		var at: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t))
-		var share := height_share(t, m.flutter)
-		var swing := sin(t * m.flutter * TAU * 0.5) * 0.5 * (1.0 - t)
+		var share := height_share(t, erratic(t, m.fh, m.ph))
+		var swing := erratic(t, m.fl, m.pl) * 1.2 * minf(1.0, t / 0.1) * minf(1.0, (1.0 - t) / 0.15)
 		at += Vector3(0, m.lift * share, 0) + Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * swing
 		var scale_by := 1.0 if t > 0.0 else 0.0
 		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * scale_by), at))

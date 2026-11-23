@@ -117,3 +117,4 @@ forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walka
 house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere
 carry_arm.gd | 60 | free | passfail | The torch and lamp arm reaches forward and rocks only gently; lamps hang upright; villagers mix lamps and torches
+ground_items.gd | 60 | free | pass | Items on the floor (every item has a flat model, stackables pile up, no floating glow)

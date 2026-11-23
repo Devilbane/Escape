@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Send late comers out of the temple again; Add a practice duel between Elder Aldo and Scholar Odo; Make the big smithy chimney glow and throw embers (+47 more)
+Escape! dev status | Working on: Show villagers by plain name; they tell their job in the chat | Shipped this week: Send late comers out of the temple again; Add a practice duel between Elder Aldo and Scholar Odo; Make the big smithy chimney glow and throw embers (+47 more)

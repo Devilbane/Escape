@@ -1,0 +1,1 @@
+- Removed the wind-blown snow gusts and their dust; leaf gusts stay.

@@ -1,1 +1,1 @@
-- Far spruces now show the same snow as the near ones, so trees no longer change look as you walk closer.
+- Spruces look the same near and far (the simpler far look is only used on the Performance setting).

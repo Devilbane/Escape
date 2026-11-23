@@ -591,6 +591,45 @@ static func dummy() -> Node3D:
 	return root
 
 
+## A notice on parchment hanging flat on a wall (at -z), 0.7 x 0.95 metres: a gold `title` over short
+## `lines` of dark ink (German, translated by Lang). With no lines it shows the post's horn instead.
+static func poster(title: String, lines: Array) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Poster"
+	_box(root, Vector3(0.7, 0.95, 0.015), Vector3(0, -0.475, 0.02), _plain("poster_paper", Color(0.7, 0.62, 0.45), 1.0))
+	_box(root, Vector3(0.74, 0.03, 0.025), Vector3(0, 0.0, 0.025), _wood())
+	_box(root, Vector3(0.74, 0.03, 0.025), Vector3(0, -0.95, 0.025), _wood())
+	_poster_text(root, Lang.t(title), 0.15, Color(0.45, 0.1, 0.08), 0.0075)
+	if lines.is_empty():
+		var gold := _plain("poster_gold", Color(0.75, 0.55, 0.15), 0.5)
+		var bell := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.03
+		cone.bottom_radius = 0.17
+		cone.height = 0.4
+		bell.mesh = cone
+		bell.material_override = gold
+		bell.transform = Transform3D(Basis(Vector3.BACK, PI * 0.5 + 0.5), Vector3(0.05, -0.58, 0.04))
+		root.add_child(bell)
+		_cylinder(root, 0.05, 0.06, Vector3(-0.2, -0.7, 0.04), gold, Basis(Vector3.BACK, PI * 0.5 + 0.5))
+	for i in lines.size():
+		_poster_text(root, Lang.t(lines[i]), 0.3 + i * 0.16, Color(0.15, 0.1, 0.06), 0.0055)
+	return root
+
+
+static func _poster_text(poster_root: Node3D, text: String, down: float, colour: Color, pixel: float) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font = preload("res://assets/fonts/Cinzel-Bold.woff2")
+	label.font_size = 48
+	label.pixel_size = pixel
+	label.outline_size = 0
+	label.modulate = colour
+	label.shaded = true
+	label.position = Vector3(0, -down, 0.032)
+	poster_root.add_child(label)
+
+
 ## A long cloth banner `high` metres long hanging flat on a wall (at -z), in `colour` with a pale band.
 static func banner(colour: Color, high: float) -> Node3D:
 	var root := Node3D.new()

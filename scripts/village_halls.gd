@@ -162,6 +162,20 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		small.rotation.y = side * 0.4
 		inside.add_child(small)
 		walk_in._solid(rec, Vector3(x, floor_y + 0.4, z - 0.4), Vector3(0.8, 0.8, 1.7))
+	# Notices on the side walls toward the door, clear of the windows and sconces by the back wall.
+	var notices := [
+		["Königliche Post", []],
+		["Postdienste", ["Briefe: zu Fuß", "Pakete: per Karren", "Eilpost: per Reiter"]],
+		["Postwege", ["Dorf – Mühle", "Dorf – Gilde", "Dorf – Burg"]],
+		["Hinweis", ["Nur gestempelte", "Pakete werden", "befördert"]],
+	]
+	for i in notices.size():
+		var side := -1.0 if i % 2 == 0 else 1.0
+		var notice := WalkInFurniture.poster(notices[i][0], notices[i][1])
+		var nz := room.end.y - 1.5 - (i / 2) * 1.1
+		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, nz)
+		notice.rotation.y = -side * PI * 0.5
+		inside.add_child(notice)
 	var letters := WalkInFurniture.letter_sack()
 	letters.position = Vector3(room.size.x * 0.5 - 1.4, floor_y, z - 0.2)
 	inside.add_child(letters)

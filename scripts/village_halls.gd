@@ -134,7 +134,8 @@ static func _shop(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	_by_the_sides(walk_in, rec, inside)
 
 
-## Pigeonholes for the letters on the back wall, parcels stacked by the side walls.
+## Pigeonholes for the letters on the back wall, parcels (stamped and not yet stamped) stacked by the
+## side walls and a sack of letters by the door.
 static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
@@ -144,7 +145,26 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	holes.position = Vector3(0, floor_y + 0.5, back + 0.18)
 	inside.add_child(holes)
 	walk_in._solid(rec, Vector3(0, floor_y + 1.2, back + 0.18), Vector3(holes_w, 2.4, 0.36))
-	_by_the_sides(walk_in, rec, inside)
+	var z := room.end.y - 1.3
+	for side: float in [-1.0, 1.0]:
+		var x := side * (room.size.x * 0.5 - 0.45)
+		# Two parcels stacked, a stamped one under an unstamped one, and another beside them.
+		var low := WalkInFurniture.parcel(Vector3(0.7, 0.32, 0.5), side < 0.0)
+		low.position = Vector3(x, floor_y, z)
+		low.rotation.y = side * 0.15
+		inside.add_child(low)
+		var high := WalkInFurniture.parcel(Vector3(0.5, 0.26, 0.4), side > 0.0)
+		high.position = Vector3(x, floor_y + 0.32, z)
+		high.rotation.y = -side * 0.3
+		inside.add_child(high)
+		var small := WalkInFurniture.parcel(Vector3(0.4, 0.22, 0.3), side < 0.0)
+		small.position = Vector3(x, floor_y, z - 0.75)
+		small.rotation.y = side * 0.4
+		inside.add_child(small)
+		walk_in._solid(rec, Vector3(x, floor_y + 0.4, z - 0.4), Vector3(0.8, 0.8, 1.7))
+	var letters := WalkInFurniture.letter_sack()
+	letters.position = Vector3(room.size.x * 0.5 - 1.4, floor_y, z - 0.2)
+	inside.add_child(letters)
 
 
 ## The Crown office: the land registers on bookcases along the back wall behind the clerk's desk,

@@ -362,13 +362,80 @@ static func pigeonholes(wide: float, high: float) -> Node3D:
 		_box(root, Vector3(wide, 0.03, deep), Vector3(0, r * high / rows, 0), wood)
 	for c in cols + 1:
 		_box(root, Vector3(0.03, high, deep), Vector3(-wide * 0.5 + c * wide / cols, high * 0.5, 0), wood)
-	var paper := _plain("paper", Color(0.93, 0.9, 0.8))
+	# Letters standing in the holes: matte, dull parchment (a bright white glowed in the candlelight),
+	# each with a dab of red wax, some leaning, a few lying in a pile.
 	for r in rows:
 		for c in cols:
 			if (r * 5 + c * 3) % 4 == 0:
 				continue
-			var at := Vector3(-wide * 0.5 + (c + 0.5) * wide / cols, r * high / rows + 0.06, 0.02)
-			_box(root, Vector3(wide / cols * 0.6, 0.08, deep * 0.6), at, paper)
+			var cell_w := wide / cols
+			var at := Vector3(-wide * 0.5 + (c + 0.5) * cell_w, r * high / rows + 0.03, 0.0)
+			if (r + c) % 3 == 0:
+				for k in 2 + (r + c) % 2:
+					var pile := envelope(cell_w * 0.62)
+					pile.position = at + Vector3(0, 0.015 + k * 0.012, 0.02)
+					pile.rotation = Vector3(-PI * 0.5, 0.25 * (k - 1), 0)
+					root.add_child(pile)
+			else:
+				for k in 2:
+					var standing := envelope(cell_w * 0.5)
+					standing.position = at + Vector3((k - 0.5) * cell_w * 0.22, 0.0, 0.0)
+					standing.rotation = Vector3(-0.12 - 0.1 * k, 0.15 * (k * 2 - 1), 0.12 * (k - 0.5))
+					root.add_child(standing)
+	return root
+
+
+## A sealed letter, `wide` metres across, standing on its short edge: a dull parchment envelope
+## with a flap line and a dab of red wax. Its origin is its bottom edge.
+static func envelope(wide: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Letter"
+	var high := wide * 0.7
+	_box(root, Vector3(wide, high, 0.008), Vector3(0, high * 0.5, 0), _plain("letter", Color(0.7, 0.62, 0.45), 1.0))
+	_box(root, Vector3(wide * 0.96, 0.006, 0.01), Vector3(0, high * 0.62, 0), _plain("letter_fold", Color(0.55, 0.47, 0.32), 1.0))
+	_cylinder(root, wide * 0.09, 0.012, Vector3(0, high * 0.6, 0.007), _plain("wax", Color(0.55, 0.12, 0.1), 0.6), Basis(Vector3.RIGHT, PI * 0.5))
+	return root
+
+
+## A parcel in brown paper tied with string, `size` metres long. Stamped, it carries the post's
+## red wax seal and a stamp mark; unstamped it is only tied and waits to be franked.
+static func parcel(size: Vector3, stamped: bool) -> Node3D:
+	var root := Node3D.new()
+	root.name = "StampedParcel" if stamped else "Parcel"
+	var paper := _plain("parcel_paper", Color(0.58, 0.45, 0.3), 1.0)
+	var twine := _plain("twine", Color(0.3, 0.22, 0.14))
+	_box(root, size, Vector3(0, size.y * 0.5, 0), paper)
+	# String once round each way and a knot on top.
+	_box(root, Vector3(size.x + 0.012, size.y + 0.012, 0.015), Vector3(0, size.y * 0.5, 0), twine)
+	_box(root, Vector3(0.015, size.y + 0.012, size.z + 0.012), Vector3(0, size.y * 0.5, 0), twine)
+	_box(root, Vector3(0.05, 0.03, 0.05), Vector3(0, size.y + 0.01, 0), twine)
+	if stamped:
+		_cylinder(root, 0.045, 0.012, Vector3(0.08, size.y + 0.006, 0.08), _plain("wax", Color(0.55, 0.12, 0.1), 0.6))
+		_box(root, Vector3(0.12, 0.006, 0.09), Vector3(-0.1, size.y + 0.004, -0.07), _plain("stamp_mark", Color(0.2, 0.25, 0.45), 1.0), Basis(Vector3.UP, 0.3))
+	return root
+
+
+## A sack of letters: a slumped cloth sack tied at the neck, envelopes sticking out of its mouth.
+static func letter_sack() -> Node3D:
+	var root := Node3D.new()
+	root.name = "LetterSack"
+	var cloth := _plain("letter_sack", Color(0.66, 0.58, 0.42), 1.0)
+	var body := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.3
+	mesh.height = 0.62
+	body.mesh = mesh
+	body.material_override = cloth
+	body.scale = Vector3(1.0, 1.0, 0.9)
+	body.position.y = 0.3
+	root.add_child(body)
+	_cylinder(root, 0.1, 0.14, Vector3(0, 0.62, 0), cloth)
+	_cylinder(root, 0.115, 0.03, Vector3(0, 0.6, 0), _plain("twine", Color(0.3, 0.22, 0.14)))
+	for i in 4:
+		var letter := envelope(0.2)
+		letter.position = Vector3((i - 1.5) * 0.04, 0.64, 0.0)
+		letter.rotation = Vector3(0.0, i * 1.3, (i - 1.5) * 0.35)
+		root.add_child(letter)
 	return root
 
 

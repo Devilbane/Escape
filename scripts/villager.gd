@@ -317,6 +317,8 @@ var chat_broken := false
 var singing := false
 ## Whether we stay seated through the chat (the drinker on his bench).
 var _chat_sitting := false
+## Seconds a pose struck in a chat still holds (see strike_pose).
+var _pose_time := 0.0
 ## The torch in the hand at night (see carries_torch), made the first night
 ## it is needed, the left hand's own things hidden while it burns, and the
 ## light it throws.
@@ -2219,7 +2221,10 @@ func _physics_process(delta: float) -> void:
 		"chat":
 			if chat_partner and is_instance_valid(chat_partner):
 				_turn_to(chat_partner.global_position - global_position, delta)
-			play(_info.work if _chat_sitting else "Idle")
+			if _pose_time > 0.0:
+				_pose_time -= delta
+			else:
+				play(_info.work if _chat_sitting else "Idle")
 	_task_time -= delta
 	if _task != "walk" and _task_time <= 0.0:
 		if _task == "idle" and not _retry.is_empty():
@@ -3348,6 +3353,47 @@ func stand_for_chat(partner: Villager) -> void:
 	chat_broken = false
 
 
+## Walks to `spot` (a point on the ground) and waits there for `partner`, as for a chat: the
+## mages' practice duel stands apart (see MageDuel). Returns false when there is no way.
+func join_chat_at(partner: Villager, spot: Vector3) -> bool:
+	var cells := level.grid_path(level.world_to_cell(global_position), level.world_to_cell(spot))
+	if cells.is_empty() and level.world_to_cell(global_position) != level.world_to_cell(spot):
+		return false
+	_path.clear()
+	for c in cells.slice(1, maxi(1, cells.size() - 1)):
+		_path.append(level.cell_to_world(c) + Vector3(_rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER), 0, _rng.randf_range(-WalkRules.JITTER, WalkRules.JITTER)))
+	_path.append(Vector3(spot.x, 0, spot.z))
+	_speed = WALK_SPEED
+	_leave_post()
+	_task = "walk"
+	set_meta("then", "chat")
+	_chat_sitting = false
+	chat_partner = partner
+	chat_broken = false
+	return true
+
+
+## Whether a walk to a chat has ended short of its place: we stand idle with the partner still set.
+func is_stopped_for_chat() -> bool:
+	return chat_partner != null and _task == "idle"
+
+
+## Stops where we are and waits for the partner (a walk that ended short of its spot, see MageDuel).
+func settle_for_chat() -> void:
+	_path.clear()
+	_start("chat", CHAT_WAIT)
+
+
+## Strikes a pose in a chat (a spell cast, a flinch) that holds for `time` seconds before they
+## stand idle again.
+func strike_pose(anim: String, time: float) -> void:
+	if not _anim.has_animation(anim):
+		return
+	_current_anim = anim
+	_anim.play(anim, 0.1)
+	_pose_time = time
+
+
 ## Standing with the partner, ready to talk.
 func in_chat_place() -> bool:
 	return chat_partner != null and _task == "chat"
@@ -3355,7 +3401,12 @@ func in_chat_place() -> bool:
 
 ## Still on the way to the partner.
 func heading_to_chat() -> bool:
-	return chat_partner != null and _task == "walk" and get_meta("then", "") == "chat"
+	if chat_partner == null:
+		return false
+	# Stopped a moment after getting stuck, then the same walk again (see _mind_progress).
+	if _task == "idle" and _retry.get("then", "") == "chat":
+		return true
+	return _task == "walk" and get_meta("then", "") == "chat"
 
 
 ## A line of a chat, said to the partner.
@@ -3369,6 +3420,7 @@ func leave_chat() -> void:
 	var waiting := _task == "chat" or heading_to_chat()
 	chat_partner = null
 	chat_broken = false
+	_pose_time = 0.0
 	bump_cool = BUMP_COOLDOWN
 	if waiting:
 		_path.clear()

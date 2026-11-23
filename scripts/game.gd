@@ -218,6 +218,8 @@ var village_worries := VillageWorries.new(self)
 var village_rumours := VillageRumours.new(self)
 ## Fritz's drinking songs at the tavern (see DrinkingSongs).
 var drinking_songs := DrinkingSongs.new(self)
+## Aldo's practice duel with Odo on the square (see MageDuel).
+var mage_duel := MageDuel.new(self)
 ## The villager whose goods or services are open in a window right now
 ## (role letter), "" for none: their discount applies (see trader_price).
 var trader_role := ""
@@ -3924,6 +3926,7 @@ func begin_new_game() -> void:
 	village_worries.clear()
 	village_rumours.clear()
 	drinking_songs.clear()
+	mage_duel.clear()
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
@@ -7961,6 +7964,7 @@ func _process(delta: float) -> void:
 		village_worries.update(delta, level)
 		village_rumours.update(delta, level)
 		drinking_songs.update(delta, level)
+		mage_duel.update(delta, level)
 	# Where the hero is drawn this frame, between two physics ticks: the
 	# camera follows that, so the running hero and the ground glide together
 	# however many frames the screen shows between ticks.

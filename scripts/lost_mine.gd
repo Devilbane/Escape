@@ -122,6 +122,9 @@ const GATE_AGAIN := "Das Tor ist fest verschlossen. Noch."
 const PORTAL_HALF := 1.0
 const PORTAL_HIGH := 2.3
 const PORTAL_STONE := Color(0.47, 0.46, 0.43)
+## How high a rail's middle lies: its top (0.07) stands clear of the door's threshold top (0.06), so the
+## two never flicker where the rails cross the doorstep.
+const RAIL_LIFT := 0.055
 ## The row of cells where the rails out of the door end, under the ore cart.
 const RAIL_END := 23
 ## The crane at the hut's corner: how high its arm is and how far it reaches out (metres).
@@ -136,11 +139,6 @@ const LAMP_ENERGY := 2.6
 const LAMP_RANGE := 8.5
 ## The one lamp still burning: at the foot of the ladder.
 const LIT_LAMP := Vector2i(42, 30)
-## Where moonlight falls through cracks in the roof (cells), its colour and strength.
-const MOON_CRACKS := [Vector2i(31, 31), Vector2i(20, 38), Vector2i(10, 30), Vector2i(57, 36), Vector2i(64, 34), Vector2i(3, 26),
-	Vector2i(12, 43), Vector2i(17, 17), Vector2i(8, 21), Vector2i(4, 33)]
-const MOON_COLOUR := Color(0.62, 0.72, 1.0)
-const MOON_ENERGY := 4.0
 ## Where water stands in puddles on the floor (cells).
 const PUDDLES := [Vector2i(14, 31), Vector2i(26, 31), Vector2i(20, 35), Vector2i(4, 39), Vector2i(16, 42), Vector2i(3, 23),
 	Vector2i(8, 28), Vector2i(12, 44), Vector2i(60, 34), Vector2i(66, 34), Vector2i(69, 32), Vector2i(58, 37), Vector2i(64, 41),
@@ -304,14 +302,13 @@ static func furnish_yard(level: Level, parent: Node3D) -> void:
 	var old_wood := _mat("yard_old_wood", Color(0.36, 0.31, 0.26))
 	var iron := _mat("rusty_iron", Color(0.36, 0.25, 0.18), 0.4)
 	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	# West of the hut: the ore heap and the plank stack.
 	var heap := s.cell_world(38, 26)
 	for i in 18:
 		var r := rng.randf_range(0.0, 0.9)
 		var a := rng.randf() * TAU
-		var lump := _box(parent, heap + Vector3(cos(a) * r, 0.12 + (0.9 - r) * 0.4 * rng.randf(), sin(a) * r), Vector3.ONE * rng.randf_range(0.2, 0.42), ore if i % 6 else silver)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_ore_chunk(parent, heap + Vector3(cos(a) * r, 0.12 + (0.9 - r) * 0.4 * rng.randf(), sin(a) * r), rng.randf_range(0.26, 0.5), rng, ore, silver, i % 5 == 0)
 	level._add_solid(heap, Vector3(1.6, 0.6, 1.6))
 	var stack := s.cell_world(38, 27) + Vector3(0.2, 0, 0.4)
 	for i in 5:
@@ -346,8 +343,7 @@ static func furnish_yard(level: Level, parent: Node3D) -> void:
 		wheel.rotation = Vector3(0, 0.3, 0.0 if z > 0.0 else PI * 0.5)
 		parent.add_child(wheel)
 	for i in 7:
-		var lump := _box(parent, cart + Vector3(rng.randf_range(0.5, 1.2), 0.08, rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.15, 0.3), ore)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_ore_chunk(parent, cart + Vector3(rng.randf_range(0.5, 1.2), 0.08, rng.randf_range(-0.6, 0.6)), rng.randf_range(0.2, 0.36), rng, ore, silver, i % 3 == 0)
 	level._add_solid(cart, Vector3(1.4, 0.9, 1.6))
 	var bucket := MeshInstance3D.new()
 	var pail := CylinderMesh.new()
@@ -375,7 +371,7 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 	var wood := _mat("yard_old_wood", Color(0.36, 0.31, 0.26))
 	var iron := _mat("rusty_iron", Color(0.36, 0.25, 0.18), 0.4)
 	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	var door_x := HUT.position.x + HUT.size.x / 2
 	var first := parent.get_child_count()
 	# The face of the door's wall (north), the door's middle on it.
@@ -435,23 +431,15 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 		var at := start.lerp(end, float(k) / float(steps))
 		_box(parent, at + Vector3(rng.randf_range(-0.05, 0.05), 0.015, 0), Vector3(1.1, 0.03, 0.16), sleeper, rng.randf_range(-0.08, 0.08))
 	for side in [-0.38, 0.38]:
-		_box(parent, (start + end) * 0.5 + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, start.distance_to(end) + 0.6), rail)
+		_box(parent, (start + end) * 0.5 + Vector3(side, RAIL_LIFT, 0), Vector3(0.07, 0.03, start.distance_to(end) + 0.6), rail)
 	# A short siding west of the way out, with the cart standing on it.
 	var siding := s.cell_world(door_x - 2, RAIL_END + 1)
 	for k in 4:
 		_box(parent, siding + Vector3(0, 0.015, -0.99 + k * 0.66), Vector3(1.1, 0.03, 0.16), sleeper, rng.randf_range(-0.08, 0.08))
 	for side in [-0.38, 0.38]:
-		_box(parent, siding + Vector3(side, 0.045, 0), Vector3(0.07, 0.03, 2.2), rail)
+		_box(parent, siding + Vector3(side, RAIL_LIFT, 0), Vector3(0.07, 0.03, 2.2), rail)
 	var cart := siding + Vector3(0, 0, -0.2)
-	_box(parent, cart + Vector3(0, 0.62, 0), Vector3(1.05, 0.62, 1.45), wood)
-	for side in [-1.0, 1.0]:
-		_box(parent, cart + Vector3(side * 0.54, 0.62, 0), Vector3(0.05, 0.66, 1.5), iron)
-		_box(parent, cart + Vector3(0, 0.62, side * 0.74), Vector3(1.1, 0.66, 0.05), iron)
-	for i in 16:
-		var lump := _box(parent, cart + Vector3(rng.randf_range(-0.4, 0.4), rng.randf_range(0.95, 1.12), rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.16, 0.3), ore if i % 5 else silver)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
-	for corner in [Vector3(-0.58, 0.22, -0.48), Vector3(0.58, 0.22, -0.48), Vector3(-0.58, 0.22, 0.48), Vector3(0.58, 0.22, 0.48)]:
-		parent.add_child(_wheel(cart + corner, 0.2, 0.08, iron, Vector3(0, 0, PI * 0.5)))
+	_ore_cart(parent, cart, rng, wood, iron, ore, silver)
 	level._add_solid(cart, Vector3(1.2, 1.2, 1.6))
 	# The crane at the hut's north-east corner: a post, an arm out over the yard and a brace,
 	# a rope and a bucket hanging from its end.
@@ -484,7 +472,7 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 	# Barrels, crates and tools by the door, out of the way in.
 	for spot: Array in [[Vector3(1.75, 0, -0.75), "barrel_small", 0.0], [Vector3(2.3, 0, -1.5), "barrel_small", 1.2]]:
 		var at: Vector3 = face + spot[0]
-		level._place(spot[1], at, spot[2], parent)
+		_age_prop(level._place(spot[1], at, spot[2], parent))
 		level._add_solid(at, Vector3(0.8, 1.0, 0.8))
 	# Two old crates of grey boards, one on the other, the top one askew.
 	var crate_at := face + Vector3(1.7, 0, -2.6)
@@ -565,6 +553,53 @@ static func _wheel(at: Vector3, radius: float, thick: float, mat: Material, turn
 	wheel.position = at
 	wheel.rotation = turn
 	return wheel
+
+
+## A wooden mine cart standing on its rails (long way along Z): a tub of planks that widens
+## towards the rim, an iron band round the rim and two more round the belly, corner straps,
+## a mound of rough ore heaped over the top, two axles with iron-rimmed wheels and a
+## coupling hook on each end.
+static func _ore_cart(parent: Node3D, at: Vector3, rng: RandomNumberGenerator, wood: Material, iron: Material, ore: Material, silver: Material) -> void:
+	var plank := wood
+	# The floor and the four slanting walls (each leans out by about 0.2 rad).
+	_box(parent, at + Vector3(0, 0.42, 0), Vector3(0.78, 0.07, 1.14), wood)
+	for side in [-1.0, 1.0]:
+		var wall := _box(parent, at + Vector3(side * 0.43, 0.7, 0), Vector3(0.07, 0.6, 1.3), plank)
+		wall.rotation.z = -side * 0.2
+		var end := _box(parent, at + Vector3(0, 0.7, side * 0.66), Vector3(1.02, 0.6, 0.07), plank)
+		end.rotation.x = side * 0.14
+		# Plank seams on the long walls.
+		for k in [-0.15, 0.1]:
+			var seam := _box(parent, at + Vector3(side * (0.45 + 0.05 * absf(k)), 0.7 + k, 0), Vector3(0.015, 0.012, 1.3), iron)
+			seam.rotation.z = -side * 0.2
+	# Iron bands: a heavy one round the rim, two round the belly, corner straps.
+	for z in [-0.58, 0.0, 0.58]:
+		for side in [-1.0, 1.0]:
+			var band := _box(parent, at + Vector3(side * 0.47, 0.71, z), Vector3(0.045, 0.64, 0.07), iron)
+			band.rotation.z = -side * 0.2
+		_box(parent, at + Vector3(0, 0.42, z), Vector3(0.9, 0.05, 0.07), iron)
+	for side in [-1.0, 1.0]:
+		_box(parent, at + Vector3(side * 0.5, 1.02, 0), Vector3(0.07, 0.07, 1.36), iron)
+		_box(parent, at + Vector3(0, 1.0, side * 0.69), Vector3(1.08, 0.07, 0.07), iron)
+	# Axles, wheels with an iron tyre and hub, and a coupling hook at each end.
+	for z in [-0.4, 0.4]:
+		_box(parent, at + Vector3(0, 0.24, z), Vector3(0.9, 0.05, 0.05), iron)
+		for side in [-1.0, 1.0]:
+			var hub := at + Vector3(side * 0.42, 0.24, z)
+			var turn := Vector3(0, 0, PI * 0.5)
+			parent.add_child(_wheel(hub, 0.2, 0.05, iron, turn))
+			parent.add_child(_wheel(hub - Vector3(side * 0.01, 0, 0), 0.16, 0.07, wood, turn))
+			parent.add_child(_wheel(hub + Vector3(side * 0.04, 0, 0), 0.06, 0.06, iron, turn))
+	for side in [-1.0, 1.0]:
+		_box(parent, at + Vector3(0, 0.36, side * 0.78), Vector3(0.06, 0.06, 0.22), iron)
+		var hook := _box(parent, at + Vector3(0, 0.36, side * 0.9), Vector3(0.14, 0.06, 0.06), iron)
+		hook.rotation.y = 0.5
+	# The load: a mound of rough ore, with silver showing in it.
+	for i in 14:
+		var a := rng.randf() * TAU
+		var r := rng.randf_range(0.0, 0.34)
+		var rise := 1.0 - r / 0.4
+		_ore_chunk(parent, at + Vector3(cos(a) * r * 1.1, 0.92 + rise * 0.14 + rng.randf_range(0.0, 0.05), sin(a) * r * 1.7), rng.randf_range(0.24, 0.38), rng, ore, silver, i % 3 == 0)
 
 
 ## A big spoked cart wheel under `parent`, in its XY plane: an iron-shod rim, spokes and a hub.
@@ -907,7 +942,6 @@ static func build(level: Level, parent: Node3D) -> void:
 			_lamp(parent, c)
 		else:
 			_dead_lamp(parent, c, rng)
-	_moonlight(parent)
 	_puddles(parent, rng)
 	_cobwebs(parent, rng)
 	_tool_store(level, parent, body)
@@ -947,55 +981,6 @@ static func _dead_lamp(parent: Node3D, c: Vector2i, rng: RandomNumberGenerator) 
 	_box(hang, Vector3(0, -0.55, 0), Vector3(0.22, 0.28, 0.22), glass)
 	_box(hang, Vector3(0, -0.39, 0), Vector3(0.3, 0.05, 0.3), iron)
 	_box(hang, Vector3(0, -0.71, 0), Vector3(0.3, 0.05, 0.3), iron)
-
-
-## Pale moonlight falling through cracks in the roof where the earth above is thin: a cold
-## beam of dust down to a bright patch on the floor.
-static func _moonlight(parent: Node3D) -> void:
-	var beam := _mat("moon_beam", Color(MOON_COLOUR, 0.07), 0.0, 0.6)
-	beam.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	beam.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	beam.cull_mode = BaseMaterial3D.CULL_DISABLED
-	beam.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	var patch := _mat("moon_patch", Color(MOON_COLOUR, 0.16), 0.0, 0.8)
-	patch.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	patch.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	patch.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	var crack := _mat("moon_crack", MOON_COLOUR, 0.0, 2.0)
-	for c: Vector2i in MOON_CRACKS:
-		var mid := floor_at(c)
-		var light := SpotLight3D.new()
-		light.light_color = MOON_COLOUR
-		light.light_energy = MOON_ENERGY
-		light.spot_range = HouseSketch.DEPTH + 3.0
-		light.spot_angle = 50.0
-		light.spot_attenuation = 0.6
-		light.position = mid + Vector3(0, HouseSketch.DEPTH - 0.05, 0)
-		light.rotation.x = -PI * 0.5
-		parent.add_child(light)
-		var shaft := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.12
-		cyl.bottom_radius = 0.55
-		cyl.height = HouseSketch.DEPTH
-		cyl.cap_top = false
-		cyl.cap_bottom = false
-		shaft.mesh = cyl
-		shaft.material_override = beam
-		shaft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		shaft.position = mid + Vector3(0, HouseSketch.DEPTH * 0.5, 0)
-		parent.add_child(shaft)
-		var spot := MeshInstance3D.new()
-		var disc := CylinderMesh.new()
-		disc.top_radius = 0.6
-		disc.bottom_radius = 0.6
-		disc.height = 0.005
-		spot.mesh = disc
-		spot.material_override = patch
-		spot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		spot.position = mid + Vector3(0, 0.02, 0)
-		parent.add_child(spot)
-		_box(parent, mid + Vector3(0, HouseSketch.DEPTH - 0.02, 0), Vector3(0.5, 0.02, 0.08), crack, 0.7)
 
 
 ## Water seeping through the rock into puddles on the floor: dark and still, with a wet rim.
@@ -1168,11 +1153,12 @@ static func _vein(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i,
 	var across := Vector3(-out.z, 0, out.x)
 	var face := floor_at(c) + out * (HouseSketch.CELL * 0.5 - 0.08)
 	var turn := atan2(out.x, out.z)
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	var ore := _mat("ore_vein", Color(0.24, 0.22, 0.25), 0.3)
 	for i in 9:
-		var lump := _box(parent, face + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.3, 2.2), 0), Vector3(rng.randf_range(0.25, 0.5), rng.randf_range(0.2, 0.4), 0.18), ore, turn)
-		lump.rotation.z = rng.randf_range(-0.5, 0.5)
+		var lump := _ore_chunk(parent, face + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.3, 2.2), 0), rng.randf_range(0.4, 0.7), rng, ore, silver, i % 2 == 0)
+		lump.rotation = Vector3(0, turn, rng.randf_range(-0.5, 0.5))
+		lump.scale.z *= 0.45
 	for i in 7:
 		var streak := _box(parent, face - out * 0.06 + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.4, 2.1), 0), Vector3(rng.randf_range(0.2, 0.6), rng.randf_range(0.04, 0.09), 0.06), silver, turn)
 		streak.rotation.z = rng.randf_range(-0.5, 0.5)
@@ -1230,6 +1216,59 @@ static func rock_material() -> StandardMaterial3D:
 	m.uv1_scale = Vector3(0.35, 0.35, 0.35)
 	_mats["rock_wall"] = m
 	return m
+
+
+## The raw silver of the mine: bright metal that glimmers now and then (see silver_glint.gdshader).
+static func _silver() -> ShaderMaterial:
+	if not _mats.has("silver_glint"):
+		var m := ShaderMaterial.new()
+		m.shader = preload("res://shaders/silver_glint.gdshader")
+		m.set_shader_parameter("silver", SILVER.darkened(0.25))
+		_mats["silver_glint"] = m
+	return _mats["silver_glint"]
+
+
+## A lump of ore: a rough, uneven chunk of dark rock with flecks and thin shards of silver
+## sitting in its surface. A rich one carries more and bigger flecks and a small nugget.
+static func _ore_chunk(parent: Node3D, at: Vector3, size: float, rng: RandomNumberGenerator, rock: Material, silver: Material, rich := false) -> MeshInstance3D:
+	var chunk := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radial_segments = 7
+	ball.rings = 4
+	ball.radius = size * 0.5
+	ball.height = size
+	chunk.mesh = ball
+	chunk.material_override = rock
+	chunk.position = at
+	chunk.scale = Vector3(rng.randf_range(0.85, 1.35), rng.randf_range(0.65, 1.0), rng.randf_range(0.85, 1.3))
+	chunk.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+	parent.add_child(chunk)
+	var r := size * 0.5
+	for i in (5 if rich else 3):
+		var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.2, 1), rng.randf_range(-1, 1)).normalized()
+		var fleck := MeshInstance3D.new()
+		var flake := BoxMesh.new()
+		var w := r * rng.randf_range(0.35, 0.8 if rich else 0.55)
+		flake.size = Vector3(w, r * 0.07, w * rng.randf_range(0.4, 0.9))
+		fleck.mesh = flake
+		fleck.material_override = silver
+		fleck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fleck.position = dir * r * 0.93
+		fleck.look_at_from_position(fleck.position, dir * r * 2.0, Vector3.UP)
+		fleck.rotate_object_local(Vector3(0, 0, 1), rng.randf() * TAU)
+		chunk.add_child(fleck)
+	if rich:
+		var nugget := MeshInstance3D.new()
+		var bead := SphereMesh.new()
+		bead.radial_segments = 6
+		bead.rings = 3
+		bead.radius = r * 0.22
+		bead.height = r * 0.36
+		nugget.mesh = bead
+		nugget.material_override = silver
+		nugget.position = Vector3(r * 0.3, r * 0.7, r * 0.2)
+		chunk.add_child(nugget)
+	return chunk
 
 
 static func _mat(key: String, colour: Color, metal := 0.0, glow := 0.0) -> StandardMaterial3D:
@@ -1348,8 +1387,23 @@ static func _chest(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i
 
 
 ## A dungeon kit piece (see Level._place) with a solid box round its foot.
+## Gives a clean kit prop (a crate, a barrel) the worn grain, grime and rust of the props
+## outside, so it does not shine among the old mine's things. A model with a palette keeps its
+## colours, one with plain colours takes them darkened and aged.
+static func _age_prop(node: Node) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		var source := mi.get_active_material(0) as StandardMaterial3D
+		if source == null or source.emission_enabled:
+			continue
+		if source.albedo_texture:
+			mi.material_override = WeatheredProps.palette_material(source.albedo_texture, WeatheredProps.IRON)
+		else:
+			mi.material_override = WeatheredProps.colour_material(source.albedo_color.darkened(0.3), WeatheredProps.WOOD)
+
+
 static func _piece(level: Level, parent: Node3D, body: StaticBody3D, piece: String, at: Vector3, turn: float, foot: Vector2, high := 1.2) -> Node3D:
 	var node := level._place(piece, at, turn, parent)
+	_age_prop(node)
 	if foot != Vector2.ZERO:
 		_solid(body, at + Vector3(0, high * 0.5, 0), Vector3(foot.x, high, foot.y))
 	return node
@@ -1402,7 +1456,7 @@ static func _bunk_room(level: Level, parent: Node3D, body: StaticBody3D) -> void
 ## The silver vein: bright streaks in the north wall of the chamber over the gallery,
 ## a pick left in the rock and broken stone on the floor.
 static func _silver_vein(parent: Node3D, body: StaticBody3D, rng: RandomNumberGenerator) -> void:
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	for x in range(24, 31):
 		var wall := floor_at(Vector2i(x, 28)) + Vector3(0, 0, -0.89)
 		for i in 3:
@@ -1446,9 +1500,11 @@ static func _haulage(parent: Node3D, body: StaticBody3D) -> void:
 	var cart := floor_at(Vector2i(57, 38))
 	_box(parent, cart + Vector3(0, 0.65, 0), Vector3(1.1, 0.7, 1.5), _mat("cart", TIMBER.lightened(0.05)))
 	_box(parent, cart + Vector3(0, 0.98, 0), Vector3(0.95, 0.06, 1.35), _mat("ore", Color(0.3, 0.29, 0.3)))
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
-	for i in 6:
-		_box(parent, cart + Vector3(-0.3 + (i % 3) * 0.3, 1.03, -0.4 + (i / 3) * 0.7), Vector3(0.16, 0.1, 0.14), silver)
+	var silver: Material = _silver()
+	var load_rng := RandomNumberGenerator.new()
+	load_rng.seed = 57
+	for i in 9:
+		_ore_chunk(parent, cart + Vector3(-0.3 + (i % 3) * 0.3, 1.08, -0.45 + (i / 3) * 0.45), 0.36, load_rng, _mat("ore", Color(0.3, 0.29, 0.3)), silver, i % 2 == 0)
 	for corner in [Vector3(-0.58, 0.25, -0.5), Vector3(0.58, 0.25, -0.5), Vector3(-0.58, 0.25, 0.5), Vector3(0.58, 0.25, 0.5)]:
 		var wheel := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
@@ -1467,8 +1523,7 @@ static func _haulage(parent: Node3D, body: StaticBody3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 41
 	for i in 14:
-		var lump := _box(parent, heap + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.1, 0.5), rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.2, 0.45), ore if i % 4 else silver)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_ore_chunk(parent, heap + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.1, 0.5), rng.randf_range(-0.6, 0.6)), rng.randf_range(0.28, 0.52), rng, ore, silver, i % 4 == 0)
 	_solid(body, heap + Vector3(0, 0.35, 0), Vector3(1.4, 0.7, 1.4))
 
 

@@ -1328,20 +1328,23 @@ func _draw_plants(key: Array) -> void:
 			# Its thousands of fronds are drawn once, without shadow; a plain stand-in of the same
 			# outline casts the shadow (see Fern.needle_shadow_mesh), drawn in every shadow map.
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			# Up close frond by frond, further off the far model with the same outline.
-			mmi.visibility_range_end = SPRUCE_NEAR
-			var far_mm := MultiMesh.new()
-			far_mm.transform_format = MultiMesh.TRANSFORM_3D
-			far_mm.mesh = Fern.needle_tree_mesh(int(name.get_slice(":", 1)), true)
-			far_mm.instance_count = mm.instance_count
-			for i in mm.instance_count:
-				far_mm.set_instance_transform(i, mm.get_instance_transform(i))
-			var far := MultiMeshInstance3D.new()
-			far.multimesh = far_mm
-			far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			far.visibility_range_begin = SPRUCE_NEAR
-			add_child(far)
-			_plant_batches[key].append(far)
+			# Every spruce is drawn frond by frond at any distance, so it looks the same near and far.
+			# Only the Performance preset swaps in the far model (see Fern.needle_tree_mesh) beyond
+			# SPRUCE_NEAR, which looks a little different.
+			if Graphics.preset == Graphics.PERFORMANCE:
+				mmi.visibility_range_end = SPRUCE_NEAR
+				var far_mm := MultiMesh.new()
+				far_mm.transform_format = MultiMesh.TRANSFORM_3D
+				far_mm.mesh = Fern.needle_tree_mesh(int(name.get_slice(":", 1)), true)
+				far_mm.instance_count = mm.instance_count
+				for i in mm.instance_count:
+					far_mm.set_instance_transform(i, mm.get_instance_transform(i))
+				var far := MultiMeshInstance3D.new()
+				far.multimesh = far_mm
+				far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				far.visibility_range_begin = SPRUCE_NEAR
+				add_child(far)
+				_plant_batches[key].append(far)
 			var shade := MultiMesh.new()
 			shade.transform_format = MultiMesh.TRANSFORM_3D
 			shade.mesh = Fern.needle_shadow_mesh(int(name.get_slice(":", 1)))

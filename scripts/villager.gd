@@ -64,7 +64,7 @@ const SKIN_ROSY := Color(0.97, 0.85, 0.88)
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
-## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
+## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); bandana: a cloth tied round the head (see Bandana); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; tool: something held in place of the model's own
 ## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer; "book": a closed book in the
 ## left hand, the clerk's ledger); lines:
@@ -73,7 +73,7 @@ const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
 		"colors": [Color(0.55, 0.6, 0.8), Color(0.5, 0.5, 0.55), Color(0.45, 0.42, 0.7)], "plan": "stay", "work": "Idle",
 		"lines": ["Willkommen in Lindenhain, Fremder!", "Das Haus mit dem Ziegeldach gehört jetzt dir.", "Ruh dich aus. Die Gruft ist weit weg."]},
-	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": [], "tool": "hammer",
+	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": [], "tool": "hammer", "bandana": true,
 		"colors": [Color(0.55, 0.42, 0.32), Color(0.4, 0.36, 0.34), Color(1, 1, 1)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Brauchst du eine Klinge? Ich schmiede die besten im Tal.", "Heiß muss das Eisen sein, sonst bricht es.", "Bring mir altes Eisen, ich schmelze es ein und mache dir etwas Neues daraus.", "Verbeulte Rüstung? Leg sie auf den Amboss."]},
 	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [], "sex": "female",
@@ -409,6 +409,8 @@ func _ready() -> void:
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
+	if _info.get("bandana", false):
+		Bandana.put_on(_model)
 	if _info.get("locks", "") == "dread":
 		Dreadlocks.grow(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).

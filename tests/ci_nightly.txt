@@ -36,6 +36,7 @@ drip_puddles.gd | 120 | fixed | pass | Drip puddles test (a step into one splash
 barber.gd | 120 | free | pass | Barber test
 cape_wardrobe.gd | 120 | fixed | pass | Cape wardrobe test (the house's wardrobe, the cape back designs, saved choice)
 post_cap.gd | 120 | fixed | PASS:_post_cap | Postmaster's cap test
+bandana.gd | 120 | fixed | PASS:_bandana | Smith Gorm wears a bandana
 dreadlocks.gd | 120 | fixed | PASS:_dreadlocks | Guild Master Ragna's dreadlocks test
 playtest_map.gd | 180 | free | pass | Testing a map from the workshop
 window_buttons.gd | 120 | free | pass | Window buttons, hover and keyboard focus test

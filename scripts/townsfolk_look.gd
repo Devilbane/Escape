@@ -164,6 +164,9 @@ static func _dye_hair(model: Node3D, colour: Variant) -> void:
 		dyed.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MIX
 		dyed.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
 		dyed.detail_albedo = dye_texture(colour)
+		# Matt and barely shiny: the painted hair must not gleam like plastic.
+		dyed.roughness = maxf(dyed.roughness, 0.85)
+		dyed.metallic_specular = minf(dyed.metallic_specular, 0.2)
 
 
 static var _dyes := {}
@@ -175,7 +178,7 @@ static func dye_texture(colour: Variant) -> Texture2D:
 	var key := str(colour)
 	if _dyes.has(key):
 		return _dyes[key]
-	const SIZE := 64
+	const SIZE := 256
 	var shades: Array = colour if colour is Array else HairLook.COLORS.get(colour, HairLook.COLORS.natural)
 	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
@@ -184,7 +187,13 @@ static func dye_texture(colour: Variant) -> Texture2D:
 		var t := 1.0 - float(y - patch.position.y) / float(patch.size.y - 1)
 		var c: Color = shades[0].lerp(shades[1], t * 2.0) if t < 0.5 else shades[1].lerp(shades[2], t * 2.0 - 1.0)
 		for x in range(patch.position.x, patch.end.x):
-			img.set_pixel(x, y, c)
+			# Strands: each column its own shade, a few finer lines and a
+			# little wave along its length, so the hair is not one flat tone.
+			var col := float(x - patch.position.x)
+			var strand := 0.78 + 0.34 * fposmod(sin(col * 12.9898) * 43758.5453, 1.0)
+			var fine := 0.92 + 0.08 * sin(col * 2.4 + float(y) * 0.12)
+			var shade := strand * fine
+			img.set_pixel(x, y, Color(minf(c.r * shade, 1.0), minf(c.g * shade, 1.0), minf(c.b * shade, 1.0), c.a))
 	var tex := ImageTexture.create_from_image(img)
 	_dyes[key] = tex
 	return tex

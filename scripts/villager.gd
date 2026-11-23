@@ -66,7 +66,7 @@ const SKIN_LIGHT := Color(1.22, 1.14, 1.1)
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
-## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
+## BodyLook); cap: "post" for the postmaster's peaked cap (see PostCap); bandana: a cloth tied round the head (see Bandana); colors: body, legs, hat/cape; plan: how they spend the day (see _next_task); work: the
 ## animation at their spot; tool: something held in place of the model's own
 ## weapon ("hammer": the smith's hammer, see VillageProps.smith_hammer; "book": a closed book in the
 ## left hand, the clerk's ledger); lines:
@@ -75,7 +75,7 @@ const ROLES := {
 	"0": {"name": "Dorfvorsteher Aldo", "model": "Mage", "show": ["Mage_Hat", "2H_Staff", "Mage_Cape"],
 		"colors": [Color(0.55, 0.6, 0.8), Color(0.5, 0.5, 0.55), Color(0.45, 0.42, 0.7)], "plan": "stay", "work": "Idle",
 		"lines": ["Willkommen in Lindenhain, Fremder!", "Das Haus mit dem Ziegeldach gehört jetzt dir.", "Ruh dich aus. Die Gruft ist weit weg."]},
-	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": [], "tool": "hammer",
+	"1": {"name": "Schmied Gorm", "model": "Barbarian", "show": [], "tool": "hammer", "bandana": true,
 		"colors": [Color(0.55, 0.42, 0.32), Color(0.4, 0.36, 0.34), Color(1, 1, 1)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Brauchst du eine Klinge? Ich schmiede die besten im Tal.", "Heiß muss das Eisen sein, sonst bricht es.", "Bring mir altes Eisen, ich schmelze es ein und mache dir etwas Neues daraus.", "Verbeulte Rüstung? Leg sie auf den Amboss."]},
 	"2": {"name": "Bäuerin Lene", "model": "Rogue", "show": [], "sex": "female",
@@ -119,7 +119,7 @@ const ROLES := {
 		"colors": [Color(0.55, 0.45, 0.35), Color(0.3, 0.3, 0.38), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
 		"lines": ["Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.", "Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.", "Die Gebühr richtet sich nach der Größe des Landes."]},
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
-		"colors": [Color(0.95, 0.93, 0.85), Color(0.9, 0.88, 0.8), Color(0.95, 0.8, 0.4)], "plan": "work", "work": "Spellcast_Raise",
+		"colors": [Color(0.95, 0.93, 0.85), Color(0.9, 0.88, 0.8), Color(0.95, 0.8, 0.4)], "plan": "work", "work": "Idle",
 		"lines": ["Die Götter haben dich aus der Tiefe geführt.", "Der Tempel steht allen offen, Tag und Nacht.", "Möge das Licht deinen Weg erhellen."]},
 	"G": {"name": "Gildenmeisterin Ragna", "model": "Barbarian", "show": ["Barbarian_Round_Shield", "1H_Axe", "Barbarian_Cape"], "locks": "dread",
 		"colors": [Color(0.6, 0.25, 0.2), Color(0.3, 0.28, 0.26), Color(0.7, 0.2, 0.15)], "plan": "stay", "work": "Idle",
@@ -243,6 +243,8 @@ var eaten := false
 var threat: Enemy = null
 var brave := false
 var _blow_cool := 0.0
+## Elsbeth's now-and-then spell with her staff (see StaffSpell), null for everyone else.
+var _staff_spell: StaffSpell
 ## Counts down after the danger; at zero the blade is sheathed. -1: not waiting.
 var _sheathe_in := -1.0
 var _calm_check := 0.0
@@ -326,6 +328,8 @@ var _torch_time := 0.0
 ## holds it out in front, only rocking gently with the steps (see CarryArm).
 var _lamp := false
 var _carry_arm: CarryArm
+## The arms of a sleeper with the head in the hands (see SleepArms and slump).
+var _sleep_arms: SleepArms
 ## Where the woodcutter (or the smith) stands to work and which way he faces
 ## then (INF: neither, or nothing to strike), the chips (or sparks) that fly
 ## at each blow, and the blow under way: whether the blade or hammer has
@@ -411,6 +415,8 @@ func _ready() -> void:
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
+	if _info.get("bandana", false):
+		Bandana.put_on(_model)
 	if _info.get("locks", "") == "dread":
 		Dreadlocks.grow(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).
@@ -420,6 +426,8 @@ func _ready() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle", "Sit_Chair_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	if role == StaffSpell.ROLE:
+		_staff_spell = StaffSpell.put_on(self)
 	_bubble = SpeechBubble.new()
 	_bubble.position.y = 3.0 * _info.get("scale", 1.0) + 0.15
 	add_child(_bubble)
@@ -2370,6 +2378,9 @@ func _crowds_spot(point: Vector3) -> bool:
 
 
 func _do(task: String, delta: float) -> void:
+	if _staff_spell != null and _staff_spell.step(delta, task == "work" and _bubble_time <= 0.0 \
+			and not at_home and visible and threat == null and not night):
+		return
 	if task == "idle":
 		play("Idle")
 		return
@@ -2647,6 +2658,19 @@ func _holds_pose() -> bool:
 	return _task == "post" and (post_trip.get("seated", false) or not String(post_trip.get("serve", "")).is_empty())
 
 
+## Leans the seated body forward (`lean` radians about the hips) and sinks and moves it
+## forward by `down` and `forward` metres: Fritz asleep with his head in his hands. All 0 sits
+## upright again.
+func slump(lean: float, down: float, forward: float) -> void:
+	_model.rotation.x = lean
+	_model.position.y = -down
+	_model.position.z = forward
+	if _sleep_arms == null and lean > 0.0:
+		_sleep_arms = SleepArms.attach(_bones(), _anim)
+	if _sleep_arms != null:
+		_sleep_arms.active = lean > 0.0
+
+
 ## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
 func hold_mug(on: bool) -> void:
 	var mug := _model.find_child("Mug", true, false) as Node3D
@@ -2829,6 +2853,9 @@ func _hide_inside(inside: bool, at_the_door := false) -> void:
 	if not inside:
 		# Called out of a house one walks into in a hurry: straight out of the door.
 		VillageBeds.leave_at_once(self)
+	elif _task == "home" and night and role == TavernBrewer.GUEST and TavernBrewer.doze(self):
+		# Fritz sleeps at his table in the tavern, not in a bed (see TavernBrewer).
+		return
 	elif _task == "home" and night and VillageBeds.enter(self, _settling or not at_the_door):
 		# In through the door of a house one walks into, and on to bed (see VillageBeds).
 		at_home = true

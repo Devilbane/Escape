@@ -36,6 +36,7 @@ drip_puddles.gd | 120 | fixed | pass | Drip puddles test (a step into one splash
 barber.gd | 120 | free | pass | Barber test
 cape_wardrobe.gd | 120 | fixed | pass | Cape wardrobe test (the house's wardrobe, the cape back designs, saved choice)
 post_cap.gd | 120 | fixed | PASS:_post_cap | Postmaster's cap test
+bandana.gd | 120 | fixed | PASS:_bandana | Smith Gorm wears a bandana
 dreadlocks.gd | 120 | fixed | PASS:_dreadlocks | Guild Master Ragna's dreadlocks test
 playtest_map.gd | 180 | free | pass | Testing a map from the workshop
 window_buttons.gd | 120 | free | pass | Window buttons, hover and keyboard focus test
@@ -191,3 +192,4 @@ tavern_brewer.gd | 300 | fixed | passfail | The brewer keeps the tavern, hands F
 rabbit_shots.gd | 300 | fixed | pass | Rabbits: sit at forest edges, bolt in a bounding run, leave tracks in the snow (pictures with SHOTS=)
 hedgehogs.gd | 120 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, hibernate in winter)
 mage_tower.gd | 900 | fixed | passfail | The mage tower of Aldo and Odo: hall with tapestries, library, sleeping room, cellar lab; walking up and down; the mages sleep up in the top room
+staff_spell.gd | 120 | fixed | passfail | Elsbeth raises her staff and intones a spell now and then; the staff glows afterwards and fades

@@ -113,25 +113,26 @@ func _build() -> void:
 	var hand := _bone(bones, "handslot.r")
 	var top := _body.perch_point(0)
 	var up := Vector3.UP * size
-	# Snow: a cap on the head, a pad on each shoulder, one on the raised upper arm and a thick
-	# one on top of the mug.
-	_cap(top - up * 0.05, 0.62 * size, 0.2 * size)
-	_cap(shoulder_l + Vector3(0.2, 0.16, 0) * size, 0.34 * size, 0.12 * size)
-	_cap(shoulder_r + Vector3(-0.2, 0.16, 0) * size, 0.34 * size, 0.12 * size)
-	_cap(shoulder_r.lerp(elbow, 0.55) + up * 0.1, 0.26 * size, 0.1 * size)
-	_cap(hand + up * 0.22, 0.38 * size, 0.14 * size)
+	# The mug is held out beside the hand, not in it: its own box says where it really is.
+	var mug := _mug_box(model)
+	var mug_mid := mug.get_center()
+	# Snow: a thin cap on the head, a pad on each shoulder and a small heap on the mug's foam, each
+	# lying on what it covers, not hovering over it.
+	_cap(top - up * 0.07, 0.46 * size, 0.1 * size)
+	_cap(shoulder_l + Vector3(0.0, 0.06, 0) * size, 0.26 * size, 0.08 * size)
+	_cap(shoulder_r + Vector3(0.0, 0.06, 0) * size, 0.26 * size, 0.08 * size)
+	_cap(Vector3(mug_mid.x, mug.end.y - 0.01 * size, mug_mid.z), 0.3 * size, 0.07 * size)
 	# Icicles: under the mug, along the underside of the raised arm and off the elbow.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
-	for k in 4:
-		var a := k * TAU / 4.0 + 0.4
-		_icicle(hand + Vector3(cos(a) * 0.12, -0.14, sin(a) * 0.12) * size, rng.randf_range(0.2, 0.42) * size, 0.03 * size)
 	for k in 5:
-		var along := 0.12 + k * 0.19
-		_icicle(shoulder_r.lerp(elbow, along) - up * 0.08, rng.randf_range(0.14, 0.34) * size, 0.026 * size)
+		var a := k * TAU / 5.0 + 0.4
+		_icicle(Vector3(mug_mid.x + cos(a) * 0.1 * size, mug.position.y + 0.02 * size, mug_mid.z + sin(a) * 0.1 * size), rng.randf_range(0.12, 0.26) * size, 0.03 * size)
 	for k in 3:
-		_icicle(elbow.lerp(hand, 0.25 + k * 0.25) + Vector3(0.1, -0.04, 0) * size, rng.randf_range(0.16, 0.3) * size, 0.024 * size)
-	_icicle(elbow - up * 0.12, 0.4 * size, 0.04 * size)
+		var along := 0.2 + k * 0.28
+		_icicle(shoulder_r.lerp(elbow, along) - up * 0.07, rng.randf_range(0.1, 0.18) * size, 0.024 * size)
+	for k in 3:
+		_icicle(elbow.lerp(hand, 0.25 + k * 0.25) - up * 0.06, rng.randf_range(0.1, 0.2) * size, 0.022 * size)
 	# A sheet of ice under his boots.
 	var sheet := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
@@ -146,7 +147,23 @@ func _build() -> void:
 	sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(sheet)
 	# Where birds sit: on the snow of his head, on the mug, on the raised arm.
-	perches = [top + up * 0.07, hand + up * 0.3, shoulder_r.lerp(elbow, 0.55) + up * 0.2]
+	perches = [top + up * 0.07, Vector3(mug_mid.x, mug.end.y, mug_mid.z) + up * 0.06, shoulder_r.lerp(elbow, 0.55) + up * 0.2]
+
+
+## The mug's box in the villager's own space.
+func _mug_box(model: Node3D) -> AABB:
+	var mug := model.find_child("Mug", true, false) as MeshInstance3D
+	if mug == null or mug.mesh == null:
+		return AABB(_bone(_body._bones(), "handslot.r") - Vector3(0.15, 0.2, 0.15), Vector3(0.3, 0.4, 0.3))
+	# Its middle and size, not the box of the turned mesh (that grows with every turn of the arm).
+	# From the bone of the hand it hangs on: the node itself may still show the pose before the toast.
+	var sk := _body._bones()
+	var local := _body.global_transform.affine_inverse() * sk.global_transform \
+			* sk.get_bone_global_pose(sk.find_bone("handslot.r")) * mug.transform
+	var raw := mug.mesh.get_aabb()
+	var half := raw.size * local.basis.get_scale() * 0.5
+	var mid := local * raw.get_center()
+	return AABB(mid - half, half * 2.0)
 
 
 ## A bone's place in the villager's own space.
@@ -227,12 +244,13 @@ static func _frost() -> Array:
 
 ## Frost on the material: rime patches, a bumpy surface and a few glints, wrapped round the body
 ## from all sides (the textures of the models are an atlas, so UVs would not do).
-static func _frosted(mat: StandardMaterial3D, scale: float) -> void:
+static func _frosted(mat: StandardMaterial3D, scale: float, rime := true) -> void:
 	var tex: Array = _frost()
-	mat.albedo_texture = tex[0]
-	mat.normal_enabled = true
-	mat.normal_texture = tex[1]
-	mat.normal_scale = 0.7
+	if rime:
+		mat.albedo_texture = tex[0]
+		mat.normal_enabled = true
+		mat.normal_texture = tex[1]
+		mat.normal_scale = 0.7
 	mat.emission_enabled = true
 	mat.emission_texture = tex[2]
 	mat.emission = Color(0.8, 0.93, 1.0)
@@ -247,14 +265,14 @@ static func _frosted(mat: StandardMaterial3D, scale: float) -> void:
 static func _tint_material() -> StandardMaterial3D:
 	if _tint == null:
 		_tint = StandardMaterial3D.new()
-		_tint.albedo_color = Color(0.85, 0.94, 1.0, 0.45)
+		_tint.albedo_color = Color(0.78, 0.9, 1.0, 0.2)
 		_tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_tint.roughness = 0.7
+		_tint.roughness = 0.5
 		_tint.metallic_specular = 0.25
 		_tint.rim_enabled = true
-		_tint.rim = 0.8
-		_tint.rim_tint = 0.2
-		_frosted(_tint, 1.3)
+		_tint.rim = 0.4
+		_tint.rim_tint = 0.3
+		_frosted(_tint, 1.3, false)
 	return _tint
 
 

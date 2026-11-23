@@ -32,6 +32,17 @@ const LINE_TIME := 3.4
 const LINE_GAP := 0.7
 ## The hero hears them from this far (metres).
 const HEAR_RANGE := 16.0
+## Fritz sleeps at his table at night, slumped forward with his head in his hands: how far the
+## body leans (radians, about the hips) and how far it sinks and moves forward (metres), and how
+## often he snores (seconds) and how loud it is (dB).
+const SLUMP := 0.75
+const SLUMP_DOWN := 0.12
+const SLUMP_FORWARD := 0.22
+## Over the bar he stands, so he folds further forward.
+const COUNTER_SLUMP := 1.0
+const COUNTER_FORWARD := 0.05
+const SNORE_EVERY := Vector2(3.5, 4.5)
+const SNORE_DB := -8.0
 
 ## The talk over a beer: each exchange is said in turn, brewer first (German).
 const TALKS := [
@@ -44,14 +55,14 @@ const TALKS := [
 
 
 ## The tavern's record and Fritz's seat in it ({"rec", "seat"}), or {} when it cannot be walked into.
-static func seat_of(level: Node) -> Dictionary:
+static func seat_of(level: Node, kind := "table") -> Dictionary:
 	var walk_in: WalkIn = level.get("walk_in")
 	if walk_in == null:
 		return {}
 	for rec in walk_in.buildings:
 		if rec.kind == "tavern" and rec.get("opened", false):
 			for seat: Dictionary in rec.get("seats", []):
-				if seat.role == GUEST:
+				if seat.role == GUEST and seat.get("kind", "table") == kind:
 					return {"rec": rec, "seat": seat}
 	return {}
 
@@ -103,10 +114,68 @@ static func arrive(v: Villager) -> bool:
 	return true
 
 
+## Whether Fritz sleeps at his table: it is night and he has sat down for it.
+static func sleeping(trip: Dictionary) -> bool:
+	return bool(trip.get("sleeping", false))
+
+
+## At nightfall Fritz does not go home to a bed: he goes in through the tavern's door to his chair
+## and sleeps there at the table. True when he goes (see Villager._hide_inside).
+static func doze(v: Villager) -> bool:
+	if v.role != GUEST or seat_of(v.level).is_empty() or v.level.village_alarm.raised:
+		return false
+	# One place for the night: slumped at his table, or folded over the bar.
+	var found := seat_of(v.level, "counter" if randf() < 0.4 else "table")
+	if found.is_empty():
+		found = seat_of(v.level)
+	VillagePosts.enter_guest(v, found.rec, found.seat, INF)
+	v.post_trip["sleeping"] = true
+	v.begin_post()
+	return true
+
+
+## Fritz asleep at his table: slumped forward, a snore now and then (heard near him), a "Zzz" rising.
+static func sleep_step(v: Villager, trip: Dictionary, delta: float) -> void:
+	if trip.post.get("kind", "table") == "counter":
+		v.play("Idle")
+		v.slump(COUNTER_SLUMP, 0.0, COUNTER_FORWARD)
+	else:
+		v.play("Sit_Chair_Idle")
+		v.slump(SLUMP, SLUMP_DOWN, SLUMP_FORWARD)
+	trip["snore_in"] = float(trip.get("snore_in", 1.0)) - delta
+	if float(trip.snore_in) > 0.0:
+		return
+	trip.snore_in = randf_range(SNORE_EVERY.x, SNORE_EVERY.y)
+	var hero: Node3D = v.level.player
+	if hero == null or hero.global_position.distance_to(v.global_position) > HEAR_RANGE:
+		return
+	Sfx.play(v.level, "snore", SNORE_DB, v.global_position, 1.0)
+	Effects.float_text(v.level, v.global_position + Vector3(0, 1.3, 0), "Zzz", Color(0.75, 0.8, 1.0), true)
+
+
 ## One tick of Fritz at his chair (VillagePosts.step). True once it is time to get up and leave.
 static func guest_step(v: Villager, trip: Dictionary, delta: float) -> bool:
 	var seat: Dictionary = trip.post
 	v.turn_toward(Basis(Vector3.UP, float(seat.rot)) * Vector3.BACK, delta)
+	if sleeping(trip):
+		# Asleep through the night; up again (stood up like any guest) once it is day.
+		if not trip.get("seated", false):
+			trip["seated"] = true
+			trip["sit_clock"] = 0.0
+		trip.sit_clock = float(trip.sit_clock) + delta
+		var at_bar: bool = trip.post.get("kind", "table") == "counter"
+		if float(trip.sit_clock) < SIT_TIME and not at_bar:
+			v.play("Sit_Chair_Down")
+			return false
+		if not v.night:
+			if float(trip.get("rise", -1.0)) < 0.0:
+				trip["rise"] = 0.0
+				v.slump(0.0, 0.0, 0.0)
+			v.play("Idle" if at_bar else "Sit_Chair_StandUp")
+			trip.rise = float(trip.rise) + delta
+			return float(trip.rise) >= (0.3 if at_bar else SIT_TIME)
+		sleep_step(v, trip, delta)
+		return false
 	if not trip.get("seated", false):
 		trip["seated"] = true
 		trip["sit_clock"] = 0.0

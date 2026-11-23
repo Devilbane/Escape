@@ -119,3 +119,4 @@ house_login.gd | 180 | fixed | passfail | Logging out inside the self-built hous
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere
 carry_arm.gd | 60 | free | passfail | The torch and lamp arm reaches forward and rocks only gently; lamps hang upright; villagers mix lamps and torches
 ground_items.gd | 60 | free | pass | Items on the floor (every item has a flat model, stackables pile up, no floating glow)
+sleep_arms.gd | 60 | free | passfail | A sleeper's arms rest the head in the hands: hands under the face, the arms mirror each other

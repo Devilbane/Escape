@@ -123,6 +123,7 @@ static func put_on(model: Node3D, look: Dictionary) -> void:
 		_hang(head, "Hat", WinterHats.mesh(look.hat, _head_box(model), look.cloth, look.trim, fur if look.furred else []))
 		# A crest, spikes or a hair knot would poke through the hat; pigtails hang out below it.
 		_tuck_hair(model, true)
+		Bandana.show_on(model, false)
 	_dye_coat(model, COAT_TONES[look.coat])
 	var marker := Node3D.new()
 	marker.name = TAG
@@ -140,6 +141,7 @@ static func take_off(model: Node3D) -> void:
 		slot.get_parent().remove_child(slot)
 		slot.free()
 	_tuck_hair(model, false)
+	Bandana.show_on(model, true)
 	_dye_coat(model, null)
 
 

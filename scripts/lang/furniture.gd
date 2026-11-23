@@ -66,7 +66,6 @@ const EN := {
 	"Bild: See": "Lake",
 	"Bild: Drache": "Dragon",
 	"Drehen (R)": "Turn (R)",
-	"Entfernen": "Remove",
 	"Klicke ein aufgestelltes Möbelstück an, um es zurück ins Lager zu legen (Taste Entf über dem Stück).": "Click a placed piece of furniture to put it back into storage (Delete key over a piece).",
 	"Klicke ein Möbelstück an, um es zu entfernen, oder zieh es an einen anderen Platz.": "Click a piece of furniture to remove it, or drag it to another spot.",
 	"Klicken, um %s zu entfernen. Gedrückt ziehen verschiebt, R dreht.": "Click to remove the %s. Hold and drag to move it, R turns it.",

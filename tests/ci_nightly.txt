@@ -194,3 +194,5 @@ rabbit_shots.gd | 300 | fixed | pass | Rabbits: sit at forest edges, bolt in a b
 hedgehogs.gd | 300 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, apple run to a hidden hoard, hibernate in winter)
 staff_spell.gd | 120 | fixed | passfail | Elsbeth raises her staff and intones a spell now and then; the staff glows afterwards and fades
 crop_fields_shots.gd | 60 | free | pass | Crop fields (wheat, maize and sunflowers follow the seasons; screenshots with SHOTS)
+warren.gd | 120 | fixed | pass | Rabbit warren: baby rabbits huddle by their burrow, dive in when the hero comes near, come out again
+village_cat.gd | 180 | fixed | pass | The village cat (strolls, leaps onto the smithy's anvil at bedtime, sleeps curled up, purrs near the hero, stretches and hops down)

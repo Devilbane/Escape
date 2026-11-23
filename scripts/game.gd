@@ -1882,6 +1882,8 @@ func _use_station(s: Dictionary) -> void:
 		LostMine.use(self, s)
 	elif s.kind == Sewers.KIND_LID:
 		Sewers.use(self, s)
+	elif Spooknortz.KINDS.has(s.kind):
+		Spooknortz.use(self, s)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)

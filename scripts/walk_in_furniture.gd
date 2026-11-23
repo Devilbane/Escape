@@ -18,6 +18,9 @@ const LADDER_BEFORE := 0.18
 ## How brightly a wall sconce's candle lights its room, and how far (metres).
 const SCONCE_ENERGY := 1.6
 const SCONCE_RANGE := 5.0
+## On the modern renderer (Forward+) the same candle lit the room so faintly that nothing of it
+## showed through the windows from outside: there it burns this much brighter.
+const SCONCE_MODERN := 3.0
 
 static var _mats := {}
 
@@ -139,7 +142,7 @@ static func sconce() -> Node3D:
 	var glow := OmniLight3D.new()
 	glow.name = "SconceGlow"
 	glow.light_color = Color(1.0, 0.72, 0.42)
-	glow.light_energy = SCONCE_ENERGY
+	glow.light_energy = SCONCE_ENERGY * (SCONCE_MODERN if Graphics.modern() else 1.0)
 	glow.omni_range = SCONCE_RANGE
 	glow.omni_attenuation = 1.6
 	glow.position = Vector3(0, 0.2, 0.55)

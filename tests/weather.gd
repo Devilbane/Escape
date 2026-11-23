@@ -118,7 +118,7 @@ func _rain() -> void:
 	game.set_weather(Weather.RAIN, 4.0)
 	_settle()
 	check(game.level.weather == Weather.RAIN, "it rains in the open air")
-	check(game._env.ambient_light_energy < 0.52 and game._moon.light_energy < 0.88, "rain darkens the day")
+	check(game._env.ambient_light_energy < 0.52 and game._moon.light_energy < Graphics.sun(0.88), "rain darkens the day")
 	check(game._rain.emitting, "rain falls around the hero")
 	check(_kinds() == ["schleim"], "in the rain slimes get their spots")
 	for s in game.level._weather_foes:
@@ -141,7 +141,7 @@ func _fog() -> void:
 	_settle()
 	for e in slimes:
 		check(is_instance_valid(e) and not e._dawn, "the slimes stay and wander on when the rain stops")
-	check(game._env.fog_enabled and game._env.fog_density > 0.003, "a thin haze hangs over the open air")
+	check(game._env.fog_enabled and game._env.fog_density > Graphics.fog(0.003), "a thin haze hangs over the open air")
 	check(game._env.fog_density < 0.01, "the haze is thin: the fog is in the clouds, not an even blanket")
 	check(game._clouds.visible and game._clouds.strength() > 0.8, "fog clouds drift over the open air")
 	check(game._clouds._mat.render_priority < 0, "the clouds draw before every label and particle")

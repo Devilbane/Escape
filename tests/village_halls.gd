@@ -122,7 +122,7 @@ func _run() -> void:
 		await _walk(in_dir, 2.5)
 		check(walk_in.hero_in.get("node") == hall, "the hero walks into the %s (%s)" % [kind, hero.global_position])
 		check(absf(hero.global_position.y - walk_in.floor_at(hero.global_position)) < 0.2, "onto the %s's floor" % kind)
-		check(rec.up.all(func(p): return not is_instance_valid(p) or not (p as Node3D).visible), "inside the %s its floor above and roof are hidden" % kind)
+		check(rec.up.all(func(p): return not is_instance_valid(p) or not WalkIn.drawn(p as Node3D)), "inside the %s its floor above and roof are hidden" % kind)
 		var facing_cam := walk_in._faces_camera(rec, "front")
 		for side: String in WalkIn.SIDES:
 			var parts: Array = rec[side]
@@ -145,7 +145,7 @@ func _run() -> void:
 		await _walk(-in_dir, 4.0)
 		check(walk_in.hero_in.is_empty(), "and out of the %s again (%s)" % [kind, hero.global_position])
 		# (Unless the hero stands behind it, where it is lifted off so they show, see WalkIn._mind_cover.)
-		check(bool(rec.get("roof_off", false)) or rec.up.all(func(p): return not is_instance_valid(p) or (p as Node3D).visible), "outside again the %s's roof is back" % kind)
+		check(bool(rec.get("roof_off", false)) or rec.up.all(func(p): return not is_instance_valid(p) or WalkIn.drawn(p as Node3D)), "outside again the %s's roof is back" % kind)
 
 	# --- The keepers behind their counters and desks -------------------------------------
 	var keepers := {}

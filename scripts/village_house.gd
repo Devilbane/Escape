@@ -232,6 +232,11 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 	for key: String in groups:
 		var mi := _mesh_of(groups[key], mats)
 		mi.name = "Walk" + key.capitalize()
+		# The walls and roofs stop the light of the lamps and candles inside (see LightShadows):
+		# without it a candle by the back wall lit the ivy and the snow outside through the wall.
+		# The floors and the rooms' furnishing (inside) do not, or they would shade themselves.
+		if not key in ["inside", "up_inside", "storey_room"]:
+			mi.set_meta(LightShadows.WALL, true)
 		house.add_child(mi)
 		out[key] = mi
 	house.remove_child(body)

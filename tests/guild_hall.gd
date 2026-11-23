@@ -224,7 +224,7 @@ func _what_shows(rec: Dictionary) -> Dictionary:
 		if is_instance_valid(part) and not (part as Node3D).visible:
 			room = false
 	var roof: Node3D = rec.roof_node
-	return {"up_room": room, "all_walls": all_walls, "roof": roof.visible}
+	return {"up_room": room, "all_walls": all_walls, "roof": WalkIn.drawn(roof)}
 
 
 func _end() -> void:

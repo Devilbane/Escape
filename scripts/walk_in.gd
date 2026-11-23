@@ -1117,6 +1117,28 @@ func _covers(rec: Dictionary, cam: Vector3, hero_at: Vector3) -> bool:
 	return true
 
 
+## Whether a spot in the world lies on or just under a roof that is lifted off now (the hero
+## inside, or behind it, see _mind_cover): what sits there (a bird on the chimney) goes with it, or
+## it would hang in the air between the camera and the hero.
+func roof_lifted_at(pos: Vector3) -> bool:
+	for rec in buildings:
+		if not rec.get("opened", false) or rec.kind == "temple":
+			continue
+		if not (bool(rec.get("inside", false)) or bool(rec.get("roof_off", false))):
+			continue
+		var node: Node3D = rec.node
+		if not node.has_meta("shape"):
+			continue
+		var shape: Dictionary = node.get_meta("shape")
+		var out := VillageHouse.JETTY + VillageHouse.ROOF_OVERHANG + 0.5
+		var top: float = rec.top
+		var box := AABB(Vector3(-float(shape.w) * 0.5 - out, top - 0.5, -float(shape.d) * 0.5 - out),
+				Vector3(float(shape.w) + out * 2.0, 40.0, float(shape.d) + out * 2.0))
+		if box.has_point(node.global_transform.affine_inverse() * pos):
+			return true
+	return false
+
+
 ## Notes which storey of a hall of several storeys (the guildhall) the hero at `at` stands on; true
 ## when it changed.
 func _storey_of_hero(rec: Dictionary, at: Vector3) -> bool:
@@ -1155,16 +1177,65 @@ func _show_up(rec: Dictionary) -> void:
 			shown = storey == GuildHall.ROOF_STOREY
 	for part in rec.up:
 		if is_instance_valid(part):
-			(part as Node3D).visible = shown
+			_lift(part, not shown)
 	for part in rec.get("up_walls", []):
 		if is_instance_valid(part):
-			(part as Node3D).visible = (not inside or up) and not off
+			_lift(part, not ((not inside or up) and not off))
 	for part in rec.get("up_front", []):
 		if is_instance_valid(part):
-			(part as Node3D).visible = not inside and not off
+			_lift(part, not (not inside and not off))
 	for part in rec.get("up_room", []):
 		if is_instance_valid(part):
 			(part as Node3D).visible = inside and up
+
+
+## Lifts a roof, an upper wall or the floor above off (or puts it back): not drawn, but what of it
+## casts a shadow still does (as LightShadows.lift), so the sun and the moon do not shine into the
+## room while the hero looks in from behind the house or stands inside. What casts none (chimney
+## smoke, the candles on the upper wall) is simply hidden, as before.
+static func _lift(part: Node, lifted: bool) -> void:
+	if not part is Node3D:
+		return
+	var node := part as Node3D
+	if not _casts(node):
+		node.visible = not lifted
+		return
+	node.set_meta(&"walk_in_lifted", lifted)
+	if node is GeometryInstance3D and not _is_particles(node):
+		var geo := node as GeometryInstance3D
+		if lifted and not geo.has_meta(&"drawn_as"):
+			geo.set_meta(&"drawn_as", [geo.layers, geo.cast_shadow])
+			geo.layers = LightShadows.LID_LAYER
+			geo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		elif not lifted and geo.has_meta(&"drawn_as"):
+			var was: Array = geo.get_meta(&"drawn_as")
+			geo.layers = was[0]
+			geo.cast_shadow = was[1]
+			geo.remove_meta(&"drawn_as")
+	for child in node.get_children():
+		_lift(child, lifted)
+
+
+## Whether a part of a building is drawn now: shown, and not lifted off (see _lift).
+static func drawn(part: Node3D) -> bool:
+	return part.visible and not part.get_meta(&"walk_in_lifted", false)
+
+
+## Whether anything in `node` (or under it) casts a shadow when drawn.
+static func _casts(node: Node3D) -> bool:
+	if node is GeometryInstance3D and not _is_particles(node):
+		var geo := node as GeometryInstance3D
+		var cast: int = (geo.get_meta(&"drawn_as") as Array)[1] if geo.has_meta(&"drawn_as") else geo.cast_shadow
+		if cast != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			return true
+	for child in node.get_children():
+		if child is Node3D and _casts(child):
+			return true
+	return false
+
+
+static func _is_particles(node: Node) -> bool:
+	return node is GPUParticles3D or node is CPUParticles3D
 
 
 ## Hides (or shows again) what stands between the camera and the room.

@@ -1117,6 +1117,8 @@ func _show(i: int) -> void:
 	if b.carry and b.worm <= 0.0 and b.feed <= 0.0:
 		# Flying home with the worm hanging from the beak.
 		worm = 1.0
+	if not flying and _on_lifted_roof(at):
+		basis = basis.scaled(Vector3.ZERO)
 	var xform := Transform3D(basis, at)
 	_mm.set_instance_transform(i, xform)
 	if worm > 0.0:
@@ -1124,6 +1126,16 @@ func _show(i: int) -> void:
 		_worms.set_instance_transform(i, xform * Transform3D(wiggle, BEAK if flying else BEAK_SITTING))
 	else:
 		_worms.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), at))
+
+
+## Whether a bird sitting at `at` (this node's frame) sits on a roof that is lifted off now (see
+## WalkIn.roof_lifted_at): it is hidden with the roof, or it would hang in the air in front of the
+## camera, a big dark shape over the hero.
+func _on_lifted_roof(at: Vector3) -> bool:
+	if wild or not is_inside_tree():
+		return false
+	var walk_in = level.get("walk_in") if level != null else null
+	return walk_in is WalkIn and (walk_in as WalkIn).roof_lifted_at(to_global(at))
 
 
 ## A small bird at rest, facing +z: a round body and head, two eyes, a beak,

@@ -61,6 +61,7 @@ const TABLE_LEG := [Vector2(0.0, 0.0), Vector2(0.04, 0.0), Vector2(0.05, 0.05), 
 static func build(parent: Node, pos: Vector3, rot: float, table := true) -> Node3D:
 	var root := Node3D.new()
 	root.name = NODE
+	root.add_to_group(BedBlanket.BEDS)
 	root.position = pos
 	root.rotation.y = rot
 	parent.add_child(root)

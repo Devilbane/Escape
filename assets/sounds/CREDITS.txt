@@ -147,3 +147,7 @@ tools/make_gate_sounds.py, our own work, no third-party material (public domain,
 
 Wooden stair steps (stair_up_0 to stair_up_5, stair_down_0 to stair_down_5): made from scratch
 (noise, wood resonances and a stick-slip creak) by tools/make_stair_sounds.py. Our own work.
+
+"Yawn" by spookymodem (https://opengameart.org/content/yawn), licensed CC-BY 3.0
+(https://creativecommons.org/licenses/by/3.0/): the yawn on waking up (yawn.ogg: converted to mono Ogg Vorbis, the
+end faded out).

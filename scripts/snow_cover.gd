@@ -119,6 +119,19 @@ func set_holes(mask: Texture2D) -> void:
 	material.set_shader_parameter("holes_on", mask != null)
 
 
+## The ground the herald has swept bare (see SnowSweep): `mask` is the sweep mask, laid over the map like the holes'.
+func set_swept(mask: Texture2D) -> void:
+	material.set_shader_parameter("swept_mask", mask)
+	material.set_shader_parameter("swept_on", mask != null)
+	material.set_shader_parameter("swept_refill", SnowSweep.REFILL_HOURS)
+	material.set_shader_parameter("swept_step", SnowSweep.STEP)
+
+
+## Hours of snowfall so far, the clock the swept ground fills in again by.
+func set_swept_fall(hours: float) -> void:
+	material.set_shader_parameter("swept_fall", hours)
+
+
 ## How many metres one step of the shelter mask's red stands for, times 255 (see snow.gdshaderinc).
 const SHELTER_SCALE := 16.0
 

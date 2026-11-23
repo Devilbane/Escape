@@ -17,7 +17,7 @@ static var _rng := RandomNumberGenerator.new()
 ## How long one breath lasts (seconds).
 const BLOW := 1.6
 
-## The stream is dense enough that, while the breather walks or runs, the slower, wider puffs
+## The stream is dense enough that, while the breather walks or runs, the wider puffs
 ## overlap into one soft cloud trailing behind instead of single puffs left at every few steps. (No second emitter: every particle node draws from the game's random stream when
 ## made, which would shift every roll after it.)
 const MOVING_SPEED := 0.5
@@ -82,7 +82,9 @@ func _make_puff() -> CPUParticles3D:
 	puff.lifetime = 2.6
 	puff.one_shot = false
 	puff.explosiveness = 0.0
-	puff.local_coords = false
+	# Body-relative: the cloud travels with the breather. In world space a walker overtook the puffs it
+	# had just blown and went straight through them, head and all.
+	puff.local_coords = true
 	puff.emitting = false
 	# Particles otherwise draw their seed from the game's own random stream and would shift
 	# every roll after them (hits, loot): this one takes its seed from the breath's own dice.
@@ -142,11 +144,12 @@ func _process(delta: float) -> void:
 	exhale()
 
 
-## Walkers get a denser stream with slower, wider-spread puffs that overlap along the path.
+## Walkers get wider-spread puffs that overlap into one soft cloud in front of the face.
 func _set_moving(moving: bool) -> void:
 	_moving = moving
-	_puff.initial_velocity_min = 0.3 if moving else 0.7
-	_puff.initial_velocity_max = 0.45 if moving else 0.85
+	# Just as fast as when standing, so the puffs clear the face instead of hanging at the head.
+	_puff.initial_velocity_min = 0.7
+	_puff.initial_velocity_max = 0.85
 	_puff.spread = 12.0 if moving else 7.0
 
 

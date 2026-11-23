@@ -63,6 +63,7 @@ func _ready() -> void:
 			_mm.set_instance_color(i, palette[rng.randi() % palette.size()])
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
 	mat.roughness = 0.8
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED

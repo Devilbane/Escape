@@ -35,8 +35,9 @@ void fragment() {
 	vec3 col = mix(deep_color, shallow_color, 0.25 + 0.6 * r1);
 	float scum = smoothstep(0.62, 0.8, s);
 	col = mix(col, scum_color, scum * 0.7);
-	ALBEDO = gl_colour(col);
+	ALBEDO = col;
 	ALPHA = mix(0.88, 0.97, fresnel);
 	ROUGHNESS = 0.18;
 	SPECULAR = 0.5;
+	ALBEDO = gl_colour(ALBEDO);
 }

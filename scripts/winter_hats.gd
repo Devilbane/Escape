@@ -95,7 +95,8 @@ static func _earflap(st: SurfaceTool, top: float, w: float, cloth: Color, trim: 
 static func _stocking(st: SurfaceTool, top: float, w: float, cloth: Color, trim: Color) -> void:
 	var cuff := top - 0.38
 	_cuff(st, cuff, cuff + 0.14, w, trim, 0.0)
-	_shell(st, [[cuff + 0.14, w * 1.02], [top - 0.12, w * 0.98], [top - 0.02, w * 0.92]], func(_k: int, _i: int) -> Color: return cloth)
+	_shell(st, [[cuff + 0.14, w * 1.02], [top - 0.12, w * 0.98], [top - 0.02, w * 0.92], [top + 0.04, w * 0.74], [top + 0.09, 0.0]], func(_k: int, _i: int) -> Color: return cloth)
+	# The crown is closed over the head (the tip's tube is round, the crown square: no gap where they meet).
 	# The tip rises from the crown and flops over to the back and the side, in stripes.
 	var path := [Vector3(0, top - 0.06, 0), Vector3(0, top + 0.1, -0.03), Vector3(0.04, top + 0.26, -0.14),
 		Vector3(0.14, top + 0.33, -0.32), Vector3(0.26, top + 0.27, -0.5), Vector3(0.34, top + 0.1, -0.62)]

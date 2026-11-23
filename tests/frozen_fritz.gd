@@ -83,6 +83,15 @@ func _run() -> void:
 	check(fritz.is_frozen(), "Fritz freezes when the snow lies thick")
 	check(fritz._ice != null and fritz._ice.get_child_count() >= 15, "there is ice, snow and icicles on him")
 	check(not fritz._anim.is_playing() and fritz._current_anim == "frozen", "he is held in his pose")
+	# The toast arm really reaches out: the mug is held up and in front, and the icicles hang from it.
+	var arm := fritz._ice._bone(fritz._bones(), "handslot.r")
+	var shoulder := fritz._ice._bone(fritz._bones(), "upperarm.r")
+	check(arm.y - shoulder.y > 0.1 and arm.distance_to(shoulder) > 0.4, "his arm is raised out with the mug (%s, %s)" % [arm, shoulder])
+	var near_arm := 0
+	for icicle: Node in fritz._ice.get_children():
+		if icicle is MeshInstance3D and icicle.mesh is CylinderMesh and icicle.mesh.bottom_radius == 0.0 and icicle.position.distance_to(arm) < 0.5:
+			near_arm += 1
+	check(near_arm >= 3, "icicles hang from the mug and the arm (%d)" % near_arm)
 	check(fritz.global_position.distance_to(spot) < 4.0, "he stands on the market square (%s)" % fritz.global_position.distance_to(spot))
 	check(not fritz.can_chat() and not fritz.can_remark(), "frozen, he neither chats nor remarks")
 	var turned := fritz.rotation.y

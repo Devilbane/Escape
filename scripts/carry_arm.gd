@@ -11,8 +11,8 @@ const UPPER := "upperarm.l"
 const LOWER := "lowerarm.l"
 ## The pose in degrees (ClimbPose's convention): how far the upper arm is raised forward and how
 ## far the elbow is bent.
-const REACH := 62.0
-const BEND := 48.0
+const REACH := 84.0
+const BEND := 10.0
 ## How far the arm rocks with each step (degrees), walking and running.
 const ROCK_WALK := 3.0
 const ROCK_RUN := 5.0

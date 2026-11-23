@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Draw Elsbeth's speech bubble larger while the hero is in the temple; Show villagers by plain name; they tell their job in the chat (+48 more)
+Escape! dev status | Working on: Stop guild ballista range circles popping up at random | Shipped this week: Draw Elsbeth's speech bubble larger while the hero is in the temple; Show villagers by plain name; they tell their job in the chat (+48 more)

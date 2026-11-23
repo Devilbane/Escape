@@ -121,6 +121,7 @@ const PARTS := [
 	preload("res://scripts/lang/village_worries.gd"),
 	preload("res://scripts/lang/village_rumours.gd"),
 	preload("res://scripts/lang/drinking_songs.gd"),
+	preload("res://scripts/lang/mage_duel.gd"),
 	preload("res://scripts/lang/bloated_belly.gd"),
 	preload("res://scripts/lang/village_run.gd"),
 	preload("res://scripts/lang/wishes.gd"),

@@ -140,6 +140,12 @@ func _process(_delta: float) -> bool:
 			else:
 				cellar_ladder = l
 		check(roof_ladder != null and cellar_ladder != null, "one up to the roof, one out of the cellar")
+		# The ground floor's ladder fades with its floor (hidden from down in the cellar).
+		var rungs := 0
+		for part in (roof_ladder.get_parent() as Node3D).get_children():
+			if part is MeshInstance3D and part.has_meta("ymin"):
+				rungs += 1
+		check(rungs > 0, "the ladder up to the roof fades with its floor")
 		var floors: HouseFloors = game.level.house_floors
 		var pit := plan.cell_world(7, 2) + Vector3(0, -HouseSketch.DEPTH, 0)
 		check(floors == null or not floors.reachable(plan.cell_world(0, 0), pit), "a companion finds no way down a ladder")

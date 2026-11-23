@@ -314,6 +314,8 @@ var village_alarm := VillageAlarm.new()
 var meals := TownMeals.new()
 ## Idle townsfolk resting on the benches round the fountain (see BenchRest).
 var bench_rest := BenchRest.new()
+## The morning gathering in the temple (see TempleMorning).
+var temple_morning := TempleMorning.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -4633,6 +4635,7 @@ func _process(delta: float) -> void:
 	village_wall.tick(self, delta)
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
+	temple_morning.tick(self, delta)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:
@@ -4663,7 +4666,8 @@ func _process(delta: float) -> void:
 	_mind_the_moon(delta)
 	_check_basket(delta)
 	_herald_timer -= delta
-	if _herald and _herald_timer <= 0.0 and not night:
+	# Not while he sits in the temple for the morning gathering (see TempleMorning).
+	if _herald and _herald_timer <= 0.0 and not night and not _herald.serves():
 		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
 		_call_the_village()
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:

@@ -11,6 +11,8 @@ extends RefCounted
 const WILD := {"reh": 0.45, "hirsch": 0.5, "fuchs": 0.3, "kaninchen": 0.2}
 ## The squirrel of the woods (see Squirrel); pets take the radius of their species (see Pet).
 const SQUIRREL := 0.15
+## The hedgehog (see Hedgehog).
+const HEDGEHOG := 0.2
 const FARM := {"goose": 0.25, "goat": 0.4, "sheep": 0.45, "billy": 0.45, "dog": 0.35, "cow": 0.75, "bull": 0.8}
 ## Who stands in each other's place only when they come nearer than this share of both radii:
 ## brushing past and the small give of a crowd are fine, standing inside one another is not.
@@ -37,6 +39,8 @@ static func radius_of(body: Node) -> float:
 		return WILD.get(body.kind, 0.4)
 	if body is Squirrel:
 		return SQUIRREL
+	if body is Hedgehog:
+		return HEDGEHOG
 	if body is FarmAnimal:
 		return FARM.get(body.kind, 0.4)
 	if body is Villager:
@@ -49,7 +53,7 @@ static func radius_of(body: Node) -> float:
 ## ease away from each other so they do not pile up. The red-horned goat charges, so it claims
 ## its place like the monsters do.
 static func peaceful(body: Node) -> bool:
-	if body is Animal or body is Squirrel or body is Pet:
+	if body is Animal or body is Squirrel or body is Hedgehog or body is Pet:
 		return true
 	return body is FarmAnimal and body.kind != "billy"
 

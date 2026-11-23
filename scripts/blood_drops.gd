@@ -26,7 +26,7 @@ const STAIN_MAX := 0.32
 const MERGE := 0.3
 const VARIANTS := 4
 ## The tiles of open water (see Tiles.OUTDOOR): the ponds.
-const WATER_LETTERS := "~;"
+const WATER_LETTERS := "~;≈‖"
 
 static var _meshes: Array[ArrayMesh] = []
 static var _drop_mesh: SphereMesh

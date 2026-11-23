@@ -26,6 +26,13 @@ const MAX_HEDGEHOGS := 7
 const MAX_VILLAGE_HEDGEHOGS := 4
 ## The least distance between two hedgehog homes (tiles).
 const HEDGEHOG_SPACING := 8
+## How many village hedgehogs keep an apple hoard, and between which distances (metres) from an
+## apple tree they must live.
+const MAX_HOARDERS := 2
+const HOARD_FAR := 20.0
+const HOARD_REACH := 55.0
+## How far behind its tree's trunk (metres) a hoard lies.
+const HOARD_BEHIND := 1.0
 ## The least distance between two bird trees, and between two squirrel trees (tiles).
 const BIRD_SPACING := 3
 const SQUIRREL_SPACING := 9
@@ -104,6 +111,53 @@ func _init(level: Level, trees: Array, seed_text: String) -> void:
 		var h := Hedgehog.new()
 		h.setup(level, t)
 		hedgehogs.append(h)
+
+
+## Gives the hedgehogs of the village an apple tree to fetch apples from and a hoard to keep them
+## in (see Hedgehog): the MAX_HOARDERS that live between HOARD_FAR and HOARD_REACH metres from
+## one of `apple_trees` (the village's apple trees, see Outdoor.square_trees), so that they carry
+## their apple a good way through the village. The hoard lies hidden behind the trunk of the
+## hedgehog's own tree, on the side away from the open ground.
+func assign_hoards(apple_trees: Array) -> void:
+	# Only trees a hedgehog can walk up to: with open ground within a tile of them.
+	var reachable := []
+	for t in apple_trees:
+		var at_cell: Vector2i = hedgehogs[0].level.world_to_cell(t.node.position) if not hedgehogs.is_empty() else Vector2i.ZERO
+		var open := false
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				open = open or hedgehogs[0].level.is_open(at_cell + Vector2i(dx, dy))
+		if open:
+			reachable.append(t)
+	apple_trees = reachable
+	var picks := []
+	for h in hedgehogs:
+		if not h.tree.in_village:
+			continue
+		# Its closest apple tree.
+		var best := INF
+		var at := Vector3.INF
+		for t in apple_trees:
+			var p: Vector3 = t.node.position
+			var d := Vector2(p.x - h.tree.pos.x, p.z - h.tree.pos.z).length()
+			if d < best:
+				best = d
+				at = p
+		if best >= HOARD_FAR and best <= HOARD_REACH:
+			picks.append([best, h, at])
+	picks.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for pick in picks.slice(0, MAX_HOARDERS):
+		var h: Hedgehog = pick[1]
+		var den: Vector3 = h.tree.pos
+		var cell_at: Vector3 = h.level.cell_to_world(h.tree.cell)
+		var side := Vector3(cell_at.x - den.x, 0.0, cell_at.z - den.z).normalized()
+		var hoard := AppleHoard.new()
+		# Behind the trunk, out of sight of the open ground.
+		hoard.position = Vector3(den.x, 0.0, den.z) - side * HOARD_BEHIND
+		add_child(hoard)
+		h.apple_tree = Vector3(pick[2].x, 0.0, pick[2].z)
+		h.hoard = hoard
+		h.hoard_door = Vector3(den.x, 0.0, den.z) + side * HOARD_BEHIND
 
 
 func _ready() -> void:

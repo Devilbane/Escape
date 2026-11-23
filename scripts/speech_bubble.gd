@@ -96,6 +96,8 @@ var _alpha := 0.0
 var _target := 0.0
 ## How fast the bubble fades in and out (alpha per second).
 var fade := FADE
+## How much larger than usual the next line is drawn (1.0 is the normal size).
+var zoom := 1.0
 ## The tail's tip sits at this node's origin: put the node where the bubble
 ## should touch the speaker.
 var _size := Vector2.ZERO
@@ -200,20 +202,23 @@ func show_line(speaker: String, text: String, titled := false) -> void:
 	var rows := rows_for(text)
 	var tsize := UiKit.sized(TEXT_SIZE)
 	var nsize := UiKit.sized(NAME_SIZE)
+	var px := PIXEL_SIZE * zoom
+	for l in [_name, _title, _text]:
+		(l as Label3D).pixel_size = px
 	_text.text = "\n".join(rows)
 	var widest := 0.0
 	for r in rows:
 		widest = maxf(widest, FONT.get_string_size(r, HORIZONTAL_ALIGNMENT_LEFT, -1, tsize).x)
-	var text_w := widest * PIXEL_SIZE
-	var text_h := FONT.get_height(tsize) * rows.size() * PIXEL_SIZE
+	var text_w := widest * px
+	var text_h := FONT.get_height(tsize) * rows.size() * px
 	_name.text = parts[0]
 	_title.text = parts[1]
 	_title.visible = parts[1] != ""
-	var name_w := FONT.get_string_size(parts[0], HORIZONTAL_ALIGNMENT_LEFT, -1, nsize).x * PIXEL_SIZE
-	var name_h := FONT.get_height(nsize) * PIXEL_SIZE
+	var name_w := FONT.get_string_size(parts[0], HORIZONTAL_ALIGNMENT_LEFT, -1, nsize).x * px
+	var name_h := FONT.get_height(nsize) * px
 	var tisize := UiKit.sized(TITLE_SIZE)
-	var title_w := FONT.get_string_size(parts[1], HORIZONTAL_ALIGNMENT_LEFT, -1, tisize).x * PIXEL_SIZE
-	var title_h := FONT.get_height(tisize) * PIXEL_SIZE if parts[1] != "" else 0.0
+	var title_w := FONT.get_string_size(parts[1], HORIZONTAL_ALIGNMENT_LEFT, -1, tisize).x * px
+	var title_h := FONT.get_height(tisize) * px if parts[1] != "" else 0.0
 	var inner_w := maxf(text_w, maxf(name_w, title_w))
 	_size = Vector2(inner_w + PAD.x * 2.0, name_h + title_h + NAME_GAP + text_h + PAD.y * 2.0)
 	_material.set_shader_parameter("body", _size)

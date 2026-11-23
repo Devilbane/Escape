@@ -19,7 +19,7 @@ const GROUND := ".,:"
 const PATH := ","
 ## Water that is there already (ponds, the well, the fountain, holes): no
 ## puddle runs into it.
-const WET := "~;(>qF"
+const WET := "~;≈‖(>qF"
 ## One puddle for about this many tiles of open ground, at most MAX.
 const TILES_PER_PUDDLE := 2.5
 const MAX := 700

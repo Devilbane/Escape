@@ -1942,6 +1942,9 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == AppleTree.STATION:
 		player.face(s.pos - player.global_position)
 		AppleTree.pick(self, s)
+	elif s.kind == HouseFurniture.CANDLE_STATION:
+		player.face(s.pos - player.global_position)
+		house_furnisher.toggle_candles(s)
 	elif s.kind == Seats.KIND and level is Outdoor and level.bench_rest.taken(s):
 		# Someone from the village rests there already (see BenchRest).
 		player.face(s.pos - player.global_position)
@@ -7898,6 +7901,7 @@ func _process(delta: float) -> void:
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			GardenDecor.GRILL: Lang.t("Dagegenlaufen, um Wildfleisch oder einen Barsch zu grillen und zu essen"),
 			AppleTree.STATION: AppleTree.station_prompt(self, station) if station.kind == AppleTree.STATION else "",
+			HouseFurniture.CANDLE_STATION: Lang.t("Klicken, um die Kerzen zu löschen oder anzuzünden"),
 			"trophaeen": Lang.t("Trophäenwand: Dagegenlaufen, um zu sehen, welche Trophäen du hast und welche noch fehlen (je +1 Leben)"),
 			"gefaehrten": Lang.t("Dagegenlaufen, um nach deinen Gefährten zu sehen"),
 			CapeWardrobe.KIND: Lang.t("Dagegenlaufen, um den Umhangschrank zu öffnen"),

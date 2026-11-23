@@ -255,6 +255,11 @@ static func erratic(t: float, f: Vector3, ph: Vector3) -> float:
 	return (sin(f.x * t + ph.x) + 0.6 * sin(f.y * t + ph.y) + 0.4 * sin(f.z * t + ph.z)) * 0.5
 
 
+## `v` with its three parts turned round `by` places (GDScript has no swizzles).
+static func _roll(v: Vector3, by: int) -> Vector3:
+	return Vector3(v.y, v.z, v.x) if by == 1 else Vector3(v.z, v.x, v.y)
+
+
 func _noise_freqs() -> Vector3:
 	return Vector3(_rng.randf_range(8.0, 22.0), _rng.randf_range(14.0, 34.0), _rng.randf_range(22.0, 48.0))
 
@@ -304,7 +309,7 @@ func _move() -> void:
 		# Pushed this way and that on the way, but always on along the wind.
 		var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
 		var sway := side_axis * erratic(t * k, m.fl, m.pl) * 2.4 * calm
-		var surge := erratic(t * k, m.fl.zxy, m.pl.yzx) * 0.04 * calm
+		var surge := erratic(t * k, _roll(m.fl, 1), _roll(m.pl, 2)) * 0.04 * calm
 		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
 		# the leaf flips edge-on and back, it bobs very slightly, and it surges a little.
 		var secs: float = t * m.dur
@@ -314,7 +319,7 @@ func _move() -> void:
 		if m.light:
 			# Its own wild turning on all axes, never the same as its neighbour's.
 			var yaw: float = m.yaw * t + m.spin * t + erratic(t * k, m.fa, m.pa) * 2.2 * calm
-			basis = Basis(along.normalized(), flip * 1.1 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t * k, m.fa.yzx, m.pb.zxy) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
+			basis = Basis(along.normalized(), flip * 1.1 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 2.0 * calm) * Basis(m.axis2, erratic(t * k, _roll(m.fa, 2), _roll(m.pb, 1)) * 1.6 * calm) * Basis(Vector3.UP, yaw) * flat.basis
 		else:
 			basis = Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
 		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share + bob, 0)
@@ -325,8 +330,11 @@ func _move() -> void:
 ## Fast at first as the gust takes it, slower as it drifts down.
 static func ease_out(t: float) -> float:
 	# Snatched up and driven off, as in the reference (a leaf crosses a screen in a second or two),
-	# and still carried on at close to that pace for the whole flight: only a mild slowing at the end.
-	return lerpf(t, lerpf(t, 1.0 - pow(1.0 - t, 1.8), 0.5), smoothstep(0.0, 0.04, t))
+	# and carried at that same speed all the way down to the ground: no slowing at the end.
+	# (A short ramp-up at the very start, so it does not jump from standing still.)
+	const RAMP := 0.04
+	var run := t * t / (2.0 * RAMP) if t < RAMP else t - RAMP * 0.5
+	return run / (1.0 - RAMP * 0.5)
 
 
 ## Winter: a flurry of snow lifts off the ground round the hero, drifts along the wind and

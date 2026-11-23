@@ -273,6 +273,12 @@ func _run() -> void:
 		await _shot("from_above", plan.cell_world(2, 2) + Vector3(0, 16, 9), plan.cell_world(2, 2))
 	Plots.release(game.hero_name)
 	game.delete_save(game.save_path())
+	# Every lamp of a room one walks into has walls all round it: it must be picked for its wall
+	# shadows first (INDOOR), or it shines through the walls onto the ivy and the snow outside.
+	for lamp_owner: Node3D in [WalkInFurniture.candle_shelf(), WalkInFurniture.sconce(), WalkInFurniture.altar(), WalkInFurniture.hearth(1.5)]:
+		for lamp: Node in lamp_owner.find_children("*", "Light3D", true, false):
+			check(lamp.has_meta(LightShadows.INDOOR), "%s of a room is an indoor lamp" % lamp_owner.name)
+		lamp_owner.free()
 	print("PASS: light shadows" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Lay spruce snow on the outer branches | Shipped this week: Stop z-fighting on window sills, glazing bars and mine rails; Remove silver mine light beams, rebuild ore cart (+48 more)
+Escape! dev status | Working on: Keepers leave halls by the door; shops without their keeper are locked; Lay spruce snow on the outer branches | Shipped this week: Stop z-fighting on window sills, glazing bars and mine rails; Remove silver mine light beams, rebuild ore cart (+48 more)

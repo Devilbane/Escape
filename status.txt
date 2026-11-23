@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Stretch the temple door to fill its doorway; Show Fritz clearly inside his ice, fix floating snow and icicles (+1 more) | Shipped this week: Give Smith Gorm a textured bandana; Give Konrad's hair strand texture and a matt finish; Lighten Barber Benno's skin (+47 more)
+Escape! dev status | Working on: Stretch the temple door to fill its doorway; Show Fritz clearly inside his ice, fix floating snow and icicles | Shipped this week: Widen the tavern, add Eberhard's loft, Fritz sleeps at his table; Give Smith Gorm a textured bandana (+48 more)

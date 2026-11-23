@@ -102,6 +102,8 @@ func _run() -> void:
 	for rec in halls:
 		var hall: Node3D = rec.node
 		var kind: String = rec.kind
+		if kind == MageTower.KIND:
+			continue # The mages' tower has no counter and no keeper: tests/mage_tower.gd walks through it.
 		check(rec.get("opened", false) and hall.has_meta("village_house"), "the %s is a timber house one walks into" % kind)
 		check(hall.get_node_or_null("HallSign") != null, "the %s has its sign by the door" % kind)
 		check(is_zero_approx(float((hall.get_meta("shape") as Dictionary).door_x)), "the %s's door is in the middle of its front" % kind)
@@ -215,6 +217,8 @@ func _run() -> void:
 	lvl = await _load_village()
 	check(lvl.walk_in.buildings.all(func(r): return not VillageHalls.KINDS.values().has(r.kind)), "switched off, no hall can be walked into")
 	for ch: String in VillageHalls.KINDS:
+		if VillageHalls.KINDS[ch] == MageTower.KIND:
+			continue # The tower has no kit model to fall back to.
 		var kit := lvl.get_children().filter(func(n): return n is Node3D and n.has_meta("block") and lvl.cell_char((n.get_meta("block") as Rect2i).position) == ch)
 		check(kit.size() == 1 and not kit[0].has_meta("hall"), "switched off, the %s is the old kit model" % VillageHalls.KINDS[ch])
 	var houses_off := _house_boxes(lvl)

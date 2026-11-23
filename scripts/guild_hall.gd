@@ -96,6 +96,9 @@ static func layout(shape: Dictionary) -> Dictionary:
 	b["low_via"] = [Vector3(float(b.x1) + ONTO + 0.1, up_floor, b_foot + ONTO), Vector3(float(a.x0) - ONTO - 0.1, up_floor, b_foot - 0.9)]
 	c["low_via"] = [Vector3(float(c.x1) + ONTO + 0.1, CELLAR, float(c.foot) - ONTO)]
 	var mage := bool(shape.get("mage", false))
+	if mage:
+		# Off the stairs to the sleeping room and clear of the hatch's corner before heading for a bed.
+		b["high_via"] = [Vector3(float(b.x1) + ONTO + 0.1, deck, float(b.top) - ONTO)]
 	return {"room": room, "up_room": up_room, "floor": floor, "top": top, "up_floor": up_floor, "eaves": eaves,
 			"mage": mage, "wall_top": deck + (MageTower.TOP_H if mage else PARAPET),
 			"deck": deck, "cellar": Rect2(-HOLE, -HOLE, HOLE * 2.0, HOLE * 2.0), "a": a, "b": b, "c": c,
@@ -132,10 +135,12 @@ static func storey_of(lay: Dictionary, y: float) -> int:
 ## of that storey or the steps of the flight they are on.
 static func floor_y(lay: Dictionary, p: Vector3) -> float:
 	if p.y >= float(lay.up_floor) - 0.6:
-		if p.y >= float(lay.deck) - 0.6:
-			return lay.deck
 		if on_flight(lay.b, p):
 			return ramp(lay.b, p.z)
+		if on_flight(lay.a, p) and p.y < float(lay.up_floor) + 0.3:
+			return ramp(lay.a, p.z) # Coming down again: the flight's top is at the upper floor.
+		if p.y >= float(lay.deck) - 0.6:
+			return lay.deck
 		return lay.up_floor
 	if on_flight(lay.a, p):
 		return ramp(lay.a, p.z)

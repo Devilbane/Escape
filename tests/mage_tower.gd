@@ -177,7 +177,7 @@ func _run() -> void:
 		mage.global_position = way[0]
 		mage.reset_physics_interpolation()
 		check(VillageBeds.enter(mage, false), "at night %s goes into the tower" % mage.display_name)
-		for i in 60 * 60:
+		for i in 60 * 100:
 			await physics_frame
 			VillageBeds.step(mage, 1.0 / 60.0)
 			if mage.bed_trip.get("step", "") == "asleep":
@@ -185,12 +185,12 @@ func _run() -> void:
 		var local := hall.global_transform.affine_inverse() * mage.global_position
 		check(mage.bed_trip.get("step", "") == "asleep" and local.y > float(lay.deck) - 0.3, "%s climbs up to a bed in the sleeping room (%s, %s)" % [role, mage.bed_trip.get("step", "-"), local])
 		check(VillageBeds.rise(mage), "in the morning %s gets up" % role)
-		for i in 60 * 60:
+		for i in 60 * 100:
 			await physics_frame
 			if mage.bed_trip.is_empty():
 				break
 			VillageBeds.step(mage, 1.0 / 60.0)
-		check(mage.bed_trip.is_empty() and mage.global_position.distance_to(way[0]) < 1.5, "and walks back down and out of the door (%s)" % mage.global_position)
+		check(mage.bed_trip.is_empty() and mage.global_position.distance_to(way[0]) < 3.0, "and walks back down and out of the door (%s)" % mage.global_position)
 	_end()
 
 

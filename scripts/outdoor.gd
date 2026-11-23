@@ -3221,7 +3221,13 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			grapes[i] = (grapes[i] as Transform3D).translated(-offset)
 		var spot := Vector3.INF
 		if rng.randf() < nest_chance:
-			spot = AgedStone.nest_spot(tris, ground)
+			# Never by a chimney or a fire, where the birds would be smoked.
+			var smoky: Array = []
+			if node.has_meta("chimney"):
+				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
+			for w: Vector4 in warm_spots:
+				smoky.append(Vector3(w.x, w.y, w.z) + offset)
+			spot = AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()

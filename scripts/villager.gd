@@ -312,6 +312,10 @@ var _torch: Node3D
 var _torch_light: OmniLight3D
 var _torch_hidden: Array[Node3D] = []
 var _torch_time := 0.0
+## Whether this one carries a hand lantern instead of a torch (see carries_lamp), and the arm that
+## holds it out in front, only rocking gently with the steps (see CarryArm).
+var _lamp := false
+var _carry_arm: CarryArm
 ## Where the woodcutter (or the smith) stands to work and which way he faces
 ## then (INF: neither, or nothing to strike), the chips (or sparks) that fly
 ## at each blow, and the blow under way: whether the blade or hammer has
@@ -2501,6 +2505,12 @@ func carries_torch() -> bool:
 	return _task == "walk" or not day_plan() in UNLIT_PLANS
 
 
+## Whether the villager's light is a hand lantern (a candle in a little iron cage, hung from the
+## hand) and not a torch: about half of them, each always the same one.
+func carries_lamp() -> bool:
+	return role.length() > 0 and role.unicode_at(0) % 2 == 1
+
+
 ## Lights the torch, puts it out, and lets it flicker while it burns.
 func _mind_torch(delta: float) -> void:
 	var on := carries_torch()
@@ -2513,6 +2523,10 @@ func _mind_torch(delta: float) -> void:
 		_torch_light.visible = on
 		for item in _torch_hidden:
 			item.visible = not on
+	if _carry_arm != null:
+		_carry_arm.active = on
+	if on and _lamp:
+		_hang_lamp()
 	if on:
 		_torch_time += delta
 		_torch_light.light_energy = TORCH_ENERGY * (0.86 + 0.14 * sin(_torch_time * 11.0) * sin(_torch_time * 6.7))
@@ -2525,8 +2539,9 @@ func _mind_torch(delta: float) -> void:
 func _make_torch() -> void:
 	var size: float = _info.get("scale", 1.0)
 	var hand: Node3D = _model.find_child("handslot_l", true, false)
+	_lamp = carries_lamp()
 	_torch = Node3D.new()
-	_torch.name = "Torch"
+	_torch.name = "Lamp" if _lamp else "Torch"
 	if hand:
 		for item in hand.get_children():
 			if item is Node3D and item.visible:
@@ -2535,28 +2550,39 @@ func _make_torch() -> void:
 	else:
 		_torch.position = Vector3(0.45, 1.3, 0.3) * size
 		add_child(_torch)
-	var stick := MeshInstance3D.new()
-	var rod := CylinderMesh.new()
-	rod.top_radius = 0.045
-	rod.bottom_radius = 0.03
-	rod.height = 0.6
-	stick.mesh = rod
-	stick.material_override = _torch_wood()
-	stick.position = Vector3(0, 0.15, 0)
-	_torch.add_child(stick)
-	var flame := Effects.make_flame()
-	flame.scale = Vector3.ONE * 0.55
-	flame.position = Vector3(0, 0.5, 0)
-	_torch.add_child(flame)
+	if _lamp:
+		HandLamp.build(_torch)
+	else:
+		var stick := MeshInstance3D.new()
+		var rod := CylinderMesh.new()
+		rod.top_radius = 0.045
+		rod.bottom_radius = 0.03
+		rod.height = 0.6
+		stick.mesh = rod
+		stick.material_override = _torch_wood()
+		stick.position = Vector3(0, 0.15, 0)
+		_torch.add_child(stick)
+		var flame := Effects.make_flame()
+		flame.scale = Vector3.ONE * 0.55
+		flame.position = Vector3(0, 0.5, 0)
+		_torch.add_child(flame)
+	# The light rides on the torch itself, so it follows the hand (the arm only rocks gently, see
+	# CarryArm).
 	_torch_light = OmniLight3D.new()
-	_torch_light.light_color = TORCH_COLOR
+	_torch_light.light_color = HandLamp.COLOR if _lamp else TORCH_COLOR
 	_torch_light.light_energy = TORCH_ENERGY
 	_torch_light.omni_range = TORCH_RANGE
 	_torch_light.omni_attenuation = Level.HAND_TORCH_ATTENUATION
-	_torch_light.position = Vector3(0.4, 2.3, 0.4) * size
-	add_child(_torch_light)
+	_torch_light.position = HandLamp.FLAME_AT if _lamp else Vector3(0, 0.55, 0)
+	_torch.add_child(_torch_light)
+	_carry_arm = CarryArm.attach(_bones(), _anim)
 	_torch.visible = false
 	_torch_light.visible = false
+
+
+## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little.
+func _hang_lamp() -> void:
+	_torch.global_basis = HandLamp.hanging(global_rotation.y, _model.scale.x, _torch_time)
 
 
 ## One plain wooden material for every villager's torch.

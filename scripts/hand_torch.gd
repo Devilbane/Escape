@@ -39,6 +39,8 @@ var lit := false
 var _was_dark := false
 var _warned := false
 var _holder: Node3D
+## The arm that holds the torch out in front (see CarryArm).
+var _arm: CarryArm
 var _light: OmniLight3D
 var _time := 0.0
 
@@ -136,12 +138,15 @@ func _set_lit(on: bool) -> void:
 	elif is_instance_valid(_holder):
 		_holder.queue_free()
 		_holder = null
+	if is_instance_valid(_arm):
+		_arm.active = on
 	if is_instance_valid(_light):
 		_light.visible = on
 
 
 ## The torch in the hero's left hand, a flame on its tip, and the light it
-## throws (hung on the hero, not the hand, so it does not swing about).
+## throws, which rides on the torch. The arm holds it out in front and only rocks gently with
+## the steps (see CarryArm).
 func _make_holder() -> void:
 	if is_instance_valid(_holder):
 		return
@@ -174,6 +179,14 @@ func _make_holder() -> void:
 		_light.light_energy = LIGHT_ENERGY
 		_light.omni_range = LIGHT_RANGE
 		_light.omni_attenuation = Level.HAND_TORCH_ATTENUATION
-		_light.position = Vector3(0.4, 2.4, 0.5)
-		player.add_child(_light)
+	# The light follows the hand: on the torch's tip, wherever the torch goes.
+	if _light.get_parent() != _holder:
+		if _light.get_parent() != null:
+			_light.get_parent().remove_child(_light)
+		_holder.add_child(_light)
+	_light.position = Vector3(0, 0.55, 0)
+	if not is_instance_valid(_arm):
+		_arm = CarryArm.attach(player._model.find_child("Skeleton3D", true, false) as Skeleton3D, player._anim)
+	if is_instance_valid(_arm):
+		_arm.active = true
 	_light.visible = true

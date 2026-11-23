@@ -131,30 +131,16 @@ func _run() -> void:
 		hi = maxf(hi, wind.force)
 		wind._now += 100.0
 		wind._move()
-		wind._move_flakes()
 	check(hi - lo > 0.5 and lo >= WindGusts.FORCE.x and hi <= WindGusts.FORCE.y, "gusts differ in force (%.2f to %.2f)" % [lo, hi])
 	check(WindGusts._pace(0.3) < WindGusts._pace(1.6), "a strong gust carries its pieces faster than a light one")
 
-	# Snow: flakes lift only where snow really lies.
+	# Winter: no gusts at all, no flying snow and no dust.
 	var winter_day := SkyCommand.day_for(Seasons.TEST_DAY, true)
 	lvl.set_season(winter_day)
-	lvl.snow.set_amount(0.0)
+	lvl.snow.set_amount(1.0)
 	wind._now += 200.0
 	wind._move()
-	wind._move_flakes()
-	check(wind.gust(1.0) == 0, "no flakes lift while no snow lies")
-	lvl.snow.set_amount(1.0)
-	var flakes := wind.gust(1.0)
-	check(flakes > 0, "flakes lift once snow lies (%d)" % flakes)
-	for m: Dictionary in wind._flakes:
-		check(wind.snow_lies_at(m.from), "a flake starts where snow lies, not under a roof, on water or by a fire")
-	check(wind._puffs.size() > 0 and wind._dust.visible, "foggy dust puffs fly with the flakes (%d)" % wind._puffs.size())
-	for m: Dictionary in wind._puffs:
-		check(wind.snow_lies_at(m.from), "a dust puff starts where snow lies")
-	wind._now += 200.0
-	wind._move_flakes()
-	wind._move_puffs()
-	check(wind.active() == 0 and not wind._dust.visible, "flakes and dust are gone when the gust is over")
+	check(wind.gust(1.0) == 0 and wind.active() == 0, "no gust blows in winter, snow stays where it lies")
 	lvl.snow.set_amount(0.0)
 	lvl.set_season(Seasons.TEST_DAY)
 

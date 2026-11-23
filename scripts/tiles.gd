@@ -164,6 +164,7 @@ const OUTDOOR := {
 	# Buildings, each a rectangular block of the same letter (Outdoor.BLOCK_CHARS).
 	"h": "house (half-timbered, see VillageHouse)",
 	"j": "smithy",
+	"ö": "the brewer: keeps the tavern, hands Fritz his beer and chats with him (see TavernBrewer)",
 	"ü": "the miller: sells grain in his mill and sends flour to the tavern (see Mill)",
 	"ß": "the smith's cottage: Gorm's own little house beside the smithy, where he sleeps (see SmithCottage)",
 	"n": "tavern",

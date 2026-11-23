@@ -74,6 +74,16 @@ static func enter(v: Villager) -> void:
 	_pass_through(v, true)
 
 
+## Sets a guest off in through the door of the hall `rec` to the seat `seat` ({"pos", "rot", ...}),
+## where they sit for `stay` seconds (see TavernBrewer: Fritz at the tavern's table). The guest
+## leaves at nightfall or the alarm like a keeper, and on their own when the time is up.
+static func enter_guest(v: Villager, rec: Dictionary, seat: Dictionary, stay: float) -> void:
+	var way := _door_points(v, rec)
+	v.post_trip = {"rec": rec, "post": seat, "step": "in", "way": [way[0], way[1], seat.pos], "clock": 0.0,
+			"guest": true, "stay": stay}
+	_pass_through(v, true)
+
+
 ## Whether she is in the hall (on the way in, at her place or on the way out).
 static func inside(v: Villager) -> bool:
 	return not v.post_trip.is_empty()
@@ -98,6 +108,15 @@ static func step(v: Villager, delta: float) -> void:
 				trip.step = "at"
 				_pass_through(v, false)
 		"at":
+			if trip.get("guest", false):
+				if v.night or v.level.village_alarm.raised or TavernBrewer.guest_step(v, trip, delta):
+					_go_out(v, trip)
+				return
+			if v.night or v.level.village_alarm.raised:
+				v.hold_mug(false)
+				trip["serve"] = ""
+			elif v.role == TavernBrewer.BREWER and TavernBrewer.keeper_step(v, trip, delta):
+				return
 			v.turn_toward(Basis(Vector3.UP, float(trip.post.rot)) * Vector3.BACK, delta)
 			# She stands calmly behind her counter and only now and then busies her hands.
 			trip["fidget"] = float(trip.get("fidget", FIDGET_EVERY.x)) - delta
@@ -116,6 +135,7 @@ static func step(v: Villager, delta: float) -> void:
 
 
 static func _go_out(v: Villager, trip: Dictionary) -> void:
+	TavernBrewer.tidy(trip)
 	var way := _door_points(v, trip.rec)
 	var via: Array = (trip.rec.get("via", []) as Array).duplicate()
 	via.reverse()
@@ -130,6 +150,8 @@ static func leave_at_once(v: Villager) -> void:
 	var trip := v.post_trip
 	if trip.is_empty():
 		return
+	TavernBrewer.tidy(trip)
+	v.hold_mug(false)
 	v.global_position = _door_points(v, trip.rec)[0]
 	v.reset_physics_interpolation()
 	v.post_trip = {}

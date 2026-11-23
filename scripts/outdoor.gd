@@ -464,6 +464,11 @@ var warm_spots: Array[Vector4] = []
 ## The fires of the smithy model (building_blacksmith_red): the logs in the furnace's mouth and the
 ## fire on top of its chimney, in the model's own frame, with how far round them it is warm.
 const SMITHY_FIRES: Array[Vector4] = [Vector4(0.22, 0.14, 0.24, 0.24), Vector4(0.21, 0.91, -0.14, 0.14)]
+## Where the face of the old anvil beside the big smithy's chimney is, in the model's own frame:
+## the village cat jumps up there to sleep in the warmth (see VillageCat).
+const SMITHY_ANVIL := Vector3(-0.04, 0.206, 0.52)
+## The village cat that naps on that anvil (null without the big smithy).
+var village_cat: VillageCat
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
 ## The glass of the street lamps' lanterns, glowing at night.
@@ -2449,6 +2454,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
 				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
 			_smithy_fire(node, s)
+			_adopt_cat(node)
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -4158,6 +4164,15 @@ func _chimney_fire(top: Vector3) -> void:
 	tween.tween_property(mat, "emission_energy_multiplier", 1.6, 0.5)
 	tween.tween_property(mat, "emission_energy_multiplier", 2.5, 0.25)
 	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
+
+
+## The village cat of the big smithy: it strolls about and naps on the old anvil by its chimney.
+func _adopt_cat(smithy: Node3D) -> void:
+	var cat := VillageCat.new()
+	cat.name = "VillageCat"
+	cat.setup(self, smithy.transform * SMITHY_ANVIL, smithy.transform.basis * Vector3(0, 0, 1))
+	add_child(cat)
+	village_cat = cat
 
 
 ## The fire of the big smithy behind the little forge (block "j"): the top of its chimney glows and

@@ -4,8 +4,8 @@ extends SceneTree
 ##   after it), and the hero does the same when felled.
 ## - The moment it shows, every other speech bubble and comic word is gone,
 ##   and no new one appears while it lasts.
-## - It lasts three times as long as a normal line and fades three times as
-##   slowly; once it is over, people can talk again.
+## - It lasts one and a half times as long as a normal line; once it is over,
+##   people can talk again.
 ## Run with: godot --headless --fixed-fps 60 -s tests/final_scream.gd
 
 var failures := 0
@@ -40,7 +40,7 @@ func _process(_delta: float) -> bool:
 
 
 func _test() -> void:
-	check(FinalScream.SECONDS == Villager.SAY_TIME * 3.0, "the scream lasts three normal lines")
+	check(FinalScream.SECONDS == Villager.SAY_TIME * 1.5, "the scream lasts one and a half normal lines")
 	var lvl: Level = game.level
 	var v: Villager = lvl.villagers[0]
 	v.hush()

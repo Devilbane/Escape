@@ -5,14 +5,14 @@ extends Node
 ## moment: every other speech bubble and comic word vanishes at once, and no
 ## new one appears while the scream shows (SpeechBubble.silenced, Comic.pop).
 ## It is an action bubble, the same jagged burst as the combat words (Comic),
-## that holds still three times as long as a normal line (Villager.SAY_TIME)
+## that holds still one and a half times as long as a normal line (Villager.SAY_TIME)
 ## and then bursts. Only one scream shows at a time: a newer fall takes over
 ## from an older one.
 ##
 ## Every text is German and has an English entry in scripts/lang/final_scream.gd.
 
 ## How much longer than a normal line.
-const SLOWER := 3.0
+const SLOWER := 1.5
 const SECONDS := Villager.SAY_TIME * SLOWER
 
 const HERO_LINES := ["Neeein... nicht so...!", "Aaargh... mir wird schwarz...", "Das... war... zu viel..."]

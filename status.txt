@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Farming valley 3/3: farmers with daily chores, funny events, detailed crops; Village stream, sewer grating and brick sewer channel (sewers part 1) | Shipped this week: Farming valley: farmers' settlement and seasonal wheat, maize and sunflower fields (2/3); Add a rabbit warren with baby bunnies (+48 more)
+Escape! dev status | Working on: Village stream, sewer grating and brick sewer channel (sewers part 1) | Shipped this week: Farming valley 3/3: farmers with daily chores, funny events, detailed crops (+49 more)

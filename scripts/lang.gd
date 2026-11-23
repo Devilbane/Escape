@@ -21,6 +21,7 @@ const PARTS := [
 	preload("res://scripts/lang/final_scream.gd"),
 	preload("res://scripts/lang/lost_mine.gd"),
 	preload("res://scripts/lang/bank_vault.gd"),
+	preload("res://scripts/lang/mage_tower.gd"),
 	preload("res://scripts/lang/map_zoom.gd"),
 	preload("res://scripts/lang/map_storeys.gd"),
 	preload("res://scripts/lang/furniture.gd"),

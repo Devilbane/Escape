@@ -99,7 +99,7 @@ const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüö"
-const BLOCK_CHARS := "RhjnmuskowbE^[])<ß"
+const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
 	"m": "building_market_green", "u": "building_windmill_red",
@@ -109,7 +109,7 @@ const BLOCK_MODELS := {
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
-	"o": "die Post", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
+	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
 	"|": "die Ruinen von Sternhall", "\"": "die Verlassene Wüste",
 }
@@ -2463,6 +2463,10 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "w" and walk_in.has(node):
 		# Ragna sleeps in the guildhall's cellar (see GuildHall).
 		own_homes[VillageHalls.KEEPERS.guild] = front
+	if ch == "Ø" and walk_in.has(node):
+		# Aldo and Odo sleep in the mage tower's top room (see MageTower).
+		for role: String in MageTower.OWNERS:
+			own_homes[role] = front
 	if ch != "R" and ch != "h" and ch != "ß":
 		var door := center + Vector3(facing.x * (reach.x - 2.0), 0, facing.y * (reach.y - 2.0))
 		_entrances.append({"door": door, "out": Vector3(facing.x, 0, facing.y)})

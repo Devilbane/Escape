@@ -13,7 +13,7 @@ extends RefCounted
 ## Each hall has its own switch in WalkIn.halls; with it off the hall is the old solid kit model.
 
 ## The map letters of the halls and what they are.
-const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild", "u": "mill"}
+const KINDS := {"n": "tavern", "m": "shop", "o": "post", "k": "office", "w": "guild", "u": "mill", "Ø": "mage"}
 ## Who keeps which hall (villager roles), working behind its counter or desk by day.
 const KEEPERS := {"tavern": "ö", "shop": "6", "office": "¢", "guild": "G", "mill": "ü"}
 ## How big a hall may grow (metres, inside its block): wider and deeper than a home, and the big
@@ -45,6 +45,9 @@ static func style(ch: String) -> Dictionary:
 	if KINDS.get(ch, "") == "mill":
 		# A square stone storey under the kit's tower (see MillTower), no upper floor or roof.
 		return {"max_w": MILL_W, "max_d": MILL_W, "door_x": 0.0, "tower": true}
+	if KINDS.get(ch, "") == "mage":
+		# Aldo and Odo's tower: three floors under a pyramid roof, a cellar under it (see MageTower).
+		return MageTower.STYLE
 	if KINDS.get(ch, "") == "guild":
 		# Two storeys under a flat roof one trains on, a cellar under it (see GuildHall).
 		return GuildHall.STYLE
@@ -76,6 +79,10 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 	var inside := Node3D.new()
 	inside.name = "HallInside"
 	hall.add_child(inside)
+	if String(rec.kind) == "mage":
+		# No counter and no keeper: the mages' tower is a home (see MageTower).
+		GuildHall.furnish(walk_in, rec, inside)
+		return
 	var back := room.position.y
 	# A counter, or in the big halls a desk.
 	var desk := String(rec.kind) in BIG
@@ -388,6 +395,8 @@ static func _by_the_sides(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> v
 ## A hall whose front looks along the camera's view (south) shows the shield flat to its wall; the
 ## others hang it edgewise to the wall, so from the high camera it is seen face on too.
 static func hang_sign(hall: Node3D, kind: String) -> Node3D:
+	if kind == "mage":
+		return null # The tower has no sign: a home, not a shop.
 	var shape: Dictionary = hall.get_meta("shape")
 	var d: float = shape.d
 	var out_dir := Basis(Vector3.UP, hall.rotation.y) * Vector3.BACK

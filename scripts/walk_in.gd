@@ -22,7 +22,7 @@ static var temple := true
 ## The halls rebuilt in the village's style to be walked into (see VillageHalls), each on its own:
 ## the tavern (n), the shop (m), the post office (o), the Crown office (k) and the adventurers'
 ## guild (w). Off, a hall is the old solid kit model again.
-static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true, "u": true}
+static var halls := {"n": true, "m": true, "o": true, "k": true, "w": true, "u": true, "Ø": true}
 
 ## Map tiles of other buildings one walks into that let sight and reach through (the bank, see
 ## BankVault): their own walls stop them.
@@ -122,6 +122,8 @@ const NAVE_FRONT := 10.3
 const SIDES := ["front", "back", "left", "right"]
 ## The walls of an upper storey one walks into (the guildhall's, see GuildHall), by side.
 const STOREY_SIDES := ["storey_front", "storey_back", "storey_left", "storey_right"]
+## The walls of a mage tower's top room (see MageTower), by side.
+const TOP_SIDES := ["top_front", "top_back", "top_left", "top_right"]
 const SIDE_NORMALS := {"front": Vector3(0, 0, 1), "back": Vector3(0, 0, -1), "left": Vector3(-1, 0, 0), "right": Vector3(1, 0, 0)}
 ## How near a wall (metres) a leaf of ivy counts as growing on it (see split_ivy).
 const ON_WALL := 0.45
@@ -177,7 +179,16 @@ func claim(node: Node3D, kind: String, block: Rect2i) -> Dictionary:
 			rec["storey"] = GuildHall.GROUND_STOREY
 			rec["high"] = float(lay.deck) + 2.5
 			rec["eaves"] = lay.eaves
-			rec["deck"] = lay.deck
+			if bool(shape.get("mage", false)):
+				# The top room has walls and a roof (see MageTower): the weather keeps out up there too.
+				rec["mage"] = true
+				rec["high"] = float(lay.deck) + MageTower.TOP_H + MageTower.PEAK + MageTower.SPIRE
+				rec["tower_roof"] = []
+				for side: String in TOP_SIDES:
+					rec[side] = []
+					rec["ivy_" + side] = {}
+			else:
+				rec["deck"] = lay.deck
 			rec["storey_room"] = []
 			for side: String in STOREY_SIDES:
 				rec[side] = []
@@ -228,7 +239,12 @@ func split_ivy(node: Node3D, leaves: Dictionary) -> Dictionary:
 			var into: Dictionary = stay
 			if at.y >= float(rec.upper_from):
 				into = rec.ivy_up
-				if rec.has("storey_room") and at.y < float(rec.eaves):
+				if rec.has("mage") and at.y >= float(rec.eaves):
+					# On a wall of the top room: it hides with that wall.
+					var top_side := _side_of(rec, at)
+					if top_side != "":
+						into = rec["ivy_top_" + top_side]
+				elif rec.has("storey_room") and at.y < float(rec.eaves):
 					# On a wall of an upper storey one walks into: it hides with that wall.
 					var up_side := _side_of(rec, at)
 					if up_side != "":
@@ -269,7 +285,7 @@ func plant_ivy(ivy: Node3D) -> void:
 		return
 	for i in buildings.size():
 		var rec: Dictionary = buildings[i]
-		for group: String in ["up"] + SIDES + STOREY_SIDES:
+		for group: String in ["up"] + SIDES + STOREY_SIDES + TOP_SIDES:
 			if not rec.has("ivy_" + group):
 				continue
 			var leaves: Dictionary = rec["ivy_" + group]
@@ -318,6 +334,10 @@ func open_house(house: Node3D) -> void:
 		rec.storey_room.append(meshes.storey_room)
 		for side: String in STOREY_SIDES:
 			rec[side].append(meshes[side])
+	if rec.has("mage"):
+		for side: String in TOP_SIDES:
+			rec[side].append(meshes[side])
+		rec.tower_roof.append(meshes.top_roof)
 	var leaf: HouseDoor = house.get_meta("door_leaf")
 	rec.front.append(leaf)
 	rec["leaf"] = leaf
@@ -1019,9 +1039,10 @@ func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 		if (rec.kind != "house" and not rec.has("owner")) or not rec.get("opened", false):
 			continue
 		var owner := String(rec.get("owner", ""))
-		if owner != "" and owner != role:
+		var owned: bool = owner == role or (rec.get("owners", []) as Array).has(role)
+		if owner != "" and not owned:
 			continue
-		if owner != "" and owner == role:
+		if owner != "" and owned:
 			var at: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
 			if Vector2(at.x - pos.x, at.z - pos.z).length() < reach:
 				return rec
@@ -1163,6 +1184,8 @@ func _covers(rec: Dictionary, cam: Vector3, hero_at: Vector3) -> bool:
 	var out := VillageHouse.JETTY + VillageHouse.ROOF_OVERHANG
 	var top: float = rec.top
 	var high := VillageHouse.UPPER + (GuildHall.PARAPET + 0.3 if bool(shape.get("flat", false)) else float(shape.ridge) * 1.3)
+	if bool(shape.get("mage", false)):
+		high = VillageHouse.UPPER + GuildHall.DECK + MageTower.TOP_H + MageTower.PEAK + MageTower.SPIRE
 	var box := AABB(Vector3(-float(shape.w) * 0.5 - out, top, -float(shape.d) * 0.5 - out),
 			Vector3(float(shape.w) + out * 2.0, high, float(shape.d) + out * 2.0))
 	var to_local := node.global_transform.affine_inverse()
@@ -1231,6 +1254,19 @@ func _show_up(rec: Dictionary) -> void:
 					(part as Node3D).visible = not hide
 		if inside:
 			shown = storey == GuildHall.ROOF_STOREY
+	if rec.has("mage"):
+		# The top room of a mage tower: its walls show from outside and from within it (those facing
+		# the camera apart), its roof from outside only.
+		var top_inside := inside and int(rec.storey) == GuildHall.ROOF_STOREY
+		var outside := not inside and not off
+		for side: String in SIDES:
+			var hide := not (outside or top_inside) or (top_inside and _faces_camera(rec, side))
+			for part in rec["top_" + side]:
+				if is_instance_valid(part):
+					(part as Node3D).visible = not hide
+		for part in rec.tower_roof:
+			if is_instance_valid(part):
+				_lift(part, not outside)
 	for part in rec.up:
 		if is_instance_valid(part):
 			_lift(part, not shown)

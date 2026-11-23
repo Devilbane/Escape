@@ -95,7 +95,9 @@ static func layout(shape: Dictionary) -> Dictionary:
 	a["high_via"] = [Vector3(float(a.x0) - ONTO - 0.1, up_floor, float(a.top) - ONTO)]
 	b["low_via"] = [Vector3(float(b.x1) + ONTO + 0.1, up_floor, b_foot + ONTO), Vector3(float(a.x0) - ONTO - 0.1, up_floor, b_foot - 0.9)]
 	c["low_via"] = [Vector3(float(c.x1) + ONTO + 0.1, CELLAR, float(c.foot) - ONTO)]
+	var mage := bool(shape.get("mage", false))
 	return {"room": room, "up_room": up_room, "floor": floor, "top": top, "up_floor": up_floor, "eaves": eaves,
+			"mage": mage, "wall_top": deck + (MageTower.TOP_H if mage else PARAPET),
 			"deck": deck, "cellar": Rect2(-HOLE, -HOLE, HOLE * 2.0, HOLE * 2.0), "a": a, "b": b, "c": c,
 			"well": Rect2(c.x0, float(c.foot) - HEAD_ROOM, STAIR_WIDE, float(c.top) - float(c.foot) + HEAD_ROOM),
 			"stairwell": Rect2(a.x0, a.top, up_room.end.x - a.x0, a.foot - a.top),
@@ -184,7 +186,7 @@ static func way(lay: Dictionary, from: int, to: int) -> Array[Vector3]:
 ## The flat roof on the upper storey (into the house's `parts`, see VillageHouse._shape): a deck of
 ## boards over the eaves, open over the stairs up (the hatch), and a low stone parapet round its
 ## edge with merlons on it.
-static func roof_shell(parts: Dictionary, shape: Dictionary) -> void:
+static func roof_shell(parts: Dictionary, shape: Dictionary, with_parapet := true) -> void:
 	var lay := layout(shape)
 	var uw := float(shape.w) + VillageHouse.JETTY * 2.0
 	var ud := float(shape.d) + VillageHouse.JETTY * 2.0
@@ -200,6 +202,8 @@ static func roof_shell(parts: Dictionary, shape: Dictionary) -> void:
 	VillageHouse._box(parts, "timber", Vector3(hatch.end.x + frame * 0.5, mid, hatch.get_center().y), Vector3(frame, deck - under, hatch.size.y))
 	VillageHouse._box(parts, "timber", Vector3(hatch.get_center().x, mid, hatch.position.y - frame * 0.5), Vector3(hatch.size.x, deck - under, frame))
 	VillageHouse._box(parts, "timber", Vector3(hatch.get_center().x, mid, hatch.end.y + frame * 0.5), Vector3(hatch.size.x, deck - under, frame))
+	if not with_parapet:
+		return # A mage tower's top floor has walls and a roof of its own (see MageTower).
 	# The parapet: a low wall of stone on the edge, merlons on it.
 	var pt := PARAPET_THICK
 	var low := deck + PARAPET_LOW - eaves
@@ -274,12 +278,15 @@ static func furnish(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	var t := VillageHouse.WALL_THICK
 	var out := 0.15
 	var y0: float = lay.top
-	var y1: float = float(lay.deck) + PARAPET
+	var y1: float = lay.wall_top
 	var wall_mid := (y0 + y1) * 0.5
 	for side: float in [-1.0, 1.0]:
 		walk_in._solid(rec, Vector3(0, wall_mid, side * (ud * 0.5 + (out - t) * 0.5)), Vector3(uw + out * 2.0, y1 - y0, t + out))
 		walk_in._solid(rec, Vector3(side * (uw * 0.5 + (out - t) * 0.5), wall_mid, 0), Vector3(t + out, y1 - y0, ud + out * 2.0))
 	_flights(walk_in, rec, lay, inside)
+	if bool(lay.mage):
+		MageTower.rooms(walk_in, rec, lay, inside)
+		return
 	_ground_floor(walk_in, rec, lay, inside)
 	_upper_floor(walk_in, rec, lay)
 	_roof(walk_in, rec, lay)

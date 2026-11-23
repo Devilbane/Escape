@@ -61,6 +61,8 @@ const ARRIVE_FREE := 2.0
 ## A rosier face for a Rogue (see HairLook.tint_skin): the model's own skin
 ## turns pale yellow in the midday sun.
 const SKIN_ROSY := Color(0.97, 0.85, 0.88)
+## A lighter face for Benno: the skin is multiplied by it, so values above 1 brighten the model's own tone.
+const SKIN_LIGHT := Color(1.22, 1.14, 1.1)
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
@@ -125,7 +127,7 @@ const ROLES := {
 	"M": {"name": "Postmeister Anselm", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "black"}, "cap": "post",
 		"colors": [Color(0.95, 0.8, 0.3), Color(0.35, 0.35, 0.5), Color(1, 1, 1)], "plan": "carry", "work": "PickUp",
 		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
-	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"},
+	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"}, "skin": SKIN_LIGHT,
 		"colors": [Color(0.95, 0.95, 0.95), Color(0.25, 0.25, 0.3), Color(1, 1, 1)], "plan": "shop", "work": "Interact",
 		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],

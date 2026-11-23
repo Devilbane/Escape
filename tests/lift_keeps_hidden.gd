@@ -17,6 +17,8 @@ func _initialize() -> void:
 	var roof := Node3D.new()
 	roof.add_child(gun)
 	root.add_child(roof)
+	await process_frame
+	check(gun._ring != null, "the ballista built its range circle")
 	for round in 3:
 		WalkIn._lift(roof, true)
 		WalkIn._lift(roof, false)

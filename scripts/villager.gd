@@ -1910,6 +1910,10 @@ func _separation() -> Vector3:
 
 
 func _walk_to(target: Vector3, speed: float, then: String) -> void:
+	# Out of a hall or house one walks into first, onto the street before its door: a path found
+	# from inside it would lead straight through its wall (Mira left her shop through the south
+	# wall at nightfall).
+	_leave_post()
 	_path.clear()
 	_retry = {}
 	_stuck_watch.reset()
@@ -1920,7 +1924,6 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 		_start(then, 3.0)
 		return
 	_speed = speed
-	_leave_post()
 	_task = "walk"
 	set_meta("then", then)
 

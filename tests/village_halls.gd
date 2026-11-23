@@ -27,6 +27,7 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
+	WalkIn.lock_halls = false # these tests walk into halls at any hour (see tests/village_halls.gd for the locks)
 	Lang.language = "en"
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)
@@ -196,6 +197,15 @@ func _run() -> void:
 		check(not (rec.block as Rect2i).has_point(keeper.home) and Vector2(home_at.x - door_at.x, home_at.z - door_at.z).length() < Level.TILE * 2.5,
 				"the %s's keeper has their place before its door (%s)" % [kind, keeper.home])
 		check(Lang.EN.has(VillagerPost.hall_line(kind, false)) and Lang.EN.has(VillagerPost.hall_line(kind, true)), "English for the %s keeper's lines" % kind)
+	# Locked doors: a hall whose keeper is not inside is locked, open while she is in it.
+	WalkIn.lock_halls = true
+	for kind: String in keepers:
+		var rec: Dictionary = halls.filter(func(r): return r.kind == kind)[0]
+		check(VillagePosts.locked(lvl, rec), "the %s is locked at night, its keeper out" % kind)
+		keepers[kind].post_trip = {"rec": rec, "step": "at"}
+		check(not VillagePosts.locked(lvl, rec), "the %s is open while its keeper is inside" % kind)
+		keepers[kind].post_trip = {}
+	WalkIn.lock_halls = false
 	game.day_hour = 12.0
 	lvl.set_hour(12.0)
 

@@ -463,6 +463,7 @@ func _dust_up(dir: Vector3, s: float, hero: Vector3) -> void:
 		mat.billboard_keep_scale = true
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.vertex_color_use_as_albedo = true
+		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		mat.albedo_texture = soft
 		mat.albedo_color = Color(0.92, 0.95, 1.0, 1.0)
 		mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED

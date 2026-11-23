@@ -61,7 +61,7 @@ func _check_layout() -> void:
 				todo.append(c + d)
 	check(seen.size() == cells.size(), "every cell is reached from the grating (%d of %d)" % [seen.size(), cells.size()])
 	var channel := Sewers.channel()
-	var walk := cells.keys().filter(func(c): return cells[c] == "w" and not channel.has(c))
+	var walk := cells.keys().filter(func(c): return cells[c] in ["w", "r"] and not channel.has(c))
 	# The walkway is one connected strip (the shafts and their passages hang on it): no gaps at the corners.
 	var strip := {}
 	var first: Vector2i = Vector2i(Sewers.ROUTE[0].x - 1, Sewers.ROUTE[0].y)
@@ -72,7 +72,7 @@ func _check_layout() -> void:
 		var c: Vector2i = queue.pop_back()
 		for d: Vector2i in HouseSketch.DOWN.values():
 			var n := c + d
-			if cells.get(n, "") in ["w", "s"] and not strip.has(n):
+			if cells.get(n, "") in ["w", "s", "r"] and not strip.has(n):
 				strip[n] = true
 				queue.append(n)
 	check(strip.size() == walk.size() + Sewers.HATCHES.size(), "the walkway runs unbroken with its passages and shafts (%d of %d)" % [strip.size(), walk.size() + Sewers.HATCHES.size()])
@@ -91,6 +91,47 @@ func _check_layout() -> void:
 	check(house.count(HouseSketch.LADDER) == Sewers.HATCHES.size(), "a ladder stands in each shaft")
 	for text in [Sewers.LEARN, Sewers.ENTERED, Sewers.LID_OPENED, Sewers.LID_PROMPT]:
 		check(Lang.EN.has(text), "English for: " + text)
+	_check_labyrinth(cells)
+
+
+## The labyrinth: circuits that lead back without turning round, chambers with pillars, vermin of the
+## right family and a respawn that fits the lap.
+func _check_labyrinth(cells: Dictionary) -> void:
+	for room: Rect2i in Sewers.ROOMS:
+		check(room.size.x >= 5 and room.size.y >= 5 and room.size.x <= 9 and room.size.y <= 9, "a chamber is big but not huge (%s)" % room.size)
+	for c: Vector2i in Sewers.PILLARS:
+		check(not cells.has(c), "the pillar at %s is solid" % c)
+		var round := 0
+		for d: Vector2i in HouseSketch.DOWN.values():
+			if cells.get(c + d, "") == "r":
+				round += 1
+		check(round == 4, "there is room to run round the pillar at %s" % c)
+	# Each circuit: from the walkway out through its passages and chambers and back to the walkway,
+	# without setting foot on the walkway's own column in between.
+	var circuits := [[Vector2i(13, 52), Vector2i(13, 34)], [Vector2i(13, 20), Vector2i(13, 12)]]
+	var lap := 0.0
+	for circuit: Array in circuits:
+		var dist := {circuit[0]: 0}
+		var todo: Array[Vector2i] = [circuit[0]]
+		while not todo.is_empty():
+			var c: Vector2i = todo.pop_front()
+			for d: Vector2i in HouseSketch.DOWN.values():
+				var n := c + d
+				if n.x < 14 and "wr".contains(cells.get(n, "-")) and not dist.has(n):
+					dist[n] = dist[c] + 1
+					todo.append(n)
+		check(dist.has(circuit[1]), "a circuit runs from %s round to %s and not along the walkway" % [circuit[0], circuit[1]])
+		var back: int = absi(circuit[0].y - circuit[1].y)
+		lap = maxf(lap, (float(dist.get(circuit[1], 0)) + back) * HouseSketch.CELL)
+	check(lap > 80.0, "the bigger circuit is a real lap (%d m)" % lap)
+	var seconds := lap / Player.SPEED
+	check(Sewers.RESPAWN_AFTER >= seconds and Sewers.RESPAWN_AFTER <= seconds * 4.0, "the vermin come back about a lap later (%d s lap, %d s respawn)" % [seconds, Sewers.RESPAWN_AFTER])
+	check(Sewers.MOBS.size() >= 8, "the chambers and passages are inhabited")
+	for m: Array in Sewers.MOBS:
+		check(cells.get(m[1], "") in ["r", "w"], "%s at %s stands in a dug cell" % [m[0], m[1]])
+		check(Enemy.KINDS.has(m[0]) and MonsterFamilies.family_of(m[0]) == "wildlife", "%s is wildlife" % m[0])
+	var header := LevelMap.load_file("res://levels/11_die_freiheit.txt").get_header(MonsterFamilies.HEADER)
+	check(MonsterFamilies.parse(header).has("wildlife"), "the village map's families include wildlife")
 
 
 func _run() -> void:
@@ -168,8 +209,9 @@ func _run() -> void:
 	check(game._under_roof(), "no weather falls into the sewers")
 	check(game._in_lost_mine(), "no daylight reaches down there")
 	check(view.pit.size() == Sewers.cells().size(), "the whole drain is one cellar (%d of %d)" % [view.pit.size(), Sewers.cells().size()])
+	await _check_vermin()
 	if shots != "":
-		for spot: Array in [["walkway", Vector2i(14, 40)], ["shaft", Vector2i(12, 46)], ["west", Vector2i(8, 7)]]:
+		for spot: Array in [["room1", Vector2i(3, 51)], ["room2", Vector2i(5, 35)], ["room3", Vector2i(6, 22)], ["walkway", Vector2i(14, 40)]]:
 			game.player.global_position = Sewers.floor_at(spot[1]) + Vector3(0, 0.1, 0)
 			game._snap_camera()
 			await _wait(10)
@@ -192,6 +234,37 @@ func _run() -> void:
 	check(level.stations.filter(func(s): return s.kind == Sewers.KIND_LID).size() == Sewers.HATCHES.size(), "drawing again adds no lid twice")
 	print("PASS: sewers" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
+
+
+## The vermin rise when the hero is down there; a fallen one is back after RESPAWN_AFTER seconds, out of
+## sight, and not while the hero is near its post.
+func _check_vermin() -> void:
+	Sewers.clock_stopped = 1000.0
+	var standing := Sewers.standing()
+	check(standing.size() == Sewers.MOBS.size(), "the vermin stand at their posts (%d of %d)" % [standing.size(), Sewers.MOBS.size()])
+	var g: Dictionary = Sewers.vermin()[0]
+	var e: Enemy = g.enemy
+	e.take_hit(999, e.global_position + Vector3(1, 0, 0))
+	await _wait(10)
+	check(e.dead and float(g.fell) >= 0.0, "a slain one is noted")
+	await _wait(10)
+	check(not _stands(g), "it does not come back at once")
+	Sewers.clock_stopped += Sewers.RESPAWN_AFTER * 0.5
+	await _wait(10)
+	check(not _stands(g), "nor half a lap later")
+	Sewers.clock_stopped += Sewers.RESPAWN_AFTER
+	var hero_at: Vector3 = game.player.global_position
+	game.player.global_position = Sewers.floor_at(g.cell) + Vector3(3, 0.1, 0)
+	await _wait(10)
+	check(not _stands(g), "not while the hero stands beside its post")
+	game.player.global_position = hero_at
+	await _wait(10)
+	check(_stands(g), "after a lap, out of sight, it is back")
+	Sewers.clock_stopped = -1.0
+
+
+func _stands(g: Dictionary) -> bool:
+	return g.enemy != null and is_instance_valid(g.enemy) and not g.enemy.dead
 
 
 func _shot(name: String) -> void:

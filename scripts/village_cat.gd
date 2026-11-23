@@ -5,7 +5,7 @@ extends Node3D
 ## smithy's chimney, crouches, jumps up onto it, treads a spot, and curls up to sleep in the
 ## warmth of the forge. At night it sleeps there all night; in winter it naps longer. Sleeping
 ## it breathes slowly, twitches an ear and flicks the tip of its tail now and then, and when
-## the hero comes near it purrs (the body hums and the breathing quickens). When it has slept
+## the hero comes near it purrs (its breathing gets deeper and a little quicker). When it has slept
 ## enough it stretches, hops down and strolls off again.
 ##
 ## It never fights, cannot be hurt and is no obstacle: it has no collision and takes no room
@@ -83,6 +83,8 @@ var _flick_in := 3.0
 var _twitch := 0.0
 var _twitch_in := 5.0
 var _purring := 0.0
+## The phase of its breathing; it speeds up a little only while it purrs.
+var _breath := 0.0
 
 
 ## Where it lives: the top of the anvil's face and the way out from it (both world).
@@ -307,6 +309,10 @@ func _physics_process(delta: float) -> void:
 	if away > 90.0:
 		return
 	_clock += delta
+	_breath += delta * (1.7 + 0.8 * _purring)
+	# Asleep on the anvil it lies exactly on its face, whatever else moves.
+	if state == "nap" or state == "settle":
+		global_position = anvil_top
 	var calm_hero: bool = away < PURR_RANGE and not hero.get("dead")
 	_purring = move_toward(_purring, 1.0 if (calm_hero and state == "nap") else 0.0, delta * 2.0)
 	_flick_in -= delta
@@ -455,7 +461,7 @@ func _pose(delta: float) -> void:
 	var head_pitch := 0.0
 	var head_yaw := 0.0
 	var tail_curve := 0.0
-	var breathe := 1.0 + sin(_clock * 1.7) * 0.012
+	var breathe := 1.0
 	if walking:
 		# Diagonal pairs swing together: front left with back right.
 		var s := sin(_phase)
@@ -488,14 +494,14 @@ func _pose(delta: float) -> void:
 	leg_swing += Vector4(-1.0, -1.0, -0.15, -0.15) * _stretch
 	head_pitch += _stretch * 0.5
 	body_y -= _stretch * 0.03
-	# Purring: the whole cat hums a little.
-	var hum := sin(_clock * 55.0) * 0.0035 * _purring
-	breathe += sin(_clock * (1.7 + 2.0 * _purring)) * 0.01 * _purring
+	# Purring: only the breath gets a little deeper. The body itself never moves up or down (a fast
+	# hum sampled by the physics ticks looked like bouncing), it lies still on the anvil.
+	breathe = 1.0 + sin(_breath) * (0.012 + 0.012 * _purring)
 	# Curled up: lowered, round and short, the legs tucked in, the head laid beside the tail.
 	body_y = lerpf(body_y, 0.13, _curl)
 	var body_scale := Vector3(1.0 + 0.3 * _curl, 1.0 - 0.28 * _curl, 1.0 - 0.38 * _curl)
 	body_scale.y *= breathe
-	_body.position = Vector3(0.0, body_y + hum, 0.0)
+	_body.position = Vector3(0.0, body_y, 0.0)
 	_body.rotation = Vector3(body_pitch * up, 0.0, body_roll * up)
 	_body.scale = body_scale
 	var i := 0

@@ -99,6 +99,10 @@ func _seasons() -> void:
 	WallFoot.apply(node, winter)
 	check(_sum(node, "shown") == 0 and not _child(node, "Flower").visible, "winter: no flowers")
 	check(_sum(node, "straw") == 60, "winter: all the grass is pale")
+	WallFoot.bury(node, 1.0)
+	check(not _child(node, "Grass").visible, "snow lies: the grass is buried")
+	WallFoot.bury(node, 0.0)
+	check(_child(node, "Grass").visible, "snow gone: the grass is back")
 	WallFoot.apply(node, spring if Weather.is_spring(spring) else summer)
 	check(_sum(node, "straw") == 0 and _sum(node, "shown") == 60, "spring: green grass and flowers again")
 	for child in node.get_children():

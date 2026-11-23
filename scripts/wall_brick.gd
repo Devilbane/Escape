@@ -36,11 +36,6 @@ const STONES := [
 ]
 const GOO := Color(0.42, 0.62, 0.3)
 const SHADE_STEPS := 8
-const WOOD := Color(0.38, 0.26, 0.15)
-const IRON := Color(0.2, 0.2, 0.22)
-
-static var _wood_material: StandardMaterial3D
-static var _iron_material: StandardMaterial3D
 
 var level: Outdoor
 var cell := Vector2i.ZERO
@@ -104,8 +99,8 @@ func _ready() -> void:
 
 func _block(parent: Node3D, pos: Vector3, half: bool, shade: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
-	mi.mesh = StoneBlock.block_mesh()
-	mi.material_override = StoneBlock.stone_material(shade)
+	mi.mesh = Granite.block_mesh(cell.x * 5 + cell.y * 11 + _stones.size() * 3 + _cracks.size())
+	mi.material_override = Granite.material(shade)
 	mi.position = pos
 	if half:
 		mi.scale.x = 0.5
@@ -116,7 +111,7 @@ func _block(parent: Node3D, pos: Vector3, half: bool, shade: Color) -> MeshInsta
 
 func _build_wall() -> void:
 	for s in STONES:
-		_stones.append(_block(_visual, Vector3(s[1], s[0] * COURSE, 0), s[2], StoneBlock.SHADES[0]))
+		_stones.append(_block(_visual, Vector3(s[1], s[0] * COURSE, 0), s[2], Granite.SHADES[0]))
 	_body_shape = CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(LENGTH, COURSES * COURSE, THICK)
@@ -131,7 +126,7 @@ func _build_gate() -> void:
 		post.position.x = side * (HINGE + THICK * 0.5)
 		_visual.add_child(post)
 		for k in POST_COURSES:
-			_stones.append(_block(post, Vector3(0, k * COURSE, 0), true, StoneBlock.SHADES[k % 2]))
+			_stones.append(_block(post, Vector3(0, k * COURSE, 0), true, Granite.SHADES[k % 2]))
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = Vector3(THICK, POST_COURSES * COURSE, THICK)
@@ -141,21 +136,7 @@ func _build_gate() -> void:
 		var leaf := Node3D.new()
 		leaf.position.x = side * HINGE
 		_visual.add_child(leaf)
-		var planks := MeshInstance3D.new()
-		var plank_mesh := BoxMesh.new()
-		plank_mesh.size = Vector3(HINGE, LEAF_HEIGHT, 0.16)
-		planks.mesh = plank_mesh
-		planks.material_override = _wood()
-		planks.position = Vector3(-side * HINGE * 0.5, LEAF_HEIGHT * 0.5 + 0.1, 0)
-		leaf.add_child(planks)
-		for y in [0.5, 1.5]:
-			var band := MeshInstance3D.new()
-			var band_mesh := BoxMesh.new()
-			band_mesh.size = Vector3(HINGE, 0.12, 0.2)
-			band.mesh = band_mesh
-			band.material_override = _iron()
-			band.position = Vector3(-side * HINGE * 0.5, y, 0)
-			leaf.add_child(band)
+		GateWood.build_leaf(leaf, -side, HINGE, LEAF_HEIGHT - 0.1, 0.1, cell.x * 13 + cell.y * 7 + (1 if side > 0.0 else 0))
 		_leaves.append(leaf)
 	_leaf_shape = CollisionShape3D.new()
 	var leaves := BoxShape3D.new()
@@ -172,23 +153,6 @@ func _add_collider(shape: CollisionShape3D) -> void:
 		shape.rotation.y = PI * 0.5
 		shape.position = shape.position.rotated(Vector3.UP, PI * 0.5)
 	add_child(shape)
-
-
-static func _wood() -> StandardMaterial3D:
-	if _wood_material == null:
-		_wood_material = StandardMaterial3D.new()
-		_wood_material.albedo_color = WOOD
-		_wood_material.roughness = 0.9
-	return _wood_material
-
-
-static func _iron() -> StandardMaterial3D:
-	if _iron_material == null:
-		_iron_material = StandardMaterial3D.new()
-		_iron_material.albedo_color = IRON
-		_iron_material.roughness = 0.6
-		_iron_material.metallic = 0.5
-	return _iron_material
 
 
 # --- State -----------------------------------------------------------------------
@@ -321,9 +285,9 @@ func _refresh() -> void:
 	var step := roundi(damage * SHADE_STEPS) / float(SHADE_STEPS)
 	for i in _stones.size():
 		var stone := _stones[i]
-		var base: Color = StoneBlock.SHADES[(cell.x * 7 + cell.y * 3 + i) % StoneBlock.SHADES.size()]
+		var base: Color = Granite.SHADES[(cell.x * 7 + cell.y * 3 + i) % Granite.SHADES.size()]
 		var shade := base.darkened(0.45 * step).lerp(GOO, 0.3 * step)
-		stone.material_override = StoneBlock.stone_material(shade)
+		stone.material_override = Granite.material(shade)
 		WallCracks.show_stage(_cracks[i], crack_stage)
 		if gate:
 			continue

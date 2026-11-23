@@ -95,7 +95,7 @@ signal lightning(pos: Vector3)
 const GRAVEYARD_DIR := "res://assets/graveyard/"
 const VILLAGE_DIR := "res://assets/village/"
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤‖"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£@'{}-/?¤‖Ξ"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüö"
@@ -875,7 +875,7 @@ func _build_ground() -> void:
 		for x in width:
 			var c := Vector2i(x, y)
 			var ch := cell_char(c)
-			var path := 1.0 if ",aP\\".contains(ch) else 0.0
+			var path := 1.0 if ",aP\\ΞΘ".contains(ch) else 0.0
 			var soil := 1.0 if (fence.has_point(c) and not ",aP\\".contains(ch)) or ch == "y" or CAMP.contains(ch) else 0.0
 			# Paving stones: path and soil together mean the square.
 			if square.has_point(c) and not BLOCK_CHARS.contains(ch):
@@ -1517,6 +1517,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			TreasureMaps.place(self, c, ch)
 		"‖":
 			RiverBridge.build(self, c)
+		"Ω", "Ψ", "Θ", "Ξ":
+			SewerSurface.build(self, c, ch)
 		"~", ";", "≈":
 			var pond_water := {"water": "teich" if ch == "~" else ("fluss" if ch == "≈" else "senke"), "pos": pos,
 					"reach": TILE * 0.5, "round": false, "surface": 0.04, "cell": c}

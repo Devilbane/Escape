@@ -2114,7 +2114,7 @@ func _physics_process(delta: float) -> void:
 	to_player.y = 0.0
 	var dist := to_player.length()
 	# One down in the forgotten mine and the other up on the ground: neither knows of the other.
-	if LostMine.apart(global_position, player.global_position):
+	if LostMine.apart(global_position, player.global_position) or Sewers.apart(global_position, player.global_position):
 		dist = FAR_APART
 	var sees := dist < SIGHT and level.has_line_of_sight(global_position, player.global_position)
 	# Under the open sky there is no fog of war: everything shows.

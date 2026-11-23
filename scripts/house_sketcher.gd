@@ -220,6 +220,9 @@ var _mine_body := StaticBody3D.new()
 var _mine_cache := {}
 var _vault_cache := {}
 var _vault_props: Node3D = null
+## The village's sewers (see Sewers), drawn the same way, once.
+var _sewer_cache := {}
+var _sewer_props: Node3D = null
 ## Where the next drawn box goes: the houses' own pieces, or the mine's.
 var _into: Node3D = _solid
 var _open_into: Node3D = _solid
@@ -269,6 +272,8 @@ func _process(delta: float) -> void:
 		_hut_props.visible = not cellar_view.active
 	if cellar_view.active and game.player != null and LostMine.holds(game.player.global_position):
 		LostMine.entered(game)
+	if cellar_view.active and game.player != null and Sewers.holds(game.player.global_position):
+		Sewers.entered(game)
 	if active:
 		if _frame_pending:
 			_frame_pending = false
@@ -1361,11 +1366,14 @@ func _redraw() -> void:
 	var vault: HouseSketch = BankVault.sketch() if BankVault.on else null
 	if vault != null:
 		houses.append([vault, false])
+	# The village's sewers under the streets (see Sewers).
+	var sewers := Sewers.sketch()
+	houses.append([sewers, false])
 	for entry: Array in houses:
 		var house: HouseSketch = entry[0]
 		var own: bool = entry[1]
 		_abandoned = house.abandoned
-		if house == mine or house == vault or _has_floors(house):
+		if house == mine or house == vault or house == sewers or _has_floors(house):
 			floored.append(house)
 		# The mine's hundreds of dug cells are drawn once (see _draw_mine): only its hut's pieces
 		# here; the same for the vault and its bank.
@@ -1374,10 +1382,14 @@ func _redraw() -> void:
 			keys = LostMine.surface_keys()
 		elif house == vault:
 			keys = _surface_keys(vault)
+		elif house == sewers:
+			keys = _surface_keys(sewers)
 		if house == mine:
 			_inside_now = LostMine.hut_inside()
 		elif house == vault:
 			_inside_now = BankVault.bank_inside()
+		elif house == sewers:
+			_inside_now = {}
 		else:
 			_inside_now = HouseGround.inside_cells(house) if house.count(HouseSketch.WINDOW) > 0 else {}
 		for key in keys:
@@ -1394,11 +1406,15 @@ func _redraw() -> void:
 				if _new_shutters != null:
 					_hang_shutters(_new_shutters, house, key, own)
 					_new_shutters = null
-		if house == mine or house == vault:
+		if house == mine or house == vault or house == sewers:
 			var cache := _mine_cache
 			if house == mine:
 				_draw_mine()
 				cache = _mine_cache
+			elif house == sewers:
+				if _sewer_cache.is_empty():
+					_sewer_cache = _draw_once(sewers)
+				cache = _sewer_cache
 			else:
 				if _vault_cache.is_empty():
 					_vault_cache = _draw_once(vault)
@@ -1444,6 +1460,11 @@ func _redraw() -> void:
 		_vault_props.name = "BankVault"
 		deep.add_child(_vault_props)
 		BankVault.build(game.level, _vault_props)
+	if _sewer_props == null:
+		_sewer_props = Node3D.new()
+		_sewer_props.name = "Sewers"
+		deep.add_child(_sewer_props)
+		Sewers.build(game.level, _sewer_props)
 	if vault != null:
 		# The banking hall over it, with Goldwin's desk (see BankHall): built once per level.
 		BankHall.build(game.level)
@@ -2130,6 +2151,8 @@ func _wall_material(surface: String, demolish: bool) -> Material:
 			return HouseLooks.stair_wood()
 		LostMine.ROCK:
 			return LostMine.rock_material()
+		"brick":
+			return Sewers.brick_material()
 	return BareEarth.material()
 
 
@@ -2158,6 +2181,8 @@ func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool,
 				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size, _open_roof)
 				boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
 				_into.add_child(boards)
+			"brick":
+				_visual_box(middle, size, Sewers.floor_material())
 			_:
 				_visual_box(middle, size, BareEarth.material())
 	var drawn := _into.get_child(_into.get_child_count() - 1)

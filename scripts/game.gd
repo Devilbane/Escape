@@ -1879,6 +1879,8 @@ func _use_station(s: Dictionary) -> void:
 		AshSpire.use(self, s)
 	elif LostMine.KINDS.has(s.kind):
 		LostMine.use(self, s)
+	elif s.kind == Sewers.KIND_LID:
+		Sewers.use(self, s)
 	elif s.kind == "figur":
 		# A person made in the map workshop (see DungeonNpc).
 		player.face(s.pos - player.global_position)
@@ -3267,7 +3269,7 @@ const MINE_FADE := 1.2
 
 func _in_lost_mine() -> bool:
 	return level is Outdoor and player != null and house_sketcher != null and house_sketcher.cellar_view.active \
-			and LostMine.holds(player.global_position)
+			and (LostMine.holds(player.global_position) or Sewers.holds(player.global_position))
 
 
 ## Whether the view is inside a self-built house: the hero stands in one or down in its cellar
@@ -8092,7 +8094,7 @@ func _process(delta: float) -> void:
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
-		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind)))
+		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and door_in_reach() != null:

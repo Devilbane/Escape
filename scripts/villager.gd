@@ -249,6 +249,11 @@ var _staff_spell: StaffSpell
 var _sheathe_in := -1.0
 var _calm_check := 0.0
 var display_name := ""
+## How often the name tag looks whether the hero can see its villager (seconds), when it last
+## did and what it found (see _name_in_sight).
+const SIGHT_EVERY := 0.25
+var _sight_in := 0.0
+var _in_sight := true
 var _info: Dictionary
 var _model: Node3D
 var _anim: AnimationPlayer
@@ -3028,6 +3033,17 @@ func meet() -> void:
 		_name_tag.visible = not is_asleep()
 
 
+## Whether the hero has a line of sight to this villager (checked a few times a second, not every
+## frame): a name over someone the hero cannot see would give them away.
+func _name_in_sight(delta: float) -> bool:
+	_sight_in -= delta
+	if _sight_in <= 0.0:
+		_sight_in = SIGHT_EVERY
+		_in_sight = level == null or level.player == null \
+				or level.has_line_of_sight(level.player.global_position, global_position)
+	return _in_sight
+
+
 ## Whether the villager is asleep in their house, upstairs or in a bed on the ground floor (see
 ## VillageBeds): no name over the head.
 func is_asleep() -> bool:
@@ -3146,9 +3162,10 @@ func _update_bubble(delta: float) -> void:
 	# into the event log, see Events.say). When it runs out the bubble fades.
 	if _bubble_time <= 0.0 and _bubble.is_shown():
 		_bubble.hide_line()
-	# Asleep in bed the name is gone from over the head; it is back when they get up.
+	# Asleep in bed, or out of the hero's sight (inside a house, behind a wall), the name is
+	# gone from over the head; it is back when they get up or come into view.
 	if _name_tag:
-		_name_tag.visible = is_known() and not is_asleep()
+		_name_tag.visible = is_known() and not is_asleep() and _name_in_sight(delta)
 	# The bubble takes the place of the quest mark while we talk.
 	if _name_tag and _name_tag.visible:
 		_name_tag.modulate.a = 1.0

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add the sewer labyrinth: circuits, chambers and returning vermin (sewers part 2) | Shipped this week: Let snow cover the lawn up to the house walls; Move the big smithy glow from the chimney top to the furnace mouth (+48 more)
+Escape! dev status | Working on: Remove wind-blown snow gusts | Shipped this week: Add the sewer labyrinth: circuits, chambers and returning vermin (sewers part 2); Let snow cover the lawn up to the house walls (+48 more)

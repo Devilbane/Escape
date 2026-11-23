@@ -181,3 +181,4 @@ offscreen_anim.gd | 180 | fixed | pass | Off-screen bodies step their animations
 final_scream.gd | 120 | fixed | passfail | A fall in a fight brings a final scream that silences all other bubbles
 furnisher_day.gd | 200 | fixed | passfail | Ilse the furnisher keeps her stall through her opening hours and strolls, eats and rests outside them
 lighting_reference_shots.gd | 600 | fixed | passfail | Lighting reference pictures (village, rooms, cellars, mine, dungeons; weather, moon, the hero's light). With SHOTS=<folder> it saves them for tools/lighting_compare.py
+street_lamps.gd | 120 | free | passfail | Street lamps: each lamp on a map tile reaches its arm and lantern towards the nearest walkway and stands at its edge

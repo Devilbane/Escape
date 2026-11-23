@@ -353,16 +353,16 @@ static func _roll(s: _Surface, ice: _Surface, e: Dictionary, depth: Dictionary, 
 
 ## The icicles of one street lamp at `pos` (in the frame of the level): a few under its arm and
 ## round the lantern, from dice seeded by the place. Null node when nothing hangs.
-static func lamp_node(pos: Vector3, lantern: Vector3) -> MeshInstance3D:
+static func lamp_node(pos: Vector3, lantern: Vector3, yaw := 0.0) -> MeshInstance3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("lampice:%d:%d" % [roundi(pos.x * 10.0), roundi(pos.z * 10.0)])
 	var ice := _Surface.new()
 	for i in rng.randi_range(2, 4):
-		var at := pos + Vector3(rng.randf_range(-0.04, 0.04), 2.72, rng.randf_range(0.1, 1.15))
+		var at := pos + Vector3(rng.randf_range(-0.04, 0.04), 2.72, rng.randf_range(0.1, 1.15)).rotated(Vector3.UP, yaw)
 		_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.14, 0.42), rng.randf_range(0.02, 0.035), rng)
 	for i in rng.randi_range(1, 3):
 		var ang := rng.randf() * TAU
-		var at := pos + lantern + Vector3(cos(ang) * 0.24, -0.22, sin(ang) * 0.24)
+		var at := pos + lantern.rotated(Vector3.UP, yaw) + Vector3(cos(ang) * 0.24, -0.22, sin(ang) * 0.24)
 		_icicle(ice, at, Vector3.ZERO, rng.randf_range(0.1, 0.3), rng.randf_range(0.016, 0.026), rng)
 	var mesh := ArrayMesh.new()
 	ice.commit(mesh, ice_material(), Vector3.ZERO)

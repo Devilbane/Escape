@@ -134,6 +134,9 @@ const ROLES := {
 	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [],
 		"colors": [Color(0.92, 0.9, 0.84), Color(0.55, 0.5, 0.42), Color(0.9, 0.88, 0.82)], "plan": "shop", "work": "Interact",
 		"lines": ["Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.", "Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.", "Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche."]},
+	"ö": {"name": "Brauer Eberhard", "model": "Barbarian", "show": ["Mug"],
+		"colors": [Color(0.62, 0.4, 0.22), Color(0.36, 0.3, 0.24), Color(1, 1, 1)], "plan": "stay", "work": "Interact",
+		"lines": ["Frisch gezapft, frisch gebraut: Mein Bier kennt keinen Kater. Fast keinen.", "Der Hopfen wächst am Waldrand. Der Rest ist Geduld und Wasser.", "Fritz zahlt irgendwann. Bis dahin schreibe ich an.", "Setz dich ans Feuer, die Fässer laufen nicht davon."]},
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
@@ -392,6 +395,9 @@ func _ready() -> void:
 	add_child(_model)
 	Breath.attach(_model)
 	_dress()
+	# The brewer's mug shows only while he carries a beer (see hold_mug).
+	if role == TavernBrewer.BREWER:
+		hold_mug(false)
 	# A woman built on the Rogue model gets her own body (see BodyLook); the
 	# dyes stay on, they belong to the parts, not to the meshes.
 	BodyLook.apply(_model, _info.get("sex", BodyLook.DEFAULT))
@@ -779,10 +785,14 @@ func _start(task: String, time: float) -> void:
 	_stuck_watch.reset()
 	if task != "mend":
 		_wield_wall_hammer(false)
+	if task == "sweep":
+		_begin_sweep()
+	else:
+		_end_sweep()
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep"] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -892,6 +902,115 @@ func _finish_mending() -> void:
 
 func can_mend_next() -> bool:
 	return not eaten and not at_home and threat == null
+
+
+# --- The herald sweeps the snow off the walkways ------------------------------
+
+## The stretch of footpath he is sweeping (see SnowSweep), the route he was sent out on, the world
+## hour he may set out again, the broom in his hand and the seconds to the next puff of snow dust.
+var _sweep: SnowSweep.Job
+var _sweep_way: Array[Vector3] = []
+var _sweep_after := 0.0
+var _broom: Node3D
+var _broom_hand: Node3D
+var _puff_in := 0.0
+var _sweep_bump := 0.0
+
+
+## Sets out with the broom when the snow lies and it is his time (Konrad, between his calls): true when he goes.
+func _sweep_out() -> bool:
+	if role != SnowSweep.ROLE or level == null or at_home or not visible or level.world_hours < _sweep_after:
+		return false
+	if not SnowSweep.wants(level) or threat != null or eaten or _bubble_time > 0.0:
+		return false
+	var way := SnowSweep.route(level, home, _rng)
+	_sweep_after = level.world_hours + SnowSweep.REST_HOURS
+	if way.is_empty():
+		return false
+	_sweep_way = way
+	_hold_broom(true)
+	_walk_to(way[0], WALK_SPEED, "sweep")
+	return true
+
+
+func _begin_sweep() -> void:
+	if _sweep_way.is_empty():
+		_hold_broom(false)
+		return
+	_sweep = SnowSweep.Job.new(_sweep_way)
+	_sweep_way = []
+	_hold_broom(true)
+
+
+func _end_sweep() -> void:
+	if _sweep == null and _sweep_way.is_empty() and _broom == null:
+		return
+	_sweep = null
+	_sweep_way = []
+	_hold_broom(false)
+
+
+## The birch broom in his hand, or put away again.
+func _hold_broom(on: bool) -> void:
+	if _model == null:
+		return
+	if _broom == null:
+		if not on:
+			return
+		_broom_hand = _model.find_child("handslot_r", true, false)
+		if _broom_hand == null:
+			return
+		_broom = SnowSweep.build_broom(self)
+		_broom.name = "Besom"
+		_broom.top_level = true
+	_broom.visible = on
+	if on:
+		_lay_broom(0.0)
+
+
+## Lays the besom from his right hand down to the snow ahead of him, swishing from side to side by `swing`.
+func _lay_broom(swing: float) -> void:
+	if _broom == null or _broom_hand == null:
+		return
+	var facing := Vector3(sin(_model.global_rotation.y), 0, cos(_model.global_rotation.y))
+	if _sweep != null:
+		facing = _sweep.heading
+	SnowSweep.lay_broom(_broom, _broom_hand.global_position, SnowSweep.broom_head(global_position, facing, swing))
+
+
+## One physics tick of sweeping: on along the route at a slow walk, the broom swishing across the ground ahead.
+func _sweep_snow(delta: float) -> void:
+	if _sweep == null or not SnowSweep.keeps_on(level) or _sweep_bump > 4.0:
+		_sweep_bump = 0.0
+		_start("idle", 0.5)
+		return
+	var job := _sweep
+	var to := job.aim() - global_position
+	to.y = 0.0
+	if to.length() < 0.3:
+		if not job.advance():
+			_start("idle", 0.5)
+		return
+	var dir := to.normalized()
+	job.heading = job.heading.lerp(dir, minf(1.0, delta * 4.0)).normalized()
+	var walked := _stride("Walking_A", SnowSweep.PACE)
+	if _move_to(global_position + dir * minf(to.length(), walked * delta)):
+		_sweep_bump = 0.0
+	else:
+		_sweep_bump += delta
+	_turn_to(dir, delta)
+	job.swing += delta
+	_lay_broom(job.swing)
+	var head := SnowSweep.broom_head(global_position, job.heading, job.swing)
+	SnowSweep.stamp(level, head)
+	SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
+	_puff_in -= delta
+	if _puff_in <= 0.0:
+		_puff_in = 0.14
+		if level.sweep_dust == null:
+			level.sweep_dust = SweepDust.new()
+			level.add_child(level.sweep_dust)
+		level.sweep_dust.kick(head, -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2))
 
 
 # --- The guard at the west gate -----------------------------------------------
@@ -1674,6 +1793,8 @@ func _next_task() -> void:
 		return
 	match day_plan():
 		"stay", "shop":
+			if _sweep_out():
+				return
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
@@ -1683,6 +1804,9 @@ func _next_task() -> void:
 			else:
 				_start("work", 6.0)
 		"work", "sit":
+			# Fritz drops into the tavern to sit by the hearth (see TavernBrewer).
+			if role == TavernBrewer.GUEST and TavernBrewer.wants(self) and TavernBrewer.visit(self):
+				return
 			# The woodcutter keeps to his trunk through his shift (see WoodcutterShift).
 			var on_shift := role == "3" and WoodcutterShift.at_work(level.hour)
 			var on_break := role == "3" and WoodcutterShift.on_break(level.hour)
@@ -1977,6 +2101,8 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_lift_onto_toes(delta)
+	if _broom != null and _broom.visible and _task != "sweep":
+		_lay_broom(0.0)
 	if _sheathe_in >= 0.0:
 		_sheathe_in -= delta
 		if _sheathe_in < 0.0:
@@ -2016,7 +2142,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)):
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2039,6 +2165,8 @@ func _physics_process(delta: float) -> void:
 			_mind_progress(delta)
 		"mend":
 			_mend(delta)
+		"sweep":
+			_sweep_snow(delta)
 		"defend":
 			_defend(delta)
 		"watch":
@@ -2117,6 +2245,11 @@ func join_play(friend: Villager, at: Vector3, time: float) -> void:
 func _walk(delta: float, hero: Node3D) -> void:
 	if _path.is_empty():
 		var then: String = get_meta("then", "idle")
+		if then == "tavern":
+			# Before the tavern's door: in to his chair (see TavernBrewer).
+			if TavernBrewer.arrive(self):
+				return
+			then = "idle"
 		var time := _rng.randf_range(2.0, 5.0)
 		if then in ["work", "sit"]:
 			time = _rng.randf_range(8.0, 16.0)
@@ -2473,6 +2606,29 @@ func day_plan() -> String:
 	return String(_info.plan)
 
 
+## Walks to `target` and then does `then` (the tavern visit, see TavernBrewer).
+func walk_to_then(target: Vector3, then: String) -> void:
+	_walk_to(target, WALK_SPEED, then)
+
+
+## Starts the "post" task after VillagePosts set the trip up.
+func begin_post() -> void:
+	_start("post", 10.0)
+
+
+## Whether the villager sits at a table in the tavern or carries a beer to it: they go on with that
+## while they talk (see TavernBrewer).
+func _holds_pose() -> bool:
+	return _task == "post" and (post_trip.get("seated", false) or not String(post_trip.get("serve", "")).is_empty())
+
+
+## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
+func hold_mug(on: bool) -> void:
+	var mug := _model.find_child("Mug", true, false) as Node3D
+	if mug != null:
+		mug.visible = on
+
+
 ## The animation of their work (behind the counter, see VillagePosts).
 func work_anim() -> String:
 	return String(_info.work)
@@ -2545,7 +2701,7 @@ func _mind_torch(delta: float) -> void:
 			item.visible = not on
 	if _carry_arm != null:
 		_carry_arm.active = on
-	if on and _lamp:
+	if on:
 		_hang_lamp()
 	if on:
 		_torch_time += delta
@@ -2600,9 +2756,11 @@ func _make_torch() -> void:
 	_torch_light.visible = false
 
 
-## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little.
+## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little; a
+## torch keeps its flame up, now that the arm reaches out forward.
 func _hang_lamp() -> void:
-	_torch.global_basis = HandLamp.hanging(global_rotation.y, _model.scale.x, _torch_time)
+	var yaw := _model.global_rotation.y
+	_torch.global_basis = HandLamp.hanging(yaw, _model.scale.x, _torch_time) if _lamp else HandLamp.held_up(yaw, _model.scale.x)
 
 
 ## One plain wooden material for every villager's torch.

@@ -42,6 +42,9 @@ static func for_station(level: Node, s: Dictionary) -> String:
 	var v: Villager = s.npc
 	var post: Vector3 = level.cell_to_world(v.home)
 	var d := Vector2(v.global_position.x - post.x, v.global_position.z - post.z).length()
+	if v.role == TavernBrewer.GUEST and VillagePosts.inside(v):
+		# Fritz at his table in the tavern is as findable as anyone behind a counter.
+		return refusal(alarm_on(level), v.endangered(), "", 0.0)
 	var hall := VillageHalls.kept_by(v.role)
 	if hall != "" and not VillagePosts.post_of(v).is_empty():
 		# Whoever keeps a hall one walks into deals only at their place in it (see VillagePosts),
@@ -60,6 +63,7 @@ const HALL_LINES := {
 	"office": ["Komm zu mir ins Amt, an meinen Schreibtisch.", "Das Amt hat zu. Komm morgen früh wieder."],
 	"guild": ["Komm zu mir in die Gildenhalle.", "Die Gildenhalle hat zu. Komm morgen früh wieder."],
 	"mill": ["Komm zu mir in die Mühle, an meinen Tresen.", "Die Mühle hat zu. Komm morgen früh wieder."],
+	"tavern": ["Komm rein ins Wirtshaus, ich zapfe dir was.", "Das Wirtshaus hat zu. Komm morgen früh wieder."],
 }
 
 

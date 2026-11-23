@@ -1837,7 +1837,8 @@ func _go_feed() -> Vector3:
 ## A slime that vanishes (taken out of the world without falling) lets its
 ## swallowed villagers out too.
 func _exit_tree() -> void:
-	if folk.is_empty() or level == null or not is_instance_valid(level) or level.is_queued_for_deletion():
+	if folk.is_empty() or level == null or not is_instance_valid(level) or level.is_queued_for_deletion() \
+			or level.has_meta(Level.PARKED):
 		return
 	SlimeGrowth.release_folk(self)
 

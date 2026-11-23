@@ -655,6 +655,7 @@ func _lamp(rec: Dictionary) -> void:
 	lamp.omni_range = LAMP_RANGE
 	lamp.omni_attenuation = LAMP_FALLOFF
 	lamp.position = Vector3(0, rec.top - 0.6, room.get_center().y)
+	lamp.set_meta(LightShadows.INDOOR, true)
 	lamp.visible = false
 	house.add_child(lamp)
 	rec["lamp"] = lamp

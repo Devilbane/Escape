@@ -80,6 +80,9 @@ signal plates_changed(pressed: int, total: int)
 signal gate_opened(pos: Vector3)
 
 const TILE := 4.0
+## Meta of the open-air map while it is set aside out of the scene tree (see Game._park_outdoor):
+## what leaves the tree with it then only pauses, nothing is let go or undone.
+const PARKED := &"parked_outdoor"
 const ASSET_DIR := "res://assets/dungeon/"
 const KIT_DIR := "res://assets/kit/"
 ## Floors, walls, pillars and furniture from Omie's 3D Modular Dungeon Kit
@@ -5328,23 +5331,32 @@ func _drop_item(id: String, pos: Vector3, keep := true) -> void:
 	if _swallowing:
 		_swallowed.append(["item", id])
 		return
-	var holder := _item_model(id)
-	holder.position = Vector3(pos.x, 1.0, pos.z)
+	# It lies on the floor as the thing it is (see GroundItem); more of a
+	# stackable kind close by make a pile.
+	var spot := Vector3(pos.x, 0.0, pos.z)
+	var holder := GroundItem.build(id, _pile_size(id, spot))
+	holder.position = spot
 	add_child(holder)
-	var light := OmniLight3D.new()
-	light.light_color = Color(0.75, 0.9, 1.0)
-	light.light_energy = 1.4
-	light.omni_range = 3.5
-	holder.add_child(light)
-	holder.add_child(Effects.make_sparkles(Color(0.75, 0.9, 1.0)))
-	var pickup := {"node": holder, "kind": "item", "id": id, "radius": 1.6}
+	var pickup := {"node": holder, "kind": "item", "id": id, "radius": 1.6, "flat": true}
 	if keep:
 		pickup.floor = _remember_on_floor("item", id, pos)
 	pickup.node.set_meta("no_snow", true)
 	_pickups.append(pickup)
 
 
-## What an item looks like lying about: its own model, or a gem.
+## How many of this kind of item already lie within a pile's reach of `spot`.
+func _pile_size(id: String, spot: Vector3) -> int:
+	if not GroundItem.stacks(id):
+		return 0
+	var n := 0
+	for p in _pickups:
+		if p.kind == "item" and p.get("id", "") == id and is_instance_valid(p.node) \
+				and _flat_distance(spot, p.node.position) <= GroundItem.PILE_RADIUS:
+			n += 1
+	return n
+
+
+## What an item looks like held up (in a window or a vault): its own model, or a gem.
 func item_model(id: String) -> Node3D:
 	return _item_model(id)
 

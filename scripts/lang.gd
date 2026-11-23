@@ -45,6 +45,7 @@ const PARTS := [
 	preload("res://scripts/lang/blessing.gd"),
 	preload("res://scripts/lang/villager_post.gd"),
 	preload("res://scripts/lang/mill.gd"),
+	preload("res://scripts/lang/tavern_brewer.gd"),
 	preload("res://scripts/lang/elementals.gd"),
 	preload("res://scripts/lang/teleport.gd"),
 	preload("res://scripts/lang/sky_command.gd"),

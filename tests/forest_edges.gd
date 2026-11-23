@@ -66,6 +66,10 @@ func _run() -> void:
 						walk += 1
 						continue
 					# Blocked floor the hero can see from the open ground must look blocked.
+					# Floor right at the foot of the mountain rock grows no tree or bush (they would be cut
+					# off by the rock, see Mountains.near_rock) and lies in the rock's shadow instead.
+					if Mountains.near_rock(lvl, p.x, p.y, Mountains.BUSH_CLEARANCE):
+						continue
 					if _open_side_within(lvl, c, p, Outdoor.UNDERGROWTH_DEPTH) and not _hidden(lvl, c, at):
 						hidden_bad += 1
 						worst = c

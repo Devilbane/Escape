@@ -119,7 +119,7 @@ const ROLES := {
 		"colors": [Color(0.55, 0.45, 0.35), Color(0.3, 0.3, 0.38), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
 		"lines": ["Land ohne Eintrag ist Land ohne Besitzer. Kommt zu mir, wenn Ihr bauen wollt.", "Steckt Euer Grundstück ab, dann trage ich es ins Grundbuch ein.", "Die Gebühr richtet sich nach der Größe des Landes."]},
 	"O": {"name": "Priesterin Elsbeth", "model": "Mage", "show": ["Mage_Cape", "2H_Staff"],
-		"colors": [Color(0.95, 0.93, 0.85), Color(0.9, 0.88, 0.8), Color(0.95, 0.8, 0.4)], "plan": "work", "work": "Spellcast_Raise",
+		"colors": [Color(0.95, 0.93, 0.85), Color(0.9, 0.88, 0.8), Color(0.95, 0.8, 0.4)], "plan": "work", "work": "Idle",
 		"lines": ["Die Götter haben dich aus der Tiefe geführt.", "Der Tempel steht allen offen, Tag und Nacht.", "Möge das Licht deinen Weg erhellen."]},
 	"G": {"name": "Gildenmeisterin Ragna", "model": "Barbarian", "show": ["Barbarian_Round_Shield", "1H_Axe", "Barbarian_Cape"], "locks": "dread",
 		"colors": [Color(0.6, 0.25, 0.2), Color(0.3, 0.28, 0.26), Color(0.7, 0.2, 0.15)], "plan": "stay", "work": "Idle",
@@ -243,6 +243,8 @@ var eaten := false
 var threat: Enemy = null
 var brave := false
 var _blow_cool := 0.0
+## Elsbeth's now-and-then spell with her staff (see StaffSpell), null for everyone else.
+var _staff_spell: StaffSpell
 ## Counts down after the danger; at zero the blade is sheathed. -1: not waiting.
 var _sheathe_in := -1.0
 var _calm_check := 0.0
@@ -424,6 +426,8 @@ func _ready() -> void:
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle", "Sit_Chair_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
+	if role == StaffSpell.ROLE:
+		_staff_spell = StaffSpell.put_on(self)
 	_bubble = SpeechBubble.new()
 	_bubble.position.y = 3.0 * _info.get("scale", 1.0) + 0.15
 	add_child(_bubble)
@@ -2374,6 +2378,9 @@ func _crowds_spot(point: Vector3) -> bool:
 
 
 func _do(task: String, delta: float) -> void:
+	if _staff_spell != null and _staff_spell.step(delta, task == "work" and _bubble_time <= 0.0 \
+			and not at_home and visible and threat == null and not night):
+		return
 	if task == "idle":
 		play("Idle")
 		return

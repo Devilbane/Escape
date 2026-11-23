@@ -5,8 +5,7 @@ extends Node
 ## in autumn, the heaps of fallen leaves), are blown on downwind across the screen, as far as
 ## 90 m, and settle again, each pushed up, down and sideways on its own and turning every which
 ## way but always carried along the wind, the way it goes in a real gust (see docs/wind_reference.md).
-## In winter there are no leaves to carry: the gust whirls up a flurry of snow and foggy dust from
-## where snow lies instead (see _flurry).
+## In winter there are no gusts: the leaves lie under the snow and the snow stays where it is.
 ##
 ## The wind has a direction, mostly left to right across the screen (+x), turning a little from
 ## gust to gust. No two gusts are alike: each has a force of its own (see FORCE), from a light,
@@ -17,8 +16,7 @@ extends Node
 ## rare (one every minute or two).
 ##
 ## It is cheap. The flying leaves are one small MultiMesh of single leaves (the ground's own
-## litter stays as it is: a few leaves less in a heap is not seen), the snow and its dust two more,
-## each hidden between gusts. Only the pieces of one gust are touched, and nothing runs between
+## litter stays as it is: a few leaves less in a heap is not seen), hidden between gusts. Only the pieces of one gust are touched, and nothing runs between
 ## gusts but a timer. The Performance preset has no gusts, Quality has more of them.
 ##
 ## The weather tells the wind too (see FlagWind.WINDS): rare, weak gusts in fog, frequent, strong
@@ -48,10 +46,7 @@ const FAR := 26.0
 const TRAVEL := Vector2(50.0, 90.0)
 ## How high it is lifted (metres).
 const LIFT := Vector2(1.0, 2.2)
-## How long a flight takes (seconds): slow, like a feather's.
-const DURATION := Vector2(14.0, 22.0)
-## A flying leaf's flight in seconds: about twice as fast along the wind as the snow. Its flutter keeps its
-## pace in real time (`lively` scales with the flight), so only the carry gets quicker.
+## A flying leaf's flight in seconds. Its flutter keeps its pace in real time (`lively` scales with the flight), so only the carry gets quicker.
 const LEAF_DURATION := Vector2(7.0, 11.0)
 ## The flight time the wobble and turning speeds were tuned for, and how much quicker than that
 ## they go: a long flight is not a slow one.
@@ -70,18 +65,8 @@ const LEAF_TURN := 0.3
 const FORCE := Vector2(0.3, 1.6)
 ## The tiles pieces may fly over and land on.
 const OPEN := SurfaceLife.GROUND + SurfaceLife.PATH + SurfaceLife.SQUARE
-## The winter flurry: flakes per gust, their size (metres), how far they are blown and how high.
-## How thick the snow must lie (0 to 1, see SnowCover.amount) before the wind lifts any.
-const SNOW_MIN := 0.25
-## The foggy snow dust that flies with the flakes: soft puffs per gust, their size (metres, they grow as
-## they go) and how faint they are at their thickest.
-const PUFFS := 36
-const PUFF_SIZE := Vector2(1.2, 2.8)
+## How faint the soft snow-sweep dust is at its thickest (SweepDust borrows it).
 const PUFF_ALPHA := 0.17
-const FLAKES := 80
-const FLAKE_SIZE := 0.07
-const FLAKE_TRAVEL := Vector2(18.0, 40.0)
-const FLAKE_LIFT := Vector2(0.3, 2.2)
 
 var life: SurfaceLife
 ## The leaves in the air: {from, to, dir, start, dur, lively, lift, axis, spin, yaw, size, colour, and the
@@ -96,12 +81,6 @@ var _angle := 0.0
 ## The force of the gust now, and of the last one (for the tests).
 var force := 1.0
 var _rng := RandomNumberGenerator.new()
-## The flurry of snow: its MultiMesh (made the first winter gust) and the flakes in the air.
-var _snow: MultiMeshInstance3D
-var _flakes: Array = []
-## The dust puffs: their MultiMesh (made with the first flurry) and the ones in the air.
-var _dust: MultiMeshInstance3D
-var _puffs: Array = []
 ## Gusts so far and pieces they moved (for the tests).
 var gusts := 0
 var moved := 0
@@ -151,7 +130,7 @@ func strength() -> float:
 
 
 ## Whether the hero is under cover or down below the ground (a cellar, the bank's vault, the forgotten
-## mine): no wind reaches there, so no leaf or snowflake flies.
+## mine): no wind reaches there, so no leaf flies.
 func below_cover() -> bool:
 	var lvl := life.level
 	if lvl.player == null:
@@ -160,7 +139,7 @@ func below_cover() -> bool:
 
 
 func active() -> int:
-	return _moving.size() + _flakes.size() + _puffs.size()
+	return _moving.size()
 
 
 func _process(delta: float) -> void:
@@ -168,12 +147,8 @@ func _process(delta: float) -> void:
 	if active() > 0 and below_cover():
 		# The hero went down or inside: whatever was flying is gone.
 		_moving.clear()
-		_flakes.clear()
-		_puffs.clear()
 	if active() > 0:
 		_move()
-		_move_flakes()
-		_move_puffs()
 	if not enabled() or life.level.player == null:
 		return
 	_timer -= delta
@@ -187,10 +162,10 @@ func _process(delta: float) -> void:
 		gust(s)
 
 
-## Blows one gust now, with the wind at strength `s`: sets leaves lying near the hero flying (in
-## winter a flurry of snow). Returns how many pieces it set flying.
+## Blows one gust now, with the wind at strength `s`: sets leaves lying near the hero flying
+## (none in winter). Returns how many pieces it set flying.
 func gust(s: float) -> int:
-	if life.level.player == null or active() > MAX_IN_AIR or below_cover():
+	if life.level.player == null or active() > MAX_IN_AIR or below_cover() or _winter():
 		return 0
 	_angle = PREVAILING + _rng.randf_range(-TURN, TURN)
 	var dir := Vector3(cos(_angle), 0, sin(_angle))
@@ -199,9 +174,6 @@ func gust(s: float) -> int:
 	# Weather and the gust's own force together.
 	force = lerpf(FORCE.x, FORCE.y, pow(_rng.randf(), 1.4))
 	s *= force
-	if _winter():
-		_flurry(dir, s, hero)
-		return _flakes.size()
 	var want := mini(MAX_PIECES, roundi(_rng.randi_range(PIECES.x, PIECES.y) * s * quality_scale()))
 	want = mini(want, LEAF_CAP - _moving.size())
 	var pool := _pool(hero)
@@ -422,188 +394,3 @@ static func ease_out(t: float) -> float:
 	const RAMP := 0.04
 	var run := t * t / (2.0 * RAMP) if t < RAMP else t - RAMP * 0.5
 	return run / (1.0 - RAMP * 0.5)
-
-
-## Whether the snow on the ground is thick enough to be lifted (see SnowCover).
-func _snow_thick() -> bool:
-	var cover = life.level.get("snow")
-	return cover != null and cover.lies() and cover.amount >= SNOW_MIN
-
-
-## Whether snow lies on the ground at `at`: open ground (not water, not under a tree, a wall or a
-## building), not under a roof and not near a fire, where the cover keeps clear (see SnowCover.set_warm).
-func snow_lies_at(at: Vector3) -> bool:
-	if not _snow_thick():
-		return false
-	if not OPEN.contains(life.level.cell_char(life.level.world_to_cell(at))):
-		return false
-	if life.level.has_method("is_roofed") and life.level.is_roofed(at):
-		return false
-	for h: Vector4 in life.level.get("warm_spots") if "warm_spots" in life.level else []:
-		if Vector2(h.x - at.x, h.z - at.z).length() < h.w + 0.5:
-			return false
-	for r: Rect2 in life._holes + life._built:
-		if r.has_point(Vector2(at.x, at.z)):
-			return false
-	return true
-
-
-## Winter: a flurry of snow lifts off the ground round the hero, drifts along the wind and
-## settles again (one MultiMesh of tiny flat flakes, hidden between gusts).
-func _flurry(dir: Vector3, s: float, hero: Vector3) -> void:
-	# Only where snow really lies: none on the ground, no flakes to lift.
-	if not _snow_thick():
-		return
-	if _snow == null:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE * FLAKE_SIZE
-		mm.mesh = quad
-		mm.instance_count = int(FLAKES * 1.5)
-		_snow = MultiMeshInstance3D.new()
-		_snow.name = "SnowFlurry"
-		_snow.multimesh = mm
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		mat.billboard_keep_scale = true
-		mat.albedo_color = Color(0.95, 0.97, 1.0, 0.9)
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_snow.material_override = mat
-		_snow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_snow.extra_cull_margin = 60.0
-		add_child(_snow)
-	var count := mini((_snow.multimesh as MultiMesh).instance_count - _flakes.size(), roundi(FLAKES * s * quality_scale()))
-	var taken := 0
-	for i in count * 3:
-		if taken >= count:
-			break
-		var at := hero + Vector3(_rng.randf_range(-FAR, FAR), 0, _rng.randf_range(-FAR, FAR)) * 0.8
-		if not snow_lies_at(at):
-			continue
-		taken += 1
-		var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
-		_flakes.append({
-			"from": at + Vector3(0, 0.05, 0),
-			"to": at + way * _rng.randf_range(FLAKE_TRAVEL.x, FLAKE_TRAVEL.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6),
-			"start": _now + clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
-			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s), "lively": LIVELY * 2.0,
-			"lift": _rng.randf_range(FLAKE_LIFT.x, FLAKE_LIFT.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
-			"fh": _noise_freqs(), "ph": _noise_phases(), "fl": _noise_freqs(), "pl": _noise_phases(),
-		})
-	moved += taken
-	_snow.visible = _flakes.size() > 0
-	_dust_up(dir, s, hero)
-
-
-## The foggy dust that rides with the snow: big, faint, soft puffs that swell as they drift on and
-## fade in and out, started where snow lies like the flakes.
-func _dust_up(dir: Vector3, s: float, hero: Vector3) -> void:
-	if _dust == null:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		var quad := QuadMesh.new()
-		quad.size = Vector2.ONE
-		mm.mesh = quad
-		mm.instance_count = int(PUFFS * 1.5)
-		_dust = MultiMeshInstance3D.new()
-		_dust.name = "SnowDust"
-		_dust.multimesh = mm
-		var soft := GradientTexture2D.new()
-		soft.fill = GradientTexture2D.FILL_RADIAL
-		soft.fill_from = Vector2(0.5, 0.5)
-		soft.fill_to = Vector2(1.0, 0.5)
-		soft.width = 64
-		soft.height = 64
-		var ramp := Gradient.new()
-		ramp.set_color(0, Color(1, 1, 1, 1))
-		ramp.set_color(1, Color(1, 1, 1, 0))
-		soft.gradient = ramp
-		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-		mat.billboard_keep_scale = true
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.vertex_color_use_as_albedo = true
-		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
-		mat.albedo_texture = soft
-		mat.albedo_color = Color(0.92, 0.95, 1.0, 1.0)
-		mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-		_dust.material_override = mat
-		_dust.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_dust.extra_cull_margin = 60.0
-		add_child(_dust)
-	var count := mini((_dust.multimesh as MultiMesh).instance_count - _puffs.size(), roundi(PUFFS * s * quality_scale()))
-	var taken := 0
-	for i in count * 3:
-		if taken >= count:
-			break
-		var at := hero + Vector3(_rng.randf_range(-FAR, FAR), 0, _rng.randf_range(-FAR, FAR)) * 0.8
-		if not snow_lies_at(at):
-			continue
-		taken += 1
-		var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.4, 0.4))
-		_puffs.append({
-			"from": at + Vector3(0, 0.3, 0),
-			"to": at + way * _rng.randf_range(FLAKE_TRAVEL.x, FLAKE_TRAVEL.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6),
-			"start": _now + clampf((at - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.6),
-			"dur": _rng.randf_range(DURATION.x, DURATION.y) / _pace(s),
-			"lift": _rng.randf_range(0.3, 1.2),
-			"size": _rng.randf_range(PUFF_SIZE.x, PUFF_SIZE.y),
-			"fh": _noise_freqs(), "ph": _noise_phases(),
-		})
-	_dust.visible = _puffs.size() > 0
-
-
-func _move_puffs() -> void:
-	if _puffs.is_empty():
-		return
-	var mm := _dust.multimesh
-	var left: Array = []
-	for m: Dictionary in _puffs:
-		if _now - m.start < m.dur:
-			left.append(m)
-	var i := 0
-	for m: Dictionary in left:
-		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
-		var at: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t))
-		at.y += m.lift * height_share(t, erratic(t * 2.0, m.fh, m.ph))
-		var fade := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.4, 1.0 - t)
-		var size: float = m.size * (0.6 + 0.8 * t) * (1.0 if t > 0.0 else 0.0)
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * size), at))
-		mm.set_instance_color(i, Color(1, 1, 1, PUFF_ALPHA * fade))
-		i += 1
-	for k in range(i, mm.instance_count):
-		mm.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
-	_puffs = left
-	if left.is_empty():
-		_dust.visible = false
-
-
-func _move_flakes() -> void:
-	if _flakes.is_empty():
-		return
-	var mm := _snow.multimesh
-	var left: Array = []
-	for m: Dictionary in _flakes:
-		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
-		if t < 1.0:
-			left.append(m)
-	# Flakes in the air first; the rest of the instances are folded away to nothing.
-	var i := 0
-	for m: Dictionary in left:
-		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
-		var at: Vector3 = (m.from as Vector3).lerp(m.to, ease_out(t))
-		var share := height_share(t, erratic(t * m.lively, m.fh, m.ph))
-		var swing := erratic(t * m.lively, m.fl, m.pl) * 1.2 * smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
-		at += Vector3(0, m.lift * share, 0) + Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * swing
-		var scale_by := 1.0 if t > 0.0 else 0.0
-		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * scale_by), at))
-		i += 1
-	for k in range(i, mm.instance_count):
-		mm.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
-	_flakes = left
-	if left.is_empty():
-		_snow.visible = false

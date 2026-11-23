@@ -228,6 +228,7 @@ class _Soup extends RefCounted:
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		var mat := StandardMaterial3D.new()
 		mat.vertex_color_use_as_albedo = true
+		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.roughness = 0.9
 		mesh.surface_set_material(0, mat)

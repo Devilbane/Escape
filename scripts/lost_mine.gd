@@ -299,14 +299,13 @@ static func furnish_yard(level: Level, parent: Node3D) -> void:
 	var old_wood := _mat("yard_old_wood", Color(0.36, 0.31, 0.26))
 	var iron := _mat("rusty_iron", Color(0.36, 0.25, 0.18), 0.4)
 	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	# West of the hut: the ore heap and the plank stack.
 	var heap := s.cell_world(38, 26)
 	for i in 18:
 		var r := rng.randf_range(0.0, 0.9)
 		var a := rng.randf() * TAU
-		var lump := _box(parent, heap + Vector3(cos(a) * r, 0.12 + (0.9 - r) * 0.4 * rng.randf(), sin(a) * r), Vector3.ONE * rng.randf_range(0.2, 0.42), ore if i % 6 else silver)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_ore_chunk(parent, heap + Vector3(cos(a) * r, 0.12 + (0.9 - r) * 0.4 * rng.randf(), sin(a) * r), rng.randf_range(0.26, 0.5), rng, ore, silver, i % 5 == 0)
 	level._add_solid(heap, Vector3(1.6, 0.6, 1.6))
 	var stack := s.cell_world(38, 27) + Vector3(0.2, 0, 0.4)
 	for i in 5:
@@ -341,8 +340,7 @@ static func furnish_yard(level: Level, parent: Node3D) -> void:
 		wheel.rotation = Vector3(0, 0.3, 0.0 if z > 0.0 else PI * 0.5)
 		parent.add_child(wheel)
 	for i in 7:
-		var lump := _box(parent, cart + Vector3(rng.randf_range(0.5, 1.2), 0.08, rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.15, 0.3), ore)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_ore_chunk(parent, cart + Vector3(rng.randf_range(0.5, 1.2), 0.08, rng.randf_range(-0.6, 0.6)), rng.randf_range(0.2, 0.36), rng, ore, silver, i % 3 == 0)
 	level._add_solid(cart, Vector3(1.4, 0.9, 1.6))
 	var bucket := MeshInstance3D.new()
 	var pail := CylinderMesh.new()
@@ -370,7 +368,7 @@ static func furnish_entrance(level: Level, parent: Node3D) -> void:
 	var wood := _mat("yard_old_wood", Color(0.36, 0.31, 0.26))
 	var iron := _mat("rusty_iron", Color(0.36, 0.25, 0.18), 0.4)
 	var ore := _mat("yard_ore", Color(0.17, 0.16, 0.17))
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	var door_x := HUT.position.x + HUT.size.x / 2
 	var first := parent.get_child_count()
 	# The face of the door's wall (north), the door's middle on it.
@@ -593,24 +591,12 @@ static func _ore_cart(parent: Node3D, at: Vector3, rng: RandomNumberGenerator, w
 		_box(parent, at + Vector3(0, 0.36, side * 0.78), Vector3(0.06, 0.06, 0.22), iron)
 		var hook := _box(parent, at + Vector3(0, 0.36, side * 0.9), Vector3(0.14, 0.06, 0.06), iron)
 		hook.rotation.y = 0.5
-	# The load: a rough mound of ore and a few bright lumps of silver, no square tiles.
-	for i in 18:
+	# The load: a mound of rough ore, with silver showing in it.
+	for i in 14:
 		var a := rng.randf() * TAU
 		var r := rng.randf_range(0.0, 0.34)
-		var lump := MeshInstance3D.new()
-		var ball := SphereMesh.new()
-		ball.radial_segments = 6
-		ball.rings = 4
-		var size := rng.randf_range(0.16, 0.3)
-		ball.radius = size * 0.5
-		ball.height = size
-		lump.mesh = ball
-		lump.material_override = ore if i % 6 else silver
 		var rise := 1.0 - r / 0.4
-		lump.position = at + Vector3(cos(a) * r * 1.1, 0.95 + rise * 0.14 + rng.randf_range(0.0, 0.05), sin(a) * r * 1.7)
-		lump.scale = Vector3(rng.randf_range(0.9, 1.4), rng.randf_range(0.7, 1.0), rng.randf_range(0.9, 1.3))
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
-		parent.add_child(lump)
+		_ore_chunk(parent, at + Vector3(cos(a) * r * 1.1, 0.92 + rise * 0.14 + rng.randf_range(0.0, 0.05), sin(a) * r * 1.7), rng.randf_range(0.24, 0.38), rng, ore, silver, i % 3 == 0)
 
 
 ## A big spoked cart wheel under `parent`, in its XY plane: an iron-shod rim, spokes and a hub.
@@ -1164,11 +1150,12 @@ static func _vein(level: Level, parent: Node3D, body: StaticBody3D, c: Vector2i,
 	var across := Vector3(-out.z, 0, out.x)
 	var face := floor_at(c) + out * (HouseSketch.CELL * 0.5 - 0.08)
 	var turn := atan2(out.x, out.z)
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	var ore := _mat("ore_vein", Color(0.24, 0.22, 0.25), 0.3)
 	for i in 9:
-		var lump := _box(parent, face + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.3, 2.2), 0), Vector3(rng.randf_range(0.25, 0.5), rng.randf_range(0.2, 0.4), 0.18), ore, turn)
-		lump.rotation.z = rng.randf_range(-0.5, 0.5)
+		var lump := _ore_chunk(parent, face + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.3, 2.2), 0), rng.randf_range(0.4, 0.7), rng, ore, silver, i % 2 == 0)
+		lump.rotation = Vector3(0, turn, rng.randf_range(-0.5, 0.5))
+		lump.scale.z *= 0.45
 	for i in 7:
 		var streak := _box(parent, face - out * 0.06 + across * rng.randf_range(-0.8, 0.8) + Vector3(0, rng.randf_range(0.4, 2.1), 0), Vector3(rng.randf_range(0.2, 0.6), rng.randf_range(0.04, 0.09), 0.06), silver, turn)
 		streak.rotation.z = rng.randf_range(-0.5, 0.5)
@@ -1226,6 +1213,59 @@ static func rock_material() -> StandardMaterial3D:
 	m.uv1_scale = Vector3(0.35, 0.35, 0.35)
 	_mats["rock_wall"] = m
 	return m
+
+
+## The raw silver of the mine: bright metal that glimmers now and then (see silver_glint.gdshader).
+static func _silver() -> ShaderMaterial:
+	if not _mats.has("silver_glint"):
+		var m := ShaderMaterial.new()
+		m.shader = preload("res://shaders/silver_glint.gdshader")
+		m.set_shader_parameter("silver", SILVER)
+		_mats["silver_glint"] = m
+	return _mats["silver_glint"]
+
+
+## A lump of ore: a rough, uneven chunk of dark rock with flecks and thin shards of silver
+## sitting in its surface. A rich one carries more and bigger flecks and a small nugget.
+static func _ore_chunk(parent: Node3D, at: Vector3, size: float, rng: RandomNumberGenerator, rock: Material, silver: Material, rich := false) -> MeshInstance3D:
+	var chunk := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radial_segments = 7
+	ball.rings = 4
+	ball.radius = size * 0.5
+	ball.height = size
+	chunk.mesh = ball
+	chunk.material_override = rock
+	chunk.position = at
+	chunk.scale = Vector3(rng.randf_range(0.85, 1.35), rng.randf_range(0.65, 1.0), rng.randf_range(0.85, 1.3))
+	chunk.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+	parent.add_child(chunk)
+	var r := size * 0.5
+	for i in (5 if rich else 3):
+		var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.2, 1), rng.randf_range(-1, 1)).normalized()
+		var fleck := MeshInstance3D.new()
+		var flake := BoxMesh.new()
+		var w := r * rng.randf_range(0.35, 0.8 if rich else 0.55)
+		flake.size = Vector3(w, r * 0.07, w * rng.randf_range(0.4, 0.9))
+		fleck.mesh = flake
+		fleck.material_override = silver
+		fleck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fleck.position = dir * r * 0.93
+		fleck.look_at_from_position(fleck.position, dir * r * 2.0, Vector3.UP)
+		fleck.rotate_object_local(Vector3(0, 0, 1), rng.randf() * TAU)
+		chunk.add_child(fleck)
+	if rich:
+		var nugget := MeshInstance3D.new()
+		var bead := SphereMesh.new()
+		bead.radial_segments = 6
+		bead.rings = 3
+		bead.radius = r * 0.22
+		bead.height = r * 0.36
+		nugget.mesh = bead
+		nugget.material_override = silver
+		nugget.position = Vector3(r * 0.3, r * 0.7, r * 0.2)
+		chunk.add_child(nugget)
+	return chunk
 
 
 static func _mat(key: String, colour: Color, metal := 0.0, glow := 0.0) -> StandardMaterial3D:
@@ -1413,7 +1453,7 @@ static func _bunk_room(level: Level, parent: Node3D, body: StaticBody3D) -> void
 ## The silver vein: bright streaks in the north wall of the chamber over the gallery,
 ## a pick left in the rock and broken stone on the floor.
 static func _silver_vein(parent: Node3D, body: StaticBody3D, rng: RandomNumberGenerator) -> void:
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
+	var silver: Material = _silver()
 	for x in range(24, 31):
 		var wall := floor_at(Vector2i(x, 28)) + Vector3(0, 0, -0.89)
 		for i in 3:
@@ -1457,9 +1497,11 @@ static func _haulage(parent: Node3D, body: StaticBody3D) -> void:
 	var cart := floor_at(Vector2i(57, 38))
 	_box(parent, cart + Vector3(0, 0.65, 0), Vector3(1.1, 0.7, 1.5), _mat("cart", TIMBER.lightened(0.05)))
 	_box(parent, cart + Vector3(0, 0.98, 0), Vector3(0.95, 0.06, 1.35), _mat("ore", Color(0.3, 0.29, 0.3)))
-	var silver := _mat("silver", SILVER, 0.9, 0.25)
-	for i in 6:
-		_box(parent, cart + Vector3(-0.3 + (i % 3) * 0.3, 1.03, -0.4 + (i / 3) * 0.7), Vector3(0.16, 0.1, 0.14), silver)
+	var silver: Material = _silver()
+	var load_rng := RandomNumberGenerator.new()
+	load_rng.seed = 57
+	for i in 9:
+		_ore_chunk(parent, cart + Vector3(-0.3 + (i % 3) * 0.3, 1.08, -0.45 + (i / 3) * 0.45), 0.36, load_rng, _mat("ore", Color(0.3, 0.29, 0.3)), silver, i % 2 == 0)
 	for corner in [Vector3(-0.58, 0.25, -0.5), Vector3(0.58, 0.25, -0.5), Vector3(-0.58, 0.25, 0.5), Vector3(0.58, 0.25, 0.5)]:
 		var wheel := MeshInstance3D.new()
 		var cyl := CylinderMesh.new()
@@ -1478,8 +1520,7 @@ static func _haulage(parent: Node3D, body: StaticBody3D) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 41
 	for i in 14:
-		var lump := _box(parent, heap + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.1, 0.5), rng.randf_range(-0.6, 0.6)), Vector3.ONE * rng.randf_range(0.2, 0.45), ore if i % 4 else silver)
-		lump.rotation = Vector3(rng.randf(), rng.randf() * TAU, rng.randf())
+		_ore_chunk(parent, heap + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.1, 0.5), rng.randf_range(-0.6, 0.6)), rng.randf_range(0.28, 0.52), rng, ore, silver, i % 4 == 0)
 	_solid(body, heap + Vector3(0, 0.35, 0), Vector3(1.4, 0.7, 1.4))
 
 

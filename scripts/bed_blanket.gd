@@ -114,7 +114,9 @@ static func covers(level: Node, pos: Vector3, rot: float) -> bool:
 
 
 static func _stop(cloth: Node3D) -> void:
-	var old = cloth.get_meta("tween", null)
+	if not cloth.has_meta("tween"):
+		return
+	var old = cloth.get_meta("tween")
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	cloth.remove_meta("tween")

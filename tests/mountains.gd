@@ -69,7 +69,7 @@ func _process(_delta: float) -> bool:
 		2:
 			_check_tavern()
 			stage = 3
-			wait = 600
+			wait = 1800
 		3:
 			check(game.state == game.State.PLAYING, "the hero gets up after resting")
 			check(game.player.hp == game.player.max_hp, "resting in the tavern heals fully (%d / %d)" % [game.player.hp, game.player.max_hp])

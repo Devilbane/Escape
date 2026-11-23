@@ -115,7 +115,12 @@ func _test() -> void:
 	check(game.player.hp == game.player.max_hp, "the hero is fully rested")
 	check(game.has_slot_save(), "the game is saved")
 	check(not DayNight.is_night(game.day_hour), "it is no longer night")
-	check(game.player.global_position.distance_to(game.level.bed_side) < 1.0, "the hero stands by the bed")
+	var bed: Dictionary = game._nearest_bed()
+	var rot: float = bed.get("rot", 0.0)
+	var side := BedRise.choose_side(game.level, bed.pos, rot, game._bedside(bed, Vector3(sin(rot), 0.0, cos(rot))), [game.player.get_rid()])
+	var beside := BedRise.beside(bed.pos, rot, side)
+	var at: Vector3 = game.player.global_position
+	check(Vector2(at.x - beside.x, at.z - beside.z).length() < 0.05, "the hero stands beside the bed where they got up")
 	check(not _eyes_shut(), "the hero wakes with open eyes")
 
 	# Past midnight, before dawn: still the same calendar night, one day counted.

@@ -1,1 +1,1 @@
-- Street lamps now stand beside the walkway with their arm and lantern reaching over it.
+- Street lamps now stand beside the walkway with their arm and lantern reaching over it, and long paths in the village have a lamp about every three tiles.

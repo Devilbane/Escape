@@ -49,3 +49,32 @@ func _run() -> void:
 			var home := level.cell_to_world(level.world_to_cell(spot.foot))
 			check((spot.foot - home).dot(dir) > 0.5, "the lamp at %s stands at the edge of the walkway beside it" % spot.foot)
 	check(turned > 0, "some lamps turn their arm")
+	_check_density(level)
+
+
+## A straight west-east dirt path that has street lamps at all (some are in the mountains, with
+## none) has one at least about every three tiles, so a screen's width of it shows three or more.
+func _check_density(level: Outdoor) -> void:
+	var checked := 0
+	for y in level.height:
+		var x := 0
+		while x < level.width:
+			if level.cell_char(Vector2i(x, y)) != ",":
+				x += 1
+				continue
+			var start := x
+			while x < level.width and level.cell_char(Vector2i(x, y)) == ",":
+				x += 1
+			var length := x - start
+			if length < 8:
+				continue
+			var lamps := 0
+			for lx in range(start, x):
+				for dy in [-1, 1]:
+					if level.cell_char(Vector2i(lx, y + dy)) == "l":
+						lamps += 1
+			if lamps == 0:
+				continue
+			checked += 1
+			check(lamps >= length / 3 - 1, "the path at row %d from %d, %d tiles long, has enough lamps (%d)" % [y, start, length, lamps])
+	check(checked >= 4, "several long paths are lit (%d)" % checked)

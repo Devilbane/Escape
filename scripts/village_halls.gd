@@ -50,7 +50,14 @@ static func style(ch: String) -> Dictionary:
 		return GuildHall.STYLE
 	if KINDS.get(ch, "") in BIG:
 		return {"max_w": BIG_W, "max_d": BIG_D, "door_x": 0.0}
+	if KINDS.get(ch, "") == "post":
+		# Side windows set toward the door, so each side wall has room for two notices as well.
+		return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0, "side_front": POST_WINDOW_FRONT}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
+
+
+## How far from the front of the post office the middle of its side windows is.
+const POST_WINDOW_FRONT := 1.5
 
 
 ## The kind of hall the villager of `role` keeps, or "".
@@ -204,6 +211,9 @@ static func _shop(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	_by_the_sides(walk_in, rec, inside)
 
 
+## Half the width of a side window with its frame, and the space left between it and a notice.
+const WINDOW_HALF := 0.55
+const NOTICE_GAP := 0.15
 ## Pigeonholes for the letters on the back wall, parcels (stamped and not yet stamped) stacked by the
 ## side walls and a sack of letters by the door.
 static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
@@ -253,18 +263,21 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		letter.position = Vector3((1.4 + k * 0.03) * squeeze, top + 0.004 + k * 0.01, cz + 0.1)
 		letter.rotation = Vector3(-PI * 0.5, 0.3 * k - 0.2, 0)
 		inside.add_child(letter)
-	# Notices on the side walls toward the door, clear of the windows and sconces by the back wall.
+	# Notices on the side walls, in a row from the door: one, the window (see POST_WINDOW_FRONT),
+	# one more, and the candle behind them (see WalkIn._sconces). The row is squeezed if the room
+	# is short, so every notice has its place.
 	var notices := [
 		["Königliche Post", []],
 		["Postdienste", ["Briefe: zu Fuß", "Pakete: per Karren", "Eilpost: per Reiter"]],
 		["Postwege", ["Dorf – Mühle", "Dorf – Gilde", "Dorf – Burg"]],
 		["Aushang", ["Nur gestempelte", "Pakete werden", "befördert"]],
 	]
+	var win_z := room.end.y - POST_WINDOW_FRONT
+	var slots := [room.end.y - 0.45, win_z - WINDOW_HALF - NOTICE_GAP - 0.35]
 	for i in notices.size():
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var notice := WalkInFurniture.poster(notices[i][0], notices[i][1])
-		var nz := room.end.y - 1.5 - (i / 2) * 1.1
-		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, nz)
+		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, slots[i / 2])
 		notice.rotation.y = -side * PI * 0.5
 		inside.add_child(notice)
 	var letters := WalkInFurniture.letter_sack()

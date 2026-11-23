@@ -1399,6 +1399,19 @@ func _hero_below(brood: Dictionary) -> void:
 
 func _show_brood(brood: Dictionary) -> void:
 	var nest := nests[int(brood.nest)]
+	# The eggs and chicks hide with the roof their nest sits on, as the nest does.
+	var hidden := _on_lifted_roof(nest)
+	if hidden:
+		var gone := Transform3D(Basis().scaled(Vector3.ZERO), nest)
+		for k in brood.count:
+			var j: int = int(brood.first) + k
+			if brood.chicks:
+				_chick_body.set_instance_transform(j, gone)
+				_chick_head.set_instance_transform(j, gone)
+				_chick_jaw.set_instance_transform(j, gone)
+			else:
+				_eggs.set_instance_transform(j, gone)
+		return
 	if not brood.chicks:
 		for k in brood.count:
 			var slot: Dictionary = brood.slots[k]

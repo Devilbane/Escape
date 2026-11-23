@@ -74,6 +74,9 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	var cx := rng.randf_range(-0.3, 0.3) * uw
 	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx, "tower": bool(style.get("tower", false)),
 			"flat": bool(style.get("flat", false))}
+	# A hall may set its side windows toward the door (see VillageHalls.style): `side_front` metres
+	# from the front of the room instead of in the middle, to leave the wall beside them clear.
+	shape["side_z"] = d * 0.5 - WALL_THICK - float(style.side_front) if style.has("side_front") else 0.0
 	var parts := {}
 	_shape(shape, parts, parts, parts, parts)
 	var eaves := PLINTH + GROUND + UPPER
@@ -165,7 +168,7 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 	for side: float in [-1.0, 1.0]:
 		if not tower and not hollow_flat:
 			_window(up, Vector3(side * uw * 0.5, top + 1.3, 0), side * PI * 0.5)
-		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, 0), side * PI * 0.5)
+		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, float(shape.get("side_z", 0.0))), side * PI * 0.5)
 	if tower:
 		return
 	if flat:
@@ -276,7 +279,7 @@ static func walk_in_windows(shape: Dictionary, upstairs: bool) -> Array:
 	for x: float in _window_spots(w, float(shape.door_x)):
 		out.append({"at": Vector3(x, PLINTH + 1.6, d * 0.5), "out": Vector3.BACK})
 	for side: float in [-1.0, 1.0]:
-		out.append({"at": Vector3(side * w * 0.5, PLINTH + 1.6, 0), "out": Vector3(side, 0, 0)})
+		out.append({"at": Vector3(side * w * 0.5, PLINTH + 1.6, float(shape.get("side_z", 0.0))), "out": Vector3(side, 0, 0)})
 	if upstairs and not bool(shape.get("tower", false)):
 		var uw := w + JETTY * 2.0
 		var ud := d + JETTY * 2.0
@@ -339,7 +342,7 @@ static func _room(shape: Dictionary, parts: Dictionary, front: Dictionary, walls
 	for x: float in _window_spots(w, door_x):
 		_inner_window(front, Vector3(x, PLINTH + 1.6, d * 0.5), Vector3(x, PLINTH + 1.6, d * 0.5 - t), 0.0)
 	for side: float in [-1.0, 1.0]:
-		_inner_window(parts, Vector3(side * w * 0.5, PLINTH + 1.6, 0), Vector3(side * (w * 0.5 - t), PLINTH + 1.6, 0), side * PI * 0.5)
+		_inner_window(parts, Vector3(side * w * 0.5, PLINTH + 1.6, float(shape.get("side_z", 0.0))), Vector3(side * (w * 0.5 - t), PLINTH + 1.6, float(shape.get("side_z", 0.0))), side * PI * 0.5)
 
 
 ## The room on the floor above a hollow house (see hollow with a hatch): into `parts` the boards

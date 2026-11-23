@@ -142,6 +142,8 @@ const IVY_TOTAL_SHARE := 1.2
 const LEAF_COLOURS := [Color(0.34, 0.52, 0.17), Color(0.24, 0.42, 0.15), Color(0.42, 0.56, 0.18),
 		Color(0.30, 0.48, 0.2), Color(0.5, 0.58, 0.18), Color(0.48, 0.22, 0.12)]
 
+## How far a nest sits in from the end of its ridge (metres), so it rests fully on the ridge.
+const NEST_INSET := 0.7
 ## A nest needs a ledge at least this high over the ground (metres) and
 ## this large (square metres).
 const NEST_HEIGHT := 3.5
@@ -496,7 +498,32 @@ static func nest_spot(tris: Array, ground: float, smoky: Array = []) -> Vector3:
 			var centre: Vector3 = (t.a + t.b + t.c) / 3.0
 			if centre.y >= ground + NEST_HEIGHT and (ledge == Vector3.INF or centre.y > ledge.y) and not _smoked(centre, smoky):
 				ledge = centre
-	return ridge if ridge != Vector3.INF else ledge
+	if ridge != Vector3.INF:
+		return _seat_on_ridge(tris, ridge, smoky)
+	return ledge
+
+
+## The highest corner of a ridge is its very end, where half a nest would hang in the air past the
+## roof. Moves the spot inward along the ridge, towards the middle of the ridge's top corners at that
+## height, by NEST_INSET at most, so the whole nest rests on the ridge.
+static func _seat_on_ridge(tris: Array, end: Vector3, smoky: Array) -> Vector3:
+	var sum := Vector3.ZERO
+	var count := 0
+	for t: Dictionary in tris:
+		var n: Vector3 = t.n
+		if n.y >= NEST_SLOPE and n.y < 0.85 and t.area >= NEST_LEDGE:
+			for p: Vector3 in [t.a, t.b, t.c]:
+				if absf(p.y - end.y) < 0.05:
+					sum += p
+					count += 1
+	if count == 0:
+		return end
+	var to := sum / count - end
+	to.y = 0.0
+	if to.length() < 0.01:
+		return end
+	var seat := end + to.normalized() * minf(NEST_INSET, to.length())
+	return end if _smoked(seat, smoky) else seat
 
 
 ## Whether a spot lies in the smoke of a chimney or a fire (`smoky`, world space): straight over

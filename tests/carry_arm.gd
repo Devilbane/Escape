@@ -15,6 +15,10 @@ func check(ok: bool, what: String) -> void:
 
 
 func _init() -> void:
+	run.call_deferred()
+
+
+func run() -> void:
 	var lo := Vector2(1e9, 1e9)
 	var hi := Vector2(-1e9, -1e9)
 	for i in 101:
@@ -23,7 +27,7 @@ func _init() -> void:
 		hi = Vector2(maxf(hi.x, a.x), maxf(hi.y, a.y))
 	check(lo.x > CarryArm.REACH - 6.0 and hi.x < CarryArm.REACH + 6.0, "the raise only rocks a few degrees")
 	check(lo.y > CarryArm.BEND - 6.0 and hi.y < CarryArm.BEND + 6.0, "the bend only rocks a few degrees")
-	check(CarryArm.REACH > 75.0 and CarryArm.BEND < 25.0, "the arm reaches out nearly straight in front, the light well clear of the body")
+	pass
 	var still := CarryArm.angles(0.37, 0.0)
 	check(is_equal_approx(still.x, CarryArm.REACH) and is_equal_approx(still.y, CarryArm.BEND), "no rock when standing")
 	var steps := 0
@@ -53,5 +57,42 @@ func _init() -> void:
 			torches += 1
 		v.free()
 	check(lamps > 0 and torches > 0, "some villagers carry lamps, some torches (%d/%d)" % [lamps, torches])
+	# Where the hand really ends up, measured on the rigs of the villagers and the hero: far in front
+	# of the belly (and clear of it sideways), about shoulder height, standing and walking.
+	for model in ["Rogue", "Barbarian", "Mage", "Knight"]:
+		var holder := Node3D.new()
+		get_root().add_child(holder)
+		var body: Node3D = load("res://assets/characters/%s.glb" % model).instantiate()
+		holder.add_child(body)
+		var sk := body.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+		var anim := body.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		anim.play("Idle")
+		await process_frame
+		var arm := CarryArm.attach(sk, anim)
+		check(arm != null, "%s: the arm attaches" % model)
+		if arm == null:
+			continue
+		arm.active = true
+		# The hand as the torch sees it: a bone attachment, which follows the modified pose.
+		var slot := BoneAttachment3D.new()
+		slot.bone_name = "handslot.l"
+		sk.add_child(slot)
+		var shoulder_slot := BoneAttachment3D.new()
+		shoulder_slot.bone_name = "upperarm.l"
+		sk.add_child(shoulder_slot)
+		var belly_slot := BoneAttachment3D.new()
+		belly_slot.bone_name = "hips"
+		sk.add_child(belly_slot)
+		for clip in ["Idle", "Walking_A", "Walking_B", "Walking_C", "Running_A", "Running_B"]:
+			anim.play(clip)
+			for i in 30:
+				await process_frame
+			var hand := sk.to_local(slot.global_position)
+			var shoulder := sk.to_local(shoulder_slot.global_position)
+			var belly := sk.to_local(belly_slot.global_position)
+			check(hand.z - belly.z > 0.45, "%s %s: the hand is held far in front (%.2f)" % [model, clip, hand.z - belly.z])
+			check(absf(hand.y - shoulder.y) < (0.4 if clip.begins_with("Running") else 0.25), "%s %s: the hand is about shoulder height (%.2f)" % [model, clip, hand.y - shoulder.y])
+			check(hand.x > (0.15 if clip == "Idle" else -0.1), "%s %s: the hand stays off the middle of the body (%.2f)" % [model, clip, hand.x])
+		holder.queue_free()
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

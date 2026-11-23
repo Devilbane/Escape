@@ -1,0 +1,1 @@
+- Torches and lamps are now held well out in front of villagers and the hero, at shoulder height, instead of right before the belly.

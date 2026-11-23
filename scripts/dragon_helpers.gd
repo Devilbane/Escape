@@ -32,7 +32,19 @@ const MODEL_SCALE := 0.16
 const WAY_REACHED := 0.6
 ## What a tile beside an obstacle costs, against an open one (see way_round).
 const CLOSE := 4.0
-const TINT := Color(1.0, 0.55, 0.3)
+## Scale colours: each dragonling gets one of these (ember, amber, moss, teal,
+## violet, rose) and a glowing eye that stands out against it.
+const SCALES: Array[Color] = [
+	Color(1.0, 0.45, 0.25), Color(0.95, 0.72, 0.25), Color(0.5, 0.8, 0.35),
+	Color(0.3, 0.75, 0.75), Color(0.65, 0.45, 0.9), Color(0.95, 0.45, 0.65),
+]
+const EYE_COLOUR := Color(1.0, 0.95, 0.5)
+## Each one flies at its own pace: its speed is SPEED times a factor in this
+## range, and it bobs and weaves a little around the way so the swarm looks alive.
+const PACE_MIN := 0.75
+const PACE_MAX := 1.25
+const BOB := 0.35
+const WEAVE := 0.3
 
 var level: Level
 ## Where they come out and go back in: the front of the arch.
@@ -118,24 +130,29 @@ func _send_out(target: Dictionary) -> void:
 	var model: Node3D = load("res://assets/lair/Dragon.fbx").instantiate()
 	model.scale = Vector3.ONE * MODEL_SCALE
 	node.add_child(model)
+	var tint: Color = SCALES[randi() % SCALES.size()]
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var mat := StandardMaterial3D.new()
-		mat.albedo_color = TINT
+		var is_eye := "eye" in String(mi.name).to_lower()
+		mat.albedo_color = EYE_COLOUR if is_eye else tint
 		mat.emission_enabled = true
-		mat.emission = TINT
-		mat.emission_energy_multiplier = 0.35
+		mat.emission = EYE_COLOUR if is_eye else tint
+		mat.emission_energy_multiplier = 1.6 if is_eye else 0.35
 		mi.material_override = mat
+	var pace := randf_range(PACE_MIN, PACE_MAX)
 	var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
 	if anim and anim.has_animation("DragonArmature|Dragon_Flying"):
 		anim.get_animation("DragonArmature|Dragon_Flying").loop_mode = Animation.LOOP_LINEAR
 		anim.play("DragonArmature|Dragon_Flying")
-		anim.speed_scale = 1.8
+		anim.speed_scale = 1.8 * pace
+		anim.seek(randf() * 0.8, true)
 	var glow := OmniLight3D.new()
-	glow.light_color = TINT
+	glow.light_color = tint
 	glow.light_energy = 0.9
 	glow.omni_range = 2.5
 	node.add_child(glow)
-	helpers.append({"node": node, "target": target, "carry": null, "home": false})
+	helpers.append({"node": node, "target": target, "carry": null, "home": false,
+		"pace": pace, "model": model, "phase": randf() * TAU})
 
 
 func _fly(h: Dictionary, delta: float) -> void:
@@ -156,7 +173,7 @@ func _fly(h: Dictionary, delta: float) -> void:
 		# High over the ground on the way, down to the thing at the end.
 		goal = Vector3(at.x, lerpf(at.y + 0.6, FLY_HEIGHT, clampf(left / 6.0, 0.0, 1.0)), at.z)
 	var step := goal - node.global_position
-	var move := SPEED * delta
+	var move := SPEED * float(h.get("pace", 1.0)) * delta
 	# Round the buildings: follow the way on the tiles; only the last stretch is straight.
 	var via: Variant = _via(h, goal)
 	if via != null:
@@ -174,6 +191,17 @@ func _fly(h: Dictionary, delta: float) -> void:
 			_snatch(h)
 		return
 	node.global_position += step.normalized() * move
+	_sway(h)
+
+
+## A visual wobble only (the way itself stays straight): up and down, and a
+## little sideways, each helper out of step with the others.
+func _sway(h: Dictionary) -> void:
+	var model: Node3D = h.get("model")
+	if model == null or not is_instance_valid(model):
+		return
+	var t := Time.get_ticks_msec() / 1000.0 * float(h.pace) * 2.2 + float(h.phase)
+	model.position = Vector3(sin(t * 0.7) * WEAVE, sin(t) * BOB, 0)
 
 
 ## The next tile point on the way round buildings and other obstacles to the

@@ -29,10 +29,10 @@ extends Node
 const EVERY_AUTUMN := Vector2(10.0, 30.0)
 const EVERY_OTHER := Vector2(60.0, 140.0)
 ## Pieces one gust moves, before the wind's strength and the quality preset.
-const PIECES := Vector2i(14, 24)
+const PIECES := Vector2i(30, 48)
 ## The least a leaf or a piece of straw is carried (metres): a third of the screen's width.
 const MIN_CROSS := 11.0
-const MAX_PIECES := 56
+const MAX_PIECES := 96
 ## No new gust starts while this many pieces are still in the air (gusts may overlap).
 const MAX_IN_AIR := 200
 ## How many flying leaves the MultiMesh holds at most.
@@ -43,13 +43,16 @@ const LEAF_SCALE := 1.35
 const LINGER := 2.5
 ## Pieces are taken from this far round the hero (metres).
 const NEAR := 2.5
-const FAR := 15.0
+const FAR := 26.0
 ## How far a leaf is carried in a breeze (metres).
 const TRAVEL := Vector2(50.0, 90.0)
 ## How high it is lifted (metres).
 const LIFT := Vector2(1.0, 2.2)
 ## How long a flight takes (seconds): slow, like a feather's.
 const DURATION := Vector2(14.0, 22.0)
+## A flying leaf's flight in seconds: about twice as fast along the wind as the snow. Its flutter keeps its
+## pace in real time (`lively` scales with the flight), so only the carry gets quicker.
+const LEAF_DURATION := Vector2(7.0, 11.0)
 ## The flight time the wobble and turning speeds were tuned for, and how much quicker than that
 ## they go: a long flight is not a slow one.
 const TUNED_FOR := 7.75
@@ -147,12 +150,26 @@ func strength() -> float:
 	return FlagWind.wind_for(life.level.get("weather") if "weather" in life.level else "").x
 
 
+## Whether the hero is under cover or down below the ground (a cellar, the bank's vault, the forgotten
+## mine): no wind reaches there, so no leaf or snowflake flies.
+func below_cover() -> bool:
+	var lvl := life.level
+	if lvl.player == null:
+		return false
+	return lvl.hero_under_cover() or LostMine.holds(lvl.player.global_position)
+
+
 func active() -> int:
 	return _moving.size() + _flakes.size() + _puffs.size()
 
 
 func _process(delta: float) -> void:
 	_now += delta
+	if active() > 0 and below_cover():
+		# The hero went down or inside: whatever was flying is gone.
+		_moving.clear()
+		_flakes.clear()
+		_puffs.clear()
 	if active() > 0:
 		_move()
 		_move_flakes()
@@ -173,7 +190,7 @@ func _process(delta: float) -> void:
 ## Blows one gust now, with the wind at strength `s`: sets leaves lying near the hero flying (in
 ## winter a flurry of snow). Returns how many pieces it set flying.
 func gust(s: float) -> int:
-	if life.level.player == null or active() > MAX_IN_AIR:
+	if life.level.player == null or active() > MAX_IN_AIR or below_cover():
 		return 0
 	_angle = PREVAILING + _rng.randf_range(-TURN, TURN)
 	var dir := Vector3(cos(_angle), 0, sin(_angle))
@@ -246,7 +263,7 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 				break
 		if not found:
 			return false
-	var dur := _rng.randf_range(DURATION.x, DURATION.y) / _pace(s)
+	var dur := _rng.randf_range(LEAF_DURATION.x, LEAF_DURATION.y) / _pace(s)
 	var lively := dur / TUNED_FOR * LIVELY
 	var col: Color = SurfaceLife.fallen_colour(_rng) if life._autumn else _loose_colour()
 	_moving.append({

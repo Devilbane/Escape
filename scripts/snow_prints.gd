@@ -20,8 +20,11 @@ const HEIGHT := 0.085
 const FRONT := PI
 ## The pressed grey. A print is lit like the snow round it, so it is always the same share darker than the
 ## snow and takes on the colour of the hour's light (pink at dusk, pale blue at night) instead of
-## standing out as a dark dot. A soft light grey, like a shallow dent in the snow, with only a hint of cool in it.
-const GREY := Color(0.74, 0.76, 0.79, 0.8)
+## standing out as a cold grey dot. The grey itself is neutral, with no blue in it.
+const GREY := Color(0.5, 0.5, 0.5, 0.92)
+## The same print at night: lighter, so it is a soft dent in the dark snow and not a black dot. By day
+## the snow is bright and the print must stay this dark to show at all.
+const NIGHT_GREY := Color(0.8, 0.8, 0.8, 0.92)
 
 static var _shapes := {}
 static var _textures := {}
@@ -216,6 +219,20 @@ static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
 
 
 static var _materials := {}
+static var _daylight_now := 1.0
+
+
+## Lightens every print as the light fades (daylight 1 = day, 0 = night), so they are not too dark at night.
+static func set_daylight(daylight: float) -> void:
+	if is_equal_approx(daylight, _daylight_now):
+		return
+	_daylight_now = daylight
+	for mat: StandardMaterial3D in _materials.values():
+		mat.albedo_color = _tint()
+
+
+static func _tint() -> Color:
+	return NIGHT_GREY.lerp(GREY, clampf(_daylight_now, 0.0, 1.0))
 
 
 ## The one material every print of a kind shares (they no longer fade one by one).
@@ -224,7 +241,7 @@ static func _material(kind: String) -> StandardMaterial3D:
 		var mat := StandardMaterial3D.new()
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.albedo_texture = texture(kind)
-		mat.albedo_color = GREY
+		mat.albedo_color = _tint()
 		mat.roughness = 1.0
 		mat.metallic_specular = 0.0
 		_materials[kind] = mat

@@ -28,7 +28,7 @@ const MUFFLED := [
 	"Fffrrrr... noch... ein... Bier...",
 ]
 const SNOW := Color(0.95, 0.97, 1.0)
-const ICE := Color(0.85, 0.95, 1.0, 0.7)
+const ICE := Color(0.85, 0.95, 1.0, 0.95)
 
 static var _tint: StandardMaterial3D
 static var _snow_mat: StandardMaterial3D
@@ -205,7 +205,7 @@ static func _frost() -> Array:
 			var v: float = base.get_pixel(x, y).r
 			var rime := smoothstep(0.42, 0.78, v)
 			var c := Color(0.62, 0.82, 0.97).lerp(Color(0.97, 0.99, 1.0), rime)
-			c.a = lerpf(0.3, 0.85, rime)
+			c.a = lerpf(0.14, 0.6, rime)
 			frost.set_pixel(x, y, c)
 	frost.generate_mipmaps()
 	var bump := base.duplicate() as Image
@@ -247,7 +247,7 @@ static func _frosted(mat: StandardMaterial3D, scale: float) -> void:
 static func _tint_material() -> StandardMaterial3D:
 	if _tint == null:
 		_tint = StandardMaterial3D.new()
-		_tint.albedo_color = Color(0.85, 0.94, 1.0, 0.55)
+		_tint.albedo_color = Color(0.85, 0.94, 1.0, 0.45)
 		_tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_tint.roughness = 0.7
 		_tint.metallic_specular = 0.25

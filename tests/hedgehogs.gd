@@ -95,9 +95,55 @@ func _run() -> void:
 		await physics_frame
 	check(hog.state in ["snuffle", "walk"], "it unrolls once the hero has gone (%s)" % hog.state)
 
+	# In autumn a hedgehog that lives near the village's apple trees fetches an apple: it waits under
+	# the tree, an apple falls, it scurries under it, the apple sticks on its back and it carries
+	# it to its hoard.
+	game.season_shift = Weather.YEAR_DAYS - Weather.WINTER_DAYS - 3
+	game._tick_clock(0.0)
+	var keeper: Hedgehog
+	for h: Hedgehog in hogs:
+		if h.apple_tree != Vector3.INF:
+			keeper = h
+	check(keeper != null and keeper.hoard != null, "a village hedgehog keeps an apple hoard")
+	if keeper != null and keeper.hoard != null:
+		var before := keeper.hoard.count
+		check(before == AppleHoard.START, "the hoard starts with a few apples (%d)" % before)
+		keeper._pause = 0.0
+		keeper._apple = null
+		keeper._begin("snuffle", 0.0)
+		# Starts close to the tree (on the first open tile 3 to 8 m from it).
+		var c0 := lvl.world_to_cell(keeper.apple_tree)
+		var found := false
+		for r in range(1, 4):
+			for dy in range(-r, r + 1):
+				for dx in range(-r, r + 1):
+					var c := c0 + Vector2i(dx, dy)
+					var w := lvl.cell_to_world(c)
+					if not found and lvl.is_open(c) and Vector2(w.x - keeper.apple_tree.x, w.z - keeper.apple_tree.z).length() > 3.0:
+						keeper.global_position = Vector3(w.x, 0.0, w.z)
+						found = true
+		check(found, "an open spot near the apple tree")
+		check(keeper._go_to_tree(), "it finds the way to the apple tree")
+		var seen := {}
+		var checked_back := false
+		for i in 60 * 160:
+			hero.global_position = keeper.global_position + Vector3(30, 0, 0)
+			await physics_frame
+			seen[keeper.state] = true
+			if keeper.state == "carry" and not checked_back:
+				checked_back = true
+				check(keeper._apple != null and keeper._apple.get_parent() == keeper._tilt, "the apple sticks on its back")
+			if keeper.hoard.count > before:
+				break
+		for st in ["to_tree", "wait", "falling", "startle", "carry", "stash"]:
+			check(seen.has(st), "the run goes through %s" % st)
+		check(keeper.hoard.count == before + 1, "it adds the apple to its hoard (%d)" % keeper.hoard.count)
+		check(keeper._apple == null, "it no longer carries the apple")
+
 	# In winter it hibernates: curled up even at night.
 	game.season_shift = Weather.YEAR_DAYS - 3
 	game._tick_clock(0.0)
+	hero.global_position = hog.global_position + Vector3(30, 0, 0)
 	for i in 60 * 6:
 		await physics_frame
 	check(hog.state == "sleep", "it hibernates in winter (%s)" % hog.state)

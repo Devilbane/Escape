@@ -1066,10 +1066,10 @@ func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
 	rec.push = float(rec.push) - delta
 	rec["lock_wait"] = float(rec.get("lock_wait", 0.0)) - delta
 	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
-	var near := Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH
+	var near: bool = Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH
 	# A hall without its keeper inside and awake is locked, unless the hero is inside it already
 	# (they are never shut in).
-	var locked := lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec)
+	var locked: bool = lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec)
 	rec["locked"] = locked
 	if near and locked:
 		if float(rec.lock_wait) <= 0.0:

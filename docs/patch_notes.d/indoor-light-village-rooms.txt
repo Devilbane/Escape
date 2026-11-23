@@ -1,0 +1,1 @@
+- Candles, hearth fires and altar lights inside village houses no longer shine through the walls onto the ivy outside.

@@ -108,6 +108,8 @@ static func candle_shelf() -> Node3D:
 	glow.light_energy = 0.7
 	glow.omni_range = 3.2
 	glow.position = Vector3(0.12, 0.4, 0.35)
+	# Walls all round it (see LightShadows.INDOOR), or it lit the ivy outside through the wall.
+	glow.set_meta(LightShadows.INDOOR, true)
 	root.add_child(glow)
 	return root
 
@@ -188,6 +190,7 @@ static func altar() -> Node3D:
 	glow.light_energy = 0.8
 	glow.omni_range = 4.0
 	glow.position = Vector3(0, ALTAR_SIZE.y + 0.6, 0.3)
+	glow.set_meta(LightShadows.INDOOR, true)
 	root.add_child(glow)
 	return root
 
@@ -839,5 +842,6 @@ static func hearth(wide: float) -> Node3D:
 	glow.omni_range = 6.0
 	glow.omni_attenuation = 1.4
 	glow.position = Vector3(0, 0.6, 0.8)
+	glow.set_meta(LightShadows.INDOOR, true)
 	root.add_child(glow)
 	return root

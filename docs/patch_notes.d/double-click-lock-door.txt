@@ -1,0 +1,1 @@
+- Double-click one of your own doors to lock or unlock it (same as Shift+E); the lock is saved with the house.

@@ -181,6 +181,10 @@ func _run() -> void:
 	check(said_lock == "" and door.locked, "Shift+E locks the hero's own door (%s)" % said_lock)
 	check(door._locks[0].visible and door._locks[1].visible, "a padlock shows on both faces")
 	check(plan.locked.has(door_key), "the lock is kept in the plan")
+	# Double click on the door unlocks and locks it again (and is not a sneak toggle).
+	check(game._lock_door_by_double_click(at) and not door.locked and not plan.locked.has(door_key), "a double click on the door unlocks it")
+	check(game._lock_door_by_double_click(at) and door.locked and plan.locked.has(door_key), "a double click locks it again")
+	check(not game._lock_door_by_double_click(at + Vector3(6, 0, 6)), "a double click away from the door is left to sneaking")
 	hero.global_position = at + Vector3(3.0, 0.1, 4.0)
 	hero.reset_physics_interpolation()
 	await _shot("door_locked", at + Vector3(0.9, 1.5, 2.0), at + Vector3(0.4, 1.2, 0))

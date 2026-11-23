@@ -5,8 +5,8 @@ extends RefCounted
 ## shades of grey granite, speckled by shaders/granite.gdshader. A handful of meshes (VARIANTS)
 ## are made once and shared, so no two neighbouring stones are the same shape.
 
-## Grey granite with a warm, a pink and a cool one, so a wall does not look printed.
-const SHADES: Array[Color] = [Color(0.56, 0.55, 0.54), Color(0.6, 0.55, 0.52), Color(0.5, 0.51, 0.52), Color(0.58, 0.56, 0.5)]
+## Neutral grey granite with a cooler and a slightly lighter one, so a wall does not look printed.
+const SHADES: Array[Color] = [Color(0.55, 0.56, 0.57), Color(0.58, 0.58, 0.58), Color(0.5, 0.52, 0.54), Color(0.56, 0.57, 0.56)]
 const SHADER := preload("res://shaders/granite.gdshader")
 ## How many different stone shapes there are.
 const VARIANTS := 6

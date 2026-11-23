@@ -80,6 +80,8 @@ static func build(level: Level, c: Vector2i, ch: String) -> void:
 	var bench: Dictionary = BENCHES[ch]
 	_add_sign(level, pos, Lang.t(bench.sign), bench.icon)
 	level._add_solid(pos + Vector3(-0.5, 0, 0), Vector3(2.0, 1.2, 3.0))
+	if ch == "*":
+		level._add_solid(pos + CAULDRON, Vector3(1.2, 1.0, 1.2))
 	level.stations.append({"kind": "werkbank", "craft": bench.craft, "cell": c, "pos": pos, "used": false,
 			"spot": pos + TOP})
 
@@ -100,7 +102,7 @@ static func build_bench(parent: Node, pos: Vector3, ch: String, seed_value: int)
 			VillageProps.dress_gem_wheel(b, top, rng)
 			_dress_gem_wheel(parent, pos)
 		"*":
-			VillageProps.dress_alchemy(b, top, CAULDRON, rng)
+			VillageProps.dress_alchemy(b, top, CAULDRON, rng, POT)
 			_dress_alchemy(parent, pos)
 	b.finish(parent, pos)
 
@@ -113,7 +115,10 @@ const TOP := Vector3(-0.7, 0.98, 0)
 
 ## Where the alchemist's cauldron stands, from the middle of the tile: in
 ## front of the south end of the bench.
-const CAULDRON := Vector3(0.55, 0, 1.15)
+const CAULDRON := Vector3(0.85, 0, 1.25)
+
+## How many times bigger than its base size the goo pot is.
+const POT := 1.8
 
 
 ## The hero's storage chest, iron-bound, its lid turned to the square, with
@@ -217,43 +222,59 @@ static func _dress_alchemy(level: Node, pos: Vector3) -> void:
 	brew.emission = Color(0.3, 0.85, 0.3)
 	brew.emission_energy_multiplier = 0.45
 	var surface := CylinderMesh.new()
-	surface.top_radius = 0.31
-	surface.bottom_radius = 0.31
+	surface.top_radius = 0.31 * POT
+	surface.bottom_radius = 0.31 * POT
 	surface.height = 0.02
-	_mesh(level, surface, brew, at + Vector3(0, 0.46, 0))
+	_mesh(level, surface, brew, at + Vector3(0, 0.46 * POT, 0))
 	var coals := Effects.make_flame()
-	coals.amount = 5
-	coals.position = at + Vector3(0, 0.1, 0)
-	coals.scale = Vector3.ONE * 0.3
+	coals.amount = 6
+	coals.position = at + Vector3(0, 0.1 * POT, 0)
+	coals.scale = Vector3.ONE * 0.3 * POT
 	level.add_child(coals)
-	var bubbles := Effects.make_sparkles(Color(0.55, 1.0, 0.5, 0.8))
-	bubbles.amount = 5
-	bubbles.lifetime = 2.4
-	bubbles.emission_sphere_radius = 0.22
-	bubbles.spread = 15.0
-	bubbles.gravity = Vector3(0, 0.12, 0)
-	bubbles.scale_amount_min = 0.35
-	bubbles.scale_amount_max = 0.6
-	bubbles.position = at + Vector3(0, 0.5, 0)
-	level.add_child(bubbles)
+	_goo_bubbles(level, at + Vector3(0, 0.47 * POT, 0), 0.27 * POT)
 	var steam := Effects.make_sparkles(Color(0.85, 0.95, 0.85, 0.28))
-	steam.amount = 6
+	steam.amount = 8
 	steam.lifetime = 3.2
-	steam.emission_sphere_radius = 0.18
+	steam.emission_sphere_radius = 0.18 * POT
 	steam.spread = 12.0
 	steam.gravity = Vector3(0, 0.16, 0)
 	steam.initial_velocity_min = 0.05
 	steam.initial_velocity_max = 0.15
-	steam.scale_amount_min = 0.8
-	steam.scale_amount_max = 1.5
-	steam.position = at + Vector3(0, 0.55, 0)
+	steam.scale_amount_min = 0.8 * POT
+	steam.scale_amount_max = 1.5 * POT
+	steam.position = at + Vector3(0, 0.55 * POT, 0)
 	level.add_child(steam)
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.45, 0.95, 0.4)
-	light.light_energy = 0.3
-	light.omni_range = 2.4
-	light.position = at + Vector3(0, 0.8, 0)
+	light.light_energy = 0.4
+	light.omni_range = 3.2
+	light.position = at + Vector3(0, 0.9 * POT, 0)
 	level.add_child(light)
+
+
+## Bubbles that swell on the goo's surface and pop, each on its own slow beat.
+static func _goo_bubbles(level: Node, centre: Vector3, spread: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(centre)
+	var skin := _mat(Color(0.55, 1.0, 0.5, 0.6), 0.1)
+	skin.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	skin.emission_enabled = true
+	skin.emission = Color(0.4, 0.95, 0.4)
+	skin.emission_energy_multiplier = 0.6
+	for i in 7:
+		var ball := SphereMesh.new()
+		ball.radius = 0.06 * POT
+		ball.height = ball.radius * 1.4
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * spread
+		var node := _mesh(level, ball, skin, centre + Vector3(cos(a) * r, 0, sin(a) * r))
+		node.scale = Vector3.ZERO
+		var tween := node.create_tween().set_loops()
+		tween.tween_interval(rng.randf_range(0.2, 2.5))
+		tween.tween_property(node, "scale", Vector3.ONE, rng.randf_range(1.2, 2.2)).set_trans(Tween.TRANS_SINE)
+		tween.tween_property(node, "scale", Vector3.ONE * 1.35, 0.07)
+		tween.tween_property(node, "scale", Vector3.ZERO, 0.05)
+		tween.tween_interval(rng.randf_range(0.3, 1.5))
 
 
 static func _add_sign(level: Level, pos: Vector3, text: String, icon: String) -> void:
@@ -280,10 +301,11 @@ static func _box_mesh(size: Vector3) -> BoxMesh:
 	return mesh
 
 
-static func _mesh(level: Node, mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO) -> void:
+static func _mesh(level: Node, mesh: Mesh, mat: Material, pos: Vector3, rot := Vector3.ZERO) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = mat
 	mi.position = pos
 	mi.rotation = rot
 	level.add_child(mi)
+	return mi

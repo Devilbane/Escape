@@ -23,6 +23,7 @@ fountain.gd | 120 | fixed | pass | Refuge fountain gives 5 life per drink test
 bloated_belly.gd | 120 | fixed | pass | Drinking too much at the village fountain swells the belly test
 seats.gd | 200 | fixed | passfail | Sitting on the benches of the market square test
 bench_rest.gd | 200 | free | passfail | Idle townsfolk now and then rest on the fountain benches, one to a bench, and get up again
+temple_morning.gd | 300 | fixed | passfail | Morning gathering in the temple: the village walks in through the door, sits on the pews, Elsbeth speaks before the altar, everyone goes back to work
 slime_growth.gd | 300 | fixed | pass | Growing slimes test (colours, sizes, swallowing, corpses, Blobs)
 slime_tricks.gd | 300 | fixed | pass | Slime tricks test (half damage from shots, slimed attackers, spit)
 slime_prey.gd | 300 | fixed | pass | Slime prey test (townsfolk and animals, fighting back, hiding, coming back out)
@@ -185,3 +186,7 @@ granite_wall.gd | 60 | free | pass | Village wall in natural granite and the age
 street_lamps.gd | 120 | free | passfail | Street lamps: each lamp on a map tile reaches its arm and lantern towards the nearest walkway and stands at its edge
 wind_gusts.gd | 120 | free | passfail | Wind gusts: now and then the wind stirs leaves, straw and chips near the hero, none in Performance
 chimney_flue.gd | 60 | free | pass | Village chimneys end in a rim round an open flue: snow lies on the rim only
+snow_sweep.gd | 120 | free | passfail | Konrad sweeps the snow off the footpaths with a birch broom: a route along the path tiles, the swept strip stays bare, fills in with snowfall, takes no footprints
+tavern_brewer.gd | 300 | fixed | passfail | The brewer keeps the tavern, hands Fritz a beer at his chair by the hearth and chats with him; both leave at night
+rabbit_shots.gd | 300 | fixed | pass | Rabbits: sit at forest edges, bolt in a bounding run, leave tracks in the snow (pictures with SHOTS=)
+hedgehogs.gd | 120 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, hibernate in winter)

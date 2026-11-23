@@ -68,6 +68,11 @@ const FRONT_FADED := 0.8
 const FADE_TIME := 0.25
 ## The walk between the altar and the first pews (metres), roomy for the hero.
 const ALTAR_WALK := 1.7
+## Sitting in the pews (see temple_seats): how close two may sit side by side (they share the pew evenly), how far in front of
+## a pew's front edge one stands to sit down, and how far before the altar the priestess stands.
+const SEAT_GAP := 0.75
+const SIT_STAND := 0.4
+const PULPIT_GAP := 0.55
 ## A villagers' house's rug under the table (metres across, deep), and how high over the floor the
 ## candle shelf hangs on the back wall, and how far off the middle (away from the store shelf).
 const RUG_SIZE := Vector2(2.2, 1.6)
@@ -650,6 +655,7 @@ func _lamp(rec: Dictionary) -> void:
 	lamp.omni_range = LAMP_RANGE
 	lamp.omni_attenuation = LAMP_FALLOFF
 	lamp.position = Vector3(0, rec.top - 0.6, room.get_center().y)
+	lamp.set_meta(LightShadows.INDOOR, true)
 	lamp.visible = false
 	house.add_child(lamp)
 	rec["lamp"] = lamp
@@ -747,21 +753,61 @@ func _furnish_temple(rec: Dictionary, chapel: Node3D) -> void:
 	inside.add_child(altar)
 	_solid_kit(rec, Vector3(0, 2.5, altar_z / s), Vector3(WalkInFurniture.ALTAR_SIZE.x, 5.0, WalkInFurniture.ALTAR_SIZE.z) / s)
 	# The pews: rows from the altar's front to the door, an aisle down the middle.
-	var aisle := 1.7
-	var pew_w := (room.size.x * s - aisle) * 0.5 - 0.35
-	# The first row stands well clear of the altar: the walk between them is wider than the hero
-	# (1.1 m), or they wedged in there and could not get out.
-	var first := altar_z + WalkInFurniture.ALTAR_SIZE.z * 0.5 + ALTAR_WALK + WalkInFurniture.PEW_DEPTH * 0.5
-	var last := (NAVE_DOOR_Z - 4.0) * s
-	var rows := maxi(1, int((last - first) / WalkInFurniture.PEW_STEP) + 1)
-	for r in rows:
-		var z := first + r * WalkInFurniture.PEW_STEP
-		for side: float in [-1.0, 1.0]:
-			var x := side * (aisle * 0.5 + pew_w * 0.5)
+	var rows := temple_pews(room, s)
+	var pew_w: float = rows.pew_w
+	for z: float in rows.zs:
+		for x: float in rows.xs:
 			var pew := WalkInFurniture.pew(pew_w)
 			pew.position = Vector3(x, floor_y, z)
 			inside.add_child(pew)
 			_solid_kit(rec, Vector3(x, 0.5, z) / s, Vector3(pew_w, 1.0, WalkInFurniture.PEW_DEPTH) / s)
+
+
+## Where the temple's pews stand, in metres in the temple's own frame (`room` is the nave in the kit's
+## metres, `s` the chapel's scale): {"pew_w": their length, "aisle": the walk between the two columns,
+## "xs": the middle of each column, "zs": the middle of each row, "altar_z": the altar's middle}.
+## The first row stands well clear of the altar: the walk between them is wider than the hero
+## (1.1 m), or they wedged in there and could not get out.
+static func temple_pews(room: Rect2, s: float) -> Dictionary:
+	var altar_z := (room.position.y + 2.2) * s
+	var aisle := 1.7
+	var pew_w := (room.size.x * s - aisle) * 0.5 - 0.35
+	var first := altar_z + WalkInFurniture.ALTAR_SIZE.z * 0.5 + ALTAR_WALK + WalkInFurniture.PEW_DEPTH * 0.5
+	var last := (NAVE_DOOR_Z - 4.0) * s
+	var count := maxi(1, int((last - first) / WalkInFurniture.PEW_STEP) + 1)
+	var zs: Array[float] = []
+	for r in count:
+		zs.append(first + r * WalkInFurniture.PEW_STEP)
+	var xs: Array[float] = []
+	for side: float in [-1.0, 1.0]:
+		xs.append(side * (aisle * 0.5 + pew_w * 0.5))
+	return {"pew_w": pew_w, "aisle": aisle, "xs": xs, "zs": zs, "altar_z": altar_z}
+
+
+## The places to sit in the temple's pews and the place to stand before the altar, world:
+## {"seats": [{"sit", "stand", "aisle", "front", "row"}], "pulpit": {"stand", "front"}}.
+## One sits in the middle of the pew's plank facing the altar, a SEAT_GAP apart from the next, and
+## walks up to it from the gap in front of the row.
+func temple_seats(rec: Dictionary) -> Dictionary:
+	var node: Node3D = rec.node
+	var s := node.scale.x
+	var xf := node.global_transform
+	var lay := temple_pews(rec.room, s)
+	var front := (xf.basis * Vector3(0, 0, -1)).normalized()
+	var seats := []
+	var zs: Array = lay.zs
+	for r in zs.size():
+		var z: float = zs[r]
+		var stand_z := z - WalkInFurniture.PEW_DEPTH * 0.5 - SIT_STAND
+		for cx: float in lay.xs:
+			var n := maxi(1, int(float(lay.pew_w) / SEAT_GAP))
+			var apart := float(lay.pew_w) / n
+			for k in n:
+				var x := cx + (k - (n - 1) * 0.5) * apart
+				seats.append({"sit": xf * (Vector3(x, 0, z - 0.05) / s), "stand": xf * (Vector3(x, 0, stand_z) / s),
+						"aisle": xf * (Vector3(0, 0, stand_z) / s), "front": front, "row": r})
+	var altar_front: float = float(lay.altar_z) + WalkInFurniture.ALTAR_SIZE.z * 0.5 + PULPIT_GAP
+	return {"seats": seats, "pulpit": {"stand": xf * (Vector3(0, 0, altar_front) / s), "front": -front}}
 
 
 # --- Walls that hide and stop (see Level.fixed_walls) ----------------------------

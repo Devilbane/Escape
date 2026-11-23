@@ -1,0 +1,1 @@
+- Lamps inside houses no longer light the snow and ivy on the outside walls.

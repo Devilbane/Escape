@@ -1,20 +1,24 @@
 class_name WindGusts
 extends Node
-## Now and then a gust of wind sweeps up the light litter lying around the hero: fallen leaves
-## rise as high as a person and are blown on across the screen, chaotic and erratic (each pushed up, down and sideways on its own and turning every which way) but always along the wind, until they settle again,
-## straw rides along, wood chips only skid and a heap of autumn
-## leaves shifts a little. In winter there are no leaves to carry: the gust whirls up a flurry of
-## snow instead (see _flurry).
+## Now and then a gust of wind sweeps up the light litter lying around the hero. Single leaves
+## rise from the leaves that really lie on the ground (the loose leaves of the forest floor and,
+## in autumn, the heaps of fallen leaves), are blown on downwind across the screen, as far as
+## 90 m, and settle again, each pushed up, down and sideways on its own and turning every which
+## way but always carried along the wind, the way it goes in a real gust (see docs/wind_reference.md).
+## In winter there are no leaves to carry: the gust whirls up a flurry of snow and foggy dust from
+## where snow lies instead (see _flurry).
 ##
-## No two gusts are alike: each has a force of its own (see FORCE), from a light, slow drift that
-## lifts a few leaves a little way to a strong, fast blow that carries many of them high and far.
+## The wind has a direction, mostly left to right across the screen (+x), turning a little from
+## gust to gust. No two gusts are alike: each has a force of its own (see FORCE), from a light,
+## slow drift that lifts a few leaves a little way to a strong, fast blow that carries many of
+## them high and far.
 ##
 ## Autumn is the season of wind: a gust every ten to thirty seconds. In the other seasons they are
 ## rare (one every minute or two).
 ##
-## It is cheap. The leaves are the litter's own MultiMesh instances (see SurfaceLife), moved a
-## little each frame while a gust lasts and left where they land; the snow is one small MultiMesh
-## that is hidden between gusts. Only the pieces of one gust are touched, and nothing runs between
+## It is cheap. The flying leaves are one small MultiMesh of single leaves (the ground's own
+## litter stays as it is: a few leaves less in a heap is not seen), the snow and its dust two more,
+## each hidden between gusts. Only the pieces of one gust are touched, and nothing runs between
 ## gusts but a timer. The Performance preset has no gusts, Quality has more of them.
 ##
 ## The weather tells the wind too (see FlagWind.WINDS): rare, weak gusts in fog, frequent, strong
@@ -25,19 +29,25 @@ extends Node
 const EVERY_AUTUMN := Vector2(10.0, 30.0)
 const EVERY_OTHER := Vector2(60.0, 140.0)
 ## Pieces one gust moves, before the wind's strength and the quality preset.
-const PIECES := Vector2i(10, 18)
+const PIECES := Vector2i(14, 24)
 ## The least a leaf or a piece of straw is carried (metres): a third of the screen's width.
 const MIN_CROSS := 11.0
-const MAX_PIECES := 40
+const MAX_PIECES := 56
 ## No new gust starts while this many pieces are still in the air (gusts may overlap).
-const MAX_IN_AIR := 120
+const MAX_IN_AIR := 200
+## How many flying leaves the MultiMesh holds at most.
+const LEAF_CAP := 260
+## A flying leaf's size relative to a leaf lying on the ground, so it can be seen in the air.
+const LEAF_SCALE := 1.35
+## After landing a leaf lies this long on the ground (seconds) and then fades away over the next second.
+const LINGER := 2.5
 ## Pieces are taken from this far round the hero (metres).
 const NEAR := 2.5
 const FAR := 15.0
-## How far a piece travels in a breeze (metres), by what it is: leaves float far, chips skid.
-const TRAVEL := {"leaf": Vector2(50.0, 90.0), "straw": Vector2(25.0, 50.0), "chip": Vector2(0.6, 1.5), "fallen": Vector2(0.4, 1.1)}
+## How far a leaf is carried in a breeze (metres).
+const TRAVEL := Vector2(50.0, 90.0)
 ## How high it is lifted (metres).
-const LIFT := {"leaf": Vector2(1.0, 2.2), "straw": Vector2(0.6, 1.5), "chip": Vector2(0.05, 0.2), "fallen": Vector2(0.02, 0.06)}
+const LIFT := Vector2(1.0, 2.2)
 ## How long a flight takes (seconds): slow, like a feather's.
 const DURATION := Vector2(14.0, 22.0)
 ## The flight time the wobble and turning speeds were tuned for, and how much quicker than that
@@ -46,8 +56,11 @@ const TUNED_FOR := 7.75
 const LIVELY := 2.0
 ## The gust sweeps along the wind: the furthest piece starts this long after the nearest (seconds).
 const SWEEP := 5.0
-## How much the wind's direction turns between gusts (radians, at most).
-const TURN := 0.7
+## The wind's own direction on the ground plane: +x, left to right across the screen. Each gust
+## blows within TURN radians of it, and each leaf a little off its gust's way.
+const PREVAILING := 0.0
+const TURN := 0.45
+const LEAF_TURN := 0.3
 ## How hard a gust blows on top of the weather's wind (1 is the weather's breeze): drawn at random
 ## for every gust, mostly light and slow, now and then strong and fast. It sets how many pieces are
 ## taken, how high and far they go and how quickly.
@@ -68,8 +81,10 @@ const FLAKE_TRAVEL := Vector2(18.0, 40.0)
 const FLAKE_LIFT := Vector2(0.3, 2.2)
 
 var life: SurfaceLife
-## The pieces in the air: {entry, from, to, start, dur, lively, lift, axis, spin, yaw, light, and the settings of its erratic motion}.
+## The leaves in the air: {from, to, dir, start, dur, lively, lift, axis, spin, yaw, size, colour, and the
+## settings of its erratic motion}. They fly as single leaves of `_leaves`, a MultiMesh made at the first gust.
 var _moving: Array = []
+var _leaves: MultiMeshInstance3D
 ## Seconds the node has run, and the clock every flight is told by (see _move).
 var _now := 0.0
 var _timer := 0.0
@@ -96,7 +111,7 @@ func _init(owner_life: SurfaceLife) -> void:
 
 func _ready() -> void:
 	_rng.seed = hash(life.level.level_name + ":gusts")
-	_angle = _rng.randf() * TAU
+	_angle = PREVAILING
 	_timer = _rng.randf_range(3.0, 10.0) if _autumn() else _rng.randf_range(EVERY_OTHER.x * 0.3, EVERY_OTHER.y * 0.5)
 
 
@@ -155,12 +170,12 @@ func _process(delta: float) -> void:
 		gust(s)
 
 
-## Blows one gust now, with the wind at strength `s`: sets pieces of litter near the hero flying
-## (in winter a flurry of snow). Returns how many pieces it set flying.
+## Blows one gust now, with the wind at strength `s`: sets leaves lying near the hero flying (in
+## winter a flurry of snow). Returns how many pieces it set flying.
 func gust(s: float) -> int:
 	if life.level.player == null or active() > MAX_IN_AIR:
 		return 0
-	_angle += _rng.randf_range(-TURN, TURN)
+	_angle = PREVAILING + _rng.randf_range(-TURN, TURN)
 	var dir := Vector3(cos(_angle), 0, sin(_angle))
 	var hero: Vector3 = life.level.player.global_position
 	gusts += 1
@@ -171,18 +186,23 @@ func gust(s: float) -> int:
 		_flurry(dir, s, hero)
 		return _flakes.size()
 	var want := mini(MAX_PIECES, roundi(_rng.randi_range(PIECES.x, PIECES.y) * s * quality_scale()))
+	want = mini(want, LEAF_CAP - _moving.size())
 	var pool := _pool(hero)
+	var before := _moving.size()
 	while want > 0 and not pool.is_empty():
 		var at := _rng.randi() % pool.size()
 		var e: Array = pool[at]
 		pool.remove_at(at)
 		if _launch(e, dir, s, hero):
 			want -= 1
-			moved += 1
-	return _moving.size()
+	moved += _moving.size() - before
+	if _leaves != null:
+		_leaves.visible = not _moving.is_empty()
+	return _moving.size() - before
 
 
-## The litter that may be stirred: leaves, straw, chips and heaps of fallen leaves round the hero.
+## The leaves that may be stirred: those lying on the ground round the hero (loose leaves, and the
+## fallen leaves of autumn's heaps).
 func _pool(hero: Vector3) -> Array:
 	var pool: Array = []
 	var c: Vector2i = life.level.world_to_cell(hero)
@@ -190,9 +210,7 @@ func _pool(hero: Vector3) -> Array:
 	for dy in range(-reach, reach + 1):
 		for dx in range(-reach, reach + 1):
 			for e: Array in life._cell_litter.get(c + Vector2i(dx, dy), []):
-				if not TRAVEL.has(e[4]) or (e[4] == "fallen" and not life._autumn):
-					continue
-				if e.size() > 5 and e[5]:
+				if not (e[4] == "leaf" or (e[4] == "fallen" and life._autumn)):
 					continue
 				var o: Vector3 = e[2]
 				var d := Vector2(o.x - hero.x, o.z - hero.z).length()
@@ -204,57 +222,84 @@ func _pool(hero: Vector3) -> Array:
 	return pool
 
 
+## Sets one leaf flying from the litter entry `e` along the wind `dir`. False when there is no way
+## to carry it at least MIN_CROSS (a wall or the water is in the way).
 func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
-	var kind: String = e[4]
+	# A heap's leaf starts somewhere in the heap, a loose leaf where it lies.
 	var from: Vector3 = e[2]
-	var span: Vector2 = TRAVEL[kind]
-	var dist := _rng.randf_range(span.x, span.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6)
-	# A little off the wind's own way, as every piece catches it differently.
-	var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
+	if e[4] == "fallen":
+		from += Vector3(_rng.randf_range(-0.7, 0.7), 0, _rng.randf_range(-0.7, 0.7))
+	var dist := _rng.randf_range(TRAVEL.x, TRAVEL.y) * clampf(0.35 + 0.65 * s, 0.35, 1.6)
+	# A little off the wind's own way, as every leaf catches it differently.
+	var way := dir.rotated(Vector3.UP, _rng.randf_range(-LEAF_TURN, LEAF_TURN))
 	var to := from + way * dist
 	if not _clear_way(from, to):
 		# Not so far then: a wall or the water is in the way. But a leaf must still cross at least a
 		# third of the screen (the camera shows about 33 m across) to look natural, or it stays put.
-		var short := false
+		var found := false
 		for share in [0.5, 0.25]:
-			if kind in ["leaf", "straw"] and dist * share < MIN_CROSS:
+			if dist * share < MIN_CROSS:
 				break
 			to = from + way * dist * share
 			if _clear_way(from, to):
-				short = true
+				found = true
 				break
-		if not short and kind in ["leaf", "straw"]:
+		if not found:
 			return false
-		if not short and not _clear_way(from, to):
-			return false
-	var lift: Vector2 = LIFT[kind]
-	var light := kind == "leaf" or kind == "straw"
-	var dur := (_rng.randf_range(DURATION.x, DURATION.y) if light else _rng.randf_range(1.2, 2.2)) / _pace(s)
-	var lively := dur / TUNED_FOR * LIVELY if light else 1.0
-	if e.size() > 5:
-		e[5] = true
-	else:
-		e.append(true)
+	var dur := _rng.randf_range(DURATION.x, DURATION.y) / _pace(s)
+	var lively := dur / TUNED_FOR * LIVELY
+	var col: Color = SurfaceLife.fallen_colour(_rng) if life._autumn else _loose_colour()
 	_moving.append({
-		"entry": e, "from": from, "to": to,
+		"from": from, "to": to, "dir": way,
 		"start": _now + clampf((from - hero).dot(dir) / FAR * 0.5 + 0.5, 0.0, 1.0) * SWEEP + _rng.randf_range(0.0, 0.4),
 		"dur": dur, "lively": lively,
-		"lift": _rng.randf_range(lift.x, lift.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
+		"lift": _rng.randf_range(LIFT.x, LIFT.y) * clampf(0.35 + 0.65 * s, 0.35, 1.5),
 		"axis": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(0.2, 1), _rng.randf_range(-1, 1)).normalized(),
-		"spin": _rng.randf_range(2.0, 5.0) * lively if light else _rng.randf_range(0.05, 0.3),
+		"spin": _rng.randf_range(2.0, 5.0) * lively,
 		"fh": _noise_freqs(), "ph": _noise_phases(),
 		"fl": _noise_freqs(), "pl": _noise_phases(),
 		"fa": _noise_freqs(), "pa": _noise_phases(),
 		"fb": _noise_freqs(), "pb": _noise_phases(),
 		"flip_hz": _rng.randf_range(3.0, 5.0), "flip_ph": _rng.randf_range(0.0, TAU), "bob_ph": _rng.randf_range(0.0, TAU),
 		"axis2": Vector3(_rng.randf_range(-1, 1), _rng.randf_range(-1, 1), _rng.randf_range(-1, 1)).normalized(),
-		"yaw": _rng.randf_range(-1.5, 1.5) if light else _rng.randf_range(-0.5, 0.5),
-		"light": light,
+		"yaw": _rng.randf_range(-1.5, 1.5), "rest": _rng.randf() * TAU,
+		"size": _rng.randf_range(SurfaceLife.FALLEN_SIZE.x, SurfaceLife.FALLEN_SIZE.y) * LEAF_SCALE,
+		"colour": col,
 	})
 	return true
 
 
-## Whether the piece may fly from `a` to `b`: open ground all the way, and not into a hole or a house.
+## The colour of a loose leaf outside autumn (the litter's own, see SurfaceLife.COLOURS).
+func _loose_colour() -> Color:
+	var list: Array = SurfaceLife.COLOURS["leaf"]
+	var col: Color = list[_rng.randi() % list.size()] * _rng.randf_range(0.85, 1.1)
+	col.a = 1.0
+	return col
+
+
+## Makes the MultiMesh of flying leaves (once): single flat ivy leaves, the same matt, alpha-cut
+## look as the leaves on the ground (SurfaceLife._fallen_material).
+func _make_leaves() -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	quad.orientation = PlaneMesh.FACE_Y
+	mm.mesh = quad
+	mm.instance_count = LEAF_CAP
+	_leaves = MultiMeshInstance3D.new()
+	_leaves.name = "FlyingLeaves"
+	_leaves.multimesh = mm
+	_leaves.material_override = life._fallen_material()
+	_leaves.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_leaves.extra_cull_margin = 100.0
+	add_child(_leaves)
+	for i in LEAF_CAP:
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+
+
+## Whether the leaf may fly from `a` to `b`: open ground all the way, and not into a hole or a house.
 func _clear_way(a: Vector3, b: Vector3) -> bool:
 	var steps := ceili(a.distance_to(b))
 	for i in range(1, steps + 1):
@@ -301,53 +346,55 @@ static func height_share(t: float, n: float) -> float:
 	return rise * settle * (1.0 - 0.25 * t) * clampf(0.85 + 0.2 * n, 0.6, 1.0)
 
 
+## Where a leaf is `t` (0 to 1) of the way through its flight, and how it lies: along the wind at a
+## steady pace, pushed up, down and sideways as it goes, turning on every axis.
+func pose(m: Dictionary, t: float) -> Transform3D:
+	var k: float = m.lively
+	var share := height_share(t, erratic(t * k, m.fh, m.ph))
+	var along: Vector3 = (m.to as Vector3) - (m.from as Vector3)
+	var side_axis := Vector3.UP.cross(along).normalized()
+	var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
+	var sway := side_axis * erratic(t * k, m.fl, m.pl) * 1.5 * calm
+	var surge := erratic(t * k, _roll(m.fl, 1), _roll(m.pl, 2)) * 0.025 * calm
+	# From the recorded reference (see docs/wind_reference.md): about every quarter of a second the
+	# leaf flips edge-on and back, and it bobs very slightly.
+	var secs: float = t * m.dur
+	var flip: float = sin(secs * TAU * m.flip_hz + m.flip_ph)
+	var bob: float = sin(secs * TAU * 1.4 + m.bob_ph) * 0.025 * calm
+	var yaw: float = m.rest + m.yaw * t + m.spin * t + erratic(t * k, m.fa, m.pa) * 1.4 * calm
+	var basis := Basis(along.normalized(), flip * 0.7 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 1.2 * calm) \
+			* Basis(m.axis2, erratic(t * k, _roll(m.fa, 2), _roll(m.pb, 1)) * 1.0 * calm) * Basis(Vector3.UP, yaw)
+	var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway
+	origin.y += 0.02 + m.lift * share + bob
+	return Transform3D(basis, origin)
+
+
 func _move() -> void:
+	if _moving.is_empty():
+		return
+	if _leaves == null:
+		_make_leaves()
+	var mm := _leaves.multimesh
 	var left: Array = []
+	var i := 0
 	for m: Dictionary in _moving:
-		var e: Array = m.entry
-		if not is_instance_valid(e[0]):
-			continue
-		var t := clampf((_now - m.start) / m.dur, 0.0, 1.0)
-		var flat: Transform3D = e[3]
-		var yawed := Basis(Vector3.UP, m.yaw + m.spin)
-		var key := "%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]
-		var lifted: bool = life._lifted.has(key)
-		if t >= 1.0:
-			# Lands: this is where the piece lies now.
-			var home := Transform3D(yawed * flat.basis, flat.origin + (m.to - m.from))
-			e[2] = home.origin
-			e[3] = home
-			if e.size() > 5:
-				e[5] = false
-			if not lifted:
-				(e[0] as MultiMesh).set_instance_transform(e[1], home)
+		var age: float = _now - m.start
+		var t := clampf(age / m.dur, 0.0, 1.0)
+		# It grows out of the ground at the start, lies where it landed for a while and then fades away.
+		var scale_by: float = m.size * smoothstep(0.0, 0.35, age) * (1.0 - smoothstep(m.dur + LINGER, m.dur + LINGER + 1.0, age))
+		if age >= m.dur + LINGER + 1.0:
 			continue
 		left.append(m)
-		if t <= 0.0 or lifted:
+		if age <= 0.0:
 			continue
-		var k: float = m.lively
-		var share := height_share(t, erratic(t * k, m.fh, m.ph))
-		var along: Vector3 = (m.to as Vector3) - (m.from as Vector3)
-		var side_axis := Vector3.UP.cross(along).normalized()
-		# Pushed this way and that on the way, but always on along the wind.
-		var calm := smoothstep(0.0, 0.2, t) * smoothstep(0.0, 0.3, 1.0 - t)
-		var sway := side_axis * erratic(t * k, m.fl, m.pl) * 1.5 * calm
-		var surge := erratic(t * k, _roll(m.fl, 1), _roll(m.pl, 2)) * 0.025 * calm
-		# From a recorded reference (see docs/wind_reference.md): about every quarter of a second
-		# the leaf flips edge-on and back, it bobs very slightly, and it surges a little.
-		var secs: float = t * m.dur
-		var flip: float = sin(secs * TAU * m.flip_hz + m.flip_ph)
-		var bob: float = sin(secs * TAU * 1.4 + m.bob_ph) * 0.025 * calm
-		var basis := flat.basis
-		if m.light:
-			# Its own wild turning on all axes, never the same as its neighbour's.
-			var yaw: float = m.yaw * t + m.spin * t + erratic(t * k, m.fa, m.pa) * 1.4 * calm
-			basis = Basis(along.normalized(), flip * 0.7 * calm) * Basis(m.axis, erratic(t * k, m.fb, m.pb) * 1.2 * calm) * Basis(m.axis2, erratic(t * k, _roll(m.fa, 2), _roll(m.pb, 1)) * 1.0 * calm) * Basis(Vector3.UP, yaw) * flat.basis
-		else:
-			basis = Basis(Vector3.UP, m.yaw * t + m.spin * t) * flat.basis
-		var origin: Vector3 = (m.from as Vector3).lerp(m.to, clampf(ease_out(t) + surge, 0.0, 1.0)) + sway + Vector3(0, m.lift * share + bob, 0)
-		(e[0] as MultiMesh).set_instance_transform(e[1], Transform3D(basis, origin + (flat.origin - m.from)))
+		var at := pose(m, t)
+		mm.set_instance_transform(i, Transform3D(at.basis.scaled(Vector3.ONE * scale_by), at.origin))
+		mm.set_instance_color(i, m.colour)
+		i += 1
+	for k in range(i, mm.instance_count):
+		mm.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
 	_moving = left
+	_leaves.visible = not left.is_empty()
 
 
 ## Fast at first as the gust takes it, slower as it drifts down.

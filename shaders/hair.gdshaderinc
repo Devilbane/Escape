@@ -148,13 +148,13 @@ float combed(vec3 p, out float height) {
 	// Single strands: round, each a little lighter or darker.
 	float f = fract(s) * 2.0 - 1.0;
 	float curve = sqrt(max(0.0, 1.0 - f * f));
-	float strand = mix(1.0, 0.86 + 0.14 * curve, fine) * mix(1.0, 0.94 + 0.12 * hash1(floor(s)), fine);
+	float strand = mix(1.0, 0.74 + 0.26 * curve, fine) * mix(1.0, 0.88 + 0.24 * hash1(floor(s)), fine);
 	// Locks: a darker gap between two, each its own shade.
 	float edge = abs(fract(l) * 2.0 - 1.0);
-	float lock_shade = mix(1.0, (1.0 - 0.28 * edge * edge - 0.12 * smoothstep(0.8, 1.0, edge)) * (0.9 + 0.24 * r), coarse);
+	float lock_shade = mix(1.0, (1.0 - 0.4 * edge * edge - 0.16 * smoothstep(0.8, 1.0, edge)) * (0.84 + 0.32 * r), coarse);
 	// Layers: lower down, the end of a lock above shades the one below it.
 	float layer = fract(away * 1.6 + r * 0.9 + 0.15 * sin(round * 40.0));
-	float layered = short_hair ? 1.0 : mix(1.0, 0.86 + 0.14 * smoothstep(0.0, 0.2, layer), coarse * smoothstep(0.7, 1.1, away));
+	float layered = short_hair ? 1.0 : mix(1.0, 0.78 + 0.22 * smoothstep(0.0, 0.2, layer), coarse * smoothstep(0.7, 1.1, away));
 	// The parting shows a thin line of darker roots, up to the forehead.
 	float parting = mix(1.0, mix(0.55, 1.0, part), 1.0 - smoothstep(0.75, 0.95, away));
 	height = (curve * fine * 0.0025 + (1.0 - edge * edge) * coarse * 0.006) * part;
@@ -257,17 +257,21 @@ void fragment() {
 			NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h * hair), dFdy(h * hair));
 			c *= mix(1.0, comb, hair);
 			albedo = c;
-			roughness = mix(0.95, 0.6, hair);
-			specular = mix(0.12, 0.3, hair);
+			roughness = mix(0.95, 0.78, hair);
+			specular = mix(0.12, 0.16, hair);
 		}
 		if (!bald && (recolor || mode != 0)) {
 			// Dyed natural hair: the texture's light and dark in the new colour.
-			float light = clamp(dot(c, vec3(0.3, 0.59, 0.11)) / NATURAL_LIGHT, 0.4, 1.6);
+			float light = clamp(dot(c, vec3(0.3, 0.59, 0.11)) / NATURAL_LIGHT, 0.4, 1.15);
 			float along = clamp((2.2 - p.y) / 1.0, 0.0, 1.0);
 			float around = atan(p.x, p.z) / TAU + 0.5;
 			float flick = mode == 2 ? vnoise(vec3(p.x * 6.0, p.y * 5.0 + TIME * 2.5, p.z * 6.0)) : 0.5;
 			float glow;
 			vec3 dyed = hair_tone(along, around, flick, TIME, glow) * light;
+			if (mode == 0) {
+				// Sunlit pale hair must not wash out: roll off the brightest tones.
+				dyed = dyed * 0.82 / (1.0 + 0.35 * dyed);
+			}
 			if (short_hair && mode == 0) {
 				// A short crop is the hair's dense base: the roots' shade
 				// a third of the way to the middle colour, never pale like skin.

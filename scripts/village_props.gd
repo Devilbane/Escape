@@ -450,8 +450,8 @@ static func dress_gem_wheel(b: WeatheredProps.Builder, top: Vector3, rng: Random
 	b.bar(top + Vector3(0.22, 0.46, -0.08), top + Vector3(0.22, 0.46, 0.04), 0.02, W.TIMBER[2], W.WOOD, 5)
 
 
-## The small cooking brazier on three legs, and the mortar on the bench.
-static func dress_alchemy(b: WeatheredProps.Builder, top: Vector3, cauldron: Vector3, rng: RandomNumberGenerator) -> void:
+## The cooking brazier on three legs (`pot` times its base size), and the mortar on the bench.
+static func dress_alchemy(b: WeatheredProps.Builder, top: Vector3, cauldron: Vector3, rng: RandomNumberGenerator, pot := 1.0) -> void:
 	b.cylinder(top + Vector3(0.1, 0, 0.35), 0.09, 0.13, 0.14, Color(0.78, 0.76, 0.72), W.STONE, 10)
 	b.bar(top + Vector3(0.1, 0.08, 0.35), top + Vector3(0.2, 0.24, 0.3), 0.022, Color(0.74, 0.72, 0.69), W.STONE, 5)
 	# The book of recipes: leather covers, pale pages.
@@ -462,13 +462,13 @@ static func dress_alchemy(b: WeatheredProps.Builder, top: Vector3, cauldron: Vec
 	# a few coals under it. The goo itself is added by CraftingSquare.
 	for i in 3:
 		var a := i * TAU / 3.0 + 0.3
-		b.bar(cauldron + Vector3(cos(a) * 0.3, 0, sin(a) * 0.3), cauldron + Vector3(cos(a) * 0.2, 0.32, sin(a) * 0.2), 0.03, iron, W.IRON, 5)
-	b.cylinder(cauldron + Vector3(0, 0.3, 0), 0.17, 0.34, 0.2, iron, W.IRON, 14)
-	b.cylinder(cauldron + Vector3(0, 0.48, 0), 0.36, 0.37, 0.04, iron, W.IRON, 14, Basis(), false)
+		b.bar(cauldron + Vector3(cos(a) * 0.3, 0, sin(a) * 0.3) * pot, cauldron + Vector3(cos(a) * 0.2 * pot, 0.32 * pot, sin(a) * 0.2 * pot), 0.03 * pot, iron, W.IRON, 5)
+	b.cylinder(cauldron + Vector3(0, 0.3, 0) * pot, 0.17 * pot, 0.34 * pot, 0.2 * pot, iron, W.IRON, 14)
+	b.cylinder(cauldron + Vector3(0, 0.48, 0) * pot, 0.36 * pot, 0.37 * pot, 0.04 * pot, iron, W.IRON, 14, Basis(), false)
 	for i in 3:
 		var a := i * TAU / 3.0 + rng.randf_range(-0.2, 0.2)
 		var d := Vector3(cos(a), 0, sin(a))
-		b.bar(cauldron - d * 0.2 + Vector3(0, 0.04, 0), cauldron + d * 0.2 + Vector3(0, 0.04, 0), 0.04, W.vary(W.DARK_TIMBER, rng), W.WOOD, 6)
+		b.bar(cauldron - d * 0.2 * pot + Vector3(0, 0.04, 0) * pot, cauldron + d * 0.2 * pot + Vector3(0, 0.04, 0) * pot, 0.04 * pot, W.vary(W.DARK_TIMBER, rng), W.WOOD, 6)
 
 
 # --- The holes in the ground ----------------------------------------------------

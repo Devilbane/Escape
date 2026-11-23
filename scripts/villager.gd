@@ -134,6 +134,9 @@ const ROLES := {
 	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [],
 		"colors": [Color(0.92, 0.9, 0.84), Color(0.55, 0.5, 0.42), Color(0.9, 0.88, 0.82)], "plan": "shop", "work": "Interact",
 		"lines": ["Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.", "Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.", "Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche."]},
+	"ö": {"name": "Brauer Eberhard", "model": "Barbarian", "show": ["Mug"],
+		"colors": [Color(0.62, 0.4, 0.22), Color(0.36, 0.3, 0.24), Color(1, 1, 1)], "plan": "stay", "work": "Interact",
+		"lines": ["Frisch gezapft, frisch gebraut: Mein Bier kennt keinen Kater. Fast keinen.", "Der Hopfen wächst am Waldrand. Der Rest ist Geduld und Wasser.", "Fritz zahlt irgendwann. Bis dahin schreibe ich an.", "Setz dich ans Feuer, die Fässer laufen nicht davon."]},
 	"S": {"name": "Steinmetz Hagen", "model": "Barbarian", "show": [], "tool": "hammer",
 		"colors": [Color(0.6, 0.58, 0.55), Color(0.4, 0.38, 0.36), Color(0.7, 0.68, 0.64)], "plan": "shop", "work": "1H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Steinblöcke, sauber behauen! Bau dir, was du willst.", "Eine Mauer hält länger als jeder Zaun.", "Stapel sie versetzt, dann hält die Mauer besser."]},
@@ -289,6 +292,11 @@ var at_home := false
 var bed_trip := {}
 ## The way to (or out of) her place behind a hall's counter, and that place (see VillagePosts).
 var post_trip := {}
+## The way to (or out of) a seat in the temple for the morning gathering, and the seat (see
+## TempleMorning).
+var service_trip := {}
+## A gathering call that came while she stood behind her counter: she walks out first, then goes.
+var _service_after_post := {}
 ## The room this villager takes up (metres, see Footprint): half a body width.
 var radius := 0.5
 var _layer := 1
@@ -387,6 +395,9 @@ func _ready() -> void:
 	add_child(_model)
 	Breath.attach(_model)
 	_dress()
+	# The brewer's mug shows only while he carries a beer (see hold_mug).
+	if role == TavernBrewer.BREWER:
+		hold_mug(false)
 	# A woman built on the Rogue model gets her own body (see BodyLook); the
 	# dyes stay on, they belong to the parts, not to the meshes.
 	BodyLook.apply(_model, _info.get("sex", BodyLook.DEFAULT))
@@ -752,6 +763,8 @@ var _settling := false
 func _leave_post() -> void:
 	if not post_trip.is_empty():
 		VillagePosts.leave_at_once(self)
+	if _task == "service":
+		TempleMorning.release(self)
 
 
 func _start(task: String, time: float) -> void:
@@ -761,6 +774,8 @@ func _start(task: String, time: float) -> void:
 		return
 	if task != "post":
 		_leave_post()
+	if task != "service":
+		_service_after_post = {}
 	_task = task
 	# Called away from the herald on the way to him (an alarm, a chat, a fright):
 	# no longer listening, or he would stay deaf to chats until the next call.
@@ -770,10 +785,14 @@ func _start(task: String, time: float) -> void:
 	_stuck_watch.reset()
 	if task != "mend":
 		_wield_wall_hammer(false)
+	if task == "sweep":
+		_begin_sweep()
+	else:
+		_end_sweep()
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep"] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -883,6 +902,115 @@ func _finish_mending() -> void:
 
 func can_mend_next() -> bool:
 	return not eaten and not at_home and threat == null
+
+
+# --- The herald sweeps the snow off the walkways ------------------------------
+
+## The stretch of footpath he is sweeping (see SnowSweep), the route he was sent out on, the world
+## hour he may set out again, the broom in his hand and the seconds to the next puff of snow dust.
+var _sweep: SnowSweep.Job
+var _sweep_way: Array[Vector3] = []
+var _sweep_after := 0.0
+var _broom: Node3D
+var _broom_hand: Node3D
+var _puff_in := 0.0
+var _sweep_bump := 0.0
+
+
+## Sets out with the broom when the snow lies and it is his time (Konrad, between his calls): true when he goes.
+func _sweep_out() -> bool:
+	if role != SnowSweep.ROLE or level == null or at_home or not visible or level.world_hours < _sweep_after:
+		return false
+	if not SnowSweep.wants(level) or threat != null or eaten or _bubble_time > 0.0:
+		return false
+	var way := SnowSweep.route(level, home, _rng)
+	_sweep_after = level.world_hours + SnowSweep.REST_HOURS
+	if way.is_empty():
+		return false
+	_sweep_way = way
+	_hold_broom(true)
+	_walk_to(way[0], WALK_SPEED, "sweep")
+	return true
+
+
+func _begin_sweep() -> void:
+	if _sweep_way.is_empty():
+		_hold_broom(false)
+		return
+	_sweep = SnowSweep.Job.new(_sweep_way)
+	_sweep_way = []
+	_hold_broom(true)
+
+
+func _end_sweep() -> void:
+	if _sweep == null and _sweep_way.is_empty() and _broom == null:
+		return
+	_sweep = null
+	_sweep_way = []
+	_hold_broom(false)
+
+
+## The birch broom in his hand, or put away again.
+func _hold_broom(on: bool) -> void:
+	if _model == null:
+		return
+	if _broom == null:
+		if not on:
+			return
+		_broom_hand = _model.find_child("handslot_r", true, false)
+		if _broom_hand == null:
+			return
+		_broom = SnowSweep.build_broom(self)
+		_broom.name = "Besom"
+		_broom.top_level = true
+	_broom.visible = on
+	if on:
+		_lay_broom(0.0)
+
+
+## Lays the besom from his right hand down to the snow ahead of him, swishing from side to side by `swing`.
+func _lay_broom(swing: float) -> void:
+	if _broom == null or _broom_hand == null:
+		return
+	var facing := Vector3(sin(_model.global_rotation.y), 0, cos(_model.global_rotation.y))
+	if _sweep != null:
+		facing = _sweep.heading
+	SnowSweep.lay_broom(_broom, _broom_hand.global_position, SnowSweep.broom_head(global_position, facing, swing))
+
+
+## One physics tick of sweeping: on along the route at a slow walk, the broom swishing across the ground ahead.
+func _sweep_snow(delta: float) -> void:
+	if _sweep == null or not SnowSweep.keeps_on(level) or _sweep_bump > 4.0:
+		_sweep_bump = 0.0
+		_start("idle", 0.5)
+		return
+	var job := _sweep
+	var to := job.aim() - global_position
+	to.y = 0.0
+	if to.length() < 0.3:
+		if not job.advance():
+			_start("idle", 0.5)
+		return
+	var dir := to.normalized()
+	job.heading = job.heading.lerp(dir, minf(1.0, delta * 4.0)).normalized()
+	var walked := _stride("Walking_A", SnowSweep.PACE)
+	if _move_to(global_position + dir * minf(to.length(), walked * delta)):
+		_sweep_bump = 0.0
+	else:
+		_sweep_bump += delta
+	_turn_to(dir, delta)
+	job.swing += delta
+	_lay_broom(job.swing)
+	var head := SnowSweep.broom_head(global_position, job.heading, job.swing)
+	SnowSweep.stamp(level, head)
+	SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
+	_puff_in -= delta
+	if _puff_in <= 0.0:
+		_puff_in = 0.14
+		if level.sweep_dust == null:
+			level.sweep_dust = SweepDust.new()
+			level.add_child(level.sweep_dust)
+		level.sweep_dust.kick(head, -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2))
 
 
 # --- The guard at the west gate -----------------------------------------------
@@ -1676,6 +1804,10 @@ func _hide(delta: float) -> void:
 ## What comes after the current task: mostly back to work, now and then a
 ## walk somewhere in the village.
 func _next_task() -> void:
+	if service_step() == "going" and not night and not level.village_alarm.raised:
+		# Stopped on the way to the temple (a word, a crowd): on to it again (see TempleMorning).
+		_walk_to(service_trip.street, WALK_SPEED * 1.15, "service")
+		return
 	if night and goes_to_bed():
 		if _task == "home":
 			_start("home", 10.0)
@@ -1684,6 +1816,8 @@ func _next_task() -> void:
 		return
 	match day_plan():
 		"stay", "shop":
+			if _sweep_out():
+				return
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
@@ -1693,6 +1827,9 @@ func _next_task() -> void:
 			else:
 				_start("work", 6.0)
 		"work", "sit":
+			# Fritz drops into the tavern to sit by the hearth (see TavernBrewer).
+			if role == TavernBrewer.GUEST and TavernBrewer.wants(self) and TavernBrewer.visit(self):
+				return
 			# The woodcutter keeps to his trunk through his shift (see WoodcutterShift).
 			var on_shift := role == "3" and WoodcutterShift.at_work(level.hour)
 			var on_break := role == "3" and WoodcutterShift.on_break(level.hour)
@@ -1790,8 +1927,9 @@ func _nearby(radius: int) -> Vector3:
 ## herald. Others walk round them and are pushed off their spot, never the
 ## other way round, so their shop or word is always there to bump into.
 func keeps_spot() -> bool:
-	# Someone frozen stiff in the cold stands as still as a shopkeeper.
-	return day_plan() in ["shop", "stay"] or _task == "frozen"
+	# Someone frozen stiff in the cold stands as still as a shopkeeper. On the way to the temple
+	# (see TempleMorning) a shopkeeper is just one of the crowd.
+	return (day_plan() in ["shop", "stay"] and not serves()) or _task == "frozen"
 
 
 ## Whether a tile is next to the spot of someone else who keeps to it.
@@ -1838,7 +1976,7 @@ func _mixing_with(o: Villager) -> bool:
 ## spot never steps aside. Asleep at home, nobody is in the way.
 func _keep_apart(delta: float) -> void:
 	# A diner at the table keeps their seat, however close the neighbours sit (see TownMeals).
-	if at_home or keeps_spot() or _task == "dine":
+	if at_home or keeps_spot() or _task == "dine" or _task == "service":
 		_crowded = 0.0
 		return
 	var push := Vector3.ZERO
@@ -1986,6 +2124,8 @@ func _physics_process(delta: float) -> void:
 	if level == null or level.player == null:
 		return
 	_lift_onto_toes(delta)
+	if _broom != null and _broom.visible and _task != "sweep":
+		_lay_broom(0.0)
 	if _sheathe_in >= 0.0:
 		_sheathe_in -= delta
 		if _sheathe_in < 0.0:
@@ -2025,7 +2165,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)):
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2035,6 +2175,8 @@ func _physics_process(delta: float) -> void:
 			VillageBeds.step(self, delta)
 		"post":
 			VillagePosts.step(self, delta)
+		"service":
+			TempleMorning.step(self, delta)
 		"fight":
 			_fight(delta)
 			return
@@ -2046,6 +2188,8 @@ func _physics_process(delta: float) -> void:
 			_mind_progress(delta)
 		"mend":
 			_mend(delta)
+		"sweep":
+			_sweep_snow(delta)
 		"defend":
 			_defend(delta)
 		"watch":
@@ -2124,6 +2268,11 @@ func join_play(friend: Villager, at: Vector3, time: float) -> void:
 func _walk(delta: float, hero: Node3D) -> void:
 	if _path.is_empty():
 		var then: String = get_meta("then", "idle")
+		if then == "tavern":
+			# Before the tavern's door: in to his chair (see TavernBrewer).
+			if TavernBrewer.arrive(self):
+				return
+			then = "idle"
 		var time := _rng.randf_range(2.0, 5.0)
 		if then in ["work", "sit"]:
 			time = _rng.randf_range(8.0, 16.0)
@@ -2480,6 +2629,29 @@ func day_plan() -> String:
 	return String(_info.plan)
 
 
+## Walks to `target` and then does `then` (the tavern visit, see TavernBrewer).
+func walk_to_then(target: Vector3, then: String) -> void:
+	_walk_to(target, WALK_SPEED, then)
+
+
+## Starts the "post" task after VillagePosts set the trip up.
+func begin_post() -> void:
+	_start("post", 10.0)
+
+
+## Whether the villager sits at a table in the tavern or carries a beer to it: they go on with that
+## while they talk (see TavernBrewer).
+func _holds_pose() -> bool:
+	return _task == "post" and (post_trip.get("seated", false) or not String(post_trip.get("serve", "")).is_empty())
+
+
+## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
+func hold_mug(on: bool) -> void:
+	var mug := _model.find_child("Mug", true, false) as Node3D
+	if mug != null:
+		mug.visible = on
+
+
 ## The animation of their work (behind the counter, see VillagePosts).
 func work_anim() -> String:
 	return String(_info.work)
@@ -2493,7 +2665,11 @@ func turn_toward(direction: Vector3, delta: float) -> void:
 ## Out of the hall's door again (see VillagePosts): on with the day, or home at nightfall.
 func end_post() -> void:
 	post_trip = {}
+	# Called to the temple while at her counter (see can_attend): out of the door first, now off.
+	var trip := _service_after_post
 	_start("idle", 0.3)
+	if not trip.is_empty():
+		go_to_service(trip)
 
 
 ## Winds the playing animation on to its end (lying in bed already, see VillageBeds).
@@ -2548,7 +2724,7 @@ func _mind_torch(delta: float) -> void:
 			item.visible = not on
 	if _carry_arm != null:
 		_carry_arm.active = on
-	if on and _lamp:
+	if on:
 		_hang_lamp()
 	if on:
 		_torch_time += delta
@@ -2603,9 +2779,11 @@ func _make_torch() -> void:
 	_torch_light.visible = false
 
 
-## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little.
+## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little; a
+## torch keeps its flame up, now that the arm reaches out forward.
 func _hang_lamp() -> void:
-	_torch.global_basis = HandLamp.hanging(global_rotation.y, _model.scale.x, _torch_time)
+	var yaw := _model.global_rotation.y
+	_torch.global_basis = HandLamp.hanging(yaw, _model.scale.x, _torch_time) if _lamp else HandLamp.held_up(yaw, _model.scale.x)
 
 
 ## One plain wooden material for every villager's torch.
@@ -2682,7 +2860,7 @@ func _hide_inside(inside: bool, at_the_door := false) -> void:
 ## Who drops their work to hear the herald: not the shopkeeper at her
 ## stall, the elder or the woodcutter out in the woods.
 func comes_to_listen() -> bool:
-	return not night and day_plan() in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not _on_seat()
+	return not night and day_plan() in ["work", "sit", "patrol", "stroll", "wander", "carry"] and role != "3" and _task != "listen" and not _on_seat() and not serves()
 
 
 func gather_at(spot: Vector3, speaker: Vector3) -> void:
@@ -2696,6 +2874,88 @@ func proclaim() -> void:
 	_news += 1
 	_current_anim = "Cheer"
 	_anim.play("Cheer", 0.2)
+
+
+# --- The morning gathering in the temple (see TempleMorning) ---------------------
+
+## Whether we are on the way to the temple for the morning gathering, or in it.
+func serves() -> bool:
+	return _task == "service" or not service_trip.is_empty() or not _service_after_post.is_empty()
+
+
+## Called off on the way (the speech is over, an alarm, nightfall): on with the day instead.
+func cancel_service() -> void:
+	_service_after_post = {}
+	if _task == "service":
+		return
+	TempleMorning.finish(self)
+	if _task == "walk" and get_meta("then", "") == "service":
+		_path.clear()
+		_start("idle", _rng.randf_range(0.3, 1.0))
+
+
+## Whether we are free to go to the temple now: awake and out in the village, with nothing to
+## run from or answer to. Someone behind their counter is: they walk out first (see go_to_service).
+func can_attend() -> bool:
+	if at_home or not visible or night or singing or chat_partner != null or not meal_seat.is_empty() or serves():
+		return false
+	if threat != null or eaten or shaken or defends() or mend_brick != null or is_feeding() or _task == "frozen":
+		return false
+	if _listen_to != Vector3.INF or _bubble_time > 0.0 or (_kid != null and _kid.active) or level.village_alarm.raised:
+		return false
+	if _task == "walk":
+		return not get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide", "dine", "play"]
+	if _task == "post":
+		return VillagePosts.at_post(self)
+	return _task in ["work", "idle", "sit"]
+
+
+## Off to the temple along `trip` (see TempleMorning._trip): a walk to the street before its porch,
+## then through the door. From behind a counter out of the door first.
+func go_to_service(trip: Dictionary) -> void:
+	if _task == "post" and not post_trip.is_empty():
+		VillagePosts._go_out(self, post_trip)
+		_service_after_post = trip
+		return
+	service_trip = trip
+	_walk_to(trip.street, WALK_SPEED * 1.15, "service")
+
+
+## The seat (or the priestess's place) we walk to, or are about to once out of our hall: {} when none.
+func service_spot() -> Dictionary:
+	if not service_trip.is_empty():
+		return service_trip.spot
+	return _service_after_post.get("spot", {})
+
+
+## The step of the way in the temple: "going", "in", "sitting", "seated", "rising", "at", "out", or "".
+func service_step() -> String:
+	return String(service_trip.get("step", ""))
+
+
+## Down onto the pew, and up again.
+func sit_down() -> void:
+	_current_anim = "Sit_Chair_Down"
+	_anim.play("Sit_Chair_Down", 0.2)
+
+
+func stand_up() -> void:
+	hush()
+	_current_anim = "Sit_Chair_StandUp"
+	_anim.play("Sit_Chair_StandUp", 0.2)
+
+
+## The priestess speaks a line of her speech to the pews, her arms raised with `gesture`.
+func preach(text: String, time: float, gesture: bool) -> void:
+	say(text, Vector3.INF, time)
+	if gesture and not service_trip.is_empty():
+		service_trip["busy"] = 2.5
+
+
+## The service is over for us: out of the temple's door, on with the day.
+func end_service() -> void:
+	TempleMorning.finish(self)
+	_start("idle", _rng.randf_range(0.3, 1.5))
 
 
 # --- Talking ------------------------------------------------------------------
@@ -3002,7 +3262,7 @@ func can_bump_chat() -> bool:
 		return false
 	if bump_cool > 0.0 or keeps_spot() or threat != null or eaten or defends() or shaken:
 		return false
-	if _task != "walk" or get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide"]:
+	if _task != "walk" or get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide", "service"]:
 		return false
 	return _bubble_time <= 0.0 and _listen_to == Vector3.INF
 
@@ -3013,7 +3273,7 @@ func can_bump_chat() -> bool:
 func can_remark() -> bool:
 	if chat_partner != null or at_home or not visible or role == "%":
 		return false
-	return not _task in ["home", "listen", "chat", "frozen"] and _bubble_time <= 0.0
+	return not _task in ["home", "listen", "chat", "frozen", "service"] and _bubble_time <= 0.0
 
 
 ## Starts a chat with `partner`. `walk`: we go over to them (and stop a step
@@ -3115,7 +3375,7 @@ func can_go_to_meal() -> bool:
 	if _listen_to != Vector3.INF or _bubble_time > 0.0 or (_kid != null and _kid.active):
 		return false
 	if _task == "walk":
-		return not get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide", "dine", "play"]
+		return not get_meta("then", "") in ["chat", "watch", "defend", "listen", "home", "hide", "dine", "play", "service"]
 	return _task in ["work", "idle", "sit"]
 
 

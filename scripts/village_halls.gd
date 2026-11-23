@@ -53,6 +53,10 @@ static func style(ch: String) -> Dictionary:
 	if KINDS.get(ch, "") == "post":
 		# Side windows set toward the door, so each side wall has room for two notices as well.
 		return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0, "side_front": POST_WINDOW_FRONT}
+	if KINDS.get(ch, "") == "tavern":
+		# Two metres wider and deeper than the other halls, so there is room for guests besides Fritz.
+		# The brewer's ladder to his bed upstairs stands by the right wall near the door (see WalkIn._loft).
+		return {"max_w": MAX_W - 1.4, "max_d": MAX_D + 1.0, "door_x": 0.0, "ladder_side": 1.0}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
 
 
@@ -167,16 +171,21 @@ static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	notice.position = Vector3(half, floor_y + 1.85, back + room.size.y * 0.5 + 0.4)
 	notice.rotation.y = -PI * 0.5
 	inside.add_child(notice)
-	# Two tables with benches; Fritz's, on the left by the hearth, has his chair on the door side.
+	# Tables with benches; Fritz's, on the left by the hearth, has his chair on the door side. The
+	# right-hand side has a table further back for other guests.
 	var table_z := room.end.y - 1.7
-	for side: float in [-1.0, 1.0]:
+	# The right-hand front corner is the brewer's ladder up to his bed (see WalkIn._loft).
+	var spots: Array = [[-1.0, table_z], [1.0, table_z - 1.7]]
+	for spot: Array in spots:
+		var side: float = spot[0]
+		var tz: float = spot[1]
 		var x := side * (half - 1.3)
 		var table := WalkInFurniture.table(0.55)
-		table.position = Vector3(x, floor_y, table_z)
+		table.position = Vector3(x, floor_y, tz)
 		inside.add_child(table)
-		walk_in._solid(rec, Vector3(x, floor_y + 0.4, table_z), Vector3(1.1, 0.8, 1.1))
+		walk_in._solid(rec, Vector3(x, floor_y + 0.4, tz), Vector3(1.1, 0.8, 1.1))
 		var candle := WalkInFurniture.table_candle()
-		candle.position = Vector3(x, floor_y + 0.79, table_z)
+		candle.position = Vector3(x, floor_y + 0.79, tz)
 		inside.add_child(candle)
 		for dz: float in [-0.85, 0.85]:
 			var seat: Node3D
@@ -186,7 +195,7 @@ static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 			else:
 				seat = WalkInFurniture.bench(1.3)
 				seat.rotation.y = 0.0 if dz < 0.0 else PI
-			seat.position = Vector3(x, floor_y, table_z + dz)
+			seat.position = Vector3(x, floor_y, tz + dz)
 			inside.add_child(seat)
 	# Fritz's seat: on the chair, facing the table; the brewer brings his beer and stands beside it.
 	var chair_at := Vector3(-(half - 1.3), floor_y, table_z + 0.85)

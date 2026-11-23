@@ -109,7 +109,9 @@ static func step(v: Villager, delta: float) -> void:
 				_pass_through(v, false)
 		"at":
 			if trip.get("guest", false):
-				if v.night or v.level.village_alarm.raised or TavernBrewer.guest_step(v, trip, delta):
+				var sleeps := TavernBrewer.sleeping(trip)
+				if (v.night and not sleeps) or v.level.village_alarm.raised or TavernBrewer.guest_step(v, trip, delta):
+					v.slump(0.0, 0.0, 0.0)
 					_go_out(v, trip)
 				return
 			if v.night or v.level.village_alarm.raised:

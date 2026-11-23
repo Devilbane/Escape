@@ -2460,6 +2460,11 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	var reach := Vector2(block.size) * TILE * 0.5 + Vector2(2.0, 2.0)
 	var front := center + Vector3(facing.x * reach.x, 0, facing.y * reach.y)
 	doors[ch] = front
+	if ch == "n" and walk_in.has(node):
+		# Eberhard sleeps in the loft of the tavern (see WalkIn._loft).
+		own_homes[VillageHalls.KEEPERS.tavern] = front
+		# Fritz sleeps at his table there, not in a bed (see TavernBrewer.doze).
+		own_homes[TavernBrewer.GUEST] = front
 	if ch == "w" and walk_in.has(node):
 		# Ragna sleeps in the guildhall's cellar (see GuildHall).
 		own_homes[VillageHalls.KEEPERS.guild] = front

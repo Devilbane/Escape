@@ -86,3 +86,10 @@ func _test() -> void:
 	for i in 30:
 		elsbeth._physics_process(STEP)
 	check(spell.chanting() or spell.glowing(), "after her wait she casts again by herself")
+	# Her bubble is drawn larger for a hero standing inside the temple, normal size outside.
+	village.hero_indoors = true
+	elsbeth.say("Test")
+	check(elsbeth._bubble.zoom == TempleMorning.BUBBLE_ZOOM, "her bubble is larger while the hero is inside")
+	village.hero_indoors = false
+	elsbeth.say("Test")
+	check(elsbeth._bubble.zoom == 1.0, "her bubble is normal size when the hero is outside")

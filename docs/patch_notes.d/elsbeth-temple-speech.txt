@@ -1,0 +1,1 @@
+- Priestess Elsbeth's speech bubble is drawn larger when you stand inside the temple, so her words are easy to read.

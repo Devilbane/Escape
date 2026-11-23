@@ -5,15 +5,25 @@ extends Node
 ## moment: every other speech bubble and comic word vanishes at once, and no
 ## new one appears while the scream shows (SpeechBubble.silenced, Comic.pop).
 ## It is an action bubble, the same jagged burst as the combat words (Comic),
-## that holds still one and a half times as long as a normal line (Villager.SAY_TIME)
+## that lasts about three seconds in all (TOTAL), pop-in and burst included,
 ## and then bursts. Only one scream shows at a time: a newer fall takes over
 ## from an older one.
 ##
 ## Every text is German and has an English entry in scripts/lang/final_scream.gd.
 
-## How much longer than a normal line.
-const SLOWER := 1.5
-const SECONDS := Villager.SAY_TIME * SLOWER
+## The whole scream, from the first pop to the last scrap, lasts about this
+## long for everyone (hero and monsters): the bubble's pop-in, its hold, the
+## squeeze and the burst's scraps (see Comic._pop) all count towards it.
+const TOTAL := 3.0
+## Pop-in (7 wobbles of 0.085 s) and squeeze (0.07 + 0.08 s) around the hold.
+const POP_IN := 0.595
+const SQUEEZE := 0.15
+## The scraps of the burst fly for this long.
+const SCRAPS := 0.4
+## How long the bubble holds still between pop-in and squeeze.
+const SECONDS := TOTAL - POP_IN - SQUEEZE - SCRAPS
+## How long the scream has the stage (silences other bubbles): until the burst.
+const STAGE := SECONDS + POP_IN + SQUEEZE
 
 const HERO_LINES := ["Neeein... nicht so...!", "Aaargh... mir wird schwarz...", "Das... war... zu viel..."]
 ## The cries per monster family (MonsterFamilies); horrors and unsorted kinds use "".
@@ -31,7 +41,7 @@ const LINES := {
 static var current: FinalScream = null
 
 var text := ""
-var _left := SECONDS
+var _left := STAGE
 var _bubble: Control = null
 
 

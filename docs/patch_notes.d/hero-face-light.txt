@@ -1,0 +1,3 @@
+- At night, in dungeons and indoors a soft light falls on the hero's face and upper body, without lighting the ground.
+- The fountain's glow now lights the upper bowl and the statue at night.
+- The lamp in the walk-in buildings no longer glares on whoever stands under it.

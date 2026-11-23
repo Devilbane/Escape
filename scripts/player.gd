@@ -282,6 +282,16 @@ const NIGHT_LANTERN_ENERGY := 0.55
 const LANTERN_ENERGY := 0.85
 const SNEAK_LANTERN_ENERGY := 0.35
 const NIGHT_LANTERN_RANGE := 0.62
+## The render layer of the hero's own figure: the face light (FACE_LIGHT) reaches nothing else.
+const HERO_LAYER := 1 << 14
+## The soft light on the face and upper body in the dark, at full dark (see set_dark): a warm
+## white just in front of the face, towards the camera, a little above it.
+const FACE_LIGHT := 0.55
+const FACE_LIGHT_COLOUR := Color(1.0, 0.9, 0.8)
+const FACE_LIGHT_AT := Vector3(0, 2.2, 1.6)
+const FACE_LIGHT_RANGE := 3.4
+## How dark it is round the hero (see set_dark).
+var dark := 0.0
 ## The hand torch that burns in the pitch-black places (see HandTorch).
 var torch: HandTorch
 ## The hero's healing potions: the cooldown and the life over time of the
@@ -430,15 +440,20 @@ func _ready() -> void:
 	_lantern.omni_attenuation = 1.8
 	_lantern.position = Vector3(0, 3.2, 0.6)
 	add_child(_lantern)
-	# A cool fill in front of the face, only at night (see _light_lantern): the
-	# lantern hangs above the head, so without it the hair glows and the face goes black.
+	# A soft light on the face and the upper body in the dark (see set_dark and _light_lantern):
+	# the lantern hangs above the head, so without it the hair glows and the face goes black. It
+	# lights the hero alone (HERO_LAYER), never the ground round them.
 	_fill = OmniLight3D.new()
-	_fill.light_color = Color(0.72, 0.82, 1.0)
-	_fill.omni_range = 3.2
+	_fill.light_color = FACE_LIGHT_COLOUR
+	_fill.omni_range = FACE_LIGHT_RANGE
+	_fill.omni_attenuation = 1.0
+	_fill.light_cull_mask = HERO_LAYER
 	_fill.set_meta(LightShadows.NO_SHADOW, true)
-	_fill.position = Vector3(0, 1.7, 1.5)
+	_fill.position = FACE_LIGHT_AT
 	_fill.visible = false
 	add_child(_fill)
+	_light_only_hero(_model)
+	get_tree().node_added.connect(_on_node_added)
 	# A hand torch for the pitch-black places (see HandTorch).
 	torch = HandTorch.new(self)
 	add_child(torch)
@@ -510,8 +525,32 @@ func _light_lantern() -> void:
 	# At night the lantern sits lower and further forward, so it lights the face
 	# as much as the hair, and a gentle cool fill keeps the hero readable.
 	_lantern.position = Vector3(0, lerpf(3.2, 2.3, night_dim), lerpf(0.6, 1.2, night_dim))
-	_fill.light_energy = 0.25 * night_dim * (0.6 if sneaking else 1.0)
-	_fill.visible = night_dim > 0.05
+	_fill.light_energy = FACE_LIGHT * maxf(dark, night_dim) * (0.6 if sneaking else 1.0)
+	_fill.visible = _fill.light_energy > 0.01
+
+## How dark it is round the hero, 0 by day out in the open to 1 at night, in a dungeon or in a
+## cave (see Game): the soft light on the face and upper body (FACE_LIGHT) follows it.
+func set_dark(amount: float) -> void:
+	amount = clampf(amount, 0.0, 1.0)
+	if is_equal_approx(amount, dark):
+		return
+	dark = amount
+	_light_lantern()
+
+
+## Puts everything drawn of the hero (`node` and what is under it) on HERO_LAYER as well, the
+## only layer the face light reaches.
+static func _light_only_hero(node: Node) -> void:
+	if node is VisualInstance3D and not node is Light3D:
+		(node as VisualInstance3D).layers |= HERO_LAYER
+	for child in node.get_children():
+		_light_only_hero(child)
+
+
+## Gear, hair and the rest put on the hero later are lit by the face light too.
+func _on_node_added(node: Node) -> void:
+	if _model != null and node is VisualInstance3D and not node is Light3D and _model.is_ancestor_of(node):
+		(node as VisualInstance3D).layers |= HERO_LAYER
 
 
 ## Whether skeletons could see the hero by some light, the lantern included.

@@ -175,8 +175,25 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 	# The roof, its gables and the chimney.
 	_gables(lid, uw, ud, eaves, ridge)
 	_roof(lid, uw + ROOF_OVERHANG * 2.0, ud + ROOF_OVERHANG * 2.0, eaves, ridge, ud)
-	_box(lid, "stone", Vector3(cx, eaves + ridge * 0.6, -ud * 0.22), Vector3(0.8, ridge * 1.2 + 0.8, 0.8))
-	_box(lid, "timber", Vector3(cx, eaves + ridge * 1.2 + 0.45, -ud * 0.22), Vector3(0.95, 0.12, 0.95))
+	_box(lid, "stone", Vector3(cx, eaves + ridge * 0.6, -ud * 0.22), Vector3(0.8, ridge * 1.2 + 0.8, 0.8), Basis(), 2.0, [4])
+	_flue_rim(lid, Vector3(cx, eaves + ridge * 1.2 + 0.4, -ud * 0.22), 0.95)
+
+
+## The top of a chimney: a timber rim round an open flue, dark inside, on a shaft whose top is
+## at `top` (its middle). The snow lies on the rim only (the flue is left out, see
+## AgedStone.triangles), and the smoke comes out of the opening (see the "chimney" meta of build).
+const RIM_WIDTH := 0.2
+const RIM_HIGH := 0.12
+
+
+static func _flue_rim(parts: Dictionary, top: Vector3, outer: float) -> void:
+	var mid := top + Vector3(0, 0.05, 0)
+	var off := (outer - RIM_WIDTH) * 0.5
+	for sign_ in [-1.0, 1.0]:
+		_box(parts, "timber", mid + Vector3(off * sign_, 0, 0), Vector3(RIM_WIDTH, RIM_HIGH, outer))
+		_box(parts, "timber", mid + Vector3(0, 0, off * sign_), Vector3(outer - RIM_WIDTH * 2.0, RIM_HIGH, RIM_WIDTH))
+	# The dark of the flue, a little below the rim's top and over the shaft's open end.
+	_box(parts, "flue", top + Vector3(0, 0.02, 0), Vector3(outer - RIM_WIDTH * 2.0, 0.04, outer - RIM_WIDTH * 2.0))
 
 
 ## How far the walls of a hollow house reach in from their outer faces (metres).
@@ -439,8 +456,8 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	_gables(roof_parts, top_d, w - 0.04, y0, ridge)
 	_roof(roof_parts, top_d + ROOF_OVERHANG * 2.0, w + 0.16, y0, ridge, w)
 	var cx := (-1.0 if door_x > 0.0 else 1.0) * w * 0.22
-	_box(parts, "stone", Vector3(cx, y0 + ridge * 0.55, top_z - top_d * 0.25), Vector3(0.6, ridge * 1.1 + 0.8, 0.6))
-	_box(parts, "timber", Vector3(cx, y0 + ridge * 1.1 + 0.45, top_z - top_d * 0.25), Vector3(0.75, 0.12, 0.75))
+	_box(parts, "stone", Vector3(cx, y0 + ridge * 0.55, top_z - top_d * 0.25), Vector3(0.6, ridge * 1.1 + 0.8, 0.6), Basis(), 2.0, [4])
+	_flue_rim(parts, Vector3(cx, y0 + ridge * 1.1 + 0.4, top_z - top_d * 0.25), 0.75)
 	# The house sign: a board on a bracket over the door.
 	_box(parts, "timber", Vector3(door_x, PLINTH + 2.75, d * 0.5 + 0.3), Vector3(0.08, 0.08, 0.6))
 	_box(parts, "door", Vector3(door_x, PLINTH + 2.55, d * 0.5 + 0.55), Vector3(0.62, 0.42, 0.06))
@@ -487,6 +504,7 @@ static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionar
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
 		"floor": _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5)),
+		"flue": _flue_material(),
 	}
 
 
@@ -778,6 +796,17 @@ static func _uv(key: String, m: Vector2, center: Vector3, tile: float) -> Vector
 			# Grain along the length of the beam; a shift per beam.
 			return Vector2(m.x / 3.0 + center.x * 0.37, m.y / 3.0 + center.y * 0.21)
 	return m / tile
+
+
+## The soot-black inside of a chimney's flue (named so the snow leaves it bare, see AgedStone.triangles).
+static func _flue_material() -> StandardMaterial3D:
+	if not _mats.has("flue"):
+		var soot := StandardMaterial3D.new()
+		soot.resource_name = "flue"
+		soot.albedo_color = Color(0.03, 0.025, 0.02)
+		soot.roughness = 1.0
+		_mats["flue"] = soot
+	return _mats["flue"]
 
 
 static func _tool(parts: Dictionary, key: String) -> SurfaceTool:

@@ -1764,12 +1764,19 @@ func _ladder(house: HouseSketch, p: Array, parent: Node3D, mat: Material) -> Nod
 	var line: Vector3 = f.edge - push * (THICK * 0.5 + 0.08)
 	var low: float = f.low
 	var tall: float = f.high - low + 1.0
+	var parts: Array[MeshInstance3D] = []
 	for sign_ in [-1.0, 1.0]:
-		_box(parent, line + side * sign_ * 0.3 + Vector3(0, low + tall * 0.5, 0), (side * 0.07 + push * 0.07).abs() + Vector3(0, tall, 0), mat)
+		parts.append(_box(parent, line + side * sign_ * 0.3 + Vector3(0, low + tall * 0.5, 0), (side * 0.07 + push * 0.07).abs() + Vector3(0, tall, 0), mat))
 	var y := low + 0.3
 	while y < f.high + 0.75:
-		_box(parent, line + Vector3(0, y, 0), (side * 0.6 + push * 0.05).abs() + Vector3(0, 0.05, 0), mat)
+		parts.append(_box(parent, line + Vector3(0, y, 0), (side * 0.6 + push * 0.05).abs() + Vector3(0, 0.05, 0), mat))
 		y += 0.3
+	# A ladder on the ground or higher belongs to its floor: it fades with the storeys over the
+	# hero (see _update_fade), so from down in the cellar or from a floor below it does not
+	# stand there on its own. A cellar ladder (low below ground) stays, it is part of the pit.
+	if low >= 0.0:
+		for part in parts:
+			part.set_meta("ymin", low)
 	var spot := Node3D.new()
 	spot.set_meta("push", push)
 	spot.set_meta("edge", f.edge)
@@ -2698,7 +2705,7 @@ func _marker(parent: Node3D, node: Vector2i) -> void:
 	_box(parent, plan.node_world(node.x, node.y) + Vector3(0, 0.5, 0), Vector3(0.2, 1.0, 0.2), _material(OK_COLOR))
 
 
-func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> void:
+func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> MeshInstance3D:
 	at += Vector3(0, _lift, 0)
 	var m := MeshInstance3D.new()
 	if mat == HouseLooks.temple_stone() and mat is ShaderMaterial:
@@ -2713,6 +2720,7 @@ func _box(parent: Node3D, at: Vector3, size: Vector3, mat: Material) -> void:
 	m.position = at
 	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(m)
+	return m
 
 
 func _material(colour: Color) -> StandardMaterial3D:

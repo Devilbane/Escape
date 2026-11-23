@@ -5,7 +5,7 @@ class_name WoodLogs
 ## which go into the bag to build with. A chopped trunk is a sawn stump in a heap
 ## of chips until the next morning, then the woodcutter has dragged a new one
 ## there (kept in Level.taken as log_key plus the day it was chopped). A sign
-## with an axe marks the spot from the road. Windfalls spread over the woods
+## with an axe stands beside the trunk the woodcutter works on (see Outdoor._build_chopping_log). Windfalls spread over the woods
 ## of the whole map are chopped the same way (see build_windfalls).
 
 ## The station kind of a trunk.
@@ -41,25 +41,13 @@ const WINDFALLS := 16
 const WINDFALL_GAP := 7
 
 
-## Builds the trunks and their sign for a woodcutter on `home` and adds them to `level`.
+## Builds the yard trunks for a woodcutter on `home` and adds them to `level`.
 static func build(level: Outdoor, home: Vector2i) -> void:
-	var first := Vector3.INF
 	for offset in CELLS:
 		var cell: Vector2i = home + offset
 		if level.cell_char(cell) != ".":
 			continue
 		_add_log(level, cell, BARK, LENGTH, RADIUS, TIMBER_YIELD, 2, 0.15, TURN, SHIFT)
-		if first == Vector3.INF:
-			first = level.cell_to_world(cell)
-	if first == Vector3.INF:
-		return
-	# A sign with an axe beside the northern trunk, facing the road to the west.
-	var board := Effects.shop_sign(Lang.t("Holzplatz"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "axe")
-	WeatheredProps.weather_plain(board)
-	board.position = first + Vector3(-1.7, 0, -1.5)
-	board.rotation.y = -PI * 0.5
-	level.add_child(board)
-	level._add_solid(board.position, Vector3(0.5, 2.6, 0.5))
 
 
 ## The windfalls: trees the storms threw down out in the woods, spread over the

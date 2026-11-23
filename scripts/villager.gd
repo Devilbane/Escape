@@ -2525,7 +2525,7 @@ func _mind_torch(delta: float) -> void:
 			item.visible = not on
 	if _carry_arm != null:
 		_carry_arm.active = on
-	if on and _lamp:
+	if on:
 		_hang_lamp()
 	if on:
 		_torch_time += delta
@@ -2580,9 +2580,11 @@ func _make_torch() -> void:
 	_torch_light.visible = false
 
 
-## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little.
+## The lamp hangs straight down from the hand whichever way the wrist turns, and sways a little; a
+## torch keeps its flame up, now that the arm reaches out forward.
 func _hang_lamp() -> void:
-	_torch.global_basis = HandLamp.hanging(global_rotation.y, _model.scale.x, _torch_time)
+	var yaw := _model.global_rotation.y
+	_torch.global_basis = HandLamp.hanging(yaw, _model.scale.x, _torch_time) if _lamp else HandLamp.held_up(yaw, _model.scale.x)
 
 
 ## One plain wooden material for every villager's torch.

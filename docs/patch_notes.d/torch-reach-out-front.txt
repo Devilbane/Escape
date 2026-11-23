@@ -1,0 +1,1 @@
+- The torch and lamp hand reach farther out in front of villagers and the hero, so the light is clearly seen.

@@ -135,7 +135,9 @@ func watch(new_level: Level) -> void:
 	_dread_said = false
 	_dread_timer = 4.0
 	Engine.time_scale = 1.0
-	level.enemy_killed.connect(_on_killed)
+	# The open air set aside comes back with its links (see Game._park_outdoor).
+	if not level.enemy_killed.is_connected(_on_killed):
+		level.enemy_killed.connect(_on_killed)
 
 
 ## Whether the hero already knows what this kind of horror is.

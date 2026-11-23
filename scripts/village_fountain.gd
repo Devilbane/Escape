@@ -26,6 +26,9 @@ const STATUE_FOOT := 3.55
 const STATUE_HEIGHT := 1.55
 ## How much larger than FountainGoddess builds her.
 const STATUE_SCALE := 1.2
+## The glow over the statue (see build): how bright, and how far it reaches.
+const CROWN_GLOW := 0.8
+const CROWN_RANGE := 4.6
 ## Round as the lathe turns the stone.
 const SIDES := 48
 
@@ -76,6 +79,20 @@ static func build(level: Node3D, pos: Vector3) -> void:
 	var tween := glow.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(glow, "light_energy", 1.15, 2.4)
 	tween.tween_property(glow, "light_energy", 0.75, 2.4)
+	# The same glow over the top: the light down in the basin left the upper bowl and the statue
+	# dark at night. This one hangs over the goddess, a little towards the camera, and is too high
+	# to reach the ground round the fountain.
+	var crown := OmniLight3D.new()
+	crown.name = "CrownGlow"
+	crown.light_color = glow.light_color
+	crown.light_energy = CROWN_GLOW
+	crown.omni_range = CROWN_RANGE
+	crown.set_meta(LightShadows.NO_SHADOW, true)
+	crown.position = Vector3(0, STATUE_FOOT + STATUE_HEIGHT * STATUE_SCALE + 0.9, 1.0)
+	root.add_child(crown)
+	var pulse := crown.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	pulse.tween_property(crown, "light_energy", CROWN_GLOW * 1.25, 2.4)
+	pulse.tween_property(crown, "light_energy", CROWN_GLOW * 0.8, 2.4)
 	# Round, as it is drawn: the hero walks along the rim, not along a box round it.
 	var shape := CollisionShape3D.new()
 	var cylinder := CylinderShape3D.new()

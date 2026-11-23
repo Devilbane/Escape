@@ -50,8 +50,13 @@ static var lock_halls := true
 const LOCKED_EVERY := 4.0
 ## The warm light in a house while the hero is inside.
 const LAMP_COLOUR := Color(1.0, 0.76, 0.48)
-const LAMP_ENERGY := 1.4
+const LAMP_ENERGY := 1.0
 const LAMP_RANGE := 6.5
+## How steeply the lamp's light falls off near it (Godot's omni_attenuation, 1 by default). It
+## hangs under the ceiling over the middle of the room, where the keeper often stands: with the
+## usual fall-off a miller's hat right under it glared white. A flatter one lights the room as
+## before and the one under it far less.
+const LAMP_FALLOFF := 0.5
 ## The candles in iron sconces on the walls inside (see _sconces): how high over a floor they hang
 ## (metres), and when they burn, each building from its own moment in LIGHT_FROM (hours, as the sun
 ## goes down) till its own bedtime in BED_TIME (hours, past midnight counted on from 24).
@@ -643,7 +648,9 @@ func _lamp(rec: Dictionary) -> void:
 	lamp.light_color = LAMP_COLOUR
 	lamp.light_energy = LAMP_ENERGY
 	lamp.omni_range = LAMP_RANGE
+	lamp.omni_attenuation = LAMP_FALLOFF
 	lamp.position = Vector3(0, rec.top - 0.6, room.get_center().y)
+	lamp.set_meta(LightShadows.INDOOR, true)
 	lamp.visible = false
 	house.add_child(lamp)
 	rec["lamp"] = lamp

@@ -162,7 +162,7 @@ static func _open_tops(tris: Array, ground: float, lowest := LOWEST) -> Array:
 	var ups: Array = []
 	for t: Dictionary in tris:
 		var n: Vector3 = t.n
-		if n.y < STEEPEST or t.has("glass"):
+		if n.y < STEEPEST or t.has("glass") or t.has("flue"):
 			continue
 		var a: Vector3 = t.a
 		var b: Vector3 = t.b

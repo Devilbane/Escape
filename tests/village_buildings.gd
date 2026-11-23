@@ -124,6 +124,8 @@ func _run() -> void:
 				# walks into (see VillageHouse._openings).
 				if mesh.surface_get_material(i) == lvl._house_glass() or mesh.surface_get_material(i) == VillageHouse.clear_glass():
 					glass = true
+				elif mesh.surface_get_material(i) == VillageHouse._flue_material():
+					pass  # The soot-black inside of a chimney's flue is plain dark (see VillageHouse._flue_rim).
 				elif not _textured(mesh.surface_get_material(i)):
 					check(false, "every part of a house is textured")
 		check(glass, "a house has windows")

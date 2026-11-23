@@ -50,7 +50,14 @@ static func style(ch: String) -> Dictionary:
 		return GuildHall.STYLE
 	if KINDS.get(ch, "") in BIG:
 		return {"max_w": BIG_W, "max_d": BIG_D, "door_x": 0.0}
+	if KINDS.get(ch, "") == "post":
+		# Side windows set toward the door, so each side wall has room for two notices as well.
+		return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0, "side_front": POST_WINDOW_FRONT}
 	return {"max_w": MAX_W, "max_d": MAX_D, "door_x": 0.0}
+
+
+## How far from the front of the post office the middle of its side windows is.
+const POST_WINDOW_FRONT := 1.5
 
 
 ## The kind of hall the villager of `role` keeps, or "".
@@ -207,10 +214,6 @@ static func _shop(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 ## Half the width of a side window with its frame, and the space left between it and a notice.
 const WINDOW_HALF := 0.55
 const NOTICE_GAP := 0.15
-## How far a notice keeps from the wall candle's sconce.
-const SCONCE_CLEAR := 0.4
-
-
 ## Pigeonholes for the letters on the back wall, parcels (stamped and not yet stamped) stacked by the
 ## side walls and a sack of letters by the door.
 static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
@@ -260,27 +263,18 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 		letter.position = Vector3((1.4 + k * 0.03) * squeeze, top + 0.004 + k * 0.01, cz + 0.1)
 		letter.rotation = Vector3(-PI * 0.5, 0.3 * k - 0.2, 0)
 		inside.add_child(letter)
-	# Notices on the side walls. The window is in the middle of each side wall and a sconce hangs
-	# in its back half, so the notices take the clear stretches of wall: first the one between the
-	# window and the door, then the one between the window and the sconce.
+	# Notices on the side walls, in a row from the door: one, the window (see POST_WINDOW_FRONT),
+	# one more, and the candle behind them (see WalkIn._sconces). The row is squeezed if the room
+	# is short, so every notice has its place.
 	var notices := [
 		["Königliche Post", []],
 		["Postdienste", ["Briefe: zu Fuß", "Pakete: per Karren", "Eilpost: per Reiter"]],
 		["Postwege", ["Dorf – Mühle", "Dorf – Gilde", "Dorf – Burg"]],
 		["Aushang", ["Nur gestempelte", "Pakete werden", "befördert"]],
 	]
-	var half := 0.35 + NOTICE_GAP
-	var slots := []
-	var front := WINDOW_HALF + half
-	while front <= room.end.y - 0.4 and slots.size() < 2:
-		slots.append(front)
-		front += 0.7 + NOTICE_GAP
-	var sconce_z := room.position.y + room.size.y * 0.25
-	var behind := -(WINDOW_HALF + half)
-	while behind >= sconce_z + SCONCE_CLEAR + half - NOTICE_GAP and slots.size() < 4:
-		slots.append(behind)
-		behind -= 0.7 + NOTICE_GAP
-	for i in mini(notices.size(), slots.size() * 2):
+	var win_z := room.end.y - POST_WINDOW_FRONT
+	var slots := [room.end.y - 0.45, win_z - WINDOW_HALF - NOTICE_GAP - 0.35]
+	for i in notices.size():
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var notice := WalkInFurniture.poster(notices[i][0], notices[i][1])
 		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, slots[i / 2])

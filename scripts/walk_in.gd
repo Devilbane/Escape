@@ -671,6 +671,9 @@ func _sconces(rec: Dictionary) -> void:
 	var room: Rect2 = rec.room
 	var floor_y: float = rec.floor
 	var back := room.position.y + room.size.y * 0.25
+	if rec.get("kind", "") == "post":
+		# The post office keeps the side wall's front stretch for its window and notices.
+		back = room.position.y + 0.4
 	var spots := []
 	if rec.has("layout"):
 		var lay: Dictionary = rec.layout
@@ -839,9 +842,10 @@ func _walls_of_house(rec: Dictionary, w: float, d: float, door_x: float) -> void
 	_wall(rec, Vector3(at, y, zf), Vector3(x1, y, zf), high)
 	for side: float in [-1.0, 1.0]:
 		var x := side * (w * 0.5 - t * 0.5)
-		_wall(rec, Vector3(x, y, -d * 0.5), Vector3(x, y, -0.4), high)
-		_pane(rec, Vector3(x, y, -0.4), Vector3(x, y, 0.4), high)
-		_wall(rec, Vector3(x, y, 0.4), Vector3(x, y, d * 0.5), high)
+		var wz: float = float((rec.node.get_meta("shape") as Dictionary).get("side_z", 0.0))
+		_wall(rec, Vector3(x, y, -d * 0.5), Vector3(x, y, wz - 0.4), high)
+		_pane(rec, Vector3(x, y, wz - 0.4), Vector3(x, y, wz + 0.4), high)
+		_wall(rec, Vector3(x, y, wz + 0.4), Vector3(x, y, d * 0.5), high)
 	var corners: Array = [Vector3(x0, 0, -d * 0.5), Vector3(x1, 0, d * 0.5)]
 	_roof_over(rec, corners, rec.top)
 

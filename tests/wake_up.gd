@@ -15,6 +15,7 @@ var clock := 0.0
 var bed: Dictionary = {}
 var basket := Vector3.ZERO
 var fox_woke := false
+var stood := Vector3.ZERO
 var eyes_opened := false
 
 
@@ -101,8 +102,11 @@ func _process(delta: float) -> bool:
 			check(fox_woke, "the fox wakes up")
 			var p: Vector3 = game.player.global_position
 			check(p.y < 0.2, "the hero stands on the floor (%.2f m)" % p.y)
-			var cell: Vector2i = game.level.world_to_cell(p)
-			check(game.level._walkable(cell) and not game.level.astar.is_point_solid(cell), "the hero stands on open floor beside the bed")
+			var rot: float = bed.get("rot", 0.0)
+			var side := BedRise.choose_side(game.level, bed.pos, rot, game._bedside(bed, Vector3(sin(rot), 0.0, cos(rot))), [game.player.get_rid()])
+			var beside := BedRise.beside(bed.pos, rot, side)
+			stood = p
+			check(_flat(p, beside) < 0.05, "the hero stands beside the bed, where the get-out animation left them, not at its foot (%.2f m off)" % _flat(p, beside))
 			check(game.state == game.State.PLAYING, "the game goes on once the hero is up")
 			check(game.menus.current == "rueckkehr", "the welcome-back window opens once the hero is up")
 			clock = 0.0
@@ -110,6 +114,7 @@ func _process(delta: float) -> bool:
 		3:
 			if clock < 1.0:
 				return false
+			check(_flat(game.player.global_position, stood) < 0.02, "the hero stays where they got up")
 			check(game.pet.state != "bed" and game.pet.state != "wake", "the fox follows the hero again")
 			check(game.pet.global_position.y < 0.05, "the fox hopped out of its basket (%.2f m)" % game.pet.global_position.y)
 			check(_flat(game.pet.global_position, basket) > Pet.BASKET_RADIUS, "the fox is out of its basket")

@@ -14,7 +14,7 @@ extends RefCounted
 ## differ in where the marks lie), so this costs no more to draw than before.
 
 ## The skin each model has, unless a kind names another ("skin").
-const SKINS := {"Orc": "hide", "Yeti": "pelt", "Wolf": "pelt", "Spider": "bristle", "Deer": "pelt", "Stag": "pelt", "Fox": "pelt"}
+const SKINS := {"Orc": "hide", "Yeti": "pelt", "Wolf": "pelt", "Spider": "bristle", "Deer": "pelt", "Stag": "pelt", "Fox": "pelt", "Rabbit": "pelt"}
 ## Surfaces that are not skin: eyes, noses, hooves and horns.
 const BARE := ["eye", "nose", "hoof", "horn", "weapon"]
 ## How many different patterns of marks a skin comes in.

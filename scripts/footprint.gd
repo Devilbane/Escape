@@ -8,7 +8,7 @@ extends RefCounted
 ## (see settle). Level runs this every few physics ticks.
 
 ## Radius (metres) of the animals, by kind (see Animal.KINDS and FarmAnimal.KINDS).
-const WILD := {"reh": 0.45, "hirsch": 0.5, "fuchs": 0.3}
+const WILD := {"reh": 0.45, "hirsch": 0.5, "fuchs": 0.3, "kaninchen": 0.2}
 ## The squirrel of the woods (see Squirrel); pets take the radius of their species (see Pet).
 const SQUIRREL := 0.15
 ## The hedgehog (see Hedgehog).

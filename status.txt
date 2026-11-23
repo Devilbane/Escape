@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Hide trunk and branches on the forest pines; Furnish menu: clear "Remove" tool for placed furniture; Hide roof footprints while the hero is indoors (+47 more)
+Escape! dev status | Working on: Make frozen Fritz look like real ice | Shipped this week: Hide trunk and branches on the forest pines; Furnish menu: clear "Remove" tool for placed furniture; Hide roof footprints while the hero is indoors (+47 more)

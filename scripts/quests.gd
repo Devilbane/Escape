@@ -154,6 +154,13 @@ const ALL := {
 		"offer": "Bring meinen Siegelring dem Gelehrten im Dorf. Er soll wissen, dass ich noch lebe.",
 		"remind": "Der Siegelring ist für den Gelehrten im Dorf.",
 		"done": "Alriks Ring! Er lebt? Im Kerker von Sternhall... Ich schicke sofort nach der Akademie. Nimm 60 Kupfer und diesen starken Heiltrank."},
+	# Found in the sewers' hidden den (see Spooknortz): the stolen goods go back to the village elder.
+	"spook_diebesgut": {"giver": "0", "found": true, "kind": "deliver", "item": "diebesgut", "to": "0", "gold": 40,
+		"brief": "", "title": "Das Diebesgut",
+		"goal": "Bring Spooknortz' Bündel mit dem Diebesgut zu Dorfvorsteher Aldo zurück.",
+		"offer": "Das Diebesgut gehört dem Dorf. Bring es dem Vorsteher zurück.",
+		"remind": "Das Diebesgut ist für Dorfvorsteher Aldo.",
+		"done": "Das sind unsere Kerzen, die Äpfel, die Löffel! Woher hast du das? Egal. Hier sind 40 Kupfer für deine Mühe, und das Dorf wird dir nicht vergessen, dass du ehrlich warst."},
 	# Put together from the three map pieces Zarek sells (see Wanderer.PIECES).
 	"zarek_karte": {"giver": "8", "found": true, "kind": "deliver", "item": "schatzkarte", "to": "8", "gold": 120, "reward": "heiltrank_stark",
 		"brief": "", "title": "Die zerrissene Karte",

@@ -252,8 +252,9 @@ static func _quench_tub(b: WeatheredProps.Builder, at: Vector3, rng: RandomNumbe
 
 ## A street lamp: a timber post on a stone foot, with an arm and a brace,
 ## and an iron lantern with glass panes hanging from the arm towards +z.
-## `panes` glow at night (see Outdoor.set_hour).
-static func build_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
+## `panes` glow at night (see Outdoor.set_hour). `yaw` turns the whole lamp about
+## its post (0 keeps the arm towards +z), so the arm can reach over a walkway.
+static func build_lamp(parent: Node3D, pos: Vector3, panes: Material, yaw := 0.0) -> void:
 	var rng := _rng_at(pos, "lamp")
 	var b := WeatheredProps.Builder.new()
 	b.frustum(Vector3.ZERO, Vector2(0.56, 0.56), Vector2(0.42, 0.42), 0.28, W.vary(W.STONES[0], rng), W.STONE, _turn(rng, 0.2))
@@ -273,7 +274,7 @@ static func build_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
 		b.box(lantern + Vector3(corner.x * 0.13, -0.2, corner.y * 0.13), Vector3(0.03, 0.36, 0.03), iron, W.IRON)
 	b.frustum(lantern + Vector3(0, 0.16, 0), Vector2(0.34, 0.34), Vector2(0.06, 0.06), 0.18, iron, W.IRON)
 	b.cylinder(lantern + Vector3(0, 0.34, 0), 0.04, 0.04, 0.05, iron, W.IRON, 6)
-	b.finish(parent, pos)
+	b.finish(parent, pos).rotation.y = yaw
 	# The glass, one thin box inside the frame: it glows at night.
 	var glass := MeshInstance3D.new()
 	var pane := BoxMesh.new()
@@ -281,8 +282,14 @@ static func build_lamp(parent: Node3D, pos: Vector3, panes: Material) -> void:
 	glass.mesh = pane
 	glass.material_override = panes
 	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	glass.position = pos + lantern - Vector3(0, 0.03, 0)
+	glass.position = pos + (lantern - Vector3(0, 0.03, 0)).rotated(Vector3.UP, yaw)
+	glass.rotation.y = yaw
 	parent.add_child(glass)
+
+
+## The yaw that turns a street lamp's arm (+z) towards the flat direction `dir`.
+static func lamp_yaw(dir: Vector3) -> float:
+	return atan2(dir.x, dir.z)
 
 
 ## A lamp fixed to a wall: an iron plate, a bracket arm running out along +z and

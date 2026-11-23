@@ -1,6 +1,6 @@
 class_name WindGusts
 extends Node
-## Now and then a gust of wind stirs the light litter lying around the hero: fallen leaves tumble
+## Now and then a gust of wind stirs the light litter lying around the hero: fallen leaves are swept up
 ## along the ground for a few metres, straw and wood chips skid, and a heap of autumn leaves
 ## shifts a little before it settles again. Not constant jitter: a gust comes every half minute or
 ## so, lifts a dozen or so pieces near the hero and is over in four seconds.
@@ -181,7 +181,7 @@ func _move() -> void:
 			continue
 		var t := clampf((_clock - m.delay) / m.dur, 0.0, 1.0)
 		var flat: Transform3D = e[3]
-		var yawed := Basis(Vector3.UP, m.yaw)
+		var yawed := Basis(Vector3.UP, m.yaw + m.spin * 1.2)
 		var key := "%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]
 		var lifted: bool = life._lifted.has(key)
 		if t >= 1.0:
@@ -196,10 +196,13 @@ func _move() -> void:
 		if t <= 0.0 or lifted:
 			continue
 		var eased := 1.0 - (1.0 - t) * (1.0 - t)
-		var up: float = pow(sin(PI * t), 0.8) * m.lift * (1.0 + 0.18 * sin(t * m.flutter * 3.0))
-		var tumble := Basis(m.axis, sin(PI * t) * m.spin)
-		var basis := tumble * Basis(Vector3.UP, m.yaw * eased) * flat.basis
-		var side: Vector3 = Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * sin(t * m.flutter * 2.0) * 0.8 * sin(PI * t)
-		var origin: Vector3 = (m.from as Vector3).lerp(m.to, pow(t, 0.8)) + side + Vector3(0, up, 0) + (flat.origin - m.from)
+		# Up fast, then on level with a little up and down, and down again at the end: no arc like a bird's.
+		var cruise := pow(minf(1.0, t / 0.14), 1.5) * pow(minf(1.0, (1.0 - t) / 0.22), 1.5)
+		var up: float = cruise * (m.lift * (1.0 + 0.12 * sin(t * m.flutter * 2.2 + m.yaw)) + 0.1 * sin(t * m.flutter * 4.1))
+		# Turning round on the way, tipping over now and then, not tumbling end over end.
+		var tumble := Basis(m.axis, absf(sin(t * m.spin * 1.4)) * 0.9 * cruise)
+		var basis := tumble * Basis(Vector3.UP, m.yaw * eased + t * m.spin * 1.2) * flat.basis
+		var side: Vector3 = Vector3.UP.cross((m.to as Vector3) - (m.from as Vector3)).normalized() * sin(t * m.flutter) * 0.15
+		var origin: Vector3 = (m.from as Vector3).lerp(m.to, pow(t, 1.1)) + side + Vector3(0, up, 0) + (flat.origin - m.from)
 		(e[0] as MultiMesh).set_instance_transform(e[1], Transform3D(basis, origin))
 	_moving = left

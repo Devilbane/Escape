@@ -90,7 +90,7 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 ## The digits there are villagers, not creations.
 const OUTDOOR_GROUPS := [
 	["Gelände", "#.,:~;≈‖ΩΨΘΞ='"],
-	["Natur", "Tdrtpy"],
+	["Natur", "Tdrtpy≡‡☼"],
 	["Wege und Eingänge", "PREa([])><|`\"°"],
 	["Gebäude", "hjßnmuskowb^IiBL"],
 	["Dorf und Lager", "gzlexπqFv!@NfC+%*$?_\\§¤"],
@@ -103,7 +103,7 @@ const OUTDOOR_NAMES := {
 	"#": "Wald", ".": "Wiese", ",": "Pfad", ":": "Gepflasterter Platz", "~": "Dorfteich", "≈": "Fluss", "‖": "Brücke über den Fluss",
 	"Ω": "Gitter des Baches", "Ψ": "Auslauf der Kanalisation", "Θ": "Kanalluke", "Ξ": "Straßengully",
 	";": "Teich in der Wolfsmulde", "=": "Fels der Berge", "'": "Geröll",
-	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
+	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld", "≡": "Weizenfeld", "‡": "Maisfeld", "☼": "Sonnenblumenfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
 	"(": "Dunkles Loch", ">": "Findling über der verborgenen Grotte", "?": "Vergrabener Schatz", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten", "<": "Tor der Aschenzinne",
 	"|": "Tor der Feste Sternhall", "`": "Rostiges Abflussgitter", "\"": "Tor der Verlassenen Wüste", "°": "Wegweiser des Pilgerwegs",

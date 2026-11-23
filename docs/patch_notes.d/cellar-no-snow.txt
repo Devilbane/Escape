@@ -1,0 +1,1 @@
+- Down in a cellar, the ladder and walls no longer show snow from the surface above.

@@ -207,6 +207,7 @@ func _enter() -> void:
 	# Monsters, villagers and animals ask the map what the hero sees (see Outdoor.hero_sees).
 	(game.level as Outdoor).hero_cellar = pit
 	_build_earth()
+	_set_underground(true)
 	_tick = 0.0
 	_fresh = 10
 	_hide_surface()
@@ -223,9 +224,16 @@ func _leave() -> void:
 			node.visible = true
 	_hidden.clear()
 	_restless.clear()
+	_set_underground(false)
 	if _earth != null:
 		_earth.queue_free()
 		_earth = null
+
+
+## Tells the snow to keep off the cellar's own pieces while the hero is down here.
+func _set_underground(on: bool) -> void:
+	if is_instance_valid(game.level) and game.level is Outdoor and (game.level as Outdoor).snow != null:
+		(game.level as Outdoor).snow.set_underground(on)
 
 
 func _exit_tree() -> void:

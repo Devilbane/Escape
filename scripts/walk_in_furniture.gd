@@ -146,6 +146,9 @@ static func sconce() -> Node3D:
 	glow.omni_range = SCONCE_RANGE
 	glow.omni_attenuation = 1.6
 	glow.position = Vector3(0, 0.2, 0.55)
+	# Walls all round it: picked for its wall shadows before the lamps in the open (see
+	# LightShadows.INDOOR), or its light fell through the house's walls onto the ivy and the snow.
+	glow.set_meta(LightShadows.INDOOR, true)
 	glow.visible = false
 	root.add_child(glow)
 	return root

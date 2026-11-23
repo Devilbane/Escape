@@ -4219,6 +4219,14 @@ func _build_chopping_log(v: Villager, cell: Vector2i) -> void:
 	var chips := Effects.make_wood_chips()
 	chips.position = Villager.BITE_POINT
 	spot.add_child(chips)
+	# The woodcutter's sign stands just past one end of his trunk
+	# (clear of his axe and of the way to the trunk), facing back toward the road behind him.
+	var board := Effects.shop_sign(Lang.t("Holzplatz"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "axe")
+	WeatheredProps.weather_plain(board)
+	board.position = Villager.LOG_CENTRE + Vector3(Villager.LOG_LENGTH * 0.5 + 0.7, -Villager.LOG_CENTRE.y, 0)
+	board.rotation.y = PI
+	spot.add_child(board)
+	_add_solid(spot.to_global(board.position), Vector3(0.5, 2.6, 0.5))
 	var centre := spot.to_global(Villager.LOG_CENTRE)
 	var size := Vector3(Villager.LOG_LENGTH, 0.5, r * 2.0)
 	if absf(face.x) > 0.5:

@@ -1220,7 +1220,7 @@ static func _silver() -> ShaderMaterial:
 	if not _mats.has("silver_glint"):
 		var m := ShaderMaterial.new()
 		m.shader = preload("res://shaders/silver_glint.gdshader")
-		m.set_shader_parameter("silver", SILVER)
+		m.set_shader_parameter("silver", SILVER.darkened(0.25))
 		_mats["silver_glint"] = m
 	return _mats["silver_glint"]
 

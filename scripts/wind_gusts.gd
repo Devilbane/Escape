@@ -26,6 +26,8 @@ const EVERY_AUTUMN := Vector2(10.0, 30.0)
 const EVERY_OTHER := Vector2(60.0, 140.0)
 ## Pieces one gust moves, before the wind's strength and the quality preset.
 const PIECES := Vector2i(10, 18)
+## The least a leaf or a piece of straw is carried (metres): a third of the screen's width.
+const MIN_CROSS := 11.0
 const MAX_PIECES := 40
 ## No new gust starts while this many pieces are still in the air (gusts may overlap).
 const MAX_IN_AIR := 120
@@ -200,9 +202,19 @@ func _launch(e: Array, dir: Vector3, s: float, hero: Vector3) -> bool:
 	var way := dir.rotated(Vector3.UP, _rng.randf_range(-0.5, 0.5))
 	var to := from + way * dist
 	if not _clear_way(from, to):
-		# Not so far then: a wall or the water is in the way.
-		to = from + way * dist * 0.4
-		if dist * 0.4 < 1.0 or not _clear_way(from, to):
+		# Not so far then: a wall or the water is in the way. But a leaf must still cross at least a
+		# third of the screen (the camera shows about 33 m across) to look natural, or it stays put.
+		var short := false
+		for share in [0.5, 0.25]:
+			if kind in ["leaf", "straw"] and dist * share < MIN_CROSS:
+				break
+			to = from + way * dist * share
+			if _clear_way(from, to):
+				short = true
+				break
+		if not short and kind in ["leaf", "straw"]:
+			return false
+		if not short and not _clear_way(from, to):
 			return false
 	var lift: Vector2 = LIFT[kind]
 	var light := kind == "leaf" or kind == "straw"

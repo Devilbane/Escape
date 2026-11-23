@@ -64,6 +64,8 @@ func _run() -> void:
 		var now: Vector3 = pair[0][2]
 		if Vector2(o.x - now.x, o.z - now.z).length() > 0.3:
 			shifted += 1
+		if pair[0][4] == "leaf" or pair[0][4] == "straw":
+			check(Vector2(o.x - now.x, o.z - now.z).length() >= WindGusts.MIN_CROSS * 0.99, "a leaf is carried at least a third of the screen")
 		var ch := lvl.cell_char(lvl.world_to_cell(now))
 		check(WindGusts.OPEN.contains(ch), "a piece landed on open ground, not '%s'" % ch)
 	check(shifted > 0, "pieces lie somewhere else after the gust (%d of %d)" % [shifted, origins.size()])

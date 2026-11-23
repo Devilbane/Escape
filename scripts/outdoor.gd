@@ -1218,7 +1218,7 @@ func _tree_material(mat: Material, wind := true) -> Material:
 ## returns how far the tree reaches (metres), or -1 when it was left out.
 func _plant(name: String, pos: Vector3, rot: float, s: float) -> float:
 	var reach := _reach_of(name, s)
-	if on_plot(pos, reach):
+	if on_plot(pos, reach) or Mountains.near_rock(self, pos.x, pos.z, Mountains.TREE_CLEARANCE):
 		return -1.0
 	# Spruces in smaller batches, so each one turns into its far model at about its own distance.
 	var chunk := (SPRUCE_CHUNK if name.begins_with("spruce:") else GROUND_CHUNK) * TILE
@@ -1450,7 +1450,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var rot := _rng.randf() * TAU
 			var size := _rng.randf_range(1.1, 1.4)
 			var reach := _reach_of(tree, size)
-			if not on_plot(at, reach):
+			if not on_plot(at, reach) and not Mountains.near_rock(self, at.x, at.z, Mountains.TREE_CLEARANCE):
 				_clearable.append({"at": at, "reach": reach, "nodes": [_put(tree, at, rot, size),
 						_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.4, 4, 1.4))]})
 		"p":
@@ -2243,6 +2243,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 		for ix in steps.x + 1:
 			var at := Vector3(inner.position.x + inner.size.x * ix / steps.x, 0.0, inner.position.y + inner.size.y * iy / steps.y)
 			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
+					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) \
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
@@ -2255,7 +2256,8 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 	for iy in ceili(block.size.y / UNDERGROWTH_CHECK):
 		for ix in ceili(block.size.x / UNDERGROWTH_CHECK):
 			var at := Vector3(block.position.x + (ix + 0.5) * UNDERGROWTH_CHECK, 0.0, block.position.y + (iy + 0.5) * UNDERGROWTH_CHECK)
-			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5):
+			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
+					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE):
 				continue
 			var covered := false
 			for i in placed.size():
@@ -3551,7 +3553,7 @@ func _plant_bushes() -> void:
 				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
 				# Never over the temple glass's light on the grass (bare_ground), a full bush's
 				# width (AgedStone.grow_bush) away.
-				if _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+				if Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) or _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP

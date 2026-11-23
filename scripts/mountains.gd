@@ -46,6 +46,33 @@ const SNOW := Color(0.92, 0.94, 0.98)
 const EARTH := Color(0.36, 0.33, 0.29)
 
 
+## How far from the rock a tree trunk or a bush must stand (metres): the foot rises steeply right at the
+## edge of the rock tiles, so anything closer would be cut off by the rock.
+const TREE_CLEARANCE := 1.4
+const BUSH_CLEARANCE := 1.8
+## Where the foot eases from the flat ground into the slope (metres): a curve instead of a sharp crease.
+const FOOT_ROUND := 1.6
+
+
+## Whether a spot on the ground (x, z in metres) lies within `margin` of mountain rock, where the rock
+## would clip a tree or a bush standing there.
+static func near_rock(level: Level, x: float, z: float, margin: float) -> bool:
+	var tile := Level.TILE
+	var c := Vector2i(roundi(x / tile), roundi(z / tile))
+	var reach := ceili(margin / tile) + 1
+	for dy in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			var t := c + Vector2i(dx, dy)
+			if not is_rock(level, t):
+				continue
+			var mid := level.cell_to_world(t)
+			var ox := maxf(0.0, absf(x - mid.x) - tile * 0.5)
+			var oz := maxf(0.0, absf(z - mid.z) - tile * 0.5)
+			if ox * ox + oz * oz < margin * margin:
+				return true
+	return false
+
+
 ## Whether a tile of `level` is mountain rock. Off the map, the nearest tile
 ## on the map decides, so the mountains run on past its edge.
 static func is_rock(level: Level, c: Vector2i) -> bool:
@@ -225,7 +252,10 @@ static func _height(dist: Dictionary, north: Dictionary, x: float, z: float, noi
 	var d := _distance_at(dist, x, z)
 	if d <= 0.0:
 		return 0.0
-	var h := minf(d * FOOT_SLOPE, FOOT_HEIGHT) + maxf(0.0, d - FOOT_HEIGHT / FOOT_SLOPE) * CLIMB
+	# The foot eases in: a curve over its first FOOT_ROUND metres, then the steep slope as before.
+	var lifted := d * FOOT_SLOPE - FOOT_SLOPE * FOOT_ROUND * 0.5
+	var foot := d * d * FOOT_SLOPE / (2.0 * FOOT_ROUND) if d < FOOT_ROUND else lifted
+	var h := minf(foot, FOOT_HEIGHT) + maxf(0.0, d - FOOT_HEIGHT / FOOT_SLOPE) * CLIMB
 	h = minf(h, PEAK)
 	# Crags and peaks, growing in as the rock gets higher.
 	h += (noise.get_noise_2d(x, z) * 0.5 + 0.5) * CRAGS * smoothstep(2.0, 14.0, d)

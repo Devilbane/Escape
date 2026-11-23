@@ -98,7 +98,7 @@ static func layout(shape: Dictionary) -> Dictionary:
 	var mage := bool(shape.get("mage", false))
 	if mage:
 		# Off the stairs to the sleeping room and clear of the hatch's corner before heading for a bed.
-		b["high_via"] = [Vector3(float(b.x1) + ONTO + 0.1, deck, float(b.top) - ONTO)]
+		b["high_via"] = [Vector3(float(b.x1) + ONTO + 0.1, deck, float(b.top) - ONTO), Vector3(float(b.x1) + ONTO + 0.1, deck, float(b.top) + 0.7)]
 	return {"room": room, "up_room": up_room, "floor": floor, "top": top, "up_floor": up_floor, "eaves": eaves,
 			"mage": mage, "wall_top": deck + (MageTower.TOP_H if mage else PARAPET),
 			"deck": deck, "cellar": Rect2(-HOLE, -HOLE, HOLE * 2.0, HOLE * 2.0), "a": a, "b": b, "c": c,

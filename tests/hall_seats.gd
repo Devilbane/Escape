@@ -1,0 +1,101 @@
+extends SceneTree
+## Headless test for the seats in the tavern and the mage tower (see Seats.add_indoor): every chair, stool,
+## bench and sofa is a seat the hero sits on by running into it, with the hips over the seat at its height,
+## and gets up again clear of the furniture; the seats are no wider than the hero's seat needs.
+## Run with: godot --headless --fixed-fps 60 -s tests/hall_seats.gd
+
+var failures := 0
+var game: Node
+var frames := 0
+var started := false
+
+
+func check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _initialize() -> void:
+	WalkIn.lock_halls = false
+	Storage.use(Storage.Memory.new())
+	game = load("res://scenes/main.tscn").instantiate()
+	root.add_child(game)
+
+
+func _process(_delta: float) -> bool:
+	frames += 1
+	if frames == 5 and not started:
+		started = true
+		_run()
+	return false
+
+
+func _wait(n: int) -> void:
+	for i in n:
+		await process_frame
+
+
+func _free(at: Vector3, radius: float) -> bool:
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = 0.8
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis(), at + Vector3(0, 0.75, 0))
+	query.exclude = [(game.player as CollisionObject3D).get_rid()]
+	var hit := (game.level as Node3D).get_world_3d().direct_space_state.intersect_shape(query, 2)
+	for h in hit:
+		var cs: Node = h.collider.get_child(h.shape)
+		print('  hit ', at, ' ', h.collider.get_parent(), ' ', cs.shape.size if cs is CollisionShape3D and cs.shape is BoxShape3D else '', ' ', cs.global_position)
+	return hit.is_empty()
+
+
+func _run() -> void:
+	if game.state == game.State.TITLE:
+		game._start_playing()
+	game.hero_name = "Seat test"
+	game.day_hour = 10.0
+	game.load_level(game._outdoor_index(), false)
+	game.state = game.State.PLAYING
+	await _wait(10)
+	var lvl: Outdoor = game.level
+	var p: Player = game.player
+	for kind: String in ["tavern", MageTower.KIND]:
+		var halls: Array = lvl.walk_in.buildings.filter(func(r): return r.kind == kind)
+		check(halls.size() == 1, "there is a %s" % kind)
+		if halls.is_empty():
+			continue
+		var hall: Node3D = halls[0].node
+		var seats: Array = lvl.stations.filter(func(s): return s.kind == Seats.KIND and s.has("indoor") and kind_of(lvl, s) == kind)
+		check(seats.size() >= (4 if kind == "tavern" else 9), "%s: its chairs, benches and sofas are seats (%d)" % [kind, seats.size()])
+		for seat: Dictionary in seats:
+			var out := Seats.stand_spot(seat, lvl, p.radius)
+			check(_free(out, p.radius - 0.05), "%s: one gets up clear of the furniture at %s" % [kind, seat.pos])
+			p.global_position = out
+			p.reset_physics_interpolation()
+			await _wait(2)
+			game._use_station(seat)
+			await _wait(70)
+			check(p.is_seated(), "%s: the hero sits at %s" % [kind, seat.pos])
+			var sk: Skeleton3D = p.find_children("*", "Skeleton3D", true, false)[0]
+			var hips: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("hips")).origin
+			var along := Seats.front(seat)
+			var off: Vector3 = hips - (seat.pos as Vector3)
+			check(absf(off.dot(along)) < 0.15 and absf(off.dot(along.cross(Vector3.UP))) < 0.15, "%s: the hips are over the seat at %s (off by %s)" % [kind, seat.pos, off])
+			check(absf(off.y - 0.48) < 0.1, "%s: and at the height of the seat (%.2f over the floor)" % [kind, off.y])
+			p.stand_up()
+			await _wait(3)
+	game.delete_save(game.save_path())
+	print("PASS: hall seats" if failures == 0 else "FAILED: hall seats")
+	quit(failures)
+
+
+## The kind of the hall a seat stands in.
+func kind_of(lvl: Outdoor, seat: Dictionary) -> String:
+	for rec in lvl.walk_in.buildings:
+		var node: Node3D = rec.node
+		var local := node.global_transform.affine_inverse() * (seat.pos as Vector3)
+		if absf(local.x) < 6.0 and absf(local.z) < 6.0 and local.y > -3.5 and local.y < 8.0:
+			return String(rec.kind)
+	return ""

@@ -204,6 +204,11 @@ static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 				seat.rotation.y = 0.0 if dz < 0.0 else PI
 			seat.position = Vector3(x, floor_y, tz + dz)
 			inside.add_child(seat)
+			# One can sit on them: the chair for one, the bench for two (see Seats).
+			if seat.name == "Chair":
+				Seats.add_indoor(walk_in, rec, seat.position, seat.rotation.y, Vector3(0.5, 0.9, 0.5))
+			else:
+				Seats.add_indoor(walk_in, rec, seat.position, seat.rotation.y, Vector3(1.3, 0.5, 0.3), 0.485, [-0.32, 0.32])
 	# Fritz's seat: on the chair, facing the table; the brewer brings his beer and stands beside it.
 	var chair_at := Vector3(-(half - 1.3), floor_y, table_z + 0.85)
 	var mug_spot := WalkInFurniture.mug()

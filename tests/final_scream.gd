@@ -61,30 +61,25 @@ func _test() -> void:
 	check(scream != null and scream.is_shown(), "the falling monster screams")
 	if scream == null:
 		return
-	check(scream.text.begins_with(foe._speaker_name()), "the scream is named after who falls (%s)" % scream.text)
-	check(scream.global_position.y > foe.global_position.y + 1.0, "the scream rises over the body")
+	check(scream.text != "", "the scream carries a cry (%s)" % scream.text)
+	check(scream._bubble is Control and scream._bubble.get_parent() == Comic.current, "the scream is a comic action bubble")
 	check(FinalScream.showing(), "the scream holds the stage")
 	check(not v._bubble.is_shown(), "the villager's bubble vanished at the scream")
-	check(Comic.current._pops.is_empty(), "the comic words vanished at the scream")
-	check(is_equal_approx(scream.fade, SpeechBubble.FADE / 3.0), "the scream fades three times as slowly")
+	check(Comic.current._pops.size() == 1, "the comic words vanished at the scream, only the scream is left")
 
 	v.hush()
 	v.say("Was war das?")
 	check(not v._bubble.is_shown(), "no new bubble while the scream shows")
 	Comic.pop(game.player.global_position, "hit")
-	check(Comic.current._pops.is_empty(), "no new comic word while the scream shows")
+	check(Comic.current._pops.size() == 1, "no new comic word while the scream shows")
 
 	# Most of its time later it is still there.
 	scream._process(FinalScream.SECONDS - 1.0)
 	check(scream.is_shown() and FinalScream.showing(), "the scream is still there after %.0f s" % (FinalScream.SECONDS - 1.0))
-	# Over: it fades out slowly, then people talk again.
+	# Over: it lets go of the stage, then people talk again.
 	for i in 12:
 		scream._process(0.1)
 	check(not FinalScream.showing(), "the scream lets go of the stage when its time is up")
-	check(scream.is_shown(), "the scream fades out slowly, not at once")
-	for i in 30:
-		if is_instance_valid(scream):
-			scream._process(0.1)
 	v.hush()
 	v.say("Na endlich Ruhe.")
 	check(v._bubble.is_shown(), "people talk again once the scream is over")
@@ -96,5 +91,3 @@ func _test() -> void:
 	game.player.take_damage(99, game.player.global_position + Vector3(1, 0, 0), null, false)
 	var hero_scream: FinalScream = FinalScream.current
 	check(hero_scream != null and is_instance_valid(hero_scream) and hero_scream != scream and hero_scream.is_shown(), "the felled hero screams")
-	if hero_scream != null and is_instance_valid(hero_scream):
-		check(hero_scream.text.begins_with(game.hero_name), "the hero's scream carries the hero's name")

@@ -102,18 +102,27 @@ static func clear() -> void:
 	current._pops.clear()
 
 
-func _pop(world_pos: Vector3, kind: String) -> void:
+## A final scream (see FinalScream): the last cry of someone who falls, in the
+## same bursting bubble as a blow's word, but it holds still for `seconds`
+## before it bursts. It ignores the silence it creates itself.
+static func scream(world_pos: Vector3, text: String, seconds: float) -> Control:
+	if current == null or current.camera == null:
+		return null
+	return current._pop(world_pos, "scream", text, seconds)
+
+
+func _pop(world_pos: Vector3, kind: String, text := "", hold := 0.12) -> Control:
 	var words: Array = {"hit": HIT_WORDS, "big": BIG_WORDS, "knife": KNIFE_WORDS,
 		"hurt": HURT_WORDS, "break": BREAK_WORDS, "miss": MISS_WORDS,
 		"lever": LEVER_WORDS, "rumble": RUMBLE_WORDS, "backstab": BACKSTAB_WORDS,
-		"block": BLOCK_WORDS, "vital": VITAL_WORDS}[kind]
+		"block": BLOCK_WORDS, "vital": VITAL_WORDS, "scream": [text]}[kind]
 	var fill: Color = {"hit": Color(1.0, 0.86, 0.15), "big": Color(1.0, 0.55, 0.1),
 		"knife": Color(0.55, 0.9, 1.0), "hurt": Color(1.0, 0.25, 0.2),
 		"break": Color(0.95, 0.92, 0.8), "miss": Color(1, 1, 1),
 		"lever": Color(1.0, 0.8, 0.3), "rumble": Color(0.8, 0.68, 0.5),
 		"backstab": Color(0.85, 0.15, 0.25), "block": Color(0.72, 0.78, 0.88),
-		"vital": Color(1.0, 0.72, 0.12)}[kind]
-	var size := 112.0 if kind in ["big", "rumble", "backstab"] else (128.0 if kind == "vital" else (75.0 if kind == "miss" else 94.0))
+		"vital": Color(1.0, 0.72, 0.12), "scream": Color(1.0, 0.8, 0.76)}[kind]
+	var size := 112.0 if kind in ["big", "rumble", "backstab"] else (128.0 if kind == "vital" else (170.0 if kind == "scream" else (75.0 if kind == "miss" else 94.0)))
 
 	var root := Control.new()
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -132,20 +141,27 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 		root.add_child(burst)
 	var label := Label.new()
 	var word: String = words.pick_random()
-	label.text = Lang.t(word)
-	var sound: String = SOUNDS_EN.get(word, SOUNDS[word]) if Lang.language == "en" else SOUNDS[word]
-	var volume: float = VOLUME.get(kind, 0.0)
-	if kind in BLOW_KINDS and _weapon_frame == Engine.get_process_frames():
-		volume += UNDER_WEAPON_DB
-	Sfx.play(self, sound, volume, world_pos)
+	label.text = word if kind == "scream" else Lang.t(word)
+	if kind != "scream":
+		var sound: String = SOUNDS_EN.get(word, SOUNDS[word]) if Lang.language == "en" else SOUNDS[word]
+		var volume: float = VOLUME.get(kind, 0.0)
+		if kind in BLOW_KINDS and _weapon_frame == Engine.get_process_frames():
+			volume += UNDER_WEAPON_DB
+		Sfx.play(self, sound, volume, world_pos)
+	if kind == "scream":
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_font_override("font", FONT)
-	label.add_theme_font_size_override("font_size", int(size * 0.34))
+	label.add_theme_font_size_override("font_size", int(size * (0.17 if kind == "scream" else 0.34)))
 	label.add_theme_color_override("font_color", Color(0.12, 0.05, 0.1) if kind != "miss" else Color(1, 1, 1))
 	label.add_theme_color_override("font_outline_color", Color.WHITE if kind != "miss" else Color(0.1, 0.05, 0.1))
 	label.add_theme_constant_override("outline_size", int(size * 0.05))
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	if kind == "scream":
+		# Keep the long cry inside the star's points.
+		label.offset_left = root.size.x * 0.2
+		label.offset_right = -root.size.x * 0.2
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(label)
 
@@ -156,7 +172,7 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 			Vector2(0.86, 1.16), Vector2(1.12, 0.92), Vector2(0.98, 1.06), Vector2(1.04, 1.0)]:
 		tween.tween_property(root, "scale", target, 0.085).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	root.create_tween().tween_property(root, "rotation", root.rotation + deg_to_rad(randf_range(-10.0, 10.0)), 0.4).set_trans(Tween.TRANS_SINE)
-	tween.tween_interval(0.12)
+	tween.tween_interval(hold)
 	# Squeezes together once, then swells up and pops.
 	tween.tween_property(root, "scale", Vector2(0.86, 1.2), 0.07).set_trans(Tween.TRANS_SINE)
 	tween.tween_property(root, "scale", Vector2(1.45, 1.3), 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -169,6 +185,7 @@ func _pop(world_pos: Vector3, kind: String) -> void:
 	root.visible = false
 	_pops.append(pop)
 	_settle.call_deferred(pop)
+	return root
 
 
 func _settle(pop: Dictionary) -> void:

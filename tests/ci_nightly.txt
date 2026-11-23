@@ -23,6 +23,7 @@ fountain.gd | 120 | fixed | pass | Refuge fountain gives 5 life per drink test
 bloated_belly.gd | 120 | fixed | pass | Drinking too much at the village fountain swells the belly test
 seats.gd | 200 | fixed | passfail | Sitting on the benches of the market square test
 bench_rest.gd | 200 | free | passfail | Idle townsfolk now and then rest on the fountain benches, one to a bench, and get up again
+temple_morning.gd | 300 | fixed | passfail | Morning gathering in the temple: the village walks in through the door, sits on the pews, Elsbeth speaks before the altar, everyone goes back to work
 slime_growth.gd | 300 | fixed | pass | Growing slimes test (colours, sizes, swallowing, corpses, Blobs)
 slime_tricks.gd | 300 | fixed | pass | Slime tricks test (half damage from shots, slimed attackers, spit)
 slime_prey.gd | 300 | fixed | pass | Slime prey test (townsfolk and animals, fighting back, hiding, coming back out)

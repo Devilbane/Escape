@@ -107,7 +107,11 @@ void fragment() {
 		// The upper tiers are open to the sky, the lower ones lie under them (`shade` runs from the
 		// foot's 0.72 to the top's 1.0, see Fern.NEEDLE_FOOT_SHADE).
 		float tier = clamp((shade - 0.72) / 0.28, 0.0, 1.0);
-		float lies = level * above * amount * 0.85 + (n - 0.5) * 0.55 + (tier - 0.5) * 0.25;
+		// The crown's top (the last tiers and the leader) is steep and short, so it is given more:
+		// a looser level test, so it takes snow on its steeper fronds, and a head start on `lies`.
+		float crown = smoothstep(0.75, 1.0, tier);
+		level = max(level, crown * smoothstep(0.3, 0.7, rest_normal.y));
+		float lies = level * above * amount * 0.85 + (n - 0.5) * 0.55 + (tier - 0.5) * 0.25 + crown * 0.2;
 		if (lies > 0.5 && !snow_melted(rest_pos, n) && !snow_sheltered(rest_pos)) {
 			vec3 snow_albedo;
 			vec3 snow_normal;
@@ -123,8 +127,9 @@ void fragment() {
 			if (far_model) {
 				wide *= 0.58;
 			}
+			wide += crown * 0.12;
 			float ridge = 1.0 - smoothstep(wide - 0.03, wide, abs(UV.x - 0.5));
-			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3, 0.45, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
+			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3 - crown * 0.25, 0.45 - crown * 0.25, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
 			ALBEDO = mix(ALBEDO, snow_albedo, thick);
 			EMISSION = snow_glow * thick;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY

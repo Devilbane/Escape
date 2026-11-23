@@ -133,6 +133,8 @@ const OUTDOOR := {
 	",": "dirt path",
 	"P": "start, in front of the crypt door",
 	"~": "village pond (fishing)",
+	"≈": "river: the water of the farming valley, fished like a pond, frozen over in winter (see RiverBridge)",
+	"‖": "bridge: a plank bridge over the river, walkable, two tiles wide with rails (see RiverBridge)",
 	";": "wolf hollow pond (fishing, moon trout at night)",
 	"R": "the crypt (a block of tiles)",
 	"g": "grave",

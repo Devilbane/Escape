@@ -89,7 +89,7 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 ## The open-air map (see Tiles.OUTDOOR, built by Outdoor): its own letters.
 ## The digits there are villagers, not creations.
 const OUTDOOR_GROUPS := [
-	["Gelände", "#.,:~;='"],
+	["Gelände", "#.,:~;≈‖='"],
 	["Natur", "Tdrtpy"],
 	["Wege und Eingänge", "PREa([])><|`\"°"],
 	["Gebäude", "hjßnmuskowb^IiBL"],
@@ -100,7 +100,7 @@ const OUTDOOR_GROUPS := [
 ]
 
 const OUTDOOR_NAMES := {
-	"#": "Wald", ".": "Wiese", ",": "Pfad", ":": "Gepflasterter Platz", "~": "Dorfteich",
+	"#": "Wald", ".": "Wiese", ",": "Pfad", ":": "Gepflasterter Platz", "~": "Dorfteich", "≈": "Fluss", "‖": "Brücke über den Fluss",
 	";": "Teich in der Wolfsmulde", "=": "Fels der Berge", "'": "Geröll",
 	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
@@ -134,7 +134,7 @@ const OUTDOOR_NOTES := {
 
 const OUTDOOR_COLORS := {
 	"#": Color(0.12, 0.22, 0.12), ".": Color(0.36, 0.5, 0.28), ",": Color(0.55, 0.45, 0.3),
-	":": Color(0.55, 0.53, 0.5), "~": Color(0.25, 0.45, 0.7), ";": Color(0.2, 0.35, 0.6),
+	":": Color(0.55, 0.53, 0.5), "~": Color(0.25, 0.45, 0.7), ";": Color(0.2, 0.35, 0.6), "≈": Color(0.22, 0.42, 0.68), "‖": Color(0.55, 0.4, 0.25),
 	"=": Color(0.35, 0.33, 0.36), "'": Color(0.5, 0.48, 0.45), "P": Color(0.3, 0.75, 0.35),
 }
 const OUTDOOR_GROUP_COLORS := [Color(0.36, 0.5, 0.28), Color(0.25, 0.4, 0.2), Color(0.8, 0.7, 0.4),

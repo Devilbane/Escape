@@ -29,5 +29,5 @@ func _initialize() -> void:
 	check(not gun._ring.visible, "a lifted roof hides it")
 	WalkIn._lift(roof, false)
 	check(gun._ring.visible, "and a shown one comes back shown")
-	print("lift_keeps_hidden: ", "OK" if failures == 0 else "%d failures" % failures)
+	print("PASS: lift keeps hidden" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

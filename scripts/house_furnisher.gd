@@ -16,8 +16,8 @@ extends Node3D
 ## waiting to be put down, the storey, turning, picking up, back to the blueprint and close. A
 ## ghost of the chosen piece follows the mouse on the storey's floor, green where it fits and red
 ## where it does not (the line below says why). Left click puts it down, R or right click turns
-## it a quarter, and "Aufheben" takes a piece back into the store (to move it, pick it up and put
-## it down again).
+## it a quarter, and "Entfernen" (or the Delete key over a piece) takes a piece back into the store
+## and stays chosen, so several can go in a row; to move a piece, drag it.
 
 ## The short names on the tool bar's buttons, in the order of HouseFurniture.KINDS.
 const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen", WeaponRack.KIND: "Waffenständer",
@@ -644,6 +644,8 @@ func handle_input(event: InputEvent) -> bool:
 			KEY_R:
 				turn()
 				return true
+			KEY_DELETE:
+				return remove_under_mouse()
 		return false
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
@@ -754,8 +756,8 @@ func drop(point, screen := Vector2.INF) -> void:
 	if not moved and _held_tool == PICK_UP:
 		furniture.save(game.hero_name)
 		Sfx.play(game, "gear_soft_0", -4.0)
-		_say(Lang.t("%s aufgehoben: Es steht wieder zum Aufstellen bereit.") % name)
-		_end_drag(held.kind)
+		_say(Lang.t("%s entfernt: Es liegt wieder im Lager.") % name)
+		_end_drag(PICK_UP)
 		return
 	var why := "same"
 	if moved and point != null and house != null:
@@ -912,9 +914,9 @@ func hover(point: Vector3) -> void:
 		if i >= 0:
 			var p: Dictionary = furniture.placed[i]
 			_footprint_marker(house, p.kind, p.x, p.y, p.rot, BAD_COLOR)
-			_say(Lang.t("Klicken, um %s aufzuheben. Gedrückt ziehen verschiebt, R dreht.") % Lang.t(HouseFurniture.KINDS[p.kind].name))
+			_say(Lang.t("Klicken, um %s zu entfernen. Gedrückt ziehen verschiebt, R dreht.") % Lang.t(HouseFurniture.KINDS[p.kind].name))
 		else:
-			_say(Lang.t("Klicke ein Möbelstück an, um es aufzuheben, oder zieh es an einen anderen Platz."))
+			_say(Lang.t("Klicke ein Möbelstück an, um es zu entfernen, oder zieh es an einen anderen Platz."))
 		return
 	if tool == "":
 		return
@@ -1026,8 +1028,7 @@ func click(point: Vector3) -> void:
 		var kind := furniture.pick_up(i)
 		furniture.save(game.hero_name)
 		Sfx.play(game, "gear_soft_0", -4.0)
-		_say(Lang.t("%s aufgehoben: Es steht wieder zum Aufstellen bereit.") % Lang.t(HouseFurniture.KINDS[kind].name))
-		tool = kind
+		_say(Lang.t("%s entfernt: Es liegt wieder im Lager.") % Lang.t(HouseFurniture.KINDS[kind].name))
 		refresh()
 		_update_bar()
 		return
@@ -1052,6 +1053,24 @@ func click(point: Vector3) -> void:
 	refresh()
 	_update_bar()
 	_say(Lang.t("%s steht.") % name)
+
+
+## The Delete key: the piece under the mouse goes back into the store, whichever tool is chosen.
+## Returns whether a piece was taken.
+func remove_under_mouse() -> bool:
+	if dragging() or _mouse_point == null or plan() == null:
+		return false
+	var i := _piece_under(_mouse_point)
+	if i < 0:
+		return false
+	var kind := furniture.pick_up(i)
+	furniture.save(game.hero_name)
+	Sfx.play(game, "gear_soft_0", -4.0)
+	_say(Lang.t("%s entfernt: Es liegt wieder im Lager.") % Lang.t(HouseFurniture.KINDS[kind].name))
+	_clear_ghost()
+	refresh()
+	_update_bar()
+	return true
 
 
 func _say(text: String) -> void:
@@ -1094,7 +1113,8 @@ func _build_bar() -> void:
 	options.add_child(_level_button)
 	_turn_button = _small_button(Lang.t("Drehen (R)"), turn, 130)
 	options.add_child(_turn_button)
-	_pick_button = _small_button(Lang.t("Aufheben"), select.bind(PICK_UP), 130)
+	_pick_button = _small_button(Lang.t("Entfernen"), select.bind(PICK_UP), 130)
+	_pick_button.tooltip_text = Lang.t("Klicke ein aufgestelltes Möbelstück an, um es zurück ins Lager zu legen (Taste Entf über dem Stück).")
 	options.add_child(_pick_button)
 	options.add_child(_small_button(Lang.t("Bauplan"), to_blueprint, 130))
 	options.add_child(_small_button(Lang.t("Schließen"), leave, 130))

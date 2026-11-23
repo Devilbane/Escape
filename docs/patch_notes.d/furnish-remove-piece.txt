@@ -1,0 +1,1 @@
+- Furnish menu: the "Pick up" tool is now "Remove" and stays chosen so you can clear several pieces in a row; the Delete key removes the piece under the mouse. Removed furniture goes back to your storage.

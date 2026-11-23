@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add hedgehogs to the woods and the village; Gather the village in the temple every morning | Shipped this week: Tone down and texture villager hair; Keep frosty breath around the face while moving; Thin out and cluster the vine grapes (+47 more)
+Escape! dev status | Working on: Add hedgehogs to the woods and the village | Shipped this week: Gather the village in the temple every morning; Tone down and texture villager hair; Keep frosty breath around the face while moving (+47 more)

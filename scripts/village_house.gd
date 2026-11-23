@@ -73,7 +73,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	var ud := d + JETTY * 2.0
 	var cx := rng.randf_range(-0.3, 0.3) * uw
 	var shape := {"w": w, "d": d, "ridge": ridge, "door_x": door_x, "cx": cx, "tower": bool(style.get("tower", false)),
-			"flat": bool(style.get("flat", false))}
+			"flat": bool(style.get("flat", false)), "mage": bool(style.get("mage", false))}
 	if style.has("ladder_side"):
 		shape["ladder_side"] = float(style.ladder_side)
 	# A hall may set its side windows toward the door (see VillageHalls.style): `side_front` metres
@@ -173,6 +173,13 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 		_window(walls.get(2 if side > 0.0 else 3, low), Vector3(side * w * 0.5, PLINTH + 1.6, float(shape.get("side_z", 0.0))), side * PI * 0.5)
 	if tower:
 		return
+	if flat and bool(shape.get("mage", false)):
+		# A mage tower (see MageTower): the deck is the floor of its top room, which solid has walls and
+		# a pyramid roof in the same mesh; hollow, hollow() builds them apart.
+		GuildHall.roof_shell(up, shape, false)
+		if low == front:
+			MageTower.solid_top(up, shape)
+		return
 	if flat:
 		# The deck and its parapet instead of a pitched roof; hollow, the upper storey as a room.
 		GuildHall.roof_shell(up, shape)
@@ -248,6 +255,11 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		for key: String in GuildHall.UPPER_GROUPS:
 			groups[key] = {}
 		GuildHall.upper_storey(shape, groups)
+		if bool(shape.get("mage", false)):
+			# The top room under its pyramid roof, each wall apart (see MageTower.top_storey).
+			for key: String in MageTower.TOP_GROUPS:
+				groups[key] = {}
+			MageTower.top_storey(shape, groups)
 	_openings = []
 	var body: MeshInstance3D = shape.body
 	var out := {}
@@ -290,6 +302,8 @@ static func walk_in_windows(shape: Dictionary, upstairs: bool) -> Array:
 			out.append({"at": Vector3(x, top + 1.3, ud * 0.5), "out": Vector3.BACK})
 		for side: float in [-1.0, 1.0]:
 			out.append({"at": Vector3(side * uw * 0.5, top + 1.3, 0), "out": Vector3(side, 0, 0)})
+		if bool(shape.get("mage", false)):
+			out.append_array(MageTower.windows(shape))
 	return out
 
 

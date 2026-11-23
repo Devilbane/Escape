@@ -58,6 +58,7 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	path.append_array(house.get("inner_way", []))
 	path.append(house.ladder)
 	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": path, "t": 0.0, "clock": 0.0}
+	v.bed_trip.clock = _slack(v.global_position, path)
 	if at_once:
 		if _on_ground(house, bed):
 			_lie_on_ground(v)
@@ -315,7 +316,7 @@ static func _go_out(v: Villager, trip: Dictionary) -> void:
 	inner.reverse()
 	trip.way = inner + [way[1], way[0]]
 	trip.step = "out"
-	trip.clock = 0.0
+	trip.clock = _slack(v.global_position, trip.way)
 	trip.erase("hidden")
 	_free(trip)
 
@@ -335,6 +336,17 @@ static func leave_at_once(v: Villager) -> void:
 	v.play("Idle", 0.1)
 	_free(trip)
 	v.bed_trip = {}
+
+
+## The clock a leg starts at: negative for a long way (a tower with three floors), so that GIVE_UP
+## counts the time a walk takes beyond what its length needs.
+static func _slack(from: Vector3, way: Array) -> float:
+	var length := 0.0
+	var at := from
+	for p: Vector3 in way:
+		length += Vector2(p.x - at.x, p.z - at.z).length()
+		at = p
+	return -maxf(0.0, length / Villager.WALK_SPEED - GIVE_UP * 0.5)
 
 
 static func _free(trip: Dictionary) -> void:

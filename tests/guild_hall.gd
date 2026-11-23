@@ -94,7 +94,7 @@ func _run() -> void:
 		return
 
 	# --- The cellar's hole in the ground --------------------------------------------------------
-	check(lvl.hall_holes.size() == 16, "the cellar is dug out of the ground under the hall (%d cells)" % lvl.hall_holes.size())
+	check(lvl.hall_holes.size() == 32, "the cellar is dug out of the ground under the hall, and the mage tower's (%d cells)" % lvl.hall_holes.size())
 	var view: CellarView = game.house_sketcher.cellar_view if game.house_sketcher != null else null
 	if view != null:
 		check(lvl.hall_holes.all(func(r): return view.holes.has(r)), "the cellar is one of the cellars the hero can go down into")

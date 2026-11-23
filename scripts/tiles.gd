@@ -180,6 +180,7 @@ const OUTDOOR := {
 	"o": "post office",
 	"w": "adventurers' guild",
 	"b": "bank",
+	"Ø": "the mage tower of Aldo and Odo: four floors, a cellar and a library (a block of tiles, see MageTower)",
 	"^": "Weavers' Lane: narrow town houses, one home per tile",
 	"E": "the way down into the dragon's lair (a block of tiles)",
 	# The hero's old house inside the village.

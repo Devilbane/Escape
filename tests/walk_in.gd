@@ -341,6 +341,8 @@ func _run() -> void:
 		var step := String(v.bed_trip.get("step", ""))
 		if v.role == SmithCottage.OWNER or v.role == VillageHalls.KEEPERS.guild:
 			continue # In their own bed on the ground floor or down in the cellar, see below.
+		if v.role in MageTower.OWNERS:
+			continue # Aldo and Odo sleep in the top room of their tower, see below and tests/mage_tower.gd.
 		if step == "upstairs":
 			upstairs += 1
 			check(not v.visible and v.at_home, "%s sleeps upstairs, out of sight" % v.role)
@@ -363,12 +365,14 @@ func _run() -> void:
 		elif v.role == VillageHalls.KEEPERS.guild:
 			# Ragna sleeps in the guildhall's cellar (see GuildHall, tests/guild_hall.gd).
 			check(home.get("owner", "") == VillageHalls.KEEPERS.guild, "Ragna sleeps in her own guildhall")
+		elif v.role in MageTower.OWNERS:
+			check((home.get("owners", []) as Array).has(v.role), "%s sleeps in the mages' tower" % v.role)
 		else:
 			check(not home.has("owner"), "%s does not sleep in the smith's cottage or the guildhall" % v.role)
 	# Morning: everyone walks out.
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)
-	await _wait(60 * 30) # Getting up takes its time: the stretch, the yawn, the ladder.
+	await _wait(60 * 90) # Getting up takes its time: the stretch, the yawn, the ladder, three floors of stairs.
 	var still := lvl.villagers.filter(func(v): return not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed()))
 	check(still.is_empty(), "in the morning everyone is out of the houses again (%s)" % [still.map(func(v): return v.role + ":" + String(v.bed_trip.get("step", "")))])
 	check(lvl.villagers.all(func(v): return v.global_position.y < 0.3), "and back on the ground")

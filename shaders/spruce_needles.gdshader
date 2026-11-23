@@ -112,13 +112,13 @@ void fragment() {
 			snow_look(rest_pos, vec3(0.0, 1.0, 0.0), VIEW_MATRIX, TIME, snow_albedo, snow_normal, snow_glow);
 			// The lower tiers, in the crown's shade, are greyer (see Fern's NEEDLE_FOOT_SHADE).
 			snow_albedo *= mix(0.65, 1.0, shade);
-			// Along each frond's middle, over the stem and the leaflets' roots, wider the deeper it
-			// lies, with a crisp edge (no grey half-snow); the leaflets' tips at the edges and the outer half of
-			// the frond, where it droops, stay green, so every tier shows as its own white shelf over a dark
-			// green fringe, with green between one tier and the next (not a pillar of snow).
+			// Along each frond's middle, wider the deeper it lies, with a crisp edge (no grey
+			// half-snow). It lies on the outer part of the frond, towards the tips, and the roots
+			// near the trunk stay green, so every tier shows green at the centre and white
+			// outside, with green between one tier and the next (not a pillar of snow).
 			float wide = 0.1 + 0.14 * smoothstep(0.5, 0.9, lies);
 			float ridge = 1.0 - smoothstep(wide - 0.03, wide, abs(UV.x - 0.5));
-			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.02, 0.1, UV.y) * smoothstep(0.68, 0.48, UV.y) * mix(0.85, 1.0, tex.r);
+			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3, 0.45, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
 			ALBEDO = mix(ALBEDO, snow_albedo, thick);
 			EMISSION = snow_glow * thick;
 			// Lit as the snow on the ground is, from above, not as the leaning frond under it.

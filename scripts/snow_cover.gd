@@ -69,6 +69,8 @@ func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Ar
 
 ## How many metres one pixel of the rooms mask stands for (see set_rooms).
 const ROOM_STEP := 0.5
+## How many rooms the shader can draw exactly (ROOM_MAX in snow_cover.gdshader).
+const ROOM_MAX := 48
 
 
 ## Keeps the snow off the rooms of the buildings one walks into (see Outdoor.walk_in_room): each
@@ -95,12 +97,27 @@ func set_rooms(rooms: Array, width: int, height: int, tile: float) -> void:
 		img.fill_rect(_pixels(entry[0], origin).intersection(whole), Color(high, 0, 0, 1))
 	material.set_shader_parameter("room_mask", ImageTexture.create_from_image(img))
 	material.set_shader_parameter("rooms_on", true)
+	# The exact walls too (see the shader): the mask's pixels only follow them to within ROOM_STEP.
+	var exact := rooms.size() <= ROOM_MAX
+	if exact:
+		var rects := PackedVector4Array()
+		var extra := PackedVector4Array()
+		for entry: Array in rooms:
+			var r: Rect2 = entry[0]
+			rects.append(Vector4(r.position.x, r.position.y, r.end.x, r.end.y))
+			# Without an upper storey the grow is zero from any height.
+			extra.append(Vector4(float(entry[2]), float(entry[3]), 0, 0) if entry.size() > 3 else Vector4(0, 0, 0, 0))
+		material.set_shader_parameter("room_rects", rects)
+		material.set_shader_parameter("room_extra", extra)
+		material.set_shader_parameter("room_count", rects.size())
+	material.set_shader_parameter("rooms_exact", exact)
 
 
 ## The rooms mask's pixels that `r` (world x/z) covers (see set_rooms).
 func _pixels(r: Rect2, origin: Vector2) -> Rect2i:
-	var from := Vector2i(((r.position - origin) / ROOM_STEP).round())
-	var to := Vector2i(((r.end - origin) / ROOM_STEP).round())
+	# Rounded outwards: the mask covers the whole room and the shader trims it to the exact walls.
+	var from := Vector2i(((r.position - origin) / ROOM_STEP).floor())
+	var to := Vector2i(((r.end - origin) / ROOM_STEP).ceil())
 	return Rect2i(from, to - from)
 
 

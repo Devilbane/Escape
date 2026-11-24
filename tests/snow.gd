@@ -180,6 +180,10 @@ func _world() -> void:
 			if lvl.walk_in_room(rec.node).has_area():
 				highest = maxf(highest, img.get_pixelv(px).r * SnowCover.SHELTER_SCALE)
 		check(highest > VillageHouse.PLINTH + VillageHouse.GROUND + 1.5, "the rooms reach up through the upper floor (%.2f m)" % highest)
+	# The shader also knows each room's exact walls, so no strip of lawn stays bare outside them.
+	if not lvl.walk_in.buildings.is_empty():
+		var rects: PackedVector4Array = shaded.get_shader_parameter("room_rects")
+		check(bool(shaded.get_shader_parameter("rooms_exact")) and rects.size() == int(shaded.get_shader_parameter("room_count")) and rects.size() > 0, "the rooms' exact walls are given to the snow shader (%d rooms)" % rects.size())
 	# A new thing built while it snows gets its coat too.
 	var late := MeshInstance3D.new()
 	late.mesh = BoxMesh.new()

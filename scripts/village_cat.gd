@@ -27,6 +27,9 @@ const LEAP_TIME := 0.75
 const CROUCH_TIME := 0.5
 ## It purrs when the hero is nearer than this (metres).
 const PURR_RANGE := 5.5
+## The purr's loudest (dB) with the hero beside the cat: soft, under the village's other sounds.
+const PURR_DB := -17.0
+const PURR_SOUND := "res://assets/sounds/cat_purr.wav"
 ## Night naps all night: from this hour in the evening till this hour in the morning.
 const BEDTIME := 21.5
 const RISE := 6.0
@@ -87,6 +90,8 @@ var _flick_in := 3.0
 var _twitch := 0.0
 var _twitch_in := 5.0
 var _purring := 0.0
+## The purr's sound: a soft loop that fades in as the hero comes near and out as they go (see _hum).
+var _purr_player: AudioStreamPlayer3D
 ## The phase of its breathing; it speeds up a little only while it purrs.
 var _breath := 0.0
 
@@ -328,6 +333,7 @@ func _physics_process(delta: float) -> void:
 		global_position = perch_top
 	var calm_hero: bool = away < PURR_RANGE and not hero.get("dead")
 	_purring = move_toward(_purring, 1.0 if (calm_hero and state == "nap") else 0.0, delta * 2.0)
+	_hum()
 	_flick_in -= delta
 	if _flick_in <= 0.0:
 		_flick = 1.0
@@ -384,6 +390,30 @@ func _physics_process(delta: float) -> void:
 		"hop":
 			_fly(delta, false)
 	_pose(delta)
+
+
+## The purr as sound: a looped soft rumble from the cat, fading in with how near the hero is (the
+## same share as the purr of its body) and out again, stopped when it is quiet. It is played from the
+## cat's spot without fading with the camera's distance, so the volume is chosen here.
+func _hum() -> void:
+	if _purring < 0.02:
+		if _purr_player != null and _purr_player.playing:
+			_purr_player.stop()
+		return
+	if _purr_player == null:
+		var stream := (load(PURR_SOUND) as AudioStreamWAV).duplicate() as AudioStreamWAV
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = stream.data.size() / 2
+		_purr_player = AudioStreamPlayer3D.new()
+		_purr_player.stream = stream
+		_purr_player.bus = Sfx.BUS
+		_purr_player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+		_purr_player.panning_strength = 1.0
+		add_child(_purr_player)
+	_purr_player.volume_db = PURR_DB + linear_to_db(_purring)
+	if not _purr_player.playing:
+		_purr_player.play()
 
 
 ## Face the hero when they are near, a calm cat watching. Otherwise stay as it is.

@@ -48,6 +48,10 @@ const NEEDLE_LEADER_SHADE := 0.8
 ## How bright the needle tree's leaflet tips are in its picture (the fern's are white, 1.0).
 const NEEDLE_TIP_SHADE := 0.85
 const BARK := Color(0.32, 0.22, 0.15)
+## How far below a needle tree's tip its snow cap reaches (m, see spruce_needles.gdshader).
+const CAP_DEPTH := 1.5
+## The tree being built: its tip's height, so every card can tell how close to it lies (the cap).
+static var _tip := 0.0
 ## The needle tree: ferns in a tier, and how many tiers.
 const TIER_FERNS := 4
 const TIERS := 19
@@ -184,6 +188,7 @@ static func needle_pine(st: SurfaceTool, trunk: SurfaceTool, variant: int, tall:
 	var fronds := RandomNumberGenerator.new()
 	fronds.seed = hash("pine fronds:%d:%s" % [variant, far])
 	var top := HEIGHT * (0.8 if broad else 0.95) * tall
+	_tip = top
 	var lean := Vector3(shape.randf_range(-0.25, 0.25), 0, shape.randf_range(-0.25, 0.25)) * (1.6 if broad else 1.0)
 	var foot_r := 0.2 * full * (1.4 if broad else 1.0)
 	var mid := lean * 0.4 + Vector3(0, top * 0.5, 0)
@@ -379,6 +384,7 @@ static func _inside(p: Vector2, a: Vector2, b: Vector2, c: Vector2) -> float:
 static func needle_tree(st: SurfaceTool, trunk: SurfaceTool, rng: RandomNumberGenerator, tall := 1.0, full := 1.0, far := false) -> void:
 	var tiers := FAR_TIERS if far else TIERS
 	var ferns := FAR_TIER_FERNS if far else TIER_FERNS
+	_tip = HEIGHT * 0.9 * tall + 0.6
 	# The shape of a real spruce: a slim cone about three times as tall as it is wide, its sides
 	# straight from the lowest branches near the ground up to a pointed leader.
 	var foot := 0.55
@@ -485,6 +491,12 @@ static func _card(st: SurfaceTool, xf: Transform3D, colour: Color, ids: Vector2,
 	# Lit a little as if from above and outwards, so the cards read softly, not each its own glint.
 	n = (n + Vector3.UP * 0.6).normalized()
 	for c in [c0, c1, c2, c0, c2, c3]:
+		# The alpha says how near the tree's tip this corner is (1 at the tip, 0 CAP_DEPTH below):
+		# the shader lays a snow cap there.
+		var cap := 0.0
+		if _tip > 0.0:
+			cap = clampf(1.0 - (_tip - xf.origin.y - (c[0] as Vector3).y) / CAP_DEPTH, 0.0, 1.0)
+		colour.a = cap
 		st.set_color(colour)
 		st.set_normal(n)
 		st.set_uv(c[1])

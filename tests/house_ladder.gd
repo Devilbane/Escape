@@ -149,7 +149,7 @@ func _process(_delta: float) -> bool:
 		var floors: HouseFloors = game.level.house_floors
 		var pit := plan.cell_world(7, 2) + Vector3(0, -HouseSketch.DEPTH, 0)
 		check(floors == null or not floors.reachable(plan.cell_world(0, 0), pit), "a companion finds no way down a ladder")
-		_walk_to(roof_ladder.get_meta("foot"), roof_ladder.get_meta("push"))
+		_walk_to(roof_ladder)
 		stage = "up"
 		return false
 	if frames < 30:
@@ -164,15 +164,15 @@ func _process(_delta: float) -> bool:
 				return false
 			_hold(Vector3.ZERO)
 			var top: Vector3 = roof_ladder.get_meta("top")
-			check(absf(hero.global_position.y - top.y) < 0.2, "walking into the ladder the hero climbs onto the roof (y %.2f)" % hero.global_position.y)
+			check(absf(hero.global_position.y - top.y) < 0.2, "clicking the ladder the hero climbs onto the roof (y %.2f)" % hero.global_position.y)
 			_next("down")
-			_hold(-(roof_ladder.get_meta("push") as Vector3))
+			_walk_into(roof_ladder)
 		"down":
 			if hero.on_ladder() or waited < 20:
 				return false
 			_hold(Vector3.ZERO)
-			check(absf(hero.global_position.y) < 0.2, "walking off the roof at the ladder the hero climbs down (y %.2f)" % hero.global_position.y)
-			_walk_to(cellar_ladder.get_meta("foot"), cellar_ladder.get_meta("push"))
+			check(absf(hero.global_position.y) < 0.2, "clicking the ladder at the roof edge the hero climbs down (y %.2f)" % hero.global_position.y)
+			_walk_to(cellar_ladder)
 			_next("out")
 		"out":
 			if waited in [60]:
@@ -182,9 +182,10 @@ func _process(_delta: float) -> bool:
 			_hold(Vector3.ZERO)
 			check(absf(hero.global_position.y) < 0.2, "in the cellar the ladder takes the hero up to the ground (y %.2f)" % hero.global_position.y)
 			_next("in")
-			_hold(-(cellar_ladder.get_meta("push") as Vector3))
+			_walk_into(cellar_ladder)
 		"in":
-			if hero.on_ladder() or waited < 20:
+			# (The click walks to the top first if the hero stepped off it: give the climb time to start.)
+			if hero.on_ladder() or (waited < 90 and hero.global_position.y > -0.5):
 				return false
 			_hold(Vector3.ZERO)
 			check(absf(hero.global_position.y + HouseSketch.DEPTH) < 0.2, "and back down into the cellar (y %.2f)" % hero.global_position.y)
@@ -195,11 +196,28 @@ func _process(_delta: float) -> bool:
 	return false
 
 
-func _walk_to(spot: Vector3, push: Vector3) -> void:
-	game.player.global_position = spot + Vector3(0, 0.05, 0)
+## Puts the hero at the foot of `ladder` and clicks it.
+func _walk_to(ladder: Node3D) -> void:
+	game.player.global_position = (ladder.get_meta("foot") as Vector3) + Vector3(0, 0.05, 0)
 	game.player.reset_physics_interpolation()
 	game._snap_camera()
-	_hold(push)
+	_click(ladder)
+
+
+## Climbs `ladder` from where the hero stands at its top (the click's ray is checked in ladder_exit.gd).
+func _walk_into(ladder: Node3D) -> void:
+	game.player.use_ladder(ladder)
+
+
+## A click on the ladder's middle, as the camera sees it: the floor point the click picks is where that
+## ray meets the floor.
+func _click(ladder: Node3D) -> void:
+	var edge: Vector3 = ladder.get_meta("edge")
+	var mid := Vector3(edge.x, ((ladder.get_meta("foot") as Vector3).y + (ladder.get_meta("top") as Vector3).y) * 0.5, edge.z) - (ladder.get_meta("push") as Vector3) * 0.1
+	var from: Vector3 = game.camera.global_position
+	var dir := (mid - from).normalized()
+	var floor_y: float = game.player.global_position.y
+	game._click(from + dir * ((floor_y - from.y) / dir.y))
 
 
 ## Holds the arrow key that walks the hero along `dir` (one of the four flat axes), or lets go.

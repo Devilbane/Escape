@@ -1,8 +1,9 @@
 class_name MageDuel
 extends RefCounted
 ## A practice duel on the village square. Elder Aldo teaches and Scholar Odo is the
-## pupil: now and then, by day and when the hero is near, Odo walks over to Aldo's
-## spot, they take a few paces' distance and throw harmless spells at each other
+## pupil: now and then, by day and when the hero is near, both walk to the duel ground, the open
+## stretch of the market square between the crafting benches and the apple trees round the fountain
+## (see duel_ground), take a few paces' distance and throw harmless spells at each other
 ## (fire bolt, frost shard, arcane orb, lightning; see DuelSpells), with a word
 ## between the volleys. Aldo hits nearly every time and motivates; Odo mostly
 ## misses, and makes excuses (the sun, the wind, wet socks) and promises to do
@@ -28,6 +29,10 @@ const FROM_HOUR := 8.0
 const UNTIL_HOUR := 18.0
 ## How far apart they stand (metres), and the paces tried when the ground is crowded.
 const DISTANCES := [7.0, 6.0, 5.0]
+## How far apart they stand on the duel ground (metres), tried in turn.
+const GROUND_APART := [6.0, 5.0, 4.0]
+## The benches' station kind (see Outdoor): the duel ground lies east of them.
+const BENCH_KIND := "werkbank"
 ## How close and how far apart they may end up standing (metres).
 const MIN_APART := 3.5
 const MAX_APART := 12.0
@@ -227,6 +232,39 @@ static func mage(village: Outdoor, role: String) -> Villager:
 	return null
 
 
+## The duel ground on the market square: where Aldo and Odo stand, north and south of each other, on the
+## middle line between the crafting benches in the west and the apple trees round the fountain in the
+## east, as far apart as GROUND_APART lets the open ground be. [Aldo's place, Odo's place], or [] when
+## the village has no such stretch (or it is crowded): the duel is held where Aldo stands then.
+static func duel_ground(village: Outdoor) -> Array:
+	var bench_x := -INF
+	var bench_z := [INF, -INF]
+	for s in village.stations:
+		if s.kind == BENCH_KIND:
+			bench_x = maxf(bench_x, s.pos.x)
+			bench_z = [minf(bench_z[0], s.pos.z), maxf(bench_z[1], s.pos.z)]
+	var tree_x := INF
+	for t in village.square_trees:
+		var tree = t.get("node")
+		if tree is Node3D and not t.has("garden"):
+			tree_x = minf(tree_x, (tree as Node3D).global_position.x)
+	if bench_x == -INF or tree_x == INF or tree_x - bench_x < 8.0:
+		return []
+	var mid := Vector3((bench_x + tree_x) * 0.5, 0.0, (float(bench_z[0]) + float(bench_z[1])) * 0.5)
+	for apart: float in GROUND_APART:
+		var a := mid - Vector3(0, 0, apart * 0.5)
+		var b := mid + Vector3(0, 0, apart * 0.5)
+		var clear := true
+		for spot: Vector3 in [a, b]:
+			var cell := village.world_to_cell(spot)
+			if village.astar.is_in_boundsv(cell) and village.astar.is_point_solid(cell):
+				clear = false
+		var eye := Vector3(0, 1.2, 0)
+		if clear and village.has_line_of_sight(a + eye, b + eye) and not village.shot_blocked(a + eye, b + eye):
+			return [a, b]
+	return []
+
+
 ## A spot at a few paces from `aldo` that `odo` can walk to and from where the two see
 ## each other clear: Vector3.INF where the ground is too crowded.
 func find_spot(village: Outdoor, aldo: Villager, odo: Villager) -> Vector3:
@@ -271,13 +309,26 @@ func start(village: Outdoor, force := false) -> bool:
 		return false
 	if "drinking_songs" in game and game.drinking_songs.is_singing():
 		return false
-	var hero_near: bool = VillageTalk._flat(aldo.global_position, game.player.global_position) <= HEAR_RANGE
+	var ground := duel_ground(village)
+	# The hero is near the place of the duel (or, without a duel ground, near Aldo).
+	var scene: Vector3 = (ground[0] + ground[1]) * 0.5 if not ground.is_empty() else aldo.global_position
+	var hero_near: bool = VillageTalk._flat(scene, game.player.global_position) <= HEAR_RANGE
 	if not hero_near and not force:
 		return false
-	var spot := find_spot(village, aldo, odo)
-	if spot == Vector3.INF or not odo.join_chat_at(aldo, spot):
-		return false
-	aldo.join_chat(odo, false)
+	var spot := Vector3.INF
+	if not ground.is_empty():
+		# Both walk to the duel ground on the square.
+		spot = ground[1]
+		if not aldo.join_chat_at(odo, ground[0]):
+			return false
+		if not odo.join_chat_at(aldo, ground[1]):
+			aldo.leave_chat()
+			return false
+	else:
+		spot = find_spot(village, aldo, odo)
+		if spot == Vector3.INF or not odo.join_chat_at(aldo, spot):
+			return false
+		aldo.join_chat(odo, false)
 	duels += 1
 	_duel = {"a": aldo, "b": odo, "beats": _plan(village), "beat": {}, "t": 0.0, "walk": 0.0, "spot": spot}
 	return true
@@ -376,14 +427,19 @@ func _run(delta: float, village: Outdoor) -> void:
 	odo.keep_task(2.0)
 	if not (aldo.in_chat_place() and odo.in_chat_place()):
 		_duel.walk += delta
-		# Odo stopped short of the spot (something in his way) but near enough and in sight:
-		# the duel goes on from where he stands.
-		if aldo.in_chat_place() and odo.chat_partner == aldo and odo.is_stopped_for_chat():
+		# One of them stopped short of the place (something in the way) but both are near enough
+		# and in sight: the duel goes on from where they stand.
+		var a_ready: bool = aldo.in_chat_place() or aldo.is_stopped_for_chat()
+		var o_ready: bool = odo.in_chat_place() or odo.is_stopped_for_chat()
+		if a_ready and o_ready and (aldo.chat_partner == odo and odo.chat_partner == aldo):
 			var apart := VillageTalk._flat(aldo.global_position, odo.global_position)
 			if apart >= MIN_APART and apart <= MAX_APART \
 					and village.has_line_of_sight(aldo.global_position + Vector3(0, 1.2, 0), odo.global_position + Vector3(0, 1.2, 0)) \
 					and not village.shot_blocked(aldo.global_position + Vector3(0, 1.2, 0), odo.global_position + Vector3(0, 1.2, 0)):
-				odo.settle_for_chat()
+				if not aldo.in_chat_place():
+					aldo.settle_for_chat()
+				if not odo.in_chat_place():
+					odo.settle_for_chat()
 				return
 		if not (aldo.in_chat_place() or aldo.heading_to_chat()) or not (odo.in_chat_place() or odo.heading_to_chat()) or _duel.walk > WALK_LIMIT:
 			stop()

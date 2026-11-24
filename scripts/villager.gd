@@ -2603,7 +2603,11 @@ func _walk(delta: float, hero: Node3D) -> void:
 			return
 		# Still blocked: go round by trying the walk again later.
 		_waiting = 0.0
+		var on_to_chat: bool = get_meta("then", "") == "chat" and not _path.is_empty()
+		var again := {"goal": _path.back() if on_to_chat else Vector3.ZERO, "speed": _speed, "then": "chat"}
 		_start("idle", 1.5)
+		if on_to_chat:
+			_retry = again # A walk to a chat (the mages' duel) is not given up, only tried again.
 		return
 	_waiting = 0.0
 	var walked := _stride("Running_A" if _speed >= RUN_SPEED else ("Walking_B" if _speed < WALK_SPEED else "Walking_A"), _speed)

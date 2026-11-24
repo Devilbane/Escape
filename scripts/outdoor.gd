@@ -4894,6 +4894,8 @@ func _process(delta: float) -> void:
 	# The wind carries the swept leaves back over the walkways (see LeafSweep).
 	LeafSweep.advance(self)
 	var cell := world_to_cell(player.global_position)
+	# Down in a cellar or the mine the surface's snow prints stay out of sight.
+	SnowPrints.set_underground(not hero_cellar.is_empty() or LostMine.holds(player.global_position) or player.global_position.y < UNDERGROUND_Y)
 	var inside := _in_house(cell)
 	if inside != _inside:
 		_inside = inside
@@ -5646,6 +5648,9 @@ func set_ice(value: float) -> void:
 func snow_print(at: Vector3, heading: float, size := 1.0, kind := "boot") -> void:
 	if snow == null or snow.amount < Weather.PRINT_FROM or not is_inside_tree() or is_roofed(at):
 		return
+	# Steps down in a cellar or the mine press nothing into the snow above.
+	if at.y < UNDERGROUND_Y or LostMine.holds(at):
+		return
 	# Ground swept bare of snow takes no prints (see SnowSweep).
 	if at.y <= PRINT_ABOVE and SnowSweep.is_bare(self, at):
 		return
@@ -5676,6 +5681,8 @@ func _underfoot(at: Vector3) -> Dictionary:
 ## From how high over the ground a print is pressed into what is underfoot (a roof) instead of the
 ## ground (metres).
 const PRINT_ABOVE := 0.5
+## Below this height a step is underground (a cellar, a mine) and presses no print in the surface's snow.
+const UNDERGROUND_Y := -0.6
 
 
 ## A wet footprint on dry ground, left by a hero fresh out of a puddle.

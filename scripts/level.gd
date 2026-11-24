@@ -2872,12 +2872,31 @@ func _push_apart(delta: float) -> void:
 	for e in enemies:
 		if is_instance_valid(e) and not e.dead and e.is_inside_tree():
 			bodies.append(e)
-	for i in bodies.size():
-		for j in range(i + 1, bodies.size()):
+	# Where everyone stands, read once: most pairs are far apart, and reading each body's position
+	# again for every pair (some 800 in the village, on every tick) cost more than the pushing.
+	var count := bodies.size()
+	var xs := PackedFloat32Array()
+	var zs := PackedFloat32Array()
+	var radii := PackedFloat32Array()
+	xs.resize(count)
+	zs.resize(count)
+	radii.resize(count)
+	for i in count:
+		var at: Vector3 = bodies[i].global_position
+		xs[i] = at.x
+		zs[i] = at.z
+		radii[i] = bodies[i].radius
+	for i in count:
+		for j in range(i + 1, count):
+			var gap := radii[i] + radii[j] + 0.02
+			var dx := xs[j] - xs[i]
+			if dx >= gap or dx <= -gap:
+				continue
+			var dz := zs[j] - zs[i]
+			if dz >= gap or dz <= -gap:
+				continue
 			var a = bodies[i]
 			var b = bodies[j]
-			# Most pairs are far apart: that is told first and cheaply, as
-			# this runs for every pair on every tick (some 800 in the village).
 			var d: Vector3 = b.global_position - a.global_position
 			var overlap: float = a.radius + b.radius - Vector2(d.x, d.z).length()
 			if overlap <= 0.02:

@@ -50,14 +50,14 @@ static func build(level: Node3D, pos: Vector3) -> void:
 	# Two round steps.
 	_add(root, lathe_mesh(_steps(), SIDES, stone))
 	# The basin's floor, under the water.
-	_add(root, Effects.ring_mesh(0.0, 2.28, 0.28, 0.4, SIDES, wet))
+	_bare(_add(root, Effects.ring_mesh(0.0, 2.28, 0.28, 0.4, SIDES, wet)))
 	_add(root, lathe_mesh(_basin(), SIDES, stone))
-	_add(root, Effects.ring_mesh(0.0, WATER_RADIUS + 0.01, 0.4, WATER, SIDES, water), false)
+	_bare(_add(root, Effects.ring_mesh(0.0, WATER_RADIUS + 0.01, 0.4, WATER, SIDES, water), false))
 	# The pedestal and the wide bowl it carries, the stem and the small bowl, the goddess's plinth.
 	_add(root, lathe_mesh(_pedestal(), SIDES, stone))
-	_add(root, Effects.ring_mesh(0.0, BOWL_RADIUS, BOWL_WATER - 0.08, BOWL_WATER, SIDES, bowl_water), false)
+	_bare(_add(root, Effects.ring_mesh(0.0, BOWL_RADIUS, BOWL_WATER - 0.08, BOWL_WATER, SIDES, bowl_water), false))
 	_add(root, lathe_mesh(_upper(), SIDES, stone))
-	_add(root, Effects.ring_mesh(0.0, TOP_BOWL_RADIUS, TOP_BOWL_WATER - 0.05, TOP_BOWL_WATER, 32, top_water), false)
+	_bare(_add(root, Effects.ring_mesh(0.0, TOP_BOWL_RADIUS, TOP_BOWL_WATER - 0.05, TOP_BOWL_WATER, 32, top_water), false))
 	_add(root, lathe_mesh(_plinth(), 32, stone))
 	var goddess := FountainGoddess.build(_marble())
 	goddess.position = Vector3(0, STATUE_FOOT, 0)
@@ -93,6 +93,7 @@ static func build(level: Node3D, pos: Vector3) -> void:
 	var pulse := crown.create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	pulse.tween_property(crown, "light_energy", CROWN_GLOW * 1.25, 2.4)
 	pulse.tween_property(crown, "light_energy", CROWN_GLOW * 0.8, 2.4)
+	_add_winter_mist(level, root)
 	# Round, as it is drawn: the hero walks along the rim, not along a box round it.
 	var shape := CollisionShape3D.new()
 	var cylinder := CylinderShape3D.new()
@@ -101,6 +102,43 @@ static func build(level: Node3D, pos: Vector3) -> void:
 	shape.shape = cylinder
 	shape.position = pos + Vector3(0, 1.0, 0)
 	level._walls_body.add_child(shape)
+
+
+## The fountain's water is magic: no snow settles on it and it never freezes (the stone does
+## wear snow, see SnowCover). Its meshes are marked so the snow overlay leaves them bare.
+static func _bare(node: MeshInstance3D) -> void:
+	node.set_meta("no_snow", true)
+
+
+## A faint, slow mist that rises off the basin and the bowls while snow lies, the water's warmth
+## in the cold. It only runs in winter (checked twice a second).
+static func _add_winter_mist(level: Node3D, root: Node3D) -> void:
+	var mist := Effects.make_sparkles(Color(0.85, 0.95, 1.0, 0.16))
+	mist.name = "WinterMist"
+	mist.amount = 26
+	mist.lifetime = 3.4
+	mist.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	mist.emission_ring_axis = Vector3.UP
+	mist.emission_ring_radius = WATER_RADIUS - 0.2
+	mist.emission_ring_inner_radius = 0.9
+	mist.emission_ring_height = 0.0
+	mist.direction = Vector3.UP
+	mist.spread = 14.0
+	mist.gravity = Vector3(0, 0.12, 0)
+	mist.initial_velocity_min = 0.15
+	mist.initial_velocity_max = 0.35
+	mist.scale_amount_min = 2.0
+	mist.scale_amount_max = 3.4
+	mist.position = Vector3(0, WATER + 0.1, 0)
+	mist.emitting = false
+	root.add_child(mist)
+	var timer := Timer.new()
+	timer.wait_time = 0.5
+	timer.autostart = true
+	timer.timeout.connect(func() -> void:
+		var snow: Object = level.get("snow")
+		mist.emitting = snow != null and snow.lies())
+	root.add_child(timer)
 
 
 static func _add(root: Node3D, mesh: Mesh, shadow := true) -> MeshInstance3D:

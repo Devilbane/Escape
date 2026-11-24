@@ -5841,6 +5841,13 @@ func _setup_chat_line() -> void:
 	_hud.add_child(chat_line)
 
 
+## The hero asked the priestess for healing: she turns to them and her window opens.
+func ask_priestess(v: Villager) -> void:
+	if state != State.PLAYING or v.station.is_empty() or not player.can_act():
+		return
+	_use_station(v.station)
+
+
 ## Whether the hero may chat now.
 func chat_allowed() -> bool:
 	return state == State.PLAYING and not menus.is_open() and _shrine.is_empty() and player != null and not player.dead
@@ -7196,6 +7203,10 @@ func _on_player_bumped(point: Vector3) -> void:
 		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.
 		return
 	if not station.is_empty():
+		# The priestess opens her window only for a click or a word ("heal", see HeroChat), never
+		# for a bump: she may stand where the hero has to pass.
+		if station.kind == "tempel":
+			return
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
 		_use_station(station)
@@ -8113,7 +8124,7 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
-			"tempel": Lang.t("Dagegenlaufen, um mit %s über den Segen der Götter zu reden") % station.npc.display_name if station.has("npc") else "",
+			"tempel": Lang.t("Klicken oder „heilen“ sagen, um mit %s über den Segen der Götter zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),

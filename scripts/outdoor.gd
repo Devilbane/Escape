@@ -100,6 +100,8 @@ const VALLEY_FROM := 43
 const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
+## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
+const TEMPLE_KEEPER := "O"
 const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
@@ -4153,6 +4155,9 @@ func _build_forge(cell: Vector2i) -> void:
 ## out from there and wait there after closing time; else their own tile.
 func _keeper_home(role: String, cell: Vector2i) -> Vector2i:
 	var kind := VillageHalls.kept_by(role)
+	# The priestess waits at the temple's porch, to one side of the way in, never in its doorway.
+	if role == TEMPLE_KEEPER:
+		kind = "temple"
 	if kind == "":
 		return cell
 	for rec in walk_in.buildings:

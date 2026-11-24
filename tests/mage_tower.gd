@@ -206,6 +206,20 @@ func _run() -> void:
 				break
 		var local := hall.global_transform.affine_inverse() * mage.global_position
 		check(mage.bed_trip.get("step", "") == "asleep" and local.y > float(lay.deck) - 0.3, "%s climbs up to a bed in the sleeping room (%s, %s)" % [role, mage.bed_trip.get("step", "-"), local])
+		# Seen asleep only by a hero up in the top room, not from outside or from the floors below.
+		var was_inside: bool = rec.inside
+		var was_storey: int = rec.storey
+		VillageBeds.step(mage, 1.0 / 60.0)
+		check(not mage.visible, "%s asleep is out of sight from outside" % role)
+		rec.inside = true
+		rec.storey = GuildHall.GROUND_STOREY
+		VillageBeds.step(mage, 1.0 / 60.0)
+		check(not mage.visible, "%s asleep is out of sight from the ground floor" % role)
+		rec.storey = GuildHall.ROOF_STOREY
+		VillageBeds.step(mage, 1.0 / 60.0)
+		check(mage.visible, "%s asleep is in sight in the sleeping room" % role)
+		rec.inside = was_inside
+		rec.storey = was_storey
 		check(VillageBeds.rise(mage), "in the morning %s gets up" % role)
 		for i in 60 * 100:
 			await physics_frame

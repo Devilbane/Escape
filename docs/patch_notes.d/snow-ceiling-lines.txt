@@ -1,0 +1,1 @@
+- Fixed thin flickering lines showing through the snow over cellar ceilings.

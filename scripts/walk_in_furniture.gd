@@ -37,6 +37,16 @@ static func _wood() -> StandardMaterial3D:
 	return _mats["wood"]
 
 
+## The same grained wood, darker, for frames and rails.
+static func _wood_dark() -> StandardMaterial3D:
+	if not _mats.has("wood_dark"):
+		var mat := (_wood().duplicate() as StandardMaterial3D)
+		mat.albedo_color = Color(0.42, 0.3, 0.22)
+		mat.uv1_scale = Vector3(0.9, 0.9, 0.9)
+		_mats["wood_dark"] = mat
+	return _mats["wood_dark"]
+
+
 static func _plain(key: String, colour: Color, roughness := 0.9) -> StandardMaterial3D:
 	if not _mats.has(key):
 		var mat := StandardMaterial3D.new()
@@ -86,7 +96,7 @@ static func partition(length: float, high: float, door_from: float, door_to: flo
 	var root := Node3D.new()
 	root.name = "Partition"
 	var wood := _wood()
-	var dark := _plain("partition_frame", Color(0.34, 0.22, 0.14), 0.8)
+	var dark := _wood_dark()
 	var door_high := 2.0
 	var t := PARTITION_THICK
 	var plank := 0.16

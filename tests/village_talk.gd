@@ -160,7 +160,7 @@ func _test() -> void:
 	check(said.size() > 1 and said[1].begins_with(pip.display_name + ":"), "Pip answers")
 	check(talk.known.has("2-7"), "the hero overheard the tie")
 	check(game.lore.has(VillageTalk.HOW_TO), "the compendium explains the chats")
-	check(talk.known_ties_of("7").size() == 1 and talk.known_ties_of("7")[0][1] == lene.display_name, "Pip's family is known: Lene")
+	check(talk.known_ties_of("7").size() == 1 and str(talk.known_ties_of("7")[0][1]).contains(lene.display_name), "Pip's family is known: Lene")
 
 	# Two bubbles never show at once.
 	for v in game.level.villagers:

@@ -276,8 +276,8 @@ func _run() -> void:
 	# Every lamp of a room one walks into has walls all round it: it must be picked for its wall
 	# shadows first (INDOOR), or it shines through the walls onto the ivy and the snow outside.
 	for lamp_owner: Node3D in [WalkInFurniture.candle_shelf(), WalkInFurniture.sconce(), WalkInFurniture.altar(), WalkInFurniture.hearth(1.5)]:
-		for lamp: Node in lamp_owner.find_children("*", "Light3D", true, false):
-			check(lamp.has_meta(LightShadows.INDOOR), "%s of a room is an indoor lamp" % lamp_owner.name)
+		for lamp_light: Node in lamp_owner.find_children("*", "Light3D", true, false):
+			check(lamp_light.has_meta(LightShadows.INDOOR), "%s of a room is an indoor lamp" % lamp_owner.name)
 		lamp_owner.free()
 	# The ivy, vines and grapes of the houses are lit from outside only: no indoor lamp reaches them.
 	var leaves := AgedStone.ivy_node({"xforms": [Transform3D(Basis.IDENTITY, Vector3(1, 1, 1))], "colours": [Color.WHITE]})

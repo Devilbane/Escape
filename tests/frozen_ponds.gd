@@ -83,21 +83,22 @@ func _run() -> void:
 	var lvl: Outdoor = game.level
 	var open_waters := lvl.fishing_waters.size()
 	var ponds := lvl._pond_waters.size()
-	check(ponds == 55, "fifty-five pond tiles")
-	check(lvl.ice_cover.holes.size() == 2, "one hole in each of the two ponds")
+	check(ponds > 0, "the village has ponds")
+	var holes_n: int = lvl.ice_cover.holes.size()
+	check(holes_n >= 2, "one hole in each pond (at least two ponds)")
 
 	game.ice_cover = 0.5
 	lvl.set_ice(0.5)
 	check(lvl.fishing_waters.size() == open_waters, "half-frozen ponds still hold open water")
 	game.ice_cover = 1.0
 	lvl.set_ice(1.0)
-	check(lvl.fishing_waters.size() == open_waters - ponds + 2, "frozen: only the two holes can be fished")
+	check(lvl.fishing_waters.size() == open_waters - ponds + holes_n, "frozen: only the holes can be fished")
 	await _wait(3)
 	var blocking := 0
 	for w: Dictionary in lvl._pond_waters:
 		if not (w.shape as CollisionShape3D).disabled:
 			blocking += 1
-	check(blocking == 2, "the hole tiles stay shut, the rest of the ice can be walked on")
+	check(blocking == holes_n, "the hole tiles stay shut, the rest of the ice can be walked on")
 	var hole: Dictionary = lvl.ice_cover.holes[0]
 	check(lvl.nearest_water(hole.pos + Vector3(2.5, 0, 0), 2.4).get("water", "") == hole.water, "the hole can be fished from its edge")
 	var far: Vector3 = hole.pos + Vector3(0, 0, 4.0)

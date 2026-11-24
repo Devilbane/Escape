@@ -3255,6 +3255,8 @@ var _rock_result := RockClimb.Result.UP
 var _rock_y := 0.0
 var _rock_from := 0.0
 var _rock_warned := false
+## Whether the viper in the face (see SummitGarden.bite) has bitten on this climb.
+var _rock_bitten := false
 var _rock_push := 0.0
 ## Pressed hard against a wall, the hero's contact with it can drop out for a physics tick now and then; the hold on
 ## the rock goes on through such a gap (seconds).
@@ -3322,6 +3324,7 @@ func _start_rock(spot: Dictionary) -> void:
 	_rock_start = Vector3(clampf(global_position.x, mid.x - 1.4, mid.x + 1.4), 0.0, mid.z + Level.TILE * 0.5 + radius + 0.05)
 	_rock_y = 0.0
 	_rock_warned = false
+	_rock_bitten = false
 	_rock_left = true
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -3350,6 +3353,9 @@ func _rock_begin_pull() -> void:
 ## Puts the hero on the face at height `y`: the face leans back, so the hero moves in with it.
 func _rock_place(y: float) -> void:
 	_rock_y = y
+	if _rock_spot.get("viper", false) and not _rock_bitten and y >= float(_rock_spot.height) * SummitGarden.VIPER_AT:
+		_rock_bitten = true
+		SummitGarden.bite(self)
 	var along := 2.0 * y / maxf(0.5, float(_rock_spot.height))
 	global_position = _rock_start + ROCK_DIR * along + Vector3(0, y, 0)
 

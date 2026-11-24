@@ -11,6 +11,8 @@ const EN := {
 	"Du trinkst vom Quell. Es schmeckt nach Schnee und Sonne.": "You drink from the spring. It tastes of snow and sunshine.",
 	"Das eiskalte Wasser des Quells heilt dich bis auf den letzten Kratzer.": "The ice-cold water of the spring heals you down to the last scratch.",
 	"Das Wasser des Quells heilt dich von allem Übel.": "The water of the spring cures you of all ills.",
+	"Aus einer Felsspalte schnellt eine Kreuzotter und beißt dich in die Hand! Du kletterst weiter, aber das Gift brennt.": "An adder darts out of a crack in the rock and bites your hand! You climb on, but the poison burns.",
+	"Kreuzottern: In den Felsspalten über dem Hochtal nisten Kreuzottern. Wer dort hinaufklettert, wird gebissen und vergiftet. Oben im Berggarten gibt es einen Quell, der das Gift heilt.": "Adders: adders nest in the cracks of the rock above the high valley. Whoever climbs up there is bitten and poisoned. Up in the mountain garden there is a spring that cures the poison.",
 	"Silberedelweiß! Zart wie Filz und selten wie nichts sonst.": "Silver edelweiss! Soft as felt and rarer than anything else.",
 	"Silberedelweiß: Es wächst nur im Garten ganz oben auf dem Berg, wo noch nie jemand gepflegt hat. Nach ein paar Tagen blüht dort wieder eine.": "Silver edelweiss: it grows only in the garden at the very top of the mountain, where nobody has ever tended. After a few days another one blooms there.",
 	"Dagegenlaufen, um aus dem Quell zu trinken": "Run into it to drink from the spring",

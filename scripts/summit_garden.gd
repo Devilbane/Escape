@@ -27,6 +27,13 @@ const TABLET_KIND := "tafel"
 const SPRING_KIND := "gipfelquell"
 const TOUCH := 1.0
 
+## The viper in a crack of the face: about this far up (of the height) it bites the climbing hero once per
+## climb, for BITE life points (never the last one) and with poison. The spring on the ledge is the cure.
+const VIPER_AT := 0.5
+const BITE := 3
+const BITTEN := "Aus einer Felsspalte schnellt eine Kreuzotter und beißt dich in die Hand! Du kletterst weiter, aber das Gift brennt."
+const BITTEN_LEARN := "Kreuzottern: In den Felsspalten über dem Hochtal nisten Kreuzottern. Wer dort hinaufklettert, wird gebissen und vergiftet. Oben im Berggarten gibt es einen Quell, der das Gift heilt."
+
 ## The words on the tablet (it goes into the compendium, see Game.writing_found).
 const TABLET := "Hier oben pflegt niemand. Der Berg hält den Garten selbst. Nimm eine Blüte, wenn du sie brauchst, und lass die anderen stehen. Selbst die kleinen Drachen tragen von hier nichts fort."
 ## What the hero learns from the spring at the first sip, and the line at every sip.
@@ -278,6 +285,16 @@ static func _spring(level: Level, root: Node3D) -> void:
 	var at := spot(level, SPRING_AT)
 	level._add_solid(at, Vector3(1.3, 0.5, 1.3))
 	level.stations.append({"kind": SPRING_KIND, "cell": CELL, "pos": at, "used": false, "touch": TOUCH + 0.3})
+
+
+## The viper bites the hero on the face: a few life points and the poison, and the climb goes on.
+static func bite(hero: Player) -> void:
+	hero.hp = maxi(1, hero.hp - BITE)
+	hero.hurt.emit(BITE)
+	hero.afflict("gift")
+	Effects.head_text(hero.level, hero, 2.2, "-%d" % BITE, Color(0.8, 0.3, 0.3))
+	Events.tell(Lang.t(BITTEN), Color(0.9, 0.5, 0.4))
+	Events.teach(BITTEN_LEARN)
 
 
 ## The hero drinks: all the life back and no poison, and at the first sip the compendium learns of it.

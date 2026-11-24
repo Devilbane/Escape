@@ -121,7 +121,19 @@ func _run() -> void:
 		left -= 1
 	Input.action_release("ui_up")
 	check(hero.is_climbing(), "level 16 starts the climb")
+	# The viper in the face bites once on the way up: life points and poison, never the last life point.
+	hero.hp = hero.max_hp
+	hero.cure()
+	hero.rock_roll_forced = 0.0
+	var guard := 0
+	while hero.is_climbing() and not hero.ailments.has("gift") and guard < 3000:
+		await _wait(1)
+		guard += 1
+	check(hero.ailments.has("gift"), "the viper poisons the climbing hero")
+	check(hero.hp == hero.max_hp - SummitGarden.BITE, "the bite takes %d life points (%d/%d)" % [SummitGarden.BITE, hero.hp, hero.max_hp])
+	check(told.has(Lang.t(SummitGarden.BITTEN)) and game.lore.has(SummitGarden.BITTEN_LEARN), "the bite is told and the compendium learns of it")
 	hero._end_rock(true)
+	check(hero._rock_bitten, "one bite per climb")
 
 	# Up on the ledge: the hero stands, the plants are picked by walking into them, the rest is used.
 	var top := SummitGarden.middle(lvl) + Vector3(0, 0.05, 0)
@@ -156,11 +168,13 @@ func _run() -> void:
 	check(game.lore.has(SummitGarden.TABLET), "reading the tablet teaches its words")
 	# The spring: all the life back and the poison gone.
 	hero.hp = maxi(1, hero.max_hp - 5)
+	hero.afflict("gift")
 	game._use_station(spring)
+	check(not hero.ailments.has("gift"), "the spring cures the viper's poison")
 	check(hero.hp == hero.max_hp, "the spring heals fully (%d/%d)" % [hero.hp, hero.max_hp])
 	check(game.lore.has(SummitGarden.SPRING_LEARN), "the first sip teaches about the spring")
 	for text in [SummitGarden.TABLET, SummitGarden.SPRING_LEARN, SummitGarden.PICKED, SummitGarden.PICKED_LEARN, SummitGarden.SPRING_FULL,
-			SummitGarden.SPRING_HEALED, SummitGarden.SPRING_CURED]:
+			SummitGarden.SPRING_HEALED, SummitGarden.SPRING_CURED, SummitGarden.BITTEN, SummitGarden.BITTEN_LEARN]:
 		check(Lang.EN.has(text), "English text: %s" % text.left(30))
 	game.delete_save(game.save_path())
 	print("PASS: summit garden" if failures == 0 else "FAILED: %d" % failures)

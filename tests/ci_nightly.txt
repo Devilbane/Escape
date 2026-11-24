@@ -113,7 +113,7 @@ flag_wind.gd | 200 | fixed | pass | Flags and banners flutter in the wind, more 
 kit_wood_grain.gd | 60 | fixed | pass | The wood of the village buildings has its grain along every beam
 bookshelf.gd | 120 | fixed | passfail | bookshelf in the cellar of every town house (see Bookshelf and
 chat_line.gd | 120 | fixed | passfail | hero's chat line under the event log (see ChatLine,
-chimney_smoke.gd | 120 | fixed | passfail | evening smoke from the village chimneys (see
+chimney_smoke.gd | 120 | fixed | passfail | smoke from the village chimneys (see
 coin_piles.gd | 120 | fixed | passfail | coin piles (CoinPile). Coins of one metal that come down on
 coin_shine.gd | 120 | fixed | passfail | gold glints (CoinShine). Coins on the floor, the heaps of
 comic_placement.gd | 120 | fixed | passfail | comic bubbles sit close to the fight without covering it

@@ -563,7 +563,7 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, _patches := IVY_PATCHES, _old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, _roof_vines := 0, density := IVY_DENSITY) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, _patches := IVY_PATCHES, _old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, _roof_vines := 0, density := IVY_DENSITY, roof_reach := 0.0) -> void:
 	# All ivy is one kind now: it climbs from the foot of the walls up to the eaves and over the
 	# roof, and how much of it there is comes from `density` alone (see IVY_DENSITY).
 	var old := true
@@ -645,7 +645,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		grown += 1
 	# Vines across the roof itself, in branching patterns, at the same density.
 	# Roof vines belong to the roof faces within the wall vines' reach: ivy grows from the ground up.
-	var low_roofs := roofs.filter(func(t): return t.c.y < ground + OLD_IVY_HEIGHT.y * 0.6)
+	var low_roofs := roofs.filter(func(t): return t.c.y < ground + maxf(OLD_IVY_HEIGHT.y * 0.6, roof_reach))
 	var roof_area := 0.0
 	for t: Dictionary in low_roofs:
 		roof_area += ((t.b - t.a) as Vector3).cross(t.c - t.a).length() * 0.5

@@ -1,0 +1,1 @@
+- Ivy now climbs up parts of the mage tower's roof, and its top floor is covered more thickly.

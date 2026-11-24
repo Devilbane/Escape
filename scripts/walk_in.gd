@@ -195,8 +195,12 @@ func claim(node: Node3D, kind: String, block: Rect2i) -> Dictionary:
 			if bool(shape.get("mage", false)):
 				# The top room has walls and a roof (see MageTower): the weather keeps out up there too.
 				rec["mage"] = true
+				rec["deck_top"] = float(lay.deck) + MageTower.TOP_H - 0.02
 				rec["high"] = float(lay.deck) + MageTower.TOP_H + MageTower.PEAK + MageTower.SPIRE
 				rec["tower_roof"] = []
+				# The ivy on the roof lifts off with it.
+				rec["ivy_roof"] = {}
+				rec["roof"] = rec.tower_roof
 				for side: String in TOP_SIDES:
 					rec[side] = []
 					rec["ivy_" + side] = {}
@@ -252,7 +256,10 @@ func split_ivy(node: Node3D, leaves: Dictionary) -> Dictionary:
 			var into: Dictionary = stay
 			if at.y >= float(rec.upper_from):
 				into = rec.ivy_up
-				if rec.has("mage") and at.y >= float(rec.eaves):
+				if rec.has("mage") and at.y >= float(rec.deck_top):
+					# On the pyramid roof: it lifts off with it.
+					into = rec.ivy_roof
+				elif rec.has("mage") and at.y >= float(rec.eaves):
 					# On a wall of the top room: it hides with that wall.
 					var top_side := _side_of(rec, at)
 					if top_side != "":
@@ -298,7 +305,7 @@ func plant_ivy(ivy: Node3D) -> void:
 		return
 	for i in buildings.size():
 		var rec: Dictionary = buildings[i]
-		for group: String in ["up"] + SIDES + STOREY_SIDES + TOP_SIDES:
+		for group: String in ["up"] + SIDES + STOREY_SIDES + TOP_SIDES + ["roof"]:
 			if not rec.has("ivy_" + group):
 				continue
 			var leaves: Dictionary = rec["ivy_" + group]

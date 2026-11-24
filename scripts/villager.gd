@@ -94,6 +94,11 @@ const ROLES := {
 	"ω": {"name": "Lotte", "model": "Rogue", "show": [], "scale": 0.7, "hair": {"style": "short", "color": "blond", "tails": true, "smile": true}, "skin": SKIN_ROSY,
 		"colors": [Color(0.95, 0.7, 0.4), Color(0.5, 0.4, 0.32), Color(1, 1, 1)], "plan": "wander", "work": "Cheer",
 		"lines": ["Ich helfe Mama beim Ernten! Meistens esse ich nur die Beeren.", "Die Vogelscheuche hat mir zugezwinkert. Wirklich!", "Hast du die Brücke gesehen? Darunter wohnt ein Troll. Sagt Veit."]},
+	# The rock climber on the mountainside east of the stream (see ClimberNpc): his day plan "climb" is
+	# the route of ClimberRoute, and ClimberOutfit puts the gear on.
+	"κ": {"name": "Kletterer Wolfram", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "auburn"},
+		"colors": [Color(0.78, 0.62, 0.42), Color(0.34, 0.3, 0.26), Color(1, 1, 1)], "plan": "climb", "work": "Idle",
+		"lines": ["Die Wand ist mein Garten. Nur ohne Gemüse.", "Wer klettern will, braucht Geduld, Hände und einen guten Nagel.", "Sprich mich auf das Klettern an. Oder sieh mir eine Stunde zu.", "Von oben sieht man das Dorf klein wie ein Spielzeug."]},
 	"λ": {"name": "Hirte Moritz", "model": "Rogue", "show": ["Rogue_Cape"],
 		"colors": [Color(0.5, 0.58, 0.4), Color(0.4, 0.36, 0.3), Color(0.62, 0.5, 0.34)], "plan": "farm", "work": "Idle",
 		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
@@ -119,6 +124,10 @@ const ROLES := {
 		"hair": {"style": "short", "color": "ginger", "tails": true, "freckles": true, "smile": true, "ear_gem": true}, "skin": SKIN_ROSY,
 		"colors": [Color(0.8, 0.35, 0.4), Color(0.45, 0.35, 0.3), Color(1, 1, 1)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "7",
 		"lines": ["Hallo! Ich bin Pippi. Pip und ich hüten die Gänse und die Ziegen.", "Pip ist mein bester Freund. Wir spielen Fangen auf der Wiese!", "Die Gänse zwicken, wenn man ihnen den Rücken zudreht.", "Die Ziegen mögen dich, wenn du ruhig bleibst.", "Die Gänse und Ziegen weiden an der Wiese südlich und westlich vom Dorf."]},
+	# The street sweeper: no map letter, Outdoor puts him on a walkway near the square (see StreetSweeper).
+	"sweeper": {"name": "Straßenfeger Matthes", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "silver"},
+		"colors": [Color(0.5, 0.42, 0.26), Color(0.34, 0.3, 0.24), Color(0.62, 0.5, 0.3)], "plan": "stay", "work": "Idle", "skin": SKIN_LIGHT,
+		"lines": ["Blätter im Herbst, Schnee im Winter: Ein Weg bleibt nie lange sauber.", "Frag mich nach meiner Arbeit, sag einfach „Arbeit“.", "Morgens fege ich, abends weht der Wind alles wieder zurück.", "Pass auf, wo du hintrittst: Ich habe den Weg gerade erst gekehrt!"]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
 		"colors": [Color(0.35, 0.3, 0.45), Color(0.3, 0.3, 0.35), Color(0.3, 0.25, 0.4)], "plan": "stroll", "work": "Spellcast_Raise",
 		"lines": ["Faszinierend, du lebst! Das Verlies gilt als unentrinnbar.", "In meinen Büchern steht etwas über Wächter in Rüstung...", "Ruhe, bitte. Ich lese."]},
@@ -182,7 +191,7 @@ const LISTEN_TIME := 13.0
 ## tavern, the temple is open day and night and the wandering merchant only
 ## comes at night. Everyone else goes home to sleep at nightfall (see
 ## Outdoor.set_hour) and comes out in the morning.
-const NIGHT_OWLS := ["4", "5", "O", "%"]
+const NIGHT_OWLS := ["4", "5", "O", "%", ClimberNpc.ROLE]
 ## Out in the dark everyone about on honest business carries a torch: the
 ## guard on his rounds, the priestess at the temple, and whoever is still
 ## walking home at nightfall. Not those who keep to one lit spot all night,
@@ -409,6 +418,8 @@ var _toss_clock := 0.0
 var _tossed := false
 var _seed_spot := Vector3.INF
 var _skeleton: Skeleton3D
+## The rock climber's route (see ClimberRoute), made when he first starts to climb.
+var _climb: ClimberRoute = null
 ## The game of tag, cartwheels and somersaults this child plays (see KidPlay), once begun.
 var _kid: KidPlay
 ## The job a farmer of the valley is at (see ValleyFolk.pick): {id, say, spot, face, anim}.
@@ -466,6 +477,8 @@ func _ready() -> void:
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
+	if role == StreetSweeper.ROLE:
+		StreetSweeper.put_on(_model)
 	if _info.get("bandana", false):
 		Bandana.put_on(_model)
 	if _info.get("locks", "") == "dread":
@@ -474,6 +487,8 @@ func _ready() -> void:
 	GearLook.dress_body(_model, "outfit")
 	# Their own skin tone, hat colour and glasses (see TownsfolkLook).
 	TownsfolkLook.apply(_model, _info, _look)
+	if role == ClimberNpc.ROLE:
+		ClimberOutfit.put_on(_model)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle", "Sit_Chair_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -553,6 +568,7 @@ const WINTER_OWN := {
 	"2": ["Unter dem Schnee schlafen meine Kürbisse jetzt."],
 	"5": ["Ein Bier wärmt von innen. Sagt man."],
 	"7": ["Schnee! Schnee! Fang mich im Schnee!"],
+	"sweeper": ["Der Besen ist aus Birkenreisig. Der hält länger als jeder Schaufelstiel."],
 	"pippi": ["Schneeball-Zeit! Wer traut sich?"],
 	"9": ["Das Wasser im Eimer ist fast gefroren!"],
 	"3": ["Frisch verschneit: Das Holz macht sich schwerer."],
@@ -609,6 +625,9 @@ func update_wear(at_once := false) -> void:
 		WinterWear.put_on(_model, WinterWear.look_for(role, _info))
 	else:
 		WinterWear.take_off(_model)
+	# The hat and the apron of the summer clothes (see StreetSweeper).
+	if role == StreetSweeper.ROLE:
+		StreetSweeper.show_gear(_model, not wears_winter)
 	# A bird perches on the top of the head, hat or no hat (see _top_of_head).
 	_head_top = -1.0
 
@@ -845,6 +864,8 @@ func _start(task: String, time: float) -> void:
 		return
 	if task != "post":
 		_leave_post()
+	if task != "climb" and _climb != null:
+		_climb.leave(self)
 	if task != "service":
 		_service_after_post = {}
 	_task = task
@@ -1075,22 +1096,35 @@ var _broom: Node3D
 var _broom_hand: Node3D
 var _puff_in := 0.0
 var _sweep_bump := 0.0
+## What he is sweeping: "snow" or "leaves".
+var _sweep_kind := ""
 
 
 ## Sets out with the broom when the snow lies and it is his time (Konrad, between his calls): true when he goes.
 func _sweep_out() -> bool:
 	if role != SnowSweep.ROLE or level == null or at_home or not visible or level.world_hours < _sweep_after:
 		return false
-	if not SnowSweep.wants(level) or threat != null or eaten or _bubble_time > 0.0:
+	var kind := _sweep_wanted()
+	if kind == "" or threat != null or eaten or _bubble_time > 0.0:
 		return false
-	var way := SnowSweep.route(level, home, _rng)
+	var way := SnowSweep.route(level, home, _rng, Callable(LeafSweep, "is_clear").bind(level) if kind == "leaves" else Callable())
 	_sweep_after = level.world_hours + SnowSweep.REST_HOURS
 	if way.is_empty():
 		return false
+	_sweep_kind = kind
 	_sweep_way = way
 	_hold_broom(true)
 	_walk_to(way[0], WALK_SPEED, "sweep")
 	return true
+
+
+## What the weather and the season ask him to sweep now: "snow", "leaves" or "".
+func _sweep_wanted() -> String:
+	if SnowSweep.wants(level):
+		return "snow"
+	if LeafSweep.wants(level):
+		return "leaves"
+	return ""
 
 
 func _begin_sweep() -> void:
@@ -1129,18 +1163,18 @@ func _hold_broom(on: bool) -> void:
 
 
 ## Lays the besom from his right hand down to the snow ahead of him, swishing from side to side by `swing`.
-func _lay_broom(swing: float) -> void:
+func _lay_broom(swing: float, width := SnowSweep.SWING) -> void:
 	if _broom == null or _broom_hand == null:
 		return
 	var facing := Vector3(sin(_model.global_rotation.y), 0, cos(_model.global_rotation.y))
 	if _sweep != null:
 		facing = _sweep.heading
-	SnowSweep.lay_broom(_broom, _broom_hand.global_position, SnowSweep.broom_head(global_position, facing, swing))
+	SnowSweep.lay_broom(_broom, _broom_hand.global_position, SnowSweep.broom_head(global_position, facing, swing, width))
 
 
 ## One physics tick of sweeping: on along the route at a slow walk, the broom swishing across the ground ahead.
 func _sweep_snow(delta: float) -> void:
-	if _sweep == null or not SnowSweep.keeps_on(level) or _sweep_bump > 4.0:
+	if _sweep == null or _sweep_wanted() != _sweep_kind or _sweep_bump > 4.0:
 		_sweep_bump = 0.0
 		_start("idle", 0.5)
 		return
@@ -1153,24 +1187,39 @@ func _sweep_snow(delta: float) -> void:
 		return
 	var dir := to.normalized()
 	job.heading = job.heading.lerp(dir, minf(1.0, delta * 4.0)).normalized()
-	var walked := _stride("Walking_A", SnowSweep.PACE)
+	var leaves := _sweep_kind == "leaves"
+	# Back along the swept strip he just walks, the broom over the shoulder; out he sweeps, slowly.
+	var walked := _stride("Walking_B" if job.back else "Walking_A", SnowSweep.PACE_BACK if job.back else (LeafSweep.PACE if leaves else SnowSweep.PACE))
 	if _move_to(global_position + dir * minf(to.length(), walked * delta)):
 		_sweep_bump = 0.0
 	else:
 		_sweep_bump += delta
 	_turn_to(dir, delta)
 	job.swing += delta
-	_lay_broom(job.swing)
-	var head := SnowSweep.broom_head(global_position, job.heading, job.swing)
-	SnowSweep.stamp(level, head)
-	SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
+	var width := LeafSweep.SWING if leaves else SnowSweep.SWING
+	if job.back:
+		width = 0.0
+	_lay_broom(job.swing, width)
+	if job.back:
+		return
+	var head := SnowSweep.broom_head(global_position, job.heading, job.swing, width)
+	if leaves:
+		LeafSweep.stamp(level, head, global_position, job.heading)
+	else:
+		SnowSweep.stamp(level, head)
+		SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
 	_puff_in -= delta
 	if _puff_in <= 0.0:
-		_puff_in = 0.14
+		_puff_in = 0.09
 		if level.sweep_dust == null:
 			level.sweep_dust = SweepDust.new()
 			level.add_child(level.sweep_dust)
-		level.sweep_dust.kick(head, -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2))
+		var away := -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2)
+		if leaves:
+			level.sweep_dust.kick_leaves(head, away)
+			level.sweep_dust.kick(head, away, LeafSweep.DUST)
+		else:
+			level.sweep_dust.kick(head, away)
 
 
 # --- The guard at the west gate -----------------------------------------------
@@ -2006,6 +2055,12 @@ func _next_task() -> void:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "sit" if _info.plan == "sit" else "work")
 			else:
 				_start("sit" if _info.plan == "sit" else "work", _rng.randf_range(12.0, 25.0))
+		"climb":
+			# All day on the wall (see ClimberRoute); a map without his spot leaves him standing at the foot.
+			if ClimbSpots.at(level, ClimberNpc.SPOT_CELL).is_empty():
+				_start("work", 6.0)
+			else:
+				_start("climb", 600.0)
 		"patrol":
 			if _task == "walk":
 				_start("idle", _rng.randf_range(3.0, 6.0))
@@ -2389,7 +2444,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and _task != "climb" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2401,6 +2456,15 @@ func _physics_process(delta: float) -> void:
 			VillagePosts.step(self, delta)
 		"service":
 			TempleMorning.step(self, delta)
+		"climb":
+			if _climb == null:
+				_climb = ClimberRoute.make(self)
+			if _climb == null:
+				_start("work", 6.0)
+			else:
+				ClimberNpc.watch_tick(self, delta)
+				_climb.step(self, delta)
+				return
 		"fight":
 			_fight(delta)
 			return

@@ -298,7 +298,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -380,6 +380,9 @@ var _shrine_left_label: Label
 var _wise_gift: Button
 ## The Konstitution gift, whose amount depends on the dungeon.
 var _constitution_gift: Button
+var _shrine_title: Label
+var _shrine_sub: Label
+var _gift_buttons: Array[Button] = []
 var _shrine: Dictionary = {}
 var _pending_station: Dictionary = {}
 ## Everything the hero has been told so far, for the compendium (key H):
@@ -454,6 +457,11 @@ var shop_stock: Array[String] = []
 ## What the wandering merchant still has left, and the night he brought it
 ## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
 var wanderer_stock: Array[String] = []
+## What the rock climber still has to sell (id -> how many), the day he last restocked and the hours of
+## game time the hero has watched him (see ClimberNpc).
+var climber_stock := {}
+var climber_day := -1
+var climber_watch := 0.0
 var wanderer_night := -1
 ## Finished pieces Gorm has on the shelf, id -> count (see Forge.restock): a few more each morning.
 var smith_stock := {}
@@ -539,6 +547,7 @@ func _bus_links() -> Array:
 	return [
 		[bus.news_told, quest_news],
 		[bus.lore_learned, learn],
+		[bus.climber_watched, _on_climber_watched],
 		[bus.gain_shown, show_gain],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
@@ -1819,10 +1828,12 @@ func _setup_shrine_panel() -> void:
 	title.text = Lang.t("Schrein der Ahnen")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	_shrine_title = title
 	var sub := _make_label(TEXT_FONT, 22)
 	sub.text = Lang.t("Wähle eine Gabe")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
+	_shrine_sub = sub
 	_shrine_left_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
 	_shrine_left_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_shrine_left_label)
@@ -1835,6 +1846,7 @@ func _setup_shrine_panel() -> void:
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
 		row.add_child(b)
+		_gift_buttons.append(b)
 		if i == 2:
 			_constitution_gift = b
 	_wise_gift = _make_button(Lang.t("%s\n(Taste %d)") % [Lang.t("+1 Härtung"), 4], _choose_gift.bind(3))
@@ -1870,6 +1882,8 @@ func _use_station(s: Dictionary) -> void:
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))
 	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
 		treasure_maps.use(s)
+	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
+		SpringCave.use(self, s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
 	elif s.kind == SternHall.DRAIN:
@@ -1913,6 +1927,8 @@ func _use_station(s: Dictionary) -> void:
 		_break_stone(s)
 	elif s.kind == WoodLogs.KIND:
 		_chop_wood(s)
+	elif s.kind == SummitGarden.SPRING_KIND:
+		SummitGarden.drink(self, s)
 	elif s.has("npc") and _villager_unavailable(s):
 		pass
 	elif s.has("npc"):
@@ -2296,6 +2312,9 @@ func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> voi
 		Events.found(Lang.t("%s kommt in deinen Geldbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 	else:
 		Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
+	if id == SummitGarden.INGREDIENT:
+		learn(SummitGarden.PICKED_LEARN)
+		Events.tell(Lang.t(SummitGarden.PICKED), Color(0.9, 0.95, 1.0))
 	# A part of the fallen dragon teaches the recipe made from it.
 	if DragonLair.PART_COLOURS.has(id):
 		learn(DragonLair.PARTS_LEARN)
@@ -2751,9 +2770,22 @@ func _open_shrine(s: Dictionary) -> void:
 	_pending_station = {}
 	player.face(s.pos - player.global_position)
 	set_world_paused(true)
-	# A wise hero sees one more way to take the shrine's blessing.
-	_wise_gift.visible = player.attribute("weisheit") >= Training.WISE_SHRINE
-	_constitution_gift.text = Lang.t("%s\n(Taste %d)") % [Lang.t("+%d Konstitution") % shrine_constitution(), 3]
+	if s.get("spring", false):
+		# The river goddess: the same three places in the window, her own gifts, one with a price.
+		_shrine_title.text = Lang.t("Schrein der Flussherrin")
+		_shrine_sub.text = Lang.t("Sie schenkt dir eine Gabe. Eine kostet etwas.")
+		for i in _gift_buttons.size():
+			_gift_buttons[i].text = Lang.t("%s\n(Taste %d)") % [SpringShrine.GIFTS[i], i + 1]
+		_wise_gift.visible = false
+		Events.teach(SpringShrine.LEARN)
+	else:
+		_shrine_title.text = Lang.t("Schrein der Ahnen")
+		_shrine_sub.text = Lang.t("Wähle eine Gabe")
+		for i in 2:
+			_gift_buttons[i].text = Lang.t("%s\n(Taste %d)") % [[Lang.t("+5 Leben"), Lang.t("+1 Attributpunkt")][i], i + 1]
+		# A wise hero sees one more way to take the shrine's blessing.
+		_wise_gift.visible = player.attribute("weisheit") >= Training.WISE_SHRINE
+		_constitution_gift.text = Lang.t("%s\n(Taste %d)") % [Lang.t("+%d Konstitution") % shrine_constitution(), 3]
 	_shrine_panel.visible = true
 
 
@@ -2765,6 +2797,18 @@ func shrine_constitution() -> int:
 func _choose_gift(index: int) -> void:
 	if _shrine.is_empty():
 		return
+	var text := ""
+	if _shrine.get("spring", false):
+		text = SpringShrine.give(self, index)
+	else:
+		text = _give_ancestor_gift(index)
+	if text == "":
+		return
+	_finish_gift(text)
+
+
+## The three gifts of an ancestors' shrine.
+func _give_ancestor_gift(index: int) -> String:
 	var text := ""
 	match index:
 		0:
@@ -2784,9 +2828,14 @@ func _choose_gift(index: int) -> void:
 			text = Lang.t("Du fühlst dich zäher: +%d Konstitution") % amount
 		3:
 			if not _wise_gift.visible:
-				return
+				return ""
 			player.gift_armor += 1
 			text = Lang.t("Deine Haut wird hart wie Rinde: +1 Härtung")
+	return text
+
+
+## The shrine has given its gift: the bookkeeping and the message.
+func _finish_gift(text: String) -> void:
 	if level.beginner_dungeon:
 		player.beginner_shrines_used += 1
 		if shrines_left() <= 0:
@@ -3063,6 +3112,7 @@ func _new_day(quiet := false) -> void:
 		Mines.refresh_crystals(level, day, true)
 		QuarryRocks.refresh(level, day, true)
 		WoodLogs.refresh(level, day, true)
+		SummitGarden.refresh(level, day, true)
 	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
@@ -3475,6 +3525,7 @@ func _load_parked(index: int) -> void:
 		Mines.refresh_crystals(level, day, true)
 		QuarryRocks.refresh(level, day, true)
 		WoodLogs.refresh(level, day, true)
+		SummitGarden.refresh(level, day, true)
 	_spawn_pet()
 	apply_companion_perk()
 	_refresh_seals()
@@ -3569,6 +3620,7 @@ func load_level(index: int, restock := true) -> void:
 	Mines.refresh_crystals(level, day)
 	QuarryRocks.refresh(level, day)
 	WoodLogs.refresh(level, day)
+	SummitGarden.refresh(level, day)
 	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
@@ -3940,6 +3992,9 @@ func begin_new_game() -> void:
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
+	climber_stock = {}
+	climber_day = -1
+	climber_watch = 0.0
 	wanderer_night = -1
 	smith_stock.clear()
 	Forge.restock(smith_stock, day, hero_name)
@@ -4456,6 +4511,15 @@ func _apply_save(data: Dictionary) -> void:
 	timber_stock = clampi(int(data.get("timber_stock", WoodcutterShift.START)), 0, WoodcutterShift.CAP)
 	_timber_carry = 0.0
 	hoard.load_from(data.get("hoard", {}))
+	climber_stock = {}
+	climber_day = -1
+	climber_watch = 0.0
+	var climber: Variant = data.get("climber", {})
+	if climber is Dictionary and climber.get("stock") is Dictionary:
+		climber_day = int(climber.get("day", -1))
+		for id in climber.stock:
+			if ClimberNpc.WARES.has(str(id)):
+				climber_stock[str(id)] = clampi(int(climber.stock[id]), 0, int(ClimberNpc.WARES[str(id)]))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
 	if wares is Array:
@@ -4711,6 +4775,7 @@ func hero_record() -> Dictionary:
 		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour, "world_hours": world_hours,
+		"climber": {"stock": climber_stock, "day": climber_day},
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock, "timber_stock": timber_stock,
 		"hoard": hoard.for_save(),
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover, "ice": ice_cover,
@@ -6569,6 +6634,10 @@ func wanderer_wares() -> Array[String]:
 	return wanderer_stock
 
 
+func _on_climber_watched(hours: float) -> void:
+	ClimberNpc.watched(self, hours)
+
+
 func learn(entry: String) -> void:
 	if not lore.has(entry):
 		lore.append(entry)
@@ -7884,6 +7953,9 @@ func _leave_building(all_the_way := false, door := "") -> void:
 	inside_house = 0
 	_resume_next = true
 	load_level(_outdoor_index(), false)
+	if building == SpringCave.ID and level is Outdoor and level.waterfall != null:
+		# Out of the spring's cave: on the porch while the ice is open, in a thaw on the shore.
+		level.doors[building] = SpringCave.exit_point(level, ice_cover)
 	if door != "" and level is Outdoor and level.doors.has(door):
 		player.global_position = level.doors[door]
 		player.face(Vector3.BACK)
@@ -8139,6 +8211,7 @@ func _process(delta: float) -> void:
 			"aushang": Lang.t("Dagegenlaufen, um den Aushang zu lesen"),
 			QuarryRocks.KIND: Lang.t("Dagegenlaufen, um Stein zu brechen"),
 			WoodLogs.KIND: Lang.t("Dagegenlaufen, um Bauholz zu hacken"),
+			SummitGarden.SPRING_KIND: Lang.t("Dagegenlaufen, um aus dem Quell zu trinken"),
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			Mill.KIND: Lang.t("Dagegenlaufen, um bei %s Körner zu kaufen") % station.npc.display_name if station.has("npc") else "",
@@ -8148,6 +8221,7 @@ func _process(delta: float) -> void:
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
+			ClimberNpc.KIND: Lang.t("Dagegenlaufen, um mit %s über das Klettern zu reden") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			GardenDecor.GRILL: Lang.t("Dagegenlaufen, um Wildfleisch oder einen Barsch zu grillen und zu essen"),
 			AppleTree.STATION: AppleTree.station_prompt(self, station) if station.kind == AppleTree.STATION else "",
@@ -8161,6 +8235,8 @@ func _process(delta: float) -> void:
 			VillageWall.GATE_STATION: Lang.t("Dagegenlaufen, um das Tor zu öffnen"),
 			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
+			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
+			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),

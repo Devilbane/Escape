@@ -75,6 +75,12 @@ static func stand_spot(seat: Dictionary, level: Level, radius: float) -> Vector3
 	return seat.pos + ahead * out
 
 
+## A stool of a hall at `local` (in the hall's frame) turned to face `toward`, a seat for one (see add_indoor).
+static func add_stool(walk_in: WalkIn, rec: Dictionary, local: Vector3, toward: Vector3) -> void:
+	var turn := atan2(toward.x - local.x, toward.z - local.z)
+	add_indoor(walk_in, rec, local, turn, Vector3(0.4, 0.5, 0.4))
+
+
 ## A seat of a hall (see WalkIn): `size` is the furniture's box (x across, z deep, y high) at `local` in the
 ## hall's frame, turned by `turn` (front +z before turning), `top` the height of its seat. It is solid, so
 ## the hero runs into it (or clicks it) to sit. `across` lists where along its width a body sits (a bench
@@ -107,6 +113,10 @@ static func _stand_in_hall(seat: Dictionary, level: Level, radius: float, out: f
 	for d: float in [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.8]:
 		tries.append(side * d)
 		tries.append(-side * d)
+	# Slantwise, out between two pieces of furniture.
+	for turn: float in [PI * 0.25, -PI * 0.25, PI * 0.75, -PI * 0.75]:
+		for d: float in [out, out + 0.3]:
+			tries.append(ahead.rotated(Vector3.UP, turn) * d)
 	var shape := CylinderShape3D.new()
 	shape.radius = radius
 	shape.height = 0.8

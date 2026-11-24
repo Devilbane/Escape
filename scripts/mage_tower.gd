@@ -10,8 +10,8 @@ extends RefCounted
 ##   the stairs down to the cellar on the left, each behind a railing.
 ## - First floor, the library and reading room: tall bookcases, a long reading table with its
 ##   chairs, sofa chairs and a sofa on a rug, a globe and a reading lamp.
-## - Second floor, the sleeping room under the pointed roof: two beds, a chest each, a wardrobe, a
-##   telescope at the window and a table with candles. Aldo and Odo sleep here (see VillageBeds).
+## - Second floor, the sleeping room under the pointed roof: two beds, a bookcase, a
+##   telescope at the window and a stool. Aldo and Odo sleep here (see VillageBeds).
 ## - The cellar, the experiment room: a cauldron, an alchemist's bench with flasks, a stone circle
 ##   glowing on the floor, shelves of jars and a still. It is as large as the stairs let it be.
 ##
@@ -28,6 +28,10 @@ const TOP_H := 2.6
 const PEAK := 5.2
 const OVERHANG := 0.55
 const SPIRE := 1.6
+## How far up the pyramid roof ivy climbs from the eaves (metres): parts of the roof, not all of it.
+const IVY_ROOF_REACH := 2.8
+## The tower's ivy density (a house's is AgedStone.IVY_DENSITY).
+const IVY_DENSITY := 1.6
 ## The tapestries (metres across, high) and how high their lower edge hangs over the floor.
 const TAPESTRY := Vector2(2.0, 2.25)
 const TAPESTRY_FROM := 0.55
@@ -107,7 +111,8 @@ static func top_storey(shape: Dictionary, groups: Dictionary) -> void:
 
 ## The faces ivy may grow on at the tower (`tris` as AgedStone.triangles makes them): everything below
 ## the deck, and above it only the outer faces of the top room's walls, standing upright: not the
-## inner faces (a leaf would float in the room), nor the deck's rim, the wall tops or the roof.
+## inner faces (a leaf would float in the room), nor the deck's rim or the wall tops; and the sloping
+## tiles of the roof.
 static func ivy_faces(node: Node3D, tris: Array) -> Array:
 	var shape: Dictionary = node.get_meta("shape")
 	var lay := GuildHall.layout(shape)
@@ -122,6 +127,8 @@ static func ivy_faces(node: Node3D, tris: Array) -> Array:
 		var middle := (a + b + c) / 3.0
 		if maxf(a.y, maxf(b.y, c.y)) <= deck - 0.05:
 			return true
+		if middle.y >= deck + TOP_H and absf((t.n as Vector3).y) > 0.3 and absf((t.n as Vector3).y) < 0.97:
+			return true # A sloping tile of the pyramid roof (not its timber slab or the caps' flat tops).
 		if middle.y < deck + 0.1 or absf((t.n as Vector3).y) > 0.12:
 			return false
 		return absf(middle.x) >= half_w - 0.02 or absf(middle.z) >= half_d - 0.02)
@@ -503,8 +510,6 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	Seats.add_indoor(walk_in, rec, mid + Vector3(0, 0, 1.55), PI, Vector3(1.9, 0.9, 0.9), 0.45, [-0.5, 0.5])
 	# A globe on a stand, a floor lamp, a side table with a book by the sofa chair.
 	_put(walk_in, rec, upper, globe(), Vector3(room.end.x - 0.6, y, room.end.y - 0.7), 0.4, Vector3(0.4, 1.4, 0.4))
-	_put(walk_in, rec, upper, WalkInFurniture.table(0.28), mid + Vector3(-1.6, 0, 1.2), 0.0)
-	WalkInFurniture._box(upper, Vector3(0.3, 0.05, 0.22), mid + Vector3(-1.6, 0.8, 1.2), _mat("book_red", Color(0.5, 0.16, 0.15)), Basis(Vector3.UP, 0.4))
 	# Books and scrolls on the table, a clock on the right wall, a ladder against the bookcases, plants,
 	# a skull on the first bookcase and a chandelier over the reading corner.
 	var stack := book_stack(5, 20)
@@ -534,7 +539,7 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 		wall_lamp.rotation.y = -side * PI * 0.5
 		upper.add_child(wall_lamp)
 	var astro := armillary()
-	astro.position = mid + Vector3(-1.6, 0.75, 1.2)
+	astro.position = mid + Vector3(-0.2, 0.8, -0.3)
 	upper.add_child(astro)
 	var spellbook := floating_book()
 	spellbook.position = mid + Vector3(0.1, 1.35, 0.0)
@@ -590,8 +595,8 @@ static func globe() -> Node3D:
 
 
 ## The sleeping room on the second floor, under the pointed roof: two beds along the back wall with
-## a bedside table each, a chest at the foot of each, a wardrobe, a rug, a telescope at the front
-## window and a table with candles. Aldo and Odo sleep here (see VillageBeds).
+## a bedside table each, a bookcase, a rug, a telescope at the front
+## window and a stool. Aldo and Odo sleep here (see VillageBeds).
 static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	var hall: Node3D = rec.node
 	var roof: Node3D = rec.roof_node
@@ -618,13 +623,11 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	rec["owners"] = OWNERS
 	# A wardrobe in the back corner on the right, a bookcase between the beds' tables.
 	_put(walk_in, rec, roof, skill_bookcase(1.5, 2.2, 0.5, 40), Vector3(right - 0.3, y, back + 3.0), -PI * 0.5, Vector3(1.5, 2.2, 0.5))
-	# A table with candles and a stool by the right wall, and the telescope at the window in front.
-	_put(walk_in, rec, roof, WalkInFurniture.table(0.45), Vector3(right - 1.0, y, 1.0), 0.0, Vector3(0.6, 0.8, 0.6))
-	_put(walk_in, rec, roof, WalkInFurniture.table_candle(), Vector3(right - 1.0, y + 0.79, 1.0))
+	# A stool by the right wall, and the telescope at the window in front.
 	_put(walk_in, rec, roof, WalkInFurniture.stool(), Vector3(right - 1.9, y, 1.0))
-	Seats.add_indoor(walk_in, rec, Vector3(right - 1.9, y, 1.0), 0.0, Vector3(0.4, 0.5, 0.4))
+	Seats.add_stool(walk_in, rec, Vector3(right - 1.9, y, 1.0), Vector3(room.position.x + 3.0, y, room.end.y - 0.9))
 	_put(walk_in, rec, roof, telescope(), Vector3(room.position.x + 1.5 + 1.5, y, room.end.y - 0.9), 0.0, Vector3(0.4, 1.2, 0.4))
-	# A chandelier, crystal lamps over the beds, a plant, a pile of books by the bookcase and a skull on the bedside tables.
+	# A chandelier, crystal lamps over the beds, a plant, a pile of books by the bookcase.
 	var hang := chandelier(0.5, 0.4, 8)
 	hang.position = Vector3(0.3, y + TOP_H - 0.45, 0.2)
 	roof.add_child(hang)
@@ -641,7 +644,7 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	night_candles.position = Vector3(0.45, y + 1.5, back + 0.9)
 	roof.add_child(night_candles)
 	var pile := book_stack(4, 30)
-	pile.position = Vector3(right - 1.0, y + 0.8, 1.0) + Vector3(0.1, 0, 0.1)
+	pile.position = Vector3(right - 0.35, y, back + 4.2)
 	roof.add_child(pile)
 	_storey_lamp(rec, roof, GuildHall.ROOF_STOREY, Vector3(0, y + 2.2, 0.0))
 

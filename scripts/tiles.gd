@@ -209,6 +209,7 @@ const OUTDOOR := {
 	"χ": "farmhand Veit of the valley",
 	"ω": "Lotte, the farmer's daughter",
 	"λ": "shepherd Moritz, who minds the valley's sheep",
+	"κ": "Kletterer Wolfram, the rock climber on the mountainside east of the stream: he stands at the foot of the face and climbs it all day (see ClimberNpc)",
 	"K": "herald of the crown",
 	"¢": "clerk of the land registry (Amtmann Gero, see PlotOffice)",
 	"µ": "interior furnisher (Raumausstatterin Ilse: furniture for self-built houses, see HouseFurniture)",

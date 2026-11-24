@@ -97,12 +97,12 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
 const TEMPLE_KEEPER := "O"
-const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
+const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -110,6 +110,8 @@ const BLOCK_MODELS := {
 	"k": "building_castle_blue", "o": "building_home_A_yellow",
 	"w": "building_barracks_red", "b": "building_tower_A_blue",
 	"[": "building_tavern_blue",
+	# The mage tower when its walk-in hall is switched off (see WalkIn.halls): a plain stone tower.
+	"Ø": "building_tower_A_blue",
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
@@ -809,6 +811,7 @@ func build() -> void:
 		add_child(undergrowth_shed)
 		IvySeasons.apply(undergrowth_shed, day)
 	_build_rock_collision()
+	SummitGarden.build(self)
 	_setup_astar()
 	meals.garland.block(self)
 	if birds:
@@ -3300,9 +3303,13 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
 		panes.append_array(AgedStone.glass_boxes(tris))
 		var ivy_tris := tris
+		var roof_reach := 0.0
+		var density := AgedStone.IVY_DENSITY
 		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
 			ivy_tris = MageTower.ivy_faces(node, tris)
-		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
+			roof_reach = MageTower.IVY_ROOF_REACH + float(GuildHall.layout(node.get_meta("shape")).deck) + MageTower.TOP_H
+			density = MageTower.IVY_DENSITY # Three floors and a roof: more ivy than a house, to cover the top room too.
+		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines, density, roof_reach)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var stems: Array = leaves.get("stems", [])
@@ -3980,7 +3987,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -4000,6 +4007,7 @@ func _spawn_villagers() -> void:
 				_build_chopping_log(v, c)
 				WoodLogs.build(self, c)
 	_spawn_pips_friend()
+	_spawn_street_sweeper()
 	WoodLogs.build_windfalls(self)
 
 
@@ -4013,6 +4021,21 @@ func _spawn_pips_friend() -> void:
 		return
 	var v := Villager.new()
 	v.setup(self, "pippi", c)
+	add_child(v)
+	v.global_position = cell_to_world(c)
+	villagers.append(v)
+	var station := {"kind": "npc", "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+	v.station = station
+	stations.append(station)
+
+
+## The street sweeper (see StreetSweeper) has no map letter either: he waits on a walkway near the square.
+func _spawn_street_sweeper() -> void:
+	var c := StreetSweeper.home_cell(self)
+	if c == Vector2i(-1, -1):
+		return
+	var v := Villager.new()
+	v.setup(self, StreetSweeper.ROLE, c)
 	add_child(v)
 	v.global_position = cell_to_world(c)
 	villagers.append(v)
@@ -4868,6 +4891,8 @@ func _process(delta: float) -> void:
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
 	temple_morning.tick(self, delta)
+	# The wind carries the swept leaves back over the walkways (see LeafSweep).
+	LeafSweep.advance(self)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:
@@ -5875,8 +5900,9 @@ func temple_room(node: Node3D) -> Rect2:
 	return Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z))
 
 
-## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth.
-const ROOM_MARGIN := 0.12
+## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth, which
+## sticks out 0.05 m. The snow shader draws the walls exactly (see SnowCover.set_rooms).
+const ROOM_MARGIN := 0.05
 ## How high the rooms of a walk-in building reach (metres): its eaves (see VillageHouse._shape), so
 ## no snow lies on the upper floor's furniture and stairs; the roof over them keeps its snow.
 const WALK_IN_CEILING := VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER - 0.05

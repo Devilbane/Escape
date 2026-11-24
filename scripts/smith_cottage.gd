@@ -58,19 +58,12 @@ static func furnish(walk_in: WalkIn, rec: Dictionary) -> void:
 	barrel.position = Vector3(right - 0.4, floor_y, back + 1.12)
 	house.add_child(barrel)
 	walk_in._solid(rec, Vector3(right - 0.4, floor_y + 0.45, back + 1.12), Vector3(0.64, 0.9, 0.64))
-	# A table with a stool and a tankard in the front corner on the right, beside the way in.
-	var table_at := Vector3(right - 0.65, floor_y, room.end.y - 0.75)
-	var table := WalkInFurniture.table(0.45)
-	table.name = "SmithTable"
-	table.position = table_at
-	house.add_child(table)
-	walk_in._solid(rec, table_at + Vector3(0, 0.4, 0), Vector3(0.9, 0.8, 0.9))
+	# A stool in the front corner on the right, beside the way in, to sit on and look at the room.
+	var stool_at := Vector3(right - 0.65, floor_y, room.end.y - 0.75)
 	var stool := WalkInFurniture.stool()
-	stool.position = table_at + Vector3(-0.75, 0, 0)
+	stool.position = stool_at
 	house.add_child(stool)
-	var mug := WalkInFurniture.mug()
-	mug.position = table_at + Vector3(0.1, 0.79, 0.05)
-	house.add_child(mug)
+	Seats.add_stool(walk_in, rec, stool_at, Vector3(0, floor_y, room.get_center().y))
 	# A rack with a few blades of his own on the left wall, by the door.
 	var rack := WalkInFurniture.weapon_rack(1.0)
 	rack.name = "SmithRack"

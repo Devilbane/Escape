@@ -48,7 +48,7 @@ minutes. The `scope` job looks at the changed files (`tests/ci_select.sh`) and p
 - as a warning only, the other test files the change touched (a new test, or an edited nightly one), in one
   `extra-tests` job that starts after `tests` has reported, so it never takes a runner the required shards need.
 
-`tests/ci_shard.sh` splits the required tests into 3 shards on a pull request (6 in the nightly run) in a matrix by their measured length
+`tests/ci_shard.sh` splits the required tests into 4 shards on a pull request (6 in the nightly run) in a matrix by their measured length
 (`tests/ci_timings.txt`): longest first, each to the shard with the least work so far, so all shards end at about
 the same time. A test missing from that file counts as 15 s. Refresh it now and then from a run's logs (Actions >
 a run > Download log archive, unpack, then `python3 tools/ci_timings.py <folder>/*.txt`); an outdated file only

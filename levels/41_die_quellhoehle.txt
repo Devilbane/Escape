@@ -1,0 +1,22 @@
+name: Die Quellhöhle
+hint: Hinter dem gefrorenen Wasserfall: ein Ring aus engen Gängen und kleinen Kammern, in denen der Frost den Fels mit Kristallen überzogen hat. Fledermäuse hängen unter der Decke, Eiswölfe halten die Kammern am Wasser, und in der Mitte, hinter einer verschlossenen Tür, entspringt die Quelle des Flusses.
+monsters: wildlife, fable, elementals
+building: quelle1
+lair: ja
+respawn: ja
+theme: kristall
+walls: crystal
+##################################
+##E###############################
+##P,,,,,%################,,,,,c,##
+##,,,,v,,#####.S...S#####,,e,,,,##
+##,,,,,,,..v.....S.......,,,,,,,##
+##,,,,,,,################,,,,e,,##
+##,%,,,,,###.%........###%,,,,,,##
+#####.######..H.F...C.######.#####
+##,,,,,,%###.c.......%###,,,,,,,##
+##,,,,,,,#######D########,,,c,,,##
+##,,s,,,,.............s..,,i,,,,##
+##,,,,,,,################,,,,,,,##
+##C,,,s,,################%,,,,K,##
+##################################

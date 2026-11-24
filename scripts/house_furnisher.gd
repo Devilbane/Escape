@@ -22,12 +22,12 @@ extends Node3D
 ## The short names on the tool bar's buttons, in the order of HouseFurniture.KINDS.
 const SHORT := {"bett": "Bett", "truhe": "Truhe", "regal": "Regal", "kamin": "Kamin", "trophaeen": "Trophäen", WeaponRack.KIND: "Waffenständer",
 	"werkbank": "Werkbank", "feinbank": "Feinbank", "schleifrad": "Schleifstein", "alchemie": "Alchemie",
-	"leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
+	"hort": "Hort", "leuchter": "Leuchter", "fackel": "Wandfackel", "bild_berge": "Bild: Berge", "bild_see": "Bild: See", "bild_drache": "Bild: Drache",
 	"schrein_maija": "Schrein: Maija",
 	"blumenbeet": "Blumenbeet", "blumenkuebel": "Kübel", "gartenfackel": "Stabfackel", "gartenlaterne": "Laterne", "grill": "Grill", AppleTree.KIND: "Apfelbaum"}
 ## The tool bar's second row: the weapon rack, light, the walls and the shrines; the garden has the third. Everything
 ## else is on the first.
-const SECOND_ROW := [WeaponRack.KIND, "leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
+const SECOND_ROW := [WeaponRack.KIND, "hort", "leuchter", "fackel", "bild_berge", "bild_see", "bild_drache", "schrein_maija"]
 ## The light of a candle stand and a torch: the dungeon's wall torch, a little softer indoors.
 const LIGHT_ENERGY := 1.55
 const LIGHT_RANGE := 9.0
@@ -43,6 +43,8 @@ const PAINTING_HEIGHT := 1.55
 const PAINTINGS := ["res://assets/house/painting_mountains.jpg", "res://assets/house/painting_lake.jpg",
 	"res://assets/house/painting_dragon.jpg"]
 const PICK_UP := "aufheben"
+## The kind of the hoard (see HouseFurniture.KINDS).
+const HOARD := "hort"
 const LEVEL_NAMES := {-1: "im Keller", 0: "im Erdgeschoss", 1: "im Obergeschoss", HouseFurniture.ROOF_STOREY: "auf dem Dach"}
 const KIND_BUTTON := Vector2(130, 32)
 const STATUS_WIDTH := 880.0
@@ -50,7 +52,7 @@ const OK_COLOR := Color(0.4, 0.95, 0.4, 0.45)
 const BAD_COLOR := Color(1.0, 0.4, 0.35, 0.45)
 const ON_COLOR := Color(1.0, 0.82, 0.4)
 ## How close the hero must come to a piece to use it, from its middle (metres).
-const TOUCH := {"bett": 2.6, "regal": 2.4, WeaponRack.KIND: 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4}
+const TOUCH := {"bett": 2.6, "regal": 2.4, WeaponRack.KIND: 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4, "hort": 2.8}
 const TOUCH_DEFAULT := 1.8
 ## How far outside its solid a bump still counts as running into a piece (metres).
 const TOUCH_MARGIN := 0.4
@@ -105,6 +107,8 @@ var _stations: Array = []
 var _shelves: Array = []
 var _stands: Array = []
 var _racks: Array = []
+## The hoards of the hero's house: the holder of each one's coin heaps (see refresh_hoards).
+var _hoards: Array = []
 var _bar: PanelContainer
 var _kind_buttons := {}
 var _level_button: Button
@@ -179,6 +183,7 @@ func refresh() -> void:
 	_shelves.clear()
 	_stands.clear()
 	_racks.clear()
+	_hoards.clear()
 	for child in _pieces.get_children():
 		_pieces.remove_child(child)
 		child.queue_free()
@@ -271,6 +276,8 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 		_stands.append(root.get_meta("stand"))
 	elif p.kind == WeaponRack.KIND:
 		_racks.append(root.get_meta("rack"))
+	elif p.kind == HOARD:
+		_hoards.append(root.get_meta("hoard"))
 	if station.is_empty():
 		return
 	station.pos = root.transform * station.get("pos", Vector3.ZERO)
@@ -365,6 +372,18 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			station.craft = CraftingSquare.BENCHES[info.bench].craft
 			# The bench top's middle, turned with the bench like its model.
 			station.spot = turn.transform * CraftingSquare.TOP
+		HOARD:
+			# The very hoard of the town house (see Level._build_coin_hoard): a low plinth with the
+			# heaps of the hero's coins on it, laid by refresh_hoards.
+			var stone := HomeStoreFurniture._mat(Color(0.38, 0.36, 0.34), 0.95)
+			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(Level.HOARD_PLINTH, Level.HOARD_PLINTH + 0.1, 0.14), stone, Vector3(0, 0.07, 0))
+			var heaps := Node3D.new()
+			heaps.name = "Heaps"
+			heaps.position = Vector3(0, 0.14, 0)
+			root.add_child(heaps)
+			root.set_meta("hoard", heaps)
+			solids.append({"at": Vector3.ZERO, "size": Vector3(Level.HOARD_PLINTH * 1.6, 0.6, Level.HOARD_PLINTH * 1.6)})
+			station.spot = Vector3(0, 0.5, 0)
 		"leuchter":
 			var iron := HomeStoreFurniture._mat(Color(0.18, 0.17, 0.16), 0.5, 0.6)
 			HomeStoreFurniture._add(root, HomeStoreFurniture._cylinder(0.35, 0.4, 0.06), iron, Vector3(0, 0.03, 0))
@@ -529,6 +548,7 @@ static func stand_scale(count: int) -> float:
 
 ## Puts the books kept, the weapons kept and the trophies won on the hero's shelves, racks and stands.
 func refresh_books() -> void:
+	refresh_hoards()
 	var count := HomeStores.total(game.home_stores, HomeStores.BOOKS)
 	for shelf in _shelves:
 		if is_instance_valid(shelf):
@@ -553,6 +573,20 @@ func refresh_books() -> void:
 			statue.scale = Vector3.ONE * size
 			statue.position = slots[i]
 			stand.add_child(statue)
+
+
+## Lays the coins the hero has (purse and chest, see Game.hoard_coins) as heaps on their hoards.
+## Only a changed mix is drawn again.
+func refresh_hoards() -> void:
+	if _hoards.is_empty():
+		return
+	var held: Dictionary = game.hoard_coins()
+	var mix := HomeHoard.mix(HomeHoard.stage_of(HomeHoard.wealth(int(held.get("kupfermuenze", 0)),
+			int(held.get("silbermuenze", 0)), int(held.get("goldmuenze", 0)))), held)
+	for heaps: Node3D in _hoards:
+		if is_instance_valid(heaps) and heaps.get_meta("shown", {}) != mix:
+			heaps.set_meta("shown", mix)
+			game.level._lay_heaps(heaps, mix)
 
 
 ## The storeys above the one the hero is on (or looks at in the tool) fade away with the roofs

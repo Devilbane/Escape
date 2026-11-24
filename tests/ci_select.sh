@@ -3,12 +3,16 @@
 # .github/workflows/web.yml and docs/testing.md. Prints two lines for $GITHUB_OUTPUT:
 #   quests=<tests>  the tests in tests/ci_quests.txt whose test file or one of whose paths changed; they join the
 #                   required shards
+#   skip=<tests>   required tests of tests/ci_scopes.txt that this change cannot affect; they are left out of the
+#                   required shards (empty whenever shared code changed)
 #   extra=<tests>   changed test files that are neither required nor a quest test (tests/ci_nightly.txt or not
 #                   listed anywhere yet); they run once as a warning only
 # Locally: git diff --name-only origin/main...HEAD | tests/ci_select.sh
 set -u
 cd "$(dirname "$0")/.."
 mapfile -t changed
+shopt -s extglob
+declare -A scope
 quests=(); extra=()
 
 while IFS='|' read -r file _ _ _ paths _; do
@@ -29,5 +33,33 @@ for f in "${changed[@]}"; do
   extra+=("$n")
 done
 
+# Scoped required tests (tests/ci_scopes.txt): skipped only when every changed file is known, i.e. matches the
+# paths of some scoped test or is neutral. One unknown file (shared code) keeps the whole required list.
+skip=()
+known=1; hits=" "
+neutral='scripts/lang/*|levels/*|assets/*|shaders/*|docs/*|balance/*|*.md|*.uid|tests/*'
+while IFS='|' read -r file paths; do
+  file=$(echo "$file" | xargs); [ -z "$file" ] && continue
+  scope[$file]="$paths"
+done < <(grep -v '^#' tests/ci_scopes.txt | grep .)
+for f in "${changed[@]}"; do
+  [ -z "$f" ] && continue
+  case "$f" in tests/ci_*|tests/*/*) known=; break;; esac
+  [[ "$f" == @($neutral) ]] && continue
+  seen=
+  for t in "${!scope[@]}"; do
+    for p in ${scope[$t]}; do [[ "$f" == $p ]] && { seen=1; hits+="$t "; }; done
+  done
+  [ -z "$seen" ] && { known=; break; }
+done
+if [ -n "$known" ]; then
+  for t in "${!scope[@]}"; do
+    [[ "$hits" == *" $t "* ]] && continue
+    for f in "${changed[@]}"; do [ "$f" = "tests/$t" ] && continue 2; done
+    skip+=("$t")
+  done
+fi
+
 echo "quests=${quests[*]}"
+echo "skip=${skip[*]}"
 echo "extra=${extra[*]}"

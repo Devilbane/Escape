@@ -33,6 +33,8 @@ const HIDDEN_BELOW := 1.2
 ## How near a path point counts as reached (metres), and how near the door it gets pushed open.
 const ARRIVE := 0.15
 const DOOR_PUSH := 2.6
+## How long the door stays open after the last step within DOOR_PUSH of it (seconds).
+const DOOR_HOLD := 0.9
 ## The longest a walk inside may take before the villager is simply put where they were going
 ## (something in the way), seconds.
 const GIVE_UP := 20.0
@@ -45,7 +47,11 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	var walk_in: WalkIn = v.level.get("walk_in") if v.level != null else null
 	if walk_in == null:
 		return false
-	var house := walk_in.house_near(v.global_position, 9.0, v.role)
+	var house := walk_in.owned_house(v.role)
+	if house.is_empty():
+		house = walk_in.home_for(v.role, v.level.cell_to_world(v.home))
+	if house.is_empty():
+		house = walk_in.house_near(v.global_position, 9.0, v.role)
 	if house.is_empty():
 		return false
 	var bed := _free_bed(house)
@@ -54,7 +60,7 @@ static func enter(v: Villager, at_once: bool) -> bool:
 	var way := walk_in.door_points(house)
 	bed.by = v
 	# Down the stairs first to a bed in a cellar (the guild master's, see GuildHall).
-	var path: Array = [way[0], way[1]]
+	var path: Array = [_approach(way), way[0], way[1]]
 	path.append_array(house.get("inner_way", []))
 	path.append(house.ladder)
 	v.bed_trip = {"house": house, "bed": bed, "step": "in", "way": path, "t": 0.0, "clock": 0.0}
@@ -323,7 +329,7 @@ static func _go_out(v: Villager, trip: Dictionary) -> void:
 	var way := walk_in.door_points(trip.house)
 	var inner: Array = (trip.house.get("inner_way", []) as Array).duplicate()
 	inner.reverse()
-	trip.way = inner + [way[1], way[0]]
+	trip.way = inner + [way[1], way[0], _approach(way)]
 	trip.step = "out"
 	trip.clock = _slack(v.global_position, trip.way)
 	trip.erase("hidden")
@@ -345,6 +351,18 @@ static func leave_at_once(v: Villager) -> void:
 	v.play("Idle", 0.1)
 	_free(trip)
 	v.bed_trip = {}
+
+
+## A point straight out from the doorway, in line with its middle: whoever goes in turns the corner
+## there and walks through the doorway square on, and whoever comes out walks on to it before
+## turning away, so nobody cuts across the door frame (see `way` = WalkIn.door_points).
+const APPROACH := 1.3
+
+
+static func _approach(way: Array) -> Vector3:
+	var out: Vector3 = way[0] - way[1]
+	out.y = 0.0
+	return way[0] + out.normalized() * APPROACH
 
 
 ## The clock a leg starts at: negative for a long way (a tower with three floors), so that GIVE_UP
@@ -398,6 +416,7 @@ static func _walk(v: Villager, trip: Dictionary, delta: float) -> bool:
 	var door: Vector3 = (trip.house.node as Node3D).global_transform * (trip.house.door as Vector3)
 	if not String(trip.step) in UPSTAIRS and Vector2(door.x - next.x, door.z - next.z).length() < DOOR_PUSH:
 		var leaf = trip.house.get("leaf")
-		if leaf != null and is_instance_valid(leaf) and not (leaf as HouseDoor).is_open():
-			(leaf as HouseDoor).swing()
+		if leaf != null and is_instance_valid(leaf):
+			# Open while someone is at it, shut again a moment after they have gone through.
+			(leaf as HouseDoor).keep_open(DOOR_HOLD)
 	return false

@@ -21,6 +21,14 @@ const KEEPERS := {"tavern": "ö", "shop": "6", "office": "¢", "guild": "G", "mi
 const MAX_W := 9.4
 const MAX_D := 6.4
 const BIG := ["office", "guild"]
+## Who sleeps in the bedrooms upstairs in a hall, by the kind of hall: Mira with her husband Bruno and
+## their children Pip and Pippi above the shop, Anselm and Konrad above the post office, Gero and
+## Ilse above the Crown office. One bed each (see WalkIn._bedroom).
+const HOME_OWNERS := {
+	"shop": ["6", "3", "7", "pippi"],
+	"post": ["M", "K"],
+	"office": ["¢", "µ"],
+}
 const BIG_W := 9.8
 const BIG_D := 8.6
 ## The mill's stone storey (metres across, square).
@@ -253,6 +261,9 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	walk_in._solid(rec, Vector3(0, floor_y + 1.2, back + 0.18), Vector3(holes_w, 2.4, 0.36))
 	var z := room.end.y - 1.3
 	for side: float in [-1.0, 1.0]:
+		# The corner by the ladder up to the bedrooms stays free (see WalkIn._bedroom).
+		if side == WalkIn.ladder_side(0.0):
+			continue
 		var x := side * (room.size.x * 0.5 - 0.45)
 		# Two parcels stacked, a stamped one under an unstamped one, and another beside them.
 		var low := WalkInFurniture.parcel(Vector3(0.7, 0.32, 0.5), side < 0.0)
@@ -302,6 +313,8 @@ static func _post(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	var slots := [room.end.y - 0.45, win_z - WINDOW_HALF - NOTICE_GAP - 0.35]
 	for i in notices.size():
 		var side := -1.0 if i % 2 == 0 else 1.0
+		if side == WalkIn.ladder_side(0.0) and i < 2:
+			continue # The front of that wall is the ladder's.
 		var notice := WalkInFurniture.poster(notices[i][0], notices[i][1])
 		notice.position = Vector3(side * room.size.x * 0.5, floor_y + 1.8, slots[i / 2])
 		notice.rotation.y = -side * PI * 0.5
@@ -396,6 +409,9 @@ static func _by_the_sides(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> v
 	var floor_y: float = rec.floor
 	var z := room.end.y - 1.3
 	for side: float in [-1.0, 1.0]:
+		# The corner by the ladder up to the bedrooms stays free (see WalkIn._bedroom).
+		if side == WalkIn.ladder_side(0.0):
+			continue
 		var x := side * (room.size.x * 0.5 - 0.45)
 		var crate := WalkInFurniture.crate(0.7)
 		crate.position = Vector3(x, floor_y, z)

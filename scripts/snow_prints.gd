@@ -9,13 +9,13 @@ extends RefCounted
 
 ## At most this many prints at once. When the pool is full the oldest print of the least
 ## important kind goes first (see PRIORITY), so the hero's own boots outlast the beetles' dots.
-const MAX := 1900
+const MAX := 2100
 ## Which kinds are kept longest when the pool is full.
 const PRIORITY := {"bug": 0, "bird": 1, "paw": 2, "hoof": 2, "boot": 3, "hero": 4}
 ## Each group of prints has its own room, so the crowd of villagers' boots cannot push the animals' tracks out
-## (and the other way round): when a group is full, its own oldest print goes.
-const GROUP := {"boot": "foot", "hero": "hero", "paw": "animal", "hoof": "animal", "bird": "animal", "bug": "bug"}
-const ROOM := {"foot": 700, "hero": 300, "animal": 700, "bug": 200}
+## (the hopping birds, which are everywhere, cannot wear out a fox's trail either): when a group is full, its own oldest print goes.
+const GROUP := {"boot": "foot", "hero": "hero", "paw": "paw", "hoof": "hoof", "bird": "bird", "bug": "bug"}
+const ROOM := {"foot": 500, "hero": 250, "paw": 450, "hoof": 450, "bird": 250, "bug": 150}
 ## Just above the snow, which lies up to SnowCover's 0.06 m over the ground when it is deep
 ## (snow_cover.gdshader lifts it by 0.03 + 0.03 * amount); lower prints are buried in it.
 const HEIGHT := 0.085

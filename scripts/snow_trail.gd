@@ -5,7 +5,7 @@ extends RefCounted
 ## leave any, so the far ones do not use up the prints the hero's own steps need.
 
 ## Animals farther from the hero than this leave no tracks (metres).
-const NEAR := 26.0
+const NEAR := 20.0
 ## Paws, hooves and bird feet are pressed this much bigger than life, so each kind can be told apart in the game view.
 const SHOW := 1.7
 
@@ -21,7 +21,7 @@ const FEET := {
 	"sheep": ["hoof", 0.8, 0.45, 0.05],
 	"cow": ["hoof", 1.6, 0.8, 0.09],
 	"bull": ["hoof", 1.8, 0.85, 0.1],
-	"dog": ["paw", 1.2, 0.5, 0.06],
+	"dog": ["paw", 0.4, 0.5, 0.06],
 	"squirrel": ["paw", 0.5, 0.3, 0.03],
 	"hedgehog": ["paw", 0.5, 0.22, 0.03],
 	"goose": ["bird", 0.68, 0.4, 0.06],

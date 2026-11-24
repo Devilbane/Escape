@@ -205,7 +205,7 @@ static var ALL := {
 	# rope stay in the bag; every safe spot takes one nail.
 	"kletterhammer": {"name": "Kletterhammer", "slot": "erz", "weight": 1.2, "price": 14, "no_loot": true, "material": "metal", "effect": "Zum Einschlagen von Kletternägeln in den Fels"},
 	"kletterhaken": {"name": "Kletternagel", "slot": "erz", "weight": 0.15, "price": 3, "no_loot": true, "material": "metal", "effect": "Ein Nagel aus Eisen: Mit Hammer und Seil wird er zum Sicherungspunkt in der Felswand"},
-	"kletterhelm": {"name": "Kletterhelm", "slot": "kopf", "weight": 1, "price": 22, "hat": ["", "ClimbHelmet"], "material": "leather", "no_loot": true, "effect": "Fängt Stürze in der Felswand ab: nur der halbe Schaden"},
+	"kletterhelm": {"name": "Kletterhelm", "slot": "kopf", "weight": 1, "price": 22, "hat": ["", "ClimbHelmet"], "material": "leather", "gear": true, "no_loot": true, "effect": "Fängt Stürze in der Felswand ab: nur der halbe Schaden"},
 	"kletterseil": {"name": "Kletterseil", "slot": "erz", "weight": 2.0, "price": 12, "no_loot": true, "effect": "Ein langes, festes Seil für die Felswand"},
 	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},

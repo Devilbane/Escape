@@ -42,6 +42,7 @@ func _wait(n := 3) -> void:
 ## Puts the hero on the spot in front of a seat, standing and calm.
 func _beside(seat: Dictionary) -> void:
 	p.stand_up()
+	await _wait(30) # (getting up glides out first)
 	p.path.clear()
 	p.steer = Vector3.ZERO
 	p.global_position = Seats.stand_spot(seat, lv, p.radius)
@@ -55,6 +56,7 @@ func _beside(seat: Dictionary) -> void:
 
 
 func _seated_right(seat: Dictionary, how: String) -> void:
+	await _wait(40) # (the hero is lowered onto the seat over a moment)
 	check(p.is_seated(), "%s: the hero sits" % how)
 	var spot := Seats.sit_spot(seat)
 	check(Vector2(p.global_position.x - spot.x, p.global_position.z - spot.z).length() < 0.05,
@@ -114,7 +116,7 @@ func _test() -> void:
 		await physics_frame
 		if p.is_seated():
 			break
-	_seated_right(seat, "a click on the bench")
+	await _seated_right(seat, "a click on the bench")
 	check(p.can_act(), "sitting does not hold the hero")
 	await _wait(60)
 	check(p.is_seated(), "the hero stays seated while the player does nothing")
@@ -136,7 +138,7 @@ func _test() -> void:
 	# Running into the bench sits the hero down too.
 	await _beside(seat)
 	game._on_player_bumped(seat.pos)
-	_seated_right(seat, "running into the bench")
+	await _seated_right(seat, "running into the bench")
 
 	# A click elsewhere, a jump, an attack and a blow each stand the hero up.
 	var away: Vector3 = Seats.stand_spot(seat, lv, p.radius) + Seats.front(seat) * 6.0

@@ -110,6 +110,8 @@ const BLOCK_MODELS := {
 	"k": "building_castle_blue", "o": "building_home_A_yellow",
 	"w": "building_barracks_red", "b": "building_tower_A_blue",
 	"[": "building_tavern_blue",
+	# The mage tower when its walk-in hall is switched off (see WalkIn.halls): a plain stone tower.
+	"Ø": "building_tower_A_blue",
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",

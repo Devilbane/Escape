@@ -30,6 +30,8 @@ const BENCH_SIZE := Vector3(2.0, 0.5, 0.75) * BENCH_SCALE
 const SIT_FORWARD := 0.12
 ## The gap between the front of the seat and the hero when they stand up.
 const STAND_GAP := 0.15
+## How far from a seat's box a bump still counts as running into it (the hero's push is a little off it).
+const TOUCH_REACH := 0.3
 
 
 ## Seats in a building (a chair, a stool, a bench or a sofa in a hall, see add_indoor): the hero's hips
@@ -65,7 +67,7 @@ static func stand_spot(seat: Dictionary, level: Level, radius: float) -> Vector3
 	var size: Vector3 = seat.get("size", BENCH_SIZE)
 	var out := size.z * 0.5 + radius + STAND_GAP
 	var ahead := front(seat)
-	if seat.has("stand"):
+	if seat.has("getup"):
 		return _stand_in_hall(seat, level, radius, out)
 	var beyond := level.world_to_cell(seat.pos + ahead * Level.TILE)
 	var behind := level.world_to_cell(seat.pos - ahead * Level.TILE)
@@ -84,8 +86,9 @@ static func add_stool(walk_in: WalkIn, rec: Dictionary, local: Vector3, toward: 
 ## A seat of a hall (see WalkIn): `size` is the furniture's box (x across, z deep, y high) at `local` in the
 ## hall's frame, turned by `turn` (front +z before turning), `top` the height of its seat. It is solid, so
 ## the hero runs into it (or clicks it) to sit. `across` lists where along its width a body sits (a bench
-## or a sofa seats two). `stand` is 1.0 to get up in front of the seat, -1.0 behind it.
-static func add_indoor(walk_in: WalkIn, rec: Dictionary, local: Vector3, turn: float, size: Vector3, top := 0.485, across := [0.0], stand := -1.0) -> void:
+## or a sofa seats two). `getup` is 1.0 to get up in front of the seat, -1.0 behind it (the other side when that one is blocked). Only the
+## furniture itself seats the hero (see the touch rectangles), not a wall or a rail beside it.
+static func add_indoor(walk_in: WalkIn, rec: Dictionary, local: Vector3, turn: float, size: Vector3, top := 0.485, across := [0.0], getup := -1.0) -> void:
 	var hall: Node3D = rec.node
 	var level := walk_in.level as Level
 	var turned := size if absf(sin(turn)) < 0.5 else Vector3(size.z, size.y, size.x)
@@ -97,8 +100,13 @@ static func add_indoor(walk_in: WalkIn, rec: Dictionary, local: Vector3, turn: f
 		seat["indoor"] = true
 		seat["forward"] = HIPS_BACK
 		seat["lift"] = top - SEAT_TOP
-		seat["stand"] = stand
+		seat["getup"] = getup
 		seat["touch"] = maxf(size.x, size.z) * 0.5 + 0.7
+		# Run into the seat's own box (its share of the width, a hand's breadth round it), not into
+		# whatever stands beside it: a stair rail or a wall a step from a sofa seats no one.
+		var share := Vector3(size.x / float(across.size()), size.y, size.z)
+		var half := Vector3(absf(cos(rot)) * share.x + absf(sin(rot)) * share.z, 0.0, absf(sin(rot)) * share.x + absf(cos(rot)) * share.z) * 0.5
+		seat["touch_rects"] = [Rect2(at.x - half.x - TOUCH_REACH, at.z - half.z - TOUCH_REACH, half.x * 2.0 + TOUCH_REACH * 2.0, half.z * 2.0 + TOUCH_REACH * 2.0)]
 		level.stations.append(seat)
 
 
@@ -107,7 +115,7 @@ static func add_indoor(walk_in: WalkIn, rec: Dictionary, local: Vector3, turn: f
 ## between the tables, the walls and the other seats. Hall floors are not on the level's grid, so this asks
 ## the physics.
 static func _stand_in_hall(seat: Dictionary, level: Level, radius: float, out: float) -> Vector3:
-	var ahead := front(seat) * float(seat.stand)
+	var ahead := front(seat) * float(seat.getup)
 	var side := front(seat).cross(Vector3.UP)
 	var tries: Array = [ahead * out, -ahead * out, ahead * (out + 0.25), -ahead * (out + 0.25)]
 	for d: float in [0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.8]:

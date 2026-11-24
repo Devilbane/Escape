@@ -170,6 +170,46 @@ static func _up_flight(flight: Dictionary) -> Array[Vector3]:
 	return out
 
 
+## The flight (a, b or c) the point `p` (the hall's frame) is over, with the storeys at its low and its
+## high end, or {} when it is over none: where a click on the steps themselves is aimed.
+static func flight_at(lay: Dictionary, p: Vector3) -> Dictionary:
+	var flights := [[lay.a, GROUND_STOREY, UPPER_STOREY], [lay.b, UPPER_STOREY, ROOF_STOREY], [lay.c, CELLAR_STOREY, GROUND_STOREY]]
+	for entry: Array in flights:
+		var f: Dictionary = entry[0]
+		if on_flight(f, p) and p.y > float(f.low) - 0.3 and p.y < float(f.high) + 0.3 \
+				and p.y < float(ramp(f, p.z)) + 1.5 and p.y > float(ramp(f, p.z)) - 0.8:
+			return {"flight": f, "low": entry[1], "high": entry[2]}
+	return {}
+
+
+## The way (the hall's frame) from someone on `from` storey to the steps under `p`, for a click on a
+## flight: along the floor to its foot and up it when they come from below (or on its own storey), or
+## down to its top and onto it from above. Empty when `p` is over no flight (see `way`).
+static func way_onto(lay: Dictionary, from: int, p: Vector3) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var hit := flight_at(lay, p)
+	if hit.is_empty():
+		return out
+	var f: Dictionary = hit.flight
+	var x := (float(f.x0) + float(f.x1)) * 0.5
+	var along := signf(float(f.top) - float(f.foot))
+	if from <= int(hit.low):
+		out.append_array(way(lay, from, int(hit.low)))
+		var low: Array = f.get("low_via", [])
+		for i in range(low.size() - 1, -1, -1):
+			out.append(low[i])
+		out.append(Vector3(x, f.low, float(f.foot) - along * ONTO))
+		out.append(Vector3(x, f.low, f.foot))
+	else:
+		out.append_array(way(lay, from, int(hit.high)))
+		var high: Array = f.get("high_via", [])
+		for i in range(high.size() - 1, -1, -1):
+			out.append(high[i])
+		out.append(Vector3(x, f.high, float(f.top) + along * ONTO))
+		out.append(Vector3(x, f.high, f.top))
+	return out
+
+
 ## The way between two storeys of the hall (the hall's frame, the points between them): up or down
 ## the flights in turn. Empty on the same storey.
 static func way(lay: Dictionary, from: int, to: int) -> Array[Vector3]:

@@ -961,7 +961,12 @@ func sit_down(spot: Vector3, towards: Vector3, stand_spot: Vector3) -> void:
 	_seated = true
 	_stand_spot = stand_spot
 	_sit_time = 0.0
-	global_position = spot
+	# Lowered onto the seat as the animation sits them down, not snapped onto it (a bump from afar snaps).
+	if Vector2(spot.x - global_position.x, spot.z - global_position.z).length() <= SIT_GLIDE_MAX and absf(spot.y - global_position.y) < 1.0:
+		_glide(global_position, spot, SIT_GLIDE)
+	else:
+		global_position = spot
+		_glide_left = 0.0
 	face(towards)
 	_anim.get_animation(SIT_IDLE_ANIM).loop_mode = Animation.LOOP_LINEAR
 	_current_anim = ""
@@ -979,7 +984,12 @@ func stand_up() -> void:
 		return
 	_seated = false
 	_stood_at = _clock
-	global_position = _stand_spot
+	# Steps out to where they stand again over a moment, instead of popping there.
+	if Vector2(_stand_spot.x - global_position.x, _stand_spot.z - global_position.z).length() <= SIT_GLIDE_MAX:
+		_glide(global_position, _stand_spot, GET_UP_GLIDE)
+	else:
+		global_position = _stand_spot
+		_glide_left = 0.0
 	velocity = Vector3.ZERO
 	_current_anim = ""
 	play("Idle", 0.15)
@@ -994,6 +1004,37 @@ func still_getting_up() -> bool:
 		_stood_at = _clock
 		return true
 	return false
+
+
+## Moving onto or off a seat takes a moment (the hero glides, no collisions asked): from where they
+## were, to where they go, over `_glide_len` seconds of which `_glide_left` are left.
+var _glide_from := Vector3.ZERO
+var _glide_to := Vector3.ZERO
+var _glide_left := 0.0
+var _glide_len := 0.0
+const SIT_GLIDE := 0.45
+const GET_UP_GLIDE := 0.25
+## A seat further than this (metres) is snapped to: the hero was put there, not walking up to it.
+const SIT_GLIDE_MAX := 2.0
+
+
+func _glide(from: Vector3, to: Vector3, seconds: float) -> void:
+	_glide_from = from
+	_glide_to = to
+	_glide_len = seconds
+	_glide_left = seconds
+
+
+## One tick of the glide onto or off a seat. True while the hero getting up is still on their way
+## (nothing else moves them then); the glide onto a seat goes on while they sit.
+func _glide_step(delta: float) -> bool:
+	if _glide_left <= 0.0:
+		return false
+	_glide_left = maxf(0.0, _glide_left - delta)
+	var k := 1.0 - _glide_left / _glide_len
+	global_position = _glide_from.lerp(_glide_to, smoothstep(0.0, 1.0, k))
+	velocity = Vector3.ZERO
+	return not _seated
 
 
 ## While seated: any wish to move stands the hero up (and the same frame
@@ -1142,6 +1183,7 @@ func revive(at: Vector3, heal := true) -> void:
 	_busy = 0.0
 	_flourish = 0.0
 	_seated = false
+	_glide_left = 0.0
 	_falling = 0.0
 	_down = 0.0
 	_run_hits.clear()
@@ -3831,6 +3873,8 @@ func _physics_process(delta: float) -> void:
 	_chase_rest = maxf(0.0, _chase_rest - delta)
 	_pursue(delta)
 	_auto_attack()
+	if _glide_step(delta):
+		return
 	if _stay_seated(delta):
 		return
 	if _horn_step(delta):

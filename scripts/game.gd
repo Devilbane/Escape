@@ -7232,6 +7232,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		station = {} # Run into a wall with it on the other side.
 	if station.get("kind", "") == Seats.KIND and (player.is_seated() or player.still_getting_up()):
 		return
+	if station.get("kind", "") == Seats.KIND and not _pending_station.is_empty() and _pending_station != station:
+		return # On the way to a seat that was clicked: another one passed by is not sat on.
 	if station.has("spot") and not _walked_by_keys():
 		# A bed or a workbench is run into by accident on the way somewhere clicked, or running
 		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.
@@ -8732,6 +8734,10 @@ func _click(point: Vector3) -> void:
 	# A bed or a workbench only on its pillow or the middle of its top (see Level.station_clicked).
 	var station := level.station_clicked(point, camera.global_position, (point - camera.global_position).normalized(), 2.2)
 	if not station.is_empty():
+		if station.kind == Seats.KIND and station.get("indoor", false):
+			# A seat of a hall: walk to where one gets up from it (free by its front or side), then sit
+			# from there, rather than walking into its box and bumping.
+			station["stand"] = Seats.stand_spot(station, level, player.radius)
 		_pending_station = station
 		_pending_search = {}
 		player.walk_to(station.get("stand", station.pos), WALK_UP_TO)

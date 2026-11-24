@@ -124,16 +124,13 @@ void fragment() {
 		if (underground || inside > 0.5 || wall_lies < 0.5 || snow_melted(world_pos, n) || snow_sheltered(world_pos)) {
 			discard;
 		}
-		snow_look(world_pos, normalize(mix(world_normal, vec3(0.0, 1.0, 0.0), 0.55)), VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
-		ROUGHNESS = 0.9;
-		SPECULAR = 0.2 * mix(0.4, 1.0, daylight);
-		ALBEDO = gl_colour(ALBEDO);
 	} else if (swept > 0.5 || underground || dug > 0.75 || (dug > 0.25 && world_pos.y < -0.05) || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n) || snow_sheltered(world_pos)) {
 		discard;
-	} else {
-		snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
-		ROUGHNESS = 0.85;
-		SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
-		ALBEDO = gl_colour(ALBEDO);
 	}
+	// Wall snow is lit as if tilted towards the sky, so it reads as snow and not as grey flanks.
+	vec3 look_normal = is_wall ? normalize(mix(world_normal, vec3(0.0, 1.0, 0.0), 0.55)) : world_normal;
+	snow_look(world_pos, look_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
+	ROUGHNESS = is_wall ? 0.9 : 0.85;
+	SPECULAR = (is_wall ? 0.2 : 0.3) * mix(0.4, 1.0, daylight);
+	ALBEDO = gl_colour(ALBEDO);
 }

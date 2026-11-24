@@ -200,4 +200,5 @@ warren.gd | 120 | fixed | pass | Rabbit warren: baby rabbits huddle by their bur
 village_cat.gd | 180 | fixed | pass | The village cat (strolls, leaps onto the smithy's anvil at bedtime, sleeps curled up, purrs near the hero, stretches and hops down)
 valley_folk.gd | 180 | fixed | pass | The valley folk (seasonal jobs, spots, noon rest, walking to a job)
 hall_seats.gd | 200 | fixed | passfail | Chairs, stools, benches and sofas of the tavern and the mage tower are seats: the hero sits with the hips over the seat and gets up clear
+house_snow_shots.gd | 600 | fixed | pass | Snow dusting on the lintel, sills, beams and doorstep of the mason's house (screenshots)
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop

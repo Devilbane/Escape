@@ -1,0 +1,1 @@
+- Spooknortz now waits until most villagers are in bed, and sneaks through the night stooped, wrapped in a thick fog.

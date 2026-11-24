@@ -48,6 +48,9 @@ const INDOOR := &"indoor_light"
 ## fronds (see spruce_needles.gdshader). Walls cannot stop light on them, so indoor lamps
 ## leave them out of their light altogether (see _on_node_added and refresh).
 const UNSHADOWED_LAYER := 1 << 15
+## The meta of a node whose drawn parts grow on the outside of walls (the ivy, vines and grapes): they
+## go on UNSHADOWED_LAYER too, so no indoor lamp lights them through the wall.
+const OUTSIDE_ONLY := &"lit_from_outside_only"
 ## The render layer everything is drawn on unless told otherwise.
 const DEFAULT_LAYER := 1
 ## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
@@ -108,7 +111,7 @@ func _on_node_added(node: Node) -> void:
 	if node is GeometryInstance3D:
 		if is_wall(node):
 			(node as GeometryInstance3D).layers |= WALL_LAYER
-		elif takes_no_shadows(node):
+		elif takes_no_shadows(node) or is_outside_only(node):
 			# Moved off the default layer, not only onto this one: a light reaches whatever shares a
 			# layer with its cull mask, so with layer 1 kept the indoor lamps still lit the spruces.
 			var geo := node as GeometryInstance3D
@@ -321,6 +324,16 @@ static func takes_no_shadows(node: Node) -> bool:
 
 static func _unshadowed(mat: Material) -> bool:
 	return mat is ShaderMaterial and (mat as ShaderMaterial).shader == Fern.NEEDLE_SHADER
+
+
+## Whether a drawn thing is ivy or another growth on the outside of walls (OUTSIDE_ONLY on it or a parent).
+static func is_outside_only(node: Node) -> bool:
+	var up := node
+	while up != null:
+		if up.has_meta(OUTSIDE_ONLY):
+			return true
+		up = up.get_parent()
+	return false
 
 
 ## Whether a drawn thing is part of a wall: it or one of its parents carries WALL, and it is

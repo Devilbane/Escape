@@ -5451,12 +5451,54 @@ func _rise_from_bed(tween: Tween, bed: Dictionary, side: float, fox_wakes: bool,
 			if fox_wakes and is_instance_valid(pet):
 				pet.wake_up(floor_spot)]])
 	# The hero stays exactly where the get-out animation left them, beside the bed, facing away from it:
-	# no walk to another spot and no snap, only the clips take over from the posed bones.
-	tween.tween_callback(func():
-		var stand := player.global_position
-		player.bed_pose_end(stand, Basis(Vector3.UP, rot) * Vector3(side, 0.0, 0.0))
-		player.frozen = false
-		done.call())
+	# no walk to another spot and no snap, only the clips take over from the posed bones. The end is a
+	# method and not a lambda, and a watchdog finishes it if the tween ever dies half-way, so the hero
+	# never stays lying in bed with closed eyes.
+	_rise_pending = true
+	_rise_tween = tween
+	_rise_rot = rot
+	_rise_side = side
+	_rise_done = done
+	tween.tween_callback(_finish_rise)
+	get_tree().create_timer(RISE_WATCH).timeout.connect(_watch_rise)
+
+
+## How often the watchdog of the waking up looks at the tween (seconds).
+const RISE_WATCH := 0.5
+var _rise_pending := false
+var _rise_tween: Tween = null
+var _rise_rot := 0.0
+var _rise_side := 1.0
+var _rise_done := Callable()
+
+
+## The end of the waking up (see _rise_from_bed): up and standing beside the bed, eyes open, free to move.
+## Runs once, from the tween or from the watchdog.
+func _finish_rise() -> void:
+	if not _rise_pending:
+		return
+	_rise_pending = false
+	var done := _rise_done
+	_rise_done = Callable()
+	_stop_snoozing()
+	if player.in_bed_pose():
+		player.bed_pose_end(player.global_position, Basis(Vector3.UP, _rise_rot) * Vector3(_rise_side, 0.0, 0.0))
+	player.set_asleep(false)
+	player.frozen = false
+	if done.is_valid():
+		done.call()
+
+
+## Watches the waking up: if its tween stopped before the end (an error in one of its steps, a freed
+## node), the hero is released at once instead of lying in bed forever.
+func _watch_rise() -> void:
+	if not _rise_pending:
+		return
+	var alive := _rise_tween != null and _rise_tween.is_valid() and _rise_tween.is_running()
+	if alive or get_tree().paused:
+		get_tree().create_timer(RISE_WATCH).timeout.connect(_watch_rise)
+		return
+	_finish_rise()
 
 
 # --- Time away ----------------------------------------------------------------
@@ -5797,6 +5839,13 @@ func _setup_chat_line() -> void:
 	chat_line.opened.connect(func() -> void: player.typing = true)
 	chat_line.closed.connect(func() -> void: player.typing = false)
 	_hud.add_child(chat_line)
+
+
+## The hero said a word that opens this villager's window (see NpcKeywords): it opens.
+func ask_villager(v: Villager) -> void:
+	if state != State.PLAYING or v.station.is_empty() or not player.can_act():
+		return
+	_use_station(v.station)
 
 
 ## Whether the hero may chat now.
@@ -7156,6 +7205,15 @@ func _on_player_bumped(point: Vector3) -> void:
 	if not station.is_empty():
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
+		# A villager with a window opens it for a click or a word (see NpcKeywords), never for a
+		# bump, who may stand where the hero has to pass: they only remark which words they answer to.
+		if station.has("npc") and NpcKeywords.has(station.kind):
+			player.face(station.pos - player.global_position)
+			player.play("Idle")
+			var npc: Villager = station.npc
+			if not npc.is_busy_talking() and not _villager_unavailable(station):
+				npc.say(NpcKeywords.remark(station.kind), player.global_position)
+			return
 		_use_station(station)
 		return
 	var obj := level.unsearched_at(point)
@@ -8054,6 +8112,8 @@ func _process(delta: float) -> void:
 	if player.is_seated():
 		# Sitting: how to get up again, not how to sit down.
 		_prompt.text = _hint("aufstehen", Lang.t("Laufen, klicken oder springen, um aufzustehen"))
+	elif at_station and station.has("npc") and NpcKeywords.has(station.kind):
+		_prompt.text = _hint(station.kind, Lang.t("Klicken oder ein Wort sagen, um mit %s zu reden") % station.npc.display_name)
 	elif at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
@@ -8071,7 +8131,6 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
-			"tempel": Lang.t("Dagegenlaufen, um mit %s über den Segen der Götter zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),

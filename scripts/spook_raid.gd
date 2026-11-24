@@ -17,15 +17,23 @@ const START := Vector2i(44, 41)
 const HOUSES := "nmjo"
 ## How far from the drain he looks for a house (tiles).
 const REACH := 16
-## His pace creeping, hurrying and running away (m/s).
-const CREEP := 2.0
-const HURRY := 4.2
+## His pace (m/s): the same whether he is out for loot or heading home, and running away when caught.
+## He always sneaks (stooped, see SNEAK_LEAN) without going any slower.
+const PACE := 3.0
 const RUN := 4.8
+## How far he stoops forward (radians) and how far he sinks (metres) in his sneaking pose.
+const SNEAK_LEAN := 0.5
+const SNEAK_DIP := 0.18
+## The share of the villagers who sleep at home before he dares to come out.
+const MOSTLY_ASLEEP := 0.8
 ## Seconds he lingers at a house.
 const LINGER := 3.5
 ## How close the hero may stand to the drain (metres) for him to come out, and how close to see him.
 const SHY := 12.0
 const SEEN := 16.0
+
+## The fog's colour: a cold pale grey.
+const FOG := Color(0.7, 0.74, 0.8)
 
 const SPOTTED := "Eine Gestalt huscht durch die dunklen Gassen. Auf dem Rücken trägt sie etwas, das klirrt."
 const MORNING := "Am Morgen fehlen im Dorf wieder ein paar Kerzen, Äpfel und ein Löffel. Wer wohl nachts durch die Gassen schleicht?"
@@ -47,7 +55,7 @@ var _path: Array[Vector3] = []
 var _at := 0
 var _legs: Array = []
 var _wait := 0.0
-var _speed := CREEP
+var _speed := PACE
 var _done_tonight := false
 var _told_morning := false
 var _spotted := false
@@ -118,7 +126,22 @@ func step(delta: float) -> void:
 func _can_come_out(game: Node) -> bool:
 	if Spooknortz.slain(game) or Spooknortz.hostile():
 		return false
+	if not village_asleep():
+		return false
 	return _flat(game.player.global_position, level.cell_to_world(START)) >= SHY
+
+
+## Whether most of the villagers who go to bed are at home asleep (with nobody to put to bed, yes).
+func village_asleep() -> bool:
+	var sleepers := 0
+	var abed := 0
+	for v: Variant in level.villagers:
+		if not is_instance_valid(v) or not v.goes_to_bed():
+			continue
+		sleepers += 1
+		if v.at_home:
+			abed += 1
+	return sleepers == 0 or float(abed) / sleepers >= MOSTLY_ASLEEP
 
 
 static func _flat(a: Vector3, b: Vector3) -> float:
@@ -142,8 +165,12 @@ func begin(game: Node, force := false) -> void:
 	figure.global_position = level.cell_to_world(START)
 	figure.reset_physics_interpolation()
 	figure.set_physics_process(false)
+	var fog := _make_fog()
+	figure.add_child(fog)
+	fog.emitting = true
+	_stoop()
 	_sack = null
-	_speed = CREEP
+	_speed = PACE
 	_next_leg()
 
 
@@ -210,7 +237,7 @@ var _lingers := false
 
 func _walk(delta: float) -> void:
 	var game := _game()
-	var speed := _speed if state == FLEE else (HURRY if not level.night else _speed)
+	var speed := _speed
 	if _at >= _path.size():
 		_arrived()
 		return
@@ -226,6 +253,46 @@ func _walk(delta: float) -> void:
 	figure.global_position += dir * speed * delta
 	figure._model.rotation.y = lerp_angle(figure._model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-8.0 * delta))
 	_idle_pose(true, speed)
+
+
+## The sneaking pose: bent forward and low, walking or standing.
+func _stoop() -> void:
+	if figure == null or not is_instance_valid(figure) or figure._model == null:
+		return
+	figure._model.rotation.x = SNEAK_LEAN
+	figure._model.position.y = -SNEAK_DIP
+
+
+## The thick fog he is always wrapped in: many broad, pale puffs that hang around him and drift on.
+static func make_fog() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.name = "Fog"
+	p.amount = 48
+	p.lifetime = 5.0
+	p.local_coords = false
+	p.mesh = Effects._quad(3.6, Color(1, 1, 1))
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 1.6
+	p.direction = Vector3.UP
+	p.spread = 180.0
+	p.gravity = Vector3.ZERO
+	p.initial_velocity_min = 0.05
+	p.initial_velocity_max = 0.25
+	p.scale_amount_min = 0.9
+	p.scale_amount_max = 1.5
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(FOG, 0.0))
+	ramp.add_point(0.2, Color(FOG, 0.6))
+	ramp.add_point(0.75, Color(FOG, 0.5))
+	ramp.set_color(ramp.get_point_count() - 1, Color(FOG, 0.0))
+	p.color_ramp = ramp
+	p.position.y = 0.9
+	Effects.start_cold(p)
+	return p
+
+
+func _make_fog() -> CPUParticles3D:
+	return make_fog()
 
 
 func _idle_pose(walking: bool, speed := 0.0) -> void:

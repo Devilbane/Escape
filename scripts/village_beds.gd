@@ -96,12 +96,21 @@ static func _hero_up(v: Villager, trip: Dictionary) -> bool:
 	return walk_in != null and walk_in.hero_upstairs_in(trip.house)
 
 
+## Whether the hero is inside the house on its storey `storey` (see GuildHall.storey_of).
+static func _hero_on(house: Dictionary, storey: int) -> bool:
+	return bool(house.get("inside", false)) and int(house.get("storey", -9)) == storey
+
+
 ## Whether the villager is out of sight at home: in the house the old way, upstairs while the hero
 ## is not, or on the ladder with the head through the hatch.
 static func unseen(v: Villager) -> bool:
 	var trip := v.bed_trip
 	if trip.is_empty():
 		return true
+	var storey = trip.get("house", {}).get("bed_storey")
+	if storey != null and (String(trip.step) in UPSTAIRS or trip.step == "asleep"):
+		# A bed up in a tower (see MageTower): seen only while the hero is on that storey of it.
+		return not _hero_on(trip.house, int(storey))
 	if String(trip.step) in UPSTAIRS:
 		# A bed on the ground floor is in sight (see _on_ground).
 		if not trip.get("bed", {}).is_empty() and _on_ground(trip.house, trip.bed):

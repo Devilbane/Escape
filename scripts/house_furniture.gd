@@ -52,6 +52,8 @@ const KINDS := {
 		"text": "Dasselbe Schleifrad wie auf dem Handwerkerplatz: rohe Edelsteine schleifen."},
 	"alchemie": {"icon": "kind:potion", "name": "Alchemistentisch", "price": 250, "size": Vector2i(2, 1), "station": "werkbank", "bench": "*",
 		"text": "Derselbe Tisch wie auf dem Handwerkerplatz: Tränke und Tinkturen brauen."},
+	"hort": {"icon": "kind:coin", "name": "Hort", "price": 400, "size": Vector2i(2, 2), "station": "hort",
+		"text": "Dieselbe Münzhalde wie im Hort deines alten Hauses: In 20 Stufen wächst sie mit deinem Vermögen, und die Haufen zeigen, welche Münzen du bei dir trägst und in der Truhe liegen hast."},
 	"leuchter": {"icon": "kind:torch", "name": "Standleuchter", "price": 50, "size": Vector2i(1, 1), "station": CANDLE_STATION, "light": true,
 		"text": "Ein eiserner Leuchter mit drei Kerzen. Er erhellt den Raum, und nachts sieht man dich in seinem Licht. Ein Klick löscht die Kerzen oder zündet sie wieder an."},
 	"fackel": {"icon": "kind:torch", "name": "Wandfackel", "price": 25, "size": Vector2i(1, 1), "station": "", "wall": true, "light": true,
@@ -83,14 +85,14 @@ const KINDS := {
 const GROWTH := ["planted", "picked", CandleStand.OUT]
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
-	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen", WeaponRack.KIND]],
+	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen", WeaponRack.KIND, "hort"]],
 	["werkbaenke", "Werkbänke", "kind:hammer_anvil", ["werkbank", "feinbank", "schleifrad", "alchemie"]],
 	["wand", "Licht und Wandschmuck", "kind:torch", ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]],
 	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
 	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill", AppleTree.KIND]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
 
 ## The flat roof over the upper floor (the top of a slab of HouseSketch.MAX_STOREY): only the
 ## roof lights stand there.

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add the secret mountaintop garden: a hidden level 16 climb with silver edelweiss, a tablet and a healing spring (+1 more) | Shipped this week: Give the farm villagers their goals; Let snow reach the foot of house walls (exact walls in the snow shader) (+47 more)
+Escape! dev status | Working on: Real seats in houses, smithy and guildhall; remove the useless small tables (+2 more) | Shipped this week: Give the farm villagers their goals; Let snow reach the foot of house walls (exact walls in the snow shader) (+47 more)

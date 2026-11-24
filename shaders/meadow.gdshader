@@ -15,6 +15,7 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/cobbles.gdshaderinc"
 #include "res://shaders/shore.gdshaderinc"
+#include "res://shaders/under_ice.gdshaderinc"
 
 uniform sampler2D ground_mask : filter_linear, repeat_disable;
 // Scree in the mountains (see Mountains): one pixel per tile, red 1 where
@@ -334,6 +335,15 @@ void fragment() {
 			float frost = fbm2(p * 1.6 + 5.0);
 			float scratch = smoothstep(0.62, 0.7, noise(vec2(p.x * 7.0 + p.y * 2.0, p.y * 6.0 - p.x * 1.5)));
 			vec3 sheet = ice_color * (0.85 + 0.3 * frost) + vec3(0.18) * scratch + vec3(0.12) * rim;
+			// What drifts beneath: leaves, sticks and a fish now and then, dimmed and tinted by the ice over them.
+			if (shore_on && frozen > 0.4) {
+				vec4 under = under_ice(p, TIME);
+				float seen = frozen * smoothstep(0.7, 1.6, shore);
+				vec3 seen_col = mix(under.rgb * 0.75, ice_color * 0.85, 0.4);
+				// The frost over them thins out, so they show through; the ice softens their edges.
+				sheet = mix(sheet, ice_color * 0.72, under.a * seen * 0.55);
+				sheet = mix(sheet, seen_col, under.a * seen * 0.85);
+			}
 			pond = mix(pond, sheet, frozen);
 		}
 		col = mix(col, pond, wet);

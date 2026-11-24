@@ -416,6 +416,14 @@ static func particle_material(tex: Texture2D, billboard: int, tinted: bool, colo
 	return mat
 
 
+## From how hard it rains (the look's rain, 0 to 1) the drops turn smaller and greyer; at the full
+## storm they are HEAVY_SIZE as big and HEAVY_GREYING of the way to HEAVY_GREY. Ordinary rain (0.55) is untouched.
+const HEAVY_FROM := 0.6
+const HEAVY_SIZE := 0.7
+const HEAVY_GREYING := 0.6
+const HEAVY_GREY := Color(0.62, 0.65, 0.7)
+
+
 ## Rain that falls around the hero (keep it over the hero, see Game).
 static func make_rain() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
@@ -578,7 +586,14 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	rain.visible = rain.emitting
 	var shade := clampf(0.12 + light, 0.12, 1.0)
 	var rain_mat: ShaderMaterial = (rain.mesh as QuadMesh).material
-	rain_mat.set_shader_parameter("albedo", Color(0.75 * shade, 0.82 * shade, 0.95 * shade, 0.45 * r))
+	# Heavy rain (the storm) falls in smaller, greyer drops; as it fades back to ordinary rain they
+	# return to their usual look (see HEAVY_FROM).
+	var heavy := smoothstep(HEAVY_FROM, 1.0, r)
+	var drop := Color(0.75, 0.82, 0.95).lerp(HEAVY_GREY, heavy * HEAVY_GREYING)
+	rain_mat.set_shader_parameter("albedo", Color(drop.r * shade, drop.g * shade, drop.b * shade, 0.45 * r))
+	var size := lerpf(1.0, HEAVY_SIZE, heavy)
+	rain.scale_amount_min = size
+	rain.scale_amount_max = size
 	var m: float = weather_look.mist
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting

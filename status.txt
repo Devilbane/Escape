@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Real seats in houses, smithy and guildhall; remove the useless small tables (+2 more) | Shipped this week: Give the farm villagers their goals; Let snow reach the foot of house walls (exact walls in the snow shader) (+47 more)
+Escape! dev status | Working on: Real seats in houses, smithy and guildhall; remove the useless small tables (+1 more) | Shipped this week: Add the spring cave behind the frozen waterfall (winter only, climbing hammer); Give the farm villagers their goals (+47 more)

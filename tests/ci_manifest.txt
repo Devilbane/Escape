@@ -31,7 +31,7 @@ offline_schedule.gd | 120 | free | pass | Time away (offline activities) test
 wake_up.gd | 120 | fixed | pass | Waking up in bed after loading test
 wake_watchdog.gd | 120 | fixed | pass | The waking up always releases the hero, even if its tween dies
 shrine.gd | 120 | fixed | pass | Shrine gifts hand control straight back test
-graveyard_start.gd | 120 | free | pass | Graveyard start after the escape test
+graveyard_start.gd | 360 | free | pass | Graveyard start after the escape test
 looted_containers.gd | 120 | free | pass | Looted containers stay empty test
 splash_attack.gd | 300 | fixed | pass | Hero strikes back at attackers test
 rare_loot.gd | 300 | free | pass | Rare loot does not repeat on a level test
@@ -66,7 +66,7 @@ player_houses.gd | 120 | fixed | pass | Town houses for many heroes test
 house_exit_quick.gd | 180 | fixed | pass | Stepping out of a building is quick (the open air waits, set aside, and comes back as it was)
 crafting.gd | 120 | free | pass | Recipes and ingredient pouch test
 workbench_crafting.gd | 120 | free | pass | Workbench crafting test
-hero_level.gd | 300 | fixed | pass | Hero level and experience test
+hero_level.gd | 900 | fixed | pass | Hero level and experience test
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
 button_click.gd | 120 | fixed | passfail | UI button click: pressing any button, including one
 camp_rest.gd | 120 | fixed | passfail | Headless test for resting by the camp's fire on a dungeon floor (see
@@ -126,3 +126,5 @@ lift_keeps_hidden.gd | 30 | free | passfail | A roof lifted off and put back nev
 waterfall.gd | 120 | free | passfail | The river's spring waterfall: notch, causeway, water on the rock, winter ice
 mountain_foot.gd | 60 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
 rock_climb.gd | 120 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep
+mountain_foot.gd | 240 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
+rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep

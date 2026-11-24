@@ -147,7 +147,8 @@ func _run() -> void:
 		await _walk(-in_dir, 4.0)
 		check(walk_in.hero_in.is_empty(), "and out of the %s again (%s)" % [kind, hero.global_position])
 		# (Unless the hero stands behind it, where it is lifted off so they show, see WalkIn._mind_cover.)
-		check(bool(rec.get("roof_off", false)) or rec.up.all(func(p): return not is_instance_valid(p) or WalkIn.drawn(p as Node3D)), "outside again the %s's roof is back" % kind)
+		var roof := (rec.node as Node3D).get_node_or_null("WalkRoof") as Node3D # (the first of its parts is a lid that stays hidden)
+		check(bool(rec.get("roof_off", false)) or roof == null or WalkIn.drawn(roof), "outside again the %s's roof is back" % kind)
 
 	# --- The keepers behind their counters and desks -------------------------------------
 	var keepers := {}

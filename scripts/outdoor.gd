@@ -2519,6 +2519,11 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "w" and walk_in.has(node):
 		# Ragna sleeps in the guildhall's cellar (see GuildHall).
 		own_homes[VillageHalls.KEEPERS.guild] = front
+	if VillageHalls.HOME_OWNERS.has(VillageHalls.KINDS.get(ch, "")) and walk_in.has(node):
+		# The family above the shop and the staff above the post office and the Crown office sleep
+		# in the bedrooms there (see WalkIn._bedroom).
+		for role: String in VillageHalls.HOME_OWNERS[VillageHalls.KINDS[ch]]:
+			own_homes[role] = front
 	if ch == "Ø" and walk_in.has(node):
 		# Aldo and Odo sleep in the mage tower's top room (see MageTower).
 		for role: String in MageTower.OWNERS:

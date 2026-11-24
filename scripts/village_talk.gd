@@ -84,6 +84,11 @@ const GOALS := {
 	"Z": "Will jedem im Dorf einen neuen Look verpassen, sogar dem Gelehrten.",
 	"Y": "Will jede Münze des Tals in seinem Tresor sehen.",
 	"S": "Will eine Mauer um das ganze Dorf bauen.",
+	"φ": "Will, dass seine Ernte im ganzen Tal gekauft wird, und dass Gerda weniger arbeitet.",
+	"ψ": "Will ihre Felder in Ordnung halten und Lotte endlich einmal einfangen.",
+	"χ": "Will Säcke tragen, ohne je auf eine Leiter zu müssen.",
+	"ω": "Will überall im Tal hinlaufen, nur nicht nach Hause.",
+	"λ": "Will, dass seine Schafe heil durch den Tag kommen und nie wieder eines verloren geht.",
 	"ö": "Will das beste Bier im Tal brauen und Fritz dazu bringen, seine Zeche zu zahlen.",
 }
 

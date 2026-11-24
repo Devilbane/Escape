@@ -33,6 +33,7 @@ jobs:
       nightly: ${{ steps.scope.outputs.nightly }}
       quests: ${{ steps.scope.outputs.quests }}
       skip: ${{ steps.scope.outputs.skip }}
+      shards: ${{ steps.scope.outputs.shards }}
       extra: ${{ steps.scope.outputs.extra }}
     steps:
       - uses: actions/checkout@v4

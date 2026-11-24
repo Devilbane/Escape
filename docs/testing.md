@@ -20,6 +20,18 @@ put it in one of three lists:
   weather, seasons), timing-based simulations and everything else that is not core logic. They run every night
   and never block a merge.
 
+- **Scoped, `tests/ci_scopes.txt`:** a required test can also be given the paths it covers (`file | paths`). It stays
+  in `ci_manifest.txt`, but a pull request skips it unless it touches one of those paths or the test file. It is
+  skipped only when every changed file is known (matches some scoped test's paths, or is neutral: `scripts/lang/*`,
+  `levels/*`, `assets/*`, `shaders/*`, docs). One change to shared code (`game.gd`, `player.gd`, items, saving,
+  `project.godot`, scenes, workflows, `tests/ci_*`) runs the whole required list. Nightly and manual runs always run
+  everything.
+
+**Standing rule for every new test:** it must say when it is relevant. Core logic goes in the manifest (and gets a
+scope if it lives in its own files, as the house, workshop and launcher features do); a finished quest or dungeon
+goes in `ci_quests.txt` with its paths; anything else goes to nightly. Never add an unscoped test that only one
+feature can break. `tests/ci_select.sh` prints `skip=` for what a branch would leave out.
+
 A test listed nowhere also runs every night, with the defaults (120 s, `--fixed-fps 60`, PASS and no FAIL).
 When in doubt, choose nightly: a missed nightly failure costs a day, a slow or flaky required test costs every
 pull request. Move a required test that turns flaky to the nightly list until it is fixed.

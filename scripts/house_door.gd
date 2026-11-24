@@ -21,6 +21,8 @@ const HEIGHT := 2.1
 
 var leaf: Node3D
 var _tween: Tween
+## When the swing open that is under way ends (Time.get_ticks_msec).
+var _open_until := 0
 
 
 ## The doorway recess and the leaf (meshes made by the house).
@@ -55,10 +57,18 @@ func swing(hold := HOLD) -> void:
 		return
 	_tween = create_tween()
 	var left := 1.0 - openness()
+	_open_until = Time.get_ticks_msec() + int(OPEN_TIME * left * 1000.0)
 	if left > 0.0:
 		_tween.tween_property(leaf, "rotation:y", OPEN_ANGLE, OPEN_TIME * left).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_tween.tween_interval(hold)
 	_tween.tween_property(leaf, "rotation:y", 0.0, CLOSE_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+## Keeps the door open `hold` seconds more while someone stands in it or at it, without starting
+## the swing over on every call: it shuts a moment after the last one.
+func keep_open(hold := HOLD) -> void:
+	if leaf != null and Time.get_ticks_msec() >= _open_until:
+		swing(hold)
 
 
 ## A level taken away while the door swings leaves it shut.

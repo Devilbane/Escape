@@ -20,6 +20,7 @@ const PARTS := [
 	preload("res://scripts/lang/sewers.gd"),
 	preload("res://scripts/lang/spooknortz.gd"),
 	preload("res://scripts/lang/staff_spell.gd"),
+	preload("res://scripts/lang/bless_round.gd"),
 	preload("res://scripts/lang/graphics.gd"),
 	preload("res://scripts/lang/post_office.gd"),
 	preload("res://scripts/lang/locked_halls.gd"),

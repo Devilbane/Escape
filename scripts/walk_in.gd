@@ -102,6 +102,11 @@ const HATCH_CLEAR := Vector2(1.3, 0.45)
 const UPPER_SLAB := 0.3
 ## Feet this far below the floor above count as up there (on the ladder, the head above the boards).
 const UPPER_FROM := 1.0
+## The wall between the parents' and the children's beds upstairs: the extra gap it gets between the
+## beds (metres), its height, and the doorway's width.
+const PARTITION_GAP := 0.2
+const PARTITION_HIGH := 2.5
+const PARTITION_DOOR := 1.0
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
 const BED_WIDE := CosyBed.RIGHT - CosyBed.LEFT
 const BED_GAP := 0.1
@@ -608,7 +613,10 @@ func _loft(rec: Dictionary, w: float, d: float, hatch: Rect2) -> void:
 func _bedroom(rec: Dictionary, w: float, d: float, hatch: Rect2, owners: Array) -> void:
 	var side := ladder_side_of(shape_of(rec))
 	_put_ladder(rec, side, hatch)
-	_furnish_upstairs(rec, w, d, side, hatch, owners.size())
+	# The shop's family has two bedrooms: the parents' beds first, then the children's (see _partition).
+	_furnish_upstairs(rec, w, d, side, hatch, owners.size(), 2 if owners.size() == 4 else 0)
+	for i in mini(owners.size(), rec.beds.size()):
+		rec.beds[i]["for"] = owners[i]
 	rec["owner"] = owners[0]
 	rec["owners"] = owners
 
@@ -669,7 +677,7 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 ## The room on the floor above: MAX_BEDS beds along the back wall, heads to it, from the side wall
 ## away from the hatch; a bed that would reach the floor kept clear round the hatch is left out
 ## (one bed always stays). They show only while the hero is up there (see _show_inside).
-func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2, beds := MAX_BEDS) -> void:
+func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2, beds := MAX_BEDS, split := 0) -> void:
 	var house: Node3D = rec.node
 	var t := VillageHouse.WALL_THICK
 	var upper := Rect2(-w * 0.5 - VillageHouse.JETTY + t, -d * 0.5 - VillageHouse.JETTY + t,
@@ -686,8 +694,10 @@ func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: 
 	var clear_x1 := upper.end.x if side > 0.0 else inner_edge + HATCH_CLEAR.x
 	var clear := Rect2(clear_x0, hatch.position.y - HATCH_CLEAR.y, clear_x1 - clear_x0, upper.end.y - hatch.position.y + HATCH_CLEAR.y)
 	var origin_z := upper.position.y + 0.02 - CosyBed.HEAD
+	# With a partition wall after bed `split - 1` the beds beyond it stand PARTITION_GAP further on.
 	for i in beds:
-		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP))
+		var shift := PARTITION_GAP if split > 0 and i >= split else 0.0
+		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP) - shift)
 		var foot_z := origin_z + CosyBed.FOOT + 0.55
 		var takes := Rect2(mid - BED_WIDE * 0.5, upper.position.y, BED_WIDE, origin_z + CosyBed.FOOT - upper.position.y)
 		if i > 0 and takes.intersects(clear):
@@ -698,6 +708,35 @@ func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: 
 		_solid(rec, Vector3(mid, up_y + 0.5, origin_z + (CosyBed.HEAD + CosyBed.FOOT) * 0.5), Vector3(BED_WIDE, 1.0, CosyBed.FOOT - CosyBed.HEAD))
 		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
 				"stand": house.transform * Vector3(mid + 0.1, up_y, foot_z)})
+	if split > 0 and rec.beds.size() > split:
+		_partition(rec, room, upper, side, up_y, origin_z, split)
+
+
+## The wall between two bedrooms upstairs (the parents' beds before `split`, the children's after
+## it), standing in the gap the beds leave: planks from the floor to the eaves, running from the back
+## wall to the front wall, with a doorway beyond the foot of the beds. A villager in a bed on the far
+## side of it walks through the doorway (the bed's "via", see VillageBeds).
+func _partition(rec: Dictionary, room: Node3D, upper: Rect2, side: float, up_y: float, origin_z: float, split: int) -> void:
+	var house: Node3D = rec.node
+	var gap_x := -side * (upper.end.x - 0.05 - split * (BED_WIDE + BED_GAP) + BED_GAP * 0.5 - PARTITION_GAP * 0.5)
+	var back := upper.position.y
+	var door_from := origin_z + CosyBed.FOOT + 0.25 - back
+	var length := upper.end.y - back
+	if door_from + PARTITION_DOOR + 0.3 > length:
+		return # A house too shallow for a wall with a doorway: one room.
+	var wall := WalkInFurniture.partition(length, PARTITION_HIGH, door_from, door_from + PARTITION_DOOR)
+	wall.position = Vector3(gap_x, up_y, back)
+	room.add_child(wall)
+	var high := PARTITION_HIGH
+	var thick := WalkInFurniture.PARTITION_THICK
+	_solid(rec, Vector3(gap_x, up_y + high * 0.5, back + door_from * 0.5), Vector3(thick, high, door_from))
+	var front_from := door_from + PARTITION_DOOR
+	_solid(rec, Vector3(gap_x, up_y + high * 0.5, back + (front_from + length) * 0.5), Vector3(thick, high, length - front_from))
+	var via := house.transform * Vector3(gap_x, up_y, back + door_from + PARTITION_DOOR * 0.5)
+	# The ladder is on the children's side: the beds before the wall are reached through the doorway.
+	for i in mini(split, rec.beds.size()):
+		rec.beds[i]["via"] = via
+	rec["partition"] = {"x": gap_x, "via": via}
 
 
 ## What makes a villagers' house look lived in and warmly lit: a rug under the table, and a shelf

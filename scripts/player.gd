@@ -25,7 +25,7 @@ const SPEED := 5.2
 const WALK_FACTOR := 0.34
 ## The most the base speed (Tempo, gear, gifts, level, companions) can reach, as a
 ## share of SPEED. The run's boost and the slowing ailments are counted after it.
-const BASE_SPEED_CAP := 1.75
+const BASE_SPEED_CAP := 2.0
 ## Running speeds up to this many times the walking pace (twice: 3.6 m/s)...
 const RUN_TOP := 2.0
 ## ...over this many seconds of holding the run,
@@ -3256,6 +3256,10 @@ var _rock_y := 0.0
 var _rock_from := 0.0
 var _rock_warned := false
 var _rock_push := 0.0
+## Pressed hard against a wall, the hero's contact with it can drop out for a physics tick now and then; the hold on
+## the rock goes on through such a gap (seconds).
+var _rock_wall_grace := 0.0
+const ROCK_WALL_GRACE := 0.12
 var _rock_start := Vector3.ZERO
 var _rock_fall_top := 0.0
 var _rock_pose := {}
@@ -3280,6 +3284,8 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 		if absf(hit.get_normal().y) < 0.5 and push.dot(-hit.get_normal()) > 0.5 and not hit.get_collider() is Enemy and not hit.get_collider() is Crate:
 			wall = true
 			break
+	_rock_wall_grace = ROCK_WALL_GRACE if wall else _rock_wall_grace - delta
+	wall = _rock_wall_grace > 0.0
 	var cell := level.world_to_cell(global_position + push * (radius + 0.4))
 	if not wall or level.cell_char(cell) != Mountains.ROCK_LETTER:
 		_rock_push = 0.0

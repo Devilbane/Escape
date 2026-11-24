@@ -154,6 +154,8 @@ static var _loaded := false
 
 ## The plot, in map tiles.
 var plot := Rect2i()
+## True for the sewers: their ladders end flush at the ground, so none sticks out of a shut hatch.
+var flush_ladders := false
 ## key -> {"kind": WALL / DOOR / WINDOW, "state": SKETCH / BUILT}, and for a
 ## built piece to be rebuilt as something else "into": its new kind (see CHANGES).
 var pieces := {}

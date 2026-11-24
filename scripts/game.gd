@@ -3366,6 +3366,8 @@ func _seen_look() -> Dictionary:
 func _show_weather() -> void:
 	IndoorMask.update(level)
 	var shut_in: bool = house_sketcher != null and (house_sketcher.view_storey != HouseSketcher.NO_VIEW or house_sketcher.cellar_view.active)
+	# Down a stair (below the ground, before the cellar view takes over) the falling leaves stay out too.
+	var below_ground: bool = player != null and player.global_position.y < -0.3 and level is Outdoor
 	var outside: bool = level != null and level.outdoor and player != null and not shut_in
 	if not outside:
 		_rain.emitting = false
@@ -3406,7 +3408,7 @@ func _show_weather() -> void:
 	var light := 1.0 - DayNight.glow_at(day_hour) + DayNight.moon_at(day_hour) * Moon.light(day) * 0.3
 	light = maxf(light, DayNight.glow_at(day_hour) * (1.0 - float(look.mist)) * 0.6)
 	Weather.show_particles(_rain, _mist, dusty, light, _snow, Weather.is_winter(season_day()))
-	Weather.show_leaves(_leaves, Weather.leaf_strength(look, day_hour), light)
+	Weather.show_leaves(_leaves, 0.0 if below_ground else Weather.leaf_strength(look, day_hour), light)
 	Breath.set_light(light)
 
 

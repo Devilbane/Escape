@@ -181,7 +181,10 @@ func _snow_checks() -> void:
 	o.snow_print(Vector3(inside.x, 3.12, inside.z), 0.0)
 	check(SnowPrints._records.size() == before + 2, "footprints on the roof")
 	var rec: Array = SnowPrints._records[SnowPrints._records.size() - 1]
-	check(rec.size() > 6 and absf(float(rec[5]) - 3.1) < 0.05, "the roof's print lies on the roof, not on the floor (%s)" % [rec])
+	# The stand-in slab's top is 3.1 m; the built slabs over the house now collide too, and their top is
+	# one storey up (3.2 m). The ray meets the higher one first. Either way the print lies on a roof.
+	var on_roof := rec.size() > 6 and (absf(float(rec[5]) - 3.1) < 0.05 or absf(float(rec[5]) - HouseSketch.STOREY_HEIGHT) < 0.05)
+	check(on_roof, "the roof's print lies on the roof, not on the floor (%s)" % [rec])
 	var high: Node = SnowPrints._live[SnowPrints._live.size() - 1]
 	SnowPrints.set_indoors(true)
 	check(not (high as MeshInstance3D).visible, "roof prints are hidden while the hero is indoors")

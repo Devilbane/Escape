@@ -1,0 +1,1 @@
+- Snow now also settles on the door lintels, window sills, beams and doorsteps of the village and valley houses.

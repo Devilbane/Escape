@@ -22,6 +22,8 @@ const DEEP := 0.22
 const SHALLOW := 0.07
 ## From how steep a surface no more snow stays on it (the y of its normal).
 const STEEPEST := 0.42
+## How deep the dusting on a small ledge lies (metres).
+const DUST := 0.06
 ## How far above the ground a surface must be to count (no caps on the doorstep or plinth).
 const LOWEST := 0.6
 ## The length of one piece of a roll (metres) and the sides round it.
@@ -90,13 +92,29 @@ static func node_for(mesh: ArrayMesh) -> MeshInstance3D:
 ## window looks, "wide": how wide it is}. The mesh is moved by `shift` (into the level's own
 ## frame). Null when nothing on it faces the sky. With `ledge_ice` (stone buildings) a few icicles
 ## also hang under their ledges and cornices, not only under the eaves.
-static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberGenerator, shift := Vector3.ZERO, lowest := LOWEST, ledge_ice := false) -> ArrayMesh:
+static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberGenerator, shift := Vector3.ZERO, lowest := LOWEST, ledge_ice := false, ledges: Array = []) -> ArrayMesh:
 	var tops := _open_tops(tris, ground, lowest)
+	# The small ledges of the front (lintel, sills, beams, doorstep) take a thin dusting even
+	# under the eaves and low to the ground, which the open tops above leave bare.
+	var dust := {}
+	for q: PackedVector3Array in ledges:
+		for tri: Array in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+			var a: Vector3 = tri[0]
+			var b: Vector3 = tri[1]
+			var c: Vector3 = tri[2]
+			var area := (b - a).cross(c - a).length() * 0.5
+			if area < 0.0001:
+				continue
+			tops.append({"a": a, "b": b, "c": c, "n": Vector3.UP, "mid": (a + b + c) / 3.0, "area": area})
+			for p: Vector3 in [a, b, c]:
+				dust[_key(p)] = true
 	var caps := _Surface.new()
 	var ice := _Surface.new()
 	if not tops.is_empty():
 		var edges := _open_edges(tops)
 		var depth := _depths(tops)
+		for k: Vector3i in dust:
+			depth[k] = minf(float(depth.get(k, DUST)), DUST)
 		for t: Dictionary in tops:
 			_slab(caps, t, depth)
 		for e: Dictionary in edges:
@@ -111,6 +129,16 @@ static func build(tris: Array, ground: float, windows: Array, rng: RandomNumberG
 	if not ice.empty():
 		ice.commit(mesh, ice_material(), shift)
 	return mesh
+
+
+## The flat tops of the small ledges a house builder noted (meta "snow_ledges", see VillageHouse),
+## in world space, for `build`.
+static func ledges_of(node: Node3D) -> Array:
+	var out: Array = []
+	var xf := node.global_transform
+	for q: PackedVector3Array in node.get_meta("snow_ledges", []):
+		out.append(PackedVector3Array([xf * q[0], xf * q[1], xf * q[2], xf * q[3]]))
+	return out
 
 
 ## The windows of a building for `build`: those the house builder noted (pane centres and the

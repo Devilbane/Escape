@@ -110,6 +110,7 @@ func _run() -> void:
 	check(seen.has("leap"), "it leaps up onto the perch (%s)" % str(seen))
 	check(cat.global_position.distance_to(cat.perch_top) < 0.05, "the sleeping cat lies on the perch's face (%s vs %s)" % [cat.global_position, cat.perch_top])
 	await _wait(120)
+	check(cat._sleeper.visible and not cat._body.visible, "asleep it shows the curled-up sleeping model")
 	await _shot("cat_nap", cat, Vector3(1.3, 0.7, 1.6), Vector3(0, 0.1, 0))
 	await _shot("cat_nap_wide", cat, Vector3(-3.0, 2.0, 6.0), Vector3(0, 0, 0))
 	# It purrs when the hero comes close, and not when the hero is away.

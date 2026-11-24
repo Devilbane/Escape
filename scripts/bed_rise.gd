@@ -203,25 +203,39 @@ static func beside(bed_pos: Vector3, bed_rot: float, side := -1.0) -> Vector3:
 	return bed_pos + Basis(Vector3.UP, bed_rot) * spot
 
 
+## How wide and tall a body is that tries a spot beside the bed (see choose_side): a little slimmer than the
+## hero, so the bed's own solid next to the spot does not count, but a chest or a wall in the way does.
+const PROBE_RADIUS := 0.3
+const PROBE_HEIGHT := 1.5
+
+
 ## The side to step out of the bed by: the one `side_for` prefers unless something stands in the way
-## there (a wall, a chest, another bed: a ray at hip height from the rail to where the feet land finds
-## it), then the other one. `level` is the node whose world holds the bed.
+## there (a wall, a chest, another bed: a body that big stood on the floor where the feet land finds
+## it, also low things like a chest, which a ray at hip height flew over), then the other one. If both
+## are blocked, the one with the fewer things in the way. `level` is the node whose world holds the bed.
 static func choose_side(level: Node3D, bed_pos: Vector3, bed_rot: float, floor_spot: Vector3, exclude: Array = []) -> float:
 	var preferred := side_for(bed_pos, bed_rot, floor_spot)
 	if level == null or not level.is_inside_tree():
 		return preferred
 	var space := level.get_world_3d().direct_space_state
-	var basis := Basis(Vector3.UP, bed_rot)
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = PROBE_RADIUS
+	capsule.height = PROBE_HEIGHT
+	var best := preferred
+	var best_hits := 1000
 	for side: float in [preferred, -preferred]:
-		var rail_x := CosyBed.LEFT - 0.05 if side < 0.0 else CosyBed.RIGHT + 0.05
-		var out_x := BESIDE.x - 0.25 if side < 0.0 else -0.15 - BESIDE.x + 0.25
-		var from := bed_pos + basis * Vector3(rail_x, 1.3, BESIDE.z)
-		var to := bed_pos + basis * Vector3(out_x, 1.3, BESIDE.z)
-		var query := PhysicsRayQueryParameters3D.create(from, to)
+		var spot := beside(bed_pos, bed_rot, side)
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = capsule
 		query.exclude = exclude
-		if space.intersect_ray(query).is_empty():
+		query.transform = Transform3D(Basis(), Vector3(spot.x, bed_pos.y + 0.15 + PROBE_HEIGHT * 0.5, spot.z))
+		var hits := space.intersect_shape(query, 8).size()
+		if hits == 0:
 			return side
-	return preferred
+		if hits < best_hits:
+			best_hits = hits
+			best = side
+	return best
 
 
 ## Plays `keys` on `body` (a Player: bed_pose) as a step of `tween`, in the bed at `bed_pos` turned by `rot`;

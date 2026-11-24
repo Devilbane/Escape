@@ -279,6 +279,10 @@ func _run() -> void:
 		for lamp: Node in lamp_owner.find_children("*", "Light3D", true, false):
 			check(lamp.has_meta(LightShadows.INDOOR), "%s of a room is an indoor lamp" % lamp_owner.name)
 		lamp_owner.free()
+	# The ivy, vines and grapes of the houses are lit from outside only: no indoor lamp reaches them.
+	var leaves := AgedStone.ivy_node({"xforms": [Transform3D(Basis.IDENTITY, Vector3(1, 1, 1))], "colours": [Color.WHITE]})
+	check(LightShadows.is_outside_only(leaves), "the ivy is marked as growing on the outside")
+	leaves.free()
 	print("PASS: light shadows" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
 

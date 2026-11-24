@@ -1337,6 +1337,9 @@ static func ivy_node(leaves: Dictionary) -> Node3D:
 		tiles[key].append(i)
 	var root := Node3D.new()
 	root.name = "Ivy"
+	# Leaves and grapes hug the outside of the walls: the lamps of the houses leave them out of their
+	# light (see LightShadows.OUTSIDE_ONLY), or they glow orange from the inside out at night.
+	root.set_meta(LightShadows.OUTSIDE_ONLY, true)
 	for key: Vector2i in tiles:
 		var picked: Array = tiles[key]
 		var mm := MultiMesh.new()

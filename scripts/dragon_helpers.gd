@@ -29,7 +29,7 @@ const SHY := 3.5
 ## The size of the dragon's model on them, and their ember-red tint.
 const MODEL_SCALE := 0.16
 ## How near (metres) to a tile point of their way they count it as reached.
-const WAY_REACHED := 0.6
+const WAY_REACHED := 1.0
 ## What a tile beside an obstacle costs, against an open one (see way_round).
 const CLOSE := 4.0
 ## Scale colours: each dragonling gets one of these (ember, amber, moss, teal,
@@ -48,8 +48,8 @@ const WEAVE := 0.3
 ## How fast (radians per second) they can swing round: a change of direction
 ## is a smooth curve, not a snap. Near the goal they turn tighter, so they
 ## never circle it. They lean into a turn up to BANK radians.
-const TURN := 4.0
-const TURN_CLOSE := 12.0
+const TURN := 9.0
+const TURN_CLOSE := 14.0
 const CLOSE_TO_GOAL := 2.0
 const BANK := 0.5
 
@@ -60,11 +60,15 @@ var den := Vector3.ZERO
 ## once snatched), "home" (flying back)}.
 var helpers: Array = []
 var _spawn_timer := 0.0
+## Their own random numbers: the looks must not disturb the game's (map and
+## village generation draw from the global ones).
+var _rng := RandomNumberGenerator.new()
 
 
 func _init(l: Level, at: Vector3) -> void:
 	level = l
 	den = at
+	_rng.randomize()
 	name = "DragonHelpers"
 
 
@@ -137,7 +141,7 @@ func _send_out(target: Dictionary) -> void:
 	var model: Node3D = load("res://assets/lair/Dragon.fbx").instantiate()
 	model.scale = Vector3.ONE * MODEL_SCALE
 	node.add_child(model)
-	var tint: Color = SCALES[randi() % SCALES.size()]
+	var tint: Color = SCALES[_rng.randi() % SCALES.size()]
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var mat := StandardMaterial3D.new()
 		var is_eye := "eye" in String(mi.name).to_lower()
@@ -146,20 +150,20 @@ func _send_out(target: Dictionary) -> void:
 		mat.emission = EYE_COLOUR if is_eye else tint
 		mat.emission_energy_multiplier = 1.6 if is_eye else 0.35
 		mi.material_override = mat
-	var pace := randf_range(PACE_MIN, PACE_MAX)
+	var pace := _rng.randf_range(PACE_MIN, PACE_MAX)
 	var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
 	if anim and anim.has_animation("DragonArmature|Dragon_Flying"):
 		anim.get_animation("DragonArmature|Dragon_Flying").loop_mode = Animation.LOOP_LINEAR
 		anim.play("DragonArmature|Dragon_Flying")
 		anim.speed_scale = 1.8 * pace
-		anim.seek(randf() * 0.8, true)
+		anim.seek(_rng.randf() * 0.8, true)
 	var glow := OmniLight3D.new()
 	glow.light_color = tint
 	glow.light_energy = 0.9
 	glow.omni_range = 2.5
 	node.add_child(glow)
 	helpers.append({"node": node, "target": target, "carry": null, "home": false,
-		"pace": pace, "model": model, "phase": randf() * TAU})
+		"pace": pace, "model": model, "phase": _rng.randf() * TAU})
 
 
 func _fly(h: Dictionary, delta: float) -> void:

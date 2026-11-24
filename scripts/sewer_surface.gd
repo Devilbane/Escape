@@ -20,6 +20,8 @@ const MOUTH := "Ω"
 const OUTFALL := "Ψ"
 const HATCH := "Θ"
 const GRILLE := "Ξ"
+## How far round a street drain no snow settles (it is warm there): the frame, the setts and a little more.
+const GRILLE_WARM := 1.6
 const LETTERS := "ΩΨΘΞ"
 
 ## The first tile of each two-tile piece (the other one lies to its east).
@@ -155,6 +157,8 @@ static func _mouth(lvl: Outdoor, c: Vector2i) -> void:
 		var mi := heap.finish(lvl, mid)
 		mi.name = "CaughtSnowy" if snowy else "Caught"
 		mi.set_meta(SNOWY_META, snowy)
+		# The snowy heap draws its own snow, and the overlay on top of it would fight with it.
+		mi.set_meta("no_snow", true)
 		mi.visible = not snowy
 		if snowy:
 			mi.material_override = _snow_material()
@@ -362,7 +366,12 @@ static func _grille(lvl: Outdoor, c: Vector2i) -> void:
 	for i in 6:
 		b.frustum(Vector3(rng.randf_range(-wide * 0.4, wide * 0.4), 0.075, rng.randf_range(-deep * 0.35, deep * 0.35)), Vector2(0.16, 0.1), Vector2(0.1, 0.06), 0.01,
 				W.vary(StreamFlow.LEAVES[i % StreamFlow.LEAVES.size()], rng, 0.1), W.WOOD, Basis.from_euler(Vector3(0, rng.randf() * TAU, 0)))
-	b.finish(lvl, mid, false)
+	var drain := b.finish(lvl, mid, false)
+	# The drain breathes out the sewer's warm air: no snow settles on the iron, the frame or the setts,
+	# nor on the street round it (see GRILLE_WARM). A layer of snow over such flat, close-set tops
+	# would flicker against them.
+	drain.set_meta("no_snow", true)
+	lvl.warm_spots.append(Vector4(mid.x, 0.1, mid.z, GRILLE_WARM))
 
 
 ## A manhole: a stone kerb round the shaft, a heavy stone lid on it with iron straps. The lid is

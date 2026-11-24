@@ -1,0 +1,1 @@
+- Matthes the street sweeper now works through all of the village's walkways over the day, footpath after footpath, and sweeps the village square last.

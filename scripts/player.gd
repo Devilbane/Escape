@@ -3640,15 +3640,33 @@ var _ladder_edge := Vector3.ZERO
 var _ladder_push := Vector3.ZERO
 var _ladder_low := 0.0
 var _ladder_aside := 0.0
+## Set when a climb ends: the way off the ladder leads straight past its other end (the foot stands in
+## a corner, the way out of it is the way up), so a held key must not start the next climb. The lock
+## lifts when the hero has walked clear of the ladder or stood still a moment (LADDER_PAUSE).
+var _ladder_lock := false
+var _ladder_idle := 0.0
+var _ladder_down := false
+## The edge of the ladder last climbed, to tell it from another one close by.
+var _ladder_edge_id := Vector3.ZERO
+## How long the hero must stand still on landing before a press at the ladder climbs it again (seconds).
+const LADDER_PAUSE := 0.6
 
 
 ## Steps onto a ladder: walking at its foot towards it climbs up, walking at its
 ## top towards the edge it leans on climbs down. Returns whether a climb began.
 func _try_ladder(dir: Vector3) -> bool:
+	if _ladder_lock:
+		# Only the ladder just come down is shut. Lifted by walking clear of the ladder, or by standing still a moment (then a press at its
+		# foot is meant), but not by a tap and a press again on the way out.
+		_ladder_idle = _ladder_idle + get_physics_process_delta_time() if dir == Vector3.ZERO else 0.0
+		if _ladder_idle >= LADDER_PAUSE or not _near_a_ladder(_ladder_edge_id):
+			_ladder_lock = false
 	if dir == Vector3.ZERO or not is_on_floor() or not is_inside_tree():
 		return false
 	var flat := Vector3(dir.x, 0, dir.z).normalized()
 	for ladder: Node3D in get_tree().get_nodes_in_group(LADDER_GROUP):
+		if _ladder_lock and (ladder.get_meta("edge") as Vector3).is_equal_approx(_ladder_edge_id):
+			continue
 		var foot: Vector3 = ladder.get_meta("foot")
 		var top: Vector3 = ladder.get_meta("top")
 		var push: Vector3 = ladder.get_meta("push")
@@ -3656,6 +3674,14 @@ func _try_ladder(dir: Vector3) -> bool:
 		var up := _near(foot) and flat.dot(push) > 0.6
 		if up or (_near(top) and flat.dot(-push) > 0.6):
 			_start_ladder(edge, push, foot.y, top.y, up)
+			return true
+	return false
+
+
+## Whether the hero stands at the foot or the top of the ladder with this edge (see LADDER_REACH).
+func _near_a_ladder(edge: Vector3) -> bool:
+	for ladder: Node3D in get_tree().get_nodes_in_group(LADDER_GROUP):
+		if (ladder.get_meta("edge") as Vector3).is_equal_approx(edge) and (_near(ladder.get_meta("foot")) or _near(ladder.get_meta("top"))):
 			return true
 	return false
 
@@ -3689,6 +3715,8 @@ func _start_ladder(edge: Vector3, push: Vector3, low: float, high: float, up: bo
 	var forward := from.dot(push)
 	_ladder_aside = from.dot(Vector3(-push.z, 0, push.x))
 	_ladder_keys = LadderPose.up_keys(high - low, forward) if up else LadderPose.down_keys(high - low, forward)
+	_ladder_down = not up
+	_ladder_edge_id = edge
 	_ladder_t = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -3728,6 +3756,10 @@ func _ladder_step(delta: float) -> void:
 
 func _end_ladder() -> void:
 	_ladder_t = -1.0
+	# Down at the foot: the way out of its corner is the way up. (At the top the way on is off the
+	# ladder, and turning round to go down again at once is meant.)
+	_ladder_lock = _ladder_down
+	_ladder_idle = 0.0
 	global_position = _ladder_spot(LadderPose.at(_ladder_keys, LadderPose.length(_ladder_keys))) + Vector3(0, 0.02, 0)
 	reset_physics_interpolation()
 	if _skeleton != null:

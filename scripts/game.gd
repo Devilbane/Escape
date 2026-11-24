@@ -380,6 +380,9 @@ var _shrine_left_label: Label
 var _wise_gift: Button
 ## The Konstitution gift, whose amount depends on the dungeon.
 var _constitution_gift: Button
+var _shrine_title: Label
+var _shrine_sub: Label
+var _gift_buttons: Array[Button] = []
 var _shrine: Dictionary = {}
 var _pending_station: Dictionary = {}
 ## Everything the hero has been told so far, for the compendium (key H):
@@ -1825,10 +1828,12 @@ func _setup_shrine_panel() -> void:
 	title.text = Lang.t("Schrein der Ahnen")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	_shrine_title = title
 	var sub := _make_label(TEXT_FONT, 22)
 	sub.text = Lang.t("Wähle eine Gabe")
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
+	_shrine_sub = sub
 	_shrine_left_label = _make_label(TEXT_FONT, 18, Color(0.65, 0.85, 1.0))
 	_shrine_left_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(_shrine_left_label)
@@ -1841,6 +1846,7 @@ func _setup_shrine_panel() -> void:
 		var b := _make_button(Lang.t("%s\n(Taste %d)") % [gifts[i], i + 1], _choose_gift.bind(i))
 		b.custom_minimum_size = Vector2(200, 96)
 		row.add_child(b)
+		_gift_buttons.append(b)
 		if i == 2:
 			_constitution_gift = b
 	_wise_gift = _make_button(Lang.t("%s\n(Taste %d)") % [Lang.t("+1 Härtung"), 4], _choose_gift.bind(3))
@@ -2764,9 +2770,22 @@ func _open_shrine(s: Dictionary) -> void:
 	_pending_station = {}
 	player.face(s.pos - player.global_position)
 	set_world_paused(true)
-	# A wise hero sees one more way to take the shrine's blessing.
-	_wise_gift.visible = player.attribute("weisheit") >= Training.WISE_SHRINE
-	_constitution_gift.text = Lang.t("%s\n(Taste %d)") % [Lang.t("+%d Konstitution") % shrine_constitution(), 3]
+	if s.get("spring", false):
+		# The river goddess: the same three places in the window, her own gifts, one with a price.
+		_shrine_title.text = Lang.t("Schrein der Flussherrin")
+		_shrine_sub.text = Lang.t("Sie schenkt dir eine Gabe. Eine kostet etwas.")
+		for i in _gift_buttons.size():
+			_gift_buttons[i].text = Lang.t("%s\n(Taste %d)") % [SpringShrine.GIFTS[i], i + 1]
+		_wise_gift.visible = false
+		Events.teach(SpringShrine.LEARN)
+	else:
+		_shrine_title.text = Lang.t("Schrein der Ahnen")
+		_shrine_sub.text = Lang.t("Wähle eine Gabe")
+		for i in 2:
+			_gift_buttons[i].text = Lang.t("%s\n(Taste %d)") % [[Lang.t("+5 Leben"), Lang.t("+1 Attributpunkt")][i], i + 1]
+		# A wise hero sees one more way to take the shrine's blessing.
+		_wise_gift.visible = player.attribute("weisheit") >= Training.WISE_SHRINE
+		_constitution_gift.text = Lang.t("%s\n(Taste %d)") % [Lang.t("+%d Konstitution") % shrine_constitution(), 3]
 	_shrine_panel.visible = true
 
 
@@ -2778,6 +2797,18 @@ func shrine_constitution() -> int:
 func _choose_gift(index: int) -> void:
 	if _shrine.is_empty():
 		return
+	var text := ""
+	if _shrine.get("spring", false):
+		text = SpringShrine.give(self, index)
+	else:
+		text = _give_ancestor_gift(index)
+	if text == "":
+		return
+	_finish_gift(text)
+
+
+## The three gifts of an ancestors' shrine.
+func _give_ancestor_gift(index: int) -> String:
 	var text := ""
 	match index:
 		0:
@@ -2797,9 +2828,14 @@ func _choose_gift(index: int) -> void:
 			text = Lang.t("Du fühlst dich zäher: +%d Konstitution") % amount
 		3:
 			if not _wise_gift.visible:
-				return
+				return ""
 			player.gift_armor += 1
 			text = Lang.t("Deine Haut wird hart wie Rinde: +1 Härtung")
+	return text
+
+
+## The shrine has given its gift: the bookkeeping and the message.
+func _finish_gift(text: String) -> void:
 	if level.beginner_dungeon:
 		player.beginner_shrines_used += 1
 		if shrines_left() <= 0:

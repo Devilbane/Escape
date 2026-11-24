@@ -1,9 +1,9 @@
 class_name GlowwormSwarms
 extends Node3D
 ## Glowworm swarms that roam the open air at night: small clouds of soft
-## yellow-green points that drift slowly over the grass and the village lanes,
-## fading in and out as they glow. They gather most thickly in the village
-## (VILLAGE_SWARMS) and are scarcer elsewhere (WILD_SWARMS).
+## yellow-green points that drift slowly over the meadows, the forest edges, the
+## fields of the farming valley and the river bank, fading in and out as they
+## glow. They never enter the village: its lanes and squares stay free of them.
 ##
 ## Purely decorative: no collision, no effect on the game. Each swarm also
 ## carries one small, soft light so the glow lights the lane around it. Each swarm
@@ -14,9 +14,9 @@ extends Node3D
 ## indoors, they are put out.
 ## Tested by tests/glowworm_swarms.gd.
 
-## How many swarms drift near the hero in the village, and elsewhere.
-const VILLAGE_SWARMS := 4
-const WILD_SWARMS := 3
+## How many swarms drift near the hero. When the hero is in the village they
+## hover out on its rim, so the ones in range are the ones just beyond the walls.
+const SWARMS := 4
 ## Swarms are placed this far from the hero (metres), and carried to a new
 ## spot once they are farther than LOSE.
 const NEAR := 7.0
@@ -30,8 +30,15 @@ const HOLD := Vector2(4.0, 9.0)
 const HEIGHT := Vector2(0.5, 1.5)
 ## A swarm slips away from the hero inside this distance (metres).
 const SHY := 3.5
-## Where a swarm may drift: on open ground.
-const GROUND := ".,Pai:"
+## Where a swarm may drift: on open ground outside the village: grass, paths,
+## the fields of the farming valley and the river.
+const GROUND := ".,Pai≡‡☼≈"
+## Spots beside these (forest, river, pond, fields) are where swarms like to gather.
+const COSY := "#T≈~≡‡☼"
+## How far (cells) a swarm looks around for a cosy spot, and how often a spot
+## in the middle of a bare meadow is taken anyway.
+const COSY_REACH := 3
+const BARE_CHANCE := 0.35
 ## The glow of a glowworm: a yellow-green.
 const GLOW := Color(0.72, 1.0, 0.34)
 ## The soft light a swarm casts: faint and short, so a lane is only touched by
@@ -58,9 +65,9 @@ static func out_at(hour: float) -> bool:
 	return hour >= 20.5 or hour < 5.5
 
 
-## How many swarms should drift around the hero: more in the village.
-static func swarms_for(in_village: bool) -> int:
-	return VILLAGE_SWARMS if in_village else WILD_SWARMS
+## How many swarms should drift around the hero.
+static func swarms_for() -> int:
+	return SWARMS
 
 
 ## One swarm: a small cloud of points that fade in and out as they drift.
@@ -103,11 +110,21 @@ static func make_swarm() -> CPUParticles3D:
 	return p
 
 
-## Whether a swarm may hover over a spot: open ground, not a house (a village one, a self-built one
-## or its walled yard, see Outdoor.is_sheltered).
+## Whether a swarm may hover over a spot: open ground outside the village, not a house
+## (a self-built one or its walled yard, see Outdoor.is_sheltered).
 func _free(at: Vector3) -> bool:
 	var c := level.world_to_cell(at)
-	return GROUND.contains(level.cell_char(c)) and not level._in_house(c) and not level.is_sheltered(Vector3(at.x, 0.5, at.z))
+	return GROUND.contains(level.cell_char(c)) and not level._in_village(c) and not level._in_house(c) \
+			and not level.is_sheltered(Vector3(at.x, 0.5, at.z))
+
+
+## Whether a cell lies close to a forest edge, water or a field.
+func _cosy(c: Vector2i) -> bool:
+	for dy in range(-COSY_REACH, COSY_REACH + 1):
+		for dx in range(-COSY_REACH, COSY_REACH + 1):
+			if COSY.contains(level.cell_char(c + Vector2i(dx, dy))):
+				return true
+	return false
 
 
 ## A new spot for a swarm around `centre`, on open ground, or INF.
@@ -155,7 +172,7 @@ func tick(delta: float, hero: Vector3, hour: float, indoors: bool) -> void:
 	var on := out_at(hour) and not indoors
 	var want := 0
 	if on:
-		want = swarms_for(level._in_village(level.world_to_cell(hero)))
+		want = swarms_for()
 	# Too many: put out the farthest. Too few: add one around the hero.
 	var active := _swarms.filter(func(w): return not w.get("fading", false))
 	if active.size() > want:

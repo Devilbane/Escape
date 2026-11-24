@@ -141,6 +141,27 @@ func _world() -> void:
 	print("snow overlays: %d meshes" % covered)
 	check(covered > 20, "roofs, ground and props wear the snow layer (%d meshes)" % covered)
 	check(bare_wrong == 0, "no creature is covered in snow")
+	# Every creature that takes up room, the village cat, and a kind that extends a bare one (a bandit chief
+	# is an enemy, a spider queen too) wears no snow on its back.
+	var creatures: Array = get_nodes_in_group(Footprint.GROUP)
+	if lvl.village_cat != null:
+		creatures.append(lvl.village_cat)
+	var coated := 0
+	for mi: MeshInstance3D in lvl.find_children("*", "MeshInstance3D", true, false):
+		if mi.material_overlay == null:
+			continue
+		var holder: Node = mi
+		while holder != null and holder != lvl:
+			if holder in creatures:
+				coated += 1
+				break
+			holder = holder.get_parent()
+	check(coated == 0, "no animal or creature wears snow on its back (%d meshes)" % coated)
+	var queen := CharacterBody3D.new()
+	queen.set_script(load("res://scripts/spider_queen.gd"))
+	check(SnowCover.bare(queen), "a kind that extends a bare one stays bare too")
+	queen.free()
+	check(lvl.village_cat == null or SnowCover.bare(lvl.village_cat), "the village cat wears no snow")
 	var shaded: ShaderMaterial = lvl.snow.material
 	check(lvl.warm_spots.size() >= 3 and int(shaded.get_shader_parameter("warm_count")) == mini(lvl.warm_spots.size(), SnowCover.WARM_MAX), "fires, the forge and the chimneys keep the snow off (%d spots)" % lvl.warm_spots.size())
 	var glowing := 0

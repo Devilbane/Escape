@@ -2193,6 +2193,8 @@ func _wall_material(surface: String, demolish: bool) -> Material:
 			return HouseLooks.stair_wood()
 		LostMine.ROCK:
 			return LostMine.rock_material()
+		LostMine.ORE_ROCK:
+			return LostMine.ore_rock_material()
 	if surface.begins_with("brick"):
 		return Sewers.brick_material(Sewers.variant_of(surface))
 	return BareEarth.material()

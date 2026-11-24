@@ -1,6 +1,6 @@
 class_name ChimneySmoke
 extends RefCounted
-## Smoke from the chimneys of the village houses on the evenings someone is
+## Smoke from the chimneys of the village houses: a thin plume from the hearths by day, and on the evenings someone is
 ## at home. When the villagers come home at nightfall (see Villager.set_night)
 ## they light the fire, and a thin grey plume curls up out of their house's
 ## chimney and drifts off with the breeze. Late in the evening the fire burns
@@ -15,21 +15,47 @@ extends RefCounted
 ## The fires burn from the hour the village goes home (DayNight.NIGHT_FROM)
 ## until FIRE_OUT, after midnight.
 const FIRE_OUT := 1.0
+## The day's hearth fires burn from DAY_FROM until DAY_TO.
+const DAY_FROM := 6.0
+const DAY_TO := 19.5
 ## The breeze the smoke drifts off on (metres per second squared).
 const BREEZE := Vector3(0.22, 0.32, 0.08)
 ## The smoke's colour: a cool grey, faint (it is added to what lies behind).
 const GREY := Color(0.62, 0.64, 0.7)
 
 
-## Whether the fires burn at an hour, for a house with someone at home.
+## Whether the evening fires burn at an hour, for a house with someone at home.
 static func fire_burns(hour: float) -> bool:
 	hour = fposmod(hour, 24.0)
 	return hour >= DayNight.NIGHT_FROM or hour < FIRE_OUT
 
 
-## Whether a house's chimney smokes: in the evening, with someone at home.
+## Whether the hearths are lit by day, in every house whether or not anyone is
+## at home: from first light until the cooking is done at dusk.
+static func day_burns(hour: float) -> bool:
+	hour = fposmod(hour, 24.0)
+	return hour >= DAY_FROM and hour < DAY_TO
+
+
+## Whether a house's chimney smokes: by day always, in the evening with
+## someone at home.
 static func smokes(hour: float, at_home: int) -> bool:
-	return at_home > 0 and fire_burns(hour)
+	return day_burns(hour) or (at_home > 0 and fire_burns(hour))
+
+
+## How much smoke a lit chimney gives (0 to 1): the day's fires are lit
+## slowly after dawn and die down towards dusk; the evening fires burn evenly.
+static func strength(hour: float) -> float:
+	hour = fposmod(hour, 24.0)
+	if hour >= DAY_FROM and hour < DAY_TO:
+		return minf(smoothstep(DAY_FROM, DAY_FROM + 1.5, hour), 1.0 - smoothstep(DAY_TO - 2.0, DAY_TO, hour))
+	return 1.0
+
+
+## The breeze the smoke drifts on in a weather: the same wind that flutters
+## the flags (see FlagWind), so the plume leans the way the cloth does.
+static func breeze(weather: String) -> Vector3:
+	return BREEZE * FlagWind.wind_for(weather).x
 
 
 ## A plume of smoke, to be put on top of a chimney. It starts cold (not

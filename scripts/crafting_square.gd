@@ -102,8 +102,12 @@ static func build_bench(parent: Node, pos: Vector3, ch: String, seed_value: int)
 			VillageProps.dress_gem_wheel(b, top, rng)
 			_dress_gem_wheel(parent, pos)
 		"*":
-			VillageProps.dress_alchemy(b, top, CAULDRON, rng, POT)
+			VillageProps.dress_alchemy(b, top, rng)
 			_dress_alchemy(parent, pos)
+			# The pot is its own mesh: it burns all winter, so no snow lies on it.
+			var pot := WeatheredProps.Builder.new()
+			VillageProps.dress_cauldron(pot, CAULDRON, rng, POT)
+			pot.finish(parent, pos).set_meta("no_snow", true)
 	b.finish(parent, pos)
 
 
@@ -225,7 +229,7 @@ static func _dress_alchemy(level: Node, pos: Vector3) -> void:
 	surface.top_radius = 0.31 * POT
 	surface.bottom_radius = 0.31 * POT
 	surface.height = 0.02
-	_mesh(level, surface, brew, at + Vector3(0, 0.46 * POT, 0))
+	_mesh(level, surface, brew, at + Vector3(0, 0.46 * POT, 0)).set_meta("no_snow", true)
 	var coals := Effects.make_flame()
 	coals.amount = 6
 	coals.position = at + Vector3(0, 0.1 * POT, 0)

@@ -96,7 +96,8 @@ func _physics_process(delta: float) -> void:
 func _step() -> void:
 	if _held > 0.0:
 		for player in _players:
-			if is_instance_valid(player):
+			# A player that is switched off holds a pose set by hand (see Villager._freeze).
+			if is_instance_valid(player) and player.active:
 				player.advance(_held)
 	_held = 0.0
 	_ticks = 0

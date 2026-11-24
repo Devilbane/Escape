@@ -5580,6 +5580,11 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		SnowSweep.advance(self, cover)
 	if pond_reeds != null:
 		pond_reeds.set_snow(cover)
+	# Leaves and rubbish drifting down the stream and the river turn white under snow.
+	if is_inside_tree():
+		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
+			flow.set_snow(cover)
+		SewerSurface.set_snow(self, cover)
 	if waterfall != null:
 		waterfall.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):

@@ -72,16 +72,16 @@ const SEASONS := [SPRING, SUMMER, AUTUMN, WINTER]
 ## STAY_CLEAR); otherwise these weights pick which bad weather follows clear skies,
 ## and after bad weather, clear skies win most rolls. Fog still gathers at night and
 ## in the morning, and storms still brew in the evening.
-##   spring  mostly sunny, now and then rain, rarely fog, rarely a snow flurry;
+##   spring  mostly sunny, now and then rain, rarely fog, no snow;
 ##   summer  the sunniest: thunderstorms (most on warm evenings), rarely rain or fog, no snow;
-##   autumn  changeable: sunny spells, rain, thunderstorms and fog, rarely a snow flurry;
+##   autumn  changeable: sunny spells, rain, thunderstorms and fog, no snow;
 ##   winter  snow instead of rain and storms, fog in the morning.
 const CHANCES := {
 	SPRING: {
-		"night": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.6, STORM: 0.15, SNOW: 0.3},
-		"morning": {CLEAR: 8.0, RAIN: 0.7, FOG: 0.8, STORM: 0.05, SNOW: 0.3},
-		"day": {CLEAR: 14.0, RAIN: 1.1, FOG: 0.2, STORM: 0.2, SNOW: 0.2},
-		"evening": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.3, STORM: 0.3, SNOW: 0.2},
+		"night": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.6, STORM: 0.15},
+		"morning": {CLEAR: 8.0, RAIN: 0.7, FOG: 0.8, STORM: 0.05},
+		"day": {CLEAR: 14.0, RAIN: 1.1, FOG: 0.2, STORM: 0.2},
+		"evening": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.3, STORM: 0.3},
 	},
 	SUMMER: {
 		"night": {CLEAR: 10.0, RAIN: 0.3, FOG: 0.3, STORM: 1.5},
@@ -90,10 +90,10 @@ const CHANCES := {
 		"evening": {CLEAR: 10.0, RAIN: 0.3, FOG: 0.1, STORM: 2.5},
 	},
 	AUTUMN: {
-		"night": {CLEAR: 6.0, RAIN: 2.5, FOG: 3.0, STORM: 1.5, SNOW: 0.3},
-		"morning": {CLEAR: 6.0, RAIN: 2.0, FOG: 4.0, STORM: 0.5, SNOW: 0.3},
-		"day": {CLEAR: 10.0, RAIN: 3.0, FOG: 1.0, STORM: 1.2, SNOW: 0.2},
-		"evening": {CLEAR: 6.0, RAIN: 2.5, FOG: 1.5, STORM: 2.0, SNOW: 0.2},
+		"night": {CLEAR: 6.0, RAIN: 2.5, FOG: 3.0, STORM: 1.5},
+		"morning": {CLEAR: 6.0, RAIN: 2.0, FOG: 4.0, STORM: 0.5},
+		"day": {CLEAR: 10.0, RAIN: 3.0, FOG: 1.0, STORM: 1.2},
+		"evening": {CLEAR: 6.0, RAIN: 2.5, FOG: 1.5, STORM: 2.0},
 	},
 	WINTER: {
 		"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},
@@ -416,6 +416,14 @@ static func particle_material(tex: Texture2D, billboard: int, tinted: bool, colo
 	return mat
 
 
+## From how hard it rains (the look's rain, 0 to 1) the drops turn smaller and greyer; at the full
+## storm they are HEAVY_SIZE as big and HEAVY_GREYING of the way to HEAVY_GREY. Ordinary rain (0.55) is untouched.
+const HEAVY_FROM := 0.6
+const HEAVY_SIZE := 0.7
+const HEAVY_GREYING := 0.6
+const HEAVY_GREY := Color(0.62, 0.65, 0.7)
+
+
 ## Rain that falls around the hero (keep it over the hero, see Game).
 static func make_rain() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
@@ -578,7 +586,14 @@ static func show_particles(rain: CPUParticles3D, mist: CPUParticles3D, weather_l
 	rain.visible = rain.emitting
 	var shade := clampf(0.12 + light, 0.12, 1.0)
 	var rain_mat: ShaderMaterial = (rain.mesh as QuadMesh).material
-	rain_mat.set_shader_parameter("albedo", Color(0.75 * shade, 0.82 * shade, 0.95 * shade, 0.45 * r))
+	# Heavy rain (the storm) falls in smaller, greyer drops; as it fades back to ordinary rain they
+	# return to their usual look (see HEAVY_FROM).
+	var heavy := smoothstep(HEAVY_FROM, 1.0, r)
+	var drop := Color(0.75, 0.82, 0.95).lerp(HEAVY_GREY, heavy * HEAVY_GREYING)
+	rain_mat.set_shader_parameter("albedo", Color(drop.r * shade, drop.g * shade, drop.b * shade, 0.45 * r))
+	var size := lerpf(1.0, HEAVY_SIZE, heavy)
+	rain.scale_amount_min = size
+	rain.scale_amount_max = size
 	var m: float = weather_look.mist
 	mist.emitting = m > 0.02
 	mist.visible = mist.emitting

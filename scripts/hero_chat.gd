@@ -25,6 +25,9 @@ const GREETINGS := ["hallo", "hi", "hey", "moin", "grüß", "guten tag", "guten 
 const FAREWELLS := ["tschüss", "tschuess", "tschau", "ciao", "auf wiedersehen", "bis bald", "bye", "goodbye", "farewell", "see you"]
 const THANKS := ["danke", "dankeschön", "thanks", "thank you"]
 
+## Words that ask the priestess for her help (lower case, German and English).
+const HEAL_WORDS := ["heal", "heilen", "heile", "heilung", "bless", "segen", "segne"]
+
 const GREETING_REPLIES := [
 	"Guten Tag, Fremder!",
 	"Hallo! Schön, ein freundliches Wort zu hören.",
@@ -53,11 +56,26 @@ func _init(owner_game: Node) -> void:
 ## The hero said `text` at `pos` (see Events.hero_spoke): the nearest free
 ## villager answers after a pause.
 func on_hero_spoke(text: String, pos: Vector3) -> void:
+	# Asking the priestess for healing or a blessing opens her window.
+	var priestess := healer_asked(text, pos)
+	if priestess != null:
+		game.ask_priestess(priestess)
+		return
 	var who := listener(pos)
 	if who == null:
 		return
 	var delay := _rng.randf_range(DELAY.x, DELAY.y)
 	game.get_tree().create_timer(delay).timeout.connect(func() -> void: answer(who, text))
+
+
+## The priestess in earshot when `text` asks for healing or a blessing, or null.
+func healer_asked(text: String, pos: Vector3) -> Villager:
+	if game.level == null or not "villagers" in game.level or not _has_word(text.to_lower(), HEAL_WORDS):
+		return null
+	for v in game.level.villagers:
+		if is_instance_valid(v) and v.role == Outdoor.TEMPLE_KEEPER and VillageTalk._flat(v.global_position, pos) <= REPLY_RANGE and not v.is_frozen():
+			return v
+	return null
 
 
 ## The nearest villager near `pos` who is free to answer, or null.

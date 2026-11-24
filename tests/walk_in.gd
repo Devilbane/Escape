@@ -349,8 +349,8 @@ func _run() -> void:
 		else:
 			check(v.bed_trip.is_empty() and v.at_home and not v.visible, "%s went to bed (%s)" % [v.role, step])
 	var all_beds := 0
-	for r: Dictionary in houses:
-		all_beds += (r.beds as Array).size()
+	for r: Dictionary in walk_in.buildings:
+		all_beds += (r.get("beds", []) as Array).size()
 	check(upstairs > 0 and upstairs <= all_beds, "villagers sleep upstairs in the beds (%d of %d), two to a house at most" % [upstairs, all_beds])
 	for r: Dictionary in houses:
 		var taken := (r.beds as Array).filter(func(b): return b.by != null).size()
@@ -367,6 +367,9 @@ func _run() -> void:
 			check(home.get("owner", "") == VillageHalls.KEEPERS.guild, "Ragna sleeps in her own guildhall")
 		elif v.role in MageTower.OWNERS:
 			check((home.get("owners", []) as Array).has(v.role), "%s sleeps in the mages' tower" % v.role)
+		elif VillageHalls.HOME_OWNERS.values().any(func(owners): return (owners as Array).has(v.role)):
+			# The shop's family and the post office's and Crown office's staff sleep in bedrooms there.
+			check((home.get("owners", []) as Array).has(v.role), "%s sleeps in the bedroom of their hall" % v.role)
 		else:
 			check(not home.has("owner"), "%s does not sleep in the smith's cottage or the guildhall" % v.role)
 	# Morning: everyone walks out.

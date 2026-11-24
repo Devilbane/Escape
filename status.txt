@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep fog off the walls inside the village buildings | Shipped this week: Draw the drifting bits on rivers and streams as leaf shapes, not squares; Wolfram leaves no snow prints while he climbs (+48 more)
+Escape! dev status | Working on: Make heavy rain fall in smaller, greyer drops; Keep fog off the walls inside the village buildings | Shipped this week: Draw the drifting bits on rivers and streams as leaf shapes, not squares; Wolfram leaves no snow prints while he climbs (+48 more)

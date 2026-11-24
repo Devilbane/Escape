@@ -1895,6 +1895,7 @@ func _use_station(s: Dictionary) -> void:
 		player.play("Idle")
 		var held := hoard_coins()
 		level.show_hoard(held)
+		house_furnisher.refresh_hoards()
 		show_message(HomeHoard.describe(HomeHoard.stage_of(HomeHoard.wealth(held.kupfermuenze, held.silbermuenze, held.goldmuenze)), held), 3.5, GOLD)
 	elif s.kind == VillageWall.GATE_STATION:
 		player.face(s.pos - player.global_position)

@@ -29,7 +29,9 @@ const SHY := 3.5
 ## The size of the dragon's model on them, and their ember-red tint.
 const MODEL_SCALE := 0.16
 ## How near (metres) to a tile point of their way they count it as reached.
-const WAY_REACHED := 1.0
+const WAY_REACHED := 0.6
+## Within this far (metres) a way point behind the dragonling counts as passed.
+const PASSED := 2.5
 ## What a tile beside an obstacle costs, against an open one (see way_round).
 const CLOSE := 4.0
 ## Scale colours: each dragonling gets one of these (ember, amber, moss, teal,
@@ -210,7 +212,8 @@ func _fly(h: Dictionary, delta: float) -> void:
 		heading = heading.rotated(Vector3.UP, turned).normalized()
 	h["heading"] = heading
 	node.rotation.y = atan2(heading.x, heading.z)
-	var rise := clampf(step.y, -move, move)
+	# Climb or sink in step with the way along the ground, never faster than 70% of the speed.
+	var rise := clampf(step.y * move / maxf(want.length(), 0.001), -move * 0.7, move * 0.7)
 	var along := sqrt(maxf(0.0, move * move - rise * rise))
 	node.global_position += heading * along + Vector3(0, rise, 0)
 	# Lean into the turn, easing in and out.
@@ -241,7 +244,15 @@ func _via(h: Dictionary, goal: Vector3) -> Variant:
 		h["leg"] = leg
 		h["way"] = way_round(level, node.global_position, goal)
 	var way: Array = h["way"]
-	while way.size() > 1 and _flat(way[0] - node.global_position) < WAY_REACHED:
+	# A point counts as reached when near it, or when the curve carried the
+	# dragonling past it (it lies behind): never circling a point it cannot hit.
+	var heading: Vector3 = h.get("heading", Vector3.ZERO)
+	while way.size() > 1:
+		var to_point: Vector3 = way[0] - node.global_position
+		var d := _flat(to_point)
+		var passed := heading != Vector3.ZERO and d < PASSED and heading.dot(Vector3(to_point.x, 0, to_point.z)) < 0.0
+		if d >= WAY_REACHED and not passed:
+			break
 		way.pop_front()
 	# The last tile point is the goal's own tile: head for the goal itself from there.
 	if way.size() <= 1:

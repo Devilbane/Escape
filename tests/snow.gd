@@ -314,6 +314,16 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
+	# Underground steps press nothing in the snow above, and the surface's prints hide while the hero is down there.
+	SnowPrints.clear()
+	var before_deep := SnowPrints._live.size()
+	lvl.snow_print(Vector3(3, -2.5, 3), 0.0)
+	check(SnowPrints._live.size() == before_deep, "a step underground presses no print on the surface")
+	lvl.snow_print(Vector3(3, 0, 3), 0.0)
+	SnowPrints.set_underground(true)
+	check(not (SnowPrints._live.back() as MeshInstance3D).visible, "surface prints hide while the hero is underground")
+	SnowPrints.set_underground(false)
+	check((SnowPrints._live.back() as MeshInstance3D).visible, "surface prints show again up top")
 	# A crowd of boots cannot push the animals' tracks out of the pool.
 	SnowPrints.clear()
 	for i in SnowPrints.MAX:

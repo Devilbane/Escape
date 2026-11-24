@@ -17,10 +17,10 @@ const KINDS := {
 	"holzfaeller": {"words": ["handeln", "kaufen"], "secret": []},
 	"raumausstatter": {"words": ["handeln", "kaufen"], "secret": []},
 	"ü": {"words": ["handeln", "kaufen"], "secret": []},
-	"bank": {"words": ["Bank", "Münzen"], "secret": []},
-	"barbier": {"words": ["Haare", "Frisur"], "secret": []},
-	"tempel": {"words": ["heilen", "Segen"], "secret": ["heilung", "segne"]},
-	"plot_office": {"words": ["Land", "Grundstück"], "secret": []},
+	"bank": {"words": ["Konto", "Tresor"], "secret": []},
+	"barbier": {"words": ["Haare", "Schnitt"], "secret": []},
+	"tempel": {"words": ["heilen", "segnen"], "secret": ["heilung", "segen"]},
+	"plot_office": {"words": ["Grundstück", "Bauland"], "secret": []},
 }
 
 

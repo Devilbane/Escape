@@ -1,0 +1,40 @@
+# Required tests that a pull request runs only when it touches what they cover (tests/ci_select.sh). They stay in
+# tests/ci_manifest.txt, so the nightly and manual runs always run them. Columns: file | paths (space-separated,
+# * matches anything). A test also runs when its own file changes.
+#
+# The rule that keeps this safe: a scoped test is skipped only when EVERY changed file is "known" (in this
+# file's paths or in NEUTRAL below). One change to shared code (scripts/game.gd, scripts/player.gd, items, saving,
+# menus, project.godot, scenes, the workflows, ...) is not known, so the whole required list runs.
+# A test that loads scenes/main.tscn depends on game.gd, so such a test is only worth scoping when its feature
+# lives in its own files, as the house, workshop and launcher features do.
+#
+# NEUTRAL (never forces the full list, never selects a test by itself): scripts/lang/*, levels/*, assets/*,
+# shaders/*, docs, balance, *.md, patch note fragments. The always-required tests (letters, texts, shaders,
+# map checks, fixed window sizes, ...) still cover these.
+#
+# The house, cellar, roof and building features.
+house_sketch.gd | scripts/house*.gd scripts/plot*.gd scripts/creations.gd
+house_cellar.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
+house_cellar_floor.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
+house_cellar_ceiling.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
+house_ladder.gd | scripts/house*.gd scripts/ladder_pose.gd scripts/cellar_view.gd scripts/plot*.gd
+storm_build.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
+house_roof_items.gd | scripts/house*.gd scripts/roof_caps.gd scripts/plot*.gd
+house_upper.gd | scripts/house*.gd scripts/roof_caps.gd scripts/indoor_mask.gd scripts/plot*.gd
+house_railing.gd | scripts/house*.gd scripts/roof_caps.gd scripts/plot*.gd
+built_doors.gd | scripts/house*.gd scripts/built_door.gd scripts/plot*.gd
+house_furniture.gd | scripts/house*.gd scripts/home_store_furniture.gd scripts/walk_in_furniture.gd scripts/candle_stand.gd scripts/plot*.gd
+house_hiding.gd | scripts/house*.gd scripts/indoor_mask.gd scripts/built_door.gd scripts/plot*.gd
+house_login.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
+house_login_flow.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
+candle_stand.gd | scripts/candle_stand.gd scripts/house*.gd
+plots.gd | scripts/plot*.gd scripts/house*.gd
+plot_clearing.gd | scripts/plot*.gd scripts/house*.gd scripts/quarry_rocks.gd scripts/mountains.gd
+# Tools around the game.
+level_editor.gd | scripts/level_editor.gd scripts/editor_*.gd scripts/level_map.gd scripts/creations.gd scripts/tiles.gd
+launcher.gd | scripts/launcher.gd scenes/launcher.tscn tools/patch_notes.py docs/patch_notes.txt docs/patch_notes.d/*
+patch_history.gd | scripts/patch_history.gd tools/patch_notes.py docs/patch_notes.txt docs/patch_notes.d/* docs/patch_history.json
+# Mountains.
+rock_climb.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountain_king.gd scripts/rock_climb.gd scripts/climb_spots.gd scripts/rope_climb_pose.gd scripts/climb_helmet.gd scripts/climbing.gd
+climbing_gear.gd | scripts/climbing.gd scripts/climb_spots.gd
+mountain_foot.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountain_king.gd

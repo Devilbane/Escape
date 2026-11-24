@@ -1,0 +1,23 @@
+name: Big feature build
+
+# A pull request labelled `big-feature` that merges starts the Windows build of the merged commit, so the
+# new system can be played at once instead of waiting for the nightly build (docs/testing.md, "Windows builds").
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  build:
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'big-feature')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start the Windows build of the merge commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: gh workflow run desktop.yml --repo "$GITHUB_REPOSITORY" --ref main -f sha="$SHA"

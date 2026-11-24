@@ -265,6 +265,9 @@ var brave := false
 var _blow_cool := 0.0
 ## Elsbeth's now-and-then spell with her staff (see StaffSpell), null for everyone else.
 var _staff_spell: StaffSpell
+## Elsbeth's blessing round under way (see BlessRound), null otherwise, and the day of her last one.
+var _round: BlessRound.Round
+var _blessed_day := -1
 ## Counts down after the danger; at zero the blade is sheathed. -1: not waiting.
 var _sheathe_in := -1.0
 var _calm_check := 0.0
@@ -360,6 +363,11 @@ var _light_wait := INF
 var _lit_tonight := false
 var _flare := 0.0
 var _carry_arm: CarryArm
+## Hanna's yoke with its two buckets, and the arms that rest on it (see WaterYoke, WaterRound), and
+## whether the buckets are full: from the fountain to the shops, not on the way back.
+var _yoke: WaterYoke
+var _yoke_arms: YokeArms
+var water_full := false
 ## The arms of a sleeper with the head in the hands (see SleepArms and slump).
 var _sleep_arms: SleepArms
 ## Where the woodcutter (or the smith) stands to work and which way he faces
@@ -471,6 +479,11 @@ func _ready() -> void:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	if role == StaffSpell.ROLE:
 		_staff_spell = StaffSpell.put_on(self)
+	if WaterRound.is_carrier(role):
+		_yoke = WaterYoke.attach(_model, _anim)
+		_yoke_arms = YokeArms.attach(_bones(), _anim)
+		if _yoke != null:
+			_yoke.visible = false
 	_bubble = SpeechBubble.new()
 	_bubble.position.y = 3.0 * _info.get("scale", 1.0) + 0.15
 	add_child(_bubble)
@@ -835,6 +848,8 @@ func _start(task: String, time: float) -> void:
 	if task != "service":
 		_service_after_post = {}
 	_task = task
+	if task != "bless":
+		_round = null
 	# Called away from the herald on the way to him (an alarm, a chat, a fright):
 	# no longer listening, or he would stay deaf to chats until the next call.
 	if task != "walk" and task != "listen":
@@ -850,7 +865,7 @@ func _start(task: String, time: float) -> void:
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless"] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -960,6 +975,93 @@ func _finish_mending() -> void:
 
 func can_mend_next() -> bool:
 	return not eaten and not at_home and threat == null
+
+
+# --- Elsbeth's blessing round (see BlessRound) -------------------------------
+
+## Sets out on the blessing round (or just to thaw frozen Fritz) when it is time: true when she goes.
+func _bless_out() -> bool:
+	if role != BlessRound.ROLE or level == null or at_home or not visible or eaten or threat != null:
+		return false
+	if _bubble_time > 0.0 or chat_partner != null or service_step() != "":
+		return false
+	var sites := BlessRound.due(level, _blessed_day)
+	if sites.is_empty():
+		return false
+	var whole := sites.size() > 1 or (sites[0] as BlessRound.Site).kind != BlessRound.KIND_THAW
+	if whole:
+		_blessed_day = level.day
+	_round = BlessRound.Round.new()
+	_round.sites = sites
+	_start("bless", 1.0)
+	return true
+
+
+## One physics tick of the round: walk to the place, raise the staff, say what is being blessed, let the
+## light fall, on to the next place.
+func _bless_step(delta: float) -> void:
+	var tour := _round
+	if tour == null or level.night or threat != null or level.village_alarm.raised or eaten:
+		_start("idle", 0.5)
+		return
+	var site := tour.site()
+	if site == null:
+		_start("idle", 0.5)
+		return
+	if tour.step == "go":
+		var away := Vector2(site.stand.x - global_position.x, site.stand.z - global_position.z).length()
+		if away > BlessRound.ARRIVE:
+			tour.tries += 1
+			if tour.tries > BlessRound.TRIES:
+				_bless_next()
+			else:
+				_walk_to(site.stand, WALK_SPEED, "bless")
+			return
+		tour.step = "cast"
+		tour.clock = 0.0
+	_turn_to(site.at - global_position, delta)
+	tour.clock += delta
+	if _current_anim != "Spellcast_Raise" or not _anim.is_playing():
+		if tour.clock < BlessRound.CAST_TIME - 0.6:
+			play("Spellcast_Raise", 0.2)
+	if not tour.cast_done and tour.clock >= BlessRound.CAST_AT:
+		tour.cast_done = true
+		_bless_cast(site)
+	if tour.clock >= BlessRound.CAST_TIME:
+		_bless_next()
+
+
+func _bless_next() -> void:
+	if _round != null and _round.next():
+		_round.step = "go"
+		return
+	_start("idle", 1.0)
+	play("Idle")
+
+
+## The words and the light of one blessing.
+func _bless_cast(site: BlessRound.Site) -> void:
+	var warm := site.kind == BlessRound.KIND_THAW
+	say(Lang.t(BlessRound.SAYS[site.kind]), Vector3.INF, BlessRound.CAST_TIME + 0.8)
+	BlessFx.cast(level, site.at, "warm" if warm else "bless", BlessRound.RADIUS[site.kind])
+	Sfx.play(self, "magic", -8.0, global_position, 0.9 if warm else 1.1)
+	if _staff_spell != null:
+		_staff_spell.enchant()
+	if warm:
+		_thaw_fritz()
+
+
+## The spell takes the ice off frozen Fritz for the rest of the day (see FrozenFritz.wants): he gets going
+## again and thanks her.
+func _thaw_fritz() -> void:
+	level.fritz_thawed_day = level.day
+	var fritz := BlessRound.frozen_fritz(level)
+	if fritz == null:
+		return
+	fritz._frost_check = 0.0
+	get_tree().create_timer(1.6).timeout.connect(func():
+		if is_instance_valid(fritz) and fritz.is_inside_tree() and not fritz.is_frozen():
+			fritz.say(Lang.t(BlessRound.THANKS), global_position, 3.5))
 
 
 # --- The herald sweeps the snow off the walkways ------------------------------
@@ -1888,6 +1990,8 @@ func _next_task() -> void:
 			else:
 				_start("work", 6.0)
 		"work", "sit":
+			if _bless_out():
+				return
 			# Fritz drops into the tavern to sit by the hearth (see TavernBrewer).
 			if role == TavernBrewer.GUEST and TavernBrewer.wants(self) and TavernBrewer.visit(self):
 				return
@@ -1930,6 +2034,9 @@ func _next_task() -> void:
 		"farm":
 			_farm_day()
 		"carry":
+			if WaterRound.is_carrier(role) and WaterRound.fill_spot(level) != Vector3.INF and not WaterRound.stops(level).is_empty():
+				_water_round()
+				return
 			# Between the well and the houses, with a stop at each.
 			var at_well := level.world_to_cell(global_position) == home
 			if _task == "walk":
@@ -1939,6 +2046,42 @@ func _next_task() -> void:
 				_walk_to(houses[_rng.randi() % houses.size()] if not houses.is_empty() else _nearby(6), WALK_SPEED, "idle")
 			else:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+
+
+## Hanna's round (see WaterRound): fill the buckets at the fountain, carry them to a shop or the
+## tavern, set them down a moment there, and back to the fountain for more.
+func _water_round() -> void:
+	var fill := WaterRound.fill_spot(level)
+	var at_fill := global_position.distance_to(fill) < WaterRound.AT_FOUNTAIN
+	if _task == "walk":
+		# Arrived: dipping the buckets in the basin, or calling at a door and pouring out.
+		if not at_fill:
+			water_full = false
+		_start("work" if at_fill else "idle", _rng.randf_range(2.5, 4.5))
+	elif at_fill:
+		water_full = true
+		var calls := WaterRound.stops(level)
+		_walk_to(calls[_rng.randi() % calls.size()], WALK_SPEED, "idle")
+	else:
+		water_full = false
+		_walk_to(fill, WALK_SPEED, "work")
+
+
+## Puts the yoke on or takes it off, and says whether the buckets hold water.
+func _mind_yoke() -> void:
+	if _yoke == null:
+		return
+	var on := WaterRound.carries(self)
+	if _yoke.visible != on:
+		_yoke.visible = on
+	if _yoke_arms != null:
+		_yoke_arms.active = on
+	_yoke.full = water_full
+
+
+## Whether the body is posed bone by bone (a ladder, a bed, the horn).
+func is_posed() -> bool:
+	return _body_posed or _blow_posed
 
 
 ## The farming valley's day plan (see ValleyFolk): the next job of the season, walked to and worked at.
@@ -2210,6 +2353,7 @@ func _physics_process(delta: float) -> void:
 	bump_cool = maxf(0.0, bump_cool - delta)
 	_keep_apart(delta)
 	_mind_torch(delta)
+	_mind_yoke()
 	_season_remark(delta)
 	_wear_check -= delta
 	if _wear_check <= 0.0:
@@ -2270,6 +2414,8 @@ func _physics_process(delta: float) -> void:
 			_mend(delta)
 		"sweep":
 			_sweep_snow(delta)
+		"bless":
+			_bless_step(delta)
 		"defend":
 			_defend(delta)
 		"watch":
@@ -2924,6 +3070,12 @@ func _house_door() -> Vector3:
 	var own = level.get("own_homes")
 	if own is Dictionary and (own as Dictionary).has(role):
 		return own[role]
+	var walk_in = level.get("walk_in")
+	if walk_in != null:
+		# The house with a bed for them (see WalkIn.home_for): the way home leads to its door.
+		var rec: Dictionary = walk_in.home_for(role, level.cell_to_world(home))
+		if not rec.is_empty():
+			return walk_in.front_of(rec, level.spots.houses)
 	var houses: Array = level.spots.houses
 	var at := level.cell_to_world(home)
 	var best := at

@@ -1,0 +1,3 @@
+- Rock climbing is harder to master: after a slipped pull-up you get one quick retry, then you must rest, and every try raises the chance of a fall. Three falls into a safe spot in one climb and your hero gives up and climbs down.
+- Climbing gear has to be worn to work: hammer in the weapon hand, rope in the shield hand, nails in the bag. Every worn piece (hammer, rope, helmet, new climbing shoes and gloves) adds +1 Klettern, and the full set adds +2 more.
+- New hand and foot holds: the hero now searches for a foothold, the safe spot setup and the fall into the rope have new animations, and weapons are stowed while climbing.

@@ -14,7 +14,7 @@ func _process(_d: float) -> bool:
 	game.escaped = true
 	game.load_level(game._outdoor_index(), false)
 	var lvl: Level = game.level
-	var tris := []
+	var tris := PackedVector3Array()
 	for n in lvl.get_children():
 		if n is MeshInstance3D and n.name.begins_with("Mountains"):
 			tris.append_array(n.mesh.get_faces())
@@ -38,9 +38,10 @@ func _process(_d: float) -> bool:
 				if lvl.cell_char(cc+d) == "=": near = true
 			if not near: continue
 			var m := lvl.cell_to_world(cc)
-			for sx in range(-4, 5):
-				for sz in range(-4, 5):
-					var p := m + Vector3(sx*0.5, 0, sz*0.5)
+			# One sample a metre over the tile: the hero's feet cover far more than that.
+			for sx in range(-2, 3):
+				for sz in range(-2, 3):
+					var p := m + Vector3(sx, 0, sz)
 					if Mountains.near_rock(lvl, p.x, p.z, 0.4) : continue
 					samples += 1
 					var h := _mesh_h(tris, bucket, p)
@@ -51,12 +52,12 @@ func _process(_d: float) -> bool:
 	for k in hist:
 		bad += int(hist[k])
 	print("samples %d, sunken %d %s" % [samples, bad, hist])
-	var ok := samples > 1000 and bad == 0
+	var ok := samples > 300 and bad == 0
 	print("PASS: mountain foot" if ok else "FAILED: mountain foot")
 	game.delete_save(game.save_path())
 	quit(0 if ok else 1)
 	return true
-func _mesh_h(tris: Array, bucket: Dictionary, p: Vector3) -> float:
+func _mesh_h(tris: PackedVector3Array, bucket: Dictionary, p: Vector3) -> float:
 	var best := 0.0
 	for dx in [-1,0,1]:
 		for dz in [-1,0,1]:

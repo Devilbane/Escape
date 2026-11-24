@@ -90,13 +90,29 @@ func _test() -> void:
 	# Far from the hero nothing starts; by night nothing starts.
 	game.player.global_position = aldo.global_position + Vector3(80, 0, 0)
 	check(not duel.start(game.level), "no duel with the hero far away")
-	game.player.global_position = aldo.global_position + Vector3(6, 0, 4)
+	var square: Array = MageDuel.duel_ground(game.level)
+	game.player.global_position = (square[0] + square[1]) * 0.5 + Vector3(6, 0, -10)
 	game.level.set_hour(23.0)
 	check(not duel.start(game.level), "no duel by night")
 	game.level.set_hour(11.0)
 	# By day near the hero it starts, and plays to the end.
 	check(duel.start(game.level), "the duel starts by day near the hero")
 	check(aldo.chat_partner == odo and odo.chat_partner == aldo, "they are partners")
+	# They hold it on the square between the crafting benches and the apple trees by the fountain.
+	var ground := MageDuel.duel_ground(game.level)
+	check(ground.size() == 2, "the village has a duel ground")
+	if ground.size() == 2:
+		var bench_x := -INF
+		for st in game.level.stations:
+			if st.kind == MageDuel.BENCH_KIND:
+				bench_x = maxf(bench_x, st.pos.x)
+		var tree_x := INF
+		for tr in game.level.square_trees:
+			if not tr.has("garden"):
+				tree_x = minf(tree_x, (tr.node as Node3D).global_position.x)
+		for spot in ground:
+			check(spot.x > bench_x + 3.0 and spot.x < tree_x - 3.0, "a duellist's place lies between the benches and the trees (x %.1f, benches %.1f, trees %.1f)" % [spot.x, bench_x, tree_x])
+		check(VillageTalk._flat(ground[0], ground[1]) >= MageDuel.MIN_APART, "and they stand apart")
 	var hp: int = game.player.hp
 	var lines := {}
 	var casts := 0

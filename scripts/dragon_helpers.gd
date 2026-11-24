@@ -45,6 +45,13 @@ const PACE_MIN := 0.75
 const PACE_MAX := 1.25
 const BOB := 0.35
 const WEAVE := 0.3
+## How fast (radians per second) they can swing round: a change of direction
+## is a smooth curve, not a snap. Near the goal they turn tighter, so they
+## never circle it. They lean into a turn up to BANK radians.
+const TURN := 4.0
+const TURN_CLOSE := 12.0
+const CLOSE_TO_GOAL := 2.0
+const BANK := 0.5
 
 var level: Level
 ## Where they come out and go back in: the front of the arch.
@@ -179,10 +186,6 @@ func _fly(h: Dictionary, delta: float) -> void:
 	if via != null:
 		var to_via: Vector3 = via - node.global_position
 		step = Vector3(to_via.x, step.y, to_via.z)
-	if step.length() > 0.01:
-		var flat := Vector3(step.x, 0, step.z)
-		if flat.length() > 0.05:
-			node.rotation.y = atan2(flat.x, flat.z)
 	if step.length() <= move:
 		node.global_position = goal
 		if h.home:
@@ -190,7 +193,27 @@ func _fly(h: Dictionary, delta: float) -> void:
 		else:
 			_snatch(h)
 		return
-	node.global_position += step.normalized() * move
+	# Turn gradually towards the wanted direction and fly along the curve.
+	var want := Vector3(step.x, 0, step.z)
+	var heading: Vector3 = h.get("heading", Vector3.ZERO)
+	if heading == Vector3.ZERO:
+		heading = want.normalized() if want.length() > 0.001 else Vector3.BACK
+	var turned := 0.0
+	if want.length() > 0.05:
+		var close := _flat(goal - node.global_position) < CLOSE_TO_GOAL
+		var limit := (TURN_CLOSE if close else TURN) * delta
+		turned = clampf(heading.signed_angle_to(want.normalized(), Vector3.UP), -limit, limit)
+		heading = heading.rotated(Vector3.UP, turned).normalized()
+	h["heading"] = heading
+	node.rotation.y = atan2(heading.x, heading.z)
+	var rise := clampf(step.y, -move, move)
+	var along := sqrt(maxf(0.0, move * move - rise * rise))
+	node.global_position += heading * along + Vector3(0, rise, 0)
+	# Lean into the turn, easing in and out.
+	var lean := clampf(-turned / maxf(delta, 0.0001) / TURN, -1.0, 1.0) * BANK
+	var model: Node3D = h.get("model")
+	if model != null and is_instance_valid(model):
+		model.rotation.z = lerpf(model.rotation.z, lean, clampf(8.0 * delta, 0.0, 1.0))
 	_sway(h)
 
 

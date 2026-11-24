@@ -97,7 +97,7 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ"
+const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
@@ -1560,7 +1560,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			if not _crop_cells.has(ch):
 				_crop_cells[ch] = []
 			_crop_cells[ch].append(pos)
-			_add_solid(pos, Vector3(TILE * 0.9, 1, TILE * 0.9))
+			# No solid: the fields are walkable, the hero and the villagers wade through the crops.
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:

@@ -776,11 +776,14 @@ func _freeze() -> void:
 	_stuck = 0.0
 	_rebound = false
 	_current_anim = "frozen"
-	_anim.speed_scale = 1.0
-	_anim.play(FrozenFritz.POSE, 0.0)
-	_anim.seek(FrozenFritz.POSE_TIME, true)
-	_anim.pause()
-	_model.position.y = 0.0
+	# The toast is posed bone by bone, not played from a clip: no clip stretches the arm out with the
+	# mug, and a clip can be paused only as far as the player lets it.
+	pose_body({})
+	FrozenFritz.pose(_bones(), _blow_base)
+	# A paused player still writes its clip over the bones every frame: switch it off, or the arm
+	# drops back to the idle pose a frame later.
+	_anim.active = false
+	_current_anim = "frozen"
 	singing = false
 	# He freezes with his face towards the screen (the camera looks along -Z), turned 45 degrees
 	# to the left as the player sees it (towards -X), so the player sees his face.
@@ -792,6 +795,8 @@ func _freeze() -> void:
 func _thaw() -> void:
 	_ice.thaw()
 	_ice = null
+	_anim.active = true
+	unpose_body()
 	_current_anim = ""
 	_anim.speed_scale = 1.0
 
@@ -1203,6 +1208,9 @@ func pose_body(pose: Dictionary) -> void:
 		_anim.speed_scale = 1.0
 		_anim.play("Idle")
 		_anim.seek(0.0, true)
+		# A player that is stepped by hand (see OffscreenAnim) only shows the seek when it is advanced:
+		# without this the base below could be the pose of the step he was in.
+		_anim.advance(0.0)
 		if _blow_base.is_empty():
 			_blow_base = ClimbPose.base_of(sk)
 		_anim.pause()
@@ -2216,6 +2224,9 @@ func _physics_process(delta: float) -> void:
 	if _task == "frozen":
 		# Frozen stiff: he neither turns to whoever talks to him nor moves a finger.
 		_freeze()
+		# Held on every tick: the animation steps of a body that comes into view (see OffscreenAnim)
+		# would otherwise take the arm back down.
+		FrozenFritz.pose(_bones(), _blow_base)
 		return
 	# At the alarm horn he blows on until it is done, unless called away (see HornBlow).
 	if _blow != null:

@@ -5451,12 +5451,54 @@ func _rise_from_bed(tween: Tween, bed: Dictionary, side: float, fox_wakes: bool,
 			if fox_wakes and is_instance_valid(pet):
 				pet.wake_up(floor_spot)]])
 	# The hero stays exactly where the get-out animation left them, beside the bed, facing away from it:
-	# no walk to another spot and no snap, only the clips take over from the posed bones.
-	tween.tween_callback(func():
-		var stand := player.global_position
-		player.bed_pose_end(stand, Basis(Vector3.UP, rot) * Vector3(side, 0.0, 0.0))
-		player.frozen = false
-		done.call())
+	# no walk to another spot and no snap, only the clips take over from the posed bones. The end is a
+	# method and not a lambda, and a watchdog finishes it if the tween ever dies half-way, so the hero
+	# never stays lying in bed with closed eyes.
+	_rise_pending = true
+	_rise_tween = tween
+	_rise_rot = rot
+	_rise_side = side
+	_rise_done = done
+	tween.tween_callback(_finish_rise)
+	get_tree().create_timer(RISE_WATCH).timeout.connect(_watch_rise)
+
+
+## How often the watchdog of the waking up looks at the tween (seconds).
+const RISE_WATCH := 0.5
+var _rise_pending := false
+var _rise_tween: Tween = null
+var _rise_rot := 0.0
+var _rise_side := 1.0
+var _rise_done := Callable()
+
+
+## The end of the waking up (see _rise_from_bed): up and standing beside the bed, eyes open, free to move.
+## Runs once, from the tween or from the watchdog.
+func _finish_rise() -> void:
+	if not _rise_pending:
+		return
+	_rise_pending = false
+	var done := _rise_done
+	_rise_done = Callable()
+	_stop_snoozing()
+	if player.in_bed_pose():
+		player.bed_pose_end(player.global_position, Basis(Vector3.UP, _rise_rot) * Vector3(_rise_side, 0.0, 0.0))
+	player.set_asleep(false)
+	player.frozen = false
+	if done.is_valid():
+		done.call()
+
+
+## Watches the waking up: if its tween stopped before the end (an error in one of its steps, a freed
+## node), the hero is released at once instead of lying in bed forever.
+func _watch_rise() -> void:
+	if not _rise_pending:
+		return
+	var alive := _rise_tween != null and _rise_tween.is_valid() and _rise_tween.is_running()
+	if alive or get_tree().paused:
+		get_tree().create_timer(RISE_WATCH).timeout.connect(_watch_rise)
+		return
+	_finish_rise()
 
 
 # --- Time away ----------------------------------------------------------------

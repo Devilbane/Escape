@@ -87,6 +87,14 @@ func _run() -> void:
 	var arm := fritz._ice._bone(fritz._bones(), "handslot.r")
 	var shoulder := fritz._ice._bone(fritz._bones(), "upperarm.r")
 	check(arm.y - shoulder.y > 0.1 and arm.distance_to(shoulder) > 0.4, "his arm is raised out with the mug (%s, %s)" % [arm, shoulder])
+	# Out of view and back (see OffscreenAnim): the animation steps that catch up must not take the arm down.
+	var steps := fritz.find_child("OffscreenAnim", true, false) as OffscreenAnim
+	steps.rest()
+	await _wait(12)
+	steps.wake()
+	await _wait(3)
+	arm = fritz._ice._bone(fritz._bones(), "handslot.r")
+	check(arm.y - shoulder.y > 0.1 and arm.distance_to(shoulder) > 0.4, "the arm stays out after he was out of view (%s)" % arm)
 	var near_arm := 0
 	for icicle: Node in fritz._ice.get_children():
 		if icicle is MeshInstance3D and icicle.mesh is CylinderMesh and icicle.mesh.bottom_radius == 0.0 and icicle.position.distance_to(arm) < 0.5:

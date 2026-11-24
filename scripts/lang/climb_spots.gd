@@ -7,6 +7,7 @@ const EN := {
 	"Du schlägst einen Kletternagel in den Fels und fädelst das Seil ein: ein Sicherungspunkt.": "You hammer a climbing nail into the rock and thread the rope through it: a safe spot.",
 	"Abgerutscht! Du fällst zu Boden.": "You slip! You fall to the ground.",
 	"Abgerutscht! Das Seil fängt dich am Sicherungspunkt auf.": "You slip! The rope catches you at the safe spot.",
+	"Du gibst auf und kletterst am Seil hinunter.": "You give up and climb down the rope.",
 	"Kletterhammer": "Climbing hammer",
 	"Zum Einschlagen von Kletternägeln in den Fels": "For driving climbing nails into the rock",
 	"Kletternagel": "Climbing nail",

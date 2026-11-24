@@ -1097,11 +1097,16 @@ func _sweep_snow(delta: float) -> void:
 		SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
 	_puff_in -= delta
 	if _puff_in <= 0.0:
-		_puff_in = 0.14
+		_puff_in = 0.09
 		if level.sweep_dust == null:
 			level.sweep_dust = SweepDust.new()
 			level.add_child(level.sweep_dust)
-		level.sweep_dust.kick(head, -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2), LeafSweep.DUST if leaves else Color.WHITE)
+		var away := -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2)
+		if leaves:
+			level.sweep_dust.kick_leaves(head, away)
+			level.sweep_dust.kick(head, away, LeafSweep.DUST)
+		else:
+			level.sweep_dust.kick(head, away)
 
 
 # --- The guard at the west gate -----------------------------------------------

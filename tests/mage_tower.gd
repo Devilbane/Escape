@@ -216,6 +216,9 @@ func _run() -> void:
 		VillageBeds.step(mage, 1.0 / 60.0)
 		check(not mage.visible, "%s asleep is out of sight from the ground floor" % role)
 		rec.storey = GuildHall.ROOF_STOREY
+		# (The hero stands elsewhere here, so InsideView may have hidden the sleeper behind the walls: the
+		# check is about the sleeper's own rule, see VillageBeds.unseen.)
+		mage.remove_meta(InsideView.HIDDEN)
 		VillageBeds.step(mage, 1.0 / 60.0)
 		check(mage.visible, "%s asleep is in sight in the sleeping room" % role)
 		rec.inside = was_inside

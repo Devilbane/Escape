@@ -187,9 +187,16 @@ static func _is_path(level: Node, c: Vector2i) -> bool:
 	return SurfaceLife.PATH.contains(ch) and ch != "#"
 
 
-## Whether `c` is a tile he may walk and sweep: a footpath, or the paved square (see SurfaceLife.SQUARE).
+## The village gates (see VillageWall) are path tiles with a gate: the road runs on through them.
+const GATE := "\\"
+## How far from his spot (tiles) he looks for walkways to sweep.
+const RANGE_TILES := 70
+
+
+## Whether `c` is a tile he may walk and sweep: a footpath, a gate in the village wall, or the paved square.
 static func _is_walkway(level: Node, c: Vector2i) -> bool:
-	return (_is_path(level, c) or level.cell_char(c) == SurfaceLife.SQUARE) and level.is_open(c)
+	var ch: String = level.cell_char(c)
+	return ch == GATE or ((_is_path(level, c) or ch == SurfaceLife.SQUARE) and level.is_open(c))
 
 
 ## The points of the next stretch of walkway to sweep. He works through the whole connected network of
@@ -231,20 +238,26 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 	return none
 
 
-## Every walkway cell (footpaths and the square) connected to `from`, nearest first.
+## The walkway cells (footpaths, gates and the square) within RANGE_TILES of `from`, nearest first by the way
+## on foot: the search crosses grass and gates too, so a gap between two footpaths does not cut one off.
 static func _flood(level: Node, from: Vector2i, parent := {}) -> Array[Vector2i]:
 	var seen := {from: true}
 	var queue: Array[Vector2i] = [from]
+	var found: Array[Vector2i] = []
 	var i := 0
 	while i < queue.size():
 		var c: Vector2i = queue[i]
 		i += 1
+		if _is_walkway(level, c):
+			found.append(c)
 		for n: Vector2i in [c + Vector2i.RIGHT, c + Vector2i.LEFT, c + Vector2i.DOWN, c + Vector2i.UP]:
-			if not seen.has(n) and _is_walkway(level, n):
+			if seen.has(n) or maxi(absi(n.x - from.x), absi(n.y - from.y)) > RANGE_TILES:
+				continue
+			if level.is_open(n) or level.cell_char(n) == GATE:
 				seen[n] = true
 				parent[n] = c
 				queue.append(n)
-	return queue
+	return found
 
 
 ## A stretch of RUN_MIN to RUN_MAX tiles starting at `target`, the one with the most left to sweep of the few he
@@ -263,10 +276,10 @@ static func _stretch(level: Node, target: Vector2i, before: Vector2i, rng: Rando
 		if depth[c] >= RUN_MAX:
 			continue
 		for n: Vector2i in [c + Vector2i.RIGHT, c + Vector2i.LEFT, c + Vector2i.DOWN, c + Vector2i.UP]:
-			if depth.has(n) or not level.is_open(n):
+			if depth.has(n) or not _is_walkway(level, n):
 				continue
 			var square: bool = level.cell_char(n) == SurfaceLife.SQUARE
-			if (square == on_square) and (square or _is_path(level, n)):
+			if square == on_square:
 				depth[n] = depth[c] + 1
 				parent[n] = c
 				queue.append(n)
@@ -285,7 +298,7 @@ static func _stretch(level: Node, target: Vector2i, before: Vector2i, rng: Rando
 				break
 			c = parent[c]
 		# He starts a tile before it, on the way he came: the broom reaches ahead of him.
-		if before != target:
+		if before != target and _is_walkway(level, before):
 			cells.push_front(before)
 		if cells.size() < 2:
 			continue

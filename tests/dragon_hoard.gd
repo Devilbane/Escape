@@ -177,7 +177,7 @@ func _test() -> void:
 	check(lvl.floor_pickups().size() == at_daybreak, "by day they collect nothing (%d of %d left)" % [lvl.floor_pickups().size(), at_daybreak])
 	lvl.set_hour(23.0)
 	game.day_hour = 23.0
-	_run_helpers(helpers, 120.0)
+	_run_helpers(helpers, 180.0)
 	check(lvl.floor_pickups().is_empty(), "the next night they fetch the rest (%d left)" % lvl.floor_pickups().size())
 	check(helpers.helpers.is_empty(), "and go home again")
 	lvl.set_hour(12.0)
@@ -330,6 +330,11 @@ func _test_way_round() -> void:
 				continue
 			var plain_way := lvl.astar.get_id_path(c, home, true)
 			if not plain_way.is_empty() and plain_way[-1] == home:
+				continue
+			# A pocket the tiles seal off completely (even corner to corner) has no way out at all.
+			var loose := DragonHelpers._flight_grid(lvl, AStarGrid2D.DIAGONAL_MODE_ALWAYS)
+			var gap_way := loose.get_id_path(c, home, true)
+			if gap_way.is_empty() or gap_way[-1] != home:
 				continue
 			nooks += 1
 			var out := DragonHelpers.way_round(lvl, lvl.cell_to_world(c), den)

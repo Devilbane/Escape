@@ -49,7 +49,7 @@ static func attach(skeleton: Skeleton3D, anim: AnimationPlayer) -> CarryArm:
 	arm.player = anim
 	arm.active = false
 	var was := anim.current_animation
-	var at := anim.current_animation_position
+	var at := anim.current_animation_position if was != "" else 0.0
 	var speed := anim.speed_scale
 	anim.play("Idle")
 	anim.seek(0.0, true)

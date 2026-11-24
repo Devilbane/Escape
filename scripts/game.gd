@@ -5841,8 +5841,8 @@ func _setup_chat_line() -> void:
 	_hud.add_child(chat_line)
 
 
-## The hero asked the priestess for healing: she turns to them and her window opens.
-func ask_priestess(v: Villager) -> void:
+## The hero said a word that opens this villager's window (see NpcKeywords): it opens.
+func ask_villager(v: Villager) -> void:
 	if state != State.PLAYING or v.station.is_empty() or not player.can_act():
 		return
 	_use_station(v.station)
@@ -7203,12 +7203,17 @@ func _on_player_bumped(point: Vector3) -> void:
 		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.
 		return
 	if not station.is_empty():
-		# The priestess opens her window only for a click or a word ("heal", see HeroChat), never
-		# for a bump: she may stand where the hero has to pass.
-		if station.kind == "tempel":
-			return
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
+		# A villager with a window opens it for a click or a word (see NpcKeywords), never for a
+		# bump, who may stand where the hero has to pass: they only remark which words they answer to.
+		if station.has("npc") and NpcKeywords.has(station.kind):
+			player.face(station.pos - player.global_position)
+			player.play("Idle")
+			var npc: Villager = station.npc
+			if not npc.is_busy_talking() and not _villager_unavailable(station):
+				npc.say(NpcKeywords.remark(station.kind), player.global_position)
+			return
 		_use_station(station)
 		return
 	var obj := level.unsearched_at(point)
@@ -8107,6 +8112,8 @@ func _process(delta: float) -> void:
 	if player.is_seated():
 		# Sitting: how to get up again, not how to sit down.
 		_prompt.text = _hint("aufstehen", Lang.t("Laufen, klicken oder springen, um aufzustehen"))
+	elif at_station and station.has("npc") and NpcKeywords.has(station.kind):
+		_prompt.text = _hint(station.kind, Lang.t("Klicken oder ein Wort sagen, um mit %s zu reden") % station.npc.display_name)
 	elif at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
@@ -8124,7 +8131,6 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
-			"tempel": Lang.t("Klicken oder „heilen“ sagen, um mit %s über den Segen der Götter zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),

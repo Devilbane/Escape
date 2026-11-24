@@ -1,7 +1,7 @@
 extends SceneTree
 ## Headless test for the glowworm swarms of the night (see GlowwormSwarms):
-## none by day or indoors, a few over the open land at night and more in the
-## village, always over open ground, and put out again at dawn. They use no
+## none by day or indoors, a few over the open land at night and none ever
+## inside the village, always over open ground, and put out again at dawn. They use no
 ## shader the other particles do not already need.
 ## Run with: godot --headless --fixed-fps 60 -s tests/glowworm_swarms.gd
 
@@ -49,7 +49,6 @@ func _run() -> void:
 	check(not GlowwormSwarms.out_at(12.0) and not GlowwormSwarms.out_at(18.0), "none by day or at dusk's start")
 	check(GlowwormSwarms.out_at(22.0) and GlowwormSwarms.out_at(2.0), "out at night")
 	check(not GlowwormSwarms.out_at(7.0), "gone by morning")
-	check(GlowwormSwarms.swarms_for(true) > GlowwormSwarms.swarms_for(false), "more of them in the village")
 
 	var village := Vector3.INF
 	var wild := Vector3.INF
@@ -67,11 +66,12 @@ func _run() -> void:
 	hero.global_position = village
 	_settle(lvl, hero, 12.0)
 	check(gw.count() == 0, "no swarm by day")
-	_settle(lvl, hero, 23.0)
-	check(gw.count() == GlowwormSwarms.VILLAGE_SWARMS, "a village night has its swarms (%d)" % gw.count())
+	_settle(lvl, hero, 23.0, false, 60.0)
+	check(gw.count() >= 1, "a village night still has swarms out on its rim (%d)" % gw.count())
 	for s in gw._swarms:
 		var at: Vector3 = s.node.global_position
 		check(gw._free(at), "a swarm hovers over open ground")
+		check(not lvl._in_village(lvl.world_to_cell(at)), "never inside the village")
 		check(at.y > 0.3 and at.y < 2.0, "at about head height (%.1f)" % at.y)
 	_settle(lvl, hero, 23.0, true)
 	check(gw.count() == 0, "none indoors")
@@ -85,8 +85,9 @@ func _run() -> void:
 	if wild != Vector3.INF:
 		hero.global_position = wild
 		_settle(lvl, hero, 23.0, false, 40.0)
-		check(gw.count() <= GlowwormSwarms.WILD_SWARMS, "fewer outside the village (%d)" % gw.count())
-		check(gw.count() >= 1, "some even out in the open (%d)" % gw.count())
+		check(gw.count() == GlowwormSwarms.SWARMS, "the open land has its swarms (%d)" % gw.count())
+		for w in gw._swarms:
+			check(not lvl._in_village(lvl.world_to_cell(w.node.global_position)), "wild swarm outside the village")
 	hero.global_position = village
 	_settle(lvl, hero, 23.0, false, 10.0)
 	_settle(lvl, hero, 9.0, false, 10.0)

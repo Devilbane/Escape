@@ -46,7 +46,7 @@ func _rules() -> void:
 	c.set_nail()
 	check(is_equal_approx(c.safe, 3 * RockClimb.PULL), "the safe spot is where the hero hangs")
 	check(c.pull(ok_roll, true) == RockClimb.Result.UP, "one pull-up after a safe spot is not another yet")
-	check(c.pull(0.999, true) == RockClimb.Result.FELL and is_equal_approx(c.metres, c.safe), "a fall drops only to the last safe spot")
+	check(c.pull(0.999, true, 0.0) == RockClimb.Result.FELL and is_equal_approx(c.metres, c.safe), "a fall drops only to the last safe spot")
 	check(c.streak == 0, "after a fall the pull-ups in a row start again")
 	check(c.pull(ok_roll, true) == RockClimb.Result.UP and c.pull(ok_roll, true) == RockClimb.Result.PITON, "two pull-ups after the safe spot give the next one")
 	var d := RockClimb.new(5.4, 8, 8)
@@ -60,8 +60,27 @@ func _rules() -> void:
 	check(d.pull(ok_roll, true) == RockClimb.Result.TOP, "the top ends the climb")
 	var e := RockClimb.new(5.4, 8, 8)
 	e.pull(ok_roll, true)
-	e.pull(0.999, true)
-	check(e.metres == 0.0, "without a safe spot a fall drops to the ground")
+	check(e.pull(0.999, true, 0.0) == RockClimb.Result.FELL and e.metres == 0.0, "without a safe spot a fall drops to the ground")
+	# A slip: the hands hold and one more try follows at once; the second slip in a row needs a rest.
+	var f := RockClimb.new(5.4, 8, 8)
+	check(f.pull(0.999, true) == RockClimb.Result.SLIP, "the first slip holds on")
+	check(f.pull(0.999, true) == RockClimb.Result.REST, "the second slip in a row needs a rest")
+	check(f.pull(0.999, true) == RockClimb.Result.SLIP, "after the rest one try follows at once again")
+	check(f.pull(ok_roll, true) == RockClimb.Result.UP and f.pull(0.999, true) == RockClimb.Result.SLIP, "a good pull-up gives the quick retry back")
+	# Every failed try raises the chance of a fall.
+	var g := RockClimb.new(5.4, 8, 8)
+	var before := g.fall_chance()
+	g.pull(0.999, true)
+	g.pull(0.999, true)
+	check(g.fall_chance() > before, "failed tries raise the chance of a fall")
+	check(g.fall_chance() <= RockClimb.FALL_MAX, "the chance of a fall has a ceiling")
+	# Three falls to a safe spot in one ascent: the hero gives up.
+	var h := RockClimb.new(6.6, 8, 8)
+	for i in 3:
+		h.pull(ok_roll, true)
+	h.set_nail()
+	check(h.pull(0.999, true, 0.0) == RockClimb.Result.FELL and h.pull(0.999, true, 0.0) == RockClimb.Result.FELL, "two falls to the safe spot go on")
+	check(h.pull(0.999, true, 0.0) == RockClimb.Result.GAVE_UP, "the third fall to the safe spot gives up")
 	check(RockClimb.new(5.4, 8, 20).chance() > RockClimb.new(5.4, 8, 8).chance(), "skill makes a pull-up safer")
 	check(RockClimb.new(5.4, 12, 12).chance() < RockClimb.new(5.4, 8, 12).chance(), "a harder spot is less safe")
 	for s: Dictionary in ClimbSpots.SPOTS["Die Freiheit"]:
@@ -146,6 +165,7 @@ func _run() -> void:
 
 	# A slip with no safe spot yet: back on the ground with a few life points less.
 	hero.rock_roll_forced = 0.999
+	hero.rock_fall_forced = 0.0
 	var hp_before := hero.hp
 	told.clear()
 	await _push(hero, lvl, spot.cell, 3.2)
@@ -156,6 +176,29 @@ func _run() -> void:
 	check(hero.global_position.y < 0.3, "a first slip falls to the ground (y %.2f)" % hero.global_position.y)
 	check(hero.hp <= hp_before, "a fall does not heal")
 	check(hero.hp >= 1, "a fall never kills")
+	# With a safe spot: three falls in one ascent make the hero give up and climb down.
+	hero.rock_roll_forced = 0.0
+	hero.rock_fall_forced = -1.0
+	told.clear()
+	await _push(hero, lvl, spot.cell, 3.2)
+	check(hero.is_climbing(), "the second climb begins")
+	var hands := hero._model.find_child("handslot_r", true, false) as Node3D
+	check(hands != null and not hands.visible, "the weapons are stowed while climbing")
+	guard = 0
+	while hero.is_climbing() and (hero._rock == null or hero._rock.nails.is_empty()) and guard < 3000:
+		await _wait(1)
+		guard += 1
+	check(hero._rock != null and hero._rock.nails.size() == 1, "the first safe spot is set")
+	hero.rock_roll_forced = 0.999
+	hero.rock_fall_forced = 0.0
+	guard = 0
+	while hero.is_climbing() and guard < 6000:
+		await _wait(1)
+		guard += 1
+	check(not hero.is_climbing(), "the climb ends after the falls")
+	check(hero.global_position.y < 0.3, "after three falls the hero climbed down (y %.2f)" % hero.global_position.y)
+	check(told.has(Lang.t("Du gibst auf und kletterst am Seil hinunter.")), "the hero gives up and says so")
+	check(hands != null and hands.visible, "the weapons are back in the hands")
 	game.delete_save(game.save_path())
 	print("PASS: rock climbing" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

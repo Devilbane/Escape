@@ -1,0 +1,1 @@
+- Villagers light their torches and lamps one by one at random moments after nightfall, and the light flares up gently, instead of all at once.

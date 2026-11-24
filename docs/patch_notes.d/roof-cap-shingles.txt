@@ -1,0 +1,1 @@
+- Roof ridges, hips and gable edges now wear overlapping ceramic cap shingles instead of a bare thin line, and the snow settles over them in winter.

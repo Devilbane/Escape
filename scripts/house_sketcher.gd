@@ -1814,6 +1814,10 @@ func _ladder(house: HouseSketch, p: Array, parent: Node3D, mat: Material) -> Nod
 	spot.set_meta("edge", f.edge)
 	spot.set_meta("foot", f.edge - push * 0.65 + Vector3(0, low, 0))
 	spot.set_meta("top", f.edge + push * 0.7 + Vector3(0, f.high, 0))
+	# For the click on it (see LadderClick): the rungs that glow under the mouse, and whether a hatch's lid
+	# stands over it (the hatch is clicked, not the ladder, from above).
+	spot.set_meta("parts", parts)
+	spot.set_meta("flush", house.flush_ladders)
 	parent.add_child(spot)
 	return spot
 

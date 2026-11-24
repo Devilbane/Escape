@@ -66,6 +66,14 @@ func _walk(dir: Vector3, seconds: float) -> void:
 	await _wait(2)
 
 
+## The ladder node of a building record (see WalkIn).
+func _ladder_of(rec: Dictionary) -> Node3D:
+	for l: Node3D in get_nodes_in_group(Player.LADDER_GROUP):
+		if (l.get_meta("edge") as Vector3).is_equal_approx(rec.ladder_edge):
+			return l
+	return null
+
+
 func _place(at: Vector3) -> void:
 	var hero: Player = game.player
 	hero.global_position = at
@@ -261,7 +269,10 @@ func _run() -> void:
 	await _wait(10)
 	var push: Vector3 = rec.ladder_push
 	await _walk(push, 0.3)
-	check(hero.on_ladder(), "walking at the ladder's foot towards it, the hero climbs it")
+	check(not hero.on_ladder(), "walking into the ladder's foot does not climb it")
+	check(hero.use_ladder(_ladder_of(rec)), "clicking the ladder at its foot")
+	await _wait(5)
+	check(hero.on_ladder(), "the hero climbs it")
 	for k in 60 * 8:
 		await physics_frame
 		if not hero.on_ladder():
@@ -281,7 +292,10 @@ func _run() -> void:
 	_place(rec.ladder_top + Vector3(0, 0.1, 0))
 	await _wait(10)
 	await _walk(-push, 0.3)
-	check(hero.on_ladder(), "at the top, walking towards the hatch climbs down")
+	check(not hero.on_ladder(), "at the top, walking towards the hatch does not climb down")
+	check(hero.use_ladder(_ladder_of(rec)), "clicking the ladder at its top")
+	await _wait(5)
+	check(hero.on_ladder(), "climbs down")
 	for k in 60 * 8:
 		await physics_frame
 		if not hero.on_ladder():

@@ -118,6 +118,8 @@ const SHELTER_FADE := 0.3
 var house_goddess := ""
 var _house_blessing_clock := 0.0
 const HOUSE_BLESSING_CHECK := 0.25
+## How far the hour must move before the village's lamps, windows and fires are set again (game hours; some 0.2 seconds).
+const HOUR_STEP := 0.004
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -3050,7 +3052,10 @@ func _tick_clock(delta: float) -> void:
 			level.season_day = today
 			level.set_winter_wear(Weather.is_winter(today))
 			level.set_season(today)
-			level.set_hour(day_hour)
+			# The lamps, windows and fires follow the hour: a few times a second is plenty (a game
+			# hour passes in 50 seconds), and the first call for a new level always goes through.
+			if level.hour < 0.0 or absf(level.hour - day_hour) >= HOUR_STEP:
+				level.set_hour(day_hour)
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
 			level.set_snow(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0), lerpf(0.25, 1.0, Moon.light(day)) * DayNight.moon_at(day_hour))

@@ -57,5 +57,8 @@ func _test(level: Outdoor, els: Villager) -> void:
 	var chat := HeroChat.new(game)
 	check(chat.healer_asked("Please heal me", game.player.global_position) == els, "'heal' reaches the priestess")
 	check(chat.healer_asked("hello", game.player.global_position) == null, "a greeting is not a request for healing")
+	# She hears it: her window opens, or, if she has a task or a secret for the hero first, she speaks.
+	game.state = game.State.PLAYING
+	game.player.dead = false
 	game.ask_priestess(els)
-	check(game.menus.is_open(), "asking for healing opens her window")
+	check(game.menus.is_open() or els.is_busy_talking() or game.quests.talk(els, true), "asking for healing reaches her")

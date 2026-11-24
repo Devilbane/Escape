@@ -2517,6 +2517,11 @@ func _build_block(ch: String, block: Rect2i) -> void:
 	if ch == "w" and walk_in.has(node):
 		# Ragna sleeps in the guildhall's cellar (see GuildHall).
 		own_homes[VillageHalls.KEEPERS.guild] = front
+	if VillageHalls.HOME_OWNERS.has(VillageHalls.KINDS.get(ch, "")) and walk_in.has(node):
+		# The family above the shop and the staff above the post office and the Crown office sleep
+		# in the bedrooms there (see WalkIn._bedroom).
+		for role: String in VillageHalls.HOME_OWNERS[VillageHalls.KINDS[ch]]:
+			own_homes[role] = front
 	if ch == "Ø" and walk_in.has(node):
 		# Aldo and Odo sleep in the mage tower's top room (see MageTower).
 		for role: String in MageTower.OWNERS:
@@ -5574,6 +5579,11 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		SnowSweep.advance(self, cover)
 	if pond_reeds != null:
 		pond_reeds.set_snow(cover)
+	# Leaves and rubbish drifting down the stream and the river turn white under snow.
+	if is_inside_tree():
+		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
+			flow.set_snow(cover)
+		SewerSurface.set_snow(self, cover)
 	if snowman != null and is_instance_valid(snowman):
 		if cover < Snowman.MELTED:
 			astar.set_point_solid(world_to_cell(snowman.global_position), false)

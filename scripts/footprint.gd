@@ -76,6 +76,9 @@ static func counts(body: Node) -> bool:
 
 ## Whether `body` could be moved: everyone but the hero.
 static func movable(body: Node) -> bool:
+	# Nor anyone who sits or stands in their place in the temple (see TempleMorning): the pews are tight.
+	if body is Villager and (body as Villager).service_step() in ["seated", "sitting", "rising"]:
+		return false
 	return not (body is Player)
 
 

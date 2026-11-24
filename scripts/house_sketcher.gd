@@ -2190,8 +2190,8 @@ func _wall_material(surface: String, demolish: bool) -> Material:
 			return HouseLooks.stair_wood()
 		LostMine.ROCK:
 			return LostMine.rock_material()
-		"brick":
-			return Sewers.brick_material()
+	if surface.begins_with("brick"):
+		return Sewers.brick_material(Sewers.variant_of(surface))
 	return BareEarth.material()
 
 
@@ -2220,10 +2220,11 @@ func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool,
 				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size, _open_roof)
 				boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
 				_into.add_child(boards)
-			"brick":
-				_visual_box(middle, size, Sewers.floor_material())
 			_:
-				_visual_box(middle, size, BareEarth.material())
+				if surface.begins_with("brick"):
+					_visual_box(middle, size, Sewers.floor_material(Sewers.variant_of(surface)))
+				else:
+					_visual_box(middle, size, BareEarth.material())
 	var drawn := _into.get_child(_into.get_child_count() - 1)
 	drawn.set_meta(LightShadows.FLOOR, true)
 	# Added to the tree before the meta was set: take it off the walls' layer again.

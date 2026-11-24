@@ -89,3 +89,10 @@ When you change something a player will notice (a feature, a fix, a balance chan
 two sections ship. `tests/launcher.gd` checks that the fragments parse and everything fits.
 Every build's notes are archived in `docs/patch_history.json` (the compendium's patch notes page); the Windows
 build adds to it, so never edit it in a feature PR.
+
+## Windows builds and PR labels
+
+A Windows build is made only after a green nightly run, by hand, or when a merged PR carries the `big-feature` label
+(`.github/workflows/big-feature-build.yml`). Label a PR `big-feature` only for a new feature that took significant
+work (or the main PR of a new thread with significant work); never a bug fix or an adjustment of an existing feature.
+Details and the PR-template checkbox: `docs/testing.md`, "Which label?".

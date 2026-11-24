@@ -1,11 +1,18 @@
 name: Windows download
 
 # Builds the Windows version: Escape.exe (the launcher, see scripts/launcher.gd) and the game,
-# game/Escape.exe (the bare engine) with its data game/Escape.pck. After every run of the fast tests
-# on main that passed, they are published on the GitHub release "windows", always under the same links:
+# game/Escape.exe (the bare engine) with its data game/Escape.pck, and publishes them on the release "windows",
+# always under the same links:
 #   https://github.com/devilbane/escape/releases/download/windows/Escape-Windows.zip  (for players)
 #   .../windows/version.json, Escape.exe, EscapeGame.exe, Escape.pck                 (for the launcher)
-# A pull request that touches the launcher builds it too, as a download on the workflow run.
+# A build is published
+#   - after every green nightly run of the tests on main,
+#   - after a pull request labelled `big-feature` merges (big-feature-build.yml starts this workflow), and
+#   - by hand (Actions > Windows download > Run workflow; "force" builds even if main did not change).
+# It is skipped when main is still the commit of the last published build. Not every merge makes a build:
+# runners are shared with the test shards, and the Windows build used to start on every pull request that
+# added a patch note. A pull request that touches the launcher or this workflow builds it as a download on the
+# workflow run (docs/testing.md, "Windows builds").
 
 on:
   workflow_run:
@@ -16,19 +23,23 @@ on:
     paths:
       - ".github/workflows/desktop.yml"
       - "export_presets.cfg"
-      - "project.godot"
       - "assets/logo/app_icon.*"
       - "scenes/launcher.tscn"
       - "scripts/launcher.gd"
       - "scripts/ui_kit.gd"
       - "scripts/bronze_style.gd"
       - "scripts/lang/launcher.gd"
-      - "docs/patch_notes.txt"
-      - "docs/patch_notes.d/**"
       - "tools/patch_notes.py"
-      - "docs/patch_history.json"
       - "tests/launcher.gd"
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to build (default: the newest commit of the branch)"
+        required: false
+      force:
+        description: "Build even if this commit was already published"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -41,13 +52,49 @@ env:
   GODOT_VERSION: 4.7.2
 
 jobs:
+  # Decides whether to build, so that a skipped build costs a few seconds, not a runner for minutes.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.gate.outputs.go }}
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - id: gate
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_RESULT: ${{ github.event.workflow_run.conclusion }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_SHA: ${{ inputs.sha }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          sha=$GITHUB_SHA
+          go=true
+          case "$EVENT" in
+            workflow_run)
+              sha=$RUN_SHA
+              # Only the nightly run of the tests makes a build; the push and pull request runs do not.
+              if [ "$RUN_EVENT" != schedule ] || [ "$RUN_RESULT" != success ]; then go=false; echo "Not a green nightly run ($RUN_EVENT, $RUN_RESULT): no build."; fi;;
+            workflow_dispatch)
+              [ -n "$INPUT_SHA" ] && sha=$INPUT_SHA;;
+          esac
+          if [ "$go" = true ] && [ "$EVENT" != pull_request ] && [ "$FORCE" != true ]; then
+            last=$(git ls-remote origin refs/tags/windows | cut -f1)
+            if [ "$last" = "$sha" ]; then go=false; echo "main is still the last published build ($sha): no build."; fi
+          fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"; echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
   windows:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.gate.outputs.sha }}
           fetch-depth: 0 # the patch notes list the fragments added since the last published build (tag "windows")
 
       - name: Restore Godot from the cache
@@ -215,7 +262,7 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
-          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SHA: ${{ needs.gate.outputs.sha }}
         run: |
           cd build/release
           notes="Escape! $VERSION.$BUILD for Windows.

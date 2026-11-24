@@ -92,10 +92,15 @@ func _test() -> void:
 	village.day = 3
 	var rec := TempleMorning.temple_of(village)
 	check(not rec.is_empty(), "the temple can be walked into")
-	var found: Dictionary = village.walk_in.temple_seats(rec)
+	var goers := village.villagers.filter(func(v: Villager) -> bool: return TempleMorning.goes(v))
+	var found: Dictionary = village.walk_in.temple_seats(rec, goers.size())
+	village.temple_morning.rec = rec
+	goers = goers.filter(func(v: Villager) -> bool: return village.temple_morning.near(v))
 	var places: Array = found.seats
 	check(places.size() >= 16, "the pews seat the village: %d" % places.size())
-	var goers := village.villagers.filter(func(v: Villager) -> bool: return TempleMorning.goes(v))
+	# A bigger village still finds places: the pews fill shoulder to shoulder, the rest stand behind them.
+	var crowd: Dictionary = village.walk_in.temple_seats(rec, 40)
+	check(crowd.seats.size() >= 30, "room for a crowd: %d places" % crowd.seats.size())
 	check(places.size() >= goers.size(), "a seat for each: %d seats for %d" % [places.size(), goers.size()])
 	var speaker: Villager
 	for v: Villager in village.villagers:
@@ -175,6 +180,23 @@ func _test() -> void:
 	check(whole, "her speech is one of the speeches")
 	check(said.size() > lines_said.size(), "someone on the pews answers")
 
+	# They leave one by one, nearest the door first, a pause apart: no pile-up at the door.
+	for i in int(60.0 / STEP):
+		if village.temple_morning.phase == "leave":
+			break
+		_run(village, STEP, func(): village.hour = minf(village.hour, 7.7))
+	check(village.temple_morning.phase == "leave", "the speech ends and the village gets up")
+	var times := []
+	for v: Villager in village.villagers:
+		if v.serves() and v.service_step() in ["seated", "at"]:
+			times.append(float(v.service_trip.leave_in))
+	times.sort()
+	check(times.size() >= 8, "the seated have their turns: %d" % times.size())
+	var squeezed := false
+	for i in range(1, times.size()):
+		if times[i] - times[i - 1] < TempleMorning.EXIT_GAP - 0.05:
+			squeezed = true
+	check(not squeezed, "two never leave at the same moment: %s" % [times])
 	# Everyone leaves and goes on with the day.
 	_run(village, 45.0, func(): village.hour = minf(village.hour, 7.7))
 	var still := village.villagers.filter(func(v: Villager) -> bool: return v.serves())

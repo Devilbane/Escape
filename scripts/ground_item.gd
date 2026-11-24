@@ -91,6 +91,8 @@ static func _model(id: String) -> Node3D:
 		return _gltf(id, item)
 	var tint: Color = item.get("tint", Color(0, 0, 0, 0))
 	var made: Node3D = null
+	if id.begins_with("kletter") and not str(item.slot) in ["schuhe", "handschuhe"]:
+		return _climbing(id)
 	match str(item.slot):
 		"kopf":
 			made = _helmet(id, item, tint)
@@ -396,6 +398,41 @@ static func _ore(tint: Color) -> Node3D:
 	_box(n, Vector3(0.2, 0.16, 0.18), Vector3(0, 0.08, 0), STONE.darkened(0.3), Vector3(0, 20, 8))
 	_box(n, Vector3(0.12, 0.2, 0.1), Vector3(0.05, 0.12, 0.04), c, Vector3(10, 40, -10), 0.4, 0.3, 0.7)
 	_box(n, Vector3(0.09, 0.12, 0.08), Vector3(-0.07, 0.1, -0.06), c.darkened(0.15), Vector3(-15, -20, 12), 0.4, 0.3, 0.5)
+	return n
+
+
+## The climbing gear (see RockClimb): hammer, iron nail, rope and helmet, each with a few parts and
+## two or three shades so none looks like a plain block.
+static func _climbing(id: String) -> Node3D:
+	var n := Node3D.new()
+	var steel := Color(0.46, 0.47, 0.5)
+	var iron := Color(0.27, 0.27, 0.3)
+	var wood := Color(0.52, 0.36, 0.2)
+	var hemp := Color(0.66, 0.54, 0.34)
+	match id:
+		"kletterhammer":
+			# A short ash handle with a leather grip, a square steel face and a wedge-shaped peen.
+			_cyl(n, 0.017, 0.021, 0.3, Vector3(0, 0.03, 0), wood, Vector3(0, 0, 90))
+			_cyl(n, 0.023, 0.023, 0.1, Vector3(-0.07, 0.03, 0), Color(0.3, 0.2, 0.12), Vector3(0, 0, 90))
+			_box(n, Vector3(0.055, 0.05, 0.05), Vector3(0.15, 0.04, 0), steel, Vector3.ZERO, 0.6, 0.4)
+			_box(n, Vector3(0.05, 0.035, 0.012), Vector3(0.2, 0.04, 0), steel.lightened(0.15), Vector3.ZERO, 0.6, 0.35)
+			_box(n, Vector3(0.07, 0.02, 0.03), Vector3(0.1, 0.04, 0), iron, Vector3(0, 0, -12), 0.6, 0.5)
+		"kletterhaken":
+			# A flat iron blade with a ring eye at its head.
+			_box(n, Vector3(0.15, 0.01, 0.032), Vector3(0.0, 0.006, 0), iron, Vector3(0, 0, 0), 0.7, 0.5)
+			_box(n, Vector3(0.05, 0.008, 0.02), Vector3(0.1, 0.006, 0), iron.darkened(0.15), Vector3(0, 0, 0), 0.7, 0.5)
+			_torus(n, 0.012, 0.024, Vector3(-0.09, 0.012, 0), steel, Vector3.ZERO, 0.7, 0.012)
+		"kletterseil":
+			# A coil of hemp rope, three turns high, with the loose end tied round it.
+			for i in 3:
+				_torus(n, 0.07, 0.115, Vector3(0, 0.02 + i * 0.03, 0), hemp.darkened(0.06 * i), Vector3.ZERO, 0.0, 0.03)
+			_box(n, Vector3(0.05, 0.04, 0.2), Vector3(0, 0.05, 0), hemp.lightened(0.1), Vector3(0, 90, 0))
+			_cyl(n, 0.012, 0.012, 0.16, Vector3(0.12, 0.012, 0.06), hemp, Vector3(0, 0, 90))
+		"kletterhelm":
+			# The worn helmet (see ClimbHelmet) at ground size, lying brim down.
+			var helmet := ClimbHelmet.build()
+			helmet.scale = Vector3.ONE * 0.3
+			n.add_child(helmet)
 	return n
 
 

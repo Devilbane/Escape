@@ -71,6 +71,11 @@ const ALTAR_WALK := 1.7
 ## Sitting in the pews (see temple_seats): how close two may sit side by side (they share the pew evenly), how far in front of
 ## a pew's front edge one stands to sit down, and how far before the altar the priestess stands.
 const SEAT_GAP := 0.75
+## The closest two sit on one pew when the village is large, how far behind the last pew's back the
+## standing row is, and how far off the middle (the way in from the door) its first place lies.
+const SEAT_TIGHT := 0.65
+const STAND_BACK := 0.5
+const STAND_AISLE := 1.1
 const SIT_STAND := 0.4
 const PULPIT_GAP := 0.55
 ## A villagers' house's rug under the table (metres across, deep), and how high over the floor the
@@ -316,7 +321,7 @@ func open_house(house: Node3D) -> void:
 	if rec.is_empty():
 		return
 	# A villagers' house has a floor above one climbs to; Gorm's cottage (see SmithCottage) does not.
-	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern"
+	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern" or VillageHalls.HOME_OWNERS.has(rec.kind)
 	var hatch := hatch_of(house.get_meta("shape")) if upper else Rect2()
 	var meshes := VillageHouse.hollow(house, rec.has("sided"), hatch)
 	if upper:
@@ -379,6 +384,10 @@ func open_house(house: Node3D) -> void:
 		VillageHalls.furnish(self, rec)
 		if rec.kind == "tavern":
 			_loft(rec, w, d, hatch)
+		elif VillageHalls.HOME_OWNERS.has(rec.kind):
+			# The shop, the post office and the Crown office have bedrooms upstairs, one bed for
+			# each of the family or staff who live there (see VillageHalls.HOME_OWNERS).
+			_bedroom(rec, w, d, hatch, VillageHalls.HOME_OWNERS[rec.kind])
 	_lamp(rec)
 	_sconces(rec)
 	# Only a building one cannot walk into throws the light of its lit panes on the ground (see
@@ -591,6 +600,17 @@ func _loft(rec: Dictionary, w: float, d: float, hatch: Rect2) -> void:
 	_put_ladder(rec, side, hatch)
 	_furnish_upstairs(rec, w, d, side, hatch, 1)
 	rec["owner"] = VillageHalls.KEEPERS.tavern
+
+
+## A hall's bedrooms upstairs (the shop, the post office, the Crown office): the ladder up on the
+## side wall `ladder_side_of` names, and a bed along the back wall for each of `owners`, who sleep
+## here and nowhere else (see house_near, VillageBeds).
+func _bedroom(rec: Dictionary, w: float, d: float, hatch: Rect2, owners: Array) -> void:
+	var side := ladder_side_of(shape_of(rec))
+	_put_ladder(rec, side, hatch)
+	_furnish_upstairs(rec, w, d, side, hatch, owners.size())
+	rec["owner"] = owners[0]
+	rec["owners"] = owners
 
 
 ## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
@@ -843,9 +863,11 @@ static func temple_pews(room: Rect2, s: float) -> Dictionary:
 
 ## The places to sit in the temple's pews and the place to stand before the altar, world:
 ## {"seats": [{"sit", "stand", "aisle", "front", "row"}], "pulpit": {"stand", "front"}}.
-## One sits in the middle of the pew's plank facing the altar, a SEAT_GAP apart from the next, and
-## walks up to it from the gap in front of the row.
-func temple_seats(rec: Dictionary) -> Dictionary:
+## One sits in the middle of the pew's plank facing the altar and walks up to it from the gap in
+## front of the row. `need` is how many want a place: the pews seat as many to a side as they must,
+## from three to four (shoulder to shoulder at most, SEAT_TIGHT apart), and what they cannot hold
+## stands in a row behind the last pew, facing the altar ("standing": true, sit == stand).
+func temple_seats(rec: Dictionary, need := 0) -> Dictionary:
 	var node: Node3D = rec.node
 	var s := node.scale.x
 	var xf := node.global_transform
@@ -853,16 +875,27 @@ func temple_seats(rec: Dictionary) -> Dictionary:
 	var front := (xf.basis * Vector3(0, 0, -1)).normalized()
 	var seats := []
 	var zs: Array = lay.zs
+	var fit := maxi(1, int(float(lay.pew_w) / SEAT_GAP))
+	var tight := maxi(fit, int(float(lay.pew_w) / SEAT_TIGHT))
+	var per_side := clampi(ceili(float(need) / maxf(1.0, zs.size() * 2.0)), fit, tight)
 	for r in zs.size():
 		var z: float = zs[r]
 		var stand_z := z - WalkInFurniture.PEW_DEPTH * 0.5 - SIT_STAND
 		for cx: float in lay.xs:
-			var n := maxi(1, int(float(lay.pew_w) / SEAT_GAP))
-			var apart := float(lay.pew_w) / n
-			for k in n:
-				var x := cx + (k - (n - 1) * 0.5) * apart
+			var apart := float(lay.pew_w) / per_side
+			for k in per_side:
+				var x := cx + (k - (per_side - 1) * 0.5) * apart
 				seats.append({"sit": xf * (Vector3(x, 0, z - 0.05) / s), "stand": xf * (Vector3(x, 0, stand_z) / s),
 						"aisle": xf * (Vector3(0, 0, stand_z) / s), "front": front, "row": r})
+	# Standing room behind the last pew, either side of the way in from the door.
+	var back_z: float = float(zs.back()) + WalkInFurniture.PEW_DEPTH * 0.5 + STAND_BACK
+	var reach: float = float(rec.room.size.x) * 0.5 * s - 0.6
+	var x := STAND_AISLE
+	while x <= reach:
+		for side: float in [-1.0, 1.0]:
+			var at: Vector3 = xf * (Vector3(side * x, 0, back_z) / s)
+			seats.append({"sit": at, "stand": at, "aisle": xf * (Vector3(0, 0, back_z) / s), "front": front, "row": zs.size(), "standing": true})
+		x += SEAT_TIGHT
 	var altar_front: float = float(lay.altar_z) + WalkInFurniture.ALTAR_SIZE.z * 0.5 + PULPIT_GAP
 	return {"seats": seats, "pulpit": {"stand": xf * (Vector3(0, 0, altar_front) / s), "front": -front}}
 
@@ -1084,6 +1117,60 @@ func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 		var dist := Vector2(door.x - pos.x, door.z - pos.z).length()
 		if dist < best_d:
 			best = rec
+			best_d = dist
+	return best
+
+
+## Which house each villager without a house of their own sleeps in (role -> building record). Chosen
+## the first time they are asked: the nearest house to `near` that still has a bed for them, so that no
+## bed holds two and nobody is left at a door with no bed behind it.
+var _homes := {}
+
+
+func home_for(role: String, near: Vector3) -> Dictionary:
+	if _homes.has(role) and is_instance_valid((_homes[role].node as Node3D)):
+		return _homes[role]
+	var best := {}
+	var best_d := INF
+	for rec in buildings:
+		if rec.kind != "house" or rec.has("owner") or not rec.get("opened", false) or not rec.has("beds"):
+			continue
+		var tenants := 0
+		for other: Dictionary in _homes.values():
+			if is_same(other, rec):
+				tenants += 1
+		if tenants >= (rec.beds as Array).size():
+			continue
+		var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+		var dist := Vector2(door.x - near.x, door.z - near.z).length()
+		if dist < best_d:
+			best = rec
+			best_d = dist
+	if not best.is_empty():
+		_homes[role] = best
+	return best
+
+
+## The building with a bedroom that is `role`'s alone, or {} (the shop's family, see VillageHalls.HOME_OWNERS).
+func owned_house(role: String) -> Dictionary:
+	for rec in buildings:
+		if not rec.get("opened", false):
+			continue
+		if String(rec.get("owner", "")) == role or (rec.get("owners", []) as Array).has(role):
+			return rec
+	return {}
+
+
+## The street spot in front of a house's door, where villagers meet it (as in Outdoor.spots.houses):
+## the nearest of `spots` within a few metres, or the foot of its ramp.
+func front_of(rec: Dictionary, spots: Array) -> Vector3:
+	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+	var best := door_points(rec)[0]
+	var best_d := 8.0
+	for spot: Vector3 in spots:
+		var dist := Vector2(door.x - spot.x, door.z - spot.z).length()
+		if dist < best_d:
+			best = spot
 			best_d = dist
 	return best
 

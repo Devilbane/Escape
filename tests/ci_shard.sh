@@ -2,6 +2,7 @@
 # Runs one shard of the headless tests, see .github/workflows/web.yml and docs/testing.md.
 #   tests/ci_shard.sh blocking <shard> <shards>   the required tests: tests/ci_manifest.txt, plus the quest tests
 #                                                 named in $CI_QUESTS (from tests/ci_select.sh; "all" runs them all)
+#                                                 minus the ones named in $CI_SKIP (tests/ci_scopes.txt)
 #   tests/ci_shard.sh extra <shard> <shards>      the tests named in $CI_EXTRA (changed test files that are not
 #                                                 required; a failure is only a warning in CI)
 #   tests/ci_shard.sh nightly <shard> <shards>    every test that is not required: tests/ci_nightly.txt and any
@@ -25,6 +26,8 @@ unlisted() { echo "$1 120 fixed passfail"; }
 case "$mode" in
   blocking)
     columns tests/ci_manifest.txt > "$list"
+    # Scoped tests (tests/ci_scopes.txt) that this change cannot affect, named in $CI_SKIP by tests/ci_select.sh.
+    for sk in ${CI_SKIP:-}; do grep -v "^$sk " "$list" > "$list.2"; mv "$list.2" "$list"; done
     quests=${CI_QUESTS:-}
     if [ "$quests" = all ]; then columns tests/ci_quests.txt >> "$list"
     else for q in $quests; do columns tests/ci_quests.txt | grep "^$q " >> "$list"; done; fi;;

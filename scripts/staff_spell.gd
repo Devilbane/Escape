@@ -130,7 +130,7 @@ func step(delta: float, free: bool) -> bool:
 		_chant_left -= delta
 		_villager.play(POSE, 0.15)
 		if _chant_left <= 0.0:
-			_enchant()
+			enchant()
 		return true
 	if _glow_left <= 0.0 and free:
 		_wait -= delta
@@ -140,7 +140,8 @@ func step(delta: float, free: bool) -> bool:
 	return false
 
 
-func _enchant() -> void:
+## The staff takes on its glow at once (also the end of a chant, and of a blessing).
+func enchant() -> void:
 	_glow_left = GLOW_TIME
 	_wait = _rng.randf_range(WAIT.x, WAIT.y) + GLOW_TIME
 	var burst := Effects.make_sparkles(SPARK, true)

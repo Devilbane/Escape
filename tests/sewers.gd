@@ -59,6 +59,7 @@ func _check_layout() -> void:
 			if cells.has(c + d) and not seen.has(c + d):
 				seen[c + d] = true
 				todo.append(c + d)
+	check(Sewers.sketch().flush_ladders, "the shaft ladders end flush, none sticks out of a shut hatch")
 	check(seen.size() == cells.size(), "every cell is reached from the grating (%d of %d)" % [seen.size(), cells.size()])
 	var channel := Sewers.channel()
 	var walk := cells.keys().filter(func(c): return cells[c] in ["w", "r"] and not channel.has(c))
@@ -246,6 +247,25 @@ func _run() -> void:
 	var reloaded := Journal.new(game)
 	reloaded.load_from(packed)
 	check(reloaded.is_sewer_seen(Vector2i(14, 46)), "the explored sewers are saved with the journal")
+	# The look: grimy brick in several variants, soft light shafts (no beam mesh), a murky water shader.
+	check(Sewers.brick_material(0) != Sewers.brick_material(1) and Sewers.floor_material(0) != Sewers.floor_material(2), "the brick comes in grime variants")
+	var variants := {}
+	for piece: Dictionary in Sewers.sketch().pieces.values():
+		if piece.kind == HouseSketch.DIG:
+			variants[piece.wall] = true
+	check(variants.size() == Sewers.VARIANTS, "the walls use every grime variant (%d)" % variants.size())
+	var soft := 0
+	var spots: Array = game.level.find_children("*", "SpotLight3D", true, false)
+	for l: Node in spots:
+		if l.spot_angle >= 45.0 and not l.shadow_enabled:
+			soft += 1
+	check(soft >= Sewers.GRILLES.size(), "every street drain lets in a broad, soft spot of daylight (%d)" % soft)
+	var beams := 0
+	for m: Node in sketcher.deep.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (m as MeshInstance3D).mesh
+		if mesh is CylinderMesh and is_equal_approx((mesh as CylinderMesh).top_radius, 0.45) and (mesh as CylinderMesh).height > 2.0:
+			beams += 1
+	check(beams == 0, "no hard-edged beam of light is drawn (%d)" % beams)
 	await _check_vermin()
 	await _check_den()
 	if shots != "":

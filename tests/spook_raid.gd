@@ -155,6 +155,51 @@ func _run() -> void:
 	check(raid.state == SpookRaid.FLEE and raid.carried == 0, "and runs for the drain")
 	_round(raid, 600.0)
 	check(raid.state == SpookRaid.IDLE and raid.figure == null, "he gets away down the drain")
+	# The guard (Ulrich) comes along: he slips away out of his sight and lies low until he has passed.
+	var ulrich: Villager = null
+	for v: Variant in level.villagers:
+		if is_instance_valid(v) and v.role == SpookRaid.GUARD_ROLE:
+			ulrich = v
+	check(ulrich != null, "the village has its guard")
+	if ulrich != null:
+		ulrich.at_home = false
+		ulrich.visible = true
+		ulrich.global_position = Vector3(0.0, 0.0, 4000.0)
+		_hour(23.5)
+		raid._done_tonight = false
+		raid.begin(game, true)
+		for i in 80:
+			raid.step(0.1)
+		check(raid.state == SpookRaid.WALK, "on his round again")
+		var here: Vector3 = raid.figure.global_position
+		var placed := false
+		for a in range(0, 360, 30):
+			var spot_pos := here + Vector3(cos(deg_to_rad(a)), 0.0, sin(deg_to_rad(a))) * 9.0
+			var cell := level.world_to_cell(spot_pos)
+			if level.astar.is_in_boundsv(cell) and not level.astar.is_point_solid(cell) and level.has_line_of_sight(spot_pos, here):
+				ulrich.global_position = Vector3(spot_pos.x, 0.0, spot_pos.z)
+				placed = true
+				break
+		check(placed, "a spot to put the guard where he sees the thief")
+		var hid_before := raid.hid
+		for i in 8:
+			raid.step(0.1)
+		check(raid.hid == hid_before + 1 and raid.state in [SpookRaid.HIDE, SpookRaid.COVER], "he slips off to cover when the guard comes (state %d)" % raid.state)
+		var t_hide := 0.0
+		while raid.state == SpookRaid.HIDE and t_hide < 30.0:
+			raid.step(0.1)
+			t_hide += 0.1
+		check(raid.state == SpookRaid.COVER, "he reaches cover (%d s)" % t_hide)
+		check(not level.has_line_of_sight(ulrich.global_position, raid.figure.global_position), "and the guard cannot see him there")
+		for i in 150:
+			raid.step(0.1)
+		check(raid.state == SpookRaid.COVER, "he stays down while the guard is about")
+		ulrich.global_position = Vector3(0.0, 0.0, 4000.0)
+		for i in 60:
+			raid.step(0.1)
+		check(raid.state == SpookRaid.WALK, "he goes on once the guard has gone")
+		_round(raid, 900.0)
+		check(raid.state == SpookRaid.IDLE and raid.figure == null, "and still gets home")
 	# Slain: no more nights.
 	_hour(12.0)
 	raid.step(0.1)

@@ -44,6 +44,13 @@ func _hour(h: float) -> void:
 	game.level.set_hour(h)
 
 
+## Puts every villager who sleeps at night into bed (or out of it) by flag.
+func _bed(level: Outdoor, on: bool) -> void:
+	for v: Variant in level.villagers:
+		if is_instance_valid(v) and v.goes_to_bed():
+			v.at_home = on
+
+
 ## Runs his night by hand until he is home (or the steps run out).
 func _round(raid: SpookRaid, seconds: float) -> void:
 	var t := 0.0
@@ -75,12 +82,25 @@ func _run() -> void:
 	await _wait(5)
 	raid.step(0.1)
 	check(raid.state == SpookRaid.IDLE and raid.figure == null, "by day he stays home")
-	# At night he comes out and does his round.
+	# At night he waits until most of the village is in bed.
 	_hour(23.5)
 	await _wait(5)
+	_bed(level, false)
+	raid.step(0.1)
+	check(raid.state == SpookRaid.IDLE and not raid.village_asleep(), "with the village still up he stays in the sewers")
+	var bedders: Array = level.villagers.filter(func(v): return is_instance_valid(v) and v.goes_to_bed())
+	check(bedders.size() > 4, "the village has sleepers (%d)" % bedders.size())
+	for i in bedders.size() / 2:
+		bedders[i].at_home = true
+	raid.step(0.1)
+	check(raid.state == SpookRaid.IDLE, "with only half in bed he still waits")
+	_bed(level, true)
 	raid.step(0.1)
 	check(raid.state != SpookRaid.IDLE and raid.figure != null and is_instance_valid(raid.figure), "at night he climbs out of the drain")
 	check(raid.figure.global_position.distance_to(level.cell_to_world(SpookRaid.START)) < 1.0, "right at the drain")
+	check(raid.figure.get_node_or_null("Fog") is CPUParticles3D and raid.figure.get_node("Fog").emitting, "a fog cloud wraps him")
+	check(raid.figure.get_node("Fog").mesh.size.x >= 3.0 and raid.figure.get_node("Fog").amount >= 40, "a large, dense one")
+	check(raid.figure._model.rotation.x > 0.3 and raid.figure._model.position.y < -0.1, "he is stooped in a sneaking pose")
 	check(not level.enemies.has(raid.figure), "he is no foe on the list: nobody strikes at him")
 	var farthest := 0.0
 	var stopped := 0

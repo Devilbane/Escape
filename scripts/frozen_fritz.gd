@@ -17,10 +17,11 @@ const ROLE := "5"
 ## (a gap between the two, so he does not flicker while the snow comes and goes).
 const FREEZE_FROM := 0.35
 const THAW_BELOW := 0.12
-## The toast he is frozen in: the animation and the second in it where the mug is held up beside
-## his head.
-const POSE := "Spellcast_Raise"
-const POSE_TIME := 0.5
+## The toast he is frozen in, as ClimbPose angles: the right arm held out in front of him, the mug
+## well away from his body, the other arm at his side.
+const TOAST := {"arm_r": 90.0, "elbow_r": 10.0}
+## How far the toasting arm swings out to the side as well (degrees): out from the body, not across it.
+const TOAST_OUT := 45.0
 ## What he mumbles through his frozen beard when talked to (German; see scripts/lang/frozen_fritz.gd).
 const MUFFLED := [
 	"B-b-brrr... Pro... pro... st...",
@@ -73,6 +74,15 @@ static func spot(level: Outdoor) -> Vector3:
 	return level.to_global(best) if best != Vector3.INF else Vector3.INF
 
 
+## Holds the toast on `sk`: the arm out in front and to the side, the mug up beside his head. `base`
+## is the rig's standing pose (see ClimbPose.base_of). Called on every physics tick while he is frozen,
+## so nothing that steps the animation can take the arm back down.
+static func pose(sk: Skeleton3D, base: Dictionary) -> void:
+	ClimbPose.apply(sk, base, TOAST)
+	var arm := sk.find_bone("upperarm.r")
+	sk.set_bone_pose_rotation(arm, sk.get_bone_pose_rotation(arm) * Quaternion(Vector3.UP, deg_to_rad(TOAST_OUT)))
+
+
 ## Freezes `body`, whose toast pose is already held: the ice over it, the snow and icicles on it.
 static func freeze(body: Villager) -> FrozenFritz:
 	var fx := FrozenFritz.new()
@@ -96,9 +106,7 @@ func thaw() -> void:
 func _build() -> void:
 	var model: Node3D = _body._model
 	var bones := _body._bones()
-	# The pose is held, but the bones must really be in it before anything is hung on them, or the
-	# icicles would hang where the arm was a moment ago.
-	_body._anim.advance(0.0)
+	# The toast is posed by hand (see Villager._freeze), so the bones are already where they stay.
 	bones.force_update_all_bone_transforms()
 	var size: float = model.scale.x
 	# Everything that is shown on him gets an icy sheen: skin, clothes and mug alike.

@@ -172,6 +172,8 @@ const PERCH_SIZE := 0.72
 ## flies off, or one pecking on the ground does.
 const WILD_SHY := 9.0
 const WILD_PECK_SHY := 6.0
+## Seconds a woods bird with nowhere farther to flee stays put, however near the hero is.
+const CALM_TIME := 12.0
 ## For the compendium.
 const LEARN := "Küken: In manchen Nestern auf den Dächern des Dorfes liegen Eier, in anderen sitzen junge Vögel. Hungrige Küken recken sich, sperren die Schnäbel auf und piepsen, bis ihre Eltern mit einem Wurm kommen. Trägst du Körner bei dir (beim Müller), stell dich unter so ein Nest: Du wirfst den Küken eine Handvoll hinauf."
 ## Whether the hero was told how to feed the chicks (once a game).
@@ -256,7 +258,7 @@ func _init(level_node: Node3D, nest_spots: Array[Vector3], ground_spots: Array[V
 					"kind": _rng.randi() % KINDS, "market": false, "dip": 0.0, "dipping": 0.0, "worm": 0.0,
 						"nest": n, "carry": false, "feed": 0.0, "id": birds.size(), "seeds": false, "perch": -1,
 						"turn": 0.0, "size": 1.0, "size_from": 1.0, "wing": 0.0, "face": 0.0,
-						"hop": 0.0, "hop_from": perch, "hop_to": perch, "fold": 1.0, "pitch": 0.0})
+						"calm_until": 0.0, "hop": 0.0, "hop_from": perch, "hop_to": perch, "fold": 1.0, "pitch": 0.0})
 			birds[-1].wing = birds[-1].phase
 			birds[-1].face = birds[-1].yaw
 	_mm = MultiMesh.new()
@@ -396,7 +398,7 @@ func _shy_away(hero_at: Vector3) -> void:
 ## within reach, and so do the others pecking near it.
 func _shy_away_wild(hero_at: Vector3) -> void:
 	for b: Dictionary in birds:
-		if b.state == "sit" and _flat_distance(b.at, hero_at) < WILD_SHY:
+		if b.state == "sit" and _flat_distance(b.at, hero_at) < WILD_SHY and _clock >= float(b.calm_until):
 			_take_off(b)
 		elif b.state == "peck" and _flat_distance(b.at, hero_at) < WILD_PECK_SHY:
 			var from: Vector3 = b.at
@@ -416,7 +418,20 @@ func _rehome(b: Dictionary) -> void:
 		if n != int(b.nest) and _flat_distance(spot, _hero_at) > WILD_SHY + 3.0 and _flat_distance(spot, b.at) < RANGE * 1.5:
 			options.append(n)
 	if options.is_empty():
-		return
+		# No tree far enough from the hero: take the farthest one that is farther
+		# than this one. With none at all, the bird stays calm for a while, instead
+		# of bursting up and landing again in the same treetop every tick.
+		var best := -1
+		var best_d := _flat_distance(b.home, _hero_at)
+		for n in nests.size():
+			var d := _flat_distance(nests[n], _hero_at)
+			if n != int(b.nest) and d > best_d and _flat_distance(nests[n], b.at) < RANGE * 1.5:
+				best = n
+				best_d = d
+		if best < 0:
+			b.calm_until = _clock + CALM_TIME
+			return
+		options.append(best)
 	var pick: int = options[_rng.randi() % options.size()]
 	b.nest = pick
 	b.home = nests[pick] + Vector3(0.0, 0.24, 0.0)
@@ -425,6 +440,8 @@ func _rehome(b: Dictionary) -> void:
 func _take_off(b: Dictionary) -> void:
 	if wild:
 		_rehome(b)
+		if _clock < float(b.calm_until):
+			return
 	b.worm = 0.0
 	b.dipping = 0.0
 	b.market = false

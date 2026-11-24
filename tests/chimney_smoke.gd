@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless test for the evening smoke from the village chimneys (see
+## Headless test for the smoke from the village chimneys (see
 ## ChimneySmoke): every village house has a plume over its chimney; by day
 ## none smokes, in the evening the houses someone has come home to do and
 ## the empty ones do not, and late at night the fires burn down. The plume
@@ -49,8 +49,12 @@ func _home_at(door: Vector3) -> Array:
 
 
 func _rules() -> void:
-	check(not ChimneySmoke.smokes(12.0, 3), "no smoke at noon")
-	check(not ChimneySmoke.smokes(18.0, 3), "no smoke before the village comes home")
+	check(ChimneySmoke.smokes(12.0, 0), "the hearths smoke at noon, empty house or not")
+	check(not ChimneySmoke.smokes(5.0, 3), "no smoke before first light")
+	check(not ChimneySmoke.smokes(20.0, 3), "no smoke between the day's fires and the evening's")
+	check(ChimneySmoke.strength(6.0) < 0.1 and ChimneySmoke.strength(12.0) == 1.0 and ChimneySmoke.strength(19.4) < 0.1,
+			"the day's smoke fades in at dawn and out at dusk")
+	check(ChimneySmoke.breeze(Weather.STORM).x > ChimneySmoke.breeze(Weather.CLEAR).x, "a storm bends the smoke further")
 	check(ChimneySmoke.smokes(21.5, 1), "smoke in the evening with someone at home")
 	check(ChimneySmoke.smokes(0.5, 2), "the fire still burns just after midnight")
 	check(not ChimneySmoke.smokes(22.0, 0), "an empty house never smokes")
@@ -92,7 +96,10 @@ func _by_day() -> void:
 	check(level.chimneys.size() == level.spots.houses.size() + level.own_homes.size() - halls, "every village house has its chimney (the smith's cottage too)")
 	for c in level.chimneys:
 		check(c.smoke.global_position.y > VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER, "the smoke comes out over the roof")
-	check(_smoking() == 0, "no chimney smokes by day")
+	check(_smoking() == level.chimneys.size(), "every chimney smokes by day")
+	game.day_hour = 20.0
+	level.set_hour(20.0)
+	check(_smoking() == 0, "the day's fires are out before the village comes home")
 
 
 func _in_the_evening() -> void:

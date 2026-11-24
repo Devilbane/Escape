@@ -581,6 +581,7 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	_put(walk_in, rec, roof, WalkInFurniture.rug(Vector2(5.2, 3.0)), Vector3(0.9, y + 0.002, back + 2.6))
 	var stand_z := origin_z + (CosyBed.FOOT + CosyBed.HEAD) * 0.5
 	rec["ground_beds"] = true
+	rec["bed_storey"] = GuildHall.ROOF_STOREY
 	for spec: Array in [[-1.0, "AldoBed"], [1.9, "OdoBed"]]:
 		var origin := Vector3(float(spec[0]), y, origin_z)
 		var bed := CosyBed.build(roof, origin, 0.0, true)

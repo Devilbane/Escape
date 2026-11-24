@@ -300,9 +300,15 @@ func go_to_bed() -> void:
 		_to = anvil_top
 
 
+## Its small paw prints in the snow (see SnowTrail); only while it walks.
+var _trail := SnowTrail.new("cat")
+
+
 func _physics_process(delta: float) -> void:
 	if level == null or level.player == null or not home():
 		return
+	if state == "stroll" or state == "to_anvil":
+		_trail.follow(level, global_position)
 	var hero: Node3D = level.player
 	var away := _flat(global_position - hero.global_position).length()
 	# Far from the hero nobody sees it: it keeps still.

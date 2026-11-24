@@ -81,6 +81,21 @@ func _run() -> void:
 	await _shot("4c_top_back")
 	_stand(hall, Vector3(1.0, GuildHall.CELLAR, 1.0))
 	await _shot("5_experiment_room")
+	if OS.get_environment("SLEEPERS") != "":
+		# Aldo and Odo asleep upstairs, the hero on the ground floor and then in the sleeping room.
+		for role: String in MageTower.OWNERS:
+			for v: Villager in lvl.villagers:
+				if v.role == role:
+					VillagePosts.leave_at_once(v)
+					v.global_position = way[0]
+					VillageBeds.enter(v, true)
+		await _wait(20)
+		_stand(hall, Vector3(0, lay.floor, 1.5))
+		await _wait(20)
+		await _shot("6_sleepers_from_ground_floor")
+		_stand(hall, Vector3(0.3, lay.deck, 1.0))
+		await _wait(20)
+		await _shot("7_sleepers_from_sleeping_room")
 	game.delete_save(game.save_path())
 	print("PASS: mage tower shots")
 	quit(0)

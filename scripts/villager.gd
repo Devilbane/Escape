@@ -126,7 +126,7 @@ const ROLES := {
 		"lines": ["Hallo! Ich bin Pippi. Pip und ich hüten die Gänse und die Ziegen.", "Pip ist mein bester Freund. Wir spielen Fangen auf der Wiese!", "Die Gänse zwicken, wenn man ihnen den Rücken zudreht.", "Die Ziegen mögen dich, wenn du ruhig bleibst.", "Die Gänse und Ziegen weiden an der Wiese südlich und westlich vom Dorf."]},
 	# The street sweeper: no map letter, Outdoor puts him on a walkway near the square (see StreetSweeper).
 	"sweeper": {"name": "Straßenfeger Matthes", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "silver"},
-		"colors": [Color(0.5, 0.42, 0.26), Color(0.34, 0.3, 0.24), Color(0.62, 0.5, 0.3)], "plan": "stay", "work": "Idle", "skin": SKIN_LIGHT,
+		"colors": [Color(0.5, 0.42, 0.26), Color(0.34, 0.3, 0.24), Color(0.62, 0.5, 0.3)], "plan": "stay", "work": "Idle",
 		"lines": ["Blätter im Herbst, Schnee im Winter: Ein Weg bleibt nie lange sauber.", "Frag mich nach meiner Arbeit, sag einfach „Arbeit“.", "Morgens fege ich, abends weht der Wind alles wieder zurück.", "Pass auf, wo du hintrittst: Ich habe den Weg gerade erst gekehrt!"]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
 		"colors": [Color(0.35, 0.3, 0.45), Color(0.3, 0.3, 0.35), Color(0.3, 0.25, 0.4)], "plan": "stroll", "work": "Spellcast_Raise",
@@ -1188,23 +1188,26 @@ func _sweep_snow(delta: float) -> void:
 	var dir := to.normalized()
 	job.heading = job.heading.lerp(dir, minf(1.0, delta * 4.0)).normalized()
 	var leaves := _sweep_kind == "leaves"
-	# Back along the swept strip he just walks, the broom over the shoulder; out he sweeps, slowly.
-	var walked := _stride("Walking_B" if job.back else "Walking_A", SnowSweep.PACE_BACK if job.back else (LeafSweep.PACE if leaves else SnowSweep.PACE))
+	# Out and back he sweeps the same, slowly: the way back is swept as well, not just walked.
+	var walked := _stride("Walking_A", LeafSweep.PACE if leaves else SnowSweep.PACE)
 	if _move_to(global_position + dir * minf(to.length(), walked * delta)):
 		_sweep_bump = 0.0
 	else:
 		_sweep_bump += delta
 	_turn_to(dir, delta)
 	job.swing += delta
+	_work_broom(_sweep_kind, job.heading, job.swing, delta)
+
+
+## One stroke of the broom at his feet along `heading`: the snow or leaves swept aside, the dust or the leaves
+## flying up.
+func _work_broom(kind: String, heading: Vector3, swing: float, delta: float) -> void:
+	var leaves := kind == "leaves"
 	var width := LeafSweep.SWING if leaves else SnowSweep.SWING
-	if job.back:
-		width = 0.0
-	_lay_broom(job.swing, width)
-	if job.back:
-		return
-	var head := SnowSweep.broom_head(global_position, job.heading, job.swing, width)
+	_lay_broom(swing, width)
+	var head := SnowSweep.broom_head(global_position, heading, swing, width)
 	if leaves:
-		LeafSweep.stamp(level, head, global_position, job.heading)
+		LeafSweep.stamp(level, head, global_position, heading)
 	else:
 		SnowSweep.stamp(level, head)
 		SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
@@ -1214,12 +1217,38 @@ func _sweep_snow(delta: float) -> void:
 		if level.sweep_dust == null:
 			level.sweep_dust = SweepDust.new()
 			level.add_child(level.sweep_dust)
-		var away := -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2)
+		var away := -heading + heading.cross(Vector3.UP) * cos(swing * 4.2)
 		if leaves:
 			level.sweep_dust.kick_leaves(head, away)
 			level.sweep_dust.kick(head, away, LeafSweep.DUST)
 		else:
 			level.sweep_dust.kick(head, away)
+
+
+## Walking anywhere over a walkway (to his stretch, home, to a meal) he sweeps on the way, broom out, whenever
+## there is snow or leaves to sweep: he clears the tiles as he travels.
+var _en_route_prev := Vector3.INF
+var _en_route_swing := 0.0
+
+
+func _sweep_en_route(delta: float) -> void:
+	if role != SnowSweep.ROLE or level == null or _sweep != null or not visible:
+		return
+	var kind := _sweep_wanted()
+	var from := _en_route_prev
+	_en_route_prev = global_position
+	if kind == "" or from == Vector3.INF or not SnowSweep._is_walkway(level, level.world_to_cell(global_position)):
+		if _sweep_way.is_empty() and _broom != null and _broom.visible:
+			_hold_broom(false)
+		return
+	var step := global_position - from
+	step.y = 0.0
+	if step.length() < 0.001:
+		return
+	_hold_broom(true)
+	_sweep_kind = kind
+	_en_route_swing += delta
+	_work_broom(kind, step.normalized(), _en_route_swing, delta)
 
 
 # --- The guard at the west gate -----------------------------------------------
@@ -2474,6 +2503,7 @@ func _physics_process(delta: float) -> void:
 		"walk":
 			_walk(delta, hero)
 			_mind_progress(delta)
+			_sweep_en_route(delta)
 		"mend":
 			_mend(delta)
 		"sweep":

@@ -62,6 +62,9 @@ func _run() -> void:
 	check(sweeper._model.find_child(StreetSweeper.APRON, true, false) != null, "he wears the apron")
 	check(sweeper._model.find_child(StreetSweeper.HAT, true, false).visible, "the hat is on in autumn")
 
+	var tone: Color = sweeper._look.get("skin", Color.WHITE)
+	check(tone.r <= 1.0 and tone.g <= 1.0 and tone.b <= 1.0, "his skin tone does not brighten the face (%s)" % str(tone))
+	check(not sweeper._info.has("skin"), "his skin comes from the townsfolk looks, like the others")
 	var life: SurfaceLife = lvl.surface_life
 	check(life.fallen != null and life.lane_total > 0, "leaves are strewn over the walkways (%d)" % life.lane_total)
 	check(LeafSweep.wants(lvl), "autumn morning: he sweeps leaves")
@@ -117,6 +120,7 @@ func _run() -> void:
 	var cells := {}
 	var stretches := 0
 	var square_at := -1
+	var interior := 0
 	for round in 80:
 		var next := SnowSweep.route(lvl, sweeper.home, rng, clear)
 		if next.is_empty():
@@ -130,10 +134,15 @@ func _run() -> void:
 				LeafSweep.stamp(lvl, head, next[k], heading)
 			cells[lvl.world_to_cell(next[k])] = true
 		on_square = lvl.cell_char(lvl.world_to_cell(next.back())) == SurfaceLife.SQUARE
+		for p in next:
+			var pc: Vector2i = lvl.world_to_cell(p)
+			if lvl.cell_char(pc) == SurfaceLife.SQUARE and not SnowSweep.is_rim(lvl, pc):
+				interior += 1
 		if on_square and square_at < 0:
 			square_at = stretches
 	check(stretches >= 3, "he works through several stretches, not one (%d, %d cells)" % [stretches, cells.size()])
 	check(square_at < 0 or square_at > 5, "the square waits until the footpaths are done (square from stretch %d)" % square_at)
+	check(interior == 0, "he sweeps only the rim of the village centre, not its inside (%d inner points)" % interior)
 	check(cells.size() >= 40, "he covers many walkway tiles (%d)" % cells.size())
 	var far := 0
 	for c: Vector2i in cells:
@@ -154,6 +163,20 @@ func _run() -> void:
 	check(LeafSweep.swept_count() > 0, "walking the route he heaped up leaves (%d)" % LeafSweep.swept_count())
 	sweeper._start("idle", 1.0)
 	check(sweeper._sweep == null and not sweeper._broom.visible, "the broom is put away afterwards")
+
+	# Walking over a walkway to anywhere (here: back home) he sweeps on the way.
+	LeafSweep.restore_all()
+	sweeper._en_route_prev = Vector3.INF
+	sweeper._sweep_way = []
+	for k in way.size():
+		sweeper.global_position = way[k]
+		sweeper._sweep_en_route(0.05)
+	check(LeafSweep.swept_count() > 0, "walking along a walkway he sweeps on the way (%d)" % LeafSweep.swept_count())
+	check(sweeper._broom != null and sweeper._broom.visible, "the broom is out while he walks the walkway")
+	sweeper.global_position = Vector3(0, 0, 0)
+	sweeper._sweep_en_route(0.05)
+	check(not sweeper._broom.visible, "off the walkway the broom is put away")
+	LeafSweep.restore_all()
 
 	# Winter: the summer clothes go.
 	LeafSweep.restore_all()

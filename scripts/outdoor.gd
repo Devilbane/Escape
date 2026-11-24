@@ -686,6 +686,8 @@ var snow: SnowCover
 ## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
 var ice := 0.0
 var ice_cover: IceCover
+## Fish swimming under the ice, built the first time the water freezes (see set_ice).
+var ice_fish: IceFish
 ## The river's spring (see Waterfall), built by its letter.
 var waterfall: Waterfall
 ## The snow dust the herald's broom kicks up (see SweepDust), made when he first sweeps.
@@ -5647,6 +5649,10 @@ func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
 	if ice_cover != null:
 		ice_cover.set_amount(ice)
+	if ice_fish == null and ice >= IceFish.SHOW_FROM and is_inside_tree() and not _pond_waters.is_empty():
+		ice_fish = IceFish.build(self, _pond_waters)
+	if ice_fish != null:
+		ice_fish.set_ice(ice)
 	if waterfall != null:
 		waterfall.set_ice(ice)
 

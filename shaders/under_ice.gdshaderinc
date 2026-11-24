@@ -1,6 +1,6 @@
 // What drifts under the ice of a frozen pond or river: leaves and sticks carried slowly along by the
-// current, and now and then a fish swimming by. Drawn from shapes (a pointed leaf with its midrib and
-// stalk, a forked stick, a fish with fins, tail and eye), so each reads for what it is. Used by the
+// current (the fish are animated models, see IceFish). Drawn from shapes (a pointed leaf with its midrib and
+// stalk, a forked stick), so each reads for what it is. Used by the
 // ground shader (see meadow.gdshader), only where the ice lies, and tinted a little by the ice over them.
 
 float ui_hash(vec2 p) {
@@ -59,44 +59,6 @@ vec4 ui_stick(vec2 q, float len, vec3 tint, float seed) {
 	return vec4(col, cover);
 }
 
-// A fish swimming towards +x, seen from above like the game's camera sees it: a slim body with a
-// darker back, pale flanks and a few bars, two pectoral fins out to the sides, a forked tail, and the two
-// eyes on top of the head. The whole body bends from side to side in a wave that runs from the head to
-// the tail, so the tail beats widest.
-vec4 ui_fish(vec2 q, float len, float wid, float seed, float t) {
-	float u = (q.x + len * 0.5) / len;
-	float bend = 0.13 * len * sin(t * 6.5 - u * 6.5 + seed * 20.0) * pow(clamp(1.0 - u, 0.0, 1.0), 1.4);
-	// The head turns a little against the tail.
-	bend -= 0.03 * len * sin(t * 6.5 - 6.5 + seed * 20.0) * smoothstep(0.6, 1.0, u);
-	q.y -= bend;
-	float uc = clamp(u, 0.0, 1.0);
-	float body_w = wid * pow(max(sin(3.14159 * clamp(0.1 + uc * 0.9, 0.0, 1.0)), 0.0), 0.6);
-	float body = smoothstep(0.0, 0.012, body_w - abs(q.y)) * step(0.0, u) * step(u, 1.0);
-	// Tail fin: a forked fan behind the narrow base of the body.
-	float tu = -u;
-	float tail_w = wid * (0.45 + 3.2 * tu);
-	float tail = smoothstep(0.0, 0.012, tail_w - abs(q.y)) * step(0.0, tu) * step(tu, 0.26);
-	tail *= step(tu * wid * 1.7, abs(q.y) + wid * 0.22);
-	// Pectoral fins: small paddles at either side behind the head, swept back.
-	vec2 fp = vec2(q.x - len * 0.18, abs(q.y) - body_w * 1.05);
-	fp = vec2(fp.x * 0.8 + fp.y * 0.5, fp.y * 1.0 - fp.x * 0.5);
-	float pect = (1.0 - smoothstep(0.0, 1.0, length(fp / vec2(len * 0.1, wid * 0.55)))) * step(body_w * 0.7, abs(q.y));
-	// Colour: dark olive back, scale dots, bars across the back, pale towards the flanks.
-	float across = abs(q.y) / max(body_w, 0.001);
-	vec3 back = vec3(0.2, 0.27, 0.18);
-	vec3 flank = vec3(0.55, 0.52, 0.34);
-	vec3 col = mix(back, flank, smoothstep(0.35, 1.0, across));
-	col *= 0.82 + 0.26 * step(0.55, fract(u * 6.0 + 0.2));
-	vec2 sc = vec2(q.x * 38.0, q.y * 38.0 + 0.5 * floor(q.x * 38.0));
-	col *= 0.9 + 0.14 * smoothstep(0.1, 0.5, length(fract(sc) - 0.5));
-	vec3 fin = vec3(0.74, 0.36, 0.14);
-	col = mix(col, fin * (0.8 + 0.3 * fract(u * 19.0)), max(tail, pect * 0.9));
-	// Eyes: two dark dots on the sides of the head.
-	float eye = 1.0 - smoothstep(0.006, 0.016, length(vec2(q.x - len * 0.38, abs(q.y) - wid * 0.5)));
-	col = mix(col, vec3(0.03), eye * body);
-	return vec4(col, max(body, max(tail, pect * 0.9)));
-}
-
 // The picture under the ice at ground position p (metres) and time t: rgb colour and cover in a.
 vec4 under_ice(vec2 p, float t) {
 	vec4 out_col = vec4(0.0);
@@ -116,25 +78,6 @@ vec4 under_ice(vec2 p, float t) {
 		out_col = ui_leaf(q, 0.38 + 0.17 * k, 0.1 + 0.03 * k, tint, k);
 	} else if (h < 0.68) {
 		out_col = ui_stick(q, 0.65 + 0.3 * k, vec3(0.34, 0.23, 0.12), k);
-	}
-	// A fish now and then, swimming its own way across a wide cell and fading in and out.
-	float fcell = 11.0;
-	vec2 fid = floor(p / fcell);
-	float fh = ui_hash(fid + 41.0);
-	if (fh < 0.55) {
-		float speed = 0.5 + 0.4 * ui_hash(fid + 7.0);
-		float dir = ui_hash(fid + 9.0) < 0.5 ? 1.0 : -1.0;
-		float phase = fract(t * speed / (fcell * 0.8) + fh * 3.0);
-		float x = (phase - 0.5) * fcell * 0.9 * dir;
-		float y = (ui_hash(fid + 13.0) - 0.5) * fcell * 0.5 + 0.5 * sin(phase * 9.0 + fh * 30.0);
-		vec2 centre_f = (fid + 0.5) * fcell + vec2(x, y);
-		vec2 fq = p - centre_f;
-		fq.x *= dir;
-		float fade = smoothstep(0.0, 0.12, phase) * (1.0 - smoothstep(0.88, 1.0, phase));
-		vec4 fish = ui_fish(fq, 0.42, 0.07, fh, t);
-		fish.a *= fade * 0.7;
-		out_col = mix(out_col, vec4(fish.rgb, 1.0), fish.a);
-		out_col.a = max(out_col.a, fish.a);
 	}
 	return out_col;
 }

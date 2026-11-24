@@ -22,6 +22,8 @@ const SPOTS := {
 		{"cell": Vector2i(84, 54), "level": 12, "height": 6.6},
 		# The one the climber shows (see ClimberNpc): on the mountainside east of the stream.
 		{"cell": Vector2i(55, 57), "level": 5, "height": 5.4},
+		# The hidden one (see SummitGarden): a ledge high in the north rim of the high valley, with a garden on it.
+		{"cell": Vector2i(151, 4), "level": 16, "height": 9.6, "viper": true},
 	],
 }
 

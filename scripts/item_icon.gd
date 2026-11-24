@@ -40,7 +40,7 @@ static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
 ## The pictures of the ingredients of the pouch (see Crafting.INGREDIENTS)
 ## that have none of their own above: herbs, mushrooms, fish, ore and gems.
 const INGREDIENT_ICONS := {
-	"baerlauch": "garlic", "glimmermoos": "moss", "mondblume": "moonflower", "edelweiss": "edelweiss",
+	"baerlauch": "garlic", "glimmermoos": "moss", "mondblume": "moonflower", "edelweiss": "edelweiss", "silberedelweiss": "edelweiss",
 	"steinpilz": "porcini", "trueffel": "truffle", "hoehlenpilz": "cave_mushroom",
 	"barsch": "perch", "goldkarpfen": "carp", "silberhecht": "pike", "mondforelle": "trout",
 	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal", "schleimkristall": "crystal",

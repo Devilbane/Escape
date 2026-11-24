@@ -439,6 +439,15 @@ static func _wall_wall(level: Level, parent: Node3D, body: StaticBody3D) -> void
 	level.stations.append({"kind": WALL, "pos": mid + Vector3(0, 0, -0.9), "cell": level.world_to_cell(mid), "used": false, "touch": 1.9})
 
 
+## Whether a cell of the sewers belongs to the hidden den: its chamber, or the passage behind the false wall.
+static func hides(c: Vector2i) -> bool:
+	return DEN.has_point(c) or PASSAGE.has(c)
+
+
+## The group of the meshes that hide the den: the cellar view dresses them in its own earth.
+const EARTH_VEIL := "earth_veil"
+
+
 ## A veil of dark stone over the passage and the den, so the cutaway view shows solid ground there until
 ## the wall gives way.
 static func _veil_over(parent: Node3D) -> void:
@@ -459,6 +468,9 @@ static func _veil_over(parent: Node3D) -> void:
 		v.material_override = m
 		v.position = low + Vector3(size.x * 0.5 - 0.05, HouseSketch.DEPTH + 0.0 - 0.06, size.z * 0.5 - 0.05)
 		v.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# It takes on the earth the cellar view lays round the pit (see CellarView), so that no dark
+		# rectangle gives the hidden den away.
+		v.add_to_group(EARTH_VEIL)
 		_veil.add_child(v)
 
 

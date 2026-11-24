@@ -5416,7 +5416,7 @@ func _build_map_page(journal: Journal) -> void:
 	legend.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	legend.add_theme_constant_override("separation", 3)
 	scroll.add_child(legend)
-	if view.storey == MapView.DEEP:
+	if view.storey != MapView.GROUND:
 		_deep_legend(legend, view)
 		return
 	var places := view.numbered_places()

@@ -3538,6 +3538,21 @@ func _try_ladder(dir: Vector3) -> bool:
 	return false
 
 
+## Climbs down the ladder whose top is by `near` (within 1.4 m): a click on a manhole does this once
+## the hero has walked up to it. Returns whether a climb began.
+func climb_down_at(near: Vector3) -> bool:
+	if not is_inside_tree() or on_ladder():
+		return false
+	for ladder: Node3D in get_tree().get_nodes_in_group(LADDER_GROUP):
+		var top: Vector3 = ladder.get_meta("top")
+		if Vector2(top.x - near.x, top.z - near.z).length() > 1.4 or top.y < near.y - 0.5:
+			continue
+		var foot: Vector3 = ladder.get_meta("foot")
+		_start_ladder(ladder.get_meta("edge"), ladder.get_meta("push"), foot.y, top.y, false)
+		return true
+	return false
+
+
 ## Whether the hero stands at `spot`: on its height and within reach of it.
 func _near(spot: Vector3) -> bool:
 	var at := global_position

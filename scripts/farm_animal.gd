@@ -113,6 +113,9 @@ const WING_SHOULDER := Vector3(0.13, 0.46, 0.0)
 static var _meshes := {}
 static var _mats := {}
 static var _sheep_mats := {}
+## The cows' and the bull's coat materials by the model's material name and kind, and the textures they share.
+static var _fur_mats := {}
+static var _fur_textures := {}
 
 var level: Outdoor
 var kind := "goose"
@@ -923,6 +926,8 @@ func _build_model() -> void:
 		_fleece(model)
 	elif kind in ["goat", "billy"]:
 		GoatModel.dress(model, coat, kind == "billy")
+	elif kind == "cow" or kind == "bull":
+		_fur(model)
 	_anim = model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walk", "Gallop", "Eating"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -982,5 +987,95 @@ static func _fleece_normals(noise: Image) -> ImageTexture:
 	var img := noise.duplicate() as Image
 	img.convert(Image.FORMAT_RGB8)
 	img.bump_map_to_normal_map(10.0)
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## Cows and the bull wear short hair instead of the model's plain plastic colours: each coat surface keeps
+## its colour but gets fine strands, patches of lighter and darker coat, darker legs and no shine (see
+## shaders/cow_fur.gdshader). Muzzle and hooves are lighter and darker, matte. Built once per kind and shared.
+func _fur(model: Node3D) -> void:
+	for node in model.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		for s in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(s) as BaseMaterial3D
+			if m == null:
+				continue
+			var key := "%s/%s" % [kind, m.resource_name]
+			if not _fur_mats.has(key):
+				_fur_mats[key] = _coat_material(m)
+			mi.set_surface_override_material(s, _fur_mats[key])
+
+
+static func _coat_material(m: BaseMaterial3D) -> Material:
+	match m.resource_name:
+		"Main", "Main_Light", "Muzzle":
+			if _fur_textures.is_empty():
+				_fur_textures = {"strands": _strand_texture(), "bumps": _strand_bumps(), "blotches": _blotch_texture()}
+			var sm := ShaderMaterial.new()
+			sm.shader = load("res://shaders/cow_fur.gdshader")
+			var c := m.albedo_color
+			if m.resource_name == "Muzzle":
+				# Short, pale hair around the nose and mouth.
+				c = c.lerp(Color(0.9, 0.82, 0.74), 0.35)
+			sm.set_shader_parameter("base_color", c)
+			sm.set_shader_parameter("strands", _fur_textures["strands"])
+			sm.set_shader_parameter("strand_bumps", _fur_textures["bumps"])
+			sm.set_shader_parameter("blotches", _fur_textures["blotches"])
+			return sm
+		"Hooves":
+			# Dark, matte horn: no sheen.
+			var h := StandardMaterial3D.new()
+			h.albedo_color = m.albedo_color.darkened(0.35)
+			h.roughness = 0.85
+			h.metallic_specular = 0.2
+			return h
+		_:
+			var d := m.duplicate() as BaseMaterial3D
+			d.roughness = 0.8
+			d.metallic_specular = 0.25
+			return d
+
+
+## Seamless noise that is long in one direction: a small image stretched along v, so it reads as hairs.
+static func _stretched_noise(seed_value: int, across: int, along: int, frequency: float, size: int) -> Image:
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = frequency
+	noise.seed = seed_value
+	var img := noise.get_seamless_image(across, along)
+	img.resize(size, size, Image.INTERPOLATE_BILINEAR)
+	return img
+
+
+## Light and dark hair strands: fine streaks running down the texture (a multiplier near 1).
+static func _strand_texture() -> ImageTexture:
+	var fine := _stretched_noise(5, 128, 16, 0.22, 128)
+	var coarse := _stretched_noise(9, 32, 8, 0.12, 128)
+	var img := Image.create(128, 128, false, Image.FORMAT_RGB8)
+	for y in 128:
+		for x in 128:
+			var v := 0.6 + 0.55 * fine.get_pixel(x, y).r + 0.3 * coarse.get_pixel(x, y).r
+			img.set_pixel(x, y, Color(v, v, v * 0.98))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+static func _strand_bumps() -> ImageTexture:
+	var img := _stretched_noise(5, 128, 16, 0.22, 128)
+	img.convert(Image.FORMAT_RGB8)
+	img.bump_map_to_normal_map(8.0)
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## Broad soft blotches of lighter and darker coat (0..1 grey).
+static func _blotch_texture() -> ImageTexture:
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = 0.03
+	noise.seed = 21
+	var img := noise.get_seamless_image(64, 64)
+	img.convert(Image.FORMAT_RGB8)
 	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)

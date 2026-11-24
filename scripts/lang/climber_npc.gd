@@ -16,7 +16,7 @@ const EN := {
 	"Hier oben hört dich keiner, und das ist gut so.": "Nobody hears you up here, and that is just as well.",
 	"Ah, der Wind!": "Ah, the wind!",
 	"Dagegenlaufen, um mit %s über das Klettern zu reden": "Run into them to talk about climbing with %s",
-	"Hier am Bach ist die Wand leicht. Die anderen Wände musst du suchen, und sie sind höher.": "The wall here by the stream is easy. The other walls you have to find, and they are higher.",
+	"Die Wand am Bach ist mein Hausberg. Die anderen Wände musst du suchen, und sie sind höher.": "The wall by the stream is my home mountain. The other walls you have to find, and they are higher.",
 	"Drei Griffe, dann ein Nagel mit Seil. Danach alle zwei Griffe wieder. So bleibt man heil.": "Three holds, then a nail with the rope. After that every two holds again. That is how you stay in one piece.",
 	"Rutschst du ab, hängst du im letzten Nagel. Ohne Nagel hängst du nirgends.": "If you slip you hang in the last nail. Without a nail you hang nowhere.",
 	"Nach einem Fehlgriff darfst du es gleich noch einmal versuchen. Danach: Atem holen.": "After a missed hold you may try again at once. After that: catch your breath.",

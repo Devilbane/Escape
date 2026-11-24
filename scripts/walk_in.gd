@@ -602,6 +602,7 @@ func _put_ladder(rec: Dictionary, side: float, hatch: Rect2) -> void:
 	spot.set_meta("edge", rec.ladder_edge)
 	spot.set_meta("foot", rec.ladder)
 	spot.set_meta("top", rec.ladder_top)
+	spot.set_meta("visual", ladder)
 
 
 ## The tavern's loft: the brewer's ladder up to a room with his bed (see VillageBeds), the ladder
@@ -1267,7 +1268,9 @@ func _between_storeys(rec: Dictionary, from: Vector3, to: Vector3) -> Array[Vect
 	var to_local := node.global_transform.affine_inverse()
 	var a := GuildHall.storey_of(rec.layout, (to_local * from).y)
 	var b := GuildHall.storey_of(rec.layout, (to_local * to).y)
-	for p: Vector3 in GuildHall.way(rec.layout, a, b):
+	# A click on the steps themselves: to the end of the flight it is nearest from where one comes.
+	var onto := GuildHall.way_onto(rec.layout, a, to_local * to)
+	for p: Vector3 in (onto if not onto.is_empty() else GuildHall.way(rec.layout, a, b)):
 		out.append(node.global_transform * p)
 	return out
 

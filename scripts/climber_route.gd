@@ -17,6 +17,9 @@ const PULL_SECONDS := 1.15
 const DOWN_SECONDS := 0.9
 const UNCLIP_SECONDS := 1.5
 const DIR := Vector3(0, 0, -1)
+## How far back from the middle of the terrace (towards the rock) he stands and sits: the flat top ends a metre
+## in front of the middle, and his legs reach out in front of him when he sits.
+const SEAT_BACK := 0.7
 ## The Klettern level the rules are played with: a master, so his pull-ups always hold.
 const SKILL := 30
 ## What he says at the top, one after another.
@@ -250,7 +253,7 @@ func _edge() -> Vector3:
 
 
 func _terrace(v: Villager) -> Vector3:
-	return ClimbSpots.top(v.level, spot) + Vector3(0, 0, 0.9)
+	return ClimbSpots.top(v.level, spot) + Vector3(0, 0, -SEAT_BACK)
 
 
 # --- The nails and the rope ----------------------------------------------------------------------

@@ -1,1 +1,1 @@
-- Every animal now leaves clear, readable tracks in the snow again: paws, hooves and bird feet, now also from the village cat.
+- Animal tracks no longer get pushed out by the villagers' boot prints, so deer, fox, rabbit, sheep, dogs and the rest leave lasting tracks; beetle dots are bigger.

@@ -1,0 +1,1 @@
+- Walking underground in a cellar or mine no longer presses footprints into the snow above, and the surface's prints no longer flash overhead.

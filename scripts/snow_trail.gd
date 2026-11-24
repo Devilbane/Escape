@@ -24,7 +24,7 @@ const FEET := {
 	"dog": ["paw", 1.2, 0.5, 0.06],
 	"squirrel": ["paw", 0.5, 0.3, 0.03],
 	"hedgehog": ["paw", 0.5, 0.22, 0.03],
-	"goose": ["bird", 1.7, 0.4, 0.06],
+	"goose": ["bird", 0.68, 0.4, 0.06],
 	"cat": ["paw", 0.45, 0.3, 0.03],
 	# Monsters: the ones on two legs press boots, the wolf a paw (see for_monster).
 	"walker": ["boot", 1.0, 0.7, 0.08],

@@ -1,0 +1,1 @@
+- A click on the steps of the mage tower's (and the guildhall's) stairs now walks the hero up them, instead of stopping beside the flight.

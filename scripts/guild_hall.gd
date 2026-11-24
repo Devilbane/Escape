@@ -638,5 +638,7 @@ static func _lamp(parent: Node3D, at: Vector3) -> OmniLight3D:
 	lamp.omni_attenuation = WalkIn.LAMP_FALLOFF
 	lamp.position = at
 	lamp.visible = false
+	# Walls all round it (see LightShadows.INDOOR), or it lit the snow outside through the wall.
+	lamp.set_meta(LightShadows.INDOOR, true)
 	parent.add_child(lamp)
 	return lamp

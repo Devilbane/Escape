@@ -423,6 +423,7 @@ static func _entrance(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, inside:
 	_ball(inside, 0.17, Vector3(0, y + 0.97, back + 1.3), _glow("crystal", GLOW, 2.5))
 	WalkInFurniture._cylinder(inside, 0.12, 0.05, Vector3(0, y + 0.8, back + 1.3), _mat("brass", Color(0.78, 0.6, 0.3), 0.4))
 	var light := OmniLight3D.new()
+	light.set_meta(LightShadows.INDOOR, true) # Walls all round it: it must not light the snow outside.
 	light.name = "CrystalGlow"
 	light.light_color = GLOW
 	light.light_energy = 0.7
@@ -796,6 +797,7 @@ static func summoning_circle() -> Node3D:
 		WalkInFurniture._box(root, Vector3(0.2, 0.012, 0.06), at, _glow("rune", GLOW, 2.2), Basis(Vector3.UP, -a))
 	pentagram(root, 0.82, 0.02)
 	var light := OmniLight3D.new()
+	light.set_meta(LightShadows.INDOOR, true) # Walls all round it: it must not light the snow outside.
 	light.name = "CircleGlow"
 	light.light_color = GLOW
 	light.light_energy = 0.9
@@ -830,6 +832,7 @@ static func cauldron() -> Node3D:
 	rim_mi.scale = Vector3(1, 0.6, 1)
 	root.add_child(rim_mi)
 	var light := OmniLight3D.new()
+	light.set_meta(LightShadows.INDOOR, true) # Walls all round it: it must not light the snow outside.
 	light.name = "BrewGlow"
 	light.light_color = Color(0.4, 1.0, 0.5)
 	light.light_energy = 0.8
@@ -1411,6 +1414,7 @@ static func crystal_orb(colour := GLOW) -> Node3D:
 		WalkInFurniture._box(root, Vector3(0.025, 0.14, 0.025), Vector3(cos(a) * 0.1, 0.9, sin(a) * 0.1), brass, Basis(Vector3.UP, -a) * Basis(Vector3.FORWARD, 0.4))
 	_ball(root, 0.14, Vector3(0, 0.96, 0), _glow("orb_" + colour.to_html(false), colour, 2.4))
 	var light := OmniLight3D.new()
+	light.set_meta(LightShadows.INDOOR, true) # Walls all round it: it must not light the snow outside.
 	light.light_color = colour
 	light.light_energy = 0.5
 	light.omni_range = 3.0

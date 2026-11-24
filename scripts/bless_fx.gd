@@ -15,6 +15,7 @@ const AMBER := Color(1.0, 0.6, 0.28)
 const DISC_SHADER := """
 shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never;
+#include "res://shaders/gl_colour.gdshaderinc"
 uniform vec3 tint = vec3(1.0, 0.85, 0.45);
 uniform float strength = 1.0;
 uniform float spin = 0.0;
@@ -51,12 +52,14 @@ void fragment() {
 	v *= smoothstep(1.0, 0.92, r);
 	ALBEDO = tint * v * strength;
 	ALPHA = 1.0;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 
 const COLUMN_SHADER := """
 shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never;
+#include "res://shaders/gl_colour.gdshaderinc"
 uniform vec3 tint = vec3(1.0, 0.85, 0.45);
 uniform float strength = 1.0;
 uniform float height = 3.4;
@@ -71,6 +74,7 @@ void fragment() {
 	float rise = pow(clamp(1.0 - up, 0.0, 1.0), 1.6);
 	ALBEDO = tint * edge * rise * strength * 0.55;
 	ALPHA = 1.0;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 

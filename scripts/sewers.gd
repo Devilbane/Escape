@@ -188,6 +188,7 @@ static func sketch() -> HouseSketch:
 		return _sketch
 	var s := HouseSketch.new()
 	s.plot = PLOT
+	s.flush_ladders = true
 	var built := HouseSketch.BUILT
 	for c: Vector2i in cells():
 		s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.CELL_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.DIG, "state": built, "floor": "brick:%d" % variant_at(c), "wall": "brick:%d" % variant_at(c + Vector2i(5, 9))}

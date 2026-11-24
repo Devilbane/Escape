@@ -32,7 +32,7 @@ const SOLD_OUT := "Ausverkauft: Wolfram hat nur wenig dabei."
 
 ## What he tells, one at a time (a different one each day).
 const TALK := [
-	"Hier am Bach ist die Wand leicht. Die anderen Wände musst du suchen, und sie sind höher.",
+	"Die Wand am Bach ist mein Hausberg. Die anderen Wände musst du suchen, und sie sind höher.",
 	"Drei Griffe, dann ein Nagel mit Seil. Danach alle zwei Griffe wieder. So bleibt man heil.",
 	"Rutschst du ab, hängst du im letzten Nagel. Ohne Nagel hängst du nirgends.",
 	"Nach einem Fehlgriff darfst du es gleich noch einmal versuchen. Danach: Atem holen.",

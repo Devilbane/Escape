@@ -73,6 +73,11 @@ uniform float masonry = 0.0;
 uniform float course = 0.3;
 uniform float irregular = 0.0;
 uniform float edge_round = 0.0;
+// Hewn stone (blocks = 0): how strongly its grain and pits show in the relief (1: as
+// the gravestones have it, 0: smooth), and how far its colour varies from patch to
+// patch (warmer and cooler, lighter and darker; 0: one tone).
+uniform float rough = 1.0;
+uniform float mottle = 0.0;
 
 // The four rows of stone blocks on the trim sheet (v, top and bottom), the
 // metres one copy of them covers across and up, and the red roof tiles.
@@ -168,6 +173,10 @@ void fragment() {
 	float grain = fbm(wpos * 2.2 + 3.0);
 	float pits = vnoise(wpos * 17.0);
 	vec3 solid = tint * (0.74 + 0.32 * grain) * (0.94 + 0.12 * pits * band(17.0, px));
+	// Patches of warmer and cooler, lighter and darker stone, as a quarry's blocks differ.
+	float patch_a = fbm(wpos * 1.1 + 17.0);
+	float patch_b = vnoise(wpos * 5.0 + 4.0) * band(5.0, px) + 0.5 * (1.0 - band(5.0, px));
+	solid *= 1.0 + mottle * ((patch_a - 0.5) * vec3(0.9, 0.62, 0.34) + (patch_b - 0.5) * 0.3);
 	if (masonry > 0.5) {
 		// Natural stonework: stones of differing size with rounded corners.
 		vec4 side = natural_stone(along, tint * STONE_SHADE, course, irregular, px);
@@ -177,7 +186,7 @@ void fragment() {
 		relief = laid.a * 0.55;
 	}
 	stone = mix(solid, stone, blocks);
-	relief = mix(0.35 * grain + 0.25 * pits * band(17.0, px), relief, blocks);
+	relief = mix(rough * (0.35 * grain + 0.25 * pits * band(17.0, px)), relief, blocks);
 
 	// Faded paint, and roof tiles in the faded colour of the roof.
 	vec3 faded = mix(base, vec3(l), fade) * 0.86;

@@ -56,6 +56,8 @@ func _run() -> void:
 	for id in ids:
 		var near := _plain_boxes_near(out, out.doors[id], 8.0)
 		check(near == 0, "%s has no plain-coloured stone or timber (%d)" % [id, near])
+	var lair := AgedStone.lair_stone()
+	check(lair.get_shader_parameter("rough") < 0.5 and lair.get_shader_parameter("mottle") > 0.0, "the lair's arch is smooth, patchy cut stone, not the kit's red-brown")
 	check(AgedStone.timber_material(Color(0.34, 0.23, 0.14)) is ShaderMaterial, "mine timber is the aged, grained shader")
 	game.delete_save(game.save_path())
 	print("PASS: entrance textures (%d checks)" % checks if failures == 0 else "FAILED: %d" % failures)

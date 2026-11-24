@@ -88,12 +88,7 @@ func _by_day() -> void:
 	game.load_level(game._outdoor_index(), false)
 	var level: Outdoor = game.level
 	check(not level.chimneys.is_empty(), "the village houses have chimneys")
-	# The flat-roofed guildhall, Ragna's home, has none (see GuildHall), nor has the tavern, where
-	# Eberhard sleeps in the loft and Fritz at his table.
-	var halls := 0
-	for role: String in [VillageHalls.KEEPERS.guild, VillageHalls.KEEPERS.tavern, TavernBrewer.GUEST]:
-		halls += 1 if level.own_homes.has(role) else 0
-	check(level.chimneys.size() == level.spots.houses.size() + level.own_homes.size() - halls, "every village house has its chimney (the smith's cottage too)")
+	check(level.chimneys.size() == level.spots.houses.size() + (1 if level.own_homes.has(SmithCottage.OWNER) else 0), "every village house has its chimney (the smith's cottage too)")
 	for c in level.chimneys:
 		check(c.smoke.global_position.y > VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER, "the smoke comes out over the roof")
 	check(_smoking() == level.chimneys.size(), "every chimney smokes by day")

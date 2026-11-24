@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add the secret mountaintop garden: a hidden level 16 climb with silver edelweiss, a tablet and a healing spring | Shipped this week: Real seats in houses, smithy and guildhall; remove the useless small tables (+48 more)
+Escape! dev status | Shipped this week: Add the secret mountaintop garden: a hidden level 16 climb with silver edelweiss, a tablet and a healing spring (+48 more)

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Let it snow only in winter | Shipped this week: Make heavy rain fall in smaller, greyer drops; Keep fog off the walls inside the village buildings (+48 more)
+Escape! dev status | Shipped this week: Let it snow only in winter; Make heavy rain fall in smaller, greyer drops; Keep fog off the walls inside the village buildings (+47 more)

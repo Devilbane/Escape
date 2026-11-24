@@ -44,16 +44,34 @@ var _colours: Array[Color] = []
 var _snowed := 0.0
 
 
+## One bit as a pointed oval lying flat on the water, one metre long (along z) and wide before it is scaled: a leaf,
+## a streak of foam or a bit of bark. (A plain square would read as a floating square, not as a leaf.)
+static func bit_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	var steps := 8
+	for i in steps:
+		var a := float(i) / steps
+		var b := float(i + 1) / steps
+		var wa := 0.5 * pow(maxf(sin(PI * a), 0.0), 0.8)
+		var wb := 0.5 * pow(maxf(sin(PI * b), 0.0), 0.8)
+		var p0 := Vector3(-wa, 0, a - 0.5)
+		var p1 := Vector3(wa, 0, a - 0.5)
+		var p2 := Vector3(-wb, 0, b - 0.5)
+		var p3 := Vector3(wb, 0, b - 0.5)
+		for v: Vector3 in [p0, p2, p1, p1, p2, p3]:
+			st.add_vertex(v)
+	return st.commit()
+
+
 func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%s|%s|%d" % [from, to, count])
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
-	quad.orientation = PlaneMesh.FACE_Y
 	_mm = MultiMesh.new()
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_colors = true
-	_mm.mesh = quad
+	_mm.mesh = bit_mesh()
 	_mm.instance_count = count
 	for i in count:
 		_phase.append(rng.randf())

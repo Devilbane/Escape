@@ -3299,7 +3299,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
 		ice_rng.seed = hash(key + "schnee")
-		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old)
+		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old, SnowCaps.ledges_of(node))
 		# Grass, flowers and mossy stones at its foot (see WallFoot), with dice of their own.
 		var foot_rng := RandomNumberGenerator.new()
 		foot_rng.seed = hash(key + "fuss")

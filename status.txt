@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Swim animated fish under the river's ice, seen from above | Shipped this week: Keep surface leaves out of sight in cellars; Let it snow only in winter; Make heavy rain fall in smaller, greyer drops (+47 more)
+Escape! dev status | Shipped this week: Swim animated fish under the river's ice, seen from above; Keep surface leaves out of sight in cellars; Let it snow only in winter (+47 more)

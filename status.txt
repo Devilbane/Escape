@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Let snow reach the foot of house walls (exact walls in the snow shader); Give the farm villagers their goals | Shipped this week: Add Wolfram the Climber, a rock climber who sells climbing gear; CI: 4 PR shards, explicit 60 min job timeout, refreshed timings (+47 more)
+Escape! dev status | Working on: Give the farm villagers their goals | Shipped this week: Let snow reach the foot of house walls (exact walls in the snow shader); Add Wolfram the Climber, a rock climber who sells climbing gear (+47 more)

@@ -93,6 +93,7 @@ const AREAS := {
 	"zinne": {"name": "Aschenzinne und ihre Keller", "min": 18, "max": 20, "from": [3, 13]},
 	"sternhall": {"name": "Sternhall", "min": 18, "max": 20, "from": [3, 13]},
 	"wueste": {"name": "Die Verlassene Wüste", "min": 12, "max": 14, "from": [3, 13]},
+	"quelle": {"name": "Die Quellhöhle", "min": 7, "max": 9, "from": [3, 9]},
 }
 ## Which area a building (Level.building) belongs to.
 const BUILDING_AREAS := {
@@ -102,7 +103,7 @@ const BUILDING_AREAS := {
 	"uralt1": "uralt", "uralt2": "uralt", "uralt3": "uralt3",
 	"spire1": "zinne", "spire2": "zinne", "spire3": "zinne", "spire4": "zinne", "spire5": "zinne",
 	"stern1": "sternhall", "stern2": "sternhall", "stern3": "sternhall", "stern4": "sternhall",
-	"wueste1": "wueste",
+	"wueste1": "wueste", "quelle1": "quelle",
 }
 
 ## Every task and how long it likely takes: minutes and the level of the

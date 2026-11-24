@@ -17,6 +17,7 @@ const PARTS := [
 	preload("res://scripts/lang/climber_npc.gd"),
 	preload("res://scripts/lang/temple_morning.gd"),
 	preload("res://scripts/lang/valley.gd"),
+	preload("res://scripts/lang/spring_cave.gd"),
 	preload("res://scripts/lang/sewers.gd"),
 	preload("res://scripts/lang/spooknortz.gd"),
 	preload("res://scripts/lang/staff_spell.gd"),

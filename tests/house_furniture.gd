@@ -84,6 +84,13 @@ func _process(_delta: float) -> bool:
 	var paid: int = game.trader_price(100) + game.trader_price(50) + game.trader_price(25) + game.trader_price(150)
 	check(game.coins == 1000 - paid, "the purse paid for them (%d left)" % game.coins)
 	# The rules.
+	# The town house's hoard and every bench of the crafting square can be bought as furniture too.
+	check(HouseFurniture.KINDS.has("hort") and HouseFurniture.KINDS.hort.station == "hort", "the hoard is a piece of furniture")
+	check(HomeUpgrades.ALL.keys().all(func(id): return HouseFurniture.KINDS.has(id) or id in ["werkstatt", "trophaeen"]),
+			"every upgrade of the old house is furniture too")
+	for letter in CraftingSquare.BENCHES:
+		check(HouseFurniture.KINDS.values().any(func(k): return k.get("bench", "") == letter), "the bench %s is furniture" % letter)
+	check(HouseFurniture.footprint("hort", 1) == Vector2i(2, 2), "the hoard covers 2 by 2 cells")
 	check(HouseFurniture.floor_problem(plan, 0, Vector2i(0, 0)) == "no roof", "no furniture outdoors")
 	check(HouseFurniture.floor_problem(plan, 0, Vector2i(1, 1)) == "", "inside under the roof is floor")
 	check(HouseFurniture.floor_problem(plan, -1, Vector2i(1, 1)) == "no floor", "no cellar dug, no cellar floor")

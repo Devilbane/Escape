@@ -87,6 +87,9 @@ const INGREDIENTS := {
 	# from where it lives.
 	"edelweiss": {"name": "Edelweiß", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Beute der Bergtiere",
 		"where": "Hängt im Fell der Eiswölfe und Yetis, die hoch oben streifen."},
+	# Grows only in the garden on the ledge high above the high valley (see SummitGarden).
+	"silberedelweiss": {"name": "Silberedelweiß", "rare": true, "region": "Gipfelgarten", "when": "", "source": "Blüte im Garten auf dem Berg",
+		"where": "Blüht nur im verborgenen Garten hoch oben in der Felswand über dem Hochtal. Wer ihn findet, kann alle paar Tage eine Blüte pflücken."},
 	# Parts of a creature (rare): a trophy, or something for a craft.
 	"wolfsfell": {"name": "Wolfsfell", "tier": "selten", "region": "Wildnis", "when": "", "source": "Beute der Wölfe",
 		"where": "Selten bleibt ein Fell heil, wenn ein Wolf oder Eiswolf fällt. Eine Trophäe, oder etwas für ein Handwerk."},

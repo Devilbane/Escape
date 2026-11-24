@@ -61,31 +61,35 @@ func _run() -> void:
 	await _wait(10)
 	var lvl: Outdoor = game.level
 	var p: Player = game.player
-	for kind: String in ["tavern", MageTower.KIND]:
-		var halls: Array = lvl.walk_in.buildings.filter(func(r): return r.kind == kind)
-		check(halls.size() == 1, "there is a %s" % kind)
-		if halls.is_empty():
-			continue
-		var hall: Node3D = halls[0].node
-		var seats: Array = lvl.stations.filter(func(s): return s.kind == Seats.KIND and s.has("indoor") and kind_of(lvl, s) == kind)
-		check(seats.size() >= (4 if kind == "tavern" else 9), "%s: its chairs, benches and sofas are seats (%d)" % [kind, seats.size()])
-		for seat: Dictionary in seats:
-			var out := Seats.stand_spot(seat, lvl, p.radius)
-			check(_free(out, p.radius - 0.05), "%s: one gets up clear of the furniture at %s" % [kind, seat.pos])
-			p.global_position = out
-			p.reset_physics_interpolation()
-			await _wait(2)
-			game._use_station(seat)
-			await _wait(70)
-			check(p.is_seated(), "%s: the hero sits at %s" % [kind, seat.pos])
-			var sk: Skeleton3D = p.find_children("*", "Skeleton3D", true, false)[0]
-			var hips: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("hips")).origin
-			var along := Seats.front(seat)
-			var off: Vector3 = hips - (seat.pos as Vector3)
-			check(absf(off.dot(along)) < 0.15 and absf(off.dot(along.cross(Vector3.UP))) < 0.15, "%s: the hips are over the seat at %s (off by %s)" % [kind, seat.pos, off])
-			check(absf(off.y - 0.48) < 0.1, "%s: and at the height of the seat (%.2f over the floor)" % [kind, off.y])
-			p.stand_up()
-			await _wait(3)
+	var seats: Array = lvl.stations.filter(func(s): return s.kind == Seats.KIND and s.has("indoor"))
+	# The tavern's and the mage tower's, the guildhall's stools, the houses' stools and the smith's.
+	check(seats.size() >= 40, "the halls and houses have their seats (%d)" % seats.size())
+	var kinds := {}
+	for seat: Dictionary in seats:
+		kinds[kind_of(lvl, seat)] = true
+	for kind: String in ["tavern", MageTower.KIND, "guild", "house"]:
+		check(kinds.has(kind), "there are seats in the %s" % kind)
+	for seat: Dictionary in seats:
+		var kind := kind_of(lvl, seat)
+		var out := Seats.stand_spot(seat, lvl, p.radius)
+		check(_free(out, p.radius - 0.05), "%s: one gets up clear of the furniture at %s" % [kind, seat.pos])
+		p.global_position = out
+		p.reset_physics_interpolation()
+		await _wait(2)
+		game._use_station(seat)
+		await _wait(70)
+		check(p.is_seated(), "%s: the hero sits at %s" % [kind, seat.pos])
+		var sk: Skeleton3D = p.find_children("*", "Skeleton3D", true, false)[0]
+		var hips: Vector3 = sk.global_transform * sk.get_bone_global_pose(sk.find_bone("hips")).origin
+		var along := Seats.front(seat)
+		var off: Vector3 = hips - (seat.pos as Vector3)
+		check(absf(off.dot(along)) < 0.15 and absf(off.dot(along.cross(Vector3.UP))) < 0.15, "%s: the hips are over the seat at %s (off by %s)" % [kind, seat.pos, off])
+		check(absf(off.y - 0.48) < 0.1, "%s: and at the height of the seat (%.2f over the floor)" % [kind, off.y])
+		p.stand_up()
+		await _wait(3)
+	# No little table stands about without a use: the smith's and the guildhall cellar's are gone.
+	for rec in lvl.walk_in.buildings:
+		check((rec.node as Node3D).find_child("SmithTable", true, false) == null, "no little table in the smithy")
 	game.delete_save(game.save_path())
 	print("PASS: hall seats" if failures == 0 else "FAILED: hall seats")
 	quit(failures)

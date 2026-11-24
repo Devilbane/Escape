@@ -653,6 +653,7 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 		var stool := WalkInFurniture.stool()
 		stool.position = table_at + at
 		house.add_child(stool)
+		Seats.add_stool(self, rec, stool.position, table_at)
 	var mug := WalkInFurniture.mug()
 	mug.position = table_at + Vector3(0.15, 0.79, -0.1)
 	house.add_child(mug)

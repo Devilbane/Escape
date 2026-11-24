@@ -13,7 +13,7 @@ extends RefCounted
 ##   large training mat, straw dummies, a rack of weapons and two ballistas looking out over the
 ##   parapet.
 ## - The cellar is Ragna's own room, where she sleeps (see VillageBeds): her bed, a bedside table,
-##   a chest, a wardrobe, a table with a stool, a rack of her own blades, and wine barrels.
+##   a chest, a wardrobe, a stool, a rack of her own blades, and wine barrels.
 ##
 ## Usability first: every flight is straight and wide enough to walk, the way from the door to each
 ## flight stays free, every open edge has a railing (and a wall the hero cannot walk through), and
@@ -448,8 +448,12 @@ static func _ground_floor(walk_in: WalkIn, rec: Dictionary, lay: Dictionary, ins
 	# The tavern corner: a table either side of the aisle from the door to the desk.
 	for spot: Vector3 in [Vector3(-1.5, y, 0.3), Vector3(1.6, y, 0.3)]:
 		_put(walk_in, rec, inside, WalkInFurniture.table(0.55), spot, 0.0, Vector3(1.1, 0.8, 1.1))
-		for dx: float in [-0.85, 0.85]:
-			_put(walk_in, rec, inside, WalkInFurniture.stool(), spot + Vector3(dx, 0, 0))
+		# (Stools at the tables' front and back only: the aisle side stays wide enough for the hero, and the
+		# outer sides are the flights' way and the stairs' rail.)
+		var stools: Array = [Vector3(0, 0, 0.85), Vector3(0, 0, -0.85)]
+		for at: Vector3 in stools:
+			_put(walk_in, rec, inside, WalkInFurniture.stool(), spot + at)
+			Seats.add_stool(walk_in, rec, spot + at, spot)
 		_put(walk_in, rec, inside, WalkInFurniture.mug(), spot + Vector3(0.15, 0.79, -0.1))
 	# Barrels in the back corner on the left, beyond the well; a rack of weapons in the one on the
 	# right, under the landing upstairs.
@@ -477,6 +481,7 @@ static func _upper_floor(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> v
 		WalkInFurniture._box(upper, Vector3(0.08, 0.04, 0.08), mid + dot + Vector3(0, 0.88, 0), WalkInFurniture._plain("guild_red", GUILD_RED))
 	for spot: Vector3 in [Vector3(-1.6, 0, 0), Vector3(1.6, 0, 0), Vector3(-0.6, 0, 0.95), Vector3(0.6, 0, 0.95), Vector3(-0.6, 0, -0.95), Vector3(0.6, 0, -0.95)]:
 		_put(walk_in, rec, upper, WalkInFurniture.stool(), mid + spot)
+		Seats.add_stool(walk_in, rec, mid + spot, mid)
 	_put(walk_in, rec, upper, WalkInFurniture.bookcase(2.2, 2.0, 0.4), Vector3(-0.6, y, back + 0.2), 0.0, Vector3(2.2, 2.0, 0.4))
 	for x: float in [1.3, 2.05]:
 		_put(walk_in, rec, upper, WalkInFurniture.crate(0.6), Vector3(x, y, back + 0.4), 0.0, Vector3(0.6, 0.6, 0.6))
@@ -560,15 +565,15 @@ static func _cellar(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 		inner.append(hall.transform * p)
 	rec["inner_way"] = inner
 	# Her things: a chest at the bed's foot, a rug beside it, a wardrobe and a rack of her blades on
-	# the back wall, a table with a stool in the front, and wine barrels along the front wall.
+	# the back wall, a stool in the front, and wine barrels along the front wall.
 	_put(walk_in, rec, cellar, WalkInFurniture.crate(0.7), Vector3(foot_x - 0.5, y, origin.z), 0.0, Vector3(0.7, 0.7, 0.7))
 	_put(walk_in, rec, cellar, WalkInFurniture.rug(Vector2(2.2, 1.4)), Vector3(origin.x - 0.4, y + 0.005, origin.z + CosyBed.LEFT - 0.75))
 	_put(walk_in, rec, cellar, WalkInFurniture.bookcase(1.8, 2.0, 0.5), Vector3(h - 1.3, y, -h + 0.25), 0.0, Vector3(1.8, 2.0, 0.5))
 	_put(walk_in, rec, cellar, WalkInFurniture.weapon_rack(1.4), Vector3(-0.2, y, -h + 0.2), 0.0, Vector3(1.4, 1.5, 0.4))
-	var table_at := Vector3(-0.3, y, 2.4)
-	_put(walk_in, rec, cellar, WalkInFurniture.table(0.5), table_at, 0.0, Vector3(1.0, 0.8, 1.0))
-	_put(walk_in, rec, cellar, WalkInFurniture.stool(), table_at + Vector3(0.8, 0, 0))
-	_put(walk_in, rec, cellar, WalkInFurniture.mug(), table_at + Vector3(0.1, 0.79, 0.05))
+	# A stool to sit on by the bed (no little table in the way).
+	var stool_at := Vector3(-0.3, y, 2.4)
+	_put(walk_in, rec, cellar, WalkInFurniture.stool(), stool_at)
+	Seats.add_stool(walk_in, rec, stool_at, Vector3(0, y, 0))
 	for k in 3:
 		_put(walk_in, rec, cellar, WalkInFurniture.barrel(), Vector3(1.6 + k * 0.75, y, h - 0.45), 0.0, Vector3(0.64, 0.9, 0.64))
 	var lamp := _lamp(cellar, Vector3(0.5, y + 2.1, 0.0))

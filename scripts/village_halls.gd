@@ -23,7 +23,8 @@ const MAX_D := 6.4
 const BIG := ["office", "guild"]
 ## Who sleeps in the bedrooms upstairs in a hall, by the kind of hall: Mira with her husband Bruno and
 ## their children Pip and Pippi above the shop, Anselm and Konrad above the post office, Gero and
-## Ilse above the Crown office. One bed each (see WalkIn._bedroom).
+## Ilse above the Crown office. One bed each, in this order along the back wall: the shop's first two
+## beds are the parents', the last two the children's, behind a partition wall (see WalkIn._bedroom).
 const HOME_OWNERS := {
 	"shop": ["6", "3", "7", "pippi"],
 	"post": ["M", "K"],

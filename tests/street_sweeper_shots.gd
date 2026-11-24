@@ -12,6 +12,10 @@ var season := OS.get_environment("SEASON") if OS.get_environment("SEASON") != ""
 
 
 func _initialize() -> void:
+	if shots == "":
+		print("PASS (screenshot helper: set SHOTS to run it)")
+		quit(0)
+		return
 	Lang.language = "en"
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)

@@ -97,7 +97,7 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
@@ -379,6 +379,8 @@ var _inside := false
 ## Whether the hero stands inside a house (built or their own), seeing out only
 ## through windows and open doors (see hero_sees). Set each frame.
 var hero_indoors := false
+## The day Elsbeth last thawed frozen Fritz with a spell: he stays thawed for the rest of it (see BlessRound).
+var fritz_thawed_day := -1
 ## The dug cells (Rect2 of x, z) of the house cellar the hero is down in, empty while they are
 ## not: from down there they see only what is in the cellar (see CellarView, hero_sees).
 var hero_cellar: Array = []
@@ -684,6 +686,8 @@ var snow: SnowCover
 ## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
 var ice := 0.0
 var ice_cover: IceCover
+## The river's spring (see Waterfall), built by its letter.
+var waterfall: Waterfall
 ## The snow dust the herald's broom kicks up (see SweepDust), made when he first sweeps.
 var sweep_dust: SweepDust
 
@@ -790,6 +794,8 @@ func build() -> void:
 		birds.winter_perches.append_array(_lamp_perches)
 		add_child(birds)
 	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
+	if waterfall != null:
+		waterfall.lay_water(self)
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
@@ -1551,6 +1557,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			TreasureMaps.place(self, c, ch)
 		"‖":
 			RiverBridge.build(self, c)
+		"∩":
+			Waterfall.build(self, c)
 		"Ω", "Ψ", "Θ", "Ξ":
 			SewerSurface.build(self, c, ch)
 		"~", ";", "≈":
@@ -5602,6 +5610,8 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
 			flow.set_snow(cover)
 		SewerSurface.set_snow(self, cover)
+	if waterfall != null:
+		waterfall.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
 		if cover < Snowman.MELTED:
 			astar.set_point_solid(world_to_cell(snowman.global_position), false)
@@ -5620,6 +5630,8 @@ func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
 	if ice_cover != null:
 		ice_cover.set_amount(ice)
+	if waterfall != null:
+		waterfall.set_ice(ice)
 
 
 ## A grey footprint in the snow that fades again; the hero and the villagers leave them while

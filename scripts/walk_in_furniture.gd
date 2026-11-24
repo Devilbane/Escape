@@ -74,6 +74,47 @@ static func upright_ladder(tall: float) -> Node3D:
 	return root
 
 
+## How thick a bedroom partition wall is (metres).
+const PARTITION_THICK := 0.08
+
+
+## A wall of vertical planks between two rooms, `length` metres long along +z from the origin and `high`
+## metres high, standing on the floor in the middle of its thickness, with a doorway from `door_from`
+## to `door_to` metres along it (2 m tall, a lintel over it), framed by posts and a rail along the top
+## and a skirting board along the foot, so it reads as built, not as a box.
+static func partition(length: float, high: float, door_from: float, door_to: float) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Partition"
+	var wood := _wood()
+	var dark := _plain("partition_frame", Color(0.34, 0.22, 0.14), 0.8)
+	var door_high := 2.0
+	var t := PARTITION_THICK
+	var plank := 0.16
+	# The planks, each a hair apart so the joints show, a little different in length at the top.
+	var z := 0.0
+	var k := 0
+	while z < length - 0.01:
+		var w := minf(plank, length - z)
+		var mid := z + w * 0.5
+		var in_door := mid > door_from and mid < door_to
+		var h := high - 0.05 if k % 3 == 0 else high
+		if in_door:
+			if h > door_high:
+				_box(root, Vector3(t, h - door_high, w - 0.012), Vector3(0, door_high + (h - door_high) * 0.5, mid), wood)
+		else:
+			_box(root, Vector3(t, h, w - 0.012), Vector3(0, h * 0.5, mid), wood)
+		z += plank
+		k += 1
+	# The frame: posts at the ends and beside the doorway, a lintel and a top rail, a skirting board.
+	for pz: float in [0.03, door_from - 0.05, door_to + 0.05, length - 0.05]:
+		_box(root, Vector3(t + 0.06, high, 0.1), Vector3(0, high * 0.5, pz), dark)
+	_box(root, Vector3(t + 0.06, 0.12, door_to - door_from + 0.2), Vector3(0, door_high + 0.06, (door_from + door_to) * 0.5), dark)
+	_box(root, Vector3(t + 0.05, 0.1, length), Vector3(0, high - 0.05, length * 0.5), dark)
+	_box(root, Vector3(t + 0.05, 0.12, door_from), Vector3(0, 0.06, door_from * 0.5), dark)
+	_box(root, Vector3(t + 0.05, 0.12, length - door_to), Vector3(0, 0.06, (door_to + length) * 0.5), dark)
+	return root
+
+
 ## A woven rug, `size` metres (x across, y deep), lying flat on the floor: a warm red field with a
 ## border and two pale stripes, so a villager's room looks lived in.
 static func rug(size: Vector2) -> Node3D:

@@ -54,7 +54,7 @@ static func enter(v: Villager, at_once: bool) -> bool:
 		house = walk_in.house_near(v.global_position, 9.0, v.role)
 	if house.is_empty():
 		return false
-	var bed := _free_bed(house)
+	var bed := _free_bed(house, v.role)
 	if bed.is_empty():
 		return false
 	var way := walk_in.door_points(house)
@@ -88,12 +88,19 @@ static func _lie_on_ground(v: Villager) -> void:
 	v.reset_physics_interpolation()
 
 
-static func _free_bed(house: Dictionary) -> Dictionary:
+static func _free_bed(house: Dictionary, role := "") -> Dictionary:
+	var spare := {}
 	for bed: Dictionary in house.beds:
 		var by = bed.get("by")
-		if by == null or not is_instance_valid(by) or not is_same((by as Villager).bed_trip.get("bed"), bed):
+		if not (by == null or not is_instance_valid(by) or not is_same((by as Villager).bed_trip.get("bed"), bed)):
+			continue
+		# A bed made up for someone (the shop's family) is theirs; the others take the rest.
+		var meant := String(bed.get("for", ""))
+		if meant == role:
 			return bed
-	return {}
+		if meant == "" and spare.is_empty():
+			spare = bed
+	return spare
 
 
 ## Whether the hero is up on the floor above of the house of `trip`.
@@ -211,7 +218,7 @@ static func step(v: Villager, delta: float) -> void:
 					_done(v)
 				elif _on_ground(trip.house, trip.bed):
 					trip.step = "to_bed"
-					trip.way = [trip.bed.stand]
+					trip.way = _to_bed(trip.bed)
 					trip.clock = 0.0
 				else:
 					_start_climb(v, trip, true)
@@ -221,7 +228,7 @@ static func step(v: Villager, delta: float) -> void:
 				v.play("Idle", 0.15)
 				trip.erase("hidden")
 				trip.step = "to_bed"
-				trip.way = [trip.bed.stand]
+				trip.way = _to_bed(trip.bed)
 				trip.clock = 0.0
 		"to_bed":
 			if _walk(v, trip, delta):
@@ -284,7 +291,7 @@ static func step(v: Villager, delta: float) -> void:
 					_go_out(v, trip)
 				else:
 					trip.step = "to_hatch"
-					trip.way = [trip.house.ladder_top]
+					trip.way = _from_bed(trip.bed, trip.house)
 					trip.clock = 0.0
 		"to_hatch":
 			if _walk(v, trip, delta):
@@ -363,6 +370,24 @@ static func _approach(way: Array) -> Vector3:
 	var out: Vector3 = way[0] - way[1]
 	out.y = 0.0
 	return way[0] + out.normalized() * APPROACH
+
+
+## The way from the top of the ladder to a bed, and back: through the doorway of the partition wall
+## when the bed is in the other room (see WalkIn._partition).
+static func _to_bed(bed: Dictionary) -> Array:
+	var way: Array = []
+	if bed.has("via"):
+		way.append(bed.via)
+	way.append(bed.stand)
+	return way
+
+
+static func _from_bed(bed: Dictionary, house: Dictionary) -> Array:
+	var way: Array = []
+	if bed.has("via"):
+		way.append(bed.via)
+	way.append(house.ladder_top)
+	return way
 
 
 ## The clock a leg starts at: negative for a long way (a tower with three floors), so that GIVE_UP

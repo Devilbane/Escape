@@ -18,17 +18,43 @@ const POSES := {
 	"thread": {"hips_y": -0.04, "spine": 8.0, "head": -34.0, "arm_l": 128.0, "elbow_l": 82.0, "arm_r": 120.0, "elbow_r": 96.0, "hip_l": 24.0, "hip_r": 8.0, "knee_l": 50.0, "knee_r": 62.0},
 	"fall": {"hips_y": 0.0, "spine": -10.0, "head": 6.0, "arm_l": 150.0, "elbow_l": 24.0, "arm_r": 125.0, "elbow_r": 30.0, "hip_l": 46.0, "hip_r": 8.0, "knee_l": 84.0, "knee_r": 38.0},
 	"kneel": ClimbPose.POSES["kneel"],
+	"stand": {},
+	# The foot feels for a hold while both hands keep the weight (the weight stays on the other leg).
+	"probe_l": {"hips_y": -0.02, "spine": 8.0, "head": -30.0, "arm_l": 176.0, "elbow_l": 4.0, "arm_r": 150.0, "elbow_r": 22.0, "hip_l": 78.0, "knee_l": 105.0, "hip_r": 8.0, "knee_r": 22.0},
+	"probe_r": {"hips_y": -0.02, "spine": 8.0, "head": -30.0, "arm_r": 176.0, "elbow_r": 4.0, "arm_l": 150.0, "elbow_l": 22.0, "hip_r": 78.0, "knee_r": 105.0, "hip_l": 8.0, "knee_l": 22.0},
+	# Looking for the place for the nail, and testing the rope after it.
+	"find_spot": {"spine": 6.0, "head": -24.0, "arm_l": 170.0, "elbow_l": 6.0, "arm_r": 140.0, "elbow_r": 48.0, "hip_l": 24.0, "hip_r": 8.0, "knee_l": 50.0, "knee_r": 60.0},
+	"tug": {"spine": -8.0, "head": -12.0, "arm_l": 165.0, "elbow_l": 8.0, "arm_r": 105.0, "elbow_r": 55.0, "hip_l": 24.0, "hip_r": 8.0, "knee_l": 50.0, "knee_r": 60.0},
+	# A slip, the rope going taut, the feet braced against the wall.
+	"slip": {"hips_y": 0.05, "spine": -14.0, "head": 8.0, "arm_l": 165.0, "elbow_l": 10.0, "arm_r": 100.0, "elbow_r": 40.0, "hip_l": 58.0, "hip_r": -4.0, "knee_l": 90.0, "knee_r": 20.0},
+	"rope_taut": {"spine": -18.0, "head": -4.0, "arm_l": 160.0, "elbow_l": 30.0, "arm_r": 172.0, "elbow_r": 14.0, "hip_l": 60.0, "hip_r": 40.0, "knee_l": 50.0, "knee_r": 40.0},
+	"arrest": {"hips_y": -0.04, "spine": -10.0, "head": -10.0, "arm": 165.0, "elbow": 18.0, "hip_l": 84.0, "hip_r": 78.0, "knee_l": 22.0, "knee_r": 28.0},
+	"rest": {"hips_y": -0.1, "spine": 14.0, "head": -14.0, "arm": 150.0, "elbow": 50.0, "hip_l": 28.0, "hip_r": 14.0, "knee_l": 50.0, "knee_r": 60.0},
+	# Climbing down: a foot lowers to the next hold, hands let go one after the other.
+	"down_l": {"spine": 10.0, "head": -26.0, "arm": 158.0, "elbow": 22.0, "hip_l": 10.0, "knee_l": 30.0, "hip_r": 50.0, "knee_r": 80.0},
+	"down_r": {"spine": 10.0, "head": -26.0, "arm": 158.0, "elbow": 22.0, "hip_r": 10.0, "knee_r": 30.0, "hip_l": 50.0, "knee_l": 80.0},
 }
 
 ## Keys of each phase: [when 0..1, pose]. The pull-up's hands take the weight at PULL_ROLL.
-const PULL_ROLL := 0.42
+const PULL_ROLL := 0.4
+## The pull-up has lifted the body by this point of the cycle.
+const PULL_LIFTED := 0.78
 const KEYS := {
-	"pull_l": [[0.0, "hang"], [0.28, "reach_l"], [0.42, "reach_l"], [0.75, "pull"], [1.0, "hang"]],
-	"pull_r": [[0.0, "hang"], [0.28, "reach_r"], [0.42, "reach_r"], [0.75, "pull"], [1.0, "hang"]],
-	"hammer": [[0.0, "hang"], [0.15, "hammer_up"], [0.3, "hammer_hit"], [0.42, "hammer_up"], [0.55, "hammer_hit"], [0.67, "hammer_up"], [0.8, "hammer_hit"], [1.0, "hang"]],
-	"thread": [[0.0, "hang"], [0.2, "thread"], [0.8, "thread"], [1.0, "hang"]],
-	"fall": [[0.0, "reach_l"], [0.3, "fall"], [1.0, "fall"]],
-	"top": [[0.0, "pull"], [0.45, "push"], [0.7, "kneel"], [1.0, "kneel"]],
+	# Grab, the foot searches a hold, pull up.
+	"pull_l": [[0.0, "hang"], [0.2, "reach_l"], [0.38, "reach_l"], [0.55, "probe_r"], [0.78, "pull"], [1.0, "hang"]],
+	"pull_r": [[0.0, "hang"], [0.2, "reach_r"], [0.38, "reach_r"], [0.55, "probe_l"], [0.78, "pull"], [1.0, "hang"]],
+	# Find the spot, three blows, then clip the rope and test the hold.
+	"hammer": [[0.0, "hang"], [0.1, "find_spot"], [0.22, "find_spot"], [0.32, "hammer_up"], [0.42, "hammer_hit"], [0.52, "hammer_up"], [0.62, "hammer_hit"], [0.72, "hammer_up"], [0.82, "hammer_hit"], [1.0, "hang"]],
+	"thread": [[0.0, "hang"], [0.15, "thread"], [0.55, "thread"], [0.7, "tug"], [0.85, "tug"], [1.0, "hang"]],
+	# Slip, fall, rope taut, arrest, stabilize.
+	"slip": [[0.0, "reach_l"], [1.0, "slip"]],
+	"fall": [[0.0, "slip"], [0.4, "fall"], [1.0, "fall"]],
+	"arrest": [[0.0, "rope_taut"], [0.35, "rope_taut"], [0.6, "arrest"], [1.0, "hang"]],
+	"rest": [[0.0, "hang"], [0.2, "rest"], [0.5, "hang"], [0.8, "rest"], [1.0, "hang"]],
+	"desc_l": [[0.0, "hang"], [0.5, "down_l"], [1.0, "hang"]],
+	"desc_r": [[0.0, "hang"], [0.5, "down_r"], [1.0, "hang"]],
+	# Climb over the edge and stand up.
+	"top": [[0.0, "pull"], [0.35, "push"], [0.6, "kneel"], [0.85, "kneel"], [1.0, "stand"]],
 }
 
 

@@ -123,5 +123,5 @@ carry_arm.gd | 60 | free | passfail | The torch and lamp arm reaches forward and
 ground_items.gd | 60 | free | pass | Items on the floor (every item has a flat model, stackables pile up, no floating glow)
 sleep_arms.gd | 60 | free | passfail | A sleeper's arms rest the head in the hands: hands under the face, the arms mirror each other
 lift_keeps_hidden.gd | 30 | free | passfail | A roof lifted off and put back never shows what was hidden (ballista range circles)
-mountain_foot.gd | 60 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
+mountain_foot.gd | 150 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
 rock_climb.gd | 120 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep

@@ -48,6 +48,7 @@ const OUTDOOR_MARKS := {
 	"j": ["building", "Schmiede"], "n": ["building", "Wirtshaus"], "m": ["building", "Kramladen"],
 	"u": ["building", "Windmühle"], "s": ["building", "Tempel"], "k": ["building", "Amt der Krone"],
 	"o": ["building", "Post"], "w": ["building", "Abenteurergilde"], "b": ["building", "Bank der Krone"],
+	"Θ": ["sewer", "Kanalluke"], "Ω": ["sewer", "Gitter des Baches"], "Ψ": ["sewer", "Auslauf der Kanalisation"],
 	"^": ["home", "Weberzeile"], ";": ["water", "Teich"], "F": ["fountain", "Marktbrunnen"], "q": ["fountain", "Ziehbrunnen"],
 	"~": ["water", "Teich"], "‖": ["building", "Brücke"], "f": ["camp", "Räuberlager"], "v": ["food", "Futterkorb"],
 	"S": ["building", "Steinmetz"], "[": ["building", "Bergschenke"], "]": ["lair", "Mine"],
@@ -63,7 +64,7 @@ const MARK_COLORS := {
 	"bed": Color(0.55, 0.9, 0.55), "home": Color(0.55, 0.9, 0.55), "storage": Color(0.85, 0.7, 0.45),
 	"crypt": Color(0.7, 0.7, 0.75), "lair": Color(1.0, 0.4, 0.3), "building": Color(0.95, 0.85, 0.6),
 	"camp": Color(1.0, 0.45, 0.35), "food": Color(0.95, 0.75, 0.35), "area": Color(0.85, 0.85, 0.85),
-	"secret": Color(1.0, 0.82, 0.4),
+	"secret": Color(1.0, 0.82, 0.4), "sewer": Color(0.55, 0.78, 0.5),
 }
 const FIND_COLORS := {
 	"ingredient": Color(0.45, 0.95, 0.45), "fish": Color(0.45, 0.8, 1.0), "ore": Color(0.8, 0.8, 0.85),
@@ -90,6 +91,8 @@ var full := {}
 ## per cell of its plot, 1 = seen; empty until the hero first climbs down. Its own floor of the
 ## open air's map (see MapView.storey).
 var deep := PackedByteArray()
+## The same for the village's sewers (see Sewers): one byte per cell of their plot, 1 = seen.
+var sewer := PackedByteArray()
 var _timer := 0.0
 var _full_check := 0
 ## Map data read from the level files: file -> {"grid", "width", "height",
@@ -111,6 +114,7 @@ func clear() -> void:
 	secrets.clear()
 	full.clear()
 	deep = PackedByteArray()
+	sewer = PackedByteArray()
 
 
 # --- Reading the maps ---------------------------------------------------------
@@ -278,6 +282,10 @@ func update(delta: float) -> void:
 	if level is Outdoor and LostMine.holds(game.player.global_position):
 		reveal_deep(game.player.global_position)
 		return
+	# Down in the sewers likewise.
+	if level is Outdoor and Sewers.holds(game.player.global_position):
+		reveal_sewer(game.player.global_position)
+		return
 	reveal(file, level)
 	_discover(file)
 	_full_check += 1
@@ -347,6 +355,34 @@ func is_deep_seen(c: Vector2i) -> bool:
 	if deep.size() != n.x * n.y or c.x < 0 or c.y < 0 or c.x >= n.x or c.y >= n.y:
 		return false
 	return deep[c.y * n.x + c.x] != 0
+
+
+## How far the hero sees down in the sewers, along their tunnels (cells of 2 m).
+const SEWER_RADIUS := 5
+
+
+## Marks the sewers' cells the hero sees from `pos` as seen (see sewer). The hidden den stays blank until
+## the hero has found it (see Spooknortz.DEN_FOUND).
+func reveal_sewer(pos: Vector3) -> void:
+	var n := Sewers.grid_size()
+	if sewer.size() != n.x * n.y:
+		sewer.resize(n.x * n.y)
+	var den_open: bool = game != null and game.get("lore") != null and game.lore.has(Spooknortz.DEN_FOUND) and Spooknortz.opened
+	for c: Vector2i in Sewers.seen_from(pos, SEWER_RADIUS, den_open):
+		sewer[c.y * n.x + c.x] = 1
+
+
+## Whether the hero has seen cell `c` of the sewers (see sewer).
+func is_sewer_seen(c: Vector2i) -> bool:
+	var n := Sewers.grid_size()
+	if sewer.size() != n.x * n.y or c.x < 0 or c.y < 0 or c.x >= n.x or c.y >= n.y:
+		return false
+	return sewer[c.y * n.x + c.x] != 0
+
+
+## Whether the hero has been down in the sewers: their floor shows on the open air's map.
+func has_sewer() -> bool:
+	return sewer.has(1)
 
 
 ## Whether the hero has been down in the forgotten mine: its floor shows on the open air's map.
@@ -521,7 +557,7 @@ func for_save() -> Dictionary:
 	for file in seen:
 		known[file] = (seen[file] as Dictionary).keys()
 	return {"maps": maps, "seen": known, "finds": finds, "log": entries, "secrets": secrets, "full": full.keys(),
-		"deep": _pack(deep) if has_deep() else ""}
+		"deep": _pack(deep) if has_deep() else "", "sewer": _pack(sewer) if has_sewer() else ""}
 
 
 func load_from(data) -> void:
@@ -566,6 +602,10 @@ func load_from(data) -> void:
 	if saved_deep is String and saved_deep != "":
 		var n := LostMine.grid_size()
 		deep = _unpack(saved_deep, n.x * n.y)
+	var saved_sewer = data.get("sewer", "")
+	if saved_sewer is String and saved_sewer != "":
+		var m := Sewers.grid_size()
+		sewer = _unpack(saved_sewer, m.x * m.y)
 	var saved_full = data.get("full", [])
 	if saved_full is Array:
 		for file in saved_full:

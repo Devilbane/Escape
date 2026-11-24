@@ -8080,9 +8080,10 @@ func _process(delta: float) -> void:
 		return
 	if has_camp() and Camp._flat(player.global_position, camp.global_position) > Camp.LEAVE_RANGE:
 		pack_camp()
-	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
+	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.get("stand", _pending_station.pos)):
 		player.path.clear()
-		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3 and _within_reach(_pending_station.pos):
+		var stand: Vector3 = _pending_station.get("stand", _pending_station.pos)
+		if _reach(stand) <= Level.SEARCH_RANGE + 0.3 and _within_reach(stand):
 			_use_station(_pending_station)
 		_pending_station = {}
 	if _pending_crate != null and player.can_act():
@@ -8162,7 +8163,7 @@ func _process(delta: float) -> void:
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
-		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind)))
+		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind, station)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and door_in_reach() != null:
@@ -8692,7 +8693,7 @@ func _click(point: Vector3) -> void:
 	if not station.is_empty():
 		_pending_station = station
 		_pending_search = {}
-		player.walk_to(station.pos, WALK_UP_TO)
+		player.walk_to(station.get("stand", station.pos), WALK_UP_TO)
 		return
 	var obj := level.nearest_interactable(point, 2.2)
 	if not obj.is_empty():

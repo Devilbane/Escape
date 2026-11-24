@@ -199,6 +199,8 @@ const GROUND_CHUNK := 12
 ## see few lights each, and their lighting changes in small steps nobody notices.
 const GROUND_PIECE := 4
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
+## Where the temple's nest sits, on the stone ridge behind the spire (relative to the chapel, in metres).
+const TEMPLE_NEST := Vector3(0.0, 11.1, -1.5)
 ## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
 ## Pieces in the kit's own metres, with the door looking south (+z): name,
 ## where it stands and how far it is turned (degrees).
@@ -468,11 +470,10 @@ var warm_spots: Array[Vector4] = []
 ## The fires of the smithy model (building_blacksmith_red): the logs in the furnace's mouth and the
 ## fire on top of its chimney, in the model's own frame, with how far round them it is warm.
 const SMITHY_FIRES: Array[Vector4] = [Vector4(0.22, 0.14, 0.24, 0.24), Vector4(0.21, 0.91, -0.14, 0.14)]
-## Where the face of the old anvil beside the big smithy's chimney is, in the model's own frame:
-## the village cat jumps up there to sleep in the warmth (see VillageCat).
-const SMITHY_ANVIL := Vector3(-0.04, 0.206, 0.52)
-## The village cat that naps on that anvil (null without the big smithy).
+## The village cat that naps on the barrel by the smithy's stacked granite blocks (null when there is
+## none, see _adopt_cat).
 var village_cat: VillageCat
+var _smithy_node: Node3D
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
 ## The glass of the street lamps' lanterns, glowing at night.
@@ -864,6 +865,7 @@ func build() -> void:
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
 	_spawn_villagers()
+	_adopt_cat()
 	_build_war_horn()
 	_spawn_wild()
 	_spawn_animals()
@@ -2490,7 +2492,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
 				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
 			_smithy_fire(node, s)
-			_adopt_cat(node)
+			_smithy_node = node
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -2527,8 +2529,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			# No nest on the temple: its ridge is a wide stone beam under the spire that half hides one.
-			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
+			# Its nest sits on the ridge behind the spire (the highest corner is the spire's own foot).
+			_dress_building(node, center, door_spots, 1.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW, node.global_position + node.global_transform.basis.orthonormalized() * TEMPLE_NEST)
 			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
@@ -3255,7 +3257,7 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST, nest_at := Vector3.INF) -> void:
 	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
@@ -3296,7 +3298,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
 			for w: Vector4 in warm_spots:
 				smoky.append(Vector3(w.x, w.y, w.z) + offset)
-			spot = AgedStone.nest_spot(tris, ground, smoky)
+			spot = nest_at if nest_at != Vector3.INF else AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
@@ -4213,13 +4215,55 @@ func _chimney_fire(top: Vector3) -> void:
 	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
 
 
-## The village cat of the big smithy: it strolls about and naps on the old anvil by its chimney.
-func _adopt_cat(smithy: Node3D) -> void:
+## The village cat of the big smithy: it strolls about and naps on the lid of the barrel that stands
+## beside the stacked granite blocks next to the smithy (the closest such barrel). Without the smithy
+## or such a barrel it has no cat.
+func _adopt_cat() -> void:
+	if _smithy_node == null:
+		return
+	var home := _smithy_node.global_position
+	var stones: Array[Vector3] = []
+	var barrels: Array[Node3D] = []
+	for c in get_children():
+		if not (c is Node3D) or c.get_child_count() == 0 or c.global_position.distance_to(home) > 16.0:
+			continue
+		var kind := String(c.get_child(0).name)
+		if kind.begins_with("resource_stone"):
+			stones.append(c.global_position)
+		elif kind.begins_with("barrel"):
+			barrels.append(c)
+	var perch: Node3D
+	var best := INF
+	for b in barrels:
+		for st in stones:
+			var d := Vector2(b.global_position.x - st.x, b.global_position.z - st.z).length()
+			if d < best:
+				best = d
+				perch = b
+	if perch == null or best > 6.0:
+		return
+	var lid := _lid_of(perch)
+	var away := lid - home
+	# No snow settles on the lid or round it: the cat's bed stays bare and dry all winter, warm
+	# from the forge beside it.
+	warm_spots.append(Vector4(lid.x, lid.y - 0.5, lid.z, 0.9))
 	var cat := VillageCat.new()
 	cat.name = "VillageCat"
-	cat.setup(self, smithy.transform * SMITHY_ANVIL, smithy.transform.basis * Vector3(0, 0, 1))
+	cat.setup(self, lid, away)
 	add_child(cat)
 	village_cat = cat
+
+
+## The middle of the top of a barrel prop (world).
+func _lid_of(barrel: Node3D) -> Vector3:
+	var top := barrel.global_position
+	var high := 0.0
+	for mi in barrel.find_children("*", "MeshInstance3D", true, false):
+		var box: AABB = (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		high = maxf(high, box.end.y)
+		top = Vector3(box.get_center().x, 0.0, box.get_center().z)
+	top.y = high
+	return top
 
 
 ## The fire of the big smithy behind the little forge (block "j"): the coals in its furnace's mouth

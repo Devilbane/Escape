@@ -166,4 +166,9 @@ const EN := {
 	"Von Hagen? Ein Wetzstein aus seinem Bruch... Der ist gut. Sag ihm Danke von mir. Hier sind 12 Kupfer.": "From Hagen? A whetstone from his quarry... That's a good one. Tell him thanks from me. Here are 12 copper.",
 	"Wetzstein": "Whetstone",
 	"Für Schmied Gorm an seiner Esse": "For smith Gorm at his forge",
+	"Will, dass seine Ernte im ganzen Tal gekauft wird, und dass Gerda weniger arbeitet.": "Wants his harvest bought all over the valley, and Gerda to work less.",
+	"Will ihre Felder in Ordnung halten und Lotte endlich einmal einfangen.": "Wants to keep her fields in order and finally catch Lotte for once.",
+	"Will Säcke tragen, ohne je auf eine Leiter zu müssen.": "Wants to carry sacks without ever having to climb a ladder.",
+	"Will überall im Tal hinlaufen, nur nicht nach Hause.": "Wants to run everywhere in the valley except home.",
+	"Will, dass seine Schafe heil durch den Tag kommen und nie wieder eines verloren geht.": "Wants his sheep to get through the day safely and never to lose one again.",
 }

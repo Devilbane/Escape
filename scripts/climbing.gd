@@ -28,7 +28,27 @@ const REACH_PER_LEVEL := 0.4
 
 
 ## The climbing gear the shopkeeper always has (id -> how many): see RockClimb.
-const GEAR_FOR_SALE := {"kletterhammer": 1, "kletterseil": 1, "kletterhaken": 6, "kletterhelm": 1}
+const GEAR_FOR_SALE := {"kletterhammer": 1, "kletterseil": 1, "kletterhaken": 6, "kletterhelm": 1,
+		"kletterschuhe": 1, "kletterhandschuhe": 1}
+
+## The five pieces of the set, by the slot each is worn in. Each worn piece gives +1 Klettern (see the
+## items' "skills"); all five together give SET_BONUS more.
+const SET := {"waffe": "kletterhammer", "schild": "kletterseil", "kopf": "kletterhelm",
+		"schuhe": "kletterschuhe", "handschuhe": "kletterhandschuhe"}
+const SET_BONUS := 2
+
+
+## Whether `worn` (the hero's equipped slots) holds the whole climbing set.
+static func set_complete(worn: Dictionary) -> bool:
+	for slot: String in SET:
+		if worn.get(slot, "") != SET[slot]:
+			return false
+	return true
+
+
+## The extra Klettern levels the worn gear gives for the set as a whole.
+static func set_bonus(worn: Dictionary) -> int:
+	return SET_BONUS if set_complete(worn) else 0
 
 
 ## Seconds for climbing `height` metres at skill `level` by a hero who walks

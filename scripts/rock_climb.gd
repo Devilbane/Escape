@@ -7,7 +7,7 @@ extends RefCounted
 ## only down to the last safe spot (the ground when there is none), and the count of pull-ups starts again.
 ## Pure rules, no scene: tests/rock_climb.gd plays them through.
 
-enum Result { UP, TOP, PITON, FELL }
+enum Result { UP, TOP, PITON, SLIP, REST, FELL, GAVE_UP }
 
 ## Metres gained by one pull-up.
 const PULL := 0.9
@@ -19,6 +19,12 @@ const CHANCE_BASE := 0.62
 const CHANCE_PER_LEVEL := 0.05
 const CHANCE_MIN := 0.4
 const CHANCE_MAX := 0.95
+## A failed pull-up turns into a fall with this chance per failed try so far in the ascent, at most
+## FALL_MAX; MAX_FALLS falls to a safe spot end the ascent. A rest after two slips takes REST_SECONDS.
+const FALL_PER_TRY := 0.2
+const FALL_MAX := 0.85
+const MAX_FALLS := 3
+const REST_SECONDS := 4.0
 ## Life lost per metre fallen (a fall never kills).
 const FALL_PER_METRE := 1.5
 
@@ -32,6 +38,10 @@ var safe := 0.0
 var streak := 0
 ## Heights of the safe spots set so far.
 var nails: Array[float] = []
+## Failed pull-ups so far in the ascent, falls to a safe spot, and whether the hero may try again at once.
+var tries := 0
+var falls := 0
+var retry := true
 
 
 func _init(h: float, required_level: int, level: int) -> void:
@@ -50,13 +60,31 @@ func needed() -> int:
 	return FIRST if nails.is_empty() else NEXT
 
 
-## One pull-up with the roll of the hands (0..1, a roll at or above the chance slips). `has_gear` is
-## whether the hero carries hammer, rope and a nail for a safe spot. Returns what came of it.
-func pull(roll: float, has_gear: bool) -> int:
+## The chance that a failed pull-up is a fall: rises with every failed try.
+func fall_chance() -> float:
+	return minf(FALL_MAX, FALL_PER_TRY * tries)
+
+
+## One pull-up with the roll of the hands (0..1, a roll at or above the chance fails) and the roll for
+## a fall after a failure. `has_gear` is whether the hero carries hammer, rope and a nail for a safe
+## spot. Returns what came of it.
+func pull(roll: float, has_gear: bool, fall_roll := 1.0) -> int:
 	if roll >= chance():
-		metres = safe
-		streak = 0
-		return Result.FELL
+		tries += 1
+		if fall_roll < fall_chance():
+			metres = safe
+			streak = 0
+			retry = true
+			if safe > 0.0:
+				falls += 1
+				return Result.GAVE_UP if falls >= MAX_FALLS else Result.FELL
+			return Result.FELL
+		if retry:
+			retry = false
+			return Result.SLIP
+		retry = true
+		return Result.REST
+	retry = true
 	metres = minf(height, metres + PULL)
 	streak += 1
 	if metres >= height - 0.001:

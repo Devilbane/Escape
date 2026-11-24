@@ -125,3 +125,4 @@ sleep_arms.gd | 60 | free | passfail | A sleeper's arms rest the head in the han
 lift_keeps_hidden.gd | 30 | free | passfail | A roof lifted off and put back never shows what was hidden (ballista range circles)
 mountain_foot.gd | 240 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
 rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep
+climbing_gear.gd | 60 | fixed | pass | Climbing gear: five pieces worn in their slots, +1 Klettern each and +2 for the full set, nothing from the bag

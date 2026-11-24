@@ -1,0 +1,2 @@
+- Some mountain faces can be climbed, with the Klettern skill, a rope, a hammer and iron nails from the shop; other rock just says "It is too steep here."
+- A climbing helmet halves the damage of a fall from the rock.

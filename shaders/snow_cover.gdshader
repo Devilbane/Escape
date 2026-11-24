@@ -51,6 +51,13 @@ uniform bool rooms_exact = false;
 // The height under which a covered tile is not open to the sky.
 uniform float roof_height = 3.6;
 
+// How high the snow of the plain climbs the foot of a steep slope before it gives out (metres), and how steep
+// a face it still climbs, as the y of its normal: none on a vertical wall (0.05), all of it from 0.3, which is
+// leaner than the mountain's foot (about 0.38) and its facets.
+const float SKIRT_HEIGHT = 3.0;
+const float SKIRT_SLOPE_FROM = 0.05;
+const float SKIRT_SLOPE_TO = 0.3;
+
 varying vec3 world_pos;
 varying vec3 world_normal;
 
@@ -59,18 +66,30 @@ void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// The snow lies a little above the surface it covers, so it wins the depth test, and
 	// thicker as it deepens.
-	wp += wn * (0.03 + 0.03 * amount) * smoothstep(0.3, 0.8, wn.y);
+	// (and on the skirt of snow up the foot of a steep slope, see fragment)
+	float lift = max(smoothstep(0.3, 0.8, wn.y), (1.0 - smoothstep(0.0, SKIRT_HEIGHT, wp.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, wn.y));
+	wp += wn * (0.03 + 0.03 * amount) * lift;
 	world_pos = wp;
 	world_normal = wn;
 	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * vec4(wp, 1.0);
 }
 
 void fragment() {
-	float up = smoothstep(0.5, 0.82, world_normal.y);
 	vec2 xz = world_pos.xz;
 	float n = snow_noise(xz * 1.3) * 0.65 + snow_noise(xz * 5.0 + 7.0) * 0.35;
+	// The foot of a mountain face: where the snow of the plain meets steep rock it must not stop at a
+	// hard line. Close to the ground the slope counts as lying snow, fading out with height along a
+	// ragged edge (the noise moves it up and down), and its snow is lit like the flat snow below it.
+	float skirt = (1.0 - smoothstep(0.0, SKIRT_HEIGHT * (0.7 + 0.6 * n), world_pos.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, world_normal.y);
+	float up_plain = smoothstep(0.5, 0.82, world_normal.y);
+	float up = max(up_plain, skirt);
+	vec3 look_normal = normalize(mix(world_normal, vec3(0.0, 1.0, 0.0), skirt));
 	// A drift gathers where the noise is high: the snow arrives in patches and joins up.
-	float lies = up * amount * 1.5 + (n - 0.5) * 0.55;
+	float lies = up_plain * amount * 1.5 + (n - 0.5) * 0.55;
+	// The skirt gives out in a fine dissolve of small flakes (a hash of the spot, not the big patches),
+	// so it fades into the bare rock instead of ending in a ragged line.
+	float grain = snow_hash(floor(vec2(world_pos.x + world_pos.z, world_pos.y * 1.4) * 28.0));
+	lies = max(lies, skirt * amount * 1.2 + (n - 0.5) * 0.15 + (grain - 0.5) * 0.9);
 	vec2 uv = (xz / tile + 0.5) / grid_size;
 	float roofed = texture(sky_mask, uv).r * (1.0 - step(roof_height, world_pos.y));
 	if (rooms_on) {
@@ -124,8 +143,12 @@ void fragment() {
 	if (swept > 0.5 || underground || dug > 0.75 || (dug > 0.25 && world_pos.y < -0.05) || lies < 0.5 || roofed > 0.5 || pond > 0.5 || up < 0.01 || snow_melted(world_pos, n) || snow_sheltered(world_pos)) {
 		discard;
 	}
-	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
+	snow_look(world_pos, look_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
+	// The skirt is shaded by the steep face under it, which turned it grey-blue next to the plain's snow:
+	// it glows a little to be as bright as that.
+	EMISSION += ALBEDO * 0.9 * skirt * (1.0 - smoothstep(0.5, 0.82, world_normal.y));
 	ROUGHNESS = 0.85;
 	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
 	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

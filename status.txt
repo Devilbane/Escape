@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give the mage tower a fallback model when walk-in halls are off | Shipped this week: Add the secret mountaintop garden: a hidden level 16 climb with silver edelweiss, a tablet and a healing spring (+48 more)
+Escape! dev status | Working on: Add the river goddess's shrine to the spring cave; Give the mage tower a fallback model when walk-in halls are off | Shipped this week: Add the secret mountaintop garden: a hidden level 16 climb with silver edelweiss, a tablet and a healing spring (+48 more)

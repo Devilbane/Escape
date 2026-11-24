@@ -205,4 +205,5 @@ roof_caps.gd | 30 | free | pass | Cap shingles on roof ridges, hips and gable ed
 river_bridge_shots.gd | 200 | fixed | pass | The valley bridge lands on both banks with no seam between its halves; leaves, sticks and fish show under the winter ice
 house_snow_shots.gd | 600 | fixed | pass | Snow dusting on the lintel, sills, beams and doorstep of the mason's house (screenshots)
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop
+bless_round.gd | 300 | fixed | passfail | Elsbeth's daily blessing round (temple, gates, fountain, smithy) with speech and light, and thawing frozen Fritz
 water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on the beam, swing, and her round from the fountain to the shops and the tavern

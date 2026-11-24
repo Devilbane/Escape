@@ -379,6 +379,8 @@ var _inside := false
 ## Whether the hero stands inside a house (built or their own), seeing out only
 ## through windows and open doors (see hero_sees). Set each frame.
 var hero_indoors := false
+## The day Elsbeth last thawed frozen Fritz with a spell: he stays thawed for the rest of it (see BlessRound).
+var fritz_thawed_day := -1
 ## The dug cells (Rect2 of x, z) of the house cellar the hero is down in, empty while they are
 ## not: from down there they see only what is in the cellar (see CellarView, hero_sees).
 var hero_cellar: Array = []

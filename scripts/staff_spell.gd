@@ -24,8 +24,8 @@ const CHANTS := [
 	"Heiliges Licht, erfülle diesen Stab!",
 	"Ave lux, ave vita!",
 ]
-const LIGHT := Color(1.0, 0.86, 0.45)
-const SPARK := Color(1.0, 0.92, 0.6)
+const LIGHT := Color(0.45, 0.65, 1.0)
+const SPARK := Color(0.65, 0.8, 1.0)
 
 var _villager: Villager
 var _staff: Node3D
@@ -158,9 +158,9 @@ func _process(delta: float) -> void:
 	var g := glow()
 	var shimmer := 1.0 + 0.12 * sin(_time * 7.0) + 0.06 * sin(_time * 13.0)
 	_light.visible = g > 0.0
-	_light.light_energy = 1.6 * g * shimmer
+	_light.light_energy = 0.9 * g * shimmer
 	_sparks.emitting = g > 0.05
-	_sheen.albedo_color = Color(LIGHT, 0.25 * g)
-	_sheen.emission_energy_multiplier = 2.2 * g * shimmer
+	_sheen.albedo_color = Color(LIGHT, 0.15 * g)
+	_sheen.emission_energy_multiplier = 1.1 * g * shimmer
 	for m in _meshes:
 		m.material_overlay = _sheen if g > 0.0 else null

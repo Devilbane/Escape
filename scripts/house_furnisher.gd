@@ -52,7 +52,7 @@ const OK_COLOR := Color(0.4, 0.95, 0.4, 0.45)
 const BAD_COLOR := Color(1.0, 0.4, 0.35, 0.45)
 const ON_COLOR := Color(1.0, 0.82, 0.4)
 ## How close the hero must come to a piece to use it, from its middle (metres).
-const TOUCH := {"bett": 2.6, "regal": 2.4, WeaponRack.KIND: 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4, "hort": 2.8}
+const TOUCH := {"truhe": 1.4, "bett": 2.6, "regal": 2.4, WeaponRack.KIND: 2.4, "feinbank": 2.4, "schleifrad": 2.4, "alchemie": 2.4, "hort": 2.8}
 const TOUCH_DEFAULT := 1.8
 ## How far outside its solid a bump still counts as running into a piece (metres).
 const TOUCH_MARGIN := 0.4
@@ -332,7 +332,8 @@ func build_piece(root: Node3D, kind: String, piece := {}) -> Dictionary:
 			station.spot = Level.pillow_spot(BED_OFFSET, 0.0)
 		"truhe":
 			FittedChest.place(root, "brass", Vector3(0, 0, -0.35))
-			solids.append({"at": Vector3(0, 0, 0), "size": Vector3(1.7, 1.2, 1.8)})
+			# As big as the chest itself (see FittedChest), so the way between it and a bed stays free.
+			solids.append({"at": Vector3(0, 0, -0.35), "size": Vector3(FittedChest.WIDTH, 1.2, FittedChest.DEPTH)})
 		"regal":
 			var shelf := Bookshelf.build_shelf(root, Vector3(0, 0, -HouseSketch.CELL * 0.5 + (Level.TILE * 0.5 - 0.1) * SHELF_SCALE), 0.0)
 			shelf.scale = Vector3.ONE * SHELF_SCALE

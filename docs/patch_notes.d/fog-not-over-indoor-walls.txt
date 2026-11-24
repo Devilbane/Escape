@@ -1,0 +1,1 @@
+- Fog no longer drifts over the walls inside the mage tower and the other village buildings you walk into.

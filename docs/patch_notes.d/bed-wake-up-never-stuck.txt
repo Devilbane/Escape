@@ -1,0 +1,1 @@
+- Fixed the hero staying stuck in bed with closed eyes after sleeping, and removed the fur throw and the red cushion from the cosy bed.

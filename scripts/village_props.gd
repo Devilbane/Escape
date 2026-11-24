@@ -450,16 +450,20 @@ static func dress_gem_wheel(b: WeatheredProps.Builder, top: Vector3, rng: Random
 	b.bar(top + Vector3(0.22, 0.46, -0.08), top + Vector3(0.22, 0.46, 0.04), 0.02, W.TIMBER[2], W.WOOD, 5)
 
 
-## The cooking brazier on three legs (`pot` times its base size), and the mortar on the bench.
-static func dress_alchemy(b: WeatheredProps.Builder, top: Vector3, cauldron: Vector3, rng: RandomNumberGenerator, pot := 1.0) -> void:
+## The mortar and the book of recipes on the alchemist's bench (the pot is dress_cauldron).
+static func dress_alchemy(b: WeatheredProps.Builder, top: Vector3, rng: RandomNumberGenerator) -> void:
 	b.cylinder(top + Vector3(0.1, 0, 0.35), 0.09, 0.13, 0.14, Color(0.78, 0.76, 0.72), W.STONE, 10)
 	b.bar(top + Vector3(0.1, 0.08, 0.35), top + Vector3(0.2, 0.24, 0.3), 0.022, Color(0.74, 0.72, 0.69), W.STONE, 5)
 	# The book of recipes: leather covers, pale pages.
 	b.box(top + Vector3(0.0, 0, 0.85), Vector3(0.42, 0.03, 0.58), Color(0.6, 0.46, 0.36), W.WOOD, Basis(Vector3.UP, 0.1))
 	b.box(top + Vector3(0.0, 0.03, 0.85), Vector3(0.39, 0.03, 0.54), Color(0.88, 0.82, 0.66), W.WOOD, Basis(Vector3.UP, 0.1))
+
+
+## The alchemist's cooking pot, apart from the bench so the caller can keep snow off it (it
+## burns all winter): a short iron tripod holding a shallow bowl, with
+## a few coals under it. The goo itself is added by CraftingSquare.
+static func dress_cauldron(b: WeatheredProps.Builder, cauldron: Vector3, rng: RandomNumberGenerator, pot := 1.0) -> void:
 	var iron := Color(0.5, 0.51, 0.53)
-	# A small cooking brazier: a short iron tripod holding a shallow bowl, with
-	# a few coals under it. The goo itself is added by CraftingSquare.
 	for i in 3:
 		var a := i * TAU / 3.0 + 0.3
 		b.bar(cauldron + Vector3(cos(a) * 0.3, 0, sin(a) * 0.3) * pot, cauldron + Vector3(cos(a) * 0.2 * pot, 0.32 * pot, sin(a) * 0.2 * pot), 0.03 * pot, iron, W.IRON, 5)

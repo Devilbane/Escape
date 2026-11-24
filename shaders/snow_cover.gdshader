@@ -39,6 +39,15 @@ uniform float swept_step = 0.3;
 // walls and stays off every storey under their roof.
 uniform sampler2D room_mask : filter_nearest, repeat_disable, hint_default_black;
 uniform bool rooms_on = false;
+// The same rooms exactly (see SnowCover.set_rooms): each one's ground floor as x0, z0, x1, z1 and,
+// in room_extra, how far its upper storey juts out (x) and from which height (y). The mask above is
+// coarse (one pixel is ROOM_STEP wide), so where it says "inside" these draw the true walls: no strip of
+// bare lawn is left outside them. Off (rooms_exact false) when there are too many to list.
+const int ROOM_MAX = 48;
+uniform vec4 room_rects[ROOM_MAX];
+uniform vec4 room_extra[ROOM_MAX];
+uniform int room_count = 0;
+uniform bool rooms_exact = false;
 // The height under which a covered tile is not open to the sky.
 uniform float roof_height = 3.6;
 
@@ -69,7 +78,21 @@ void fragment() {
 		if (room_uv.x >= 0.0 && room_uv.y >= 0.0 && room_uv.x <= 1.0 && room_uv.y <= 1.0) {
 			// Below the rooms' ceiling (the eaves), every storey is inside.
 			vec2 room = texture(room_mask, room_uv).rg * SHELTER_SCALE;
-			roofed = max(roofed, step(world_pos.y, room.x) * step(room.y, world_pos.y));
+			float inside = step(world_pos.y, room.x) * step(room.y, world_pos.y);
+			if (inside > 0.5 && rooms_exact) {
+				// Only where the coarse mask says inside: is the spot within a room's true walls?
+				float within = 0.0;
+				for (int i = 0; i < ROOM_MAX; i++) {
+					if (i >= room_count) {
+						break;
+					}
+					vec4 r = room_rects[i];
+					float grow = world_pos.y >= room_extra[i].y ? room_extra[i].x : 0.0;
+					within = max(within, step(r.x - grow, xz.x) * step(xz.x, r.z + grow) * step(r.y - grow, xz.y) * step(xz.y, r.w + grow));
+				}
+				inside *= within;
+			}
+			roofed = max(roofed, inside);
 		}
 	}
 	// Melted round fires, the forge and smoking chimneys. Open water and ice stay bare (G of the

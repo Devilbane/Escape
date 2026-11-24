@@ -246,6 +246,13 @@ func _exit_tree() -> void:
 ## The house builder's own pieces stay: the storeys above fade like under a roof.
 func _hide_surface() -> void:
 	var keep: Array = [game.house_sketcher, game.house_furnisher]
+	# The litter on the ground (the fallen autumn leaves, twigs, pebbles) never shows from below, whatever
+	# turned it on again meanwhile (the season, the street sweeper).
+	var litter: Node3D = (game.level as Outdoor).surface_life
+	if litter != null and litter.visible:
+		litter.visible = false
+		_hidden[litter.get_instance_id()] = true
+		_restless[litter.get_instance_id()] = true
 	for child in game.level.get_children():
 		# Monsters, villagers and animals hide themselves out of the hero's sight (Outdoor.hero_sees).
 		if not child is Node3D or keep.has(child) or child is Enemy or child is Villager or child is Animal:

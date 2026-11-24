@@ -103,6 +103,12 @@ func _run() -> void:
 	# What stands in the cellar's own opening (a word floating over it) may show.
 	surface = surface.filter(func(n): return not CellarView.in_cells(view.pit, n.global_position))
 	check(_shown(surface) == 0, "nothing of the surface shows (%d of %d)" % [_shown(surface), surface.size()])
+	# In autumn the fallen leaves on the ground and the falling ones stay out of sight down here.
+	game.level.surface_life.set_autumn(true)
+	game.level.surface_life.visible = true
+	await _wait(25)
+	check(not game.level.surface_life.is_visible_in_tree(), "the ground litter stays hidden from the cellar")
+	check(not game._leaves.visible, "the falling leaves stay out of the cellar")
 	check(_shown(people) == 0, "no villager or animal up on the ground shows")
 	var earth := view.get_node_or_null("CellarEarth")
 	check(earth != null and earth.is_visible_in_tree(), "earth lies round the cellar")

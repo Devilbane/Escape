@@ -206,7 +206,7 @@ func _rolls() -> void:
 			var next := Weather.roll(hour, rng, before, season)
 			check(next in Weather.KINDS and (next != before or next == Weather.CLEAR), "the next weather is a real change (or clear skies stay)")
 			check(season != Weather.WINTER or (next != Weather.RAIN and next != Weather.STORM), "no rain and no storm in winter")
-			check(next != Weather.SNOW or season != Weather.SUMMER, "no snow in summer")
+			check(next != Weather.SNOW or season == Weather.WINTER, "snow falls only in winter")
 			seen[next] = true
 	check(seen.size() == Weather.KINDS.size(), "every weather comes now and then")
 	# Each season has its own weather: share of the time over many days.
@@ -218,11 +218,11 @@ func _rolls() -> void:
 	var autumn: Dictionary = shares[Weather.AUTUMN]
 	var winter: Dictionary = shares[Weather.WINTER]
 	check(spring[Weather.CLEAR] > 0.65 and spring[Weather.RAIN] > spring[Weather.FOG] and spring[Weather.RAIN] < 0.25, "spring: mostly sunny, a bit of rain (%s)" % spring)
-	check(spring[Weather.SNOW] > 0.0 and spring[Weather.SNOW] < 0.04 and spring[Weather.FOG] < 0.08, "spring: rarely snow, rarely fog")
+	check(spring[Weather.SNOW] == 0.0 and spring[Weather.FOG] < 0.08, "spring: no snow, rarely fog")
 	check(summer[Weather.CLEAR] > spring[Weather.CLEAR] and summer[Weather.SNOW] == 0.0, "summer: the sunniest, no snow (%s)" % summer)
 	check(summer[Weather.STORM] > summer[Weather.RAIN] and summer[Weather.RAIN] < 0.08 and summer[Weather.FOG] < 0.05, "summer: thunderstorms, rarely rain or fog")
 	check(autumn[Weather.RAIN] > spring[Weather.RAIN] and autumn[Weather.FOG] > spring[Weather.FOG] and autumn[Weather.STORM] > 0.05, "autumn: rain, fog and thunderstorms (%s)" % autumn)
-	check(autumn[Weather.SNOW] > 0.0 and autumn[Weather.SNOW] < 0.04 and autumn[Weather.CLEAR] > 0.45, "autumn: still sunny spells, rarely snow")
+	check(autumn[Weather.SNOW] == 0.0 and autumn[Weather.CLEAR] > 0.45, "autumn: still sunny spells, no snow")
 	check(winter[Weather.SNOW] > 0.1 and winter[Weather.RAIN] == 0.0 and winter[Weather.STORM] == 0.0, "winter: snow, no rain (%s)" % winter)
 	# The seasons follow each other over the year.
 	check(Weather.season(0) == Weather.SPRING and Weather.season(Weather.YEAR_DAYS) == Weather.SPRING, "a year starts in spring")

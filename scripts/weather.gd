@@ -72,16 +72,16 @@ const SEASONS := [SPRING, SUMMER, AUTUMN, WINTER]
 ## STAY_CLEAR); otherwise these weights pick which bad weather follows clear skies,
 ## and after bad weather, clear skies win most rolls. Fog still gathers at night and
 ## in the morning, and storms still brew in the evening.
-##   spring  mostly sunny, now and then rain, rarely fog, rarely a snow flurry;
+##   spring  mostly sunny, now and then rain, rarely fog, no snow;
 ##   summer  the sunniest: thunderstorms (most on warm evenings), rarely rain or fog, no snow;
-##   autumn  changeable: sunny spells, rain, thunderstorms and fog, rarely a snow flurry;
+##   autumn  changeable: sunny spells, rain, thunderstorms and fog, no snow;
 ##   winter  snow instead of rain and storms, fog in the morning.
 const CHANCES := {
 	SPRING: {
-		"night": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.6, STORM: 0.15, SNOW: 0.3},
-		"morning": {CLEAR: 8.0, RAIN: 0.7, FOG: 0.8, STORM: 0.05, SNOW: 0.3},
-		"day": {CLEAR: 14.0, RAIN: 1.1, FOG: 0.2, STORM: 0.2, SNOW: 0.2},
-		"evening": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.3, STORM: 0.3, SNOW: 0.2},
+		"night": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.6, STORM: 0.15},
+		"morning": {CLEAR: 8.0, RAIN: 0.7, FOG: 0.8, STORM: 0.05},
+		"day": {CLEAR: 14.0, RAIN: 1.1, FOG: 0.2, STORM: 0.2},
+		"evening": {CLEAR: 8.0, RAIN: 0.9, FOG: 0.3, STORM: 0.3},
 	},
 	SUMMER: {
 		"night": {CLEAR: 10.0, RAIN: 0.3, FOG: 0.3, STORM: 1.5},
@@ -90,10 +90,10 @@ const CHANCES := {
 		"evening": {CLEAR: 10.0, RAIN: 0.3, FOG: 0.1, STORM: 2.5},
 	},
 	AUTUMN: {
-		"night": {CLEAR: 6.0, RAIN: 2.5, FOG: 3.0, STORM: 1.5, SNOW: 0.3},
-		"morning": {CLEAR: 6.0, RAIN: 2.0, FOG: 4.0, STORM: 0.5, SNOW: 0.3},
-		"day": {CLEAR: 10.0, RAIN: 3.0, FOG: 1.0, STORM: 1.2, SNOW: 0.2},
-		"evening": {CLEAR: 6.0, RAIN: 2.5, FOG: 1.5, STORM: 2.0, SNOW: 0.2},
+		"night": {CLEAR: 6.0, RAIN: 2.5, FOG: 3.0, STORM: 1.5},
+		"morning": {CLEAR: 6.0, RAIN: 2.0, FOG: 4.0, STORM: 0.5},
+		"day": {CLEAR: 10.0, RAIN: 3.0, FOG: 1.0, STORM: 1.2},
+		"evening": {CLEAR: 6.0, RAIN: 2.5, FOG: 1.5, STORM: 2.0},
 	},
 	WINTER: {
 		"night": {CLEAR: 6.0, FOG: 2.0, SNOW: 5.0},

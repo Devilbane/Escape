@@ -118,6 +118,26 @@ func _run() -> void:
 	check(HeroLevel.BUILDING_AREAS.get(SpringCave.ID, "") == "quelle", "the cave has its area")
 	check(cave._has_cell("F") and cave._has_cell("K") and cave._has_cell("D"), "the cave has its fountain, its key and its locked door")
 
+	# The river goddess's shrine: her own gifts, one with a price, once.
+	var shrine: Dictionary = {}
+	for st in cave.stations:
+		if st.kind == "schrein":
+			shrine = st
+	check(not shrine.is_empty() and shrine.get("spring", false), "the heart chamber holds the river goddess's shrine")
+	if not shrine.is_empty():
+		game._open_shrine(shrine)
+		check(game._shrine_title.text == Lang.t("Schrein der Flussherrin"), "the shrine window is hers")
+		var weak_points: int = hero.gift_points
+		game._choose_gift(1)
+		check(hero.gift_points == weak_points and not shrine.used, "a hero with too little life is not charged")
+		hero.gift_hp += 30
+		hero.refresh_stats()
+		var life: int = hero.max_hp
+		var points: int = hero.gift_points
+		game._choose_gift(1)
+		check(hero.gift_points == points + Player.SHRINE_POINTS and hero.max_hp == life - SpringShrine.LIFE_PRICE, "the dear gift gives a point for life (%d -> %d)" % [life, hero.max_hp])
+		check(shrine.used, "the shrine is spent")
+
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: spring_cave")

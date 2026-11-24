@@ -602,6 +602,7 @@ func _put_ladder(rec: Dictionary, side: float, hatch: Rect2) -> void:
 	spot.set_meta("edge", rec.ladder_edge)
 	spot.set_meta("foot", rec.ladder)
 	spot.set_meta("top", rec.ladder_top)
+	spot.set_meta("visual", ladder)
 
 
 ## The tavern's loft: the brewer's ladder up to a room with his bed (see VillageBeds), the ladder

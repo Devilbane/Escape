@@ -1,0 +1,1 @@
+- Ladders are now climbed by clicking them (they glow and the cursor turns into a hand), never by walking into them: no more up-and-down loop in Mira's shop or at the sewer ladder.

@@ -3640,49 +3640,68 @@ var _ladder_edge := Vector3.ZERO
 var _ladder_push := Vector3.ZERO
 var _ladder_low := 0.0
 var _ladder_aside := 0.0
-## Set when a climb ends: the way off the ladder leads straight past its other end (the foot stands in
-## a corner, the way out of it is the way up), so a held key must not start the next climb. The lock
-## lifts when the hero has walked clear of the ladder or stood still a moment (LADDER_PAUSE).
-var _ladder_lock := false
-var _ladder_idle := 0.0
-var _ladder_down := false
-## The edge of the ladder last climbed, to tell it from another one close by.
-var _ladder_edge_id := Vector3.ZERO
-## How long the hero must stand still on landing before a press at the ladder climbs it again (seconds).
-const LADDER_PAUSE := 0.6
+## The ladder the player clicked and the end of it the hero walks to first (see use_ladder), and
+## for how many physics ticks the walk has gone on. Walking into a ladder never climbs it: a foot
+## stands in a corner (or at a dead end in the sewers), so the way out of it led straight back up.
+var _ladder_goal: Node3D
+var _ladder_goal_up := true
+var _ladder_goal_ticks := 0
 
 
-## Steps onto a ladder: walking at its foot towards it climbs up, walking at its
-## top towards the edge it leans on climbs down. Returns whether a climb began.
-func _try_ladder(dir: Vector3) -> bool:
-	if _ladder_lock:
-		# Only the ladder just come down is shut. Lifted by walking clear of the ladder, or by standing still a moment (then a press at its
-		# foot is meant), but not by a tap and a press again on the way out.
-		_ladder_idle = _ladder_idle + get_physics_process_delta_time() if dir == Vector3.ZERO else 0.0
-		if _ladder_idle >= LADDER_PAUSE or not _near_a_ladder(_ladder_edge_id):
-			_ladder_lock = false
-	if dir == Vector3.ZERO or not is_on_floor() or not is_inside_tree():
+## Which end of `ladder` the hero could climb from now: 1 at its foot (up), -1 at its top (down), 0 when
+## he is on neither floor. A sewer ladder is climbed down by the hatch's lid, not from the street.
+func ladder_end(ladder: Node3D) -> int:
+	var foot: Vector3 = ladder.get_meta("foot")
+	var top: Vector3 = ladder.get_meta("top")
+	var here := global_position.y
+	if absf(here - foot.y) < 0.45:
+		return 1
+	if absf(here - top.y) < 0.45 and not (ladder.has_meta("flush") and ladder.get_meta("flush")):
+		return -1
+	return 0
+
+
+## Clicking a ladder: the hero walks to the end of it he stands on the floor of, and climbs it there.
+## Returns false when he is on neither floor of it.
+func use_ladder(ladder: Node3D) -> bool:
+	var which := ladder_end(ladder)
+	if which == 0 or on_ladder() or not is_inside_tree():
 		return false
-	var flat := Vector3(dir.x, 0, dir.z).normalized()
-	for ladder: Node3D in get_tree().get_nodes_in_group(LADDER_GROUP):
-		if _ladder_lock and (ladder.get_meta("edge") as Vector3).is_equal_approx(_ladder_edge_id):
-			continue
-		var foot: Vector3 = ladder.get_meta("foot")
-		var top: Vector3 = ladder.get_meta("top")
-		var push: Vector3 = ladder.get_meta("push")
-		var edge: Vector3 = ladder.get_meta("edge")
-		var up := _near(foot) and flat.dot(push) > 0.6
-		if up or (_near(top) and flat.dot(-push) > 0.6):
-			_start_ladder(edge, push, foot.y, top.y, up)
-			return true
-	return false
+	_ladder_goal = ladder
+	_ladder_goal_up = which > 0
+	_ladder_goal_ticks = 0
+	var end: Vector3 = ladder.get_meta("foot") if _ladder_goal_up else ladder.get_meta("top")
+	if _near(end):
+		path.clear() # Standing at it already: a step off it first would only take the hero away.
+	else:
+		walk_to(end)
+	return true
 
 
-## Whether the hero stands at the foot or the top of the ladder with this edge (see LADDER_REACH).
-func _near_a_ladder(edge: Vector3) -> bool:
-	for ladder: Node3D in get_tree().get_nodes_in_group(LADDER_GROUP):
-		if (ladder.get_meta("edge") as Vector3).is_equal_approx(edge) and (_near(ladder.get_meta("foot")) or _near(ladder.get_meta("top"))):
-			return true
+## Gives up the walk to a ladder (another click, or another way taken).
+func cancel_ladder() -> void:
+	_ladder_goal = null
+
+
+## Steps onto the clicked ladder (see use_ladder) once the hero has walked up to its end. Returns
+## whether a climb began.
+func _try_ladder(_dir: Vector3) -> bool:
+	if _ladder_goal == null:
+		return false
+	if not is_instance_valid(_ladder_goal) or not is_inside_tree() or on_ladder():
+		_ladder_goal = null
+		return false
+	var foot: Vector3 = _ladder_goal.get_meta("foot")
+	var top: Vector3 = _ladder_goal.get_meta("top")
+	if is_on_floor() and _near(foot if _ladder_goal_up else top):
+		var ladder := _ladder_goal
+		_ladder_goal = null
+		path.clear()
+		_start_ladder(ladder.get_meta("edge"), ladder.get_meta("push"), foot.y, top.y, _ladder_goal_up)
+		return true
+	_ladder_goal_ticks += 1
+	if path.is_empty() and steer == Vector3.ZERO and _ladder_goal_ticks > 30:
+		_ladder_goal = null
 	return false
 
 
@@ -3715,8 +3734,6 @@ func _start_ladder(edge: Vector3, push: Vector3, low: float, high: float, up: bo
 	var forward := from.dot(push)
 	_ladder_aside = from.dot(Vector3(-push.z, 0, push.x))
 	_ladder_keys = LadderPose.up_keys(high - low, forward) if up else LadderPose.down_keys(high - low, forward)
-	_ladder_down = not up
-	_ladder_edge_id = edge
 	_ladder_t = 0.0
 	_air_momentum = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -3756,10 +3773,6 @@ func _ladder_step(delta: float) -> void:
 
 func _end_ladder() -> void:
 	_ladder_t = -1.0
-	# Down at the foot: the way out of its corner is the way up. (At the top the way on is off the
-	# ladder, and turning round to go down again at once is meant.)
-	_ladder_lock = _ladder_down
-	_ladder_idle = 0.0
 	global_position = _ladder_spot(LadderPose.at(_ladder_keys, LadderPose.length(_ladder_keys))) + Vector3(0, 0.02, 0)
 	reset_physics_interpolation()
 	if _skeleton != null:

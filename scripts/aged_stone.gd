@@ -144,6 +144,10 @@ const LEAF_COLOURS := [Color(0.34, 0.52, 0.17), Color(0.24, 0.42, 0.15), Color(0
 
 ## How far a nest sits in from the end of its ridge (metres), so it rests fully on the ridge.
 const NEST_INSET := 0.7
+## ... and at most this far (metres).
+const NEST_INSET_MAX := 3.0
+## The nest sits this much higher (metres), so the ridge's cap shingles do not swallow its base.
+const NEST_LIFT := 0.08
 ## A nest needs a ledge at least this high over the ground (metres) and
 ## this large (square metres).
 const NEST_HEIGHT := 3.5
@@ -522,7 +526,10 @@ static func _seat_on_ridge(tris: Array, end: Vector3, smoky: Array) -> Vector3:
 	to.y = 0.0
 	if to.length() < 0.01:
 		return end
-	var seat := end + to.normalized() * minf(NEST_INSET, to.length())
+	# At least NEST_INSET, and about 30% of the ridge's length (a long roof such as the temple's has a
+	# spire or gable over its end that would half hide a nest there), but never past the middle.
+	var seat := end + to.normalized() * minf(clampf(to.length() * 0.6, NEST_INSET, NEST_INSET_MAX), to.length())
+	seat.y += NEST_LIFT
 	return end if _smoked(seat, smoky) else seat
 
 

@@ -6,6 +6,8 @@ extends RefCounted
 
 ## Animals farther from the hero than this leave no tracks (metres).
 const NEAR := 26.0
+## Paws, hooves and bird feet are pressed this much bigger than life, so each kind can be told apart in the game view.
+const SHOW := 1.7
 
 ## Which print each animal presses: [shape, size, stride in metres, sideways spread in metres].
 const FEET := {
@@ -23,6 +25,7 @@ const FEET := {
 	"squirrel": ["paw", 0.5, 0.3, 0.03],
 	"hedgehog": ["paw", 0.5, 0.22, 0.03],
 	"goose": ["bird", 1.7, 0.4, 0.06],
+	"cat": ["paw", 0.45, 0.3, 0.03],
 	# Monsters: the ones on two legs press boots, the wolf a paw (see for_monster).
 	"walker": ["boot", 1.0, 0.7, 0.08],
 	"wolf": ["paw", 1.5, 0.6, 0.06],
@@ -54,9 +57,6 @@ static func for_monster(kind: String, model: String, ghost: bool, size: float) -
 
 ## Called every physics tick with where the animal is; presses a print once it has gone a stride.
 func follow(level: Node, here: Vector3) -> void:
-	# Animals leave no tracks (they never showed up well); only the monsters on two legs press boots.
-	if _feet[0] != "boot":
-		return
 	if not level.has_method("snow_print") or level.get("snow") == null or level.snow.amount < Weather.PRINT_FROM:
 		_from = Vector3.INF
 		return
@@ -74,5 +74,7 @@ func follow(level: Node, here: Vector3) -> void:
 	var heading := atan2(step.x, step.z)
 	_left = not _left
 	var apart := Vector3(cos(heading), 0, -sin(heading)) * float(_feet[3]) * scale * (1.0 if _left else -1.0)
-	level.snow_print(here + apart, heading, float(_feet[1]) * scale, _feet[0])
+	# Animal feet are tiny; drawn true to size they vanish at the game camera, so they are pressed bigger.
+	var show := 1.0 if _feet[0] == "boot" else SHOW
+	level.snow_print(here + apart, heading, float(_feet[1]) * scale * show, _feet[0])
 	_from = here

@@ -35,5 +35,6 @@ level_editor.gd | scripts/level_editor.gd scripts/editor_*.gd scripts/level_map.
 launcher.gd | scripts/launcher.gd scenes/launcher.tscn tools/patch_notes.py
 patch_history.gd | scripts/patch_history.gd tools/patch_notes.py
 # Mountains.
-rock_climb.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountain_king.gd scripts/rock_climb.gd
+rock_climb.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountain_king.gd scripts/rock_climb.gd scripts/climb_spots.gd scripts/rope_climb_pose.gd scripts/climb_helmet.gd scripts/climbing.gd
+climbing_gear.gd | scripts/climbing.gd scripts/climb_spots.gd
 mountain_foot.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountain_king.gd

@@ -339,7 +339,7 @@ var met := {}
 ## Where the hero wakes up in the house: next to the bed.
 var home_spot := Vector3.ZERO
 ## Fronts of the village buildings: where villagers walk to.
-var spots := {"houses": [], "square": [], "well": [], "market": []}
+var spots := {"houses": [], "square": [], "well": [], "market": [], "fountain": []}
 ## The door spots of houses that belong to one villager alone (see SmithCottage), by role: they go
 ## home to theirs at night, and nobody else does.
 var own_homes := {}
@@ -1583,6 +1583,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			AgedStone.grow_basin_ivy(pos, VillageFountain.RIM_RADIUS - 0.12, VillageFountain.RIM_TOP, ivy_rng, _ivy, 3)
 			# Where the villagers fetch water: by the rim, between the bench in front and a tree.
 			spots.well.append(pos + Vector3(1, 0, 1).normalized() * (VillageFountain.STEP_RADIUS + 0.7))
+			spots.fountain.append(spots.well[-1])
 		"x":
 			_build_bench(c)
 		TownMeals.LETTER:
@@ -5578,6 +5579,11 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		SnowSweep.advance(self, cover)
 	if pond_reeds != null:
 		pond_reeds.set_snow(cover)
+	# Leaves and rubbish drifting down the stream and the river turn white under snow.
+	if is_inside_tree():
+		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
+			flow.set_snow(cover)
+		SewerSurface.set_snow(self, cover)
 	if snowman != null and is_instance_valid(snowman):
 		if cover < Snowman.MELTED:
 			astar.set_point_solid(world_to_cell(snowman.global_position), false)

@@ -37,11 +37,11 @@ func _run() -> void:
 	p.gift_speed = 0.2
 	p.refresh_stats()
 	check(is_equal_approx(p.base_speed, plain * 1.2) and not p.base_speed_capped, "+20 %% below the cap counts fully (%.2f)" % p.base_speed)
-	p.gift_speed = 2.0
+	p.gift_speed = 3.0
 	p.refresh_stats()
 	var top: float = Player.SPEED * Player.BASE_SPEED_CAP
 	check(p.base_speed_capped, "far over the cap is flagged")
-	check(is_equal_approx(p.base_speed, top), "base speed stops at 175 %% (%.2f of %.2f)" % [p.base_speed, top])
+	check(is_equal_approx(p.base_speed, top), "base speed stops at 200 %% (%.2f of %.2f)" % [p.base_speed, top])
 	check(p.base_speed_wanted > Player.BASE_SPEED_CAP, "the uncapped total is still known")
 	# Slowing ailments come after the cap.
 	p.ailments["fluch"] = 5.0

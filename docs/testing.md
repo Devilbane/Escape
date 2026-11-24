@@ -20,6 +20,18 @@ put it in one of three lists:
   weather, seasons), timing-based simulations and everything else that is not core logic. They run every night
   and never block a merge.
 
+- **Scoped, `tests/ci_scopes.txt`:** a required test can also be given the paths it covers (`file | paths`). It stays
+  in `ci_manifest.txt`, but a pull request skips it unless it touches one of those paths or the test file. It is
+  skipped only when every changed file is known (matches some scoped test's paths, or is neutral: `scripts/lang/*`,
+  `levels/*`, `assets/*`, `shaders/*`, docs). One change to shared code (`game.gd`, `player.gd`, items, saving,
+  `project.godot`, scenes, workflows, `tests/ci_*`) runs the whole required list. Nightly and manual runs always run
+  everything.
+
+**Standing rule for every new test:** it must say when it is relevant. Core logic goes in the manifest (and gets a
+scope if it lives in its own files, as the house, workshop and launcher features do); a finished quest or dungeon
+goes in `ci_quests.txt` with its paths; anything else goes to nightly. Never add an unscoped test that only one
+feature can break. `tests/ci_select.sh` prints `skip=` for what a branch would leave out.
+
 A test listed nowhere also runs every night, with the defaults (120 s, `--fixed-fps 60`, PASS and no FAIL).
 When in doubt, choose nightly: a missed nightly failure costs a day, a slow or flaky required test costs every
 pull request. Move a required test that turns flaky to the nightly list until it is fixed.
@@ -36,7 +48,7 @@ minutes. The `scope` job looks at the changed files (`tests/ci_select.sh`) and p
 - as a warning only, the other test files the change touched (a new test, or an edited nightly one), in one
   `extra-tests` job that starts after `tests` has reported, so it never takes a runner the required shards need.
 
-`tests/ci_shard.sh` splits the required tests into 6 shards in a matrix by their measured length
+`tests/ci_shard.sh` splits the required tests into 3 shards on a pull request (6 in the nightly run) in a matrix by their measured length
 (`tests/ci_timings.txt`): longest first, each to the shard with the least work so far, so all shards end at about
 the same time. A test missing from that file counts as 15 s. Refresh it now and then from a run's logs (Actions >
 a run > Download log archive, unpack, then `python3 tools/ci_timings.py <folder>/*.txt`); an outdated file only
@@ -54,7 +66,9 @@ bug in the test: seed the randomness (`seed(n)` in `_initialize`), wait for even
 wall time, and read values such as `max_hit()` before the blow that trains a skill.
 
 A pull request that changes only documentation (`docs/`, `balance/`, `*.md`) skips the shards; `tests` still
-reports green.
+reports green (patch note fragments do not count as documentation: `tests/launcher.gd` checks them). A push to
+main that merges a pull request ("... (#123)" or "Merge pull request") skips the shards too, because that
+pull request was tested; the nightly run tests main as a whole.
 
 ## Nightly: everything
 
@@ -77,9 +91,30 @@ combines them with `docs/patch_notes.txt` (`tools/patch_notes.py`).
 
 ## Releases: Windows first
 
-The Windows client is the main release. Every push to main that passes the fast checks makes
-`.github/workflows/desktop.yml` ("Windows download") build the launcher and the game and publish them on
-the release "windows" (Escape-Windows.zip, `version.json`, ...), which is what the launcher and players use.
+The Windows client is the main release, built by `.github/workflows/desktop.yml` ("Windows download") and
+published on the release "windows" (Escape-Windows.zip, `version.json`, ...), which is what the launcher and
+players use. A build costs runner time that the test shards need, so not every merge makes one:
+
+- **Nightly:** after every green nightly run of the tests on main.
+- **Big features:** a pull request labelled `big-feature` starts a build of its merge commit when it merges
+  (`.github/workflows/big-feature-build.yml`).
+- **By hand:** Actions > Windows download > Run workflow (optionally a commit; "force" builds again even if
+  nothing changed).
+
+A build is skipped when main is still the commit of the last published build. A pull request that touches the
+launcher or the workflow itself builds the client as a download on its own run, nothing is published.
+
+### Which label? (every PR is one of three kinds)
+
+Pick the kind in the pull request (the checkbox in the PR template) and add the label only for the first:
+
+1. **New feature:** a new system, area or mechanic that took a significant amount of work and that the player
+   will want to play, even when it comes out of an existing thread (climbing is an example). The main pull
+   request of a new thread with significant work always counts. Label it `big-feature`.
+2. **Bug fix:** no label. It ships with the next build.
+3. **Adjustment to an existing feature** (balance, looks, a tweak): no label, same.
+
+When in doubt, do not label: the next nightly build ships it anyway.
 
 The browser version is optional. `.github/workflows/browser.yml` ("Browser version") only runs by hand
 (Actions > Browser version > Run workflow) and, when run on main, deploys to GitHub Pages. It does not

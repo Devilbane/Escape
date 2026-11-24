@@ -32,6 +32,7 @@ jobs:
       full: ${{ steps.scope.outputs.full }}
       nightly: ${{ steps.scope.outputs.nightly }}
       quests: ${{ steps.scope.outputs.quests }}
+      skip: ${{ steps.scope.outputs.skip }}
       extra: ${{ steps.scope.outputs.extra }}
     steps:
       - uses: actions/checkout@v4
@@ -93,6 +94,7 @@ jobs:
       - name: Tests of this shard
         env:
           CI_QUESTS: ${{ needs.scope.outputs.quests }}
+          CI_SKIP: ${{ needs.scope.outputs.skip }}
         run: tests/ci_shard.sh blocking ${{ matrix.shard }} ${{ strategy.job-total }}
 
   # The test files a pull request or push changed that are not required (tests/ci_nightly.txt, or not listed

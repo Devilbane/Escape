@@ -25,9 +25,6 @@ const GREETINGS := ["hallo", "hi", "hey", "moin", "grüß", "guten tag", "guten 
 const FAREWELLS := ["tschüss", "tschuess", "tschau", "ciao", "auf wiedersehen", "bis bald", "bye", "goodbye", "farewell", "see you"]
 const THANKS := ["danke", "dankeschön", "thanks", "thank you"]
 
-## Words that ask the priestess for her help (lower case, German and English).
-const HEAL_WORDS := ["heal", "heilen", "heile", "heilung", "bless", "segen", "segne"]
-
 const GREETING_REPLIES := [
 	"Guten Tag, Fremder!",
 	"Hallo! Schön, ein freundliches Wort zu hören.",
@@ -56,10 +53,10 @@ func _init(owner_game: Node) -> void:
 ## The hero said `text` at `pos` (see Events.hero_spoke): the nearest free
 ## villager answers after a pause.
 func on_hero_spoke(text: String, pos: Vector3) -> void:
-	# Asking the priestess for healing or a blessing opens her window.
-	var priestess := healer_asked(text, pos)
-	if priestess != null:
-		game.ask_priestess(priestess)
+	# A word that opens a villager's window (see NpcKeywords) opens it.
+	var asked := keyword_asked(text, pos)
+	if asked != null:
+		game.ask_villager(asked)
 		return
 	var who := listener(pos)
 	if who == null:
@@ -68,14 +65,20 @@ func on_hero_spoke(text: String, pos: Vector3) -> void:
 	game.get_tree().create_timer(delay).timeout.connect(func() -> void: answer(who, text))
 
 
-## The priestess in earshot when `text` asks for healing or a blessing, or null.
-func healer_asked(text: String, pos: Vector3) -> Villager:
-	if game.level == null or not "villagers" in game.level or not _has_word(text.to_lower(), HEAL_WORDS):
+## The nearest villager in earshot with a window that a word of `text` opens, or null.
+func keyword_asked(text: String, pos: Vector3) -> Villager:
+	if game.level == null or not "villagers" in game.level:
 		return null
+	var best: Villager = null
+	var best_d := REPLY_RANGE
 	for v in game.level.villagers:
-		if is_instance_valid(v) and v.role == Outdoor.TEMPLE_KEEPER and VillageTalk._flat(v.global_position, pos) <= REPLY_RANGE and not v.is_frozen():
-			return v
-	return null
+		if not is_instance_valid(v) or v.is_frozen() or v.station.is_empty():
+			continue
+		var d := VillageTalk._flat(v.global_position, pos)
+		if d <= best_d and NpcKeywords.matches(String(v.station.kind), text):
+			best = v
+			best_d = d
+	return best
 
 
 ## The nearest villager near `pos` who is free to answer, or null.

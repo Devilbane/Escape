@@ -77,7 +77,7 @@ godborn_backpack.gd | 30 | fixed | passfail | the god-born Traveller backpack gi
 epic_backpack.gd | 120 | fixed | passfail | the epic 24-slot satchel: scroll loot, recipe, 24 slots
 launcher.gd | 120 | fixed | passfail | Windows launcher (scripts/launcher.gd): what it does with the
 loot.gd | 120 | fixed | passfail | loot of fallen monsters (see Loot and
-priestess_door.gd | 120 | free | passfail | Elsbeth keeps clear of the temple door; a bump does not open her window, saying heal does
+npc_keywords.gd | 120 | free | passfail | Elsbeth keeps clear of the temple door; a bump only brings a remark, a keyword opens the window
 npc_personal_space.gd | 120 | fixed | passfail | villagers who walk about (the village kid Pip) never stand
 pause_menu.gd | 120 | fixed | passfail | pause window on Esc: Esc in the game stops the world
 stairs_down.gd | 120 | fixed | passfail | Headless test for StairsDown: the stairs down are a flight of steps that

@@ -135,6 +135,11 @@ func _run() -> void:
 	check(stretches >= 3, "he works through several stretches, not one (%d, %d cells)" % [stretches, cells.size()])
 	check(square_at < 0 or square_at > 5, "the square waits until the footpaths are done (square from stretch %d)" % square_at)
 	check(cells.size() >= 40, "he covers many walkway tiles (%d)" % cells.size())
+	var far := 0
+	for c: Vector2i in cells:
+		if absi(c.x - sweeper.home.x) + absi(c.y - sweeper.home.y) > 20:
+			far += 1
+	check(far > 10, "he gets far from his spot, through the gates and over gaps (%d tiles)" % far)
 	LeafSweep.restore_all()
 
 	# Sent out, he sweeps the route.

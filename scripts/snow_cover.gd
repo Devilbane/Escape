@@ -68,7 +68,7 @@ func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Ar
 
 
 ## How many metres one pixel of the rooms mask stands for (see set_rooms).
-const ROOM_STEP := 0.5
+const ROOM_STEP := 0.1
 
 
 ## Keeps the snow off the rooms of the buildings one walks into (see Outdoor.walk_in_room): each

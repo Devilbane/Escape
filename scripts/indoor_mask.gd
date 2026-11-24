@@ -14,6 +14,8 @@ extends RefCounted
 const STEP := 0.5
 ## How many metres the full red of a pixel stands for (see INDOOR_SCALE in indoors.gdshaderinc).
 const SCALE := 16.0
+## How far the mask of a room reaches past its floor plan, over the walls (the walls are 0.2 m thick).
+const WALL_PAD := STEP
 const MASK := "indoor_mask"
 const AREA := "indoor_area"
 
@@ -86,7 +88,9 @@ static func build(level: Outdoor) -> void:
 			var node: Node3D = rec.node
 			if not is_instance_valid(node) or not node.is_inside_tree():
 				continue
-			var room: Rect2 = rec.room
+			# The walls stand just outside the floor plan: the room reaches a whole pixel into them, or the
+			# wall tops and the inner faces of the walls seen from above stayed in the fog.
+			var room: Rect2 = (rec.room as Rect2).grow(WALL_PAD)
 			var xf := node.global_transform
 			var top := (xf * Vector3(room.get_center().x, float(rec.top), room.get_center().y)).y
 			var lo := Vector2(INF, INF)

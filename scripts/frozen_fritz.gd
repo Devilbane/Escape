@@ -49,6 +49,9 @@ var _tinted: Array[MeshInstance3D] = []
 static func wants(level: Outdoor, frozen: bool) -> bool:
 	if level == null or level.snow == null:
 		return false
+	# Elsbeth thawed him with a spell today (see BlessRound): warm until the next morning.
+	if level.fritz_thawed_day == level.day:
+		return false
 	# Once frozen he stays so for the whole winter, whatever the weather does to the snow.
 	if frozen and Weather.is_winter(level.season_day):
 		return true

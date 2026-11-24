@@ -55,7 +55,7 @@ func _run() -> void:
 			check(_near(mi.position.y, Level.PILLOW.y, 0.15), "a pillow lies at the spot's height")
 	check(pillows == 2, "two pillows lie round the spot a click uses (%d)" % pillows)
 	check(_near(CosyBed.MATTRESS_TOP, game.BED_MATTRESS_HEIGHT, 0.05), "the hero lies on top of the mattress")
-	check(bed.get_node_or_null("Bedding") != null and bed.get_node_or_null("FurThrow") != null, "it is made: bedding and a fur throw")
+	check(bed.get_node_or_null("Bedding") != null and bed.get_node_or_null("FurThrow") == null, "it is made: bedding, and no fur throw or cushion lying on the quilt")
 	space.queue_free()
 
 	# Asleep in a bed, turned any way, the hero's head rests on the pillows: over them, not on

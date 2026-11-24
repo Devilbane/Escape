@@ -4,7 +4,7 @@ extends RefCounted
 ## inns and dungeons keep the plain worn cot, bed_decorated). It is made like the bookshelf
 ## (see Bookshelf): dark walnut with lathe-turned posts and finials, a headboard and a footboard
 ## with turned spindles, a thick mattress under a patchwork quilt with the sheet folded over it,
-## two plump pillows, a fur throw over the foot and a little bedside table with turned legs, a
+## two plump pillows and a little bedside table with turned legs, a
 ## candle and a book.
 ##
 ## It stands exactly where the cot stood: the same footprint (so the same solid, see
@@ -30,8 +30,6 @@ const MATTRESS_TOP := 0.84
 const PATCHES := [Color(0.62, 0.2, 0.16), Color(0.82, 0.62, 0.32), Color(0.32, 0.42, 0.28), Color(0.72, 0.42, 0.24),
 		Color(0.5, 0.18, 0.2), Color(0.86, 0.78, 0.6)]
 const LINEN := Color(0.9, 0.86, 0.76)
-const FUR := Color(0.3, 0.22, 0.16)
-const FUR_TIPS := Color(0.44, 0.34, 0.25)
 const WAX := Color(0.95, 0.92, 0.82)
 const FLAME := Color(1.0, 0.75, 0.35)
 ## The head posts: a bun foot, a vase, rings at the rail and the headboard, a finial on top.
@@ -110,8 +108,8 @@ static func _spindles(root: Node3D, mat: Material, cx: float, inner: float, z: f
 		s.scale = Vector3(1, high - low, 1)
 
 
-## The mattress, the quilt with the sheet turned over it, the pillows and the fur throw: one mesh in
-## vertex colours (the cloth), and the pillows and fur as soft rounded shapes.
+## The mattress, the quilt with the sheet turned over it and the pillows: one mesh in
+## vertex colours (the cloth), and the pillows as soft rounded shapes.
 static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_z: float) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -154,7 +152,7 @@ static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_
 	bedding.mesh = st.commit()
 	bedding.material_override = cloth
 	root.add_child(bedding)
-	# Two plump pillows round the spot a click uses, a little cushion in front of them.
+	# Two plump pillows round the spot a click uses.
 	var linen := wool(LINEN.darkened(0.12), 0.4)
 	var pillow := Level.PILLOW
 	var plump := _soft(0.5, 16, 8)
@@ -162,36 +160,6 @@ static func _bedding(root: Node3D, cx: float, inner: float, head_z: float, foot_
 		var p := HomeStoreFurniture._add(root, plump, linen, Vector3(cx + sx * inner * 0.24, pillow.y - 0.02, pillow.z - 0.04 + sx * 0.03))
 		p.scale = Vector3(0.58, 0.42, 0.5)
 		p.rotation = Vector3(-0.35, sx * 0.08, sx * 0.05)
-	var cushion := HomeStoreFurniture._add(root, plump, wool(PATCHES[0], 0.6), Vector3(cx + 0.18, pillow.y + 0.01, pillow.z + 0.36))
-	cushion.scale = Vector3(0.42, 0.24, 0.34)
-	cushion.rotation = Vector3(-0.5, 0.35, 0.1)
-	# A fur throw over the foot of the bed, spilling over one side: soft overlapping folds of hide,
-	# darker underneath, lighter where the hair lies on top.
-	var fur := wool(FUR, 1.0)
-	var tips := wool(FUR_TIPS, 1.0)
-	var lump_mesh := _soft(0.5, 14, 7)
-	var throw_z := foot_z - 0.5
-	var top := MATTRESS_TOP + 0.06
-	var throw := Node3D.new()
-	throw.name = "FurThrow"
-	root.add_child(throw)
-	var folds := 6
-	for k in folds:
-		var x := cx - inner * 0.42 + inner * 0.9 * k / (folds - 1.0)
-		var fold := HomeStoreFurniture._add(throw, lump_mesh, fur if k % 2 == 0 else tips,
-				Vector3(x, top + 0.01 * (k % 2), throw_z + 0.05 * sin(k * 2.2)))
-		fold.scale = Vector3(0.5, 0.17, 0.62 + 0.06 * cos(k * 1.7))
-	# Tufts of long hair along its edges.
-	var tuft := _soft(0.5, 8, 4)
-	for k in 12:
-		var x := cx - inner * 0.5 + inner * (k + 0.5) / 12.0
-		for sz: float in [-1.0, 1.0]:
-			var t := HomeStoreFurniture._add(throw, tuft, tips if (k + int(sz > 0.0)) % 2 == 0 else fur,
-					Vector3(x, top + 0.02, throw_z + sz * (0.31 + 0.025 * sin(k * 2.7))))
-			t.scale = Vector3(0.11, 0.08, 0.12)
-	for k in 2:
-		var hang := HomeStoreFurniture._add(throw, lump_mesh, fur, Vector3(cx + inner * 0.5 + 0.05, top - 0.17, throw_z - 0.14 + 0.3 * k))
-		hang.scale = Vector3(0.07, 0.4, 0.32)
 
 
 ## A soft rounded shape (a sphere to squash into a pillow or a fold of fur).

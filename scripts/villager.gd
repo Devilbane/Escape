@@ -94,6 +94,11 @@ const ROLES := {
 	"ω": {"name": "Lotte", "model": "Rogue", "show": [], "scale": 0.7, "hair": {"style": "short", "color": "blond", "tails": true, "smile": true}, "skin": SKIN_ROSY,
 		"colors": [Color(0.95, 0.7, 0.4), Color(0.5, 0.4, 0.32), Color(1, 1, 1)], "plan": "wander", "work": "Cheer",
 		"lines": ["Ich helfe Mama beim Ernten! Meistens esse ich nur die Beeren.", "Die Vogelscheuche hat mir zugezwinkert. Wirklich!", "Hast du die Brücke gesehen? Darunter wohnt ein Troll. Sagt Veit."]},
+	# The rock climber on the mountainside east of the stream (see ClimberNpc): his day plan "climb" is
+	# the route of ClimberRoute, and ClimberOutfit puts the gear on.
+	"κ": {"name": "Kletterer Wolfram", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "auburn"},
+		"colors": [Color(0.78, 0.62, 0.42), Color(0.34, 0.3, 0.26), Color(1, 1, 1)], "plan": "climb", "work": "Idle",
+		"lines": ["Die Wand ist mein Garten. Nur ohne Gemüse.", "Wer klettern will, braucht Geduld, Hände und einen guten Nagel.", "Sprich mich auf das Klettern an. Oder sieh mir eine Stunde zu.", "Von oben sieht man das Dorf klein wie ein Spielzeug."]},
 	"λ": {"name": "Hirte Moritz", "model": "Rogue", "show": ["Rogue_Cape"],
 		"colors": [Color(0.5, 0.58, 0.4), Color(0.4, 0.36, 0.3), Color(0.62, 0.5, 0.34)], "plan": "farm", "work": "Idle",
 		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
@@ -182,7 +187,7 @@ const LISTEN_TIME := 13.0
 ## tavern, the temple is open day and night and the wandering merchant only
 ## comes at night. Everyone else goes home to sleep at nightfall (see
 ## Outdoor.set_hour) and comes out in the morning.
-const NIGHT_OWLS := ["4", "5", "O", "%"]
+const NIGHT_OWLS := ["4", "5", "O", "%", ClimberNpc.ROLE]
 ## Out in the dark everyone about on honest business carries a torch: the
 ## guard on his rounds, the priestess at the temple, and whoever is still
 ## walking home at nightfall. Not those who keep to one lit spot all night,
@@ -406,6 +411,8 @@ var _toss_clock := 0.0
 var _tossed := false
 var _seed_spot := Vector3.INF
 var _skeleton: Skeleton3D
+## The rock climber's route (see ClimberRoute), made when he first starts to climb.
+var _climb: ClimberRoute = null
 ## The game of tag, cartwheels and somersaults this child plays (see KidPlay), once begun.
 var _kid: KidPlay
 ## The job a farmer of the valley is at (see ValleyFolk.pick): {id, say, spot, face, anim}.
@@ -471,6 +478,8 @@ func _ready() -> void:
 	GearLook.dress_body(_model, "outfit")
 	# Their own skin tone, hat colour and glasses (see TownsfolkLook).
 	TownsfolkLook.apply(_model, _info, _look)
+	if role == ClimberNpc.ROLE:
+		ClimberOutfit.put_on(_model)
 	_anim = _model.find_child("AnimationPlayer", true, false)
 	for a in ["Idle", "Walking_A", "Walking_B", "Running_A", "Sit_Floor_Idle", "Sit_Chair_Idle"]:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
@@ -842,6 +851,8 @@ func _start(task: String, time: float) -> void:
 		return
 	if task != "post":
 		_leave_post()
+	if task != "climb" and _climb != null:
+		_climb.leave(self)
 	if task != "service":
 		_service_after_post = {}
 	_task = task
@@ -1912,6 +1923,12 @@ func _next_task() -> void:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "sit" if _info.plan == "sit" else "work")
 			else:
 				_start("sit" if _info.plan == "sit" else "work", _rng.randf_range(12.0, 25.0))
+		"climb":
+			# All day on the wall (see ClimberRoute); a map without his spot leaves him standing at the foot.
+			if ClimbSpots.at(level, ClimberNpc.SPOT_CELL).is_empty():
+				_start("work", 6.0)
+			else:
+				_start("climb", 600.0)
 		"patrol":
 			if _task == "walk":
 				_start("idle", _rng.randf_range(3.0, 6.0))
@@ -2295,7 +2312,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and _task != "climb" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2307,6 +2324,15 @@ func _physics_process(delta: float) -> void:
 			VillagePosts.step(self, delta)
 		"service":
 			TempleMorning.step(self, delta)
+		"climb":
+			if _climb == null:
+				_climb = ClimberRoute.make(self)
+			if _climb == null:
+				_start("work", 6.0)
+			else:
+				ClimberNpc.watch_tick(self, delta)
+				_climb.step(self, delta)
+				return
 		"fight":
 			_fight(delta)
 			return

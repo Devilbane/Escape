@@ -94,7 +94,7 @@ const OUTDOOR_GROUPS := [
 	["Wege und Eingänge", "PREa([])><|`\"°"],
 	["Gebäude", "hjßnmuskowbØ^IiBL"],
 	["Dorf und Lager", "gzlexπqFv!@NfC+%*$?_\\§¤"],
-	["Dorfbewohner", "0123456789KOGMYZS¢µüöφψχωλ"],
+	["Dorfbewohner", "0123456789KOGMYZS¢µüöφψχωλκ"],
 	["Wilde Gegner", "cAXQWHJU{}-/"],
 	["Tiere", "DV&£€"],
 ]
@@ -103,7 +103,7 @@ const OUTDOOR_NAMES := {
 	"#": "Wald", ".": "Wiese", ",": "Pfad", ":": "Gepflasterter Platz", "~": "Dorfteich", "≈": "Fluss", "‖": "Brücke über den Fluss",
 	"Ω": "Gitter des Baches", "Ψ": "Auslauf der Kanalisation", "Θ": "Kanalluke", "Ξ": "Straßengully",
 	";": "Teich in der Wolfsmulde", "=": "Fels der Berge", "'": "Geröll",
-	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld", "φ": "Bauer Hannes", "ψ": "Bäuerin Gerda", "χ": "Knecht Veit", "ω": "Lotte, die Tochter der Bauern", "λ": "Hirte Moritz", "≡": "Weizenfeld", "‡": "Maisfeld", "☼": "Sonnenblumenfeld",
+	"T": "Baum", "d": "Toter Baum", "r": "Felsen", "t": "Baumstumpf mit Holz", "p": "Kürbisse", "y": "Kürbisfeld", "φ": "Bauer Hannes", "ψ": "Bäuerin Gerda", "χ": "Knecht Veit", "ω": "Lotte, die Tochter der Bauern", "λ": "Hirte Moritz", "κ": "Kletterer Wolfram", "≡": "Weizenfeld", "‡": "Maisfeld", "☼": "Sonnenblumenfeld",
 	"P": "Start vor der Gruft", "R": "Die Gruft", "E": "Weg in die Drachenhöhle", "a": "Tor im Zaun",
 	"(": "Dunkles Loch", ">": "Findling über der verborgenen Grotte", "?": "Vergrabener Schatz", "[": "Bergschenke", "]": "Mineneingang", ")": "Höhle des Großen Alten", "<": "Tor der Aschenzinne",
 	"|": "Tor der Feste Sternhall", "`": "Rostiges Abflussgitter", "\"": "Tor der Verlassenen Wüste", "°": "Wegweiser des Pilgerwegs",

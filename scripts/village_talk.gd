@@ -76,6 +76,7 @@ const GOALS := {
 	"8": "Will das Rätsel der Gruft lösen, mit Büchern, nicht mit Gebeten.",
 	"9": "Will den alten Brunnen rein halten und abends Ulrich sehen.",
 	"K": "Will jede Neuigkeit als Erster ausrufen, vor allem vor dem Postmeister.",
+	"κ": "Will jede Wand im Tal einmal bezwungen haben und anderen beibringen, wie man dabei heil bleibt.",
 	"µ": "Will in jedem neuen Haus im Tal ein Bett, einen Kamin und ein Regal voller Bücher sehen.",
 	"¢": "Will jedes Stück Land sauber im Grundbuch eingetragen sehen, bevor der erste Stein gesetzt wird.",
 	"O": "Will, dass die Toten in ihren Gräbern bleiben.",

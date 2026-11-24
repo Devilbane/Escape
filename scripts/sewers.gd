@@ -78,7 +78,12 @@ const KIND_LID := SewerSurface.LID
 const LEARN := "Die Kanalisation: Unter dem Dorf läuft der Bach aus dem Tal durch einen gemauerten Gang, vom Gitter am Dorftor bis zum Auslauf im Nordwesten. Das Wasser trägt den Unrat des Dorfes mit sich fort. Hinab geht es durch die Kanalluken und über Leitern."
 const ENTERED := "Du steigst in die Kanalisation hinab. Es riecht nach Moder, und irgendwo rauscht Wasser."
 const LID_OPENED := "Du stemmst den schweren Deckel auf. Eine Leiter führt hinab in die Dunkelheit."
-const LID_PROMPT := "Dagegenlaufen, um die Kanalluke zu öffnen"
+const LID_PROMPT := "Anklicken oder dagegenlaufen, um die Kanalluke zu öffnen und hinabzusteigen"
+const LID_DOWN_PROMPT := "Anklicken, um die Leiter hinabzusteigen"
+## Seconds a lid stays open before it falls shut.
+static var open_for := 60.0
+## Seconds the lid takes to swing open (see SewerSurface.swing_open).
+const LID_SWING := 0.9
 
 ## The luke lids the hero has opened this session (tile -> true).
 static var opened := {}
@@ -87,8 +92,6 @@ static var _sketch: HouseSketch = null
 static var _cells := {}
 static var _channel := {}
 static var _mats := {}
-static var _brick: StandardMaterial3D = null
-static var _floor: StandardMaterial3D = null
 static var _told := false
 
 
@@ -187,7 +190,7 @@ static func sketch() -> HouseSketch:
 	s.plot = PLOT
 	var built := HouseSketch.BUILT
 	for c: Vector2i in cells():
-		s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.CELL_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.DIG, "state": built, "floor": "brick", "wall": "brick"}
+		s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.CELL_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.DIG, "state": built, "floor": "brick:%d" % variant_at(c), "wall": "brick:%d" % variant_at(c + Vector2i(5, 9))}
 		if cells()[c] != "s":
 			s.pieces[HouseSketch.key_of(c.x, c.y, HouseSketch.COVER_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.COVER, "state": built, "surface": HouseSketch.BURIED}
 	for hatch: Dictionary in HATCHES:
@@ -228,6 +231,34 @@ static func holds(pos: Vector3) -> bool:
 	return pos.y < -1.0 and cells().has(cell_at(pos))
 
 
+## The size of the cell grid of the plot (for the map's record of what the hero has seen).
+static func grid_size() -> Vector2i:
+	return PLOT.size * HouseSketch.CELLS_PER_TILE
+
+
+## The cells the hero sees from `pos` down here: the cells within `radius` steps along the tunnels.
+## The hidden den and its passage do not count until the false wall has given way.
+static func seen_from(pos: Vector3, radius: int, den_open := false) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not holds(pos):
+		return out
+	var start := cell_at(pos)
+	var dist := {start: 0}
+	var todo: Array[Vector2i] = [start]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_front()
+		out.append(c)
+		if dist[c] >= radius:
+			continue
+		for d: Vector2i in HouseSketch.DOWN.values():
+			var n: Vector2i = c + d
+			if dist.has(n) or not cells().has(n) or (not den_open and Spooknortz.hides(n)):
+				continue
+			dist[n] = dist[c] + 1
+			todo.append(n)
+	return out
+
+
 ## The middle of a cell's floor.
 static func floor_at(c: Vector2i) -> Vector3:
 	return sketch().cell_world(c.x, c.y) + Vector3(0, -HouseSketch.DEPTH, 0)
@@ -245,21 +276,47 @@ static func tile_of(c: Vector2i) -> Vector2i:
 
 # --- Hints, the lids and the first descent --------------------------------------
 
-static func prompt(kind: String) -> String:
+static func prompt(kind: String, station := {}) -> String:
 	if kind == KIND_LID:
-		return Lang.t(LID_PROMPT)
+		return Lang.t(LID_DOWN_PROMPT if opened.has(station.get("key", Vector2i(-1, -1))) else LID_PROMPT)
 	return Spooknortz.prompt(kind)
 
 
-## The hero ran into a hatch's lid: they heave it open (it stays open).
+## The hero ran into a hatch's lid or clicked the hatch: a shut lid is heaved open (it stays open), then
+## the hero walks up to the head of the ladder, if not there yet, and climbs down.
 static func use(game: Node, s: Dictionary) -> void:
 	if s.kind != KIND_LID:
 		return
-	s["used"] = true
-	opened[s.key] = true
-	SewerSurface.swing_open(s)
-	Sfx.play(game, "secret", -4.0)
-	game.show_message(Lang.t(LID_OPENED), 4.0)
+	if not opened.has(s.key):
+		opened[s.key] = true
+		SewerSurface.swing_open(s)
+		Sfx.play(game, "secret", -4.0)
+		game.show_message(Lang.t(LID_OPENED), 4.0)
+		_close_later(game, s)
+		await game.get_tree().create_timer(LID_SWING).timeout
+	var stand: Vector3 = s.stand
+	var here: Vector3 = game.player.global_position
+	if Vector2(here.x - stand.x, here.z - stand.z).length() > 1.3:
+		game.player.walk_to(stand, 0.3)
+		game._pending_station = s
+		return
+	game.player.path.clear()
+	game.player.climb_down_at(stand)
+
+
+## An open lid falls shut again after `open_for` seconds, but not while the hero is down in the sewers,
+## on a ladder or standing by the hatch (it is tried again every few seconds).
+static func _close_later(game: Node, s: Dictionary) -> void:
+	await game.get_tree().create_timer(open_for).timeout
+	while opened.has(s.key) and is_instance_valid(s.get("hinge")) and game.is_inside_tree():
+		var at: Vector3 = game.player.global_position
+		var stand: Vector3 = s.stand
+		if holds(at) or game.player.on_ladder() or Vector2(at.x - stand.x, at.z - stand.z).length() < 3.0:
+			await game.get_tree().create_timer(5.0).timeout
+			continue
+		opened.erase(s.key)
+		SewerSurface.swing_shut(s)
+		return
 
 
 ## Down in the sewers (every frame the hero is): the first time the compendium learns of them.
@@ -276,6 +333,8 @@ static func entered(game: Node) -> void:
 
 # --- The vermin of the labyrinth ----------------------------------------------------
 
+## The meta every one of the vermin carries: they never fight each other.
+const PEACE := "sewer_vermin"
 ## The vermin of the chambers (see MOBS), one entry each: {"kind", "cell", "enemy", "fell"}; `fell` is
 ## the time it fell, in seconds (-1 while it lives).
 static var _vermin: Array = []
@@ -322,6 +381,9 @@ static func _raise(level: Level, g: Dictionary) -> Enemy:
 	var e := Enemy.new()
 	e.kind = g.kind
 	e.level = level
+	# The vermin of the chambers leave one another alone (rivals among them would thin each other
+	# out while the hero is away, see Enemy._pick_rival).
+	e.set_meta(PEACE, true)
 	level.add_child(e)
 	e.global_position = floor_at(g.cell)
 	e.reset_physics_interpolation()
@@ -346,21 +408,170 @@ static func standing() -> Array:
 
 # --- The look: brick -------------------------------------------------------------
 
-## The wall brick: orange-red courses with grimy mortar, laid in world space (triplanar).
-static func brick_material() -> StandardMaterial3D:
-	if _brick == null:
-		_brick = _brick_stuff(1.0, 0.62)
-	return _brick
+## How many grimy variants of brick there are: a wall, a floor cell, picks one by its place (see variant_at).
+const VARIANTS := 4
+
+## The wall brick: orange-red courses with grimy mortar, laid in world space (triplanar). `variant` is how
+## the grime lies: 0 damp and mossy, 1 dripping slime and algae, 2 water marks of old floods, 3 all of it.
+static func brick_material(variant := 0) -> StandardMaterial3D:
+	variant = posmod(variant, VARIANTS)
+	var key := "brick_%d" % variant
+	if not _mats.has(key):
+		_mats[key] = _brick_stuff(1.0, 0.62, variant, false)
+	return _mats[key]
 
 
-## The floor: darker, wetter brick underfoot.
-static func floor_material() -> StandardMaterial3D:
-	if _floor == null:
-		_floor = _brick_stuff(0.55, 0.32)
-	return _floor
+## The floor: darker, wetter brick underfoot, with muck and puddles.
+static func floor_material(variant := 0) -> StandardMaterial3D:
+	variant = posmod(variant, VARIANTS)
+	var key := "floor_%d" % variant
+	if not _mats.has(key):
+		_mats[key] = _brick_stuff(0.55, 0.5, variant, true)
+	return _mats[key]
 
 
-static func _brick_stuff(darker: float, rough: float) -> StandardMaterial3D:
+## The grime variant of a cell of the plot: the same cell always looks the same, neighbours differ.
+static func variant_at(c: Vector2i) -> int:
+	return posmod(hash(Vector3i(c.x * 7 + 3, c.y * 13 + 5, 17)), VARIANTS)
+
+
+## The grime variant a surface name carries: "brick" is 0, "brick:2" is 2.
+static func variant_of(surface: String) -> int:
+	return int(surface.substr(6)) if surface.length() > 6 else 0
+
+
+## A smooth, wrapping field of noise, `n` x `n` values in 0..1 with a feature every `n / freq` values.
+static func _field(n: int, freq: int, seed_: int) -> PackedFloat32Array:
+	var lattice := PackedFloat32Array()
+	lattice.resize(freq * freq)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_
+	for i in lattice.size():
+		lattice[i] = rng.randf()
+	var out := PackedFloat32Array()
+	out.resize(n * n)
+	for y in n:
+		var fy := float(y) / n * freq
+		var iy := int(fy)
+		var ty := fy - iy
+		ty = ty * ty * (3.0 - 2.0 * ty)
+		for x in n:
+			var fx := float(x) / n * freq
+			var ix := int(fx)
+			var tx := fx - ix
+			tx = tx * tx * (3.0 - 2.0 * tx)
+			var a := lattice[iy * freq + ix]
+			var b := lattice[iy * freq + (ix + 1) % freq]
+			var c := lattice[((iy + 1) % freq) * freq + ix]
+			var d := lattice[((iy + 1) % freq) * freq + (ix + 1) % freq]
+			out[y * n + x] = lerpf(lerpf(a, b, tx), lerpf(c, d, tx), ty)
+	return out
+
+
+## The value of a wrapping field (see _field) at pixel (x, y) of a picture `size` wide.
+static func _at(field: PackedFloat32Array, n: int, x: int, y: int, size: int) -> float:
+	var fx := float(x) / size * n
+	var fy := float(y) / size * n
+	var ix := int(fx)
+	var iy := int(fy)
+	var tx := fx - ix
+	var ty := fy - iy
+	var a := field[iy * n + ix]
+	var b := field[iy * n + (ix + 1) % n]
+	var c := field[((iy + 1) % n) * n + ix]
+	var d := field[((iy + 1) % n) * n + (ix + 1) % n]
+	return lerpf(lerpf(a, b, tx), lerpf(c, d, tx), ty)
+
+
+## Lays the grime of `variant` over the brick picture `img` (and returns how rough every pixel is, for a wet
+## look: slime and puddles shine). Slime drips down in dark green streaks from the top of the picture, moss
+## and algae grow in the damp low down and in the mortar, a tide line of old floods stains the wall, and on the
+## floor muck and puddles lie in patches.
+static func _grime(img: Image, height: PackedFloat32Array, size: int, variant: int, floorish: bool, base_rough: float) -> Image:
+	var data := img.get_data()
+	var roughs := PackedByteArray()
+	roughs.resize(size * size * 3)
+	var n := 64
+	var seed_ := hash("kanalschmutz%d%s" % [variant, floorish])
+	var damp := _field(n, 4, seed_ + 1)
+	var moss := _field(n, 8, seed_ + 2)
+	var fine := _field(n, 16, seed_ + 3)
+	var muck := _field(n, 4, seed_ + 4)
+	var puddle := _field(n, 3, seed_ + 5)
+	var drips := _field(n, 16, seed_ + 6)
+	var reach := _field(n, 4, seed_ + 7)
+	var slimy := variant == 1 or variant == 3
+	var marked := variant == 2 or variant == 3
+	var tide := 0.26 + 0.1 * float(variant % 2)
+	# What depends on the column only: where a drip runs, how far, and how the tide line wobbles.
+	var col_drip := PackedFloat32Array()
+	var col_run := PackedFloat32Array()
+	var col_wobble := PackedFloat32Array()
+	for x in size:
+		col_drip.append(smoothstep(0.62, 0.78, _at(drips, n, x, 0, size)))
+		var along := _at(reach, n, x, 0, size)
+		col_run.append(0.25 + 0.7 * along)
+		col_wobble.append((along - 0.5) * 0.04)
+	for y in size:
+		var v := float(y) / size
+		for x in size:
+			var at := (y * size + x) * 3
+			var col := Color(data[at] / 255.0, data[at + 1] / 255.0, data[at + 2] / 255.0)
+			var rough := base_rough
+			var mortar := height[y * size + x] < 0.05
+			var wetness := clampf((v - 0.35) * 1.8, 0.0, 1.0) * (0.35 + 0.65 * _at(damp, n, x, y, size))
+			col = col.lerp(col * 0.62, wetness * 0.6)
+			# Moss and algae: patches in the damp, thick in the mortar.
+			var small := _at(fine, n, x, y, size)
+			var m := _at(moss, n, x, y, size) * 0.7 + small * 0.3
+			var mossy := smoothstep(0.58, 0.8, m + wetness * 0.16 + (0.08 if mortar else 0.0))
+			if mossy > 0.0:
+				var green := Color(0.17, 0.3, 0.09).lerp(Color(0.3, 0.38, 0.12), small)
+				col = col.lerp(green, mossy * (0.75 if mortar else 0.45))
+			if slimy:
+				# A drip starts at the top and runs down, thinning out.
+				var slime: float = col_drip[x] * (1.0 - smoothstep(0.0, col_run[x], v))
+				if slime > 0.0:
+					col = col.lerp(Color(0.1, 0.2, 0.07), slime * 0.7)
+					rough = lerpf(rough, 0.12, slime)
+			if marked and not floorish:
+				# The tide lines of old floods: a dark edge, brown stain below it, a pale salt line above.
+				var wobble: float = col_wobble[x]
+				for line: float in [tide, fposmod(tide + 0.5, 1.0)]:
+					var dv := v - (line + wobble)
+					if dv > 0.0:
+						col = col.lerp(col * Color(0.62, 0.55, 0.4), 0.35 * (1.0 - smoothstep(0.0, 0.2, dv)))
+					if absf(dv) < 0.012:
+						col = col.lerp(Color(0.16, 0.12, 0.07), 0.7)
+					elif dv < 0.0 and dv > -0.03:
+						col = col.lerp(Color(0.72, 0.68, 0.58), 0.22 * (1.0 + dv / 0.03))
+			if floorish:
+				var mk := smoothstep(0.5, 0.78, _at(muck, n, x, y, size) * 0.8 + small * 0.2)
+				if mk > 0.0:
+					col = col.lerp(col * Color(0.5, 0.45, 0.38), mk * 0.65)
+					rough = lerpf(rough, 0.3, mk)
+				var pd := smoothstep(0.6, 0.8, _at(puddle, n, x, y, size))
+				if pd > 0.0:
+					col = col.lerp(col * Color(0.45, 0.55, 0.5), pd * 0.6)
+					rough = lerpf(rough, 0.06, pd)
+			data[at] = int(clampf(col.r, 0.0, 1.0) * 255.0)
+			data[at + 1] = int(clampf(col.g, 0.0, 1.0) * 255.0)
+			data[at + 2] = int(clampf(col.b, 0.0, 1.0) * 255.0)
+			var r8 := int(clampf(rough, 0.0, 1.0) * 255.0)
+			roughs[at] = r8
+			roughs[at + 1] = r8
+			roughs[at + 2] = r8
+	img.set_data(size, size, false, Image.FORMAT_RGB8, data)
+	return Image.create_from_data(size, size, false, Image.FORMAT_RGB8, roughs)
+
+
+## The bare brick picture of a shade (`darker`): its pixels, heights and normal map, made once and shared
+## by the grime variants.
+static var _bases := {}
+
+static func _brick_base(darker: float) -> Dictionary:
+	if _bases.has(darker):
+		return _bases[darker]
 	var size := 256
 	var rows := 16
 	var wide := 46
@@ -391,15 +602,29 @@ static func _brick_stuff(darker: float, rough: float) -> StandardMaterial3D:
 					col = col.lerp(Color(0.2, 0.15, 0.1), rng.randf() * 0.18)
 				height[y * size + x] = h
 				img.set_pixel(x, y, Color(col.r * darker, col.g * darker, col.b * darker))
+	var base := {"data": img.get_data(), "height": height, "normal": ImageTexture.create_from_image(_normals_of(height, size, 2.4))}
+	_bases[darker] = base
+	return base
+
+
+static func _brick_stuff(darker: float, rough: float, variant := 0, floorish := false) -> StandardMaterial3D:
+	var size := 256
+	var base := _brick_base(darker)
+	var img := Image.create_from_data(size, size, false, Image.FORMAT_RGB8, base.data)
+	var wet := _grime(img, base.height, size, variant, floorish, rough)
 	var mat := StandardMaterial3D.new()
+	# Mipmaps, or the fine courses of brick shimmer as the view moves.
+	img.generate_mipmaps()
+	wet.generate_mipmaps()
 	mat.albedo_texture = ImageTexture.create_from_image(img)
+	mat.roughness_texture = ImageTexture.create_from_image(wet)
 	mat.normal_enabled = true
-	mat.normal_texture = ImageTexture.create_from_image(_normals_of(height, size, 2.4))
+	mat.normal_texture = base.normal
 	mat.uv1_triplanar = true
 	mat.uv1_world_triplanar = true
 	mat.uv1_scale = Vector3.ONE * 0.8
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mat.roughness = rough
+	mat.roughness = 1.0
 	return mat
 
 
@@ -436,6 +661,8 @@ static func stone_material() -> StandardMaterial3D:
 				height[y * size + x] = h
 				img.set_pixel(x, y, Color(col.r, col.g, col.b))
 	var mat := StandardMaterial3D.new()
+	# Mipmaps, or the fine courses of brick shimmer as the view moves.
+	img.generate_mipmaps()
 	mat.albedo_texture = ImageTexture.create_from_image(img)
 	mat.normal_enabled = true
 	mat.normal_texture = ImageTexture.create_from_image(_normals_of(height, size, 3.0))
@@ -450,13 +677,14 @@ static func stone_material() -> StandardMaterial3D:
 
 ## A normal map from a height field (size x size, wrapping), `strength` times as steep.
 static func _normals_of(height: PackedFloat32Array, size: int, strength: float) -> Image:
-	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var img := Image.create(size, size, true, Image.FORMAT_RGB8)
 	for y in size:
 		for x in size:
 			var dx := height[y * size + (x + 1) % size] - height[y * size + (x + size - 1) % size]
 			var dy := height[((y + 1) % size) * size + x] - height[((y + size - 1) % size) * size + x]
 			var n := Vector3(-dx * strength, -dy * strength, 1.0).normalized()
 			img.set_pixel(x, y, Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5))
+	img.generate_mipmaps(true)
 	return img
 
 
@@ -500,7 +728,7 @@ static func _channel_water(parent: Node3D, body: StaticBody3D) -> void:
 			var size := Vector3(kerb_w, KERB_HIGH, HouseSketch.CELL) if d.x != 0 else Vector3(HouseSketch.CELL, KERB_HIGH, kerb_w)
 			_box(parent, at + Vector3(0, (KERB_HIGH - 0.08) * 0.5, 0), size - Vector3(0, 0.08, 0) if d.x != 0 else size - Vector3(0, 0.08, 0), stone)
 			# The capstone overhangs the kerb a little on both sides, its edge worn.
-			var cap := Vector3(kerb_w + 0.1, 0.1, HouseSketch.CELL + 0.02) if d.x != 0 else Vector3(HouseSketch.CELL + 0.02, 0.1, kerb_w + 0.1)
+			var cap := Vector3(kerb_w + 0.1, 0.1, HouseSketch.CELL) if d.x != 0 else Vector3(HouseSketch.CELL, 0.1, kerb_w + 0.1)
 			_box(parent, at + Vector3(0, KERB_HIGH - 0.04, 0), cap, stone)
 		var sheet := MeshInstance3D.new()
 		var plane := PlaneMesh.new()
@@ -616,33 +844,28 @@ static func _lamps(parent: Node3D) -> void:
 		parent.add_child(light)
 
 
-## A shaft of daylight down from a street drain: a pale beam and a pool of light on the floor.
+## Daylight down from a street drain: no beam to see, only real, soft light that spreads wide: a broad
+## spot that falls off gently towards its edge and a weak glow round it, neither casting shadows.
 static func _light_shaft(parent: Node3D, tile: Vector2i) -> void:
 	var top := Vector3(tile.x * Level.TILE, 0.0, tile.y * Level.TILE)
-	var beam := MeshInstance3D.new()
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.45
-	cone.bottom_radius = 0.8
-	cone.height = HouseSketch.DEPTH - 0.1
-	cone.radial_segments = 10
-	beam.mesh = cone
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(DAYLIGHT.r, DAYLIGHT.g, DAYLIGHT.b, 0.035)
-	m.cull_mode = BaseMaterial3D.CULL_DISABLED
-	beam.material_override = m
-	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	beam.position = top + Vector3(0, -HouseSketch.DEPTH * 0.5 - 0.02, 0)
-	parent.add_child(beam)
 	var light := SpotLight3D.new()
 	light.light_color = DAYLIGHT
-	light.light_energy = 3.0
-	light.spot_range = HouseSketch.DEPTH + 1.0
-	light.spot_angle = 28.0
+	light.light_energy = 1.1
+	light.spot_range = HouseSketch.DEPTH + 5.0
+	light.spot_angle = 62.0
+	light.spot_angle_attenuation = 2.2
+	light.shadow_enabled = false
 	light.position = top + Vector3(0, -0.1, 0)
 	light.rotation_degrees = Vector3(-90, 0, 0)
 	parent.add_child(light)
+	var glow := OmniLight3D.new()
+	glow.light_color = DAYLIGHT
+	glow.light_energy = 0.35
+	glow.omni_range = 8.0
+	glow.omni_attenuation = 1.4
+	glow.shadow_enabled = false
+	glow.position = top + Vector3(0, -HouseSketch.DEPTH * 0.7, 0)
+	parent.add_child(glow)
 
 
 ## A little daylight down a manhole's shaft, so it is seen from the walkway.

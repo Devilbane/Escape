@@ -192,13 +192,33 @@ func _run() -> void:
 		game.player.global_position = street + Vector3(0, 0.1, 0.0)
 		game._snap_camera()
 		await _shot("hatch_shut")
+	Sewers.open_for = 3.0
 	game._use_station(lid)
 	await _wait(80)
-	check(lid.used and Sewers.opened.has(a.tile), "running into the lid opens it")
+	check(Sewers.opened.has(a.tile), "running into the lid opens it")
+	check(not lid.used and lid.has("stand"), "the hatch stays clickable for good, with a spot to stand at the ladder's head")
 	var open_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(shaft.x, 3, shaft.z), Vector3(shaft.x, -10, shaft.z)))
 	check(open_hit.is_empty() or open_hit.position.y < -HouseSketch.DEPTH + 0.1, "an open hatch lets the hero through to the floor")
 	if shots != "":
 		await _shot("hatch_open")
+	# Clicking the open hatch: the hero at the head of the ladder climbs down it.
+	game.player.global_position = lid.stand + Vector3(0.0, 0.05, 0.0)
+	await _wait(5)
+	game._use_station(lid)
+	await _wait(3)
+	check(game.player.on_ladder(), "clicking the open hatch climbs down the ladder")
+	var climbed := 0
+	while game.player.on_ladder() and climbed < 600:
+		await _wait(1)
+		climbed += 1
+	check(not game.player.on_ladder() and game.player.global_position.y < -HouseSketch.DEPTH + 0.6, "and the climb ends on the floor (%s)" % str(game.player.global_position))
+	check(Sewers.prompt(Sewers.KIND_LID, lid) == Lang.t(Sewers.LID_DOWN_PROMPT), "an open hatch asks to be climbed down")
+	# The shaft's floor takes no snow.
+	var bare := 0
+	for m: Node in sketcher.find_children("*", "MeshInstance3D", true, false):
+		if m.has_meta("no_snow"):
+			bare += 1
+	check(bare >= Sewers.cells().size(), "the pit floors are marked free of snow (%d)" % bare)
 	# Down: the cellar view is on, the whole drain is one pit, the surface hides.
 	game.player.global_position = Sewers.floor_at(Vector2i(14, 46)) + Vector3(0, 0.1, 0)
 	game._snap_camera()
@@ -209,6 +229,42 @@ func _run() -> void:
 	check(game._under_roof(), "no weather falls into the sewers")
 	check(game._in_lost_mine(), "no daylight reaches down there")
 	check(view.pit.size() == Sewers.cells().size(), "the whole drain is one cellar (%d of %d)" % [view.pit.size(), Sewers.cells().size()])
+	# The map: the sewers get a floor of their own that fills in as the hero explores, the den stays
+	# blank until it is found, and the hatches, grating and outfall are landmarks on the surface.
+	var journal: Journal = game.journal
+	journal.reveal_sewer(game.player.global_position)
+	check(journal.has_sewer() and journal.is_sewer_seen(Vector2i(14, 46)), "the map records the sewers the hero sees")
+	check(not journal.is_sewer_seen(Vector2i(14, 5)), "far-off tunnels stay unseen")
+	journal.reveal_sewer(Sewers.floor_at(Vector2i(14, 56)))
+	check(not journal.is_sewer_seen(Spooknortz.PASSAGE[0]) and not journal.is_sewer_seen(Spooknortz.SPOT), "the hidden den stays blank on the map")
+	var file: String = journal.current_file()
+	check(MapView.storeys(journal, file).has(MapView.SEWER), "the sewers are a floor of the map")
+	check(MapView.hero_storey(game.player.global_position) == MapView.SEWER, "the hero is on the sewers' floor")
+	var kinds := journal.places_on(file).filter(func(p): return p.kind == "sewer").map(func(p): return p.name)
+	check(kinds.has("Kanalluke") and kinds.has("Gitter des Baches") and kinds.has("Auslauf der Kanalisation"), "hatches, grating and outfall are landmarks on the surface map (%s)" % str(kinds))
+	var packed := journal.for_save()
+	var reloaded := Journal.new(game)
+	reloaded.load_from(packed)
+	check(reloaded.is_sewer_seen(Vector2i(14, 46)), "the explored sewers are saved with the journal")
+	# The look: grimy brick in several variants, soft light shafts (no beam mesh), a murky water shader.
+	check(Sewers.brick_material(0) != Sewers.brick_material(1) and Sewers.floor_material(0) != Sewers.floor_material(2), "the brick comes in grime variants")
+	var variants := {}
+	for piece: Dictionary in Sewers.sketch().pieces.values():
+		if piece.kind == HouseSketch.DIG:
+			variants[piece.wall] = true
+	check(variants.size() == Sewers.VARIANTS, "the walls use every grime variant (%d)" % variants.size())
+	var soft := 0
+	var spots: Array = game.level.find_children("*", "SpotLight3D", true, false)
+	for l: Node in spots:
+		if l.spot_angle >= 45.0 and not l.shadow_enabled:
+			soft += 1
+	check(soft >= Sewers.GRILLES.size(), "every street drain lets in a broad, soft spot of daylight (%d)" % soft)
+	var beams := 0
+	for m: Node in sketcher.deep.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (m as MeshInstance3D).mesh
+		if mesh is CylinderMesh and is_equal_approx((mesh as CylinderMesh).top_radius, 0.45) and (mesh as CylinderMesh).height > 2.0:
+			beams += 1
+	check(beams == 0, "no hard-edged beam of light is drawn (%d)" % beams)
 	await _check_vermin()
 	await _check_den()
 	if shots != "":
@@ -229,6 +285,17 @@ func _run() -> void:
 	game._snap_camera()
 	await _wait(20)
 	check(not view.active and not sketcher.deep.visible, "back up the sewers hide again")
+	# After a minute with nobody near, the lid falls shut, and is solid again.
+	game.player.global_position = street + Vector3(30.0, 0.1, 0.0)
+	game._snap_camera()
+	await _wait(60 * 7)
+	check(not Sewers.opened.has(a.tile), "the lid falls shut after a minute")
+	var shut_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(shaft.x, 3, shaft.z), Vector3(shaft.x, -0.1, shaft.z)))
+	check(not shut_hit.is_empty() and shut_hit.position.y > 0.5, "a lid shut again is solid")
+	Sewers.open_for = 60.0
+	game._use_station(lid)
+	await _wait(100)
+	check(Sewers.opened.has(a.tile), "it can be opened again")
 	var t := Time.get_ticks_msec()
 	sketcher.refresh()
 	check(Time.get_ticks_msec() - t < 400, "the houses are drawn again quickly (%d ms)" % (Time.get_ticks_msec() - t))
@@ -242,6 +309,9 @@ func _run() -> void:
 func _check_vermin() -> void:
 	Sewers.clock_stopped = 1000.0
 	var standing := Sewers.standing()
+	for g: Dictionary in Sewers.vermin():
+		if g.enemy == null or not is_instance_valid(g.enemy) or g.enemy.dead:
+			print("missing: ", g.kind, " ", g.cell, " fell ", g.fell, " enemy ", g.enemy, " hero dead ", game.player.dead)
 	check(standing.size() == Sewers.MOBS.size(), "the vermin stand at their posts (%d of %d)" % [standing.size(), Sewers.MOBS.size()])
 	var g: Dictionary = Sewers.vermin()[0]
 	var e: Enemy = g.enemy

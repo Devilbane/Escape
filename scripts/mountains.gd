@@ -37,6 +37,11 @@ const SOUTH_LOOK := 8
 const SINK := 0.25
 ## How many tiles the distance field reaches past the mesh.
 const FIELD_MARGIN := 2
+## Ground within this many metres of a rock tile's edge is where the hero's feet can be (the hero stops at
+## the rock tile's edge, body radius 0.55): the rock stays flat out there, so nobody sinks into the face,
+## and rises past it at CLEAR_SLOPE per metre.
+const FEET_CLEAR := 0.35
+const CLEAR_SLOPE := 7.0
 
 const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
@@ -166,20 +171,36 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 	var origin := Vector2((area.position.x - 0.5) * tile, (area.position.y - 0.5) * tile)
 	var nx := int(ceil(area.size.x * tile / STEP))
 	var nz := int(ceil(area.size.y * tile / STEP))
+	var shelves := ClimbSpots.shelves(level)
 	var points := []
 	for iz in nz + 1:
 		var row := []
 		for ix in nx + 1:
 			var x := origin.x + ix * STEP
 			var z := origin.y + iz * STEP
-			if ix > 0 and ix < nx and iz > 0 and iz < nz:
-				x += rng.randf_range(-JITTER, JITTER)
-				z += rng.randf_range(-JITTER, JITTER)
+			# The points along the foot of the rock keep to the tile lines (the draw still happens, so the
+			# later random numbers stay the same): a shaken point there would leave a lip of rock
+			# standing on ground the hero can walk on.
+			var jx := rng.randf_range(-JITTER, JITTER)
+			var jz := rng.randf_range(-JITTER, JITTER)
+			var shelf := -1.0
+			for sh: Dictionary in shelves:
+				var r: Rect2 = sh.rect
+				# The terrace is flat from the middle of its tile back, the front row of points stays on the foot.
+				if x >= r.position.x - 0.01 and x <= r.end.x + 0.01 and z >= r.position.y - 0.01 and z <= r.end.y - STEP * 0.5 + 0.01:
+					shelf = sh.height
+			if shelf < 0.0 and ix > 0 and ix < nx and iz > 0 and iz < nz and _distance_at(dist, x, z) > STEP * 1.25:
+				x += jx
+				z += jz
 			var h := _height(dist, north, x, z, noise)
+			if h > 0.0:
+				h = minf(h, _clear_cap(level, x, z))
 			if h > 1.0:
 				# Craggy: higher rock is shaken more.
 				h = maxf(0.6, h + rng.randf_range(-0.6, 0.6) * minf(1.0, h / 5.0))
 			# Flat on a plot, after the shake so the rest of the rock stays as it was.
+			if shelf >= 0.0:
+				h = shelf
 			if level_ground.any(func(r: Rect2) -> bool: return r.has_point(Vector2(x, z))):
 				h = 0.0
 			row.append(Vector3(x, h - SINK, z))
@@ -263,6 +284,28 @@ static func _distance_field(level: Level, area: Rect2i) -> Dictionary:
 		var t: float = tiles[c]
 		out[c] = -Level.TILE * 0.5 if t == 0.0 else (minf(t, 40.0) - 0.5) * Level.TILE
 	return out
+
+
+## The most the rock may rise at a spot of the ground: nothing where the hero's feet can stand (more than
+## FEET_CLEAR from every rock tile), then a steep rise towards the face.
+static func _clear_cap(level: Level, x: float, z: float) -> float:
+	var tile := Level.TILE
+	var cx := roundi(x / tile)
+	var cz := roundi(z / tile)
+	var best := INF
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var t := Vector2i(cx + dx, cz + dz)
+			if not is_rock(level, t):
+				continue
+			var mid := level.cell_to_world(t)
+			var ox := maxf(0.0, absf(x - mid.x) - tile * 0.5)
+			var oz := maxf(0.0, absf(z - mid.z) - tile * 0.5)
+			best = minf(best, sqrt(ox * ox + oz * oz))
+	# Inside a rock tile nothing is capped.
+	if best == 0.0:
+		return INF
+	return maxf(0.0, FEET_CLEAR - best) * CLEAR_SLOPE
 
 
 ## The distance field between the tile middles, smoothly.

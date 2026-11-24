@@ -2321,6 +2321,10 @@ func _build_shop() -> void:
 	# belt can always be filled again (see Player.knives).
 	while game.shop_stock.count(Items.KNIFE) < Items.stack_size(Items.KNIFE):
 		game.shop_stock.push_front(Items.KNIFE)
+	# And the gear for climbing the mountain rock: a hammer and a rope, nails topped up (see Climbing).
+	for id: String in Climbing.GEAR_FOR_SALE:
+		while game.shop_stock.count(id) < Climbing.GEAR_FOR_SALE[id]:
+			game.shop_stock.push_front(id)
 	# And a backpack of each kind, so a lost one can always be replaced.
 	Items.restock_backpacks(game.shop_stock)
 	# And a bedroll for a camp in the wild, for a hero who has none (see Camp).
@@ -5412,7 +5416,7 @@ func _build_map_page(journal: Journal) -> void:
 	legend.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	legend.add_theme_constant_override("separation", 3)
 	scroll.add_child(legend)
-	if view.storey == MapView.DEEP:
+	if view.storey != MapView.GROUND:
 		_deep_legend(legend, view)
 		return
 	var places := view.numbered_places()

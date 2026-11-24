@@ -1,0 +1,2 @@
+- Villagers now gossip about the little dragons carrying off loot at night, and about a strange fog drifting through the lanes that leaves things missing.
+- Villagers now also whisper about a secret garden high on a mountain, with rare edelweiss and other mysteries.

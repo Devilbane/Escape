@@ -708,7 +708,18 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 					st.set_normal(n)
 					st.set_uv(uvs[k])
 					st.add_vertex(quad[k])
-	_box(parts, "timber", Vector3(0, eaves + ridge + 0.14, 0), Vector3(w + 0.1, 0.24, 0.3))
+	# The ridge board under the cap tiles, and the cap shingles over the ridge and down the two gable
+	# edges (RoofCaps), which hide the hard line where the slopes and their boards end.
+	var apex := eaves + ridge + 0.1 + 0.08 * cos(slope)
+	_box(parts, "timber", Vector3(0, apex - 0.05, 0), Vector3(w + 0.1, 0.16, 0.2))
+	RoofCaps.ridge(st, Vector3(-w * 0.5 - 0.05, apex, 0), Vector3(w * 0.5 + 0.05, apex, 0), tan(slope), hash(Vector3(w, d, ridge)))
+	for side: float in [-1.0, 1.0]:
+		var b := Basis(Vector3(1, 0, 0), side * slope)
+		var n := b * Vector3.UP
+		var down := b * Vector3(0, 0, side)
+		for end: float in [-1.0, 1.0]:
+			var top := Vector3(end * w * 0.5, apex, 0)
+			RoofCaps.edge(st, top, top + down * len, n, Vector3(end, 0, 0), hash(Vector3(side, end, w)))
 
 
 ## A box into the surface for `key`: centre, size, turn. Its texture is laid

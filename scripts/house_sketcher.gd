@@ -1641,6 +1641,9 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = [], buri
 		var is_dig: bool = piece.kind == HouseSketch.DIG
 		if is_dig:
 			_floor_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), piece.get("floor", ""), demolish)
+			# Down in the pit no snow settles on the floor (seen from above through an open shaft it showed
+			# as a flat pale square).
+			_into.get_child(_into.get_child_count() - 1).set_meta("no_snow", true)
 			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
 		var wall_mat := _wall_material(piece.get("wall", "") if is_dig else "", demolish)
 		var tall: float = HouseSketch.DEPTH - (CEILING_GAP if roofed.has(c) else 0.0)
@@ -1881,6 +1884,37 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {
 			knee.position = mid + along * sign_ + Vector3(0, wall_top + HouseSketch.SLAB_THICK * 0.5, 0)
 			knee.set_meta("ymin", eave)
 			_solid.add_child(knee)
+	if not demolish:
+		_saddle_caps(mid, eave, ridge_x, open)
+
+
+## The cap shingles of one cell of saddle roof (RoofCaps): along its ridge, and down the edge of an
+## outer gable (`open`, see _saddle), over the line where the boards end.
+func _saddle_caps(mid: Vector3, eave: float, ridge_x: bool, open: Dictionary) -> void:
+	var half := HouseSketch.CELL * 0.5
+	var rise := HouseSketch.ROOF_RISE
+	var along := Vector3(1, 0, 0) if ridge_x else Vector3(0, 0, 1)
+	var across := Vector3(0, 0, 1) if ridge_x else Vector3(1, 0, 0)
+	var peak := mid + Vector3(0, eave + rise + 0.02, 0)
+	var seed := hash(mid)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	RoofCaps.ridge(st, peak - along * half, peak + along * half, rise / half, seed)
+	for sign_ in [-1.0, 1.0]:
+		if not bool(open.get("along%d" % int(sign_), false)):
+			continue
+		for side_ in [-1.0, 1.0]:
+			var top: Vector3 = peak + along * sign_ * half
+			var foot: Vector3 = mid + across * side_ * half + along * sign_ * half + Vector3(0, eave, 0)
+			var slope := foot - top
+			var dir := slope.normalized()
+			var up := (Vector3.UP - dir * dir.dot(Vector3.UP)).normalized()
+			RoofCaps.edge(st, top, foot, up, along * sign_, seed + int(sign_ * 7.0 + side_ * 3.0))
+	var caps := MeshInstance3D.new()
+	caps.mesh = st.commit()
+	caps.material_override = _old_roof() if _abandoned else VillageHouse._roof_material(0)
+	caps.set_meta("ymin", eave - 0.15)
+	_solid.add_child(caps)
 
 
 ## The bare rafters under a fallen-in roof board, from `foot` (the eaves) up to `peak`: three
@@ -2156,8 +2190,8 @@ func _wall_material(surface: String, demolish: bool) -> Material:
 			return HouseLooks.stair_wood()
 		LostMine.ROCK:
 			return LostMine.rock_material()
-		"brick":
-			return Sewers.brick_material()
+	if surface.begins_with("brick"):
+		return Sewers.brick_material(Sewers.variant_of(surface))
 	return BareEarth.material()
 
 
@@ -2186,10 +2220,11 @@ func _floor_box(middle: Vector3, size: Vector3, surface: String, demolish: bool,
 				var boards := HouseLooks.plank_floor(middle + Vector3(0, _lift, 0), size, _open_roof)
 				boards.set_meta("ymin", middle.y + _lift - size.y * 0.5)
 				_into.add_child(boards)
-			"brick":
-				_visual_box(middle, size, Sewers.floor_material())
 			_:
-				_visual_box(middle, size, BareEarth.material())
+				if surface.begins_with("brick"):
+					_visual_box(middle, size, Sewers.floor_material(Sewers.variant_of(surface)))
+				else:
+					_visual_box(middle, size, BareEarth.material())
 	var drawn := _into.get_child(_into.get_child_count() - 1)
 	drawn.set_meta(LightShadows.FLOOR, true)
 	# Added to the tree before the meta was set: take it off the walls' layer again.

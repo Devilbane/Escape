@@ -306,6 +306,9 @@ func _build_earth() -> void:
 	_mat.set_shader_parameter("dark_reach", DARK_REACH)
 	mesh.material_override = _mat
 	_earth.add_child(mesh)
+	# What hides a secret under the ground (see Spooknortz) is dressed in the same earth.
+	for veil: Node in get_tree().get_nodes_in_group(Spooknortz.EARTH_VEIL):
+		(veil as MeshInstance3D).material_override = _mat
 	# The same cellar always gets the same stones and roots.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector2i(roundi(low.x), roundi(low.y)))

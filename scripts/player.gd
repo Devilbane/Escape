@@ -2072,6 +2072,8 @@ func skill(id: String) -> int:
 	for slot in equipped:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	level_now += int(companion_perks.get("skills", {}).get(id, 0))
+	if id == "klettern":
+		level_now += Climbing.set_bonus(equipped)
 	return maxi(0, level_now - Injury.skill_drop(self))
 
 
@@ -3295,7 +3297,7 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 
 
 func _rock_has_gear() -> bool:
-	return bag.has(HAMMER) and bag.has(ROPE) and bag.has(NAIL)
+	return equipped.get("waffe", "") == HAMMER and equipped.get("schild", "") == ROPE and bag.has(NAIL)
 
 
 func _start_rock(spot: Dictionary) -> void:

@@ -201,12 +201,15 @@ static var ALL := {
 	# it down into iron bars, and the merchant pays well for it.
 	"donnererz": {"name": "Donnererz", "slot": "erz", "weight": 1, "price": 32, "no_loot": true, "material": "metal", "tint": Color(0.55, 0.75, 1.0), "effect": "Nur bei Gewitter zu finden. Gorm schmiedet daraus Donnerwaffen"},
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
-	# Climbing gear for the mountain rock (see Climbing): the shopkeeper always has some. The hammer and the
-	# rope stay in the bag; every safe spot takes one nail.
-	"kletterhammer": {"name": "Kletterhammer", "slot": "erz", "weight": 1.2, "price": 14, "no_loot": true, "material": "metal", "effect": "Zum Einschlagen von Kletternägeln in den Fels"},
+	# Climbing gear for the mountain rock (see Climbing): the shopkeeper always has some. It only works worn:
+	# the hammer in the weapon hand, the rope in the shield hand. Every piece adds +1 Klettern and the whole
+	# set adds Climbing.SET_BONUS more. Nails stay in the bag; every safe spot takes one.
+	"kletterhammer": {"name": "Kletterhammer", "slot": "waffe", "uses": "klingen", "weight": 1.2, "price": 14, "no_loot": true, "material": "metal", "gear": true, "skills": {"klettern": 1}, "effect": "In der Waffenhand getragen: Zum Einschlagen von Kletternägeln in den Fels"},
 	"kletterhaken": {"name": "Kletternagel", "slot": "erz", "weight": 0.15, "price": 3, "no_loot": true, "material": "metal", "effect": "Ein Nagel aus Eisen: Mit Hammer und Seil wird er zum Sicherungspunkt in der Felswand"},
-	"kletterhelm": {"name": "Kletterhelm", "slot": "kopf", "weight": 1, "price": 22, "hat": ["", "ClimbHelmet"], "material": "leather", "gear": true, "no_loot": true, "effect": "Fängt Stürze in der Felswand ab: nur der halbe Schaden"},
-	"kletterseil": {"name": "Kletterseil", "slot": "erz", "weight": 2.0, "price": 12, "no_loot": true, "effect": "Ein langes, festes Seil für die Felswand"},
+	"kletterhelm": {"name": "Kletterhelm", "slot": "kopf", "weight": 1, "price": 22, "hat": ["", "ClimbHelmet"], "material": "leather", "gear": true, "skills": {"klettern": 1}, "no_loot": true, "effect": "Fängt Stürze in der Felswand ab: nur der halbe Schaden"},
+	"kletterseil": {"name": "Kletterseil", "slot": "schild", "weight": 2.0, "price": 12, "no_loot": true, "gear": true, "skills": {"klettern": 1}, "effect": "In der Schildhand getragen: Ein langes, festes Seil für die Felswand"},
+	"kletterschuhe": {"name": "Kletterschuhe", "slot": "schuhe", "weight": 1, "price": 18, "tint": Color(0.36, 0.3, 0.22), "material": "leather", "gear": true, "skills": {"klettern": 1}, "no_loot": true, "effect": "Eine harte Sohle mit Kante: Sie findet auch im glatten Fels Halt"},
+	"kletterhandschuhe": {"name": "Kletterhandschuhe", "slot": "handschuhe", "weight": 0.4, "price": 14, "tint": Color(0.5, 0.36, 0.2), "material": "leather", "gear": true, "skills": {"klettern": 1}, "no_loot": true, "effect": "Griffiges Leder, das die Hände am Fels schont"},
 	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},
 	# Food for a doe and a stag (see Companions): the shopkeeper always has some too.
@@ -594,7 +597,7 @@ const RARITY := {
 	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
 	# Everyday things, tasks and materials.
-	"kiste": "normal", "kletterhammer": "normal", "kletterhelm": "normal", "kletterhaken": "normal", "kletterseil": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
+	"kiste": "normal", "kletterhammer": "normal", "kletterhelm": "normal", "kletterschuhe": "normal", "kletterhandschuhe": "normal", "kletterhaken": "normal", "kletterseil": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "mehlsack": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"kartenstueck_1": "ungewoehnlich", "kartenstueck_2": "ungewoehnlich", "kartenstueck_3": "ungewoehnlich", "schatzkarte": "selten",

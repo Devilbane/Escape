@@ -127,20 +127,27 @@ func _run() -> void:
 
 	# A plain rock face: the message, no climb.
 	hero.companion_perks = {"skills": {"klettern": 30}}
-	hero.bag.append_array(["kletterhammer", "kletterseil", "kletterhaken", "kletterhaken", "kletterhaken", "kletterhaken"])
+	hero.equipped["waffe"] = "kletterhammer"
+	hero.equipped["schild"] = "kletterseil"
+	hero.bag.append_array(["kletterhaken", "kletterhaken", "kletterhaken", "kletterhaken"])
 	told.clear()
 	await _push(hero, lvl, other, 3.2)
 	check(not hero.is_climbing(), "plain rock cannot be climbed")
 	check(told.has(Lang.t(ClimbSpots.TOO_STEEP)), "plain rock says it is too steep (got %s)" % [told])
 
 	# A real spot with too little skill: the same message and the same timing, no climb.
+	# (The worn hammer and rope already give +2 Klettern, so they come off for this check.)
 	hero.companion_perks = {"skills": {}}
+	hero.equipped.erase("waffe")
+	hero.equipped.erase("schild")
 	told.clear()
 	await _push(hero, lvl, spot.cell, 3.2)
 	check(not hero.is_climbing(), "too little skill: no climb")
 	check(told == [Lang.t(ClimbSpots.TOO_STEEP)], "too little skill says only that it is too steep (got %s)" % [told])
 
 	# With the skill: the climb starts after the same hold, and a good roll ends on the terrace.
+	hero.equipped["waffe"] = "kletterhammer"
+	hero.equipped["schild"] = "kletterseil"
 	hero.companion_perks = {"skills": {"klettern": 30}}
 	hero.rock_roll_forced = 0.0
 	told.clear()

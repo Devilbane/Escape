@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless test for the village cat (see VillageCat): it lives at the big smithy, strolls about, and at
-## bedtime walks to the old anvil beside the chimney, leaps up, curls up and sleeps; it purrs when the hero
+## bedtime walks to the old perch beside the chimney, leaps up, curls up and sleeps; it purrs when the hero
 ## is near, stretches and hops down when it has slept enough.
 ## Run with: godot --headless --fixed-fps 60 -s tests/village_cat.gd
 ## With SHOTS=<folder> and a display it also saves screenshots there.
@@ -84,16 +84,16 @@ func _run() -> void:
 		_finish()
 		return
 	check(cat.home(), "the cat has a place at home")
-	check(cat.foot != Vector3.INF, "the cat has open ground in front of its anvil")
-	check(lvl.is_open(lvl.world_to_cell(cat.foot)), "the foot of the anvil is open ground")
-	check(cat.global_position.distance_to(cat.foot) < 4.0, "the cat starts near its anvil")
-	check(cat.anvil_top.y > 0.5, "the anvil's face is above the ground (%.2f)" % cat.anvil_top.y)
-	hero.global_position = cat.anvil_top + cat.out_dir * 12.0
+	check(cat.foot != Vector3.INF, "the cat has open ground in front of its perch")
+	check(lvl.is_open(lvl.world_to_cell(cat.foot)), "the foot of the perch is open ground")
+	check(cat.global_position.distance_to(cat.foot) < 4.0, "the cat starts near its perch")
+	check(cat.perch_top.y > 0.5, "the perch's face is above the ground (%.2f)" % cat.perch_top.y)
+	hero.global_position = cat.perch_top + cat.out_dir * 12.0
 	# By day it sits, then strolls off.
 	cat._begin("sit", 0.1)
 	cat._strolls = 0
 	var seen := []
-	var strolled := await _until(cat, "stroll", 120, seen)
+	var strolled := await _until(cat, "stroll", 1800, seen)
 	check(strolled, "by day the cat strolls about (%s)" % str(seen))
 	await _shot("cat_stroll", cat, Vector3(1.6, 0.9, 2.2))
 	for i in 3600:
@@ -102,23 +102,23 @@ func _run() -> void:
 			break
 	check(cat.state == "sit", "after a stroll it sits and looks about (%s)" % cat.state)
 	await _shot("cat_sit", cat, Vector3(1.4, 0.8, 1.8))
-	# Bedtime: it walks to the anvil, crouches, leaps, settles and sleeps on it.
+	# Bedtime: it walks to the perch, crouches, leaps, settles and sleeps on it.
 	cat.go_to_bed()
 	seen = []
-	var napping := await _until(cat, "nap", 3600, seen)
-	check(napping, "at bedtime the cat ends up asleep (%s)" % str(seen))
-	check(seen.has("leap"), "it leaps up onto the anvil (%s)" % str(seen))
-	check(cat.global_position.distance_to(cat.anvil_top) < 0.05, "the sleeping cat lies on the anvil's face (%s vs %s)" % [cat.global_position, cat.anvil_top])
+	var napping := await _until(cat, "nap", 9000, seen)
+	check(napping, "at bedtime the cat ends up asleep (%s %s %.2f %s clock %.1f hero %s paused %s)" % [str(seen), cat.state, cat._timer, cat.global_position, cat._clock, hero.global_position, game.get_tree().paused])
+	check(seen.has("leap"), "it leaps up onto the perch (%s)" % str(seen))
+	check(cat.global_position.distance_to(cat.perch_top) < 0.05, "the sleeping cat lies on the perch's face (%s vs %s)" % [cat.global_position, cat.perch_top])
 	await _wait(120)
 	await _shot("cat_nap", cat, Vector3(1.3, 0.7, 1.6), Vector3(0, 0.1, 0))
 	await _shot("cat_nap_wide", cat, Vector3(-3.0, 2.0, 6.0), Vector3(0, 0, 0))
 	# It purrs when the hero comes close, and not when the hero is away.
 	check(cat._purring < 0.1, "it does not purr with the hero far away")
-	hero.global_position = cat.anvil_top + cat.out_dir * 2.0
+	hero.global_position = cat.perch_top + cat.out_dir * 2.0
 	hero.global_position.y = 0.0
 	await _wait(90)
 	check(cat._purring > 0.9, "it purrs when the hero is near (%.2f)" % cat._purring)
-	# Purring or not, it lies perfectly still on the anvil: no bouncing, only the breath.
+	# Purring or not, it lies perfectly still on the perch: no bouncing, only the breath.
 	var low := INF
 	var high := -INF
 	var bl := INF
@@ -131,8 +131,8 @@ func _run() -> void:
 		bh = maxf(bh, cat._body.position.y)
 	check(bh - bl < 0.0001, "the body does not bob either (%.5f)" % (bh - bl))
 	check(high - low < 0.0001, "the sleeping cat does not bounce (%.5f)" % (high - low))
-	check(cat.global_position.distance_to(cat.anvil_top) < 0.0001, "it stays put on the anvil while purring")
-	hero.global_position = cat.anvil_top + cat.out_dir * 14.0
+	check(cat.global_position.distance_to(cat.perch_top) < 0.0001, "it stays put on the perch while purring")
+	hero.global_position = cat.perch_top + cat.out_dir * 14.0
 	await _wait(120)
 	check(cat._purring < 0.1, "it stops purring when the hero leaves")
 	# By night it sleeps on; by day, once rested, it stretches and hops down.

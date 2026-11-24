@@ -466,11 +466,10 @@ var warm_spots: Array[Vector4] = []
 ## The fires of the smithy model (building_blacksmith_red): the logs in the furnace's mouth and the
 ## fire on top of its chimney, in the model's own frame, with how far round them it is warm.
 const SMITHY_FIRES: Array[Vector4] = [Vector4(0.22, 0.14, 0.24, 0.24), Vector4(0.21, 0.91, -0.14, 0.14)]
-## Where the face of the old anvil beside the big smithy's chimney is, in the model's own frame:
-## the village cat jumps up there to sleep in the warmth (see VillageCat).
-const SMITHY_ANVIL := Vector3(-0.04, 0.206, 0.52)
-## The village cat that naps on that anvil (null without the big smithy).
+## The village cat that naps on the barrel by the smithy's stacked granite blocks (null when there is
+## none, see _adopt_cat).
 var village_cat: VillageCat
+var _smithy_node: Node3D
 var _candles: Array[MeshInstance3D] = []
 var _candle_mat: StandardMaterial3D
 ## The glass of the street lamps' lanterns, glowing at night.
@@ -862,6 +861,7 @@ func build() -> void:
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
 	_spawn_villagers()
+	_adopt_cat()
 	_build_war_horn()
 	_spawn_wild()
 	_spawn_animals()
@@ -2487,7 +2487,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 				var at: Vector3 = node.transform * Vector3(hot.x, hot.y, hot.z)
 				warm_spots.append(Vector4(at.x, at.y, at.z, hot.w * s))
 			_smithy_fire(node, s)
-			_adopt_cat(node)
+			_smithy_node = node
 		if ch != "R":
 			_age_kit_building(node)
 		if ch == "u":
@@ -4208,13 +4208,55 @@ func _chimney_fire(top: Vector3) -> void:
 	tween.tween_property(mat, "emission_energy_multiplier", 1.9, 0.4)
 
 
-## The village cat of the big smithy: it strolls about and naps on the old anvil by its chimney.
-func _adopt_cat(smithy: Node3D) -> void:
+## The village cat of the big smithy: it strolls about and naps on the lid of the barrel that stands
+## beside the stacked granite blocks next to the smithy (the closest such barrel). Without the smithy
+## or such a barrel it has no cat.
+func _adopt_cat() -> void:
+	if _smithy_node == null:
+		return
+	var home := _smithy_node.global_position
+	var stones: Array[Vector3] = []
+	var barrels: Array[Node3D] = []
+	for c in get_children():
+		if not (c is Node3D) or c.get_child_count() == 0 or c.global_position.distance_to(home) > 16.0:
+			continue
+		var kind := String(c.get_child(0).name)
+		if kind.begins_with("resource_stone"):
+			stones.append(c.global_position)
+		elif kind.begins_with("barrel"):
+			barrels.append(c)
+	var perch: Node3D
+	var best := INF
+	for b in barrels:
+		for st in stones:
+			var d := Vector2(b.global_position.x - st.x, b.global_position.z - st.z).length()
+			if d < best:
+				best = d
+				perch = b
+	if perch == null or best > 6.0:
+		return
+	var lid := _lid_of(perch)
+	var away := lid - home
+	# No snow settles on the lid or round it: the cat's bed stays bare and dry all winter, warm
+	# from the forge beside it.
+	warm_spots.append(Vector4(lid.x, lid.y - 0.5, lid.z, 0.9))
 	var cat := VillageCat.new()
 	cat.name = "VillageCat"
-	cat.setup(self, smithy.transform * SMITHY_ANVIL, smithy.transform.basis * Vector3(0, 0, 1))
+	cat.setup(self, lid, away)
 	add_child(cat)
 	village_cat = cat
+
+
+## The middle of the top of a barrel prop (world).
+func _lid_of(barrel: Node3D) -> Vector3:
+	var top := barrel.global_position
+	var high := 0.0
+	for mi in barrel.find_children("*", "MeshInstance3D", true, false):
+		var box: AABB = (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		high = maxf(high, box.end.y)
+		top = Vector3(box.get_center().x, 0.0, box.get_center().z)
+	top.y = high
+	return top
 
 
 ## The fire of the big smithy behind the little forge (block "j"): the coals in its furnace's mouth

@@ -1,6 +1,6 @@
 extends SceneTree
-## The river's spring (see Waterfall): the fall stands at its notch in the cliff, the causeway of path tiles
-## leads through the pool to it from the shore, the water lies on the rock, and the ice and snow of winter show.
+## The river's spring (see Waterfall): the fall stands at its notch in the cliff, the pool in front of it
+## has no path across, the water lies on the rock, and the ice and snow of winter show.
 ## Run with: godot --headless -s tests/waterfall.gd
 
 var failures := 0
@@ -55,15 +55,22 @@ func _run() -> void:
 		quit(1)
 		return
 	check(lvl.is_open(notch), "the notch's porch can be walked")
-	# The causeway: the shore tile south of the pool leads to the porch over the path tiles only.
-	var shore := notch + Vector2i(0, Waterfall.CAUSEWAY + 1)
-	check(lvl.is_open(shore), "the shore at the causeway's foot is open ground")
-	var path: PackedVector2Array = lvl.astar.get_point_path(shore, notch)
-	check(path.size() == Waterfall.CAUSEWAY + 2, "the causeway runs straight through the pool (%d steps)" % path.size())
-	for k in Waterfall.CAUSEWAY:
-		check(lvl.cell_char(notch + Vector2i(0, 1 + k)) == ",", "causeway tile %d is a path tile" % k)
-	for dx in [-1, 1]:
-		check(lvl.cell_char(notch + Vector2i(dx, 1)) == "≈", "the pool lies beside the causeway")
+	# No path leads to the porch: the pool lies in front of it, in summer open water, solid to walk on only frozen.
+	for k in 4:
+		check(lvl.cell_char(notch + Vector2i(0, 1 + k)) == "≈", "pool tile %d in front of the porch is water, no path" % k)
+	var porch_south := notch + Vector2i(0, 1)
+	check(lvl.astar.is_point_solid(porch_south), "in summer the water in front of the porch cannot be walked")
+	var shore := notch + Vector2i(0, SpringCave.SHORE_TILES)
+	check(lvl.is_open(shore), "the shore in front of the pool is open ground")
+	check(lvl.astar.get_point_path(shore, notch).is_empty(), "in summer there is no way from the shore to the porch")
+	# Frozen, the river can be crossed to the porch.
+	game.ice_cover = 1.0
+	lvl.set_ice(1.0)
+	await _wait(3)
+	check(not lvl.astar.is_point_solid(porch_south), "in winter the frozen pool in front of the porch can be walked")
+	check(not lvl.astar.get_point_path(shore, notch).is_empty(), "in winter there is a way over the ice to the porch")
+	game.ice_cover = 0.0
+	lvl.set_ice(0.0)
 	# The water lies on the rock, not in the air or under it.
 	var here := fall.global_position
 	var rock := Mountains.surface_at(lvl, here.x, here.z + Waterfall.SHELF_BACK_V - 3.0)
@@ -73,11 +80,13 @@ func _run() -> void:
 	fall.set_ice(0.0)
 	fall.set_snow(0.0)
 	check(not fall._icicles.visible and not fall._snow_caps.visible, "in summer there are no icicles and no snow")
+	game.ice_cover = 1.0
 	lvl.set_ice(1.0)
 	lvl.set_snow(1.0)
 	check(fall._icicles.visible and fall._ice_foot.visible and fall._snow_caps.visible, "in winter the fall is frozen and snowed on")
 	for puff in fall._sprays:
 		check(not puff.emitting, "the spray stops when the fall is frozen")
+	game.ice_cover = 0.0
 	lvl.set_ice(0.0)
 	lvl.set_snow(0.0)
 	check(not fall._icicles.visible and fall._sprays[0].emitting, "the thaw sets the water running again")

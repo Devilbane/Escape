@@ -3,11 +3,12 @@ extends Node3D
 ## The spring of the river (map letter "∩"): in the far west of the farming valley a stream tumbles down
 ## the mountain's face, over a shelf of rock, and falls into the river's first pool. Behind the curtain of
 ## water, in a notch of the cliff, lies the way to a hidden cave, disguised as plain rock (a secret
-## entrance looks like the walls around it), reached by a causeway of stepping stones through the pool.
+## entrance looks like the walls around it). There is no path to it: the pool lies in front of the
+## porch, and only in winter, when the river is frozen, can it be crossed on the ice. Then the fall is
+## frozen too, a wall of ice over the porch, which a climbing hammer breaks open (see SpringCave).
 ##
 ## The letter marks the notch (one tile cut into the rock face, see Mountains.is_rock): its middle is
-## the porch, the rock shelf with the water's brow lies over it, and the causeway of path tiles runs
-## south from it through the pool. Everything is built from that one tile.
+## the porch, and the rock shelf with the water's brow lies over it. Everything is built from that one tile.
 ##
 ## The water is a handful of sheets (see waterfall.gdshader): the stream laid on the rock face as it
 ## is drawn (Mountains.surface_at), the curtain hanging from the shelf's brow, and a thin runnel down
@@ -36,8 +37,6 @@ const RUNNEL_U := 4.3
 const RUNNEL_FROM_V := -9.0
 const RUNNEL_WIDTH := 1.5
 const LIFT := 0.14
-## How many tiles of causeway run south from the notch's tile.
-const CAUSEWAY := 4
 ## The ice and snow show from these amounts.
 const ICE_FROM := 0.25
 const SNOW_FROM := 0.3
@@ -45,6 +44,10 @@ const SNOW_FROM := 0.3
 var ice := 0.0
 var snow := 0.0
 var _sheets: Array[ShaderMaterial] = []
+## The two sheets of the curtain, where a doorway is broken (see SpringCave).
+var _curtains: Array[ShaderMaterial] = []
+## The wall of ice over the porch, until it is broken.
+var wall: StaticBody3D = null
 var _icicles := Node3D.new()
 var _ice_foot := Node3D.new()
 var _snow_caps := Node3D.new()
@@ -64,19 +67,21 @@ static func build(lvl: Outdoor, c: Vector2i) -> Waterfall:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(lvl.level_name + "wasserfall")
 	fall._rocks(rng)
-	fall._causeway(rng)
+	fall._porch(rng)
 	fall._doorway(rng)
 	fall._ice(rng)
 	fall._snow(rng)
 	# The rock plug stops the hero at the back of the porch.
 	lvl._add_solid(fall.position + Vector3(0, 0, -1.3), Vector3(4.0, 3.0, 1.2))
 	lvl.waterfall = fall
+	SpringCave.attach(lvl, fall)
 	return fall
 
 
 ## How much of the water is frozen, 0 to 1.
 func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
+	SpringCave.on_ice(self)
 	for mat in _sheets:
 		mat.set_shader_parameter("ice", ice)
 	_icicles.visible = ice > ICE_FROM
@@ -87,6 +92,12 @@ func set_ice(value: float) -> void:
 		var on := ice < 0.7
 		if puff.emitting != on:
 			puff.emitting = on
+
+
+## Opens or closes the doorway in the ice at the foot of the curtain.
+func set_doorway(open: bool) -> void:
+	for mat in _curtains:
+		mat.set_shader_parameter("hole", 1.0 if open else 0.0)
 
 
 ## How thickly the snow lies, 0 to 1.
@@ -179,22 +190,11 @@ func _rocks(rng: RandomNumberGenerator) -> void:
 			_rock(Vector3(s * (RUNNEL_U + rng.randf_range(-1.1, 1.1)), 0.1, 2.0 + rng.randf_range(0.0, 1.2)), Vector3(0.55, 0.4, 0.5) * rng.randf_range(0.8, 1.4), rng)
 
 
-## Flat stones laid as steps through the pool, from the porch south over the path tiles: slabs of the cliff's
-## own rock, rounded and weathered like it.
-func _causeway(rng: RandomNumberGenerator) -> void:
+## The porch floor: a few wet flagstones of the cliff's own rock, rounded and weathered like it.
+func _porch(rng: RandomNumberGenerator) -> void:
 	var tint := Color(0.6, 0.58, 0.55)
-	# The porch floor: wet flagstones.
 	for p: Vector3 in [Vector3(-1.1, 0.0, -0.9), Vector3(1.0, 0.0, -0.8), Vector3(-0.9, 0.0, 0.8), Vector3(1.1, 0.0, 0.8), Vector3(0.0, 0.0, 0.0)]:
 		_rock(p, Vector3(rng.randf_range(1.0, 1.25), 0.2, rng.randf_range(0.9, 1.15)), rng, self, null, tint)
-	var length := TILE * CAUSEWAY
-	var v := 2.6
-	while v < length + 2.0:
-		var sway := sin(v * 0.9) * 0.35
-		_rock(Vector3(sway + rng.randf_range(-0.2, 0.2), 0.0, v), Vector3(rng.randf_range(1.0, 1.35), 0.2, rng.randf_range(0.7, 0.95)), rng, self, null, tint)
-		if rng.randf() < 0.7:
-			var side := -1.0 if rng.randf() < 0.5 else 1.0
-			_rock(Vector3(sway + side * rng.randf_range(1.3, 1.7), 0.0, v + rng.randf_range(-0.5, 0.5)), Vector3(rng.randf_range(0.35, 0.55), 0.14, rng.randf_range(0.35, 0.55)), rng, self, null, tint)
-		v += rng.randf_range(1.0, 1.4)
 
 
 ## The way into the hill is disguised as the rock around it: the notch's back is plugged with boulders of
@@ -365,6 +365,8 @@ func lay_water(lvl: Outdoor) -> void:
 	_curtain(CURTAIN_WIDTH, ROOF + 0.15, CURTAIN_V, 0.12, front)
 	var back := _sheet_material(CURTAIN_WIDTH - 0.8, ROOF, -1.0)
 	_curtain(CURTAIN_WIDTH - 0.8, ROOF + 0.1, CURTAIN_V - 0.22, 0.08, back)
+	_curtains = [front, back]
+	SpringCave.sync(lvl, self)
 	# The runnels either side, running down the rock into the pool.
 	for side in [-1.0, 1.0]:
 		var s: float = side
@@ -470,6 +472,8 @@ func _ice(rng: RandomNumberGenerator) -> void:
 	# The ice at the foot: lumps heaped where the spray froze.
 	for i in 9:
 		var u := rng.randf_range(-2.4, 2.4)
+		if absf(u) < 1.3:
+			u = (1.3 + absf(u)) * (1.0 if u >= 0.0 else -1.0)
 		var lump := _rock(Vector3(u, 0.15, CURTAIN_V + 0.55 + rng.randf_range(-0.2, 0.5)), Vector3(rng.randf_range(0.5, 1.0), rng.randf_range(0.35, 0.7), rng.randf_range(0.4, 0.7)), rng, _ice_foot, _ice_material(), Color(0.85, 0.95, 1.0))
 		lump.material_override = _ice_material()
 	add_child(_ice_foot)

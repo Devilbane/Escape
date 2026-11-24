@@ -28,6 +28,9 @@ uniform float ledge_at = -1.0;
 uniform float length_m = 10.0;
 // Snow lying on the frozen fall's upper edge, 0 to 1.
 uniform float snow = 0.0;
+// A doorway broken through the frozen sheet at its foot (0 closed, 1 open; see SpringCave): the ice is
+// gone from a jagged opening a little wider than the hero and just taller.
+uniform float hole = 0.0;
 
 varying vec3 world_pos;
 
@@ -39,6 +42,14 @@ void fragment() {
 	float t = TIME;
 	float across = UV.x * width;
 	float down = UV.y;
+	if (hole > 0.0) {
+		float jag = vnoise(vec3(across * 3.0, down * 3.0, 31.0)) * 0.5;
+		bool wide = abs(across - width * 0.5) < 0.95 + jag * 0.8;
+		bool tall = down > length_m - 2.7 - jag * 0.9;
+		if (wide && tall) {
+			discard;
+		}
+	}
 	// Running water: long streaks sliding down, two layers at different pace.
 	float run = 1.0 - ice;
 	float s1 = vnoise(vec3(across * streaks * 2.0, down * 0.35 - t * speed * 0.42 * run, 1.0));

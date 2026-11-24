@@ -1870,6 +1870,8 @@ func _use_station(s: Dictionary) -> void:
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))
 	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
 		treasure_maps.use(s)
+	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
+		SpringCave.use(self, s)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
 	elif s.kind == SternHall.DRAIN:
@@ -7884,6 +7886,9 @@ func _leave_building(all_the_way := false, door := "") -> void:
 	inside_house = 0
 	_resume_next = true
 	load_level(_outdoor_index(), false)
+	if building == SpringCave.ID and level is Outdoor and level.waterfall != null:
+		# Out of the spring's cave: on the porch while the ice is open, in a thaw on the shore.
+		level.doors[building] = SpringCave.exit_point(level, ice_cover)
 	if door != "" and level is Outdoor and level.doors.has(door):
 		player.global_position = level.doors[door]
 		player.face(Vector3.BACK)
@@ -8161,6 +8166,8 @@ func _process(delta: float) -> void:
 			VillageWall.GATE_STATION: Lang.t("Dagegenlaufen, um das Tor zu öffnen"),
 			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
+			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
+			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),

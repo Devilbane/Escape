@@ -9,7 +9,7 @@ bandit_chief.gd 31
 barber.gd 20
 bird_feeding.gd 32
 bleeding.gd 4
-blessing.gd 19
+blessing.gd 51
 bloated_belly.gd 18
 bookshelf.gd 17
 boss_loot.gd 2
@@ -39,7 +39,7 @@ corpses.gd 4
 corral.gd 71
 corral_shots.gd 20
 cowed_monsters.gd 19
-crafting.gd 24
+crafting.gd 75
 crafting_square.gd 18
 crates.gd 22
 creature_skin.gd 1
@@ -66,7 +66,7 @@ epic_backpack.gd 4
 event_log.gd 3
 event_log_frame.gd 3
 event_log_width.gd 4
-events.gd 18
+events.gd 51
 exploration.gd 20
 factions.gd 21
 fishing.gd 24
@@ -81,7 +81,7 @@ fox.gd 57
 frozen_fritz.gd 25
 frozen_ponds.gd 18
 furniture_spacing.gd 12
-furniture_stuck.gd 25
+furniture_stuck.gd 60
 garden_wall_shots.gd 20
 ghosts.gd 5
 glowworm_swarms.gd 18
@@ -90,7 +90,7 @@ godborn_backpack.gd 3
 goose_wings.gd 3
 grate_tentacles.gd 26
 grates_clear.gd 27
-graveyard_start.gd 32
+graveyard_start.gd 89
 guard_watch.gd 17
 guardian_life.gd 3
 healing_potions.gd 16
@@ -105,7 +105,7 @@ home_stores.gd 20
 home_upgrades.gd 16
 horrors.gd 23
 house_cellar.gd 2
-house_cellar_floor.gd 18
+house_cellar_floor.gd 48
 house_doors.gd 19
 house_faces.gd 1
 house_floors.gd 3
@@ -113,7 +113,7 @@ house_playtest.gd 4
 house_roof_items.gd 19
 house_sketch.gd 3
 house_sketcher.gd 18
-house_upper.gd 17
+house_upper.gd 48
 hud_drawer.gd 3
 hud_tooltips.gd 4
 ignition.gd 4
@@ -167,9 +167,9 @@ penguin_shots.gd 19
 pillar_shots.gd 4
 pips_friend.gd 143
 place_monsters.gd 3
-player_houses.gd 20
+player_houses.gd 60
 playtest_map.gd 20
-plot_clearing.gd 9
+plot_clearing.gd 45
 plots.gd 2
 post_cap.gd 17
 prison_bars.gd 3
@@ -180,7 +180,7 @@ quarry_door.gd 17
 quarry_rocks.gd 18
 quests.gd 35
 quick_bar.gd 4
-rare_loot.gd 37
+rare_loot.gd 67
 rarity_colours.gd 19
 red_goat.gd 41
 regen_pause.gd 4
@@ -191,12 +191,12 @@ save_format.gd 4
 save_notice.gd 27
 save_slots.gd 4
 seats.gd 19
-secret_exit.gd 45
+secret_exit.gd 87
 shop_backpacks.gd 3
 shop_signs.gd 3
 shrine.gd 3
 sim_foundation.gd 1
-skill_trees.gd 16
+skill_trees.gd 48
 sky_command.gd 4
 sleep_roll.gd 1
 sleep_till_morning.gd 4
@@ -271,7 +271,7 @@ village_wall.gd 40
 village_worries.gd 16
 villager_crowd.gd 49
 villager_post.gd 3
-villager_walls.gd 20
+villager_walls.gd 51
 vital_circle.gd 4
 vital_star.gd 2
 wake_up.gd 4
@@ -304,3 +304,9 @@ workbench_crafting.gd 18
 world_preload.gd 17
 zarek_mage.gd 24
 granite_wall.gd 3
+stuck_watch.gd 62
+house_railing.gd 49
+house_furniture.gd 51
+house_hiding.gd 49
+house_login.gd 111
+waterfall.gd 49

@@ -3,11 +3,13 @@ shader_type spatial;
 // body, patches of lighter and darker coat, darker legs, no shine. The model has no UV
 // coordinates, so every texture is projected from three sides in the model's own space.
 
-uniform vec4 base_color : source_color = vec4(1.0);
+#include "res://shaders/gl_colour.gdshaderinc"
+
+uniform vec4 base_color = vec4(1.0);
 // Hair strands (light/dark streaks, seamless) and their bump map, and broad blotches of coat colour.
-uniform sampler2D strands : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D strands : filter_linear_mipmap, repeat_enable;
 uniform sampler2D strand_bumps : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D blotches : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D blotches : filter_linear_mipmap, repeat_enable;
 // Strand texture repeats per model unit; the blotches repeat this many times slower.
 uniform float tile = 5.0;
 uniform float blotch_slower = 7.0;
@@ -15,7 +17,7 @@ uniform float bump_strength = 2.5;
 // Below `leg_top` (model height) the coat turns darker, down to `leg_tint` at `leg_bottom`.
 uniform float leg_top = 0.9;
 uniform float leg_bottom = 0.2;
-uniform vec3 leg_tint : source_color = vec3(0.62, 0.58, 0.55);
+uniform vec3 leg_tint = vec3(0.62, 0.58, 0.55);
 // How much a soft fuzzy edge lightens the coat where it is seen at a slant.
 uniform float fuzz = 0.18;
 
@@ -51,4 +53,5 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.05;
 	METALLIC = 0.0;
+	ALBEDO = gl_colour(ALBEDO);
 }

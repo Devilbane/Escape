@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the crop fields walkable; Spooknortz waits for the village to sleep, sneaks in fog | Shipped this week: Keep snow off the alchemist's pot; Fix getting stuck in bed after sleep; tidy the bed's pillows; Spooknortz sneaks through the village at night (+47 more)
+Escape! dev status | Working on: Make the crop fields walkable | Shipped this week: Spooknortz waits for the village to sleep, sneaks in fog; Keep snow off the alchemist's pot (+48 more)

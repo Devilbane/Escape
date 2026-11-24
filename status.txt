@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Real seats in houses, smithy and guildhall; remove the useless small tables (+1 more) | Shipped this week: Add the spring cave behind the frozen waterfall (winter only, climbing hammer); Give the farm villagers their goals (+47 more)
+Escape! dev status | Working on: Add the secret mountaintop garden: a hidden level 16 climb with silver edelweiss, a tablet and a healing spring | Shipped this week: Real seats in houses, smithy and guildhall; remove the useless small tables (+48 more)

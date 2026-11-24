@@ -1648,6 +1648,9 @@ func alarm(slime: Enemy, called := false) -> void:
 		return
 	if eaten or at_home or slime == null or not is_instance_valid(slime) or slime.dead:
 		return
+	# A slime down in the sewers or the mine is out of sight and out of reach.
+	if not SlimeGrowth.same_world(slime.global_position, global_position):
+		return
 	# A slime sniffing at a defender over the wall does not scare them off their post; only the
 	# call to arms after a breach (`called`) does.
 	if defends() and not called:
@@ -1733,7 +1736,8 @@ func _draw_blade(on: bool) -> void:
 ## near her a slime has hurt.
 func _fight(delta: float) -> void:
 	if threat == null or not is_instance_valid(threat) or threat.dead \
-			or threat.global_position.distance_to(global_position) > _reach:
+			or threat.global_position.distance_to(global_position) > _reach \
+			or not SlimeGrowth.same_world(threat.global_position, global_position):
 		calm_down()
 		return
 	if heals():

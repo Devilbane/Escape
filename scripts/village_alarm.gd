@@ -103,6 +103,7 @@ static func intruders(o: Outdoor) -> Array:
 	var out := []
 	for e in o.enemies:
 		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) \
+				and not LostMine.holds(e.global_position) and not Sewers.holds(e.global_position) \
 				and o._in_village(o.world_to_cell(e.global_position)) \
 				and o.village_wall.is_inside(o.world_to_cell(e.global_position)):
 			out.append(e)

@@ -1,0 +1,1 @@
+- Villagers no longer fight, flee from or get bitten by slimes down in the sewers or the mine, so nobody swings at thin air above them.

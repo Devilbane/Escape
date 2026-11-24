@@ -212,3 +212,4 @@ water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on t
 slime_underground.gd | 120 | fixed | pass | Slimes in the sewers or mine are out of the villagers' world (no alarm, no fight, no bite)
 mage_tower_stairs.gd | 240 | fixed | passfail | The mage tower's stairs: pushing straight up a flight, and a click on the steps themselves, takes the hero up
 mountain_snow_edge_shots.gd | 600 | fixed | passfail | Winter snow at the mountain's foot: as bright as the plain's and no hard line between them (screenshots)
+ice_fish.gd | 120 | free | passfail | Fish under the river's ice: built at the first frost, shown while frozen, hidden in a thaw, keep to the water

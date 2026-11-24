@@ -1,0 +1,1 @@
+- Climbing down a ladder and walking on no longer sends you straight back up: no more up-and-down loop in Mira's shop.

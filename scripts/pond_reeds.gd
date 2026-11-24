@@ -9,6 +9,7 @@ extends RefCounted
 ## The caps of snow on the cattail heads and the tips of the stems, or null without reeds.
 var snow_caps: MultiMeshInstance3D
 var _full: Array[Transform3D] = []
+var _caps_scale := -1.0
 
 
 ## Clumps per metre of bank.
@@ -97,6 +98,10 @@ func set_snow(amount: float) -> void:
 	if not snow_caps.visible:
 		return
 	var k := clampf(amount, 0.0, 1.0)
+	# The game tells every frame; the caps are only rewritten when the snow really changed.
+	if is_equal_approx(k, _caps_scale):
+		return
+	_caps_scale = k
 	var multi := snow_caps.multimesh
 	for i in _full.size():
 		var t := _full[i]

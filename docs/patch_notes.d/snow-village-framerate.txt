@@ -1,0 +1,1 @@
+- Smoother framerate in snowy villages: footprints, pond reeds, the village lamps and crowd pushing cost much less processor time.

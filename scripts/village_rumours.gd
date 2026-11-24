@@ -63,7 +63,7 @@ const SMALL_TALK := [
 ## "after_tell" and "after_chat" are said instead. "not": roles left out of
 ## the chats.
 const RUMOURS := {
-	"drache": {"who": ["3", "5", "7", "G", "%", "ü"], "slain": "drache",
+	"drache": {"who": ["3", "5", "7", "G", "%", "ü", "κ"], "slain": "drache",
 		"tell": ["Man sagt, unter dem Steinbogen im Wald schläft ein Drache auf einem Berg aus Gold.",
 			"Nachts fliegen kleine Drachen aus dem Steinbogen und tragen fort, was draußen herumliegt. Lass nichts liegen!"],
 		"chat": [["Hast du die kleinen Drachen gesehen, nachts über dem Wald?", "Sie tragen alles zum Steinbogen. Für den großen Drachen, heißt es.", "Dann lasse ich nie wieder etwas draußen liegen."]],
@@ -91,7 +91,7 @@ const RUMOURS := {
 		"chat": [["Hast du vom Garten auf dem Berggipfel gehört?", "Mit Edelweiß, so selten, dass es keiner pflücken darf?", "Und manche sagen, es wächst dort noch mehr als Blumen."],
 			["Wie soll man einen Garten finden, der ganz oben im Fels versteckt ist?", "Man sucht dort, wo kein Pfad mehr hinführt.", "Das klingt nach einer Ausrede, nicht nach einem Weg."],
 			["Mein Onkel hat im Frühling Edelweiß aus den Bergen mitgebracht. Er sagte, er habe es in einem Garten gefunden.", "In den Bergen gibt es keine Gärten.", "Genau das hat er auch gesagt. Und dabei so geheimnisvoll gelächelt."]]},
-	"uralt": {"who": ["0", "8", "O", "%"], "slain": "grosser_alter",
+	"uralt": {"who": ["0", "8", "O", "%", "κ"], "slain": "grosser_alter",
 		"tell": ["Hoch oben im Hochtal liegt eine Höhle. Darin schläft etwas, das älter ist als jeder Drache. Die Alten nennen es den Großen Alten.",
 			"Drei Stockwerke tief unter den Bergen soll ein Schatz liegen, der jeden König arm aussehen lässt. Und auf ihm schläft der Große Alte."],
 		"chat": [["Mein Großvater sprach vom Großen Alten in den Bergen.", "Ein Märchen, um Kinder zu erschrecken.", "Dann erklär mir, warum die Erde manchmal bebt."]],

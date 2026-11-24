@@ -1,0 +1,30 @@
+extends RefCounted
+## English texts: the rock climber Wolfram (see ClimberNpc). Merged into Lang.EN (see Lang.PARTS).
+
+const EN := {
+	"Wolfram": "Wolfram",
+	"Will jede Wand im Tal einmal bezwungen haben und anderen beibringen, wie man dabei heil bleibt.": "Wants to have conquered every wall in the valley once and to teach others how to stay in one piece doing it.",
+	"Kletterer Wolfram": "Wolfram the Climber",
+	"Kletterer": "Climber",
+	"Die Wand ist mein Garten. Nur ohne Gemüse.": "The wall is my garden. Just without the vegetables.",
+	"Wer klettern will, braucht Geduld, Hände und einen guten Nagel.": "Whoever wants to climb needs patience, hands and a good nail.",
+	"Sprich mich auf das Klettern an. Oder sieh mir eine Stunde zu.": "Ask me about climbing. Or watch me for an hour.",
+	"Von oben sieht man das Dorf klein wie ein Spielzeug.": "From up there the village looks as small as a toy.",
+	"Ich bin Kletterer. Ich steige die Wand dort hinauf, ruhe oben aus und steige wieder ab. Jeden Tag, bei jedem Wetter.": "I am a climber. I go up that wall, rest at the top and come down again. Every day, in any weather.",
+	"Was für eine Aussicht!": "What a view!",
+	"Da unten liegt das ganze Tal.": "The whole valley lies down there.",
+	"Hier oben hört dich keiner, und das ist gut so.": "Nobody hears you up here, and that is just as well.",
+	"Ah, der Wind!": "Ah, the wind!",
+	"Dagegenlaufen, um mit %s über das Klettern zu reden": "Run into them to talk about climbing with %s",
+	"Hier am Bach ist die Wand leicht. Die anderen Wände musst du suchen, und sie sind höher.": "The wall here by the stream is easy. The other walls you have to find, and they are higher.",
+	"Drei Griffe, dann ein Nagel mit Seil. Danach alle zwei Griffe wieder. So bleibt man heil.": "Three holds, then a nail with the rope. After that every two holds again. That is how you stay in one piece.",
+	"Rutschst du ab, hängst du im letzten Nagel. Ohne Nagel hängst du nirgends.": "If you slip you hang in the last nail. Without a nail you hang nowhere.",
+	"Nach einem Fehlgriff darfst du es gleich noch einmal versuchen. Danach: Atem holen.": "After a missed hold you may try again at once. After that: catch your breath.",
+	"Dreimal ins Seil gefallen? Dann klettere hinunter. Der Berg läuft nicht weg.": "Fallen into the rope three times? Then climb down. The mountain is not going anywhere.",
+	"Helm, Schuhe, Handschuhe, Hammer und Seil: Wer alles trägt, klettert besser als die Summe der Teile.": "Helmet, shoes, gloves, hammer and rope: whoever wears them all climbs better than the sum of the parts.",
+	"Sieh mir eine Stunde lang zu. Mehr als ich dir erzählen kann, siehst du an der Wand.": "Watch me for an hour. You will see more on the wall than I can tell you.",
+	"Wolfram hat nur wenig dabei und verlangt mehr als Mira. Nach drei Tagen hat er Nachschub.": "Wolfram carries little and asks more than Mira. After three days he has more.",
+	"Ausverkauft: Wolfram hat nur wenig dabei.": "Sold out: Wolfram carries little.",
+	"Klettern: Du hast Wolfram lange genug beobachtet, um zu wissen, wie es geht: erst drei Züge, dann ein Nagel mit Seil, danach alle zwei Züge. Eine Nacht darüber schlafen, dann klappt es.": "Climbing: You have watched Wolfram long enough to know how it is done: three pulls first, then a nail with the rope, after that every two pulls. Sleep on it for a night and it will work.",
+	"Du hast eine ungefähre Vorstellung vom Klettern. Besser, du schläfst erst darüber, bevor du es selbst versuchst.": "You have a rough idea of climbing. You had better sleep on it before you try it yourself.",
+}

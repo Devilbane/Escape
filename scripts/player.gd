@@ -1148,6 +1148,8 @@ func revive(at: Vector3, heal := true) -> void:
 	_climb = -1.0
 	if _pit_climb:
 		_end_pit_climb(false)
+	if _rock != null:
+		_end_rock(false)
 	_end_horn()
 	_on_crate = false
 	set_asleep(false)
@@ -2983,7 +2985,7 @@ func on_crate() -> bool:
 
 ## Whether the hero is climbing onto a crate right now.
 func is_climbing() -> bool:
-	return _climb >= 0.0 or _pit_climb or _ladder_t >= 0.0
+	return _climb >= 0.0 or _pit_climb or _rock != null or _ladder_t >= 0.0
 
 
 ## Starts climbing onto a crate the hero pushes against: walking into one
@@ -3220,6 +3222,282 @@ func _end_pit_climb(out: bool) -> void:
 	play("Idle", 0.15)
 
 
+# --- Climbing the mountain rock (see ClimbSpots, RockClimb and RopeClimbPose) ----------------
+
+enum RockPhase { PULL, HAMMER, THREAD, FALL, TOP }
+const NAIL := "kletterhaken"
+const HAMMER := "kletterhammer"
+const ROPE := "kletterseil"
+## Seconds of one pull-up at the first Klettern level; each level above takes a little off.
+const ROCK_PULL_SECONDS := 1.3
+const ROCK_HAMMER_SECONDS := 1.7
+const ROCK_THREAD_SECONDS := 1.0
+const ROCK_TOP_SECONDS := 1.4
+const ROCK_FALL_SPEED := 7.0
+var _rock: RockClimb = null
+var _rock_phase := RockPhase.PULL
+var _rock_spot := {}
+var _rock_u := 0.0
+var _rock_seconds := 1.0
+var _rock_left := true
+var _rock_rolled := false
+var _rock_result := RockClimb.Result.UP
+var _rock_y := 0.0
+var _rock_from := 0.0
+var _rock_warned := false
+var _rock_push := 0.0
+var _rock_start := Vector3.ZERO
+var _rock_fall_top := 0.0
+var _rock_pose := {}
+var _rock_rope: Node3D = null
+## Tests: the roll of the hands (0..1) instead of a random one; a roll at or above the chance slips.
+var rock_roll_forced := -1.0
+const ROCK_DIR := Vector3(0, 0, -1)
+
+
+## Pushing against a rock face: after ClimbSpots.HOLD seconds the hero tries the face. At a spot with
+## enough Klettern the climb begins; everywhere else, whatever the reason, the only answer is the same
+## message (ClimbSpots.TOO_STEEP), so nobody can tell a spot from plain rock.
+func _try_climb_rock(dir: Vector3, delta: float) -> bool:
+	if not level is Outdoor or dir == Vector3.ZERO or not is_on_floor() or global_position.y > 0.3 or _under_ceiling():
+		_rock_push = 0.0
+		return false
+	var push := dir.normalized()
+	var wall := false
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		if absf(hit.get_normal().y) < 0.5 and push.dot(-hit.get_normal()) > 0.5 and not hit.get_collider() is Enemy and not hit.get_collider() is Crate:
+			wall = true
+			break
+	var cell := level.world_to_cell(global_position + push * (radius + 0.4))
+	if not wall or level.cell_char(cell) != Mountains.ROCK_LETTER:
+		_rock_push = 0.0
+		return false
+	_rock_push += delta
+	if _rock_push < ClimbSpots.HOLD:
+		return false
+	_rock_push = -ClimbSpots.HOLD
+	var spot := ClimbSpots.at(level, cell)
+	if spot.is_empty() or skill("klettern") < maxi(1, int(spot.level)) or not Climbing.can_climb(float(spot.height), skill("klettern")):
+		Events.tell(Lang.t(ClimbSpots.TOO_STEEP), Color(0.8, 0.85, 1.0))
+		return false
+	_start_rock(spot)
+	return true
+
+
+func _rock_has_gear() -> bool:
+	return bag.has(HAMMER) and bag.has(ROPE) and bag.has(NAIL)
+
+
+func _start_rock(spot: Dictionary) -> void:
+	if _skeleton == null:
+		_skeleton = _model.find_child("Skeleton3D", true, false) as Skeleton3D
+	if _skeleton == null:
+		return
+	if _pit_base.is_empty():
+		_anim.play("Idle")
+		_anim.seek(0.0, true)
+		_pit_base = ClimbPose.base_of(_skeleton)
+	_anim.pause()
+	_rock = RockClimb.new(float(spot.height), int(spot.level), skill("klettern"))
+	_rock_spot = spot
+	var mid := level.cell_to_world(spot.cell)
+	_rock_start = Vector3(clampf(global_position.x, mid.x - 1.4, mid.x + 1.4), 0.0, mid.z + Level.TILE * 0.5 + radius + 0.05)
+	_rock_y = 0.0
+	_rock_warned = false
+	_rock_left = true
+	_air_momentum = Vector3.ZERO
+	velocity = Vector3.ZERO
+	face(ROCK_DIR)
+	_current_anim = ""
+	_rock_begin_pull()
+	_rock_place(0.0)
+	_rock_pose = RopeClimbPose.at("pull_l", 0.0)
+	_rock_rope = Node3D.new()
+	_rock_rope.name = "ClimbRope"
+	level.add_child(_rock_rope)
+	train("geschick", 0.5)
+
+
+func _rock_begin_pull() -> void:
+	_rock_phase = RockPhase.PULL
+	_rock_u = 0.0
+	_rock_rolled = false
+	_rock_from = _rock_y
+	_rock_left = not _rock_left
+	_rock_seconds = maxf(0.7, ROCK_PULL_SECONDS - 0.03 * (climbing_level() - 1))
+
+
+## Puts the hero on the face at height `y`: the face leans back, so the hero moves in with it.
+func _rock_place(y: float) -> void:
+	_rock_y = y
+	var along := 2.0 * y / maxf(0.5, float(_rock_spot.height))
+	global_position = _rock_start + ROCK_DIR * along + Vector3(0, y, 0)
+
+
+## Where the rock's surface is at height `y` (the safe spots are set there).
+func _rock_surface(y: float) -> Vector3:
+	return _rock_start + ROCK_DIR * (2.0 * y / maxf(0.5, float(_rock_spot.height)) + radius) + Vector3(0, y, 0)
+
+
+func _rock_step(delta: float) -> void:
+	velocity = Vector3.ZERO
+	match _rock_phase:
+		RockPhase.PULL:
+			_rock_u = minf(1.0, _rock_u + delta / _rock_seconds)
+			if not _rock_rolled and _rock_u >= RopeClimbPose.PULL_ROLL:
+				_rock_rolled = true
+				var gear := _rock_has_gear()
+				_rock_result = _rock.pull(rock_roll_forced if rock_roll_forced >= 0.0 else randf(), gear)
+				if _rock_result == RockClimb.Result.FELL:
+					train("klettern", Training.CLIMB_PER_METRE * 0.3)
+					_rock_fall_top = _rock_y
+					_rock_phase = RockPhase.FALL
+					_rock_u = 0.0
+				elif _rock.streak >= _rock.needed() and not gear and not _rock_warned and _rock_result != RockClimb.Result.TOP:
+					_rock_warned = true
+					Events.tell(Lang.t("Dir fehlen Hammer, Seil oder ein Kletternagel für einen Sicherungspunkt."), Color(0.8, 0.85, 1.0))
+			if _rock_phase == RockPhase.PULL:
+				_rock_pose = RopeClimbPose.at("pull_l" if _rock_left else "pull_r", _rock_u)
+				var lift := smoothstep(RopeClimbPose.PULL_ROLL, 0.75, _rock_u) if _rock_rolled else 0.0
+				_rock_place(_rock_from + RockClimb.PULL * lift)
+				if _rock_u >= 1.0:
+					match _rock_result:
+						RockClimb.Result.TOP:
+							_rock_phase = RockPhase.TOP
+							_rock_u = 0.0
+						RockClimb.Result.PITON:
+							bag.erase(NAIL)
+							_rock_phase = RockPhase.HAMMER
+							_rock_u = 0.0
+						_:
+							_rock_begin_pull()
+		RockPhase.HAMMER:
+			_rock_u = minf(1.0, _rock_u + delta / ROCK_HAMMER_SECONDS)
+			_rock_pose = RopeClimbPose.at("hammer", _rock_u)
+			if _rock_u >= 1.0:
+				_rock.set_nail()
+				_rock_phase = RockPhase.THREAD
+				_rock_u = 0.0
+				_rock_add_nail()
+		RockPhase.THREAD:
+			_rock_u = minf(1.0, _rock_u + delta / ROCK_THREAD_SECONDS)
+			_rock_pose = RopeClimbPose.at("thread", _rock_u)
+			if _rock_u >= 1.0:
+				Events.tell(Lang.t("Du schlägst einen Kletternagel in den Fels und fädelst das Seil ein: ein Sicherungspunkt."), Color(0.8, 0.85, 1.0))
+				train("klettern", Training.CLIMB_PER_METRE * 0.2)
+				_rock_begin_pull()
+		RockPhase.FALL:
+			_rock_u = minf(1.0, _rock_u + delta / 0.6)
+			_rock_pose = RopeClimbPose.at("fall", _rock_u)
+			var low := _rock.safe
+			_rock_place(maxf(low, _rock_y - ROCK_FALL_SPEED * delta))
+			if _rock_y <= low + 0.001:
+				var hurt := RockClimb.fall_damage(_rock_fall_top - low)
+				# A climbing helmet takes half of the blow.
+				if equipped.get("kopf", "") == "kletterhelm":
+					hurt = (hurt + 1) / 2
+				hurt = mini(hurt, hp - 1)
+				if hurt > 0:
+					hp -= hurt
+				if low <= 0.0:
+					Events.tell(Lang.t("Abgerutscht! Du fällst zu Boden."), Color(0.8, 0.85, 1.0))
+					_end_rock(false)
+				else:
+					Events.tell(Lang.t("Abgerutscht! Das Seil fängt dich am Sicherungspunkt auf."), Color(0.8, 0.85, 1.0))
+					_rock_begin_pull()
+		RockPhase.TOP:
+			_rock_u = minf(1.0, _rock_u + delta / ROCK_TOP_SECONDS)
+			_rock_pose = RopeClimbPose.at("top", _rock_u)
+			var on_edge := _rock_start + ROCK_DIR * 2.0 + Vector3(0, float(_rock_spot.height), 0)
+			global_position = on_edge.lerp(ClimbSpots.top(level, _rock_spot), smoothstep(0.3, 1.0, _rock_u))
+			if _rock_u >= 1.0:
+				_end_rock(true)
+				return
+	if _rock != null and _skeleton != null:
+		ClimbPose.apply(_skeleton, _pit_base, _rock_pose)
+		_rock_rope_update()
+
+
+## An iron nail in the rock where the hero hangs.
+func _rock_add_nail() -> void:
+	var nail := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.025
+	mesh.bottom_radius = 0.012
+	mesh.height = 0.22
+	nail.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.32, 0.32, 0.35)
+	mat.metallic = 0.7
+	mat.roughness = 0.45
+	nail.material_override = mat
+	nail.name = "Nail"
+	nail.rotation.x = PI * 0.5
+	nail.position = _rock_surface(_rock_y + 0.9) - ROCK_DIR * 0.08
+	_rock_rope.add_child(nail)
+
+
+## The rope from the foot of the face through every nail to the hero's belt.
+func _rock_rope_update() -> void:
+	if _rock_rope == null:
+		return
+	var points: Array[Vector3] = [_rock_surface(0.0) + Vector3(0, 0.05, 0) - ROCK_DIR * 0.15]
+	for n in _rock.nails:
+		points.append(_rock_surface(n + 0.9) - ROCK_DIR * 0.15)
+	points.append(global_position + Vector3(0, 0.9, 0) - ROCK_DIR * 0.0)
+	var segs := _rock_rope.find_children("Seg*", "MeshInstance3D", false, false)
+	while segs.size() < points.size() - 1:
+		var seg := MeshInstance3D.new()
+		seg.name = "Seg%d" % segs.size()
+		var m := CylinderMesh.new()
+		m.top_radius = 0.022
+		m.bottom_radius = 0.022
+		m.height = 1.0
+		m.radial_segments = 6
+		seg.mesh = m
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.62, 0.5, 0.3)
+		mat.roughness = 0.95
+		seg.material_override = mat
+		_rock_rope.add_child(seg)
+		segs.append(seg)
+	for i in segs.size():
+		var seg := segs[i] as MeshInstance3D
+		seg.visible = i < points.size() - 1
+		if not seg.visible:
+			continue
+		var a := points[i]
+		var b := points[i + 1]
+		var len := maxf(0.01, a.distance_to(b))
+		seg.global_position = (a + b) * 0.5
+		seg.scale = Vector3(1, len, 1)
+		var up := (b - a) / len
+		var axis := Vector3.UP.cross(up)
+		seg.global_basis = Basis(axis.normalized(), Vector3.UP.angle_to(up)).scaled(Vector3(1, len, 1)) if axis.length() > 0.001 else Basis().scaled(Vector3(1, len, 1))
+
+
+## The climb is over: up on the terrace (`up`), or back on the ground.
+func _end_rock(up: bool) -> void:
+	if _rock == null:
+		return
+	if up:
+		train("klettern", Training.CLIMB_PER_METRE * _rock.height)
+	else:
+		global_position = _rock_start
+		_rock_push = -ClimbSpots.HOLD
+	_rock = null
+	if _rock_rope != null:
+		_rock_rope.queue_free()
+		_rock_rope = null
+	if _skeleton != null:
+		ClimbPose.apply(_skeleton, _pit_base, {})
+	velocity = Vector3.ZERO
+	reset_physics_interpolation()
+	_current_anim = ""
+	play("Idle", 0.15)
+
+
 # --- Ladders (see HouseSketcher._ladder) ------------------------------------------
 
 ## The group of the built ladders: each a Node3D with the metas "foot" (where the
@@ -3326,7 +3604,7 @@ func on_ladder() -> bool:
 ## Whether the drawn hero is kept out of walls now: not while seated, lying, climbing
 ## (that keeps clear on its own, see ClimbPose) or dead, which put the model where it belongs.
 func _keeps_clear_of_walls() -> bool:
-	if dead or _seated or _bed_posed or _pit_climb or _horn != null or _climb >= 0.0 or _ladder_t >= 0.0 or _clearance_pivot == null:
+	if dead or _seated or _bed_posed or _pit_climb or _rock != null or _horn != null or _climb >= 0.0 or _ladder_t >= 0.0 or _clearance_pivot == null:
 		return false
 	return not (_current_anim.begins_with("Lie_") or _current_anim.begins_with("Sit_") or _current_anim.begins_with("Death"))
 
@@ -3461,6 +3739,9 @@ func _physics_process(delta: float) -> void:
 	if _pit_climb:
 		_pit_climb_step(delta)
 		return
+	if _rock != null:
+		_rock_step(delta)
+		return
 	if _ladder_t >= 0.0:
 		_ladder_step(delta)
 		return
@@ -3535,7 +3816,7 @@ func _physics_process(delta: float) -> void:
 					_engage(enemy)
 				elif not hit.get_collider() is Crate:
 					bumped.emit(hit.get_position() - hit.get_normal() * 0.2)
-	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and (_try_ladder(dir) or _try_climb(dir) or _try_climb_out(dir, delta)):
+	if controllable and not dead and _busy <= 0.0 and _down <= 0.0 and _falling <= 0.0 and (_try_ladder(dir) or _try_climb(dir) or _try_climb_out(dir, delta) or _try_climb_rock(dir, delta)):
 		return
 	if dir != Vector3.ZERO and (_anim_hold <= 0.0 or _jump_windup > 0.0):
 		_model.rotation.y = lerp_angle(_model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-14.0 * delta))

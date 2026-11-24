@@ -2990,10 +2990,19 @@ func _build_spire_gate(block: Rect2i) -> void:
 ## The mountain rock is as solid as the forest: a wall along every rock
 ## tile that borders walkable ground.
 func _build_rock_collision() -> void:
+	var walls := ClimbSpots.wall_cells(self)
 	for y in height:
 		for x in width:
 			var c := Vector2i(x, y)
 			if cell_char(c) != "=":
+				continue
+			# A climbable terrace (see ClimbSpots) is a block only as high as the terrace.
+			var spot := ClimbSpots.at(self, c)
+			if not spot.is_empty():
+				_add_box(_walls_body, cell_to_world(c) + Vector3(0, spot.height * 0.5, 0), Vector3(TILE, spot.height, TILE))
+				continue
+			if walls.has(c):
+				_add_box(_walls_body, cell_to_world(c) + Vector3(0, 6, 0), Vector3(TILE, 12, TILE))
 				continue
 			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
 				if not "#=]".contains(cell_char(c + d)):

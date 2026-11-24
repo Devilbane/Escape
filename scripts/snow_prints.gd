@@ -124,40 +124,81 @@ static func _stroke(u: float, v: float, u0: float, v0: float, u1: float, v1: flo
 	return 1.0 - smoothstep(0.1, 0.22, (p - d * t).length())
 
 
+## The live prints of each kind, oldest first, so the pool is kept without scanning it: every step
+## in the snow asks "is the pool full, and who goes?", which once meant going through all of the
+## (up to MAX) prints, twice, per step of every walker.
+static var _queues := {}
+static var _serial := 0
+## How many live prints each group holds.
+static var _held := {}
+
+
+## The oldest live print of a kind (skipping any that were freed elsewhere), or null.
+static func _oldest(kind: String) -> Node:
+	var queue: Array = _queues.get(kind, [])
+	while not queue.is_empty():
+		var n: Node = queue[0]
+		if is_instance_valid(n):
+			return n
+		queue.pop_front()
+	return null
+
+
+## Takes a print out of the pool's books (not the scene).
+static func _forget(n: Node) -> void:
+	_live.erase(n)
+	var kind := String(n.get_meta("print_kind", "boot"))
+	var queue: Array = _queues.get(kind, [])
+	var at := queue.find(n)
+	if at >= 0:
+		queue.remove_at(at)
+		var group: String = GROUP.get(kind, "foot")
+		_held[group] = maxi(0, int(_held.get(group, 0)) - 1)
+	_records.erase(n.get_meta("print_rec", null))
+
+
 ## Frees the oldest print of the least important kind.
 static func _drop_one() -> void:
-	var worst := 0
+	var worst: Node = null
 	var worst_rank := 99
-	for i in _live.size():
-		var rank: int = PRIORITY.get(String((_live[i] as Node).get_meta("print_kind", "boot")), 3)
-		if rank < worst_rank:
+	for kind: String in KINDS:
+		var n := _oldest(kind)
+		if n == null:
+			continue
+		var rank: int = PRIORITY.get(kind, 3)
+		if rank < worst_rank or (rank == worst_rank and int(n.get_meta("print_serial")) < int(worst.get_meta("print_serial"))):
 			worst_rank = rank
-			worst = i
-	var gone: Node = _live.pop_at(worst)
-	_records.erase(gone.get_meta("print_rec", null))
-	gone.queue_free()
+			worst = n
+	if worst == null:
+		_live.clear()
+		return
+	_forget(worst)
+	worst.queue_free()
 
 
-## Frees one given print (the oldest of its group).
-static func _drop_oldest(gone: Node) -> void:
-	_live.erase(gone)
-	_records.erase(gone.get_meta("print_rec", null))
-	gone.queue_free()
+## Frees the oldest print of a group.
+static func _drop_oldest_of(group: String) -> void:
+	var oldest: Node = null
+	for kind: String in KINDS:
+		if GROUP.get(kind, "foot") != group:
+			continue
+		var n := _oldest(kind)
+		if n != null and (oldest == null or int(n.get_meta("print_serial")) < int(oldest.get_meta("print_serial"))):
+			oldest = n
+	if oldest != null:
+		_forget(oldest)
+		oldest.queue_free()
 
 
 ## A broom swept the ground within `radius` metres of `at` (see SnowSweep): the prints there are gone with the snow.
-## Prints up on a roof stay.
 static func wipe(at: Vector3, radius: float) -> void:
-	var keep: Array = []
-	var gone := false
 	for i in range(_live.size() - 1, -1, -1):
 		var n: Node = _live[i]
 		if not is_instance_valid(n) or n.has_meta("print_high"):
 			continue
 		var rec: Array = n.get_meta("print_rec", [])
 		if rec.size() > 3 and Vector2(float(rec[1]) - at.x, float(rec[2]) - at.z).length() < radius:
-			_live.remove_at(i)
-			_records.erase(rec)
+			_forget(n)
 			n.queue_free()
 
 
@@ -167,6 +208,8 @@ static func clear() -> void:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
 	_live.clear()
+	_queues.clear()
+	_held.clear()
 	_records.clear()
 
 
@@ -196,6 +239,8 @@ static func restore(world: Node3D) -> void:
 		return
 	_world = world
 	_live.clear()
+	_queues.clear()
+	_held.clear()
 	for rec: Array in _records:
 		_spawn(world, rec)
 
@@ -205,11 +250,9 @@ static func restore(world: Node3D) -> void:
 ## that surface at `at`'s height, tilted with it.
 static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", _daylight := 1.0, up := Vector3.ZERO) -> MeshInstance3D:
 	restore(world)
-	_live = _live.filter(func(n): return is_instance_valid(n))
 	var group: String = GROUP.get(kind, "foot")
-	var same := _live.filter(func(n): return GROUP.get(String((n as Node).get_meta("print_kind", "boot")), "foot") == group)
-	if same.size() >= int(ROOM[group]):
-		_drop_oldest(same[0])
+	if int(_held.get(group, 0)) >= int(ROOM[group]):
+		_drop_oldest_of(group)
 	while _live.size() >= MAX:
 		_drop_one()
 	var rec := [kind, at.x, at.z, heading, size]
@@ -245,7 +288,14 @@ static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
 		mi.visible = not _indoors
 	mi.set_meta("print_kind", kind)
 	mi.set_meta("print_rec", rec)
+	_serial += 1
+	mi.set_meta("print_serial", _serial)
 	_live.append(mi)
+	if not _queues.has(kind):
+		_queues[kind] = []
+	_queues[kind].append(mi)
+	var group: String = GROUP.get(kind, "foot")
+	_held[group] = int(_held.get(group, 0)) + 1
 	return mi
 
 

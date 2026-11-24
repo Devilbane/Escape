@@ -1876,6 +1876,37 @@ func _saddle(mid: Vector3, eave: float, ridge_x: bool, demolish: bool, open := {
 			knee.position = mid + along * sign_ + Vector3(0, wall_top + HouseSketch.SLAB_THICK * 0.5, 0)
 			knee.set_meta("ymin", eave)
 			_solid.add_child(knee)
+	if not demolish:
+		_saddle_caps(mid, eave, ridge_x, open)
+
+
+## The cap shingles of one cell of saddle roof (RoofCaps): along its ridge, and down the edge of an
+## outer gable (`open`, see _saddle), over the line where the boards end.
+func _saddle_caps(mid: Vector3, eave: float, ridge_x: bool, open: Dictionary) -> void:
+	var half := HouseSketch.CELL * 0.5
+	var rise := HouseSketch.ROOF_RISE
+	var along := Vector3(1, 0, 0) if ridge_x else Vector3(0, 0, 1)
+	var across := Vector3(0, 0, 1) if ridge_x else Vector3(1, 0, 0)
+	var peak := mid + Vector3(0, eave + rise + 0.02, 0)
+	var seed := hash(mid)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	RoofCaps.ridge(st, peak - along * half, peak + along * half, rise / half, seed)
+	for sign_ in [-1.0, 1.0]:
+		if not bool(open.get("along%d" % int(sign_), false)):
+			continue
+		for side_ in [-1.0, 1.0]:
+			var top: Vector3 = peak + along * sign_ * half
+			var foot: Vector3 = mid + across * side_ * half + along * sign_ * half + Vector3(0, eave, 0)
+			var slope := foot - top
+			var dir := slope.normalized()
+			var up := (Vector3.UP - dir * dir.dot(Vector3.UP)).normalized()
+			RoofCaps.edge(st, top, foot, up, along * sign_, seed + int(sign_ * 7.0 + side_ * 3.0))
+	var caps := MeshInstance3D.new()
+	caps.mesh = st.commit()
+	caps.material_override = _old_roof() if _abandoned else VillageHouse._roof_material(0)
+	caps.set_meta("ymin", eave - 0.15)
+	_solid.add_child(caps)
 
 
 ## The bare rafters under a fallen-in roof board, from `foot` (the eaves) up to `peak`: three

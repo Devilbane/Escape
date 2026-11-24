@@ -168,6 +168,16 @@ static func roof(parts: Dictionary, shape: Dictionary) -> void:
 					st.set_normal(n)
 					st.set_uv(uvs[k])
 					st.add_vertex(quad[k])
+	# Cap shingles along the four hips, from the peak down to the corners (RoofCaps), so no bare line
+	# is left where two slopes meet.
+	for i in 4:
+		var corner: Vector3 = corners[i]
+		var side := Vector3.UP.cross(corner - apex).normalized()
+		var face := (corners[(i + 1) % 4] as Vector3 - corner).cross(apex - corner).normalized()
+		if face.y < 0.0:
+			face = -face
+		var fall := absf((Vector2(face.x, face.z) / face.y).dot(Vector2(side.x, side.z)))
+		RoofCaps.ridge(st, apex.lerp(corner, 0.03), corner, fall, hash(Vector3(i, uw, ud)), true)
 	# The post at the peak, the gilded ball and a pennant of the tower's violet.
 	VillageHouse._box(parts, "timber", apex + Vector3(0, SPIRE * 0.45, 0), Vector3(0.12, SPIRE, 0.12))
 	VillageHouse._box(parts, "timber", apex + Vector3(0, SPIRE * 0.12, 0), Vector3(0.4, 0.12, 0.4))

@@ -3012,6 +3012,12 @@ func _house_door() -> Vector3:
 	var own = level.get("own_homes")
 	if own is Dictionary and (own as Dictionary).has(role):
 		return own[role]
+	var walk_in = level.get("walk_in")
+	if walk_in != null:
+		# The house with a bed for them (see WalkIn.home_for): the way home leads to its door.
+		var rec: Dictionary = walk_in.home_for(role, level.cell_to_world(home))
+		if not rec.is_empty():
+			return walk_in.front_of(rec, level.spots.houses)
 	var houses: Array = level.spots.houses
 	var at := level.cell_to_world(home)
 	var best := at

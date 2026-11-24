@@ -1,0 +1,1 @@
+- Villagers now go to bed in a bed of their own: Mira, Bruno, Pip and Pippi sleep in new bedrooms above the shop, and the post office and Crown office got bedrooms too. They open the door, walk through it and close it behind them.

@@ -1778,7 +1778,8 @@ func _build_shrine(c: Vector2i) -> void:
 	add_child(motes)
 	_add_solid(pos, Vector3(2.2, 2, 2.2))
 	_light_spots.append(pos)
-	stations.append({"kind": "schrein", "cell": c, "pos": pos, "used": false, "orb": orb, "light": light, "motes": motes})
+	# The river goddess's shrine in the spring cave offers her own gifts (see Game._open_shrine).
+	stations.append({"kind": "schrein", "cell": c, "pos": pos, "used": false, "orb": orb, "light": light, "motes": motes, "spring": building == SpringCave.ID})
 
 
 ## A turn that points a piece at the open side of its tile.

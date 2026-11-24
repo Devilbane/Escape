@@ -39,7 +39,7 @@ const STROLLS_WINTER := 1
 
 const GINGER := Color(0.86, 0.5, 0.2)
 const DARK := Color(0.62, 0.3, 0.1)
-const CREAM := Color(0.96, 0.88, 0.76)
+const CREAM := Color(0.88, 0.78, 0.64)
 
 ## "stroll" (walking somewhere), "sit" (looking about), "to_perch" (walking to its foot),
 ## "crouch", "leap" (up onto its perch), "settle" (treading its spot), "nap", "stretch" and
@@ -68,6 +68,10 @@ var _tail: Array[Node3D] = []
 var _ears: Array[Node3D] = []
 var _eyes: Array[Node3D] = []
 var _belly: MeshInstance3D
+## The model of the cat curled up asleep (see CatSleeper) and its flicking tail tip and ears.
+var _sleeper: Node3D
+var _sleep_tip: Node3D
+var _sleep_ears: Array[Node3D] = []
 ## Blend values, 0 to 1: curled up, sitting, crouched / flying, stretching, eyes shut.
 var _curl := 0.0
 var _sit := 0.0
@@ -180,10 +184,8 @@ func _stick(parent: Node3D, at: Vector3, radius: float, length: float, colour: C
 
 
 func _paint(colour: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = colour
-	mat.roughness = 1.0
-	return mat
+	# The coat's colours get the fur texture; the eyes, nose and ears' insides stay plain.
+	return CatSleeper.paint(colour, colour in [GINGER, DARK, CREAM])
 
 
 func _joint(parent: Node3D, at: Vector3) -> Node3D:
@@ -198,6 +200,11 @@ func _build() -> void:
 	var root := Node3D.new()
 	root.scale = Vector3.ONE * SIZE
 	add_child(root)
+	var asleep := CatSleeper.build(root)
+	_sleeper = asleep.root
+	_sleep_tip = asleep.tip
+	_sleep_ears.assign(asleep.ears)
+	_sleeper.visible = false
 	_body = _joint(root, Vector3(0, 0.3, 0))
 	# The trunk: one long ellipsoid, a lighter belly under it and a cream bib at the chest.
 	_ball(_body, Vector3(0, 0, 0), Vector3(0.17, 0.16, 0.34), GINGER)
@@ -507,6 +514,16 @@ func _pose(delta: float) -> void:
 	body_y = lerpf(body_y, 0.13, _curl)
 	var body_scale := Vector3(1.0 + 0.3 * _curl, 1.0 - 0.28 * _curl, 1.0 - 0.38 * _curl)
 	body_scale.y *= breathe
+	# Curled up it is the sleeping model instead: it breathes, its tail tip flicks, an ear twitches.
+	var asleep := _curl >= 0.5
+	_sleeper.visible = asleep
+	_body.visible = not asleep
+	if asleep:
+		var lie := smoothstep(0.5, 1.0, _curl)
+		_sleeper.scale = Vector3(1.0, lerpf(0.75, 1.0, lie) * breathe, 1.0)
+		_sleep_tip.rotation.y = sin(_flick * PI * 3.0) * _flick * 0.45
+		_sleep_ears[1].rotation.z = 0.45 + sin(_twitch * PI) * 0.25
+		_sleep_ears[0].rotation.z = -0.45
 	_body.position = Vector3(0.0, body_y, 0.0)
 	_body.rotation = Vector3(body_pitch * up, 0.0, body_roll * up)
 	_body.scale = body_scale

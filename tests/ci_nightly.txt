@@ -203,5 +203,4 @@ hall_seats.gd | 200 | fixed | passfail | Chairs, stools, benches and sofas of th
 house_snow_shots.gd | 600 | fixed | pass | Snow on the ledges and walls of the mason's house and the smith's cottage (screenshots)
 roof_caps.gd | 30 | free | pass | Cap shingles on roof ridges, hips and gable edges (wound right, inside their row, on the village roof)
 river_bridge_shots.gd | 200 | fixed | pass | The valley bridge lands on both banks with no seam between its halves; leaves, sticks and fish show under the winter ice
-house_snow_shots.gd | 600 | fixed | pass | Snow dusting on the lintel, sills, beams and doorstep of the mason's house (screenshots)
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop

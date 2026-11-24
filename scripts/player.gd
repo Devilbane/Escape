@@ -2630,6 +2630,10 @@ func _show_headgear() -> void:
 	if not shown:
 		return
 	# The hats sit on the head bone of their own character, which matches the hero's.
+	# A hat with no model file is built from parts (see ClimbHelmet).
+	if str(item.hat[0]) == "":
+		slot.add_child(ClimbHelmet.build())
+		return
 	var source: Node = load(item.hat[0]).instantiate()
 	var hat := source.find_child(item.hat[1], true, false).duplicate() as Node3D
 	source.free()

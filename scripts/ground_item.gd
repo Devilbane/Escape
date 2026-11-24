@@ -429,13 +429,10 @@ static func _climbing(id: String) -> Node3D:
 			_box(n, Vector3(0.05, 0.04, 0.2), Vector3(0, 0.05, 0), hemp.lightened(0.1), Vector3(0, 90, 0))
 			_cyl(n, 0.012, 0.012, 0.16, Vector3(0.12, 0.012, 0.06), hemp, Vector3(0, 0, 90))
 		"kletterhelm":
-			# A shell with a stiff brim, a chin strap and a clip for a lamp on the front.
-			var shell := Color(0.78, 0.45, 0.14)
-			_ball(n, 0.17, Vector3(0, 0.12, 0), shell, Vector3(1, 0.85, 1.1), 0.1, 0.5)
-			_box(n, Vector3(0.04, 0.012, 0.34), Vector3(0.0, 0.2, 0), shell.lightened(0.12), Vector3.ZERO, 0.1, 0.5)
-			_torus(n, 0.15, 0.185, Vector3(0, 0.035, 0), Color(0.2, 0.18, 0.16), Vector3.ZERO, 0.0, 0.03)
-			_box(n, Vector3(0.025, 0.04, 0.05), Vector3(0.17, 0.17, 0), steel, Vector3.ZERO, 0.6, 0.4)
-			_cyl(n, 0.004, 0.004, 0.16, Vector3(0.05, 0.06, 0.13), Color(0.14, 0.1, 0.07), Vector3(20, 0, 0))
+			# The worn helmet (see ClimbHelmet) at ground size, lying brim down.
+			var helmet := ClimbHelmet.build()
+			helmet.scale = Vector3.ONE * 0.3
+			n.add_child(helmet)
 	return n
 
 

@@ -123,6 +123,27 @@ func _run() -> void:
 	check(hero.xp.get("klettern", 0.0) >= Training.skill_xp_for(1), "the skill has enough practice for level 1")
 	check(hero.trained_level("klettern") == 0, "but it is still level 0 before the night")
 
+	# In deep snow he presses no boots into it while he climbs (or sits, or comes down), only when he walks.
+	game.season_shift = (Weather.YEAR_DAYS - 3) - posmod(Seasons.today(), Weather.YEAR_DAYS)
+	game.snow_cover = 1.0
+	for i in 40:
+		await physics_frame
+	check(lvl.snow != null and lvl.snow.amount >= Weather.PRINT_FROM, "deep snow lies for the print check")
+	var pressed := SnowPrints._records.size()
+	climber._task = "climb"
+	climber._print_from = Vector3.INF
+	var at0 := lvl.cell_to_world(spot.cell + Vector2i(0, 3))
+	for i in 6:
+		climber.global_position = at0 + Vector3(0, 0, -float(i))
+		climber._leave_prints()
+	check(SnowPrints._records.size() == pressed, "no prints while he climbs")
+	climber._task = "walk"
+	climber._print_from = Vector3.INF
+	for i in 6:
+		climber.global_position = at0 + Vector3(0, 0, float(i))
+		climber._leave_prints()
+	check(SnowPrints._records.size() > pressed, "but his boots print when he walks")
+
 	# His wares: dearer than Mira's, few of each, one gone when bought.
 	game.day = 10
 	var stock := ClimberNpc.wares(game)

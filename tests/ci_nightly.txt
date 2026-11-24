@@ -205,5 +205,6 @@ house_snow_shots.gd | 600 | fixed | pass | Snow on the ledges and walls of the m
 roof_caps.gd | 30 | free | pass | Cap shingles on roof ridges, hips and gable edges (wound right, inside their row, on the village roof)
 river_bridge_shots.gd | 200 | fixed | pass | The valley bridge lands on both banks with no seam between its halves; leaves, sticks and fish show under the winter ice
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop
+street_sweeper.gd | 180 | fixed | pass | Matthes the street sweeper: lives on a walkway, summer hat and apron, heaps autumn leaves beside the walkways, the wind brings them back overnight
 bless_round.gd | 300 | fixed | passfail | Elsbeth's daily blessing round (temple, gates, fountain, smithy) with speech and light, and thawing frozen Fritz
 water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on the beam, swing, and her round from the fountain to the shops and the tavern

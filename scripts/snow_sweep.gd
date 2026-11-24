@@ -1,6 +1,7 @@
 class_name SnowSweep
 extends RefCounted
-## Konrad the herald sweeps the snow off the village's walkways with a birch broom (a besom).
+## The street sweeper (see StreetSweeper) sweeps the snow off the village's walkways with a birch broom (a besom).
+## In autumn the same broom sweeps the fallen leaves (see LeafSweep).
 ##
 ## In winter, while snow lies and no more is falling, he leaves his spot twice a day (SHIFTS, kept clear
 ## of the meals and of the morning in the temple), walks out along a footpath of the village and sweeps it on
@@ -14,18 +15,20 @@ extends RefCounted
 ## it) and slowly fills in again while it snows (REFILL_HOURS of snowfall bring a strip back to white); when
 ## the snow melts away the mask is cleared.
 
-const ROLE := "K"
+const ROLE := StreetSweeper.ROLE
 ## The hours of the day (see DayNight) he sweeps in: after the morning, and an afternoon stretch.
 ## The meals call the village together from 11 (see TownMeals), and the morning belongs to the temple.
-const SHIFTS := [[9.5, 10.9], [14.0, 16.5]]
+const SHIFTS := [[7.9, 11.0], [13.0, 18.0]]
 ## Snow must lie at least this thick (0 to 1, see SnowCover) to be worth sweeping.
 const SNOW_MIN := 0.35
 ## How far from his spot he sweeps (tiles), and the shortest and longest footpath he takes on (tiles).
 const REACH_TILES := 14
 const RUN_MIN := 3
-const RUN_MAX := 9
+const RUN_MAX := 12
 ## How fast he walks while he sweeps (metres per second).
-const PACE := 0.75
+const PACE := 1.1
+## He walks back along the swept strip faster, the broom over his shoulder.
+const PACE_BACK := 1.7
 ## Metres between the points of his route.
 const POINT_GAP := 1.0
 ## How wide a stroke of the broom is (half-width, metres), how far its head swings to either side and
@@ -37,10 +40,12 @@ const AHEAD := 0.85
 const STEP := 0.3
 ## Hours of snowfall that fill a swept strip in again.
 const REFILL_HOURS := 1.5
+## How much of an hour's snowfall an hour without snow still brings back (drifting snow).
+const DRIFT_RATE := 0.1
 ## A swept pixel counts as bare (for footprints) above this strength.
 const BARE := 0.5
 ## Game hours he rests after a stretch of sweeping before he sets out again.
-const REST_HOURS := 0.25
+const REST_HOURS := 0.1
 
 static var _img: Image
 static var _tex: ImageTexture
@@ -97,8 +102,10 @@ static func attach(level: Node) -> void:
 ## uploads strokes made since the last time (at most five times a second).
 static func advance(level: Node, cover: float) -> void:
 	var hours: float = level.world_hours
-	if _last_hours >= 0.0 and level.weather == Weather.SNOW:
-		_fall += clampf(hours - _last_hours, 0.0, 6.0)
+	if _last_hours >= 0.0:
+		# Snowfall fills a swept strip in; with none, the wind drifts snow back over it slowly, so a strip swept
+		# in the afternoon is mostly white again by morning.
+		_fall += clampf(hours - _last_hours, 0.0, 6.0) * (1.0 if level.weather == Weather.SNOW else DRIFT_RATE)
 	_last_hours = hours
 	if level.snow == null:
 		return
@@ -183,8 +190,9 @@ static func _is_path(level: Node, c: Vector2i) -> bool:
 ## The points of a stretch of footpath to sweep from `start` (his spot): the walkway tile nearest to it,
 ## then along the walkway as far as RUN_MIN to RUN_MAX tiles, the stretch with the most snow left of the
 ## few he looks at. Each point is a metre on, swaying a little to either side of the tile's middle so the
-## footpath is not ruler-straight. Empty when no walkway is near or all is swept.
-static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator) -> Array[Vector3]:
+## footpath is not ruler-straight. Empty when no walkway is near or all is swept. `swept` (a Callable taking a
+## point, true when it is clean already) says what is left to do; by default the snow's mask does.
+static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swept := Callable()) -> Array[Vector3]:
 	var seed_cell := Vector2i(-1, -1)
 	var best := 1e9
 	for dy in range(-REACH_TILES, REACH_TILES + 1):
@@ -215,6 +223,8 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator) -> A
 	var ends: Array = depth.keys().filter(func(c: Vector2i) -> bool: return depth[c] >= mini(RUN_MIN, depth.values().max()))
 	if ends.is_empty():
 		return none
+	if not swept.is_valid():
+		swept = func(p: Vector3) -> bool: return is_bare(level, p)
 	var chosen: Array[Vector3] = []
 	var most := 0.0
 	for k in mini(4, ends.size()):
@@ -229,12 +239,12 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator) -> A
 		var points := _points(level, cells, rng)
 		var left := 0.0
 		for p in points:
-			if not is_bare(level, p):
+			if not swept.call(p):
 				left += 1.0
 		if left > most:
 			most = left
 			chosen = points
-	# Mostly swept already: nothing to do (until the next snowfall).
+	# Mostly swept already: nothing to do (until the next snowfall or the next gust of leaves).
 	return chosen if most >= 0.4 * float(RUN_MIN) * Level.TILE / POINT_GAP else none
 
 
@@ -288,9 +298,9 @@ class Job:
 
 
 ## The broom's head `swing` seconds into the stroke: ahead of `pos` along `heading`, swung to either side.
-static func broom_head(pos: Vector3, heading: Vector3, swing: float) -> Vector3:
+static func broom_head(pos: Vector3, heading: Vector3, swing: float, width := SWING) -> Vector3:
 	var side := heading.cross(Vector3.UP)
-	return pos + heading * AHEAD + side * sin(swing * 4.2) * SWING
+	return pos + heading * AHEAD + side * sin(swing * 4.2) * width
 
 
 # --- The broom --------------------------------------------------------------------------------

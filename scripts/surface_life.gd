@@ -151,6 +151,10 @@ const FALLEN_TREES := "#TdrgtpN"
 ## the foot of a wall standing back on its own tile; what lies under the wall is not seen).
 const DRIFT_CLUSTERS := 5.0
 const DRIFT_BAND := Vector2(1.35, 3.0)
+## Leaves the autumn wind strews right across the village's walkways, clusters on a path tile (4 m
+## across): what the street sweeper has to sweep (see LeafSweep). They lie everywhere on the way,
+## not just on its verges, but thinly; the sweeper heaps them up at its edges.
+const LANE_CLUSTERS := 4.0
 ## Letters of the ground itself (open, paved, under a tree, water, the forest): anything else stands.
 const LYING := GROUND + PATH + SQUARE + UNDER + WATER + "#"
 
@@ -180,6 +184,8 @@ var litter_total := 0
 ## The fallen autumn leaves (see FALLEN), once laid, and how many.
 var fallen: Node3D
 var fallen_total := 0
+## How many leaves lie strewn across the village's walkways (see LANE_CLUSTERS), not counted in fallen_total.
+var lane_total := 0
 ## How many clusters of them the wind heaped up along walls and paving (see _drift_spots).
 var drifted := 0
 var _autumn := false
@@ -217,6 +223,8 @@ func set_autumn(on: bool) -> void:
 		_drop_leaves()
 	if fallen != null:
 		fallen.visible = on
+	if not on:
+		LeafSweep.restore_all()
 
 
 ## Lays the fallen autumn leaves (see FALLEN), with dice of their own so the rest of the litter
@@ -227,6 +235,9 @@ func _drop_leaves() -> void:
 	add_child(fallen)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(level.level_name + ":fallen")
+	# The strewn leaves have dice of their own too, so the rest of the leaves lie where they always did.
+	var lane_rng := RandomNumberGenerator.new()
+	lane_rng.seed = hash(level.level_name + ":lane")
 	var batches := {}
 	for y in level.height:
 		for x in level.width:
@@ -258,21 +269,34 @@ func _drop_leaves() -> void:
 				var drift := _drift_spots(c, ch, rng)
 				drifted += drift.size()
 				spots.append_array(drift)
+			var verge_spots := spots.size()
+			# Strewn across the middle of the village's walkways (see LANE_CLUSTERS).
+			if PATH.contains(ch) and biome_of(c) == VILLAGE:
+				var lane := int(LANE_CLUSTERS) + (1 if lane_rng.randf() < LANE_CLUSTERS - int(LANE_CLUSTERS) else 0)
+				for i in lane:
+					var at := level.cell_to_world(c)
+					spots.append(at + Vector3(lane_rng.randf_range(-1.9, 1.9), 0, lane_rng.randf_range(-1.9, 1.9)))
+			var spot_no := -1
 			for spot in spots:
+				spot_no += 1
 				if fallen_total >= FALLEN_CAP:
 					break
 				# Not over the temple glass's light on the grass.
 				if spot.x == INF or _on_bare_ground(spot, CLUSTER_SPREAD + 0.2):
 					continue
-				var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * rng.randf_range(0.85, 1.15))
-				var t := Transform3D(basis, spot + Vector3(0, rng.randf_range(0.008, 0.016), 0))
-				var shade := rng.randf_range(0.82, 1.05)
-				var kind := rng.randi() % CLUSTER_KINDS
+				var dice := lane_rng if spot_no >= verge_spots else rng
+				var basis := Basis(Vector3.UP, dice.randf() * TAU).scaled(Vector3.ONE * dice.randf_range(0.85, 1.15))
+				var t := Transform3D(basis, spot + Vector3(0, dice.randf_range(0.008, 0.016), 0))
+				var shade := dice.randf_range(0.82, 1.05)
+				var kind := dice.randi() % CLUSTER_KINDS
 				var key := Vector3i(floori(c.x / float(CHUNK)), floori(c.y / float(CHUNK)), kind)
 				if not batches.has(key):
 					batches[key] = []
-				batches[key].append([t, Color(shade, shade, shade), c])
-				fallen_total += CLUSTER_LEAVES
+				batches[key].append([t, Color(shade, shade, shade), c, "lane" if spot_no >= verge_spots else "fallen"])
+				if spot_no >= verge_spots:
+					lane_total += CLUSTER_LEAVES
+				else:
+					fallen_total += CLUSTER_LEAVES
 	for key: Vector3i in batches:
 		var items: Array = batches[key]
 		var mm := MultiMesh.new()
@@ -286,7 +310,7 @@ func _drop_leaves() -> void:
 			var c: Vector2i = items[i][2]
 			if not _cell_litter.has(c):
 				_cell_litter[c] = []
-			_cell_litter[c].append([mm, i, (items[i][0] as Transform3D).origin, items[i][0], "fallen"])
+			_cell_litter[c].append([mm, i, (items[i][0] as Transform3D).origin, items[i][0], items[i][3]])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "Fallen_%d_%d_%d" % [key.x, key.y, key.z]
 		mmi.multimesh = mm
@@ -721,7 +745,8 @@ func litter_on_path_middles() -> int:
 		var mid := level.cell_to_world(c)
 		for e in _cell_litter[c]:
 			var o: Vector3 = e[2]
-			if absf(o.x - mid.x) < PATH_VERGE and absf(o.z - mid.z) < PATH_VERGE:
+			# The leaves the wind strewed over the way are the street sweeper's work (see LANE_CLUSTERS).
+			if e[4] != "lane" and absf(o.x - mid.x) < PATH_VERGE and absf(o.z - mid.z) < PATH_VERGE:
 				count += 1
 	return count
 

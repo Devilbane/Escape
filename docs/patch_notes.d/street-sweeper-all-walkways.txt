@@ -1,0 +1,1 @@
+- Matthes the street sweeper no longer stops at the little walkway by the mage tower: he now goes through the village gates and over the gaps to sweep all the long walkways, the square last.

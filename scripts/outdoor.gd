@@ -3276,9 +3276,13 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
 		panes.append_array(AgedStone.glass_boxes(tris))
 		var ivy_tris := tris
+		var roof_reach := 0.0
+		var density := AgedStone.IVY_DENSITY
 		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
 			ivy_tris = MageTower.ivy_faces(node, tris)
-		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
+			roof_reach = MageTower.IVY_ROOF_REACH + float(GuildHall.layout(node.get_meta("shape")).deck) + MageTower.TOP_H
+			density = MageTower.IVY_DENSITY # Three floors and a roof: more ivy than a house, to cover the top room too.
+		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines, density, roof_reach)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var stems: Array = leaves.get("stems", [])

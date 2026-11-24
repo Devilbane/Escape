@@ -1363,7 +1363,7 @@ func _track(cr: Dictionary, step: Vector3, hero: Vector3) -> void:
 	if cr.kind == "lizard":
 		level.snow_print(cr.node.global_position, heading, 0.4, "paw")
 	else:
-		level.snow_print(cr.node.global_position, heading, 1.0, "bug")
+		level.snow_print(cr.node.global_position, heading, 2.2, "bug")
 
 
 func _pick_target(cr: Dictionary) -> void:

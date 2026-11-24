@@ -314,6 +314,14 @@ func _prints() -> void:
 	for i in SnowPrints.MAX + 20:
 		lvl.snow_print(Vector3(i * 0.1, 0, 0), 0.0)
 	check(SnowPrints._live.size() <= SnowPrints.MAX, "only so many prints at once")
+	# A crowd of boots cannot push the animals' tracks out of the pool.
+	SnowPrints.clear()
+	for i in SnowPrints.MAX:
+		lvl.snow_print(Vector3(i * 0.1, 0, 20), 0.0)
+	for i in 30:
+		lvl.snow_print(Vector3(i * 0.3, 0, 30), 0.0, 1.0, "hoof")
+	var hooves := SnowPrints._live.filter(func(n): return n.get_meta("print_kind") == "hoof").size()
+	check(hooves == 30, "hoof prints survive a crowd of boots (%d of 30)" % hooves)
 	var kept: Node = SnowPrints._live[0]
 	check(is_instance_valid(kept) and kept.visible, "prints stay (nothing fades them)")
 	SnowPrints.clear()
@@ -327,15 +335,13 @@ func _prints() -> void:
 	check(SnowPrints._live.size() == 3 and SnowPrints._live[0].get_parent() == other, "the day's prints come back in a rebuilt world")
 	SnowPrints.restore(lvl)
 	other.free()
-	# With the pool full, a new boot print pushes out a beetle's dot, not the other way round.
+	# Each group has its own room: a full set of boots keeps its cap and never pushes out a beetle's dot.
 	SnowPrints.clear()
-	for i in SnowPrints.MAX - 1:
-		SnowPrints.leave(lvl, Vector3(i * 0.05, 0, 6), 0.0, 1.0, "boot")
 	var dot := SnowPrints.leave(lvl, Vector3(0, 0, 7), 0.0, 1.0, "bug")
-	SnowPrints.leave(lvl, Vector3(1, 0, 7), 0.0, 1.0, "boot")
-	check(SnowPrints._live.size() == SnowPrints.MAX and not SnowPrints._live.has(dot), "the beetle's dot goes first")
-	SnowPrints.leave(lvl, Vector3(2, 0, 7), 0.0, 1.0, "bug")
-	check(SnowPrints._live.size() == SnowPrints.MAX, "a full pool stays at its cap")
+	for i in int(SnowPrints.ROOM["foot"]) + 5:
+		SnowPrints.leave(lvl, Vector3(i * 0.05, 0, 6), 0.0, 1.0, "boot")
+	var boots := SnowPrints._live.filter(func(n): return n.get_meta("print_kind") == "boot").size()
+	check(boots == int(SnowPrints.ROOM["foot"]) and SnowPrints._live.has(dot), "a full set of boots keeps its cap and leaves the dot")
 	# The snow melts: the prints go with it.
 	game.snow_cover = 0.0
 	game._tick_clock(0.05)

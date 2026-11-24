@@ -37,6 +37,11 @@ const STREAM_TO_ROW := 46
 const RIVER_TO_ROW := 4
 ## Station kind of a hatch's lid.
 const LID := "kanalluke"
+## The colour of snow on the heap caught at the grating, and the snow cover (see Outdoor.set_snow) from which it shows.
+const SNOW := Color(0.94, 0.96, 1.0)
+const SNOW_FROM := 0.3
+const HEAP_GROUP := "grating_heap"
+const SNOWY_META := "snowy"
 
 static var _water: ShaderMaterial = null
 
@@ -140,21 +145,77 @@ static func _mouth(lvl: Outdoor, c: Vector2i) -> void:
 	for side in [-1.0, 1.0]:
 		for k in 3:
 			b.frustum(Vector3(side * (half + 0.3 + k * 0.4), 0, 0.0), Vector2(0.8, 3.2), Vector2(0.7, 3.0), 1.9 - k * 0.55, W.vary(STONES[k], rng, 0.07), W.STONE)
-	# Whatever the stream brought down and the bars caught: sticks, planks, a heap of leaves, a rag.
+	b.finish(lvl, mid)
+	# Whatever the stream brought down and the bars caught: sticks, planks, a heap of leaves, a rag. Kept in
+	# two meshes: the brown heap, and the same heap under snow (it lies in the shore's bare zone, where
+	# the snow layer does not settle), shown instead of it while snow lies (see set_snow).
+	for snowy in [false, true]:
+		var heap := W.Builder.new()
+		_caught(heap, face, span, snowy)
+		var mi := heap.finish(lvl, mid)
+		mi.name = "CaughtSnowy" if snowy else "Caught"
+		mi.set_meta(SNOWY_META, snowy)
+		mi.visible = not snowy
+		if snowy:
+			mi.material_override = _snow_material()
+		mi.add_to_group(HEAP_GROUP)
+	set_snow(lvl, lvl.snow.amount if lvl.snow != null else 0.0)
+	lvl._add_solid(mid + Vector3(0, 0, 0.0), Vector3(half * 2.0, 2.2, 3.6))
+	_stream(lvl)
+
+
+## The sticks, planks and leaves the stream brought down and the bars caught, in their own colours or, with
+## `snowy`, under a coat of snow (the same pieces, in the same places).
+static func _caught(b: W.Builder, face: float, span: float, snowy: bool) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("kanalgitter-heap")
 	for i in 22:
 		var x := rng.randf_range(-span * 0.5, span * 0.5)
 		var long := rng.randf_range(0.4, 1.4)
 		var turn := rng.randf_range(-0.6, 0.6) + (PI * 0.5 if i % 4 == 0 else 0.0)
+		var colour: Color = W.vary(SNOW if snowy else W.TIMBER[i % W.TIMBER.size()], rng, 0.12)
 		b.bar(Vector3(x - cos(turn) * long * 0.5, 0.05 + (i % 4) * 0.05, face + 0.5 + rng.randf() * 0.4),
 				Vector3(x + cos(turn) * long * 0.5, 0.07 + (i % 3) * 0.05, face + 0.5 + rng.randf() * 0.4 + sin(turn) * long * 0.2), 0.025 + rng.randf() * 0.03,
-				W.vary(W.TIMBER[i % W.TIMBER.size()], rng, 0.12), W.WOOD, 5)
+				colour, W.WOOD, 5)
 	for i in 14:
 		var x := rng.randf_range(-span * 0.5, span * 0.5)
+		var colour: Color = W.vary(SNOW if snowy else StreamFlow.LEAVES[i % StreamFlow.LEAVES.size()], rng, 0.1)
 		b.frustum(Vector3(x, 0.0, face + 0.55 + rng.randf() * 0.5), Vector2(0.6 + rng.randf() * 0.6, 0.5 + rng.randf() * 0.4), Vector2(0.2, 0.2), 0.12 + rng.randf() * 0.1,
-				W.vary(StreamFlow.LEAVES[i % StreamFlow.LEAVES.size()], rng, 0.1), W.WOOD, Basis.from_euler(Vector3(0, rng.randf() * TAU, 0)))
-	b.finish(lvl, mid)
-	lvl._add_solid(mid + Vector3(0, 0, 0.0), Vector3(half * 2.0, 2.2, 3.6))
-	_stream(lvl)
+				colour, W.WOOD, Basis.from_euler(Vector3(0, rng.randf() * TAU, 0)))
+
+
+static var _snow_mat: StandardMaterial3D = null
+
+
+## Snow on the heap: soft white with a fine grain, tinted per piece by the mesh's colours.
+static func _snow_material() -> StandardMaterial3D:
+	if _snow_mat == null:
+		var noise := FastNoiseLite.new()
+		noise.frequency = 0.06
+		noise.seed = 7
+		var grain := NoiseTexture2D.new()
+		grain.noise = noise
+		grain.width = 128
+		grain.height = 128
+		grain.seamless = true
+		var m := StandardMaterial3D.new()
+		m.vertex_color_use_as_albedo = true
+		m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
+		m.albedo_texture = grain
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3(0.7, 0.7, 0.7)
+		m.roughness = 0.85
+		_snow_mat = m
+	return _snow_mat
+
+
+## Shows the heap at the grating brown or snowed over, by how thick the snow lies (0 to 1, see Outdoor.set_snow).
+static func set_snow(lvl: Node, cover: float) -> void:
+	if not lvl.is_inside_tree():
+		return
+	var snowed := cover >= SNOW_FROM
+	for heap: Node3D in lvl.get_tree().get_nodes_in_group(HEAP_GROUP):
+		heap.visible = bool(heap.get_meta(SNOWY_META)) == snowed
 
 
 ## The leaves, foam and bits of rubbish that drift down the stream to the grating.

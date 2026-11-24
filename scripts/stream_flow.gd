@@ -14,6 +14,13 @@ const FOAM := [Color(0.62, 0.66, 0.62), Color(0.56, 0.6, 0.58)]
 const RUBBISH := [Color(0.34, 0.26, 0.16), Color(0.45, 0.4, 0.3), Color(0.27, 0.3, 0.2), Color(0.55, 0.5, 0.4), Color(0.3, 0.22, 0.14)]
 ## How far from each end the bits fade (fraction of the length).
 const FADE := 0.08
+## The colour the bits turn once snow lies on them, and the snow cover (0 to 1, see Outdoor.set_snow)
+## at which they start to turn and are fully white.
+const SNOWY := Color(0.93, 0.96, 1.0)
+const SNOW_FROM := 0.1
+const SNOW_FULL := 0.8
+## Group of every stream, so the weather can find them (see set_snow).
+const GROUP := "stream_flow"
 
 var from := Vector3.ZERO
 var to := Vector3.ZERO
@@ -33,6 +40,8 @@ var _size: Array[Vector2] = []
 var _spin: Array[float] = []
 var _wobble: Array[float] = []
 var _time := 0.0
+var _colours: Array[Color] = []
+var _snowed := 0.0
 
 
 func _ready() -> void:
@@ -73,7 +82,25 @@ func _ready() -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.extra_cull_margin = 4.0
 	add_child(mi)
+	for i in count:
+		_colours.append(_mm.get_instance_color(i))
+	add_to_group(GROUP)
+	# Built into a world where snow already lies: the bits are white from the start.
+	var world := get_parent() as Outdoor
+	if world != null and world.snow != null:
+		set_snow(world.snow.amount)
 	_place()
+
+
+## Snow settles on the leaves and rubbish floating by: they turn white as the cover builds up and
+## take their colours back as it melts away. `cover` is the snow on the open air, 0 to 1.
+func set_snow(cover: float) -> void:
+	var white := smoothstep(SNOW_FROM, SNOW_FULL, cover)
+	if _mm == null or absf(white - _snowed) < 0.01:
+		return
+	_snowed = white
+	for i in count:
+		_mm.set_instance_color(i, _colours[i].lerp(SNOWY, white))
 
 
 func _process(delta: float) -> void:

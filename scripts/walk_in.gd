@@ -321,7 +321,7 @@ func open_house(house: Node3D) -> void:
 	if rec.is_empty():
 		return
 	# A villagers' house has a floor above one climbs to; Gorm's cottage (see SmithCottage) does not.
-	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern"
+	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern" or VillageHalls.HOME_OWNERS.has(rec.kind)
 	var hatch := hatch_of(house.get_meta("shape")) if upper else Rect2()
 	var meshes := VillageHouse.hollow(house, rec.has("sided"), hatch)
 	if upper:
@@ -384,6 +384,10 @@ func open_house(house: Node3D) -> void:
 		VillageHalls.furnish(self, rec)
 		if rec.kind == "tavern":
 			_loft(rec, w, d, hatch)
+		elif VillageHalls.HOME_OWNERS.has(rec.kind):
+			# The shop, the post office and the Crown office have bedrooms upstairs, one bed for
+			# each of the family or staff who live there (see VillageHalls.HOME_OWNERS).
+			_bedroom(rec, w, d, hatch, VillageHalls.HOME_OWNERS[rec.kind])
 	_lamp(rec)
 	_sconces(rec)
 	# Only a building one cannot walk into throws the light of its lit panes on the ground (see
@@ -596,6 +600,17 @@ func _loft(rec: Dictionary, w: float, d: float, hatch: Rect2) -> void:
 	_put_ladder(rec, side, hatch)
 	_furnish_upstairs(rec, w, d, side, hatch, 1)
 	rec["owner"] = VillageHalls.KEEPERS.tavern
+
+
+## A hall's bedrooms upstairs (the shop, the post office, the Crown office): the ladder up on the
+## side wall `ladder_side_of` names, and a bed along the back wall for each of `owners`, who sleep
+## here and nowhere else (see house_near, VillageBeds).
+func _bedroom(rec: Dictionary, w: float, d: float, hatch: Rect2, owners: Array) -> void:
+	var side := ladder_side_of(shape_of(rec))
+	_put_ladder(rec, side, hatch)
+	_furnish_upstairs(rec, w, d, side, hatch, owners.size())
+	rec["owner"] = owners[0]
+	rec["owners"] = owners
 
 
 ## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
@@ -1102,6 +1117,60 @@ func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 		var dist := Vector2(door.x - pos.x, door.z - pos.z).length()
 		if dist < best_d:
 			best = rec
+			best_d = dist
+	return best
+
+
+## Which house each villager without a house of their own sleeps in (role -> building record). Chosen
+## the first time they are asked: the nearest house to `near` that still has a bed for them, so that no
+## bed holds two and nobody is left at a door with no bed behind it.
+var _homes := {}
+
+
+func home_for(role: String, near: Vector3) -> Dictionary:
+	if _homes.has(role) and is_instance_valid((_homes[role].node as Node3D)):
+		return _homes[role]
+	var best := {}
+	var best_d := INF
+	for rec in buildings:
+		if rec.kind != "house" or rec.has("owner") or not rec.get("opened", false) or not rec.has("beds"):
+			continue
+		var tenants := 0
+		for other: Dictionary in _homes.values():
+			if is_same(other, rec):
+				tenants += 1
+		if tenants >= (rec.beds as Array).size():
+			continue
+		var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+		var dist := Vector2(door.x - near.x, door.z - near.z).length()
+		if dist < best_d:
+			best = rec
+			best_d = dist
+	if not best.is_empty():
+		_homes[role] = best
+	return best
+
+
+## The building with a bedroom that is `role`'s alone, or {} (the shop's family, see VillageHalls.HOME_OWNERS).
+func owned_house(role: String) -> Dictionary:
+	for rec in buildings:
+		if not rec.get("opened", false):
+			continue
+		if String(rec.get("owner", "")) == role or (rec.get("owners", []) as Array).has(role):
+			return rec
+	return {}
+
+
+## The street spot in front of a house's door, where villagers meet it (as in Outdoor.spots.houses):
+## the nearest of `spots` within a few metres, or the foot of its ramp.
+func front_of(rec: Dictionary, spots: Array) -> Vector3:
+	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+	var best := door_points(rec)[0]
+	var best_d := 8.0
+	for spot: Vector3 in spots:
+		var dist := Vector2(door.x - spot.x, door.z - spot.z).length()
+		if dist < best_d:
+			best = spot
 			best_d = dist
 	return best
 

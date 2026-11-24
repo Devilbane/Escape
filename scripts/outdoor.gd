@@ -4942,21 +4942,29 @@ func set_hour(new_hour: float) -> void:
 			Events.scare("grauen" if Moon.is_new(day) else "woelfe" if Moon.is_full(day) else "tote")
 
 
-## Lights the fire in every house someone has come home to in the evening,
-## and lets it burn down late at night or once the house is empty (see
+## Lights the hearth fires by day, and in the evening the fire in every house
+## someone has come home to; lets them burn down at dusk, late at night or
+## once the house is empty, and leans the smoke with the wind (see
 ## ChimneySmoke). `at_once` settles it on the spot.
 func _mind_chimneys(at_once := false) -> void:
 	if chimneys.is_empty():
 		return
 	var burns := ChimneySmoke.fire_burns(hour)
 	var home := {}
+	var strength := ChimneySmoke.strength(hour)
+	var breeze := ChimneySmoke.breeze(weather)
 	if burns:
 		for v in villagers:
 			if v.at_home:
 				var door: Vector3 = v.house_door()
 				home[door] = int(home.get(door, 0)) + 1
 	for c in chimneys:
-		ChimneySmoke.light(c.smoke, ChimneySmoke.smokes(hour, int(home.get(c.door, 0))), at_once)
+		var plume: CPUParticles3D = c.smoke
+		ChimneySmoke.light(plume, ChimneySmoke.smokes(hour, int(home.get(c.door, 0))), at_once)
+		if not is_equal_approx(plume.color.a, strength):
+			plume.color = Color(1, 1, 1, strength)
+		if plume.gravity != breeze:
+			plume.gravity = breeze
 
 
 # --- The wandering merchant ---------------------------------------------------

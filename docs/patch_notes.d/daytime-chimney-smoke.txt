@@ -1,0 +1,1 @@
+- Smoke now rises from the village chimneys by day, fading in at dawn and out at dusk, and leans with the wind.

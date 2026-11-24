@@ -86,6 +86,7 @@ surfaces.gd | 120 | fixed | pass | Walking speed by ground test
 village_buildings.gd | 120 | fixed | pass | Village houses and chapel test
 house_doors.gd | 120 | fixed | pass | House doors swing open before anyone goes in
 walk_in.gd | 300 | fixed | passfail | Walk-in village houses and temple (doors, hidden roof, beds for the villagers, switches off)
+villager_doors.gd | 300 | fixed | passfail | Villagers sleep only in a bed of their own and go in and out through the door in line with its middle, open for them (Bruno, Pip, Pippi above the shop)
 village_halls.gd | 300 | fixed | passfail | Walk-in halls: tavern, shop, post office, Crown office and guildhall rebuilt, keepers behind their counters, switches off
 guild_hall.gd | 300 | fixed | passfail | The guildhall: two storeys, stairs up to the training roof and down to Ragna's cellar bed
 mill.gd | 300 | fixed | passfail | The walk-in mill: turning sails and millstone, Korbinian the miller sells grain and sends flour to the tavern
@@ -200,8 +201,9 @@ warren.gd | 120 | fixed | pass | Rabbit warren: baby rabbits huddle by their bur
 village_cat.gd | 180 | fixed | pass | The village cat (strolls, leaps onto the smithy's anvil at bedtime, sleeps curled up, purrs near the hero, stretches and hops down)
 valley_folk.gd | 180 | fixed | pass | The valley folk (seasonal jobs, spots, noon rest, walking to a job)
 hall_seats.gd | 200 | fixed | passfail | Chairs, stools, benches and sofas of the tavern and the mage tower are seats: the hero sits with the hips over the seat and gets up clear
+house_snow_shots.gd | 600 | fixed | pass | Snow on the ledges and walls of the mason's house and the smith's cottage (screenshots)
 roof_caps.gd | 30 | free | pass | Cap shingles on roof ridges, hips and gable edges (wound right, inside their row, on the village roof)
 river_bridge_shots.gd | 200 | fixed | pass | The valley bridge lands on both banks with no seam between its halves; leaves, sticks and fish show under the winter ice
-house_snow_shots.gd | 600 | fixed | pass | Snow dusting on the lintel, sills, beams and doorstep of the mason's house (screenshots)
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop
+bless_round.gd | 300 | fixed | passfail | Elsbeth's daily blessing round (temple, gates, fountain, smithy) with speech and light, and thawing frozen Fritz
 water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on the beam, swing, and her round from the fountain to the shops and the tavern

@@ -71,6 +71,11 @@ const ALTAR_WALK := 1.7
 ## Sitting in the pews (see temple_seats): how close two may sit side by side (they share the pew evenly), how far in front of
 ## a pew's front edge one stands to sit down, and how far before the altar the priestess stands.
 const SEAT_GAP := 0.75
+## The closest two sit on one pew when the village is large, how far behind the last pew's back the
+## standing row is, and how far off the middle (the way in from the door) its first place lies.
+const SEAT_TIGHT := 0.65
+const STAND_BACK := 0.5
+const STAND_AISLE := 1.1
 const SIT_STAND := 0.4
 const PULPIT_GAP := 0.55
 ## A villagers' house's rug under the table (metres across, deep), and how high over the floor the
@@ -97,6 +102,11 @@ const HATCH_CLEAR := Vector2(1.3, 0.45)
 const UPPER_SLAB := 0.3
 ## Feet this far below the floor above count as up there (on the ladder, the head above the boards).
 const UPPER_FROM := 1.0
+## The wall between the parents' and the children's beds upstairs: the extra gap it gets between the
+## beds (metres), its height, and the doorway's width.
+const PARTITION_GAP := 0.2
+const PARTITION_HIGH := 2.5
+const PARTITION_DOOR := 1.0
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
 const BED_WIDE := CosyBed.RIGHT - CosyBed.LEFT
 const BED_GAP := 0.1
@@ -323,7 +333,7 @@ func open_house(house: Node3D) -> void:
 	if rec.is_empty():
 		return
 	# A villagers' house has a floor above one climbs to; Gorm's cottage (see SmithCottage) does not.
-	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern"
+	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern" or VillageHalls.HOME_OWNERS.has(rec.kind)
 	var hatch := hatch_of(house.get_meta("shape")) if upper else Rect2()
 	var meshes := VillageHouse.hollow(house, rec.has("sided"), hatch)
 	if upper:
@@ -386,6 +396,10 @@ func open_house(house: Node3D) -> void:
 		VillageHalls.furnish(self, rec)
 		if rec.kind == "tavern":
 			_loft(rec, w, d, hatch)
+		elif VillageHalls.HOME_OWNERS.has(rec.kind):
+			# The shop, the post office and the Crown office have bedrooms upstairs, one bed for
+			# each of the family or staff who live there (see VillageHalls.HOME_OWNERS).
+			_bedroom(rec, w, d, hatch, VillageHalls.HOME_OWNERS[rec.kind])
 	_lamp(rec)
 	_sconces(rec)
 	# Only a building one cannot walk into throws the light of its lit panes on the ground (see
@@ -600,6 +614,20 @@ func _loft(rec: Dictionary, w: float, d: float, hatch: Rect2) -> void:
 	rec["owner"] = VillageHalls.KEEPERS.tavern
 
 
+## A hall's bedrooms upstairs (the shop, the post office, the Crown office): the ladder up on the
+## side wall `ladder_side_of` names, and a bed along the back wall for each of `owners`, who sleep
+## here and nowhere else (see house_near, VillageBeds).
+func _bedroom(rec: Dictionary, w: float, d: float, hatch: Rect2, owners: Array) -> void:
+	var side := ladder_side_of(shape_of(rec))
+	_put_ladder(rec, side, hatch)
+	# The shop's family has two bedrooms: the parents' beds first, then the children's (see _partition).
+	_furnish_upstairs(rec, w, d, side, hatch, owners.size(), 2 if owners.size() == 4 else 0)
+	for i in mini(owners.size(), rec.beds.size()):
+		rec.beds[i]["for"] = owners[i]
+	rec["owner"] = owners[0]
+	rec["owners"] = owners
+
+
 ## The ground floor of a house: a round table with stools, a shelf of stores on the back wall,
 ## barrels and a crate in the back corner on the door's side, and by the side wall away from the
 ## door an upright ladder up through the hatch (see hatch_of) to the room on the floor above (see
@@ -656,7 +684,7 @@ func _furnish_house(rec: Dictionary, w: float, d: float, door_x: float) -> void:
 ## The room on the floor above: MAX_BEDS beds along the back wall, heads to it, from the side wall
 ## away from the hatch; a bed that would reach the floor kept clear round the hatch is left out
 ## (one bed always stays). They show only while the hero is up there (see _show_inside).
-func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2, beds := MAX_BEDS) -> void:
+func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: Rect2, beds := MAX_BEDS, split := 0) -> void:
 	var house: Node3D = rec.node
 	var t := VillageHouse.WALL_THICK
 	var upper := Rect2(-w * 0.5 - VillageHouse.JETTY + t, -d * 0.5 - VillageHouse.JETTY + t,
@@ -673,8 +701,10 @@ func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: 
 	var clear_x1 := upper.end.x if side > 0.0 else inner_edge + HATCH_CLEAR.x
 	var clear := Rect2(clear_x0, hatch.position.y - HATCH_CLEAR.y, clear_x1 - clear_x0, upper.end.y - hatch.position.y + HATCH_CLEAR.y)
 	var origin_z := upper.position.y + 0.02 - CosyBed.HEAD
+	# With a partition wall after bed `split - 1` the beds beyond it stand PARTITION_GAP further on.
 	for i in beds:
-		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP))
+		var shift := PARTITION_GAP if split > 0 and i >= split else 0.0
+		var mid := -side * (upper.end.x - 0.05 - BED_WIDE * 0.5 - i * (BED_WIDE + BED_GAP) - shift)
 		var foot_z := origin_z + CosyBed.FOOT + 0.55
 		var takes := Rect2(mid - BED_WIDE * 0.5, upper.position.y, BED_WIDE, origin_z + CosyBed.FOOT - upper.position.y)
 		if i > 0 and takes.intersects(clear):
@@ -685,6 +715,35 @@ func _furnish_upstairs(rec: Dictionary, w: float, d: float, side: float, hatch: 
 		_solid(rec, Vector3(mid, up_y + 0.5, origin_z + (CosyBed.HEAD + CosyBed.FOOT) * 0.5), Vector3(BED_WIDE, 1.0, CosyBed.FOOT - CosyBed.HEAD))
 		rec.beds.append({"pos": house.transform * origin, "rot": house.rotation.y, "by": null,
 				"stand": house.transform * Vector3(mid + 0.1, up_y, foot_z)})
+	if split > 0 and rec.beds.size() > split:
+		_partition(rec, room, upper, side, up_y, origin_z, split)
+
+
+## The wall between two bedrooms upstairs (the parents' beds before `split`, the children's after
+## it), standing in the gap the beds leave: planks from the floor to the eaves, running from the back
+## wall to the front wall, with a doorway beyond the foot of the beds. A villager in a bed on the far
+## side of it walks through the doorway (the bed's "via", see VillageBeds).
+func _partition(rec: Dictionary, room: Node3D, upper: Rect2, side: float, up_y: float, origin_z: float, split: int) -> void:
+	var house: Node3D = rec.node
+	var gap_x := -side * (upper.end.x - 0.05 - split * (BED_WIDE + BED_GAP) + BED_GAP * 0.5 - PARTITION_GAP * 0.5)
+	var back := upper.position.y
+	var door_from := origin_z + CosyBed.FOOT + 0.25 - back
+	var length := upper.end.y - back
+	if door_from + PARTITION_DOOR + 0.3 > length:
+		return # A house too shallow for a wall with a doorway: one room.
+	var wall := WalkInFurniture.partition(length, PARTITION_HIGH, door_from, door_from + PARTITION_DOOR)
+	wall.position = Vector3(gap_x, up_y, back)
+	room.add_child(wall)
+	var high := PARTITION_HIGH
+	var thick := WalkInFurniture.PARTITION_THICK
+	_solid(rec, Vector3(gap_x, up_y + high * 0.5, back + door_from * 0.5), Vector3(thick, high, door_from))
+	var front_from := door_from + PARTITION_DOOR
+	_solid(rec, Vector3(gap_x, up_y + high * 0.5, back + (front_from + length) * 0.5), Vector3(thick, high, length - front_from))
+	var via := house.transform * Vector3(gap_x, up_y, back + door_from + PARTITION_DOOR * 0.5)
+	# The ladder is on the children's side: the beds before the wall are reached through the doorway.
+	for i in mini(split, rec.beds.size()):
+		rec.beds[i]["via"] = via
+	rec["partition"] = {"x": gap_x, "via": via}
 
 
 ## What makes a villagers' house look lived in and warmly lit: a rug under the table, and a shelf
@@ -850,9 +909,11 @@ static func temple_pews(room: Rect2, s: float) -> Dictionary:
 
 ## The places to sit in the temple's pews and the place to stand before the altar, world:
 ## {"seats": [{"sit", "stand", "aisle", "front", "row"}], "pulpit": {"stand", "front"}}.
-## One sits in the middle of the pew's plank facing the altar, a SEAT_GAP apart from the next, and
-## walks up to it from the gap in front of the row.
-func temple_seats(rec: Dictionary) -> Dictionary:
+## One sits in the middle of the pew's plank facing the altar and walks up to it from the gap in
+## front of the row. `need` is how many want a place: the pews seat as many to a side as they must,
+## from three to four (shoulder to shoulder at most, SEAT_TIGHT apart), and what they cannot hold
+## stands in a row behind the last pew, facing the altar ("standing": true, sit == stand).
+func temple_seats(rec: Dictionary, need := 0) -> Dictionary:
 	var node: Node3D = rec.node
 	var s := node.scale.x
 	var xf := node.global_transform
@@ -860,16 +921,27 @@ func temple_seats(rec: Dictionary) -> Dictionary:
 	var front := (xf.basis * Vector3(0, 0, -1)).normalized()
 	var seats := []
 	var zs: Array = lay.zs
+	var fit := maxi(1, int(float(lay.pew_w) / SEAT_GAP))
+	var tight := maxi(fit, int(float(lay.pew_w) / SEAT_TIGHT))
+	var per_side := clampi(ceili(float(need) / maxf(1.0, zs.size() * 2.0)), fit, tight)
 	for r in zs.size():
 		var z: float = zs[r]
 		var stand_z := z - WalkInFurniture.PEW_DEPTH * 0.5 - SIT_STAND
 		for cx: float in lay.xs:
-			var n := maxi(1, int(float(lay.pew_w) / SEAT_GAP))
-			var apart := float(lay.pew_w) / n
-			for k in n:
-				var x := cx + (k - (n - 1) * 0.5) * apart
+			var apart := float(lay.pew_w) / per_side
+			for k in per_side:
+				var x := cx + (k - (per_side - 1) * 0.5) * apart
 				seats.append({"sit": xf * (Vector3(x, 0, z - 0.05) / s), "stand": xf * (Vector3(x, 0, stand_z) / s),
 						"aisle": xf * (Vector3(0, 0, stand_z) / s), "front": front, "row": r})
+	# Standing room behind the last pew, either side of the way in from the door.
+	var back_z: float = float(zs.back()) + WalkInFurniture.PEW_DEPTH * 0.5 + STAND_BACK
+	var reach: float = float(rec.room.size.x) * 0.5 * s - 0.6
+	var x := STAND_AISLE
+	while x <= reach:
+		for side: float in [-1.0, 1.0]:
+			var at: Vector3 = xf * (Vector3(side * x, 0, back_z) / s)
+			seats.append({"sit": at, "stand": at, "aisle": xf * (Vector3(0, 0, back_z) / s), "front": front, "row": zs.size(), "standing": true})
+		x += SEAT_TIGHT
 	var altar_front: float = float(lay.altar_z) + WalkInFurniture.ALTAR_SIZE.z * 0.5 + PULPIT_GAP
 	return {"seats": seats, "pulpit": {"stand": xf * (Vector3(0, 0, altar_front) / s), "front": -front}}
 
@@ -1091,6 +1163,60 @@ func house_near(pos: Vector3, reach := 9.0, role := "") -> Dictionary:
 		var dist := Vector2(door.x - pos.x, door.z - pos.z).length()
 		if dist < best_d:
 			best = rec
+			best_d = dist
+	return best
+
+
+## Which house each villager without a house of their own sleeps in (role -> building record). Chosen
+## the first time they are asked: the nearest house to `near` that still has a bed for them, so that no
+## bed holds two and nobody is left at a door with no bed behind it.
+var _homes := {}
+
+
+func home_for(role: String, near: Vector3) -> Dictionary:
+	if _homes.has(role) and is_instance_valid((_homes[role].node as Node3D)):
+		return _homes[role]
+	var best := {}
+	var best_d := INF
+	for rec in buildings:
+		if rec.kind != "house" or rec.has("owner") or not rec.get("opened", false) or not rec.has("beds"):
+			continue
+		var tenants := 0
+		for other: Dictionary in _homes.values():
+			if is_same(other, rec):
+				tenants += 1
+		if tenants >= (rec.beds as Array).size():
+			continue
+		var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+		var dist := Vector2(door.x - near.x, door.z - near.z).length()
+		if dist < best_d:
+			best = rec
+			best_d = dist
+	if not best.is_empty():
+		_homes[role] = best
+	return best
+
+
+## The building with a bedroom that is `role`'s alone, or {} (the shop's family, see VillageHalls.HOME_OWNERS).
+func owned_house(role: String) -> Dictionary:
+	for rec in buildings:
+		if not rec.get("opened", false):
+			continue
+		if String(rec.get("owner", "")) == role or (rec.get("owners", []) as Array).has(role):
+			return rec
+	return {}
+
+
+## The street spot in front of a house's door, where villagers meet it (as in Outdoor.spots.houses):
+## the nearest of `spots` within a few metres, or the foot of its ramp.
+func front_of(rec: Dictionary, spots: Array) -> Vector3:
+	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+	var best := door_points(rec)[0]
+	var best_d := 8.0
+	for spot: Vector3 in spots:
+		var dist := Vector2(door.x - spot.x, door.z - spot.z).length()
+		if dist < best_d:
+			best = spot
 			best_d = dist
 	return best
 

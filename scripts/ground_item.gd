@@ -91,7 +91,7 @@ static func _model(id: String) -> Node3D:
 		return _gltf(id, item)
 	var tint: Color = item.get("tint", Color(0, 0, 0, 0))
 	var made: Node3D = null
-	if id.begins_with("kletter"):
+	if id.begins_with("kletter") and not str(item.slot) in ["schuhe", "handschuhe"]:
 		return _climbing(id)
 	match str(item.slot):
 		"kopf":

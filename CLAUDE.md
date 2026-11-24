@@ -19,7 +19,7 @@ tab, details card) must not reshape or condense the rest of the window.
 A new test goes in one of three lists (rule in `docs/testing.md`, "What goes in the required check"):
 `tests/ci_manifest.txt` blocks every PR and holds only fast, deterministic core logic (saves, combat, items and
 trading, collisions and getting stuck, data checks); `tests/ci_quests.txt` holds a finished quest's or dungeon's
-test with the paths it covers, and it runs only when a PR touches them; `tests/ci_nightly.txt` holds looks,
+test with the paths it covers, and it runs only when a PR touches them; a manifest test whose feature lives in its own files also gets a line in `tests/ci_scopes.txt` (paths it covers; a PR skips it unless it touches them, shared code runs everything); `tests/ci_nightly.txt` holds looks,
 screenshots, sounds, ambient life and timing-based simulations, which run every night. When in doubt, nightly.
 
 ## Language
@@ -89,3 +89,10 @@ When you change something a player will notice (a feature, a fix, a balance chan
 two sections ship. `tests/launcher.gd` checks that the fragments parse and everything fits.
 Every build's notes are archived in `docs/patch_history.json` (the compendium's patch notes page); the Windows
 build adds to it, so never edit it in a feature PR.
+
+## Windows builds and PR labels
+
+A Windows build is made only after a green nightly run, by hand, or when a merged PR carries the `big-feature` label
+(`.github/workflows/big-feature-build.yml`). Label a PR `big-feature` only for a new feature that took significant
+work (or the main PR of a new thread with significant work); never a bug fix or an adjustment of an existing feature.
+Details and the PR-template checkbox: `docs/testing.md`, "Which label?".

@@ -8,7 +8,8 @@ extends RefCounted
 ##
 ## The hours (see DayNight; an hour is 50 seconds): the call comes at CALL, the speech begins once
 ## the pews are filled (at SPEECH_FROM at the earliest, at SPEECH_AT whoever is still on the way), and
-## whoever sits there is sent off at the latest at END, long before the stalls open.
+## whoever sits there is sent off at the latest at END, one by one in a line (EXIT_GAP apart, those
+## nearest the door first), before the stalls open.
 ##
 ## Everyone who has time goes (see Villager.can_attend), except STAY_AWAY. The pews seat a few
 ## more than the village holds; someone who finds no seat just carries on with their day.
@@ -22,8 +23,8 @@ extends RefCounted
 ## service is over for everyone.
 const CALL := 5.9
 const SPEECH_FROM := 6.8
-const SPEECH_AT := 7.3
-const END := 7.85
+const SPEECH_AT := 7.25
+const END := 7.95
 ## Who does not come: the woodcutter (out in the woods), the wandering merchant, the guard on his
 ## watch and the drinker at the tavern. Elsbeth is the one who speaks (SPEAKER).
 const STAY_AWAY := ["3", "%", "4", "5"]
@@ -38,8 +39,8 @@ const AMEN_TIME := 3.0
 ## How many answer, and the pause between two answers (seconds).
 const ANSWERED := 2
 const AMEN_GAP := 1.4
-## Each one gets up after a time of their own, so the doorway does not clog (seconds, from, to).
-const RISE_SPREAD := Vector2(0.4, 5.0)
+## The pause between two leaving the temple, in the order of their seats from the door (seconds).
+const EXIT_GAP := 0.6
 ## How long sitting down and getting up take (seconds).
 const SIT_TIME := 0.8
 ## How long the priestess stands at her place, turning to the pews, before she begins (seconds).
@@ -53,6 +54,8 @@ const STREET_REACH := 6.0
 const NEAR_STREET := 7.5
 ## How far (metres) the hero may be for the news that the village gathers to reach them.
 const NEWS_REACH := 30.0
+## How far from the temple's door (metres) a villager still comes: farmers on their far fields do not.
+const COME_FROM := 80.0
 
 ## The speeches, one is read each day, in turn: three lines each.
 const SPEECHES := [
@@ -95,6 +98,8 @@ var _spoken := 0
 var _clock := 0.0
 var _tries := {}
 var _answers: Array = []
+## Seconds until the line out of the temple is next free (see exit_slot).
+var _queue_clock := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -112,6 +117,12 @@ static func temple_of(level: Outdoor) -> Dictionary:
 	return {}
 
 
+## Whether `v` is near enough to the temple to come in time: the farmers out on their fields are not.
+func near(v: Villager) -> bool:
+	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
+	return _flat(v.global_position, door) <= COME_FROM
+
+
 ## Whether `v` takes part at all (not who is able to right now, see Villager.can_attend).
 static func goes(v: Villager) -> bool:
 	return not v.role in STAY_AWAY and v.role != SPEAKER
@@ -123,16 +134,23 @@ func tick(level: Outdoor, delta: float) -> void:
 	if level.hour < 0.0 or level.player == null:
 		return
 	var alarm: bool = level.village_alarm.raised
+	_queue_clock = maxf(0.0, _queue_clock - delta)
 	if phase == "idle":
+		# Whoever is still on the way to a service that is over turns back.
+		for v: Villager in level.villagers:
+			if v.service_step() == "going":
+				v.cancel_service()
 		if day != level.day and not level.night and not alarm and level.hour >= CALL and level.hour < SPEECH_AT:
 			_begin(level)
 		return
 	_free_lost_seats()
-	if alarm or level.night or level.hour >= END or level.hour < CALL:
-		_send_off(level, 0.0)
+	if alarm or level.night or level.hour < CALL:
+		_send_off(level, false)
 		if _nobody_in(level):
 			phase = "idle"
 		return
+	if level.hour >= END:
+		phase = "leave"
 	match phase:
 		"gather":
 			_dispatch(level)
@@ -144,7 +162,7 @@ func tick(level: Outdoor, delta: float) -> void:
 			_dispatch(level)
 			_speak(level, delta)
 		"leave":
-			_send_off(level, RISE_SPREAD.y)
+			_send_off(level, true)
 			if _nobody_in(level):
 				phase = "idle"
 
@@ -160,7 +178,7 @@ func _begin(level: Outdoor) -> void:
 		day = level.day
 		return
 	day = level.day
-	var found: Dictionary = level.walk_in.temple_seats(rec)
+	var found: Dictionary = level.walk_in.temple_seats(rec, level.villagers.filter(func(v: Villager) -> bool: return goes(v) and near(v)).size())
 	seats = found.seats
 	for s: Dictionary in seats:
 		s["taker"] = null
@@ -236,7 +254,7 @@ func _dispatch(level: Outdoor) -> void:
 	if speaker != null and is_instance_valid(speaker) and not speaker.serves() and speaker.can_attend():
 		speaker.go_to_service(_trip(level, pulpit, true))
 	for v: Villager in level.villagers:
-		if v == speaker or not goes(v) or v.serves() or int(_tries.get(v, 0)) >= TRIES:
+		if v == speaker or not goes(v) or v.serves() or int(_tries.get(v, 0)) >= TRIES or not near(v):
 			continue
 		if v.rests():
 			# Up from the fountain bench first (see BenchRest): they come on the next tick.
@@ -251,9 +269,12 @@ func _dispatch(level: Outdoor) -> void:
 		v.go_to_service(_trip(level, seat, false))
 
 
-## A seat nobody has, picked at random, {} when the pews are full.
+## A seat nobody has, picked at random (standing room only when the pews are full), {} when there is none.
 func _free_seat() -> Dictionary:
-	var free := seats.filter(func(s: Dictionary) -> bool: return s.taker == null)
+	var free := seats.filter(func(s: Dictionary) -> bool: return s.taker == null and not s.get("standing", false))
+	if free.is_empty():
+		# The pews are full: standing room behind them.
+		free = seats.filter(func(s: Dictionary) -> bool: return s.taker == null)
 	if free.is_empty():
 		return {}
 	return free[_rng.randi() % free.size()]
@@ -303,7 +324,7 @@ func _speak(level: Outdoor, delta: float) -> void:
 		_clock = AMEN_GAP if _spoken < lines + ANSWERED else AMEN_TIME
 	else:
 		phase = "leave"
-		_send_off(level, RISE_SPREAD.y)
+		_send_off(level, true)
 
 
 ## One of the villagers on the pews (the `nth` to answer) answers the priestess.
@@ -321,10 +342,13 @@ func _answer(nth: int) -> void:
 	(seated[_rng.randi() % seated.size()] as Villager).say(Lang.t(_answers[nth % _answers.size()]), Vector3.INF, AMEN_TIME)
 
 
-## Everyone in the temple (or still on the way to it) gets up after a time of their own within
-## `spread` seconds; the priestess last. Who already has their time keeps it, and anyone who comes in
-## late is given one as soon as they are in (see tick).
-func _send_off(level: Outdoor, spread: float) -> void:
+## Everyone in the temple (or still on the way to it) is sent off. `orderly`: one by one in a line,
+## those nearest the door first and a pause (EXIT_GAP) between two, so nobody piles up at the door or
+## bumps into another; otherwise (an alarm, nightfall) all at once. Someone who has their time
+## already keeps it, and anyone who comes in late is given the next one (see exit_slot).
+func _send_off(level: Outdoor, orderly: bool) -> void:
+	var inside_door: Vector3 = level.walk_in.door_points(rec)[1] if not rec.is_empty() else Vector3.ZERO
+	var line: Array[Villager] = []
 	for v: Villager in level.villagers:
 		if not v.serves():
 			continue
@@ -334,11 +358,27 @@ func _send_off(level: Outdoor, spread: float) -> void:
 			continue
 		if v == speaker:
 			continue
-		var left := float(v.service_trip.leave_in)
-		v.service_trip["leave_in"] = _rng.randf_range(0.0, spread) if left < 0.0 else minf(left, spread)
+		if not orderly:
+			v.service_trip["leave_in"] = 0.0
+		elif float(v.service_trip.leave_in) < 0.0:
+			line.append(v)
+	line.sort_custom(func(a: Villager, b: Villager) -> bool:
+		return _flat(a.service_spot().get("sit", a.global_position), inside_door) < _flat(b.service_spot().get("sit", b.global_position), inside_door))
+	for v: Villager in line:
+		v.service_trip["leave_in"] = exit_slot()
 	if speaker != null and is_instance_valid(speaker) and speaker.serves() and not speaker.service_trip.is_empty():
-		var left := float(speaker.service_trip.leave_in)
-		speaker.service_trip["leave_in"] = (spread + 1.0 if left < 0.0 else left) if spread > 0.0 else 0.0
+		if not orderly:
+			speaker.service_trip["leave_in"] = 0.0
+		elif float(speaker.service_trip.leave_in) < 0.0:
+			# The priestess goes last, once everyone else has their time.
+			speaker.service_trip["leave_in"] = exit_slot()
+
+
+## The next free place in the line out of the temple: seconds from now (see EXIT_GAP).
+func exit_slot() -> float:
+	var at := maxf(0.3, _queue_clock)
+	_queue_clock = at + EXIT_GAP
+	return at
 
 
 ## Whether nobody is on the way to the temple, in it or on the way out of it any more.
@@ -371,8 +411,8 @@ static func step(v: Villager, delta: float) -> void:
 		if String(trip.step) == "going":
 			v.end_service()
 			return
-		if float(trip.leave_in) < 0.0 or float(trip.leave_in) > RISE_SPREAD.y + 1.0:
-			trip.leave_in = randf_range(0.0, RISE_SPREAD.y)
+		if float(trip.leave_in) < 0.0:
+			trip.leave_in = morning.exit_slot()
 	var walk_in: WalkIn = v.level.walk_in
 	var spot: Dictionary = trip.spot
 	match String(trip.step):
@@ -390,8 +430,8 @@ static func step(v: Villager, delta: float) -> void:
 			if VillagePosts._walk(v, trip, delta):
 				trip.clock = 0.0
 				VillagePosts._pass_through(v, false)
-				trip.step = "at" if trip.speaker else "sitting"
-				if not trip.speaker:
+				trip.step = "at" if trip.speaker else ("seated" if spot.get("standing", false) else "sitting")
+				if not trip.speaker and not spot.get("standing", false):
 					v.sit_down()
 		"sitting":
 			var t := minf(1.0, float(trip.clock) / SIT_TIME)
@@ -402,10 +442,13 @@ static func step(v: Villager, delta: float) -> void:
 				v.play("Sit_Chair_Idle", 0.2)
 		"seated":
 			v.turn_toward(spot.front, delta)
-			v.play("Sit_Chair_Idle")
+			v.play("Idle" if spot.get("standing", false) else "Sit_Chair_Idle")
 			if float(trip.leave_in) >= 0.0:
 				trip.leave_in = float(trip.leave_in) - delta
 				if float(trip.leave_in) <= 0.0:
+					if spot.get("standing", false):
+						_go_out(v, trip)
+						return
 					trip.step = "rising"
 					trip.clock = 0.0
 					v.stand_up()

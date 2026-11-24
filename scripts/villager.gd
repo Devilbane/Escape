@@ -2410,7 +2410,9 @@ var _print_left := false
 
 ## A grey print in the snow every stride, left and right foot a little apart (see Outdoor.snow_print).
 func _leave_prints() -> void:
-	if not (level is Outdoor) or level.snow == null or level.snow.amount < Weather.PRINT_FROM or not visible:
+	# The rock climber's route (ClimberRoute) places him on the rock face, so he presses no boots into the snow
+	# while he climbs, sits at the top or climbs down.
+	if _task == "climb" or not (level is Outdoor) or level.snow == null or level.snow.amount < Weather.PRINT_FROM or not visible:
 		_print_from = Vector3.INF
 		return
 	var here := global_position

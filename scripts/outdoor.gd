@@ -5898,8 +5898,9 @@ func temple_room(node: Node3D) -> Rect2:
 	return Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z))
 
 
-## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth.
-const ROOM_MARGIN := 0.12
+## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth, which
+## sticks out 0.05 m. The snow shader draws the walls exactly (see SnowCover.set_rooms).
+const ROOM_MARGIN := 0.05
 ## How high the rooms of a walk-in building reach (metres): its eaves (see VillageHouse._shape), so
 ## no snow lies on the upper floor's furniture and stairs; the roof over them keeps its snow.
 const WALK_IN_CEILING := VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER - 0.05

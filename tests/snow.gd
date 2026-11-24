@@ -288,7 +288,7 @@ func _prints() -> void:
 	var beetle: Node = crawlers.get_child(crawlers.get_child_count() - 1)
 	check(SnowCover.bare(beetle), "a beetle wears no snow coat")
 	crawlers.free()
-	# Animals, wild or companion, leave no tracks in the snow.
+	# Animals, wild or companion, press tracks in the snow, bigger than life so they read in the game view.
 	for deer in ["reh", "hirsch"]:
 		var trail := SnowTrail.new(deer)
 		var at: Vector3 = lvl.player.global_position + Vector3(4, 0, 0)
@@ -296,7 +296,7 @@ func _prints() -> void:
 		trail.follow(lvl, at)
 		trail.follow(lvl, at + Vector3(0, 0, 1.0))
 		trail.follow(lvl, at + Vector3(0, 0, 2.0))
-		check(SnowPrints._live.size() == pressed, "a walking %s leaves no prints" % deer)
+		check(SnowPrints._live.size() > pressed, "a walking %s leaves prints" % deer)
 	var walker := SnowTrail.new("walker")
 	var pressed_by_walker := SnowPrints._live.size()
 	var wat: Vector3 = lvl.player.global_position + Vector3(4, 0, 0)

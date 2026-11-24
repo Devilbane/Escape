@@ -97,9 +97,11 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
+## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
+const TEMPLE_KEEPER := "O"
 const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
@@ -1566,7 +1568,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			if not _crop_cells.has(ch):
 				_crop_cells[ch] = []
 			_crop_cells[ch].append(pos)
-			_add_solid(pos, Vector3(TILE * 0.9, 1, TILE * 0.9))
+			# No solid: the fields are walkable, the hero and the villagers wade through the crops.
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
 			for row in 2:
@@ -2530,7 +2532,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
+			# No nest on the temple: its ridge is a wide stone beam under the spire that half hides one.
+			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
 			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
@@ -3305,7 +3308,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
 		ice_rng.seed = hash(key + "schnee")
-		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old)
+		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old, SnowCaps.ledges_of(node))
 		# Grass, flowers and mossy stones at its foot (see WallFoot), with dice of their own.
 		var foot_rng := RandomNumberGenerator.new()
 		foot_rng.seed = hash(key + "fuss")
@@ -4158,6 +4161,9 @@ func _build_forge(cell: Vector2i) -> void:
 ## out from there and wait there after closing time; else their own tile.
 func _keeper_home(role: String, cell: Vector2i) -> Vector2i:
 	var kind := VillageHalls.kept_by(role)
+	# The priestess waits at the temple's porch, to one side of the way in, never in its doorway.
+	if role == TEMPLE_KEEPER:
+		kind = "temple"
 	if kind == "":
 		return cell
 	for rec in walk_in.buildings:
@@ -4948,21 +4954,29 @@ func set_hour(new_hour: float) -> void:
 			Events.scare("grauen" if Moon.is_new(day) else "woelfe" if Moon.is_full(day) else "tote")
 
 
-## Lights the fire in every house someone has come home to in the evening,
-## and lets it burn down late at night or once the house is empty (see
+## Lights the hearth fires by day, and in the evening the fire in every house
+## someone has come home to; lets them burn down at dusk, late at night or
+## once the house is empty, and leans the smoke with the wind (see
 ## ChimneySmoke). `at_once` settles it on the spot.
 func _mind_chimneys(at_once := false) -> void:
 	if chimneys.is_empty():
 		return
 	var burns := ChimneySmoke.fire_burns(hour)
 	var home := {}
+	var strength := ChimneySmoke.strength(hour)
+	var breeze := ChimneySmoke.breeze(weather)
 	if burns:
 		for v in villagers:
 			if v.at_home:
 				var door: Vector3 = v.house_door()
 				home[door] = int(home.get(door, 0)) + 1
 	for c in chimneys:
-		ChimneySmoke.light(c.smoke, ChimneySmoke.smokes(hour, int(home.get(c.door, 0))), at_once)
+		var plume: CPUParticles3D = c.smoke
+		ChimneySmoke.light(plume, ChimneySmoke.smokes(hour, int(home.get(c.door, 0))), at_once)
+		if not is_equal_approx(plume.color.a, strength):
+			plume.color = Color(1, 1, 1, strength)
+		if plume.gravity != breeze:
+			plume.gravity = breeze
 
 
 # --- The wandering merchant ---------------------------------------------------

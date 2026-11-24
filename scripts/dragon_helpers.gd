@@ -30,6 +30,8 @@ const SHY := 3.5
 const MODEL_SCALE := 0.16
 ## How near (metres) to a tile point of their way they count it as reached.
 const WAY_REACHED := 0.6
+## Within this far (metres) a way point behind the dragonling counts as passed.
+const PASSED := 2.5
 ## What a tile beside an obstacle costs, against an open one (see way_round).
 const CLOSE := 4.0
 ## Scale colours: each dragonling gets one of these (ember, amber, moss, teal,
@@ -45,6 +47,13 @@ const PACE_MIN := 0.75
 const PACE_MAX := 1.25
 const BOB := 0.35
 const WEAVE := 0.3
+## How fast (radians per second) they can swing round: a change of direction
+## is a smooth curve, not a snap. Near the goal they turn tighter, so they
+## never circle it. They lean into a turn up to BANK radians.
+const TURN := 9.0
+const TURN_CLOSE := 14.0
+const CLOSE_TO_GOAL := 2.0
+const BANK := 0.5
 
 var level: Level
 ## Where they come out and go back in: the front of the arch.
@@ -53,11 +62,15 @@ var den := Vector3.ZERO
 ## once snatched), "home" (flying back)}.
 var helpers: Array = []
 var _spawn_timer := 0.0
+## Their own random numbers: the looks must not disturb the game's (map and
+## village generation draw from the global ones).
+var _rng := RandomNumberGenerator.new()
 
 
 func _init(l: Level, at: Vector3) -> void:
 	level = l
 	den = at
+	_rng.randomize()
 	name = "DragonHelpers"
 
 
@@ -130,7 +143,7 @@ func _send_out(target: Dictionary) -> void:
 	var model: Node3D = load("res://assets/lair/Dragon.fbx").instantiate()
 	model.scale = Vector3.ONE * MODEL_SCALE
 	node.add_child(model)
-	var tint: Color = SCALES[randi() % SCALES.size()]
+	var tint: Color = SCALES[_rng.randi() % SCALES.size()]
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		var mat := StandardMaterial3D.new()
 		var is_eye := "eye" in String(mi.name).to_lower()
@@ -139,20 +152,20 @@ func _send_out(target: Dictionary) -> void:
 		mat.emission = EYE_COLOUR if is_eye else tint
 		mat.emission_energy_multiplier = 1.6 if is_eye else 0.35
 		mi.material_override = mat
-	var pace := randf_range(PACE_MIN, PACE_MAX)
+	var pace := _rng.randf_range(PACE_MIN, PACE_MAX)
 	var anim: AnimationPlayer = model.find_child("AnimationPlayer", true, false)
 	if anim and anim.has_animation("DragonArmature|Dragon_Flying"):
 		anim.get_animation("DragonArmature|Dragon_Flying").loop_mode = Animation.LOOP_LINEAR
 		anim.play("DragonArmature|Dragon_Flying")
 		anim.speed_scale = 1.8 * pace
-		anim.seek(randf() * 0.8, true)
+		anim.seek(_rng.randf() * 0.8, true)
 	var glow := OmniLight3D.new()
 	glow.light_color = tint
 	glow.light_energy = 0.9
 	glow.omni_range = 2.5
 	node.add_child(glow)
 	helpers.append({"node": node, "target": target, "carry": null, "home": false,
-		"pace": pace, "model": model, "phase": randf() * TAU})
+		"pace": pace, "model": model, "phase": _rng.randf() * TAU})
 
 
 func _fly(h: Dictionary, delta: float) -> void:
@@ -179,10 +192,6 @@ func _fly(h: Dictionary, delta: float) -> void:
 	if via != null:
 		var to_via: Vector3 = via - node.global_position
 		step = Vector3(to_via.x, step.y, to_via.z)
-	if step.length() > 0.01:
-		var flat := Vector3(step.x, 0, step.z)
-		if flat.length() > 0.05:
-			node.rotation.y = atan2(flat.x, flat.z)
 	if step.length() <= move:
 		node.global_position = goal
 		if h.home:
@@ -190,7 +199,28 @@ func _fly(h: Dictionary, delta: float) -> void:
 		else:
 			_snatch(h)
 		return
-	node.global_position += step.normalized() * move
+	# Turn gradually towards the wanted direction and fly along the curve.
+	var want := Vector3(step.x, 0, step.z)
+	var heading: Vector3 = h.get("heading", Vector3.ZERO)
+	if heading == Vector3.ZERO:
+		heading = want.normalized() if want.length() > 0.001 else Vector3.BACK
+	var turned := 0.0
+	if want.length() > 0.05:
+		var close := _flat(goal - node.global_position) < CLOSE_TO_GOAL
+		var limit := (TURN_CLOSE if close else TURN) * delta
+		turned = clampf(heading.signed_angle_to(want.normalized(), Vector3.UP), -limit, limit)
+		heading = heading.rotated(Vector3.UP, turned).normalized()
+	h["heading"] = heading
+	node.rotation.y = atan2(heading.x, heading.z)
+	# Climb or sink in step with the way along the ground, never faster than 70% of the speed.
+	var rise := clampf(step.y * move / maxf(want.length(), 0.001), -move * 0.7, move * 0.7)
+	var along := sqrt(maxf(0.0, move * move - rise * rise))
+	node.global_position += heading * along + Vector3(0, rise, 0)
+	# Lean into the turn, easing in and out.
+	var lean := clampf(-turned / maxf(delta, 0.0001) / TURN, -1.0, 1.0) * BANK
+	var model: Node3D = h.get("model")
+	if model != null and is_instance_valid(model):
+		model.rotation.z = lerpf(model.rotation.z, lean, clampf(8.0 * delta, 0.0, 1.0))
 	_sway(h)
 
 
@@ -214,7 +244,15 @@ func _via(h: Dictionary, goal: Vector3) -> Variant:
 		h["leg"] = leg
 		h["way"] = way_round(level, node.global_position, goal)
 	var way: Array = h["way"]
-	while way.size() > 1 and _flat(way[0] - node.global_position) < WAY_REACHED:
+	# A point counts as reached when near it, or when the curve carried the
+	# dragonling past it (it lies behind): never circling a point it cannot hit.
+	var heading: Vector3 = h.get("heading", Vector3.ZERO)
+	while way.size() > 1:
+		var to_point: Vector3 = way[0] - node.global_position
+		var d := _flat(to_point)
+		var passed := heading != Vector3.ZERO and d < PASSED and heading.dot(Vector3(to_point.x, 0, to_point.z)) < 0.0
+		if d >= WAY_REACHED and not passed:
+			break
 		way.pop_front()
 	# The last tile point is the goal's own tile: head for the goal itself from there.
 	if way.size() <= 1:

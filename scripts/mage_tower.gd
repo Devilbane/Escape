@@ -105,6 +105,28 @@ static func top_storey(shape: Dictionary, groups: Dictionary) -> void:
 	roof(groups.top_roof, shape)
 
 
+## The faces ivy may grow on at the tower (`tris` as AgedStone.triangles makes them): everything below
+## the deck, and above it only the outer faces of the top room's walls, standing upright: not the
+## inner faces (a leaf would float in the room), nor the deck's rim, the wall tops or the roof.
+static func ivy_faces(node: Node3D, tris: Array) -> Array:
+	var shape: Dictionary = node.get_meta("shape")
+	var lay := GuildHall.layout(shape)
+	var half_w := (float(shape.w) + VillageHouse.JETTY * 2.0) * 0.5
+	var half_d := (float(shape.d) + VillageHouse.JETTY * 2.0) * 0.5
+	var to_local := node.global_transform.affine_inverse()
+	var deck: float = lay.deck
+	return tris.filter(func(t: Dictionary) -> bool:
+		var a: Vector3 = to_local * (t.a as Vector3)
+		var b: Vector3 = to_local * (t.b as Vector3)
+		var c: Vector3 = to_local * (t.c as Vector3)
+		var middle := (a + b + c) / 3.0
+		if maxf(a.y, maxf(b.y, c.y)) <= deck - 0.05:
+			return true
+		if middle.y < deck + 0.1 or absf((t.n as Vector3).y) > 0.12:
+			return false
+		return absf(middle.x) >= half_w - 0.02 or absf(middle.z) >= half_d - 0.02)
+
+
 ## The windows of the top room that look out through its walls (see VillageHouse._openings).
 static func windows(shape: Dictionary) -> Array:
 	var lay := GuildHall.layout(shape)

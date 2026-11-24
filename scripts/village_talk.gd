@@ -77,6 +77,7 @@ const GOALS := {
 	"8": "Will das Rätsel der Gruft lösen, mit Büchern, nicht mit Gebeten.",
 	"9": "Will den alten Brunnen rein halten und abends Ulrich sehen.",
 	"K": "Will jede Neuigkeit als Erster ausrufen, vor allem vor dem Postmeister.",
+	"κ": "Will jede Wand im Tal einmal bezwungen haben und anderen beibringen, wie man dabei heil bleibt.",
 	"µ": "Will in jedem neuen Haus im Tal ein Bett, einen Kamin und ein Regal voller Bücher sehen.",
 	"¢": "Will jedes Stück Land sauber im Grundbuch eingetragen sehen, bevor der erste Stein gesetzt wird.",
 	"O": "Will, dass die Toten in ihren Gräbern bleiben.",
@@ -85,6 +86,11 @@ const GOALS := {
 	"Z": "Will jedem im Dorf einen neuen Look verpassen, sogar dem Gelehrten.",
 	"Y": "Will jede Münze des Tals in seinem Tresor sehen.",
 	"S": "Will eine Mauer um das ganze Dorf bauen.",
+	"φ": "Will, dass seine Ernte im ganzen Tal gekauft wird, und dass Gerda weniger arbeitet.",
+	"ψ": "Will ihre Felder in Ordnung halten und Lotte endlich einmal einfangen.",
+	"χ": "Will Säcke tragen, ohne je auf eine Leiter zu müssen.",
+	"ω": "Will überall im Tal hinlaufen, nur nicht nach Hause.",
+	"λ": "Will, dass seine Schafe heil durch den Tag kommen und nie wieder eines verloren geht.",
 	"ö": "Will das beste Bier im Tal brauen und Fritz dazu bringen, seine Zeche zu zahlen.",
 }
 

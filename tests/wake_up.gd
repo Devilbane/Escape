@@ -17,6 +17,7 @@ var basket := Vector3.ZERO
 var fox_woke := false
 var stood := Vector3.ZERO
 var eyes_opened := false
+var fox_left := false
 
 
 func check(ok: bool, what: String) -> void:
@@ -95,6 +96,7 @@ func _process(delta: float) -> bool:
 		2:
 			eyes_opened = eyes_opened or not _asleep()
 			fox_woke = fox_woke or game.pet.state == "wake"
+			fox_left = fox_left or _flat(game.pet.global_position, basket) > Pet.BASKET_RADIUS
 			if game._waking and clock < 12.0:
 				return false
 			check(not game._waking, "the hero gets out of bed")
@@ -117,7 +119,10 @@ func _process(delta: float) -> bool:
 			check(_flat(game.player.global_position, stood) < 0.02, "the hero stays where they got up")
 			check(game.pet.state != "bed" and game.pet.state != "wake", "the fox follows the hero again")
 			check(game.pet.global_position.y < 0.05, "the fox hopped out of its basket (%.2f m)" % game.pet.global_position.y)
-			check(_flat(game.pet.global_position, basket) > Pet.BASKET_RADIUS, "the fox is out of its basket")
+			# The fox follows the hero, who stands beside the bed: it may stop close to its basket again,
+			# so the check is that it hopped out over the rim, not where it stands a second later.
+			fox_left = fox_left or _flat(game.pet.global_position, basket) > Pet.BASKET_RADIUS
+			check(fox_left, "the fox hopped out of its basket")
 			game.menus.close()
 			check(not game.player.frozen, "the hero can move again once the window is closed")
 			# A game saved without going to bed starts on the feet at once.

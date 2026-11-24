@@ -162,6 +162,24 @@ func _run() -> void:
 		check(level.cell_char(hatch.tile) == "Θ", "a hatch lies in the street at %s" % hatch.tile)
 	for tile: Vector2i in Sewers.GRILLES:
 		check(level.cell_char(tile) == "Ξ" and Outdoor.WALK.contains("Ξ"), "a street drain at %s, walkable" % tile)
+	# No snow over the drains' flat iron and stone (it would flicker), nor on the street round them, nor
+	# on the heap at the stream's grating (it draws its own snow).
+	var warm_drains := 0
+	for tile: Vector2i in Sewers.GRILLES:
+		var at := level.cell_to_world(tile)
+		for w: Vector4 in level.warm_spots:
+			if Vector2(w.x - at.x, w.z - at.z).length() < 0.5 and is_equal_approx(w.w, SewerSurface.GRILLE_WARM):
+				warm_drains += 1
+				break
+	check(warm_drains == Sewers.GRILLES.size(), "no snow settles on the street round every drain (%d)" % warm_drains)
+	var bare_drains := 0
+	for m: Node in level.find_children("*", "MeshInstance3D", false, false):
+		for tile: Vector2i in Sewers.GRILLES:
+			if m.has_meta("no_snow") and Vector2(m.position.x - level.cell_to_world(tile).x, m.position.z - level.cell_to_world(tile).z).length() < 0.5:
+				bare_drains += 1
+	check(bare_drains >= Sewers.GRILLES.size(), "every drain's iron and stone is marked free of snow (%d)" % bare_drains)
+	for heap: Node in level.get_tree().get_nodes_in_group(SewerSurface.HEAP_GROUP):
+		check(heap.has_meta("no_snow"), "the heap at the grating takes no second coat of snow")
 	# Drawn: ground cut open over the shafts only, whole ground over the tunnels.
 	check(view.holes.size() >= Sewers.cells().size(), "the sewers' cells are holes in the ground (%d)" % view.holes.size())
 	var space := level.get_world_3d().direct_space_state

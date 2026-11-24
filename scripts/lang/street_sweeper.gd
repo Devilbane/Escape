@@ -9,4 +9,5 @@ const EN := {
 	"Pass auf, wo du hintrittst: Ich habe den Weg gerade erst gekehrt!": "Watch where you step: I only just swept the path!",
 	"Ich bin Straßenfeger. Im Herbst kehre ich das Laub von den Wegen, im Winter schiebe ich den Schnee beiseite.": "I am the street sweeper. In autumn I sweep the leaves off the paths, in winter I clear the snow.",
 	"Der Besen ist aus Birkenreisig. Der hält länger als jeder Schaufelstiel.": "The broom is made of birch twigs. It outlasts any shovel handle.",
+	"Will, dass im Herbst kein Blatt und im Winter keine Flocke länger als einen Tag auf den Wegen liegt.": "Wants no leaf in autumn and no flake in winter to lie on the paths for more than a day.",
 }

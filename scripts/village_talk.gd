@@ -73,6 +73,7 @@ const GOALS := {
 	"ü": "Will, dass sein Stein nie stillsteht und das ganze Dorf sein Brot aus seinem Mehl backt.",
 	"7": "Will ein echter Abenteurer werden, wie der Held aus der Gruft.",
 	"pippi": "Will mit Pip die Gänse und Ziegen hüten und nie wieder von einer Gans gezwickt werden.",
+	"sweeper": "Will, dass im Herbst kein Blatt und im Winter keine Flocke länger als einen Tag auf den Wegen liegt.",
 	"8": "Will das Rätsel der Gruft lösen, mit Büchern, nicht mit Gebeten.",
 	"9": "Will den alten Brunnen rein halten und abends Ulrich sehen.",
 	"K": "Will jede Neuigkeit als Erster ausrufen, vor allem vor dem Postmeister.",

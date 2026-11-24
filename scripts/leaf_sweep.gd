@@ -111,7 +111,8 @@ static func stamp(level: Node, head: Vector3, feet: Vector3, heading: Vector3) -
 			continue
 		var o: Vector3 = e[2]
 		# Only what lies on a walkway: a heap on the grass beside it stays.
-		if not SurfaceLife.PATH.contains(level.cell_char(level.world_to_cell(o))):
+		var under: String = level.cell_char(level.world_to_cell(o))
+		if not (SurfaceLife.PATH.contains(under) or under == SurfaceLife.SQUARE):
 			continue
 		var lateral := (o - feet).dot(side)
 		if absf(lateral) > LANE:

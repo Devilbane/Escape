@@ -298,7 +298,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -454,6 +454,11 @@ var shop_stock: Array[String] = []
 ## What the wandering merchant still has left, and the night he brought it
 ## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
 var wanderer_stock: Array[String] = []
+## What the rock climber still has to sell (id -> how many), the day he last restocked and the hours of
+## game time the hero has watched him (see ClimberNpc).
+var climber_stock := {}
+var climber_day := -1
+var climber_watch := 0.0
 var wanderer_night := -1
 ## Finished pieces Gorm has on the shelf, id -> count (see Forge.restock): a few more each morning.
 var smith_stock := {}
@@ -539,6 +544,7 @@ func _bus_links() -> Array:
 	return [
 		[bus.news_told, quest_news],
 		[bus.lore_learned, learn],
+		[bus.climber_watched, _on_climber_watched],
 		[bus.gain_shown, show_gain],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
@@ -3942,6 +3948,9 @@ func begin_new_game() -> void:
 	storage.clear()
 	shop_stock.clear()
 	wanderer_stock.clear()
+	climber_stock = {}
+	climber_day = -1
+	climber_watch = 0.0
 	wanderer_night = -1
 	smith_stock.clear()
 	Forge.restock(smith_stock, day, hero_name)
@@ -4458,6 +4467,15 @@ func _apply_save(data: Dictionary) -> void:
 	timber_stock = clampi(int(data.get("timber_stock", WoodcutterShift.START)), 0, WoodcutterShift.CAP)
 	_timber_carry = 0.0
 	hoard.load_from(data.get("hoard", {}))
+	climber_stock = {}
+	climber_day = -1
+	climber_watch = 0.0
+	var climber: Variant = data.get("climber", {})
+	if climber is Dictionary and climber.get("stock") is Dictionary:
+		climber_day = int(climber.get("day", -1))
+		for id in climber.stock:
+			if ClimberNpc.WARES.has(str(id)):
+				climber_stock[str(id)] = clampi(int(climber.stock[id]), 0, int(ClimberNpc.WARES[str(id)]))
 	wanderer_stock.clear()
 	var wares = data.get("wanderer", [])
 	if wares is Array:
@@ -4713,6 +4731,7 @@ func hero_record() -> Dictionary:
 		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
 		"hour": day_hour, "world_hours": world_hours,
+		"climber": {"stock": climber_stock, "day": climber_day},
 		"wanderer": wanderer_stock, "wanderer_night": wanderer_night, "smith_stock": smith_stock, "timber_stock": timber_stock,
 		"hoard": hoard.for_save(),
 		"weather": weather, "weather_hours": weather_hours, "puddles": puddle_water, "snow": snow_cover, "ice": ice_cover,
@@ -6571,6 +6590,10 @@ func wanderer_wares() -> Array[String]:
 	return wanderer_stock
 
 
+func _on_climber_watched(hours: float) -> void:
+	ClimberNpc.watched(self, hours)
+
+
 func learn(entry: String) -> void:
 	if not lore.has(entry):
 		lore.append(entry)
@@ -8153,6 +8176,7 @@ func _process(delta: float) -> void:
 			"hort": Lang.t("Dagegenlaufen, um deinen Hort zu betrachten"),
 			"werkbank": Lang.t(CraftingSquare.bench_of(station.get("craft", "")).get("prompt", "")),
 			"wanderhaendler": Lang.t("Dagegenlaufen, um mit %s zu handeln") % station.npc.display_name if station.has("npc") else "",
+			ClimberNpc.KIND: Lang.t("Dagegenlaufen, um mit %s über das Klettern zu reden") % station.npc.display_name if station.has("npc") else "",
 			"hauswerkbank": Lang.t("Werkbank: Dagegenlaufen, um Wurfmesser zu schmieden oder Ausrüstung zu flicken"),
 			GardenDecor.GRILL: Lang.t("Dagegenlaufen, um Wildfleisch oder einen Barsch zu grillen und zu essen"),
 			AppleTree.STATION: AppleTree.station_prompt(self, station) if station.kind == AppleTree.STATION else "",

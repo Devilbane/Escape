@@ -13,7 +13,7 @@ const BRASS := Color(0.72, 0.56, 0.24)
 
 
 ## A material with a grain: noise over the colour, so no part looks like plain plastic.
-static func _material(base: Color, grain: float, metal: float, rough: float, frequency := 0.08) -> StandardMaterial3D:
+static func material(base: Color, grain: float, metal: float, rough: float, frequency := 0.08) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	var noise := FastNoiseLite.new()
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -35,7 +35,7 @@ static func _material(base: Color, grain: float, metal: float, rough: float, fre
 	return m
 
 
-static func _part(parent: Node3D, mesh: Mesh, pos: Vector3, mat: Material, rot_deg := Vector3.ZERO, scale := Vector3.ONE) -> MeshInstance3D:
+static func part(parent: Node3D, mesh: Mesh, pos: Vector3, mat: Material, rot_deg := Vector3.ZERO, scale := Vector3.ONE) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.mesh = mesh
 	node.material_override = mat
@@ -57,11 +57,11 @@ static func _box(size: Vector3) -> BoxMesh:
 static func build() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Headgear"
-	var iron := _material(IRON, 0.22, 0.7, 0.42)
-	var dark := _material(IRON_DARK, 0.25, 0.7, 0.5)
-	var leather := _material(LEATHER, 0.3, 0.0, 0.8, 0.2)
-	var strap := _material(LEATHER_DARK, 0.25, 0.0, 0.85, 0.25)
-	var brass := _material(BRASS, 0.18, 0.8, 0.35)
+	var iron := material(IRON, 0.22, 0.7, 0.42)
+	var dark := material(IRON_DARK, 0.25, 0.7, 0.5)
+	var leather := material(LEATHER, 0.3, 0.0, 0.8, 0.2)
+	var strap := material(LEATHER_DARK, 0.25, 0.0, 0.85, 0.25)
+	var brass := material(BRASS, 0.18, 0.8, 0.35)
 	# The cap: a dome a little wider than the head, with a faint point on top.
 	var dome := SphereMesh.new()
 	dome.radius = 0.56
@@ -69,18 +69,18 @@ static func build() -> Node3D:
 	dome.is_hemisphere = true
 	dome.radial_segments = 24
 	dome.rings = 10
-	_part(root, dome, Vector3(0, 0.46, 0), iron, Vector3.ZERO, Vector3(1.0, 1.0, 1.04))
+	part(root, dome, Vector3(0, 0.46, 0), iron, Vector3.ZERO, Vector3(1.0, 1.0, 1.04))
 	var tip := SphereMesh.new()
 	tip.radius = 0.07
 	tip.height = 0.14
-	_part(root, tip, Vector3(0, 1.07, 0), brass)
+	part(root, tip, Vector3(0, 1.07, 0), brass)
 	# The leather band round the brow, with a row of brass rivets.
 	var band := TorusMesh.new()
 	band.inner_radius = 0.535
 	band.outer_radius = 0.615
 	band.rings = 24
 	band.ring_segments = 8
-	_part(root, band, Vector3(0, 0.5, 0), leather, Vector3.ZERO, Vector3(1.0, 1.4, 1.04))
+	part(root, band, Vector3(0, 0.5, 0), leather, Vector3.ZERO, Vector3(1.0, 1.4, 1.04))
 	var rivet := SphereMesh.new()
 	rivet.radius = 0.03
 	rivet.height = 0.06
@@ -88,13 +88,13 @@ static func build() -> Node3D:
 	rivet.rings = 4
 	for i in 11:
 		var a := deg_to_rad(-100.0 + i * 20.0) + PI * 0.0
-		_part(root, rivet, Vector3(sin(a) * 0.62, 0.5, cos(a) * 0.65), brass)
+		part(root, rivet, Vector3(sin(a) * 0.62, 0.5, cos(a) * 0.65), brass)
 	# A short crest on top, and a short brim at the front.
-	_part(root, _box(Vector3(0.09, 0.05, 0.5)), Vector3(0, 1.04, 0), dark, Vector3(0, 0, 0))
-	_part(root, _box(Vector3(0.62, 0.05, 0.3)), Vector3(0, 0.46, 0.7), dark, Vector3(-12, 0, 0))
+	part(root, _box(Vector3(0.09, 0.05, 0.5)), Vector3(0, 1.04, 0), dark, Vector3(0, 0, 0))
+	part(root, _box(Vector3(0.62, 0.05, 0.3)), Vector3(0, 0.46, 0.7), dark, Vector3(-12, 0, 0))
 	# The chin strap: a strap down in front of each ear, and a cup under the chin.
 	for side in [-1.0, 1.0]:
-		_part(root, _box(Vector3(0.06, 0.62, 0.14)), Vector3(0.55 * side, 0.2, 0.1), strap, Vector3(0, 0, -6.0 * side))
-		_part(root, _box(Vector3(0.05, 0.05, 0.05)), Vector3(0.58 * side, 0.2, 0.18), brass)
-	_part(root, _box(Vector3(1.04, 0.06, 0.16)), Vector3(0, -0.12, 0.22), strap)
+		part(root, _box(Vector3(0.06, 0.4, 0.14)), Vector3(0.55 * side, 0.34, 0.1), strap, Vector3(0, 0, -6.0 * side))
+		part(root, _box(Vector3(0.05, 0.05, 0.05)), Vector3(0.58 * side, 0.34, 0.18), brass)
+	part(root, _box(Vector3(1.04, 0.06, 0.16)), Vector3(0, 0.12, 0.22), strap)
 	return root

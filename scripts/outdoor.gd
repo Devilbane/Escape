@@ -97,12 +97,12 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
 const TEMPLE_KEEPER := "O"
-const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
+const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -199,8 +199,6 @@ const GROUND_CHUNK := 12
 ## see few lights each, and their lighting changes in small steps nobody notices.
 const GROUND_PIECE := 4
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
-## Where the temple's nest sits, on the stone ridge behind the spire (relative to the chapel, in metres).
-const TEMPLE_NEST := Vector3(0.0, 11.1, -1.5)
 ## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
 ## Pieces in the kit's own metres, with the door looking south (+z): name,
 ## where it stands and how far it is turned (degrees).
@@ -2542,8 +2540,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			# Its nest sits on the ridge behind the spire (the highest corner is the spire's own foot).
-			_dress_building(node, center, door_spots, 1.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW, node.global_position + node.global_transform.basis.orthonormalized() * TEMPLE_NEST)
+			# No nest on the temple: the spire stands at the front of its ridge and hides anything on it
+			# from the game camera; the nest goes to another roof instead.
+			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
 			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
@@ -3279,7 +3278,7 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST, nest_at := Vector3.INF) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
 	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
@@ -3301,9 +3300,13 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
 		panes.append_array(AgedStone.glass_boxes(tris))
 		var ivy_tris := tris
+		var roof_reach := 0.0
+		var density := AgedStone.IVY_DENSITY
 		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
 			ivy_tris = MageTower.ivy_faces(node, tris)
-		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
+			roof_reach = MageTower.IVY_ROOF_REACH + float(GuildHall.layout(node.get_meta("shape")).deck) + MageTower.TOP_H
+			density = MageTower.IVY_DENSITY # Three floors and a roof: more ivy than a house, to cover the top room too.
+		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines, density, roof_reach)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var stems: Array = leaves.get("stems", [])
@@ -3320,7 +3323,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
 			for w: Vector4 in warm_spots:
 				smoky.append(Vector3(w.x, w.y, w.z) + offset)
-			spot = nest_at if nest_at != Vector3.INF else AgedStone.nest_spot(tris, ground, smoky)
+			spot = AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
@@ -3981,7 +3984,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -4001,6 +4004,7 @@ func _spawn_villagers() -> void:
 				_build_chopping_log(v, c)
 				WoodLogs.build(self, c)
 	_spawn_pips_friend()
+	_spawn_street_sweeper()
 	WoodLogs.build_windfalls(self)
 
 
@@ -4014,6 +4018,21 @@ func _spawn_pips_friend() -> void:
 		return
 	var v := Villager.new()
 	v.setup(self, "pippi", c)
+	add_child(v)
+	v.global_position = cell_to_world(c)
+	villagers.append(v)
+	var station := {"kind": "npc", "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+	v.station = station
+	stations.append(station)
+
+
+## The street sweeper (see StreetSweeper) has no map letter either: he waits on a walkway near the square.
+func _spawn_street_sweeper() -> void:
+	var c := StreetSweeper.home_cell(self)
+	if c == Vector2i(-1, -1):
+		return
+	var v := Villager.new()
+	v.setup(self, StreetSweeper.ROLE, c)
 	add_child(v)
 	v.global_position = cell_to_world(c)
 	villagers.append(v)
@@ -4869,6 +4888,8 @@ func _process(delta: float) -> void:
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
 	temple_morning.tick(self, delta)
+	# The wind carries the swept leaves back over the walkways (see LeafSweep).
+	LeafSweep.advance(self)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:
@@ -5876,8 +5897,9 @@ func temple_room(node: Node3D) -> Rect2:
 	return Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z))
 
 
-## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth.
-const ROOM_MARGIN := 0.12
+## How far past a walk-in house's walls the ground stays bare of snow (metres): just its plinth, which
+## sticks out 0.05 m. The snow shader draws the walls exactly (see SnowCover.set_rooms).
+const ROOM_MARGIN := 0.05
 ## How high the rooms of a walk-in building reach (metres): its eaves (see VillageHouse._shape), so
 ## no snow lies on the upper floor's furniture and stairs; the roof over them keeps its snow.
 const WALK_IN_CEILING := VillageHouse.PLINTH + VillageHouse.GROUND + VillageHouse.UPPER - 0.05

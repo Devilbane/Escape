@@ -199,19 +199,94 @@ static func _open_tops(tris: Array, ground: float, lowest := LOWEST) -> Array:
 			continue
 		ups.append({"a": a, "b": b, "c": c, "n": n, "mid": (a + b + c) / 3.0, "area": t.area})
 	var open: Array = []
-	for t: Dictionary in ups:
+	var table := _table(ups)
+	var mids_y: PackedFloat64Array = table.mid_y
+	for i in ups.size():
+		var t: Dictionary = ups[i]
 		var mid: Vector3 = t.mid
 		var covered := false
-		for o: Dictionary in ups:
-			if o == t or (o.mid as Vector3).y < mid.y + 0.25:
+		var lo_x: PackedFloat64Array = table.lo_x
+		var hi_x: PackedFloat64Array = table.hi_x
+		var lo_z: PackedFloat64Array = table.lo_z
+		var hi_z: PackedFloat64Array = table.hi_z
+		for j in ups.size():
+			if j == i or mids_y[j] < mid.y + 0.25 or mid.x < lo_x[j] or mid.x > hi_x[j] or mid.z < lo_z[j] or mid.z > hi_z[j]:
 				continue
-			var over := _height_over(o, mid)
+			var over := _over(table, j, mid.x, mid.z)
 			if not is_nan(over) and over > mid.y + 0.25:
 				covered = true
 				break
 		if not covered:
 			open.append(t)
 	return open
+
+
+## The corners and the flat (x, z) box of every top in plain number arrays, so that the loops asking
+## "which top lies over this point" (see `_over`) skip most tops with two comparisons instead of reading
+## dictionaries. The answers are the same as `_height_over` gives.
+static func _table(tops: Array) -> Dictionary:
+	var n := tops.size()
+	var ax := PackedFloat64Array()
+	var ay := PackedFloat64Array()
+	var az := PackedFloat64Array()
+	var bx := PackedFloat64Array()
+	var by := PackedFloat64Array()
+	var bz := PackedFloat64Array()
+	var cx := PackedFloat64Array()
+	var cy := PackedFloat64Array()
+	var cz := PackedFloat64Array()
+	var lo_x := PackedFloat64Array()
+	var hi_x := PackedFloat64Array()
+	var lo_z := PackedFloat64Array()
+	var hi_z := PackedFloat64Array()
+	var mid_y := PackedFloat64Array()
+	for arr: PackedFloat64Array in [ax, ay, az, bx, by, bz, cx, cy, cz, lo_x, hi_x, lo_z, hi_z, mid_y]:
+		arr.resize(n)
+	for i in n:
+		var t: Dictionary = tops[i]
+		var a: Vector3 = t.a
+		var b: Vector3 = t.b
+		var c: Vector3 = t.c
+		ax[i] = a.x
+		ay[i] = a.y
+		az[i] = a.z
+		bx[i] = b.x
+		by[i] = b.y
+		bz[i] = b.z
+		cx[i] = c.x
+		cy[i] = c.y
+		cz[i] = c.z
+		# A little room round the box, so that rounding never drops a point on an edge.
+		lo_x[i] = minf(a.x, minf(b.x, c.x)) - 0.0001
+		hi_x[i] = maxf(a.x, maxf(b.x, c.x)) + 0.0001
+		lo_z[i] = minf(a.z, minf(b.z, c.z)) - 0.0001
+		hi_z[i] = maxf(a.z, maxf(b.z, c.z)) + 0.0001
+		mid_y[i] = (t.mid as Vector3).y
+	return {"ax": ax, "ay": ay, "az": az, "bx": bx, "by": by, "bz": bz, "cx": cx, "cy": cy, "cz": cz,
+			"lo_x": lo_x, "hi_x": hi_x, "lo_z": lo_z, "hi_z": hi_z, "mid_y": mid_y}
+
+
+## `_height_over` for top number i of a `_table`.
+static func _over(tab: Dictionary, i: int, px: float, pz: float) -> float:
+	if px < tab.lo_x[i] or px > tab.hi_x[i] or pz < tab.lo_z[i] or pz > tab.hi_z[i]:
+		return NAN
+	var ax: float = tab.ax[i]
+	var az: float = tab.az[i]
+	var v0x: float = tab.bx[i] - ax
+	var v0y: float = tab.bz[i] - az
+	var v1x: float = tab.cx[i] - ax
+	var v1y: float = tab.cz[i] - az
+	var v2x := px - ax
+	var v2y := pz - az
+	var den := v0x * v1y - v1x * v0y
+	if absf(den) < 0.000001:
+		return NAN
+	var u := (v2x * v1y - v1x * v2y) / den
+	var v := (v0x * v2y - v2x * v0y) / den
+	if u < 0.0 or v < 0.0 or u + v > 1.0:
+		return NAN
+	var ay: float = tab.ay[i]
+	return ay + u * (float(tab.by[i]) - ay) + v * (float(tab.cy[i]) - ay)
 
 
 ## The height of triangle `t` straight over (or under) `p`, or NAN when `p` is not under it.
@@ -243,18 +318,20 @@ static func _open_edges(tops: Array) -> Array:
 	var count := {}
 	for t: Dictionary in tops:
 		for pair: Array in [[t.a, t.b], [t.b, t.c], [t.c, t.a]]:
-			var ka := _key(pair[0])
-			var kb := _key(pair[1])
-			var k := [ka, kb] if str(ka) < str(kb) else [kb, ka]
+			var k := _edge_key(_key(pair[0]), _key(pair[1]))
 			count[k] = count.get(k, 0) + 1
+	var table := _table(tops)
+	var lo_x: PackedFloat64Array = table.lo_x
+	var hi_x: PackedFloat64Array = table.hi_x
+	var lo_z: PackedFloat64Array = table.lo_z
+	var hi_z: PackedFloat64Array = table.hi_z
 	var edges: Array = []
-	for t: Dictionary in tops:
+	for i in tops.size():
+		var t: Dictionary = tops[i]
 		for pair: Array in [[t.a, t.b], [t.b, t.c], [t.c, t.a]]:
 			var a: Vector3 = pair[0]
 			var b: Vector3 = pair[1]
-			var ka := _key(a)
-			var kb := _key(b)
-			var k := [ka, kb] if str(ka) < str(kb) else [kb, ka]
+			var k := _edge_key(_key(a), _key(b))
 			if count[k] > 1 or a.distance_to(b) < 0.08:
 				continue
 			var along := (b - a).normalized()
@@ -269,10 +346,10 @@ static func _open_edges(tops: Array) -> Array:
 			# A seam: another top carries on just beyond.
 			var beyond := mid + out * 0.12
 			var seam := false
-			for o: Dictionary in tops:
-				if o == t:
+			for j in tops.size():
+				if j == i or beyond.x < lo_x[j] or beyond.x > hi_x[j] or beyond.z < lo_z[j] or beyond.z > hi_z[j]:
 					continue
-				var h := _height_over(o, beyond)
+				var h := _over(table, j, beyond.x, beyond.z)
 				if not is_nan(h) and absf(h - mid.y) < 0.35:
 					seam = true
 					break
@@ -284,6 +361,12 @@ static func _open_edges(tops: Array) -> Array:
 			var eave: bool = Vector2(n.x, n.z).dot(Vector2(out.x, out.z)) > 0.25 and absf(a.y - b.y) < 0.2 * a.distance_to(b)
 			edges.append({"a": a, "b": b, "out": out, "n": n, "across": across, "eave": eave})
 	return edges
+
+
+## The same key for an edge whichever end is named first: the smaller corner key first.
+static func _edge_key(ka: Vector3i, kb: Vector3i) -> Array:
+	var swap := ka.x > kb.x or (ka.x == kb.x and (ka.y > kb.y or (ka.y == kb.y and ka.z > kb.z)))
+	return [kb, ka] if swap else [ka, kb]
 
 
 ## How deep the snow lies at each corner of the tops: deep on a wide roof, less on a narrow

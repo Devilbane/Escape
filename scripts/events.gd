@@ -122,6 +122,11 @@ signal mercy_prayed(restored: int)
 signal plot_registered(rect: Rect2i)
 
 
+## The hero looks on while the rock climber climbs (see ClimberNpc): the hours of game time
+## that passed. Enough of them make the Klettern skill ripe (see Game._on_climber_watched).
+signal climber_watched(hours: float)
+
+
 static var _bus: Events = null
 
 

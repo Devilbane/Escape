@@ -18,10 +18,13 @@ const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal
 
 ## How many burning spots the shader knows (see set_warm).
 const WARM_MAX := 32
+const HOUSE_SHADER := preload("res://shaders/snow_house.gdshader")
 ## Single meshes narrower than this (metres) take no snow (see tiny).
 const SMALLEST := 0.6
 
 var material := ShaderMaterial.new()
+## The overlay of the houses built from the kit: the same snow, and wind-blown patches on their walls.
+var house_material := ShaderMaterial.new()
 var root: Node
 var amount := 0.0
 ## How bright the light of the hour is on the snow, 0 night to 1 day (see set_amount).
@@ -40,11 +43,19 @@ var _cutouts := {}
 func _init(world: Node) -> void:
 	root = world
 	material.shader = SHADER
+	house_material.shader = HOUSE_SHADER
 	_all.append(material)
+	_all.append(house_material)
 	_all.append_array(SnowCaps.materials())
 	# The spruces' fronds draw their own snow (see spruce_needles.gdshader).
 	_all.append(Fern.material(true))
 	_param("amount", 0.0)
+
+
+## Sets a parameter on both overlays (the plain one and the houses').
+func _both(param: String, value: Variant) -> void:
+	material.set_shader_parameter(param, value)
+	house_material.set_shader_parameter(param, value)
 
 
 ## Sets a parameter on every snow material.
@@ -62,13 +73,15 @@ func set_sky_mask(roofed: Array, width: int, height: int, tile: float, ponds: Ar
 		img.set_pixel(c.x, c.y, Color(1, 0, 0, 1))
 	for c: Vector2i in ponds:
 		img.set_pixel(c.x, c.y, Color(0, 1, 0, 1))
-	material.set_shader_parameter("sky_mask", ImageTexture.create_from_image(img))
-	material.set_shader_parameter("grid_size", Vector2(width, height))
-	material.set_shader_parameter("tile", tile)
+	_both("sky_mask", ImageTexture.create_from_image(img))
+	_both("grid_size", Vector2(width, height))
+	_both("tile", tile)
 
 
 ## How many metres one pixel of the rooms mask stands for (see set_rooms).
 const ROOM_STEP := 0.5
+## How many rooms the shader can draw exactly (ROOM_MAX in snow_cover.gdshader).
+const ROOM_MAX := 48
 
 
 ## Keeps the snow off the rooms of the buildings one walks into (see Outdoor.walk_in_room): each
@@ -78,7 +91,7 @@ const ROOM_STEP := 0.5
 ## under the roof does.
 func set_rooms(rooms: Array, width: int, height: int, tile: float) -> void:
 	if rooms.is_empty():
-		material.set_shader_parameter("rooms_on", false)
+		_both("rooms_on", false)
 		return
 	var size := Vector2i(ceili(width * tile / ROOM_STEP), ceili(height * tile / ROOM_STEP))
 	var img := Image.create(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_RG8)
@@ -93,8 +106,22 @@ func set_rooms(rooms: Array, width: int, height: int, tile: float) -> void:
 			var low := clampf(float(entry[3]) / SHELTER_SCALE, 0.0, 1.0)
 			img.fill_rect(_pixels(over, origin).intersection(whole), Color(high, low, 0, 1))
 		img.fill_rect(_pixels(entry[0], origin).intersection(whole), Color(high, 0, 0, 1))
-	material.set_shader_parameter("room_mask", ImageTexture.create_from_image(img))
-	material.set_shader_parameter("rooms_on", true)
+	_both("room_mask", ImageTexture.create_from_image(img))
+	_both("rooms_on", true)
+	# The exact walls too (see the shader): the mask's pixels only follow them to within ROOM_STEP.
+	var exact := rooms.size() <= ROOM_MAX
+	if exact:
+		var rects := PackedVector4Array()
+		var extra := PackedVector4Array()
+		for entry: Array in rooms:
+			var r: Rect2 = entry[0]
+			rects.append(Vector4(r.position.x, r.position.y, r.end.x, r.end.y))
+			# Without an upper storey the grow is zero from any height.
+			extra.append(Vector4(float(entry[2]), float(entry[3]), 0, 0) if entry.size() > 3 else Vector4(0, 0, 0, 0))
+		_both("room_rects", rects)
+		_both("room_extra", extra)
+		_both("room_count", rects.size())
+	_both("rooms_exact", exact)
 
 
 ## The rooms mask's pixels that `r` (world x/z) covers (see set_rooms).
@@ -107,29 +134,29 @@ func _pixels(r: Rect2, origin: Vector2) -> Rect2i:
 ## Gives the snow the ponds' shore (see Outdoor._build_shore), so it stops where the water
 ## and the ice begin in the same curves as the ground draws them, not along the pond tiles.
 func set_shore(mask: Texture2D, reach: float) -> void:
-	material.set_shader_parameter("shore_mask", mask)
-	material.set_shader_parameter("shore_reach", reach)
-	material.set_shader_parameter("shore_on", mask != null)
+	_both("shore_mask", mask)
+	_both("shore_reach", reach)
+	_both("shore_on", mask != null)
 
 
 ## Keeps the snow off the cellars the hero has dug: `mask` has a pixel for each 2 m cell of the
 ## map (null when nothing is dug).
 func set_holes(mask: Texture2D) -> void:
-	material.set_shader_parameter("hole_mask", mask)
-	material.set_shader_parameter("holes_on", mask != null)
+	_both("hole_mask", mask)
+	_both("holes_on", mask != null)
 
 
 ## The ground the herald has swept bare (see SnowSweep): `mask` is the sweep mask, laid over the map like the holes'.
 func set_swept(mask: Texture2D) -> void:
-	material.set_shader_parameter("swept_mask", mask)
-	material.set_shader_parameter("swept_on", mask != null)
-	material.set_shader_parameter("swept_refill", SnowSweep.REFILL_HOURS)
-	material.set_shader_parameter("swept_step", SnowSweep.STEP)
+	_both("swept_mask", mask)
+	_both("swept_on", mask != null)
+	_both("swept_refill", SnowSweep.REFILL_HOURS)
+	_both("swept_step", SnowSweep.STEP)
 
 
 ## Hours of snowfall so far, the clock the swept ground fills in again by.
 func set_swept_fall(hours: float) -> void:
-	material.set_shader_parameter("swept_fall", hours)
+	_both("swept_fall", hours)
 
 
 ## How many metres one step of the shelter mask's red stands for, times 255 (see snow.gdshaderinc).
@@ -204,7 +231,7 @@ func set_amount(value: float, daylight_in := 1.0, moon := 0.0) -> void:
 ## Whether there is any snow on the world.
 ## Down in a cellar the surface's snow stays off whatever is left in view (see CellarView).
 func set_underground(on: bool) -> void:
-	material.set_shader_parameter("underground", on)
+	_both("underground", on)
 
 
 func lies() -> bool:
@@ -256,12 +283,26 @@ func _add(node: Node) -> void:
 		var has_mesh: bool = (gi is MeshInstance3D and (gi as MeshInstance3D).mesh != null) \
 				or (gi is MultiMeshInstance3D and (gi as MultiMeshInstance3D).multimesh != null)
 		if has_mesh and gi.material_overlay == null and not tiny(gi):
-			var over: ShaderMaterial = material if not cut_out(gi) else _cutout_for(gi)
+			var over: ShaderMaterial = (house_material if _of_house(gi) else material) if not cut_out(gi) else _cutout_for(gi)
 			if over != null:
 				gi.material_overlay = over
 				_meshes.append(gi)
+			
 	for child in node.get_children():
 		_add(child)
+
+
+## Whether a mesh belongs to a house built from the village's kit (the villagers' homes, the smith's
+## cottage, the town houses, the valley's farm houses), whose walls take wind-blown snow too.
+static func _of_house(gi: Node) -> bool:
+	var up: Node = gi.get_parent()
+	for i in 3:
+		if up == null:
+			return false
+		if up.has_meta("village_house") or up.has_meta("town_house"):
+			return true
+		up = up.get_parent()
+	return false
 
 
 ## Whether a single mesh is too small to show its coat of snow (pebbles, twigs, crumbs): left

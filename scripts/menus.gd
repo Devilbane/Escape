@@ -81,7 +81,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -403,6 +403,8 @@ func _rebuild() -> void:
 			CoopWindow.build(self)
 		PlotOffice.KIND:
 			PlotOffice.build(self)
+		ClimberNpc.KIND:
+			ClimberNpc.build(self)
 		Spooknortz.KIND:
 			Spooknortz.build(self)
 		"beenden":

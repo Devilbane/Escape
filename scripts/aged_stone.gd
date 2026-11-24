@@ -563,7 +563,7 @@ static func _on_wall(wall: Dictionary, p: Vector3) -> bool:
 ## `foot_max` lets ivy root on walls standing that high (the castle's towers
 ## start well above the ground). `windows` are the middles of window panes (world space): their middle
 ## stays clear of leaves, so the ivy frames a window but never covers it.
-static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, _patches := IVY_PATCHES, _old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, _roof_vines := 0, density := IVY_DENSITY) -> void:
+static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, rng: RandomNumberGenerator, leaves: Dictionary, _patches := IVY_PATCHES, _old := false, windows: Array = [], foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, _roof_vines := 0, density := IVY_DENSITY, roof_reach := 0.0) -> void:
 	# All ivy is one kind now: it climbs from the foot of the walls up to the eaves and over the
 	# roof, and how much of it there is comes from `density` alone (see IVY_DENSITY).
 	var old := true
@@ -645,7 +645,7 @@ static func grow_ivy(tris: Array, middle: Vector3, ground: float, doors: Array, 
 		grown += 1
 	# Vines across the roof itself, in branching patterns, at the same density.
 	# Roof vines belong to the roof faces within the wall vines' reach: ivy grows from the ground up.
-	var low_roofs := roofs.filter(func(t): return t.c.y < ground + OLD_IVY_HEIGHT.y * 0.6)
+	var low_roofs := roofs.filter(func(t): return t.c.y < ground + maxf(OLD_IVY_HEIGHT.y * 0.6, roof_reach))
 	var roof_area := 0.0
 	for t: Dictionary in low_roofs:
 		roof_area += ((t.b - t.a) as Vector3).cross(t.c - t.a).length() * 0.5
@@ -1096,7 +1096,11 @@ static func _roof_vine(roofs: Array, rng: RandomNumberGenerator, leaves: Diction
 ## way up its slope, the leaves lying flat on the tiles and thinning out.
 static func _creep_roof(p: Vector3, n: Vector3, roofs: Array, rng: RandomNumberGenerator, leaves: Dictionary) -> void:
 	# Only the roof faces close by are worth testing.
-	var near := roofs.filter(func(t): return _near_xz(t, p, 3.0))
+	var near: Array = []
+	for t: Dictionary in roofs:
+		var box: Vector4 = _roof_prep(t).box
+		if p.x > box.x - 3.0 and p.x < box.z + 3.0 and p.z > box.y - 3.0 and p.z < box.w + 3.0:
+			near.append(t)
 	if near.is_empty():
 		return
 	var on := {}
@@ -1225,9 +1229,22 @@ static func _in_window_room(at: Vector3, n: Vector3, windows: Array, room: float
 
 ## Whether a triangle's corners come within `r` (across the ground) of `p`.
 static func _near_xz(t: Dictionary, p: Vector3, r: float) -> bool:
-	var lo := Vector2(minf(t.a.x, minf(t.b.x, t.c.x)), minf(t.a.z, minf(t.b.z, t.c.z)))
-	var hi := Vector2(maxf(t.a.x, maxf(t.b.x, t.c.x)), maxf(t.a.z, maxf(t.b.z, t.c.z)))
-	return p.x > lo.x - r and p.x < hi.x + r and p.z > lo.y - r and p.z < hi.y + r
+	var box: Vector4 = _roof_prep(t).box
+	return p.x > box.x - r and p.x < box.z + r and p.z > box.y - r and p.z < box.w + r
+
+
+## Notes on a roof face (a triangle of `triangles`) what the roof loops ask over and over: the corners
+## flattened to the ground plane and the face's box there (x, z, x, z). Done once per face.
+static func _roof_prep(t: Dictionary) -> Dictionary:
+	if not t.has("box"):
+		var a: Vector3 = t.a
+		var b: Vector3 = t.b
+		var c: Vector3 = t.c
+		t["box"] = Vector4(minf(a.x, minf(b.x, c.x)), minf(a.z, minf(b.z, c.z)), maxf(a.x, maxf(b.x, c.x)), maxf(a.z, maxf(b.z, c.z)))
+		t["a2"] = Vector2(a.x, a.z)
+		t["b2"] = Vector2(b.x, b.z)
+		t["c2"] = Vector2(c.x, c.z)
+	return t
 
 
 ## The highest roof face straight above or below `p` with its surface
@@ -1236,8 +1253,12 @@ static func _roof_at(roofs: Array, p: Vector3, lo: float, hi: float) -> Dictiona
 	var best := {}
 	var q := Vector2(p.x, p.z)
 	for t: Dictionary in roofs:
+		_roof_prep(t)
+		var box: Vector4 = t.box
+		if p.x < box.x or p.x > box.z or p.z < box.y or p.z > box.w:
+			continue
 		var tn: Vector3 = t.n
-		if not Geometry2D.point_is_inside_triangle(q, Vector2(t.a.x, t.a.z), Vector2(t.b.x, t.b.z), Vector2(t.c.x, t.c.z)):
+		if not Geometry2D.point_is_inside_triangle(q, t.a2, t.b2, t.c2):
 			continue
 		# The face's height at this spot, from its plane.
 		var y: float = t.a.y - (tn.x * (p.x - t.a.x) + tn.z * (p.z - t.a.z)) / tn.y

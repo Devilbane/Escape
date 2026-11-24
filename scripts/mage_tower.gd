@@ -28,6 +28,10 @@ const TOP_H := 2.6
 const PEAK := 5.2
 const OVERHANG := 0.55
 const SPIRE := 1.6
+## How far up the pyramid roof ivy climbs from the eaves (metres): parts of the roof, not all of it.
+const IVY_ROOF_REACH := 2.8
+## The tower's ivy density (a house's is AgedStone.IVY_DENSITY).
+const IVY_DENSITY := 1.6
 ## The tapestries (metres across, high) and how high their lower edge hangs over the floor.
 const TAPESTRY := Vector2(2.0, 2.25)
 const TAPESTRY_FROM := 0.55
@@ -107,7 +111,8 @@ static func top_storey(shape: Dictionary, groups: Dictionary) -> void:
 
 ## The faces ivy may grow on at the tower (`tris` as AgedStone.triangles makes them): everything below
 ## the deck, and above it only the outer faces of the top room's walls, standing upright: not the
-## inner faces (a leaf would float in the room), nor the deck's rim, the wall tops or the roof.
+## inner faces (a leaf would float in the room), nor the deck's rim or the wall tops; and the sloping
+## tiles of the roof.
 static func ivy_faces(node: Node3D, tris: Array) -> Array:
 	var shape: Dictionary = node.get_meta("shape")
 	var lay := GuildHall.layout(shape)
@@ -122,6 +127,8 @@ static func ivy_faces(node: Node3D, tris: Array) -> Array:
 		var middle := (a + b + c) / 3.0
 		if maxf(a.y, maxf(b.y, c.y)) <= deck - 0.05:
 			return true
+		if middle.y >= deck + TOP_H and absf((t.n as Vector3).y) > 0.3 and absf((t.n as Vector3).y) < 0.97:
+			return true # A sloping tile of the pyramid roof (not its timber slab or the caps' flat tops).
 		if middle.y < deck + 0.1 or absf((t.n as Vector3).y) > 0.12:
 			return false
 		return absf(middle.x) >= half_w - 0.02 or absf(middle.z) >= half_d - 0.02)

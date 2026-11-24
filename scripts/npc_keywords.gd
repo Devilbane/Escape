@@ -21,6 +21,7 @@ const KINDS := {
 	"barbier": {"words": ["Haare", "Schnitt"], "secret": []},
 	"tempel": {"words": ["heilen", "segnen"], "secret": ["heilung", "segen"]},
 	"plot_office": {"words": ["Grundstück", "Bauland"], "secret": []},
+	"kletterer": {"words": ["Klettern", "handeln"], "secret": ["Fels", "Seil", "Berg", "rock", "rope", "mountain"]},
 }
 
 

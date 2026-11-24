@@ -5,7 +5,7 @@ extends SceneTree
 ## name: [camera offset from the tower's top room, look-at offset]
 const VIEWS := {
 	"front": [Vector3(0, 2.0, 17.0), Vector3(0, -1.5, 0)],
-	"corner": [Vector3(-12.0, 5.0, 12.0), Vector3(0, -1.5, 0)],
+	"high": [Vector3(-6.0, 9.0, 13.0), Vector3(0, 2.0, 0)],
 }
 ## season: [day, snow on the ground]
 const SEASONS := {

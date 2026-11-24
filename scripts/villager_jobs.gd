@@ -24,6 +24,7 @@ const JOBS := {
 	"pippi": "Ich hüte mit Pip die Gänse und die Ziegen. Und wir spielen Fangen!",
 	"8": "Ich bin Gelehrter. Ich lese, forsche und schreibe auf, was ich über die Gruft herausfinde.",
 	"9": "Ich bin Wasserträgerin. Ich hole frisches Wasser vom Brunnen und bringe es ins Dorf.",
+	"sweeper": "Ich bin Straßenfeger. Im Herbst kehre ich das Laub von den Wegen, im Winter schiebe ich den Schnee beiseite.",
 	"K": "Ich bin der Herold der Krone. Ich rufe auf dem Platz die Neuigkeiten aus.",
 	"µ": "Ich bin Raumausstatterin. Ich verkaufe Betten, Truhen, Regale und Kamine für dein Haus.",
 	"¢": "Ich bin der Amtmann. Ich trage Land ins Grundbuch ein, damit du bauen kannst.",
@@ -39,6 +40,7 @@ const JOBS := {
 	"ψ": "Ich bin Bäuerin im Tal. Ich säe, jäte, hole Wasser und bringe die Ernte ein, und nebenbei koche ich.",
 	"χ": "Ich bin Knecht auf dem Hof. Ich schleppe Säcke und Wasser, hacke Holz und flicke, was kaputt ist.",
 	"ω": "Meine Arbeit? Ich helfe Mama! Und ich jage die Krähen!",
+	"κ": "Ich bin Kletterer. Ich steige die Wand dort hinauf, ruhe oben aus und steige wieder ab. Jeden Tag, bei jedem Wetter.",
 	"λ": "Ich bin Hirte. Ich hüte die Schafe im Tal und achte darauf, dass keins im Mais landet.",
 	"%": "Ich bin Wanderhändler. Ich komme jede dritte Nacht mit seltenen Waren ins Dorf.",
 }

@@ -96,8 +96,14 @@ func _ivy_count(lvl: Outdoor) -> int:
 	return n
 
 
+## The roof of a house: the part of its floor-above group that always shows from outside (the first
+## part is a hatch lid that stays hidden on purpose).
+func _roof(rec: Dictionary) -> Node3D:
+	return (rec.node as Node3D).get_node("WalkRoof") as Node3D
+
+
 func _houses(lvl: Outdoor) -> Array:
-	# The villagers' own four, not the smith's cottage (see SmithCottage).
+	# The villagers' own houses (the village's four and the farmers' four in the valley), not the smith's cottage (see SmithCottage).
 	return lvl.walk_in.buildings.filter(func(r): return r.kind == "house" and not r.has("owner"))
 
 
@@ -132,7 +138,7 @@ func _run() -> void:
 	var walk_in: WalkIn = lvl.walk_in
 	var houses := _houses(lvl)
 	var temples := walk_in.buildings.filter(func(r): return r.kind == "temple")
-	check(houses.size() == 4, "the four villagers' houses can be walked into (%d)" % houses.size())
+	check(houses.size() + walk_in.buildings.filter(func(r): return r.kind == "house" and r.has("owner")).size() == solid_boxes.size() and houses.size() >= 4, "every house of the village and the valley can be walked into (%d, %d blocks with the smith's cottage)" % [houses.size(), solid_boxes.size()])
 	check(temples.size() == 1, "the temple can be walked into")
 	check(not lvl.is_opaque(solid_tile), "a walk-in house's block no longer hides by itself (its walls do)")
 
@@ -212,7 +218,7 @@ func _run() -> void:
 	check(not walk_in.building_at(hero.global_position).is_empty(), "the hero walks in through the door (%s)" % hero.global_position)
 	check(absf(hero.global_position.y - float(rec.floor)) < 0.2, "and stands on the floor (%.2f)" % hero.global_position.y)
 	check(walk_in.hero_in.get("node") == house, "the house knows the hero is inside")
-	check(not WalkIn.drawn(rec.up[0] as Node3D), "the floor above and the roof are hidden")
+	check(not WalkIn.drawn(_roof(rec)), "the floor above and the roof are hidden")
 	check(not (rec.front[0] as Node3D).visible, "the front wall is hidden")
 	check((rec.lamp as OmniLight3D).visible, "the lamp is lit")
 	check(lvl.is_sheltered(hero.global_position) and lvl.hero_indoors, "inside, the weather stays out")
@@ -231,7 +237,7 @@ func _run() -> void:
 	check(lvl.blow_blocked(out_window + Vector3(-5.0, 0, 0), by_window), "but no blow lands through its pane")
 	await _walk(-inward, 4.0)
 	check(walk_in.building_at(hero.global_position, 0.3).is_empty(), "and walks out again (%s)" % hero.global_position)
-	check(WalkIn.drawn(rec.up[0] as Node3D) and (rec.front[0] as Node3D).visible, "outside, the house is whole again")
+	check(WalkIn.drawn(_roof(rec)) and (rec.front[0] as Node3D).visible, "outside, the house is whole again")
 	check(not (rec.lamp as OmniLight3D).visible, "the lamp is out")
 
 	# A click inside walks round through the door.
@@ -325,7 +331,7 @@ func _run() -> void:
 	_place(behind_node.global_position + Vector3(0, 0.1, behind_d * 0.5 + 6.0))
 	game._snap_camera()
 	await _wait(60)
-	check(not bool(behind_rec.get("roof_off", false)) and behind_rec.up.all(func(p): return not is_instance_valid(p) or WalkIn.drawn(p as Node3D)),
+	check(not bool(behind_rec.get("roof_off", false)) and WalkIn.drawn(_roof(behind_rec)),
 			"in front of it again the roof is back")
 
 	# --- The villagers' night ------------------------------------------------------------
@@ -365,22 +371,31 @@ func _run() -> void:
 		elif v.role == VillageHalls.KEEPERS.guild:
 			# Ragna sleeps in the guildhall's cellar (see GuildHall, tests/guild_hall.gd).
 			check(home.get("owner", "") == VillageHalls.KEEPERS.guild, "Ragna sleeps in her own guildhall")
+		elif v.role == VillageHalls.KEEPERS.tavern:
+			# The brewer sleeps in the tavern's loft (see WalkIn._loft).
+			check(home.get("owner", "") == VillageHalls.KEEPERS.tavern, "the brewer sleeps in his tavern's loft")
 		elif v.role in MageTower.OWNERS:
 			check((home.get("owners", []) as Array).has(v.role), "%s sleeps in the mages' tower" % v.role)
 		else:
-			check(not home.has("owner"), "%s does not sleep in the smith's cottage or the guildhall" % v.role)
+			check(not home.has("owner"), "%s does not sleep in the smith's cottage, the guildhall or the tavern" % v.role)
 	# Morning: everyone walks out.
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)
-	await _wait(60 * 90) # Getting up takes its time: the stretch, the yawn, the ladder, three floors of stairs.
-	var still := lvl.villagers.filter(func(v): return not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed()))
+	# Getting up takes its time: the stretch, the yawn, the ladder, three floors of stairs.
+	for k in 60 * 240:
+		await physics_frame
+		if k > 60 * 90 and lvl.villagers.all(func(v): return v.role in MageTower.OWNERS or (v.bed_trip.is_empty() and not (v.at_home and v.goes_to_bed()))):
+			break
+	# (The mages come down their tower in their own time, see tests/mage_tower.gd.)
+	var still := lvl.villagers.filter(func(v): return not (v.role in MageTower.OWNERS) and (not v.bed_trip.is_empty() or (v.at_home and v.goes_to_bed())))
 	check(still.is_empty(), "in the morning everyone is out of the houses again (%s)" % [still.map(func(v): return v.role + ":" + String(v.bed_trip.get("step", "")))])
-	check(lvl.villagers.all(func(v): return v.global_position.y < 0.3), "and back on the ground")
+	check(lvl.villagers.all(func(v): return v.global_position.y < 1.5), "and back on the ground, not up on a floor above (%s)" % [lvl.villagers.filter(func(v): return v.global_position.y >= 1.5).map(func(v): return "%s %s" % [v.role, v.global_position])])
 	check(lvl.villagers.all(func(v): return not v.is_known() or v.get("_name_tag").visible), "awake again, the names are back over the heads")
 	# One walks home and to bed.
 	var sleeper: Villager = null
 	for v: Villager in lvl.villagers:
-		if v.goes_to_bed():
+		# One who sleeps in an ordinary house (not the smith, the guildmistress, the brewer or the mages).
+		if v.goes_to_bed() and not v.bed_trip.get("house", {}).has("owner") and not v.bed_trip.get("house", {}).has("owners") and v.role != VillageHalls.KEEPERS.tavern and not v.role in MageTower.OWNERS and v.role != SmithCottage.OWNER and v.role != VillageHalls.KEEPERS.guild and v.role != "ü":
 			sleeper = v
 			break
 	sleeper.global_position = sleeper.house_door()

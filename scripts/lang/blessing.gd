@@ -40,7 +40,6 @@ const EN := {
 	"Wähle einen Gott und lass dich von Elsbeth segnen. Der Segen schützt dich, solange du ihn hast.": "Choose a god and let Elsbeth bless you. The blessing helps you for as long as you have it.",
 	"Elsbeth legt die Hand auf deine Stirn: %s segnet dich.": "Elsbeth lays her hand on your brow: %s blesses you.",
 	"Du bist nun gesegnet von %s.": "You are now blessed by %s.",
-	"Dagegenlaufen, um mit %s über den Segen der Götter zu reden": "Run into %s to talk about the gods' blessing",
 	# The character page and the rescue.
 	"Ungesegnet": "Unblessed",
 	"Im Tempel des Dorfes segnet dich Priesterin Elsbeth im Namen eines Gottes.": "In the village temple Priestess Elsbeth blesses you in the name of a god.",

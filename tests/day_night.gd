@@ -188,12 +188,17 @@ func _at_night() -> void:
 	mira.global_position = game.level.cell_to_world(mira.home)
 	game.level.set_hour(22.0)
 	check(mira.visible and mira._task == "walk", "at nightfall the shopkeeper walks home")
-	# Out in the dark on honest business, villagers carry torches.
+	# Out in the dark on honest business, villagers carry torches, but each lights theirs at its own moment.
 	mira._mind_torch(0.1)
+	var first_wait: float = mira._light_wait
+	check(first_wait > 0.0 and first_wait < Villager.LIGHT_SPREAD, "the shopkeeper waits a while before lighting her torch (%.1f s)" % first_wait)
+	for i in 400:
+		mira._mind_torch(0.1) # Nobody lights up at once (Villager.LIGHT_SPREAD).
 	check(mira.carries_torch() and mira._torch.visible and mira._torch_light.visible, "the shopkeeper walks home with a torch")
 	var guard := _villager("4")
 	if guard != null:
-		guard._mind_torch(0.1)
+		for i in 400:
+			guard._mind_torch(0.1)
 		check(guard.carries_torch() and guard._torch_light.visible and guard._torch_light.light_energy > Villager.TORCH_ENERGY * 0.7, "the guard keeps watch with a burning torch")
 		check(guard._torch_hidden.all(func(n): return not n.visible), "the guard puts away his shield to hold the torch")
 	var drinker := _villager("5")

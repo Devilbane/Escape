@@ -88,6 +88,8 @@ const FACE_GAP := 0.01
 ## How far a cellar wall stops under a cellar ceiling: inside the ceiling's
 ## thickness, so the ceiling hides its top.
 const CEILING_GAP := HouseSketch.COVER_THICK * 0.5
+## How far a cellar ceiling is drawn above the ground level it is walked on at (metres, see _cellar_ceiling).
+const CEILING_LIFT := 0.02
 ## The doorway: high enough for the hero to walk through upright (2.4 m with
 ## their reach, see Player.tall), under a timber lintel up to the wall's top;
 ## stone jambs JAMB wide at each side.
@@ -1707,7 +1709,10 @@ func _cellar_ceiling(house: HouseSketch, x: int, y: int, piece: Dictionary) -> v
 	var thick := HouseSketch.COVER_THICK
 	var at := house.cell_world(x, y) + Vector3(0, -thick * 0.5, 0)
 	var size := Vector3(HouseSketch.CELL, thick, HouseSketch.CELL)
-	_floor_box(at, size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH, true)
+	# Drawn a hair above the ground (CEILING_LIFT): its top lay exactly in the ground's plane, so the
+	# snow on the ceiling and the snow on the ground fought over the same depth and thin lines along
+	# the ceiling's edges flickered through. The hero still walks on the ground's level.
+	_floor_box(at + Vector3(0, CEILING_LIFT, 0), size, piece.get("surface", "wood"), piece.state == HouseSketch.DEMOLISH, true)
 	_collide(at, size)
 	# The mesh: fades away while the hero is in the cellar below it. It went where the cellar is
 	# drawn into (the houses' own pieces, or the bank's and the mine's, see _draw_once).

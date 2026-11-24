@@ -1,0 +1,1 @@
+- Villagers with a window (shops, the bank, barber, temple, land office) now open it when you say a word to them in chat, such as "trade" or "heal". Running into them no longer opens it; they tell you which words they answer to.

@@ -100,6 +100,8 @@ const VALLEY_FROM := 43
 const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
+## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
+const TEMPLE_KEEPER := "O"
 const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
@@ -2524,7 +2526,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
+			# No nest on the temple: its ridge is a wide stone beam under the spire that half hides one.
+			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
 			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
@@ -4152,6 +4155,9 @@ func _build_forge(cell: Vector2i) -> void:
 ## out from there and wait there after closing time; else their own tile.
 func _keeper_home(role: String, cell: Vector2i) -> Vector2i:
 	var kind := VillageHalls.kept_by(role)
+	# The priestess waits at the temple's porch, to one side of the way in, never in its doorway.
+	if role == TEMPLE_KEEPER:
+		kind = "temple"
 	if kind == "":
 		return cell
 	for rec in walk_in.buildings:

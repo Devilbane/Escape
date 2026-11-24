@@ -339,10 +339,10 @@ void fragment() {
 			if (shore_on && frozen > 0.4) {
 				vec4 under = under_ice(p, TIME);
 				float seen = frozen * smoothstep(0.7, 1.6, shore);
-				vec3 seen_col = mix(under.rgb * 0.75, ice_color * 0.85, 0.4);
-				// The frost over them thins out, so they show through; the ice softens their edges.
-				sheet = mix(sheet, ice_color * 0.72, under.a * seen * 0.55);
-				sheet = mix(sheet, seen_col, under.a * seen * 0.85);
+				// Deep under the ice: faint shapes, mostly the colour of the ice itself.
+				vec3 seen_col = mix(under.rgb * 0.6, ice_color * 0.8, 0.65);
+				sheet = mix(sheet, ice_color * 0.8, under.a * seen * 0.22);
+				sheet = mix(sheet, seen_col, under.a * seen * 0.42);
 			}
 			pond = mix(pond, sheet, frozen);
 		}

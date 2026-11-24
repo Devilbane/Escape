@@ -110,6 +110,7 @@ func _run() -> void:
 	check(seen.has("leap"), "it leaps up onto the perch (%s)" % str(seen))
 	check(cat.global_position.distance_to(cat.perch_top) < 0.05, "the sleeping cat lies on the perch's face (%s vs %s)" % [cat.global_position, cat.perch_top])
 	await _wait(120)
+	check(cat._sleeper.visible and not cat._body.visible, "asleep it shows the curled-up sleeping model")
 	await _shot("cat_nap", cat, Vector3(1.3, 0.7, 1.6), Vector3(0, 0.1, 0))
 	await _shot("cat_nap_wide", cat, Vector3(-3.0, 2.0, 6.0), Vector3(0, 0, 0))
 	# It purrs when the hero comes close, and not when the hero is away.
@@ -132,9 +133,12 @@ func _run() -> void:
 	check(bh - bl < 0.0001, "the body does not bob either (%.5f)" % (bh - bl))
 	check(high - low < 0.0001, "the sleeping cat does not bounce (%.5f)" % (high - low))
 	check(cat.global_position.distance_to(cat.perch_top) < 0.0001, "it stays put on the perch while purring")
+	check(cat._purr_player != null and cat._purr_player.playing, "the purr is heard (a looping sound) while she purrs")
+	check(cat._purr_player.volume_db < -10.0 and cat._purr_player.volume_db > -30.0, "the purr is soft (%.1f dB)" % cat._purr_player.volume_db)
 	hero.global_position = cat.perch_top + cat.out_dir * 14.0
 	await _wait(120)
 	check(cat._purring < 0.1, "it stops purring when the hero leaves")
+	check(not cat._purr_player.playing, "the purr falls silent when the hero is away")
 	# By night it sleeps on; by day, once rested, it stretches and hops down.
 	_set_hour(23.0)
 	cat._timer = 0.1

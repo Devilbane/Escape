@@ -47,6 +47,7 @@ varying vec3 tint;
 varying vec3 rest_pos;
 varying vec3 rest_normal;
 varying float shade;
+varying float cap;
 
 // A number from 0 to 1 for `p`, the same every time.
 float rand(vec2 p) {
@@ -83,6 +84,8 @@ void vertex() {
 	rest_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	rest_normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	shade = COLOR.r;
+	// How near the tree's tip (see Fern.CAP_DEPTH): its snow cap.
+	cap = COLOR.a;
 
 	// Nothing near the trunk moves; the outer branches move most.
 	float give = smoothstep(0.12, 1.3, r);
@@ -111,7 +114,11 @@ void fragment() {
 		// a looser level test, so it takes snow on its steeper fronds, and a head start on `lies`.
 		float crown = smoothstep(0.75, 1.0, tier);
 		level = max(level, crown * smoothstep(0.3, 0.7, rest_normal.y));
-		float lies = level * above * amount * 0.85 + (n - 0.5) * 0.55 + (tier - 0.5) * 0.25 + crown * 0.2;
+		// The snow cap: the tip and the upper tiers take snow on their steeper fronds too, and
+		// farther along them, so a small white hat sits on the tree top.
+		float hat = smoothstep(0.2, 1.0, cap) * smoothstep(0.0, 0.25, amount);
+		level = max(level, hat * smoothstep(0.1, 0.5, rest_normal.y));
+		float lies = level * above * amount * 0.85 + (n - 0.5) * 0.55 + (tier - 0.5) * 0.25 + crown * 0.2 + hat * 0.35;
 		if (lies > 0.5 && !snow_melted(rest_pos, n) && !snow_sheltered(rest_pos)) {
 			vec3 snow_albedo;
 			vec3 snow_normal;
@@ -127,9 +134,9 @@ void fragment() {
 			if (far_model) {
 				wide *= 0.58;
 			}
-			wide += crown * 0.12;
+			wide += crown * 0.12 + hat * 0.16;
 			float ridge = 1.0 - smoothstep(wide - 0.03, wide, abs(UV.x - 0.5));
-			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3 - crown * 0.25, 0.45 - crown * 0.25, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
+			float thick = smoothstep(0.5, 0.53, lies) * ridge * smoothstep(0.3 - max(crown, hat) * 0.25, 0.45 - max(crown, hat) * 0.25, UV.y) * smoothstep(1.0, 0.85, UV.y) * mix(0.85, 1.0, tex.r);
 			ALBEDO = mix(ALBEDO, snow_albedo, thick);
 			EMISSION = snow_glow * thick;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY

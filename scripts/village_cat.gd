@@ -27,6 +27,9 @@ const LEAP_TIME := 0.75
 const CROUCH_TIME := 0.5
 ## It purrs when the hero is nearer than this (metres).
 const PURR_RANGE := 5.5
+## The purr's loudest (dB) with the hero beside the cat: soft, under the village's other sounds.
+const PURR_DB := -17.0
+const PURR_SOUND := "res://assets/sounds/cat_purr.wav"
 ## Night naps all night: from this hour in the evening till this hour in the morning.
 const BEDTIME := 21.5
 const RISE := 6.0
@@ -39,7 +42,7 @@ const STROLLS_WINTER := 1
 
 const GINGER := Color(0.86, 0.5, 0.2)
 const DARK := Color(0.62, 0.3, 0.1)
-const CREAM := Color(0.96, 0.88, 0.76)
+const CREAM := Color(0.88, 0.78, 0.64)
 
 ## "stroll" (walking somewhere), "sit" (looking about), "to_perch" (walking to its foot),
 ## "crouch", "leap" (up onto its perch), "settle" (treading its spot), "nap", "stretch" and
@@ -68,6 +71,10 @@ var _tail: Array[Node3D] = []
 var _ears: Array[Node3D] = []
 var _eyes: Array[Node3D] = []
 var _belly: MeshInstance3D
+## The model of the cat curled up asleep (see CatSleeper) and its flicking tail tip and ears.
+var _sleeper: Node3D
+var _sleep_tip: Node3D
+var _sleep_ears: Array[Node3D] = []
 ## Blend values, 0 to 1: curled up, sitting, crouched / flying, stretching, eyes shut.
 var _curl := 0.0
 var _sit := 0.0
@@ -83,6 +90,8 @@ var _flick_in := 3.0
 var _twitch := 0.0
 var _twitch_in := 5.0
 var _purring := 0.0
+## The purr's sound: a soft loop that fades in as the hero comes near and out as they go (see _hum).
+var _purr_player: AudioStreamPlayer3D
 ## The phase of its breathing; it speeds up a little only while it purrs.
 var _breath := 0.0
 
@@ -180,10 +189,8 @@ func _stick(parent: Node3D, at: Vector3, radius: float, length: float, colour: C
 
 
 func _paint(colour: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = colour
-	mat.roughness = 1.0
-	return mat
+	# The coat's colours get the fur texture; the eyes, nose and ears' insides stay plain.
+	return CatSleeper.paint(colour, colour in [GINGER, DARK, CREAM])
 
 
 func _joint(parent: Node3D, at: Vector3) -> Node3D:
@@ -198,6 +205,11 @@ func _build() -> void:
 	var root := Node3D.new()
 	root.scale = Vector3.ONE * SIZE
 	add_child(root)
+	var asleep := CatSleeper.build(root)
+	_sleeper = asleep.root
+	_sleep_tip = asleep.tip
+	_sleep_ears.assign(asleep.ears)
+	_sleeper.visible = false
 	_body = _joint(root, Vector3(0, 0.3, 0))
 	# The trunk: one long ellipsoid, a lighter belly under it and a cream bib at the chest.
 	_ball(_body, Vector3(0, 0, 0), Vector3(0.17, 0.16, 0.34), GINGER)
@@ -321,6 +333,7 @@ func _physics_process(delta: float) -> void:
 		global_position = perch_top
 	var calm_hero: bool = away < PURR_RANGE and not hero.get("dead")
 	_purring = move_toward(_purring, 1.0 if (calm_hero and state == "nap") else 0.0, delta * 2.0)
+	_hum()
 	_flick_in -= delta
 	if _flick_in <= 0.0:
 		_flick = 1.0
@@ -377,6 +390,30 @@ func _physics_process(delta: float) -> void:
 		"hop":
 			_fly(delta, false)
 	_pose(delta)
+
+
+## The purr as sound: a looped soft rumble from the cat, fading in with how near the hero is (the
+## same share as the purr of its body) and out again, stopped when it is quiet. It is played from the
+## cat's spot without fading with the camera's distance, so the volume is chosen here.
+func _hum() -> void:
+	if _purring < 0.02:
+		if _purr_player != null and _purr_player.playing:
+			_purr_player.stop()
+		return
+	if _purr_player == null:
+		var stream := (load(PURR_SOUND) as AudioStreamWAV).duplicate() as AudioStreamWAV
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		stream.loop_begin = 0
+		stream.loop_end = stream.data.size() / 2
+		_purr_player = AudioStreamPlayer3D.new()
+		_purr_player.stream = stream
+		_purr_player.bus = Sfx.BUS
+		_purr_player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+		_purr_player.panning_strength = 1.0
+		add_child(_purr_player)
+	_purr_player.volume_db = PURR_DB + linear_to_db(_purring)
+	if not _purr_player.playing:
+		_purr_player.play()
 
 
 ## Face the hero when they are near, a calm cat watching. Otherwise stay as it is.
@@ -507,6 +544,16 @@ func _pose(delta: float) -> void:
 	body_y = lerpf(body_y, 0.13, _curl)
 	var body_scale := Vector3(1.0 + 0.3 * _curl, 1.0 - 0.28 * _curl, 1.0 - 0.38 * _curl)
 	body_scale.y *= breathe
+	# Curled up it is the sleeping model instead: it breathes, its tail tip flicks, an ear twitches.
+	var asleep := _curl >= 0.5
+	_sleeper.visible = asleep
+	_body.visible = not asleep
+	if asleep:
+		var lie := smoothstep(0.5, 1.0, _curl)
+		_sleeper.scale = Vector3(1.0, lerpf(0.75, 1.0, lie) * breathe, 1.0)
+		_sleep_tip.rotation.y = sin(_flick * PI * 3.0) * _flick * 0.45
+		_sleep_ears[1].rotation.z = 0.45 + sin(_twitch * PI) * 0.25
+		_sleep_ears[0].rotation.z = -0.45
 	_body.position = Vector3(0.0, body_y, 0.0)
 	_body.rotation = Vector3(body_pitch * up, 0.0, body_roll * up)
 	_body.scale = body_scale

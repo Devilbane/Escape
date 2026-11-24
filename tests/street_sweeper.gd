@@ -112,6 +112,31 @@ func _run() -> void:
 		again += LeafSweep.leaves_near(lvl, p, LeafSweep.REACH)
 	check(again == before, "the walkway is strewn as before (%d)" % again)
 
+	# One stretch after the other: he does not stop after the first, and the square is last.
+	var clear := Callable(LeafSweep, "is_clear").bind(lvl)
+	var cells := {}
+	var stretches := 0
+	var square_at := -1
+	for round in 80:
+		var next := SnowSweep.route(lvl, sweeper.home, rng, clear)
+		if next.is_empty():
+			break
+		stretches += 1
+		var on_square := false
+		for k in next.size() - 1:
+			var heading := (next[k + 1] - next[k]).normalized()
+			for swing in [-1.0, -0.5, 0.0, 0.5, 1.0]:
+				var head: Vector3 = next[k] + heading * 0.85 + heading.cross(Vector3.UP) * swing * LeafSweep.SWING
+				LeafSweep.stamp(lvl, head, next[k], heading)
+			cells[lvl.world_to_cell(next[k])] = true
+		on_square = lvl.cell_char(lvl.world_to_cell(next.back())) == SurfaceLife.SQUARE
+		if on_square and square_at < 0:
+			square_at = stretches
+	check(stretches >= 3, "he works through several stretches, not one (%d, %d cells)" % [stretches, cells.size()])
+	check(square_at < 0 or square_at > 5, "the square waits until the footpaths are done (square from stretch %d)" % square_at)
+	check(cells.size() >= 40, "he covers many walkway tiles (%d)" % cells.size())
+	LeafSweep.restore_all()
+
 	# Sent out, he sweeps the route.
 	sweeper._sweep_after = 0.0
 	check(sweeper._sweep_out(), "he sets out with the broom")

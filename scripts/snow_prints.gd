@@ -9,9 +9,13 @@ extends RefCounted
 
 ## At most this many prints at once. When the pool is full the oldest print of the least
 ## important kind goes first (see PRIORITY), so the hero's own boots outlast the beetles' dots.
-const MAX := 1600
+const MAX := 1900
 ## Which kinds are kept longest when the pool is full.
 const PRIORITY := {"bug": 0, "bird": 1, "paw": 2, "hoof": 2, "boot": 3, "hero": 4}
+## Each group of prints has its own room, so the crowd of villagers' boots cannot push the animals' tracks out
+## (and the other way round): when a group is full, its own oldest print goes.
+const GROUP := {"boot": "foot", "hero": "hero", "paw": "animal", "hoof": "animal", "bird": "animal", "bug": "bug"}
+const ROOM := {"foot": 700, "hero": 300, "animal": 700, "bug": 200}
 ## Just above the snow, which lies up to SnowCover's 0.06 m over the ground when it is deep
 ## (snow_cover.gdshader lifts it by 0.03 + 0.03 * amount); lower prints are buried in it.
 const HEIGHT := 0.085
@@ -134,6 +138,13 @@ static func _drop_one() -> void:
 	gone.queue_free()
 
 
+## Frees one given print (the oldest of its group).
+static func _drop_oldest(gone: Node) -> void:
+	_live.erase(gone)
+	_records.erase(gone.get_meta("print_rec", null))
+	gone.queue_free()
+
+
 ## A broom swept the ground within `radius` metres of `at` (see SnowSweep): the prints there are gone with the snow.
 ## Prints up on a roof stay.
 static func wipe(at: Vector3, radius: float) -> void:
@@ -195,6 +206,10 @@ static func restore(world: Node3D) -> void:
 static func leave(world: Node3D, at: Vector3, heading: float, size := 1.0, kind := "boot", _daylight := 1.0, up := Vector3.ZERO) -> MeshInstance3D:
 	restore(world)
 	_live = _live.filter(func(n): return is_instance_valid(n))
+	var group: String = GROUP.get(kind, "foot")
+	var same := _live.filter(func(n): return GROUP.get(String((n as Node).get_meta("print_kind", "boot")), "foot") == group)
+	if same.size() >= int(ROOM[group]):
+		_drop_oldest(same[0])
 	while _live.size() >= MAX:
 		_drop_one()
 	var rec := [kind, at.x, at.z, heading, size]

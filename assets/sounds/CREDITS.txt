@@ -151,3 +151,6 @@ Wooden stair steps (stair_up_0 to stair_up_5, stair_down_0 to stair_down_5): mad
 "Yawn" by spookymodem (https://opengameart.org/content/yawn), licensed CC-BY 3.0
 (https://creativecommons.org/licenses/by/3.0/): the yawn on waking up (yawn.ogg: converted to mono Ogg Vorbis, the
 end faded out).
+
+The village cat's purr (cat_purr): made from scratch by tools/make_cat_purr.py (damped low tones and filtered noise,
+no recordings), so it has no licence to credit.

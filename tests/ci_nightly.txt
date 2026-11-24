@@ -203,3 +203,4 @@ hall_seats.gd | 200 | fixed | passfail | Chairs, stools, benches and sofas of th
 river_bridge_shots.gd | 200 | fixed | pass | The valley bridge lands on both banks with no seam between its halves; leaves, sticks and fish show under the winter ice
 house_snow_shots.gd | 600 | fixed | pass | Snow dusting on the lintel, sills, beams and doorstep of the mason's house (screenshots)
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop
+water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on the beam, swing, and her round from the fountain to the shops and the tavern

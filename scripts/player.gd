@@ -3099,6 +3099,11 @@ func climbing_level() -> int:
 	return maxi(Climbing.MIN_LEVEL, skill("klettern"))
 
 
+## How long (seconds) the wall contact of a push out of a pit may drop out without ending the push.
+const PIT_GAP := 0.12
+var _pit_gap := 0.0
+
+
 ## Scrambles out of a pit with no stairs: pushing against its wall for a moment
 ## pulls the hero up onto the ground beyond (a slow climb, so stairs stay the
 ## quick way). Returns true when the climb starts.
@@ -3114,6 +3119,12 @@ func _try_climb_out(dir: Vector3, delta: float) -> bool:
 		if absf(hit.get_normal().y) < 0.5 and push.dot(-hit.get_normal()) > 0.5 and not hit.get_collider() is Enemy:
 			wall = true
 			break
+	if dir != Vector3.ZERO and not wall and _pit_push > 0.0 and _pit_gap < PIT_GAP and not _under_ceiling():
+		# Pressed against the wall the contact drops out for a physics tick now and then: the hold rides
+		# over such a gap (as on a rock face) instead of starting again from nothing.
+		_pit_gap += delta
+		return false
+	_pit_gap = 0.0
 	if dir == Vector3.ZERO or not wall or _under_ceiling():
 		_pit_push = 0.0
 		return false

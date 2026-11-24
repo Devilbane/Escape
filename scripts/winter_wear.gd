@@ -47,6 +47,7 @@ const HAT_OF := {
 	"7": {"hat": "bobble", "cloth": Color(0.27, 0.42, 0.82), "trim": Color(0.97, 0.8, 0.27)},
 	"pippi": {"hat": "earflap", "cloth": Color(0.84, 0.26, 0.28), "trim": Color(0.97, 0.95, 0.9)},
 	"9": {"hat": "earflap", "cloth": Color(0.26, 0.5, 0.6), "trim": Color(0.97, 0.95, 0.9)},
+	"sweeper": {"hat": "watch", "cloth": Color(0.36, 0.3, 0.22), "trim": Color(0.7, 0.35, 0.2)},
 	"K": {"hat": "herald", "cloth": Color(0.27, 0.38, 0.85), "trim": Color(0.95, 0.78, 0.3), "fur": "sable"},
 	"¢": {"hat": "ushanka", "cloth": Color(0.22, 0.27, 0.5), "fur": "bear"},
 	"O": {"hat": "hood", "cloth": Color(0.9, 0.86, 0.76), "trim": Color(0.93, 0.74, 0.3)},

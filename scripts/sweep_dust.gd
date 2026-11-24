@@ -1,6 +1,6 @@
 class_name SweepDust
 extends Node3D
-## The snow dust a broom kicks up (see SnowSweep): the same soft, foggy puffs and few fine flakes the wind's flurries
+## The snow dust (or, in autumn, the dry dust and crumbs of leaf) a broom kicks up (see SnowSweep, LeafSweep): the same soft, foggy puffs and few fine flakes the wind's flurries
 ## carry (see WindGusts), only a handful at a time and short-lived. They rise a little, drift away from the
 ## broom's stroke and thin out within a couple of seconds.
 ##
@@ -74,8 +74,8 @@ func _layer(count: int, soft: bool) -> MultiMeshInstance3D:
 
 
 ## The broom sweeps at `at`: a puff or two and a few flakes fly up, away from `away` (the way the
-## stroke goes, a unit vector on the ground).
-func kick(at: Vector3, away: Vector3) -> void:
+## stroke goes, a unit vector on the ground). `tint` colours the puffs and flakes (white for snow).
+func kick(at: Vector3, away: Vector3, tint := Color.WHITE) -> void:
 	if _soft == null:
 		return
 	var scale_by := WindGusts.quality_scale()
@@ -86,7 +86,7 @@ func kick(at: Vector3, away: Vector3) -> void:
 		_puffs.append({
 			"from": at + Vector3(_rng.randf_range(-0.2, 0.2), 0.08, _rng.randf_range(-0.2, 0.2)),
 			"drift": way + Vector3(0, _rng.randf_range(0.25, 0.6), 0),
-			"start": _now, "dur": _rng.randf_range(1.4, 2.6), "size": _rng.randf_range(PUFF_SIZE.x, PUFF_SIZE.y),
+			"start": _now, "dur": _rng.randf_range(1.4, 2.6), "size": _rng.randf_range(PUFF_SIZE.x, PUFF_SIZE.y), "tint": tint,
 		})
 	for i in maxi(1, roundi(3.0 * scale_by)):
 		if _flakes.size() >= FLAKES:
@@ -95,7 +95,7 @@ func kick(at: Vector3, away: Vector3) -> void:
 		_flakes.append({
 			"from": at + Vector3(_rng.randf_range(-0.25, 0.25), 0.05, _rng.randf_range(-0.25, 0.25)),
 			"drift": way + Vector3(0, _rng.randf_range(0.4, 1.0), 0),
-			"start": _now, "dur": _rng.randf_range(0.8, 1.6),
+			"start": _now, "dur": _rng.randf_range(0.8, 1.6), "tint": tint,
 		})
 	_soft.visible = true
 	_fine.visible = true
@@ -115,7 +115,8 @@ func _process(delta: float) -> void:
 		var fade := smoothstep(0.0, 0.15, t) * smoothstep(0.0, 0.6, 1.0 - t)
 		var size: float = float(m.size) * (0.6 + 1.0 * t)
 		soft.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * size), at))
-		soft.set_instance_color(i, Color(1, 1, 1, PUFF_ALPHA * 1.8 * fade))
+		var tone: Color = m.tint
+		soft.set_instance_color(i, Color(tone.r, tone.g, tone.b, PUFF_ALPHA * 1.8 * fade))
 		i += 1
 	for k in range(i, soft.instance_count):
 		soft.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
@@ -126,7 +127,8 @@ func _process(delta: float) -> void:
 		var at: Vector3 = (m.from as Vector3) + (m.drift as Vector3) * t * float(m.dur) * 0.6 - Vector3(0, 0.9 * t * t, 0)
 		at.y = maxf(at.y, 0.05)
 		fine.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * FLAKE_SIZE), at))
-		fine.set_instance_color(i, Color(1, 1, 1, 0.85 * smoothstep(0.0, 0.1, t) * (1.0 - t)))
+		var shade: Color = m.tint
+		fine.set_instance_color(i, Color(shade.r, shade.g, shade.b, 0.85 * smoothstep(0.0, 0.1, t) * (1.0 - t)))
 		i += 1
 	for k in range(i, fine.instance_count):
 		fine.set_instance_transform(k, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))

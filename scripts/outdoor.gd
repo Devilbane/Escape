@@ -3975,6 +3975,7 @@ func _spawn_villagers() -> void:
 				_build_chopping_log(v, c)
 				WoodLogs.build(self, c)
 	_spawn_pips_friend()
+	_spawn_street_sweeper()
 	WoodLogs.build_windfalls(self)
 
 
@@ -3988,6 +3989,21 @@ func _spawn_pips_friend() -> void:
 		return
 	var v := Villager.new()
 	v.setup(self, "pippi", c)
+	add_child(v)
+	v.global_position = cell_to_world(c)
+	villagers.append(v)
+	var station := {"kind": "npc", "cell": c, "pos": cell_to_world(c), "used": false, "npc": v}
+	v.station = station
+	stations.append(station)
+
+
+## The street sweeper (see StreetSweeper) has no map letter either: he waits on a walkway near the square.
+func _spawn_street_sweeper() -> void:
+	var c := StreetSweeper.home_cell(self)
+	if c == Vector2i(-1, -1):
+		return
+	var v := Villager.new()
+	v.setup(self, StreetSweeper.ROLE, c)
 	add_child(v)
 	v.global_position = cell_to_world(c)
 	villagers.append(v)
@@ -4798,6 +4814,8 @@ func _process(delta: float) -> void:
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
 	temple_morning.tick(self, delta)
+	# The wind carries the swept leaves back over the walkways (see LeafSweep).
+	LeafSweep.advance(self)
 	var cell := world_to_cell(player.global_position)
 	var inside := _in_house(cell)
 	if inside != _inside:

@@ -119,6 +119,10 @@ const ROLES := {
 		"hair": {"style": "short", "color": "ginger", "tails": true, "freckles": true, "smile": true, "ear_gem": true}, "skin": SKIN_ROSY,
 		"colors": [Color(0.8, 0.35, 0.4), Color(0.45, 0.35, 0.3), Color(1, 1, 1)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "7",
 		"lines": ["Hallo! Ich bin Pippi. Pip und ich hüten die Gänse und die Ziegen.", "Pip ist mein bester Freund. Wir spielen Fangen auf der Wiese!", "Die Gänse zwicken, wenn man ihnen den Rücken zudreht.", "Die Ziegen mögen dich, wenn du ruhig bleibst.", "Die Gänse und Ziegen weiden an der Wiese südlich und westlich vom Dorf."]},
+	# The street sweeper: no map letter, Outdoor puts him on a walkway near the square (see StreetSweeper).
+	"sweeper": {"name": "Straßenfeger Matthes", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "silver"},
+		"colors": [Color(0.5, 0.42, 0.26), Color(0.34, 0.3, 0.24), Color(0.62, 0.5, 0.3)], "plan": "stay", "work": "Idle", "skin": SKIN_LIGHT,
+		"lines": ["Blätter im Herbst, Schnee im Winter: Ein Weg bleibt nie lange sauber.", "Frag mich nach meiner Arbeit, sag einfach „Arbeit“.", "Morgens fege ich, abends weht der Wind alles wieder zurück.", "Pass auf, wo du hintrittst: Ich habe den Weg gerade erst gekehrt!"]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],
 		"colors": [Color(0.35, 0.3, 0.45), Color(0.3, 0.3, 0.35), Color(0.3, 0.25, 0.4)], "plan": "stroll", "work": "Spellcast_Raise",
 		"lines": ["Faszinierend, du lebst! Das Verlies gilt als unentrinnbar.", "In meinen Büchern steht etwas über Wächter in Rüstung...", "Ruhe, bitte. Ich lese."]},
@@ -449,6 +453,8 @@ func _ready() -> void:
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
+	if role == StreetSweeper.ROLE:
+		StreetSweeper.put_on(_model)
 	if _info.get("bandana", false):
 		Bandana.put_on(_model)
 	if _info.get("locks", "") == "dread":
@@ -531,6 +537,7 @@ const WINTER_OWN := {
 	"2": ["Unter dem Schnee schlafen meine Kürbisse jetzt."],
 	"5": ["Ein Bier wärmt von innen. Sagt man."],
 	"7": ["Schnee! Schnee! Fang mich im Schnee!"],
+	"sweeper": ["Der Besen ist aus Birkenreisig. Der hält länger als jeder Schaufelstiel."],
 	"pippi": ["Schneeball-Zeit! Wer traut sich?"],
 	"9": ["Das Wasser im Eimer ist fast gefroren!"],
 	"3": ["Frisch verschneit: Das Holz macht sich schwerer."],
@@ -587,6 +594,9 @@ func update_wear(at_once := false) -> void:
 		WinterWear.put_on(_model, WinterWear.look_for(role, _info))
 	else:
 		WinterWear.take_off(_model)
+	# The hat and the apron of the summer clothes (see StreetSweeper).
+	if role == StreetSweeper.ROLE:
+		StreetSweeper.show_gear(_model, not wears_winter)
 	# A bird perches on the top of the head, hat or no hat (see _top_of_head).
 	_head_top = -1.0
 
@@ -964,22 +974,35 @@ var _broom: Node3D
 var _broom_hand: Node3D
 var _puff_in := 0.0
 var _sweep_bump := 0.0
+## What he is sweeping: "snow" or "leaves".
+var _sweep_kind := ""
 
 
 ## Sets out with the broom when the snow lies and it is his time (Konrad, between his calls): true when he goes.
 func _sweep_out() -> bool:
 	if role != SnowSweep.ROLE or level == null or at_home or not visible or level.world_hours < _sweep_after:
 		return false
-	if not SnowSweep.wants(level) or threat != null or eaten or _bubble_time > 0.0:
+	var kind := _sweep_wanted()
+	if kind == "" or threat != null or eaten or _bubble_time > 0.0:
 		return false
-	var way := SnowSweep.route(level, home, _rng)
+	var way := SnowSweep.route(level, home, _rng, Callable(LeafSweep, "is_clear").bind(level) if kind == "leaves" else Callable())
 	_sweep_after = level.world_hours + SnowSweep.REST_HOURS
 	if way.is_empty():
 		return false
+	_sweep_kind = kind
 	_sweep_way = way
 	_hold_broom(true)
 	_walk_to(way[0], WALK_SPEED, "sweep")
 	return true
+
+
+## What the weather and the season ask him to sweep now: "snow", "leaves" or "".
+func _sweep_wanted() -> String:
+	if SnowSweep.wants(level):
+		return "snow"
+	if LeafSweep.wants(level):
+		return "leaves"
+	return ""
 
 
 func _begin_sweep() -> void:
@@ -1018,18 +1041,18 @@ func _hold_broom(on: bool) -> void:
 
 
 ## Lays the besom from his right hand down to the snow ahead of him, swishing from side to side by `swing`.
-func _lay_broom(swing: float) -> void:
+func _lay_broom(swing: float, width := SnowSweep.SWING) -> void:
 	if _broom == null or _broom_hand == null:
 		return
 	var facing := Vector3(sin(_model.global_rotation.y), 0, cos(_model.global_rotation.y))
 	if _sweep != null:
 		facing = _sweep.heading
-	SnowSweep.lay_broom(_broom, _broom_hand.global_position, SnowSweep.broom_head(global_position, facing, swing))
+	SnowSweep.lay_broom(_broom, _broom_hand.global_position, SnowSweep.broom_head(global_position, facing, swing, width))
 
 
 ## One physics tick of sweeping: on along the route at a slow walk, the broom swishing across the ground ahead.
 func _sweep_snow(delta: float) -> void:
-	if _sweep == null or not SnowSweep.keeps_on(level) or _sweep_bump > 4.0:
+	if _sweep == null or _sweep_wanted() != _sweep_kind or _sweep_bump > 4.0:
 		_sweep_bump = 0.0
 		_start("idle", 0.5)
 		return
@@ -1042,24 +1065,34 @@ func _sweep_snow(delta: float) -> void:
 		return
 	var dir := to.normalized()
 	job.heading = job.heading.lerp(dir, minf(1.0, delta * 4.0)).normalized()
-	var walked := _stride("Walking_A", SnowSweep.PACE)
+	var leaves := _sweep_kind == "leaves"
+	# Back along the swept strip he just walks, the broom over the shoulder; out he sweeps, slowly.
+	var walked := _stride("Walking_B" if job.back else "Walking_A", SnowSweep.PACE_BACK if job.back else (LeafSweep.PACE if leaves else SnowSweep.PACE))
 	if _move_to(global_position + dir * minf(to.length(), walked * delta)):
 		_sweep_bump = 0.0
 	else:
 		_sweep_bump += delta
 	_turn_to(dir, delta)
 	job.swing += delta
-	_lay_broom(job.swing)
-	var head := SnowSweep.broom_head(global_position, job.heading, job.swing)
-	SnowSweep.stamp(level, head)
-	SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
+	var width := LeafSweep.SWING if leaves else SnowSweep.SWING
+	if job.back:
+		width = 0.0
+	_lay_broom(job.swing, width)
+	if job.back:
+		return
+	var head := SnowSweep.broom_head(global_position, job.heading, job.swing, width)
+	if leaves:
+		LeafSweep.stamp(level, head, global_position, job.heading)
+	else:
+		SnowSweep.stamp(level, head)
+		SnowSweep.stamp(level, global_position, SnowSweep.REACH * 0.8)
 	_puff_in -= delta
 	if _puff_in <= 0.0:
 		_puff_in = 0.14
 		if level.sweep_dust == null:
 			level.sweep_dust = SweepDust.new()
 			level.add_child(level.sweep_dust)
-		level.sweep_dust.kick(head, -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2))
+		level.sweep_dust.kick(head, -job.heading + job.heading.cross(Vector3.UP) * cos(job.swing * 4.2), LeafSweep.DUST if leaves else Color.WHITE)
 
 
 # --- The guard at the west gate -----------------------------------------------

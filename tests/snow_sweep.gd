@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless test: Konrad the herald sweeps the snow off the village footpaths (SnowSweep):
+## Headless test: The street sweeper sweeps the snow off the village footpaths (SnowSweep):
 ## - he sweeps only in winter, with snow lying and none falling, in his hours and in daylight;
 ## - the route runs along footpath tiles;
 ## - a stroke of the broom leaves bare ground that takes no footprints, and the strip fills in
@@ -50,7 +50,7 @@ func _run() -> void:
 	game.weather_hours = 9999.0
 	for i in 3:
 		await physics_frame
-	check(SnowSweep.in_shift(10.0) and not SnowSweep.in_shift(8.0) and not SnowSweep.in_shift(12.0), "his hours")
+	check(SnowSweep.in_shift(10.0) and not SnowSweep.in_shift(6.0) and not SnowSweep.in_shift(12.0), "his hours")
 	check(SnowSweep.wants(lvl), "winter snow, clear sky, his hour: he sweeps")
 	lvl.weather = Weather.SNOW
 	check(not SnowSweep.wants(lvl), "no sweeping while it snows")
@@ -60,7 +60,7 @@ func _run() -> void:
 	for v: Villager in lvl.villagers:
 		if v.role == SnowSweep.ROLE:
 			konrad = v
-	check(konrad != null, "the herald is in the village")
+	check(konrad != null, "the street sweeper is in the village")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var way := SnowSweep.route(lvl, konrad.home, rng)

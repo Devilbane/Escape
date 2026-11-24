@@ -809,6 +809,7 @@ func build() -> void:
 		add_child(undergrowth_shed)
 		IvySeasons.apply(undergrowth_shed, day)
 	_build_rock_collision()
+	SummitGarden.build(self)
 	_setup_astar()
 	meals.garland.block(self)
 	if birds:

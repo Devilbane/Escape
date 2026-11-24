@@ -67,6 +67,7 @@ static func _pole() -> MeshInstance3D:
 static func _penguin() -> Node3D:
 	var tux: Node3D = TUX.instantiate()
 	tux.name = "Tux"
+	tux.set_meta("no_snow", true)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = TUX_TEXTURE
 	mat.roughness = 0.85

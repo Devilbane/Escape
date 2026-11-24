@@ -13,8 +13,9 @@ extends RefCounted
 const SHADER := preload("res://shaders/snow_cover.gdshader")
 ## The same snow for cut-out cards (leaves of bushes and ivy), keeping to their shape.
 const CUTOUT_SHADER := preload("res://shaders/snow_cutout.gdshader")
-## Nodes of these kinds (and everything below them) stay bare.
-const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "MerchantDonkey", "Projectile", "VillageBirds", "Squirrel", "Hedgehog", "Eagle", "Rescue", "DragonFlyover", "Dragon"]
+## Nodes of these kinds (and everything below them) stay bare, and so do the kinds that extend them (a
+## BanditChief is an Enemy). Every animal and creature is here: none wears snow on its back.
+const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "MerchantDonkey", "Projectile", "VillageBirds", "Squirrel", "Hedgehog", "Eagle", "Rescue", "DragonFlyover", "Dragon", "VillageCat", "MerchantRaven"]
 
 ## How many burning spots the shader knows (see set_warm).
 const WARM_MAX := 32
@@ -401,8 +402,10 @@ static func bare(node: Node) -> bool:
 	if node.has_meta("no_snow") or node is GPUParticles3D or node is CPUParticles3D:
 		return true
 	var script: Script = node.get_script()
-	if script != null:
+	# Walk up the script's bases too: a kind that extends a bare one is bare as well.
+	while script != null:
 		var named: String = script.get_global_name()
 		if named in LEAVE_BARE or named == "Puddles":
 			return true
+		script = script.get_base_script()
 	return false

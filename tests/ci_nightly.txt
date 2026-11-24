@@ -206,3 +206,4 @@ house_snow_shots.gd | 600 | fixed | pass | Snow dusting on the lintel, sills, be
 bird_treetop.gd | 60 | fixed | pass | Woods bird with nowhere farther to flee stays calm instead of bobbing up and down in its treetop
 street_sweeper.gd | 180 | fixed | pass | Matthes the street sweeper: lives on a walkway, summer hat and apron, heaps autumn leaves beside the walkways, the wind brings them back overnight
 street_sweeper_shots.gd | 600 | fixed | pass | Screenshots of the street sweeper at work in autumn and winter (needs SEASON and SHOTS)
+water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on the beam, swing, and her round from the fountain to the shops and the tavern

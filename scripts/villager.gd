@@ -364,6 +364,11 @@ var _light_wait := INF
 var _lit_tonight := false
 var _flare := 0.0
 var _carry_arm: CarryArm
+## Hanna's yoke with its two buckets, and the arms that rest on it (see WaterYoke, WaterRound), and
+## whether the buckets are full: from the fountain to the shops, not on the way back.
+var _yoke: WaterYoke
+var _yoke_arms: YokeArms
+var water_full := false
 ## The arms of a sleeper with the head in the hands (see SleepArms and slump).
 var _sleep_arms: SleepArms
 ## Where the woodcutter (or the smith) stands to work and which way he faces
@@ -477,6 +482,11 @@ func _ready() -> void:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	if role == StaffSpell.ROLE:
 		_staff_spell = StaffSpell.put_on(self)
+	if WaterRound.is_carrier(role):
+		_yoke = WaterYoke.attach(_model, _anim)
+		_yoke_arms = YokeArms.attach(_bones(), _anim)
+		if _yoke != null:
+			_yoke.visible = false
 	_bubble = SpeechBubble.new()
 	_bubble.position.y = 3.0 * _info.get("scale", 1.0) + 0.15
 	add_child(_bubble)
@@ -1968,6 +1978,9 @@ func _next_task() -> void:
 		"farm":
 			_farm_day()
 		"carry":
+			if WaterRound.is_carrier(role) and WaterRound.fill_spot(level) != Vector3.INF and not WaterRound.stops(level).is_empty():
+				_water_round()
+				return
 			# Between the well and the houses, with a stop at each.
 			var at_well := level.world_to_cell(global_position) == home
 			if _task == "walk":
@@ -1977,6 +1990,42 @@ func _next_task() -> void:
 				_walk_to(houses[_rng.randi() % houses.size()] if not houses.is_empty() else _nearby(6), WALK_SPEED, "idle")
 			else:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
+
+
+## Hanna's round (see WaterRound): fill the buckets at the fountain, carry them to a shop or the
+## tavern, set them down a moment there, and back to the fountain for more.
+func _water_round() -> void:
+	var fill := WaterRound.fill_spot(level)
+	var at_fill := global_position.distance_to(fill) < WaterRound.AT_FOUNTAIN
+	if _task == "walk":
+		# Arrived: dipping the buckets in the basin, or calling at a door and pouring out.
+		if not at_fill:
+			water_full = false
+		_start("work" if at_fill else "idle", _rng.randf_range(2.5, 4.5))
+	elif at_fill:
+		water_full = true
+		var calls := WaterRound.stops(level)
+		_walk_to(calls[_rng.randi() % calls.size()], WALK_SPEED, "idle")
+	else:
+		water_full = false
+		_walk_to(fill, WALK_SPEED, "work")
+
+
+## Puts the yoke on or takes it off, and says whether the buckets hold water.
+func _mind_yoke() -> void:
+	if _yoke == null:
+		return
+	var on := WaterRound.carries(self)
+	if _yoke.visible != on:
+		_yoke.visible = on
+	if _yoke_arms != null:
+		_yoke_arms.active = on
+	_yoke.full = water_full
+
+
+## Whether the body is posed bone by bone (a ladder, a bed, the horn).
+func is_posed() -> bool:
+	return _body_posed or _blow_posed
 
 
 ## The farming valley's day plan (see ValleyFolk): the next job of the season, walked to and worked at.
@@ -2248,6 +2297,7 @@ func _physics_process(delta: float) -> void:
 	bump_cool = maxf(0.0, bump_cool - delta)
 	_keep_apart(delta)
 	_mind_torch(delta)
+	_mind_yoke()
 	_season_remark(delta)
 	_wear_check -= delta
 	if _wear_check <= 0.0:

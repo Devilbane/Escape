@@ -65,8 +65,9 @@ func _test() -> void:
 			var card := Items.describe(id)
 			check(ArmourSets.title(item.set) != "" and ArmourSets.title(item.set) in card and not "null" in card, "%s's card names its set (%s)" % [id, card])
 		# Every armour piece of a set's material belongs to a set; only bone
-		# and fur have none.
-		elif item.slot in ArmourSets.PIECES:
+		# and fur have none, and tools of a trade worn on the head ("gear": the
+		# climbing helmet) are no armour set piece.
+		elif item.slot in ArmourSets.PIECES and not item.get("gear", false):
 			check(item.get("material", "") in ["bone", "fur"], "%s (%s) belongs to the set of its material" % [id, item.get("material", "")])
 	# What a full set weighs: cloth 3 kg, leather 9, steel 25, iron 35. The
 	# weight is what slows the hero (Items.WEIGHT_SLOW per kg).

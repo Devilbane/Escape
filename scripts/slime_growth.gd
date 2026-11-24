@@ -273,6 +273,13 @@ static func nearest_corpse(slime: Enemy) -> Corpse:
 	return best
 
 
+## Whether two points lie in the same world: the open air, the forgotten mine below it or the sewers
+## below that. The vermin down there (see Sewers.MOBS) are under the village's cells but not in it:
+## nobody above sees, fears, fights or is bitten by them, and they take no meal up there.
+static func same_world(a: Vector3, b: Vector3) -> bool:
+	return not (LostMine.apart(a, b) or Sewers.apart(a, b))
+
+
 ## What `n` is as a meal: "villager", an animal's kind, or "".
 static func snack_key(n) -> String:
 	if n is Villager:
@@ -308,7 +315,8 @@ static func nearest_snack(slime: Enemy) -> Node3D:
 		if not can_snack(n):
 			continue
 		var d: float = slime._flat_distance(n)
-		if d < best_d and slime.level.has_line_of_sight(slime.global_position, n.global_position):
+		if d < best_d and same_world(slime.global_position, n.global_position) \
+				and slime.level.has_line_of_sight(slime.global_position, n.global_position):
 			best = n
 			best_d = d
 	return best
@@ -327,7 +335,7 @@ static func reachable_villager(slime: Enemy) -> Villager:
 		if not can_snack(v):
 			continue
 		var d: float = slime._flat_distance(v)
-		if d >= best_d:
+		if d >= best_d or not same_world(slime.global_position, v.global_position):
 			continue
 		if can_walk_to(slime, v):
 			best = v

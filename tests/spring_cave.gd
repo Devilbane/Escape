@@ -108,7 +108,9 @@ func _run() -> void:
 
 	# The cave itself.
 	game.go_inside(SpringCave.ID)
-	await _wait(60)
+	# The fade into the cave takes half a second of real time, however fast the frames run.
+	await create_timer(1.5).timeout
+	await _wait(10)
 	var cave: Level = game.level
 	check(cave.building == SpringCave.ID and not cave is Outdoor, "the way leads into the spring cave")
 	check(cave.enemies.size() >= 6, "monsters live in the cave (%d)" % cave.enemies.size())

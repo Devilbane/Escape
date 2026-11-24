@@ -15,6 +15,7 @@ extends RefCounted
 ##   " "  solid earth
 ##   "."  a tunnel or room of the miners: earthen floor, plank walls
 ##   "L"  the shaft under the hut: the ladder stands in it (up to the north)
+##   "o"  a stretch of the drifts where the silver runs: earthen floor, ore-bearing rock walls
 ##   "r"  the rock cleft the miners broke into: earthen floor, raw rock walls
 ##   "s"  the old hewn works, older than the village: flagstones, stone walls
 ##   "D"  the end of the old works: the sealed gate stands on its north side
@@ -49,7 +50,7 @@ const LAYOUT := [
 	"            r  .....                                                    ",
 	"            rrr.....                                                    ",
 	"            r  .....                                                    ",
-	"  ...   rrrrr                                                           ",
+	"  .o.   rrrrr                                                           ",
 	"  ...   r                                                               ",
 	"   .    r                                                               ",
 	"   .    r                                                               ",
@@ -58,8 +59,8 @@ const LAYOUT := [
 	"   .      r                                                             ",
 	"   .      r                                                             ",
 	"   .      .                               L                             ",
-	"   ........             .......           .                        .... ",
-	"          .             .......           . ....                   .... ",
+	"   ........             ooooooo           .                        ..o. ",
+	"          .             ooooooo           . ....                   .... ",
 	"          .                .              . ....                     .  ",
 	"    ............................................                     .  ",
 	"    .               .              .        ....                     .  ",
@@ -76,13 +77,15 @@ const LAYOUT := [
 	"            .                                                   .       ",
 	"            .                                               xxxxx       ",
 	"          .....                                                         ",
-	"          .....                                                         ",
+	"          ..o..                                                         ",
 	"                                                                        ",
 ]
 ## The raw rock of the cleft, a wall surface of the mine alone (see HouseSketcher._wall_material).
 const ROCK := "rock"
+## The rock the silver runs through: dark stone shot with bright veins (see ore_rock_material).
+const ORE_ROCK := "ore_rock"
 ## The letters of dug cells, and the floor and wall each gets (HouseSketch.SURFACES, and ROCK).
-const DUG := {".": ["", "wood"], "L": ["", "wood"], "x": ["", "wood"], "r": ["", ROCK], "s": ["stone", "stone"], "D": ["stone", "stone"]}
+const DUG := {".": ["", "wood"], "o": ["", ORE_ROCK], "L": ["", "wood"], "x": ["", "wood"], "r": ["", ROCK], "s": ["stone", "stone"], "D": ["stone", "stone"]}
 ## The empty hut over the shaft (cells of the plot): its floor, roof and walls.
 const HUT := Rect2i(40, 25, 3, 3)
 ## The shaft: the ladder's foot, open to the hut above; the ladder leads up towards LADDER_DIR.
@@ -1215,6 +1218,46 @@ static func rock_material() -> StandardMaterial3D:
 	m.uv1_world_triplanar = true
 	m.uv1_scale = Vector3(0.35, 0.35, 0.35)
 	_mats["rock_wall"] = m
+	return m
+
+
+## The rock around the silver: the cleft's cracked stone, darker and bluish, with thin pale
+## veins of ore running through it (the bright tops of the noise), so the silver seems to grow
+## out of the stone and not out of the timber.
+static func ore_rock_material() -> StandardMaterial3D:
+	if _mats.has("ore_rock_wall"):
+		return _mats["ore_rock_wall"]
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_CELLULAR
+	noise.frequency = 0.03
+	noise.fractal_octaves = 3
+	noise.seed = 19
+	var tex := NoiseTexture2D.new()
+	tex.noise = noise
+	tex.seamless = true
+	tex.width = 256
+	tex.height = 256
+	tex.color_ramp = Gradient.new()
+	tex.color_ramp.offsets = PackedFloat32Array([0.0, 0.55, 0.8, 0.9, 1.0])
+	tex.color_ramp.colors = PackedColorArray([Color(0.12, 0.12, 0.14), Color(0.24, 0.24, 0.27), Color(0.34, 0.33, 0.35), Color(0.55, 0.58, 0.64), Color(0.8, 0.83, 0.9)])
+	var bumps := NoiseTexture2D.new()
+	bumps.noise = noise
+	bumps.seamless = true
+	bumps.width = 256
+	bumps.height = 256
+	bumps.as_normal_map = true
+	bumps.bump_strength = 8.0
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.normal_enabled = true
+	m.normal_texture = bumps
+	m.roughness = 0.8
+	m.metallic = 0.25
+	m.metallic_specular = 0.6
+	m.uv1_triplanar = true
+	m.uv1_world_triplanar = true
+	m.uv1_scale = Vector3(0.4, 0.4, 0.4)
+	_mats["ore_rock_wall"] = m
 	return m
 
 

@@ -44,7 +44,20 @@ const HIDES_MAX := 4
 const SHY := 12.0
 const SEEN := 16.0
 
-## The fog's colour: a cold pale grey.
+## How much room he leaves a villager (metres, centre to centre), and from how many times that he bends his
+## way round them and how hard.
+const ROOM := 1.3
+const AWARE := 1.8
+const LEAN_WEIGHT := 1.2
+const ARRIVE_FREE := 2.0
+
+## How see-through he is, 0 solid to 1 invisible.
+const SEE_THROUGH := 0.4
+const SNEAK_SHADER := preload("res://shaders/ghoul_sneak.gdshader")
+## Marks the see-through materials he wears (for the tests).
+const SEE_THROUGH_META := "see_through"
+
+## The mist's colour: a cold pale grey.
 const FOG := Color(0.7, 0.74, 0.8)
 
 const SPOTTED := "Eine Gestalt huscht durch die dunklen Gassen. Auf dem Rücken trägt sie etwas, das klirrt."
@@ -200,10 +213,14 @@ func begin(game: Node, force := false) -> void:
 	figure.global_position = level.cell_to_world(START)
 	figure.reset_physics_interpolation()
 	figure.set_physics_process(false)
+	# A sneak slips between people: nobody bumps into his body or gets stuck on it.
+	figure.collision_layer = 0
+	figure.collision_mask = 0
 	var fog := _make_fog()
 	figure.add_child(fog)
 	fog.emitting = true
 	_stoop()
+	_fade()
 	_sack = null
 	_speed = PACE
 	_next_leg()
@@ -287,9 +304,79 @@ func _walk(delta: float) -> void:
 		_at += 1
 		return
 	var dir := to / dist
-	figure.global_position += dir * speed * delta
+	# Like every walker he leaves the others room: his way bends round whoever is near, and where
+	# the step would still carry him into someone he stops a moment and lets them pass.
+	# (Within ARRIVE_FREE of the point he is making for he is left alone, so that he gets there.)
+	var step := dir * speed * delta
+	if dist > ARRIVE_FREE:
+		dir = (dir + _lean_from_people() * LEAN_WEIGHT).normalized()
+		step = _clear_step(dir * speed * delta)
+	if step == Vector3.ZERO:
+		_idle_pose(false)
+		return
+	figure.global_position += step
 	figure._model.rotation.y = lerp_angle(figure._model.rotation.y, atan2(dir.x, dir.z), 1.0 - exp(-8.0 * delta))
 	_idle_pose(true, speed)
+
+
+## The lean away from the villagers and the wandering merchant who are close, flat (see Villager._separation).
+func _lean_from_people() -> Vector3:
+	var lean := Vector3.ZERO
+	for o: Variant in level.people():
+		if not is_instance_valid(o) or not o.visible or o.at_home:
+			continue
+		var away: Vector3 = figure.global_position - o.global_position
+		away.y = 0.0
+		var dist := away.length()
+		if dist >= ROOM * AWARE:
+			continue
+		var out := away / dist if dist >= 0.01 else Vector3(1, 0, 0)
+		lean += out * (1.0 - (dist - ROOM) / (ROOM * (AWARE - 1.0)) if dist > ROOM else 1.0)
+	return lean
+
+
+## Whether he may stand at `at`: open ground, and nobody within the room a villager leaves.
+func _free_at(at: Vector3) -> bool:
+	if level.astar.is_point_solid(level.world_to_cell(at)):
+		return false
+	for o: Variant in level.people():
+		if not is_instance_valid(o) or not o.visible or o.at_home:
+			continue
+		var d: Vector3 = at - o.global_position
+		d.y = 0.0
+		if d.length() < ROOM * 0.7:
+			return false
+	return true
+
+
+## `step` itself when he may take it, else the same step turned a little to either side, else nothing.
+func _clear_step(step: Vector3) -> Vector3:
+	var here := figure.global_position
+	if _free_at(here + step):
+		return step
+	for turn in [0.6, -0.6, 1.2, -1.2]:
+		var s := step.rotated(Vector3.UP, turn)
+		if _free_at(here + s):
+			return s
+	# Already inside someone (they walked up to him): any step that gets him further out is fine.
+	if not _free_at(here):
+		for turn in [0.0, 0.6, -0.6, 1.2, -1.2]:
+			var s := step.rotated(Vector3.UP, turn)
+			if _nearest_person(here + s) > _nearest_person(here):
+				return s
+	return Vector3.ZERO
+
+
+## How far the nearest villager is from `at` (metres, flat).
+func _nearest_person(at: Vector3) -> float:
+	var best := INF
+	for o: Variant in level.people():
+		if not is_instance_valid(o) or not o.visible or o.at_home:
+			continue
+		var d: Vector3 = at - o.global_position
+		d.y = 0.0
+		best = minf(best, d.length())
+	return best
 
 
 ## The sneaking pose: bent forward and low, walking or standing.
@@ -300,32 +387,58 @@ func _stoop() -> void:
 	figure._model.position.y = -SNEAK_DIP
 
 
-## The thick fog he is always wrapped in: many broad, pale puffs that hang around him and drift on.
+## The wisp of mist he trails: a few small, faint puffs that rise from round his feet and hem and stay
+## behind where he walked, so that a thin skirt of fog follows him without hiding him.
 static func make_fog() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.name = "Fog"
-	p.amount = 48
-	p.lifetime = 5.0
+	p.amount = 14
+	p.lifetime = 2.4
 	p.local_coords = false
-	p.mesh = Effects._quad(3.6, Color(1, 1, 1))
+	p.mesh = Effects._quad(1.1, Color(1, 1, 1))
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 1.6
+	p.emission_sphere_radius = 0.35
 	p.direction = Vector3.UP
-	p.spread = 180.0
+	p.spread = 60.0
 	p.gravity = Vector3.ZERO
-	p.initial_velocity_min = 0.05
-	p.initial_velocity_max = 0.25
-	p.scale_amount_min = 0.9
-	p.scale_amount_max = 1.5
+	p.initial_velocity_min = 0.04
+	p.initial_velocity_max = 0.16
+	p.scale_amount_min = 0.7
+	p.scale_amount_max = 1.2
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(FOG, 0.0))
-	ramp.add_point(0.2, Color(FOG, 0.6))
-	ramp.add_point(0.75, Color(FOG, 0.5))
+	ramp.add_point(0.25, Color(FOG, 0.32))
+	ramp.add_point(0.7, Color(FOG, 0.22))
 	ramp.set_color(ramp.get_point_count() - 1, Color(FOG, 0.0))
 	p.color_ramp = ramp
-	p.position.y = 0.9
+	p.position.y = 0.3
 	Effects.start_cold(p)
 	return p
+
+
+## Makes him half see-through: he is sneaking, a shadow among the shadows (see SEE_THROUGH).
+func _fade() -> void:
+	if figure == null or not is_instance_valid(figure) or figure._model == null:
+		return
+	for mi: MeshInstance3D in figure._model.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var active := mi.get_active_material(i)
+			var shown := 1.0 - SEE_THROUGH
+			if active is ShaderMaterial and (active as ShaderMaterial).shader == Enemy.GHOUL_SHADER:
+				# His rotten skin (see Enemy._rot_skin), the same, with an alpha.
+				var skin := (active as ShaderMaterial).duplicate() as ShaderMaterial
+				skin.shader = SNEAK_SHADER
+				skin.set_shader_parameter("alpha", shown)
+				skin.set_meta(SEE_THROUGH_META, true)
+				mi.set_surface_override_material(i, skin)
+			elif active is BaseMaterial3D:
+				var m := active.duplicate() as BaseMaterial3D
+				m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				m.albedo_color.a = m.albedo_color.a * shown
+				m.set_meta(SEE_THROUGH_META, true)
+				mi.set_surface_override_material(i, m)
 
 
 func _make_fog() -> CPUParticles3D:

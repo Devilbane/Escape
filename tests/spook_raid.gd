@@ -98,8 +98,17 @@ func _run() -> void:
 	raid.step(0.1)
 	check(raid.state != SpookRaid.IDLE and raid.figure != null and is_instance_valid(raid.figure), "at night he climbs out of the drain")
 	check(raid.figure.global_position.distance_to(level.cell_to_world(SpookRaid.START)) < 1.0, "right at the drain")
-	check(raid.figure.get_node_or_null("Fog") is CPUParticles3D and raid.figure.get_node("Fog").emitting, "a fog cloud wraps him")
-	check(raid.figure.get_node("Fog").mesh.size.x >= 3.0 and raid.figure.get_node("Fog").amount >= 40, "a large, dense one")
+	check(raid.figure.get_node_or_null("Fog") is CPUParticles3D and raid.figure.get_node("Fog").emitting, "a wisp of mist trails him")
+	check(raid.figure.get_node("Fog").mesh.size.x <= 1.5 and raid.figure.get_node("Fog").amount <= 20 and not raid.figure.get_node("Fog").local_coords, "a small, thin one that stays behind where he walked")
+	var seen_through := 0
+	var meshes := 0
+	for mi: MeshInstance3D in raid.figure._model.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count() if mi.mesh != null else 0:
+			meshes += 1
+			var m := mi.get_surface_override_material(i)
+			if m != null and m.has_meta(SpookRaid.SEE_THROUGH_META):
+				seen_through += 1
+	check(meshes > 0 and seen_through == meshes, "he is half see-through (%d of %d parts)" % [seen_through, meshes])
 	check(raid.figure._model.rotation.x > 0.3 and raid.figure._model.position.y < -0.1, "he is stooped in a sneaking pose")
 	check(not level.enemies.has(raid.figure), "he is no foe on the list: nobody strikes at him")
 	var farthest := 0.0
@@ -149,6 +158,24 @@ func _run() -> void:
 		await _wait(40)
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(shots.path_join("thief_night.png"))
+		# The same by day, close up, to see how see-through he is and the wisp that trails him.
+		var cam := Camera3D.new()
+		cam.fov = 50.0
+		root.add_child(cam)
+		var fig: Vector3 = raid.figure.global_position
+		_hour(12.0)
+		var n := 0
+		for off: Vector3 in [Vector3(0, 4.2, 2.4), Vector3(0, 1.4, 3.0)]:
+			cam.global_position = fig + off
+			cam.look_at(fig + Vector3(0, 0.7, 0))
+			cam.make_current()
+			await _wait(25)
+			await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png(shots.path_join("thief_day%d.png" % n))
+			n += 1
+		cam.queue_free()
+		_hour(23.5)
+		await _wait(3)
 	raid._catch_until = 0.0
 	game._use_station(spot)
 	check(game.quests.is_active(Spooknortz.QUEST) and game.player.bag.has(Spooknortz.BUNDLE), "caught in the act he drops the stolen goods: the task starts")
@@ -200,6 +227,38 @@ func _run() -> void:
 		check(raid.state == SpookRaid.WALK, "he goes on once the guard has gone")
 		_round(raid, 900.0)
 		check(raid.state == SpookRaid.IDLE and raid.figure == null, "and still gets home")
+	# Others in his way (Zarek, a villager): he leaves them room, bumps into nobody and gets home.
+	var other: Villager = null
+	for v: Variant in level.villagers:
+		if is_instance_valid(v) and v != ulrich and v.role != SpookRaid.GUARD_ROLE:
+			other = v
+			break
+	check(other != null, "someone to walk into")
+	if other != null:
+		other.at_home = false
+		other.visible = true
+		_hour(23.5)
+		raid._done_tonight = false
+		raid.begin(game, true)
+		check(raid.figure.collision_layer == 0 and raid.figure.collision_mask == 0, "nobody bumps into his body")
+		for i in 60:
+			raid.step(0.1)
+		var ahead: Vector3 = raid.figure.global_position
+		if raid._at < raid._path.size():
+			var way: Vector3 = (raid._path[raid._at] - ahead)
+			way.y = 0.0
+			ahead += way.normalized() * 1.2
+		other.global_position = Vector3(ahead.x, 0.0, ahead.z)
+		var closest := INF
+		for i in 80:
+			raid.step(0.1)
+			var d: Vector3 = raid.figure.global_position - other.global_position
+			d.y = 0.0
+			closest = minf(closest, d.length())
+		check(closest >= SpookRaid.ROOM * 0.5, "he keeps clear of the one in his way (%.2f m)" % closest)
+		other.visible = false
+		_round(raid, 900.0)
+		check(raid.state == SpookRaid.IDLE and raid.figure == null, "and still gets home past people")
 	# Slain: no more nights.
 	_hour(12.0)
 	raid.step(0.1)

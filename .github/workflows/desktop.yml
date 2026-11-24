@@ -129,8 +129,16 @@ jobs:
 
       - name: Build number and launcher fingerprint
         run: |
-          # The same number as the browser build of this commit, so both show one version.
-          build=${{ github.event.workflow_run.run_number || github.run_number }}
+          # One number that only ever counts up, whoever started the build: the last published build
+          # plus one. (The run numbers of this workflow and of "Tests" are two different counters, so a
+          # build started by hand used to get a lower number than a nightly one: the launcher then saw
+          # an older build, and the window and the patch notes stayed on the old one.) Without a
+          # published build, or in a pull request, the run number of the workflow is used.
+          build=${{ github.run_number }}
+          if [ "${{ github.event_name }}" != pull_request ]; then
+            last=$(curl -sfL --max-time 30 "https://github.com/${{ github.repository }}/releases/download/windows/version.json" | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["build"]))' || true)
+            [ -n "$last" ] && build=$((last + 1))
+          fi
           version=$(sed -n 's/^const VERSION := "\(.*\)"/\1/p' scripts/game.gd)
           # The launcher fetches a new Escape.exe only when this changes: its own files
           # and the engine, not every change to the game.

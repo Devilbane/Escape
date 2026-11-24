@@ -83,6 +83,7 @@ func _run() -> void:
 	var most_nails := 0
 	var sat := false
 	var sat_at := -1.0
+	var sat_z := 99.0
 	var rope_seen := false
 	var came_down := false
 	var phases := {}
@@ -101,13 +102,16 @@ func _run() -> void:
 		if r.phase == ClimberRoute.Phase.VIEW:
 			sat = true
 			sat_at = climber.global_position.y
+			sat_z = climber.global_position.z - lvl.cell_to_world(spot.cell).z
 		if sat and r.phase == ClimberRoute.Phase.WAIT and r.nails_left.is_empty():
 			came_down = true
 	check(phases.has(ClimberRoute.Phase.PULL) and phases.has(ClimberRoute.Phase.HAMMER) and phases.has(ClimberRoute.Phase.THREAD), "he pulls up, hammers and threads the rope")
 	check(top > float(spot.height) - 0.3, "he gets to the top (%.2f of %.2f)" % [top, float(spot.height)])
-	check(most_nails == 2, "two nails on the way (a nail after three pull-ups, the next after two): %d" % most_nails)
+	check(most_nails == 3, "three nails on the way (a nail after three pull-ups, the next two after two each): %d" % most_nails)
 	check(rope_seen, "he climbs on a rope")
 	check(sat and absf(sat_at - float(spot.height)) < 0.3, "he rests on the terrace (y %.2f)" % sat_at)
+	# He sits on the flat part of the top (it ends a metre in front of the middle of the tile), well back from that edge.
+	check(sat_z < -0.3, "he sits behind the middle of the top, not out at its edge (%.2f m from the middle)" % sat_z)
 	check(phases.has(ClimberRoute.Phase.UNCLIP), "he takes the nails out on the way down")
 	check(came_down, "he is down again after %d frames" % guard)
 	check(lvl.get_node_or_null("ClimberRope") == null and climber._climb.rope == null, "no rope is left on the wall")

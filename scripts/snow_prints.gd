@@ -223,6 +223,18 @@ static func set_indoors(indoors: bool) -> void:
 
 
 static var _indoors := false
+## The hero is down in a cellar or a mine: no print on the surface may show above their head.
+static var _under := false
+
+
+## Hides every print while the hero is underground, shows them again once back up.
+static func set_underground(under: bool) -> void:
+	if under == _under:
+		return
+	_under = under
+	for n in _live:
+		if is_instance_valid(n):
+			(n as MeshInstance3D).visible = not under and not (_indoors and (n as Node).has_meta("print_high"))
 
 ## The prints of the day are kept as plain records, so they outlast the world they were pressed in:
 ## going into a house or a dungeon frees the open air, and coming back lays them down again.
@@ -285,7 +297,7 @@ static func _spawn(world: Node3D, rec: Array) -> MeshInstance3D:
 		mi.global_transform = Transform3D(turn, Vector3(at.x, HEIGHT, at.z))
 	if rec.size() > 6:
 		mi.set_meta("print_high", true)
-		mi.visible = not _indoors
+	mi.visible = not _under and not (rec.size() > 6 and _indoors)
 	mi.set_meta("print_kind", kind)
 	mi.set_meta("print_rec", rec)
 	_serial += 1

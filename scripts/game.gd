@@ -3134,7 +3134,10 @@ const SEASON_TALK_HOURS := 3.0
 const THUNDER_INDOORS_DB := -8.0
 const THUNDER_CELLAR_DB := -16.0
 ## How far winter fog by day is smoothed towards one even haze (0 patchy banks, 1 even haze).
-const WINTER_EVEN := 0.45
+const WINTER_EVEN := 0.1
+## How much darker the winter fog banks are than the air, so they show as grey drifts against the bright snow
+## instead of vanishing into it (1 = the air's own brightness).
+const WINTER_SHADE := 0.7
 
 
 ## The season day the seasons are on: the real calendar's (see Seasons), moved by season_shift.
@@ -3390,6 +3393,8 @@ func _show_weather() -> void:
 	var haze := Weather.fog_haze(_env.fog_light_color, maxf(float(seen.mist), float(look.mist)), winter_fog)
 	# One even haze at night. Over the winter snow the banks stay, only softened (WINTER_EVEN), so
 	# winter fog still drifts in clouds; by day elsewhere the clouds are fully patchy.
+	if winter_fog:
+		haze = Color(haze.r * WINTER_SHADE, haze.g * WINTER_SHADE, haze.b * WINTER_SHADE, haze.a)
 	var even := 0.0
 	if DayNight.glow_at(day_hour) > 0.5:
 		even = float(look.mist)
@@ -8063,6 +8068,26 @@ func _guardian_intro() -> void:
 	_guardian_tip += 1
 
 
+## The ladder under the mouse: it glows and the cursor turns into a hand, as for any button.
+var _ladder_hover: Node3D
+
+
+func _update_ladder_hover() -> void:
+	var now: Node3D = null
+	if state == State.PLAYING and level != null and player != null and camera != null and not menus.is_open() \
+			and not (house_sketcher != null and house_sketcher.active) and not player.on_ladder() and player.can_act():
+		var mouse := get_viewport().get_mouse_position()
+		now = LadderClick.under_ray(get_tree(), player, camera.project_ray_origin(mouse), camera.project_ray_normal(mouse))
+	if now == _ladder_hover:
+		return
+	if _ladder_hover != null and is_instance_valid(_ladder_hover):
+		LadderClick.glow(_ladder_hover, false)
+	_ladder_hover = now
+	if now != null:
+		LadderClick.glow(now, true)
+	Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if now != null else Input.CURSOR_ARROW)
+
+
 ## Whether any foe has noticed the hero (a loop, so no closure is made per frame).
 func _anyone_hunting() -> bool:
 	for e in level.enemies:
@@ -8080,6 +8105,7 @@ func _process(delta: float) -> void:
 		var spot = _mouse_to_floor(get_viewport().get_mouse_position())
 		if spot != null:
 			house_sketcher.hover(spot)
+	_update_ladder_hover()
 	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)
@@ -8738,6 +8764,7 @@ func _click(point: Vector3) -> void:
 	# hero walks up to it and strikes. Clicking an object searches it.
 	# Clicking the water of a pond casts the line there (see Fishing).
 	player.stop_hunt()
+	player.cancel_ladder()
 	fishing.cancel_walk()
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
@@ -8753,6 +8780,13 @@ func _click(point: Vector3) -> void:
 			else:
 				player.charge(e)
 			return
+	# Clicking a ladder climbs it (walking into one never does, see LadderClick).
+	var ladder := LadderClick.under_ray(get_tree(), player, camera.global_position, (point - camera.global_position).normalized())
+	if ladder != null and player.use_ladder(ladder):
+		_pending_search = {}
+		_pending_station = {}
+		_pending_crate = null
+		return
 	# Clicking a crate picks it up: right away when it is in reach, else
 	# after walking up to it.
 	var crate := level.crate_at(point)

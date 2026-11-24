@@ -3129,7 +3129,10 @@ const SEASON_TALK_HOURS := 3.0
 const THUNDER_INDOORS_DB := -8.0
 const THUNDER_CELLAR_DB := -16.0
 ## How far winter fog by day is smoothed towards one even haze (0 patchy banks, 1 even haze).
-const WINTER_EVEN := 0.45
+const WINTER_EVEN := 0.1
+## How much darker the winter fog banks are than the air, so they show as grey drifts against the bright snow
+## instead of vanishing into it (1 = the air's own brightness).
+const WINTER_SHADE := 0.7
 
 
 ## The season day the seasons are on: the real calendar's (see Seasons), moved by season_shift.
@@ -3385,6 +3388,8 @@ func _show_weather() -> void:
 	var haze := Weather.fog_haze(_env.fog_light_color, maxf(float(seen.mist), float(look.mist)), winter_fog)
 	# One even haze at night. Over the winter snow the banks stay, only softened (WINTER_EVEN), so
 	# winter fog still drifts in clouds; by day elsewhere the clouds are fully patchy.
+	if winter_fog:
+		haze = Color(haze.r * WINTER_SHADE, haze.g * WINTER_SHADE, haze.b * WINTER_SHADE, haze.a)
 	var even := 0.0
 	if DayNight.glow_at(day_hour) > 0.5:
 		even = float(look.mist)

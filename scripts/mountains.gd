@@ -85,6 +85,47 @@ static func is_rock(level: Level, c: Vector2i) -> bool:
 	return ch == ROCK_LETTER
 
 
+## The height of the rock surface at x, z (metres), exactly as the mesh is drawn (the same triangles), or
+## `INF` where there is no rock mesh. Props that cling to the rock face, such as a waterfall's water, are
+## laid along it with this.
+static func surface_at(level: Level, x: float, z: float) -> float:
+	if not level.has_meta("mountain_grid"):
+		return INF
+	var grid: Dictionary = level.get_meta("mountain_grid")
+	var origin: Vector2 = grid.origin
+	var points: Array = grid.points
+	var ix0 := floori((x - origin.x) / STEP)
+	var iz0 := floori((z - origin.y) / STEP)
+	for iz in range(iz0 - 1, iz0 + 2):
+		for ix in range(ix0 - 1, ix0 + 2):
+			if iz < 0 or ix < 0 or iz >= int(grid.nz) or ix >= int(grid.nx):
+				continue
+			var a: Vector3 = points[iz][ix]
+			var b: Vector3 = points[iz][ix + 1]
+			var c: Vector3 = points[iz + 1][ix]
+			var d: Vector3 = points[iz + 1][ix + 1]
+			# The same diagonals as in build().
+			var tris := [[a, b, d], [a, d, c]] if (ix + iz) % 2 == 0 else [[a, b, c], [b, d, c]]
+			for t: Array in tris:
+				var h := _height_in(t[0], t[1], t[2], x, z)
+				if h != INF:
+					return h
+	return INF
+
+
+## The height of the triangle a, b, c over (x, z), or INF when the point lies outside it.
+static func _height_in(a: Vector3, b: Vector3, c: Vector3, x: float, z: float) -> float:
+	var det := (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z)
+	if absf(det) < 0.000001:
+		return INF
+	var u := ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / det
+	var v := ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / det
+	var w := 1.0 - u - v
+	if u < -0.0001 or v < -0.0001 or w < -0.0001:
+		return INF
+	return u * a.y + v * b.y + w * c.y
+
+
 ## Builds the mountains of `level`, adds them to it and returns their meshes.
 ## Nothing happens on a map without rock. The rock stays flat on `flat` (building
 ## plots, in metres on the ground, see Plots) and only rises past their edges.
@@ -143,6 +184,8 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 				h = 0.0
 			row.append(Vector3(x, h - SINK, z))
 		points.append(row)
+	# Kept for props that sit on the rock face (see surface_at).
+	level.set_meta("mountain_grid", {"origin": origin, "nx": nx, "nz": nz, "points": points})
 	# Smooth shading: every grid point gets one normal (the area-weighted mean of the
 	# triangles that meet there) and one colour, shared by all of them. Faces then blend
 	# into each other with no hard facet edges, and the snow laid over the rock (see

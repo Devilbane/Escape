@@ -3,6 +3,7 @@ extends RefCounted
 
 const EN := {
 	"Brücke": "Bridge",
+	"Quellwasserfall des Flusses": "The river's spring waterfall",
 	"Lotte, die Tochter der Bauern": "Lotte, the farmers' daughter",
 	# The small happenings (see ValleyEvents).
 	"Hilfe! Hilfe! Ich komme nicht mehr runter!": "Help! Help! I can't get down!",

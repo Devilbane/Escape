@@ -5841,6 +5841,13 @@ func _setup_chat_line() -> void:
 	_hud.add_child(chat_line)
 
 
+## The hero said a word that opens this villager's window (see NpcKeywords): it opens.
+func ask_villager(v: Villager) -> void:
+	if state != State.PLAYING or v.station.is_empty() or not player.can_act():
+		return
+	_use_station(v.station)
+
+
 ## Whether the hero may chat now.
 func chat_allowed() -> bool:
 	return state == State.PLAYING and not menus.is_open() and _shrine.is_empty() and player != null and not player.dead
@@ -7198,6 +7205,15 @@ func _on_player_bumped(point: Vector3) -> void:
 	if not station.is_empty():
 		if station.has("npc") or PERSON_STATIONS.has(station.kind):
 			bumped_person = true
+		# A villager with a window opens it for a click or a word (see NpcKeywords), never for a
+		# bump, who may stand where the hero has to pass: they only remark which words they answer to.
+		if station.has("npc") and NpcKeywords.has(station.kind):
+			player.face(station.pos - player.global_position)
+			player.play("Idle")
+			var npc: Villager = station.npc
+			if not npc.is_busy_talking() and not _villager_unavailable(station):
+				npc.say(NpcKeywords.remark(station.kind), player.global_position)
+			return
 		_use_station(station)
 		return
 	var obj := level.unsearched_at(point)
@@ -8064,9 +8080,10 @@ func _process(delta: float) -> void:
 		return
 	if has_camp() and Camp._flat(player.global_position, camp.global_position) > Camp.LEAVE_RANGE:
 		pack_camp()
-	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.pos):
+	if not _pending_station.is_empty() and player.can_act() and _arrived(_pending_station.get("stand", _pending_station.pos)):
 		player.path.clear()
-		if _reach(_pending_station.pos) <= Level.SEARCH_RANGE + 0.3 and _within_reach(_pending_station.pos):
+		var stand: Vector3 = _pending_station.get("stand", _pending_station.pos)
+		if _reach(stand) <= Level.SEARCH_RANGE + 0.3 and _within_reach(stand):
 			_use_station(_pending_station)
 		_pending_station = {}
 	if _pending_crate != null and player.can_act():
@@ -8096,6 +8113,8 @@ func _process(delta: float) -> void:
 	if player.is_seated():
 		# Sitting: how to get up again, not how to sit down.
 		_prompt.text = _hint("aufstehen", Lang.t("Laufen, klicken oder springen, um aufzustehen"))
+	elif at_station and station.has("npc") and NpcKeywords.has(station.kind):
+		_prompt.text = _hint(station.kind, Lang.t("Klicken oder ein Wort sagen, um mit %s zu reden") % station.npc.display_name)
 	elif at_station and bumped_person and PERSON_STATIONS.has(station.kind):
 		# The hero knows by now that running into people talks to them.
 		_prompt.text = ""
@@ -8113,7 +8132,6 @@ func _process(delta: float) -> void:
 			"brunnen": Lang.t("Dagegenlaufen, um aus dem Brunnen zu trinken"),
 			"npc": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
 			"bank": Lang.t("Dagegenlaufen, um mit %s zu reden") % station.npc.display_name if station.has("npc") else "",
-			"tempel": Lang.t("Dagegenlaufen, um mit %s über den Segen der Götter zu reden") % station.npc.display_name if station.has("npc") else "",
 			"barbier": Lang.t("Dagegenlaufen, um zu %s zu gehen") % station.npc.display_name if station.has("npc") else "",
 			"eingang": Lang.t("Dagegenlaufen, um in das dunkle Loch hinabzusteigen") if String(station.get("building", "")).begins_with("loch") or station.get("building", "") == TreasureMaps.CAVE else Lang.t("Dagegenlaufen, um %s zu betreten") % Lang.t(station.get("name", "")),
 			"tresor": Lang.t("Dagegenlaufen, um dein Schließfach zu öffnen"),
@@ -8145,7 +8163,7 @@ func _process(delta: float) -> void:
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
-		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind)))
+		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind, station)))
 	elif _prompt.text == "" and at_camp():
 		_prompt.text = _hint("camp", Lang.t("U: Lager"))
 	elif _prompt.text == "" and door_in_reach() != null:
@@ -8675,7 +8693,7 @@ func _click(point: Vector3) -> void:
 	if not station.is_empty():
 		_pending_station = station
 		_pending_search = {}
-		player.walk_to(station.pos, WALK_UP_TO)
+		player.walk_to(station.get("stand", station.pos), WALK_UP_TO)
 		return
 	var obj := level.nearest_interactable(point, 2.2)
 	if not obj.is_empty():

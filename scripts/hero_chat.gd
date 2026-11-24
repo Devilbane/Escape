@@ -53,11 +53,32 @@ func _init(owner_game: Node) -> void:
 ## The hero said `text` at `pos` (see Events.hero_spoke): the nearest free
 ## villager answers after a pause.
 func on_hero_spoke(text: String, pos: Vector3) -> void:
+	# A word that opens a villager's window (see NpcKeywords) opens it.
+	var asked := keyword_asked(text, pos)
+	if asked != null:
+		game.ask_villager(asked)
+		return
 	var who := listener(pos)
 	if who == null:
 		return
 	var delay := _rng.randf_range(DELAY.x, DELAY.y)
 	game.get_tree().create_timer(delay).timeout.connect(func() -> void: answer(who, text))
+
+
+## The nearest villager in earshot with a window that a word of `text` opens, or null.
+func keyword_asked(text: String, pos: Vector3) -> Villager:
+	if game.level == null or not "villagers" in game.level:
+		return null
+	var best: Villager = null
+	var best_d := REPLY_RANGE
+	for v in game.level.villagers:
+		if not is_instance_valid(v) or v.is_frozen() or v.station.is_empty():
+			continue
+		var d := VillageTalk._flat(v.global_position, pos)
+		if d <= best_d and NpcKeywords.matches(String(v.station.kind), text):
+			best = v
+			best_d = d
+	return best
 
 
 ## The nearest villager near `pos` who is free to answer, or null.

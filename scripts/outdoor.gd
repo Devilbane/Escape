@@ -100,6 +100,8 @@ const VALLEY_FROM := 43
 const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
+## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
+const TEMPLE_KEEPER := "O"
 const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
@@ -197,6 +199,8 @@ const GROUND_CHUNK := 12
 ## see few lights each, and their lighting changes in small steps nobody notices.
 const GROUND_PIECE := 4
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
+## Where the temple's nest sits, on the stone ridge behind the spire (relative to the chapel, in metres).
+const TEMPLE_NEST := Vector3(0.0, 11.1, -1.5)
 ## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
 ## Pieces in the kit's own metres, with the door looking south (+z): name,
 ## where it stands and how far it is turned (degrees).
@@ -2524,7 +2528,8 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			_dress_building(node, center, door_spots, 0.75, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
+			# Its nest sits on the ridge behind the spire (the highest corner is the spire's own foot).
+			_dress_building(node, center, door_spots, 1.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW, node.global_position + node.global_transform.basis.orthonormalized() * TEMPLE_NEST)
 			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
@@ -3251,7 +3256,7 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST, nest_at := Vector3.INF) -> void:
 	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
@@ -3265,11 +3270,6 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var offset := global_position
 		var tris := AgedStone.triangles(node)
 		var ground := node.global_position.y
-		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
-			# The mage tower's top room and roof stay bare: ivy there floats inside the room or
-			# flickers on the deck's rim (see MageTower).
-			var limit := ground + float(GuildHall.layout(node.get_meta("shape")).deck) - 0.05
-			tris = tris.filter(func(t: Dictionary) -> bool: return maxf(t.a.y, maxf(t.b.y, t.c.y)) <= limit)
 		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
 		var leaves := {"xforms": [], "colours": []}
 		# Window panes the house builder noted (see VillageHouse), in world space.
@@ -3277,7 +3277,10 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		if panes.is_empty():
 			panes = AgedStone.window_panes(tris, WINDOW_UV)
 		panes.append_array(AgedStone.glass_boxes(tris))
-		AgedStone.grow_ivy(tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
+		var ivy_tris := tris
+		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
+			ivy_tris = MageTower.ivy_faces(node, tris)
+		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines)
 		for i in leaves.xforms.size():
 			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
 		var stems: Array = leaves.get("stems", [])
@@ -3294,7 +3297,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
 			for w: Vector4 in warm_spots:
 				smoky.append(Vector3(w.x, w.y, w.z) + offset)
-			spot = AgedStone.nest_spot(tris, ground, smoky)
+			spot = nest_at if nest_at != Vector3.INF else AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
@@ -4168,6 +4171,9 @@ func _build_forge(cell: Vector2i) -> void:
 ## out from there and wait there after closing time; else their own tile.
 func _keeper_home(role: String, cell: Vector2i) -> Vector2i:
 	var kind := VillageHalls.kept_by(role)
+	# The priestess waits at the temple's porch, to one side of the way in, never in its doorway.
+	if role == TEMPLE_KEEPER:
+		kind = "temple"
 	if kind == "":
 		return cell
 	for rec in walk_in.buildings:

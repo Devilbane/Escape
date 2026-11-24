@@ -1,0 +1,1 @@
+- Priestess Elsbeth no longer blocks the temple doorway; running into her no longer opens her window, but clicking her or saying "heal" does.

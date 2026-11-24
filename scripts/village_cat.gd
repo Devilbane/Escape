@@ -1,22 +1,22 @@
 class_name VillageCat
 extends Node3D
 ## The village cat. It strolls about the smithy's end of the village, sits and looks around with
-## a flicking tail, and when it is tired of walking it pads to the old anvil beside the big
-## smithy's chimney, crouches, jumps up onto it, treads a spot, and curls up to sleep in the
-## warmth of the forge. At night it sleeps there all night; in winter it naps longer. Sleeping
-## it breathes slowly, twitches an ear and flicks the tip of its tail now and then, and when
-## the hero comes near it purrs (its breathing gets deeper and a little quicker). When it has slept
-## enough it stretches, hops down and strolls off again.
+## a flicking tail, and when it is tired of walking it pads to its perch, the barrel by the stacked
+## granite blocks beside the smithy, crouches, jumps up onto its lid, treads a spot, and curls up to
+## sleep. At night it sleeps there all night; in winter it naps longer. Asleep it breathes slowly,
+## twitches an ear and flicks the tip of its tail now and then, and when the hero comes near it purrs
+## (its breathing gets deeper and a little quicker). When it has slept enough it stretches, hops down
+## and strolls off again.
 ##
-## It never fights, cannot be hurt and is no obstacle: it has no collision and takes no room
-## (a hero can walk straight through it, like the hedgehog's trail of paw prints it only
-## watches). A village without the big smithy has no cat.
+## It never fights, cannot be hurt and is no obstacle: it has no collision and takes no room (a hero
+## can walk straight through it). It wears no snow: it is a small warm animal and its fur stays bare
+## in winter. A village without the big smithy, or without a barrel by its stones, has no cat.
 ##
 ## The model is built here from a few low-poly shapes (ellipsoids, cylinders and cones) in a
 ## ginger coat with a cream chest and paws, so nothing is imported. Every pose (walk, sit, crouch,
 ## leap, stretch, curl) is laid over its joints in _pose, one blend value for each.
 
-## Ground speed (m/s) of a stroll and how far (tiles) from the anvil it roams.
+## Ground speed (m/s) of a stroll and how far (tiles) from its perch it roams.
 const WALK := 1.1
 const ROAM := 7
 ## The cat's size against a real one (the world is big, like the hedgehog's).
@@ -41,14 +41,14 @@ const GINGER := Color(0.86, 0.5, 0.2)
 const DARK := Color(0.62, 0.3, 0.1)
 const CREAM := Color(0.96, 0.88, 0.76)
 
-## "stroll" (walking somewhere), "sit" (looking about), "to_anvil" (walking to its foot),
-## "crouch", "leap" (up onto the anvil), "settle" (treading its spot), "nap", "stretch" and
+## "stroll" (walking somewhere), "sit" (looking about), "to_perch" (walking to its foot),
+## "crouch", "leap" (up onto its perch), "settle" (treading its spot), "nap", "stretch" and
 ## "hop" (down again).
 var state := "sit"
 var level: Level
-## The middle of the anvil's face (world), the way out from it, and the spot on the ground in
+## The middle of the barrel's lid (world), the way out from it, and the spot on the ground in
 ## front of it the cat leaps from.
-var anvil_top: Vector3
+var perch_top: Vector3
 var out_dir: Vector3
 var foot: Vector3
 var _rng := RandomNumberGenerator.new()
@@ -87,10 +87,10 @@ var _purring := 0.0
 var _breath := 0.0
 
 
-## Where it lives: the top of the anvil's face and the way out from it (both world).
+## Where it lives: the top of the perch's face and the way out from it (both world).
 func setup(owner_level: Level, top: Vector3, out: Vector3) -> void:
 	level = owner_level
-	anvil_top = top
+	perch_top = top
 	out_dir = Vector3(out.x, 0.0, out.z).normalized()
 	_rng.seed = hash(Vector2(top.x, top.z)) + 41
 
@@ -103,7 +103,7 @@ func _ready() -> void:
 	_pose(0.0)
 
 
-## Finds its anvil's foot and takes its place there, once the village's tiles are laid out (they
+## Finds its perch's foot and takes its place there, once the village's tiles are laid out (they
 ## are not yet while its buildings go up). True when it is at home.
 func home() -> bool:
 	if _homed:
@@ -121,10 +121,10 @@ func home() -> bool:
 	return true
 
 
-## The open ground nearest the anvil from which it leaps up (out in front of it first, then to its
-## sides and back), in the middle of a free tile. Infinity when the anvil is walled in.
+## The open ground nearest its perch from which it leaps up (out in front of it first, then to its
+## sides and back), in the middle of a free tile. Infinity when its perch is walled in.
 func _find_foot() -> Vector3:
-	var base := Vector3(anvil_top.x, 0.0, anvil_top.z)
+	var base := Vector3(perch_top.x, 0.0, perch_top.z)
 	var side := Vector3(-out_dir.z, 0.0, out_dir.x)
 	var ways: Array[Vector3] = [out_dir, side, -side, (out_dir + side).normalized(), (out_dir - side).normalized(), -out_dir]
 	var d := 1.2
@@ -270,7 +270,7 @@ func _begin(new_state: String, time: float) -> void:
 	_timer = time
 
 
-## Whether it is night, when the cat sleeps on the anvil.
+## Whether it is night, when the cat sleeps on its perch.
 func is_night() -> bool:
 	if level.get("night") == true:
 		return true
@@ -287,22 +287,28 @@ func is_asleep() -> bool:
 	return state == "nap"
 
 
-## Sends it to its anvil now, whatever it was doing (for the tests and for the night).
+## Sends it to its perch now, whatever it was doing (for the tests and for the night).
 func go_to_bed() -> void:
-	if state in ["to_anvil", "crouch", "leap", "settle", "nap"]:
+	if state in ["to_perch", "crouch", "leap", "settle", "nap"]:
 		return
 	_strolls = 0
 	if _set_path(foot):
-		_begin("to_anvil", 0.0)
+		_begin("to_perch", 0.0)
 	else:
 		_begin("crouch", CROUCH_TIME)
 		_from = global_position
-		_to = anvil_top
+		_to = perch_top
+
+
+## Its small paw prints in the snow (see SnowTrail); only while it walks.
+var _trail := SnowTrail.new("cat")
 
 
 func _physics_process(delta: float) -> void:
 	if level == null or level.player == null or not home():
 		return
+	if state == "stroll" or state == "to_perch":
+		_trail.follow(level, global_position)
 	var hero: Node3D = level.player
 	var away := _flat(global_position - hero.global_position).length()
 	# Far from the hero nobody sees it: it keeps still.
@@ -310,9 +316,9 @@ func _physics_process(delta: float) -> void:
 		return
 	_clock += delta
 	_breath += delta * (1.7 + 0.8 * _purring)
-	# Asleep on the anvil it lies exactly on its face, whatever else moves.
+	# Asleep on its perch it lies exactly on its face, whatever else moves.
 	if state == "nap" or state == "settle":
-		global_position = anvil_top
+		global_position = perch_top
 	var calm_hero: bool = away < PURR_RANGE and not hero.get("dead")
 	_purring = move_toward(_purring, 1.0 if (calm_hero and state == "nap") else 0.0, delta * 2.0)
 	_flick_in -= delta
@@ -336,15 +342,15 @@ func _physics_process(delta: float) -> void:
 			if _path.is_empty():
 				_strolls += 1
 				_begin("sit", _rng.randf_range(3.0, 8.0))
-		"to_anvil":
+		"to_perch":
 			_walk(delta)
 			if _path.is_empty():
 				_begin("crouch", CROUCH_TIME)
 				_from = global_position
-				_to = anvil_top
+				_to = perch_top
 		"crouch":
 			_timer -= delta
-			WalkRules.turn(self, anvil_top - global_position, delta, 12.0)
+			WalkRules.turn(self, perch_top - global_position, delta, 12.0)
 			if _timer <= 0.0:
 				_arc = 0.0
 				_begin("leap", LEAP_TIME)
@@ -379,7 +385,7 @@ func _face_hero(hero: Node3D, away: float, delta: float) -> void:
 		WalkRules.turn(self, hero.global_position - global_position, delta, 3.0)
 
 
-## What it does next after sitting: stroll somewhere, or go to its anvil when it is bedtime or
+## What it does next after sitting: stroll somewhere, or go to its perch when it is bedtime or
 ## it has walked enough.
 func _next() -> void:
 	var enough := _strolls >= (STROLLS_WINTER if is_winter() else STROLLS)
@@ -418,7 +424,7 @@ func _walk(delta: float) -> void:
 	WalkRules.turn(self, to, delta, WalkRules.TURN_RATE * 1.2)
 
 
-## One tick of a leap up onto the anvil or a hop down from it, along an arc.
+## One tick of a leap up onto its perch or a hop down from it, along an arc.
 func _fly(delta: float, up: bool) -> void:
 	var span := LEAP_TIME if up else LEAP_TIME * 0.9
 	_arc = minf(1.0, _arc + delta / span)
@@ -433,7 +439,7 @@ func _fly(delta: float, up: bool) -> void:
 	if _arc >= 1.0:
 		global_position = _to
 		if up:
-			# Lands on the anvil facing out, treads a little and settles.
+			# Lands on its perch facing out, treads a little and settles.
 			_begin("settle", 1.8)
 			_strolls = 0
 		else:
@@ -452,7 +458,7 @@ func _pose(delta: float) -> void:
 	_stretch = move_toward(_stretch, 1.0 if state == "stretch" else 0.0, k * 1.6) if delta > 0.0 else (1.0 if state == "stretch" else 0.0)
 	_sleepy = move_toward(_sleepy, 1.0 if state in ["nap", "settle"] else 0.0, k * 0.8) if delta > 0.0 else (1.0 if state == "nap" else 0.0)
 	var up := 1.0 - _curl
-	var walking := state in ["stroll", "to_anvil"]
+	var walking := state in ["stroll", "to_perch"]
 	# What each blend means. Values at rest (stood still on its feet):
 	var body_y := 0.3
 	var body_pitch := 0.0
@@ -495,7 +501,7 @@ func _pose(delta: float) -> void:
 	head_pitch += _stretch * 0.5
 	body_y -= _stretch * 0.03
 	# Purring: only the breath gets a little deeper. The body itself never moves up or down (a fast
-	# hum sampled by the physics ticks looked like bouncing), it lies still on the anvil.
+	# hum sampled by the physics ticks looked like bouncing), it lies still on its perch.
 	breathe = 1.0 + sin(_breath) * (0.012 + 0.012 * _purring)
 	# Curled up: lowered, round and short, the legs tucked in, the head laid beside the tail.
 	body_y = lerpf(body_y, 0.13, _curl)
@@ -545,7 +551,7 @@ func _pose(delta: float) -> void:
 	_tail[0].position = Vector3(0, lerpf(0.03, -0.02, _curl), lerpf(-0.3, -0.18, _curl))
 
 
-## A free tile within a few tiles of the anvil's foot.
+## A free tile within a few tiles of the perch's foot.
 func _nearby(radius: int) -> Vector3:
 	var home: Vector2i = level.world_to_cell(foot)
 	for i in 20:

@@ -39,6 +39,12 @@ const BEAM := 0.22
 const ROOF_OVERHANG := 0.45
 
 static var _mats := {}
+## The flat tops of the small timber and stone things on the front of the house being built (door
+## lintel, window sills and heads, the beams of the jetty, the doorstep), each four corners in the
+## house's frame. Kept as meta "snow_ledges" so a dusting of snow lies on them even under the eaves
+## (see SnowCaps.ledges_of). Noted only while a house is built (see _noting).
+static var _ledges: Array = []
+static var _noting := false
 ## The middles of the window panes of the house being built (kept on the
 ## house as meta "windows", so the ivy can leave them clear).
 static var _panes: Array = []
@@ -62,6 +68,8 @@ const OPENING := Vector2(0.8, 0.9)
 static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, style := {}) -> Node3D:
 	_panes = []
 	_outs = []
+	_ledges = []
+	_noting = true
 	# A hall (see VillageHalls) may be wider and deeper than a home, its door in the middle.
 	var w := clampf(room.x - 1.2 - JETTY * 2.0, 4.5, float(style.get("max_w", 7.0))) - rng.randf_range(0.0, 0.6)
 	var d := clampf(room.y - 1.4 - JETTY * 2.0, 4.0, float(style.get("max_d", 6.0))) - rng.randf_range(0.0, 0.5)
@@ -91,6 +99,8 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	house.set_meta("chimney", Vector3(cx, eaves + ridge * 1.2 + 0.55, -ud * 0.22))
 	house.set_meta("windows", _panes.duplicate())
 	house.set_meta("window_outs", _outs.duplicate())
+	house.set_meta("snow_ledges", _ledges.duplicate())
+	_noting = false
 	shape["mats"] = _materials(rng, glass)
 	var body := _mesh_of(parts, shape.mats)
 	house.add_child(body)
@@ -444,6 +454,8 @@ static func _reveals(parts: Dictionary, outer: Vector3, inner: Vector3, b: Basis
 static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: Material) -> Node3D:
 	_panes = []
 	_outs = []
+	_ledges = []
+	_noting = true
 	var w := room.x - 0.06
 	var d := clampf(room.y - 1.6 - JETTY * 2.0, 4.0, 6.0) - rng.randf_range(0.0, 0.3)
 	var ridge := w * rng.randf_range(0.62, 0.8)
@@ -487,6 +499,8 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	house.set_meta("door_x", door_x)
 	house.set_meta("windows", _panes.duplicate())
 	house.set_meta("window_outs", _outs.duplicate())
+	house.set_meta("snow_ledges", _ledges.duplicate())
+	_noting = false
 	var mats := _materials(rng, glass)
 	house.add_child(_mesh_of(parts, mats))
 	var roof := _mesh_of(roof_parts, mats)
@@ -557,6 +571,8 @@ static func _beams(parts: Dictionary, w: float, d: float, y0: float, z0 := 0.0) 
 		for y: float in [y0 + hb, y0 + UPPER - hb]:
 			_box(parts, "timber", Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
 			_box(parts, "timber", Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
+			_note_top(Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
+			_note_top(Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
 
 
 ## How far the door posts reach out from the middle of the door (metres).
@@ -568,10 +584,12 @@ const DOOR_POST := 0.66
 ## _hang_door).
 static func _door(parts: Dictionary, at: Vector3, step = null) -> void:
 	_box(parts, "timber", at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
+	_note_top(at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
 	for s: float in [-1.0, 1.0]:
 		_box(parts, "timber", at + Vector3(s * DOOR_POST, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
 	var step_parts: Dictionary = parts if step == null else step
 	_box(step_parts, "stone", Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
+	_note_top(Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
 
 
 ## Hangs the plank door of the doorway at `at` on its hinge (the left side) and
@@ -595,6 +613,17 @@ static func _hang_door(house: Node3D, at: Vector3) -> void:
 	house.set_meta("door_leaf", door)
 
 
+## Notes the flat top of a box (as `_box` takes it) for the snow's dusting, while a house is built
+## (see _ledges). Tilted boxes are left out: roofs carry their own snow.
+static func _note_top(center: Vector3, size: Vector3, basis := Basis()) -> void:
+	if not _noting or absf((basis * Vector3.UP).y) < 0.99:
+		return
+	var hx := basis * Vector3(size.x * 0.5 - 0.02, 0, 0)
+	var hz := basis * Vector3(0, 0, size.z * 0.5 - 0.02)
+	var top := center + basis * Vector3(0, size.y * 0.5, 0)
+	_ledges.append(PackedVector3Array([top - hx - hz, top + hx - hz, top + hx + hz, top - hx + hz]))
+
+
 ## A window: a glowing pane in a frame, with open shutters either side.
 static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_panes.append(at)
@@ -613,6 +642,8 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_box(parts, "timber", at + out * 0.07, Vector3(0.8, 0.08, 0.06), b)
 	_box(parts, "timber", at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
 	_box(parts, "timber", at + out * 0.08 + Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.12), b)
+	_note_top(at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
+	_note_top(at + out * 0.08 + Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.12), b)
 	# The shutters: three wooden planks each, held by a cross batten. (They used the chapel door's
 	# picture, whose pale carving read as stone tiles on such small boards.)
 	for s: float in [-1.0, 1.0]:
@@ -677,7 +708,18 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 					st.set_normal(n)
 					st.set_uv(uvs[k])
 					st.add_vertex(quad[k])
-	_box(parts, "timber", Vector3(0, eaves + ridge + 0.14, 0), Vector3(w + 0.1, 0.24, 0.3))
+	# The ridge board under the cap tiles, and the cap shingles over the ridge and down the two gable
+	# edges (RoofCaps), which hide the hard line where the slopes and their boards end.
+	var apex := eaves + ridge + 0.1 + 0.08 * cos(slope)
+	_box(parts, "timber", Vector3(0, apex - 0.05, 0), Vector3(w + 0.1, 0.16, 0.2))
+	RoofCaps.ridge(st, Vector3(-w * 0.5 - 0.05, apex, 0), Vector3(w * 0.5 + 0.05, apex, 0), tan(slope), hash(Vector3(w, d, ridge)))
+	for side: float in [-1.0, 1.0]:
+		var b := Basis(Vector3(1, 0, 0), side * slope)
+		var n := b * Vector3.UP
+		var down := b * Vector3(0, 0, side)
+		for end: float in [-1.0, 1.0]:
+			var top := Vector3(end * w * 0.5, apex, 0)
+			RoofCaps.edge(st, top, top + down * len, n, Vector3(end, 0, 0), hash(Vector3(side, end, w)))
 
 
 ## A box into the surface for `key`: centre, size, turn. Its texture is laid

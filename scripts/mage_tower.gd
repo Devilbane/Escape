@@ -105,6 +105,28 @@ static func top_storey(shape: Dictionary, groups: Dictionary) -> void:
 	roof(groups.top_roof, shape)
 
 
+## The faces ivy may grow on at the tower (`tris` as AgedStone.triangles makes them): everything below
+## the deck, and above it only the outer faces of the top room's walls, standing upright: not the
+## inner faces (a leaf would float in the room), nor the deck's rim, the wall tops or the roof.
+static func ivy_faces(node: Node3D, tris: Array) -> Array:
+	var shape: Dictionary = node.get_meta("shape")
+	var lay := GuildHall.layout(shape)
+	var half_w := (float(shape.w) + VillageHouse.JETTY * 2.0) * 0.5
+	var half_d := (float(shape.d) + VillageHouse.JETTY * 2.0) * 0.5
+	var to_local := node.global_transform.affine_inverse()
+	var deck: float = lay.deck
+	return tris.filter(func(t: Dictionary) -> bool:
+		var a: Vector3 = to_local * (t.a as Vector3)
+		var b: Vector3 = to_local * (t.b as Vector3)
+		var c: Vector3 = to_local * (t.c as Vector3)
+		var middle := (a + b + c) / 3.0
+		if maxf(a.y, maxf(b.y, c.y)) <= deck - 0.05:
+			return true
+		if middle.y < deck + 0.1 or absf((t.n as Vector3).y) > 0.12:
+			return false
+		return absf(middle.x) >= half_w - 0.02 or absf(middle.z) >= half_d - 0.02)
+
+
 ## The windows of the top room that look out through its walls (see VillageHouse._openings).
 static func windows(shape: Dictionary) -> Array:
 	var lay := GuildHall.layout(shape)
@@ -168,6 +190,16 @@ static func roof(parts: Dictionary, shape: Dictionary) -> void:
 					st.set_normal(n)
 					st.set_uv(uvs[k])
 					st.add_vertex(quad[k])
+	# Cap shingles along the four hips, from the peak down to the corners (RoofCaps), so no bare line
+	# is left where two slopes meet.
+	for i in 4:
+		var corner: Vector3 = corners[i]
+		var side := Vector3.UP.cross(corner - apex).normalized()
+		var face := (corners[(i + 1) % 4] as Vector3 - corner).cross(apex - corner).normalized()
+		if face.y < 0.0:
+			face = -face
+		var fall := absf((Vector2(face.x, face.z) / face.y).dot(Vector2(side.x, side.z)))
+		RoofCaps.ridge(st, apex.lerp(corner, 0.03), corner, fall, hash(Vector3(i, uw, ud)), true)
 	# The post at the peak, the gilded ball and a pennant of the tower's violet.
 	VillageHouse._box(parts, "timber", apex + Vector3(0, SPIRE * 0.45, 0), Vector3(0.12, SPIRE, 0.12))
 	VillageHouse._box(parts, "timber", apex + Vector3(0, SPIRE * 0.12, 0), Vector3(0.4, 0.12, 0.4))
@@ -571,6 +603,7 @@ static func _bedroom(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	_put(walk_in, rec, roof, WalkInFurniture.rug(Vector2(5.2, 3.0)), Vector3(0.9, y + 0.002, back + 2.6))
 	var stand_z := origin_z + (CosyBed.FOOT + CosyBed.HEAD) * 0.5
 	rec["ground_beds"] = true
+	rec["bed_storey"] = GuildHall.ROOF_STOREY
 	for spec: Array in [[-1.0, "AldoBed"], [1.9, "OdoBed"]]:
 		var origin := Vector3(float(spec[0]), y, origin_z)
 		var bed := CosyBed.build(roof, origin, 0.0, true)

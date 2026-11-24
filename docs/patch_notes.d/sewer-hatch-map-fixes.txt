@@ -1,0 +1,1 @@
+- Sewers: click a manhole to climb down (it falls shut after a minute), no more pale square in the shaft, smoother brick floors, the den's wall blends in, and the sewers now show on the map.

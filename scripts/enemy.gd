@@ -2401,8 +2401,9 @@ func _look_for_foe(friendly: bool, leash: float) -> void:
 		if not is_instance_valid(e) or e == self or e.dead:
 			continue
 		var d := _flat_distance(e)
-		# A friend of the hero leaves the hero's other friends alone.
-		if d >= best_d or (friendly and e.is_friend()):
+		# A friend of the hero leaves the hero's other friends alone, and so do the sewers' vermin
+		# among themselves (see Sewers.PEACE).
+		if d >= best_d or (friendly and e.is_friend()) or (has_meta(Sewers.PEACE) and e.has_meta(Sewers.PEACE)):
 			continue
 		# A slime hunts whatever it could swallow (see SlimeGrowth).
 		var rival: bool = d < RIVAL_SIGHT and (Factions.kinds_are_rivals(kind, e.kind) or SlimeGrowth.can_eat(self, e))

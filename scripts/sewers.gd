@@ -78,7 +78,12 @@ const KIND_LID := SewerSurface.LID
 const LEARN := "Die Kanalisation: Unter dem Dorf läuft der Bach aus dem Tal durch einen gemauerten Gang, vom Gitter am Dorftor bis zum Auslauf im Nordwesten. Das Wasser trägt den Unrat des Dorfes mit sich fort. Hinab geht es durch die Kanalluken und über Leitern."
 const ENTERED := "Du steigst in die Kanalisation hinab. Es riecht nach Moder, und irgendwo rauscht Wasser."
 const LID_OPENED := "Du stemmst den schweren Deckel auf. Eine Leiter führt hinab in die Dunkelheit."
-const LID_PROMPT := "Dagegenlaufen, um die Kanalluke zu öffnen"
+const LID_PROMPT := "Anklicken oder dagegenlaufen, um die Kanalluke zu öffnen und hinabzusteigen"
+const LID_DOWN_PROMPT := "Anklicken, um die Leiter hinabzusteigen"
+## Seconds a lid stays open before it falls shut.
+static var open_for := 60.0
+## Seconds the lid takes to swing open (see SewerSurface.swing_open).
+const LID_SWING := 0.9
 
 ## The luke lids the hero has opened this session (tile -> true).
 static var opened := {}
@@ -228,6 +233,34 @@ static func holds(pos: Vector3) -> bool:
 	return pos.y < -1.0 and cells().has(cell_at(pos))
 
 
+## The size of the cell grid of the plot (for the map's record of what the hero has seen).
+static func grid_size() -> Vector2i:
+	return PLOT.size * HouseSketch.CELLS_PER_TILE
+
+
+## The cells the hero sees from `pos` down here: the cells within `radius` steps along the tunnels.
+## The hidden den and its passage do not count until the false wall has given way.
+static func seen_from(pos: Vector3, radius: int, den_open := false) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if not holds(pos):
+		return out
+	var start := cell_at(pos)
+	var dist := {start: 0}
+	var todo: Array[Vector2i] = [start]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_front()
+		out.append(c)
+		if dist[c] >= radius:
+			continue
+		for d: Vector2i in HouseSketch.DOWN.values():
+			var n: Vector2i = c + d
+			if dist.has(n) or not cells().has(n) or (not den_open and Spooknortz.hides(n)):
+				continue
+			dist[n] = dist[c] + 1
+			todo.append(n)
+	return out
+
+
 ## The middle of a cell's floor.
 static func floor_at(c: Vector2i) -> Vector3:
 	return sketch().cell_world(c.x, c.y) + Vector3(0, -HouseSketch.DEPTH, 0)
@@ -245,21 +278,47 @@ static func tile_of(c: Vector2i) -> Vector2i:
 
 # --- Hints, the lids and the first descent --------------------------------------
 
-static func prompt(kind: String) -> String:
+static func prompt(kind: String, station := {}) -> String:
 	if kind == KIND_LID:
-		return Lang.t(LID_PROMPT)
+		return Lang.t(LID_DOWN_PROMPT if opened.has(station.get("key", Vector2i(-1, -1))) else LID_PROMPT)
 	return Spooknortz.prompt(kind)
 
 
-## The hero ran into a hatch's lid: they heave it open (it stays open).
+## The hero ran into a hatch's lid or clicked the hatch: a shut lid is heaved open (it stays open), then
+## the hero walks up to the head of the ladder, if not there yet, and climbs down.
 static func use(game: Node, s: Dictionary) -> void:
 	if s.kind != KIND_LID:
 		return
-	s["used"] = true
-	opened[s.key] = true
-	SewerSurface.swing_open(s)
-	Sfx.play(game, "secret", -4.0)
-	game.show_message(Lang.t(LID_OPENED), 4.0)
+	if not opened.has(s.key):
+		opened[s.key] = true
+		SewerSurface.swing_open(s)
+		Sfx.play(game, "secret", -4.0)
+		game.show_message(Lang.t(LID_OPENED), 4.0)
+		_close_later(game, s)
+		await game.get_tree().create_timer(LID_SWING).timeout
+	var stand: Vector3 = s.stand
+	var here: Vector3 = game.player.global_position
+	if Vector2(here.x - stand.x, here.z - stand.z).length() > 1.3:
+		game.player.walk_to(stand, 0.3)
+		game._pending_station = s
+		return
+	game.player.path.clear()
+	game.player.climb_down_at(stand)
+
+
+## An open lid falls shut again after `open_for` seconds, but not while the hero is down in the sewers,
+## on a ladder or standing by the hatch (it is tried again every few seconds).
+static func _close_later(game: Node, s: Dictionary) -> void:
+	await game.get_tree().create_timer(open_for).timeout
+	while opened.has(s.key) and is_instance_valid(s.get("hinge")) and game.is_inside_tree():
+		var at: Vector3 = game.player.global_position
+		var stand: Vector3 = s.stand
+		if holds(at) or game.player.on_ladder() or Vector2(at.x - stand.x, at.z - stand.z).length() < 3.0:
+			await game.get_tree().create_timer(5.0).timeout
+			continue
+		opened.erase(s.key)
+		SewerSurface.swing_shut(s)
+		return
 
 
 ## Down in the sewers (every frame the hero is): the first time the compendium learns of them.
@@ -276,6 +335,8 @@ static func entered(game: Node) -> void:
 
 # --- The vermin of the labyrinth ----------------------------------------------------
 
+## The meta every one of the vermin carries: they never fight each other.
+const PEACE := "sewer_vermin"
 ## The vermin of the chambers (see MOBS), one entry each: {"kind", "cell", "enemy", "fell"}; `fell` is
 ## the time it fell, in seconds (-1 while it lives).
 static var _vermin: Array = []
@@ -322,6 +383,9 @@ static func _raise(level: Level, g: Dictionary) -> Enemy:
 	var e := Enemy.new()
 	e.kind = g.kind
 	e.level = level
+	# The vermin of the chambers leave one another alone (rivals among them would thin each other
+	# out while the hero is away, see Enemy._pick_rival).
+	e.set_meta(PEACE, true)
 	level.add_child(e)
 	e.global_position = floor_at(g.cell)
 	e.reset_physics_interpolation()
@@ -356,7 +420,7 @@ static func brick_material() -> StandardMaterial3D:
 ## The floor: darker, wetter brick underfoot.
 static func floor_material() -> StandardMaterial3D:
 	if _floor == null:
-		_floor = _brick_stuff(0.55, 0.32)
+		_floor = _brick_stuff(0.55, 0.5)
 	return _floor
 
 
@@ -364,7 +428,7 @@ static func _brick_stuff(darker: float, rough: float) -> StandardMaterial3D:
 	var size := 256
 	var rows := 16
 	var wide := 46
-	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var img := Image.create(size, size, true, Image.FORMAT_RGB8)
 	var height := PackedFloat32Array()
 	height.resize(size * size)
 	var rng := RandomNumberGenerator.new()
@@ -392,6 +456,8 @@ static func _brick_stuff(darker: float, rough: float) -> StandardMaterial3D:
 				height[y * size + x] = h
 				img.set_pixel(x, y, Color(col.r * darker, col.g * darker, col.b * darker))
 	var mat := StandardMaterial3D.new()
+	# Mipmaps, or the fine courses of brick shimmer as the view moves.
+	img.generate_mipmaps()
 	mat.albedo_texture = ImageTexture.create_from_image(img)
 	mat.normal_enabled = true
 	mat.normal_texture = ImageTexture.create_from_image(_normals_of(height, size, 2.4))
@@ -408,7 +474,7 @@ static func stone_material() -> StandardMaterial3D:
 	if _mats.has("stone_blocks"):
 		return _mats["stone_blocks"]
 	var size := 256
-	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var img := Image.create(size, size, true, Image.FORMAT_RGB8)
 	var height := PackedFloat32Array()
 	height.resize(size * size)
 	var rng := RandomNumberGenerator.new()
@@ -436,6 +502,8 @@ static func stone_material() -> StandardMaterial3D:
 				height[y * size + x] = h
 				img.set_pixel(x, y, Color(col.r, col.g, col.b))
 	var mat := StandardMaterial3D.new()
+	# Mipmaps, or the fine courses of brick shimmer as the view moves.
+	img.generate_mipmaps()
 	mat.albedo_texture = ImageTexture.create_from_image(img)
 	mat.normal_enabled = true
 	mat.normal_texture = ImageTexture.create_from_image(_normals_of(height, size, 3.0))
@@ -450,13 +518,14 @@ static func stone_material() -> StandardMaterial3D:
 
 ## A normal map from a height field (size x size, wrapping), `strength` times as steep.
 static func _normals_of(height: PackedFloat32Array, size: int, strength: float) -> Image:
-	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
+	var img := Image.create(size, size, true, Image.FORMAT_RGB8)
 	for y in size:
 		for x in size:
 			var dx := height[y * size + (x + 1) % size] - height[y * size + (x + size - 1) % size]
 			var dy := height[((y + 1) % size) * size + x] - height[((y + size - 1) % size) * size + x]
 			var n := Vector3(-dx * strength, -dy * strength, 1.0).normalized()
 			img.set_pixel(x, y, Color(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5))
+	img.generate_mipmaps(true)
 	return img
 
 
@@ -500,7 +569,7 @@ static func _channel_water(parent: Node3D, body: StaticBody3D) -> void:
 			var size := Vector3(kerb_w, KERB_HIGH, HouseSketch.CELL) if d.x != 0 else Vector3(HouseSketch.CELL, KERB_HIGH, kerb_w)
 			_box(parent, at + Vector3(0, (KERB_HIGH - 0.08) * 0.5, 0), size - Vector3(0, 0.08, 0) if d.x != 0 else size - Vector3(0, 0.08, 0), stone)
 			# The capstone overhangs the kerb a little on both sides, its edge worn.
-			var cap := Vector3(kerb_w + 0.1, 0.1, HouseSketch.CELL + 0.02) if d.x != 0 else Vector3(HouseSketch.CELL + 0.02, 0.1, kerb_w + 0.1)
+			var cap := Vector3(kerb_w + 0.1, 0.1, HouseSketch.CELL) if d.x != 0 else Vector3(HouseSketch.CELL, 0.1, kerb_w + 0.1)
 			_box(parent, at + Vector3(0, KERB_HIGH - 0.04, 0), cap, stone)
 		var sheet := MeshInstance3D.new()
 		var plane := PlaneMesh.new()

@@ -13,6 +13,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
+	preload("res://scripts/lang/climb_spots.gd"),
 	preload("res://scripts/lang/temple_morning.gd"),
 	preload("res://scripts/lang/valley.gd"),
 	preload("res://scripts/lang/sewers.gd"),
@@ -151,6 +152,7 @@ const PARTS := [
 	preload("res://scripts/lang/tentacles.gd"),
 	preload("res://scripts/lang/event_log.gd"),
 	preload("res://scripts/lang/hero_chat.gd"),
+	preload("res://scripts/lang/npc_keywords.gd"),
 	preload("res://scripts/lang/seats.gd"),
 	preload("res://scripts/lang/bench_rest.gd"),
 	preload("res://scripts/lang/home_run.gd"),

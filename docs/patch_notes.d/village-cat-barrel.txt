@@ -1,0 +1,1 @@
+- The smithy cat now sleeps on the barrel beside the stacked granite blocks instead of the anvil, and the snow stays off her bed all winter.

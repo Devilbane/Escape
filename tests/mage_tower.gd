@@ -88,6 +88,11 @@ func _run() -> void:
 		_end()
 		return
 	check(is_equal_approx(hall.rotation.y, 0.0), "its door faces south, onto the path")
+	var open_lights := 0
+	for l: Node in hall.find_children("*", "Light3D", true, false):
+		if not l.has_meta(LightShadows.INDOOR):
+			open_lights += 1
+	check(open_lights == 0, "every light in the tower takes wall shadows, none shines out onto the snow (%d do not)" % open_lights)
 	check(lvl.hall_holes.size() == 32, "the cellar is dug out of the ground under it (with the guildhall's) (%d cells)" % lvl.hall_holes.size())
 
 	# --- What one stands on ---------------------------------------------------------------------

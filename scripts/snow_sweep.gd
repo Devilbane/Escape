@@ -187,11 +187,18 @@ static func _is_path(level: Node, c: Vector2i) -> bool:
 	return SurfaceLife.PATH.contains(ch) and ch != "#"
 
 
-## The points of a stretch of footpath to sweep from `start` (his spot): the walkway tile nearest to it,
-## then along the walkway as far as RUN_MIN to RUN_MAX tiles, the stretch with the most snow left of the
-## few he looks at. Each point is a metre on, swaying a little to either side of the tile's middle so the
-## footpath is not ruler-straight. Empty when no walkway is near or all is swept. `swept` (a Callable taking a
-## point, true when it is clean already) says what is left to do; by default the snow's mask does.
+## Whether `c` is a tile he may walk and sweep: a footpath, or the paved square (see SurfaceLife.SQUARE).
+static func _is_walkway(level: Node, c: Vector2i) -> bool:
+	return (_is_path(level, c) or level.cell_char(c) == SurfaceLife.SQUARE) and level.is_open(c)
+
+
+## The points of the next stretch of walkway to sweep. He works through the whole connected network of
+## walkways from `start` (his spot): the stretch nearest to him (by the way he walks) that still has snow or
+## leaves left, one footpath after the other, and the paved square in the village centre last. The stretch
+## runs RUN_MIN to RUN_MAX tiles on from there; each point is a metre on, swaying a little to either side of the
+## tile's middle so the footpath is not ruler-straight. Empty when no walkway is near or all is swept.
+## `swept` (a Callable taking a point, true when it is clean already) says what is left to do; by default the
+## snow's mask does.
 static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swept := Callable()) -> Array[Vector3]:
 	var seed_cell := Vector2i(-1, -1)
 	var best := 1e9
@@ -205,10 +212,50 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 	var none: Array[Vector3] = []
 	if seed_cell.x < 0:
 		return none
-	# Breadth-first along the footpath tiles.
-	var depth := {seed_cell: 0}
+	if not swept.is_valid():
+		swept = func(p: Vector3) -> bool: return is_bare(level, p)
+	# The whole walkway network, nearest first.
+	var came := {}
+	var order := _flood(level, seed_cell, came)
+	var dirty: Array[Vector2i] = []
+	for c: Vector2i in order:
+		if not swept.call(level.cell_to_world(c)):
+			dirty.append(c)
+	# Footpaths before the square (the sort is stable, so each group stays nearest first).
+	var paths := dirty.filter(func(c: Vector2i) -> bool: return level.cell_char(c) != SurfaceLife.SQUARE)
+	var squares := dirty.filter(func(c: Vector2i) -> bool: return level.cell_char(c) == SurfaceLife.SQUARE)
+	for target: Vector2i in paths.slice(0, 40) + squares.slice(0, 12):
+		var way := _stretch(level, target, came.get(target, target), rng, swept)
+		if not way.is_empty():
+			return way
+	return none
+
+
+## Every walkway cell (footpaths and the square) connected to `from`, nearest first.
+static func _flood(level: Node, from: Vector2i, parent := {}) -> Array[Vector2i]:
+	var seen := {from: true}
+	var queue: Array[Vector2i] = [from]
+	var i := 0
+	while i < queue.size():
+		var c: Vector2i = queue[i]
+		i += 1
+		for n: Vector2i in [c + Vector2i.RIGHT, c + Vector2i.LEFT, c + Vector2i.DOWN, c + Vector2i.UP]:
+			if not seen.has(n) and _is_walkway(level, n):
+				seen[n] = true
+				parent[n] = c
+				queue.append(n)
+	return queue
+
+
+## A stretch of RUN_MIN to RUN_MAX tiles starting at `target`, the one with the most left to sweep of the few he
+## looks at (it begins on the tile before, on his way there). On a footpath it stays on footpaths (the square waits); on the square it stays on the square.
+## Empty when too little is left on it.
+static func _stretch(level: Node, target: Vector2i, before: Vector2i, rng: RandomNumberGenerator, swept: Callable) -> Array[Vector3]:
+	var none: Array[Vector3] = []
+	var on_square: bool = level.cell_char(target) == SurfaceLife.SQUARE
+	var depth := {target: 0}
 	var parent := {}
-	var queue := [seed_cell]
+	var queue: Array[Vector2i] = [target]
 	var i := 0
 	while i < queue.size():
 		var c: Vector2i = queue[i]
@@ -216,15 +263,16 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 		if depth[c] >= RUN_MAX:
 			continue
 		for n: Vector2i in [c + Vector2i.RIGHT, c + Vector2i.LEFT, c + Vector2i.DOWN, c + Vector2i.UP]:
-			if not depth.has(n) and _is_path(level, n) and level.is_open(n):
+			if depth.has(n) or not level.is_open(n):
+				continue
+			var square: bool = level.cell_char(n) == SurfaceLife.SQUARE
+			if (square == on_square) and (square or _is_path(level, n)):
 				depth[n] = depth[c] + 1
 				parent[n] = c
 				queue.append(n)
 	var ends: Array = depth.keys().filter(func(c: Vector2i) -> bool: return depth[c] >= mini(RUN_MIN, depth.values().max()))
 	if ends.is_empty():
 		return none
-	if not swept.is_valid():
-		swept = func(p: Vector3) -> bool: return is_bare(level, p)
 	var chosen: Array[Vector3] = []
 	var most := 0.0
 	for k in mini(4, ends.size()):
@@ -236,6 +284,11 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 			if not parent.has(c):
 				break
 			c = parent[c]
+		# He starts a tile before it, on the way he came: the broom reaches ahead of him.
+		if before != target:
+			cells.push_front(before)
+		if cells.size() < 2:
+			continue
 		var points := _points(level, cells, rng)
 		var left := 0.0
 		for p in points:
@@ -244,8 +297,7 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 		if left > most:
 			most = left
 			chosen = points
-	# Mostly swept already: nothing to do (until the next snowfall or the next gust of leaves).
-	return chosen if most >= 0.4 * float(RUN_MIN) * Level.TILE / POINT_GAP else none
+	return chosen if most >= 3.0 else none
 
 
 ## The cells' middles joined into points a metre apart, swaying to either side.

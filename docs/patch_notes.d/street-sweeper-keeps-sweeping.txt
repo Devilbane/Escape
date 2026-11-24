@@ -1,0 +1,1 @@
+- Matthes the street sweeper now sweeps all the way while he walks along a walkway (out and back), sweeps the rim of the village centre but not its inside, and his face no longer glows.

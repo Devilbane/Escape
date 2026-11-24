@@ -27,8 +27,6 @@ const RUN_MIN := 3
 const RUN_MAX := 12
 ## How fast he walks while he sweeps (metres per second).
 const PACE := 1.1
-## He walks back along the swept strip faster, the broom over his shoulder.
-const PACE_BACK := 1.7
 ## Metres between the points of his route.
 const POINT_GAP := 1.0
 ## How wide a stroke of the broom is (half-width, metres), how far its head swings to either side and
@@ -193,15 +191,29 @@ const GATE := "\\"
 const RANGE_TILES := 70
 
 
-## Whether `c` is a tile he may walk and sweep: a footpath, a gate in the village wall, or the paved square.
+## Whether `c` is a tile of the paved square's rim: a square tile with open ground that is not square beside it.
+## He sweeps only that rim, which is built like the walkways, not the whole village centre.
+static func is_rim(level: Node, c: Vector2i) -> bool:
+	if level.cell_char(c) != SurfaceLife.SQUARE:
+		return false
+	for n: Vector2i in [c + Vector2i.RIGHT, c + Vector2i.LEFT, c + Vector2i.DOWN, c + Vector2i.UP]:
+		if level.cell_char(n) != SurfaceLife.SQUARE and level.is_open(n):
+			return true
+	return false
+
+
+## Whether `c` is a tile he may walk and sweep: a footpath, a gate in the village wall, or the rim of the
+## paved square.
 static func _is_walkway(level: Node, c: Vector2i) -> bool:
 	var ch: String = level.cell_char(c)
-	return ch == GATE or ((_is_path(level, c) or ch == SurfaceLife.SQUARE) and level.is_open(c))
+	if ch == SurfaceLife.SQUARE:
+		return level.is_open(c) and is_rim(level, c)
+	return ch == GATE or (_is_path(level, c) and level.is_open(c))
 
 
 ## The points of the next stretch of walkway to sweep. He works through the whole connected network of
 ## walkways from `start` (his spot): the stretch nearest to him (by the way he walks) that still has snow or
-## leaves left, one footpath after the other, and the paved square in the village centre last. The stretch
+## leaves left, one footpath after the other, and the rim of the paved square in the village centre last. The stretch
 ## runs RUN_MIN to RUN_MAX tiles on from there; each point is a metre on, swaying a little to either side of the
 ## tile's middle so the footpath is not ruler-straight. Empty when no walkway is near or all is swept.
 ## `swept` (a Callable taking a point, true when it is clean already) says what is left to do; by default the
@@ -238,7 +250,7 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 	return none
 
 
-## The walkway cells (footpaths, gates and the square) within RANGE_TILES of `from`, nearest first by the way
+## The walkway cells (footpaths, gates and the rim of the square) within RANGE_TILES of `from`, nearest first by the way
 ## on foot: the search crosses grass and gates too, so a gap between two footpaths does not cut one off.
 static func _flood(level: Node, from: Vector2i, parent := {}) -> Array[Vector2i]:
 	var seen := {from: true}

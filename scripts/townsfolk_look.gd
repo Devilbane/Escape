@@ -59,6 +59,8 @@ const LOOKS := {
 	"G": {"skin": Color(0.72, 0.52, 0.4)},
 	"M": {"skin": Color(0.9, 0.8, 0.66)},
 	"Z": {"skin": DEEP},
+	# Matthes, the street sweeper: weathered by a life outdoors, an ordinary tone (a multiplier above 1 made his face glow).
+	"sweeper": {"skin": WARM},
 	"Y": {"skin": Color(0.94, 0.85, 0.82), "glasses": "half", "frame": SILVER, "hat": Color(0.16, 0.36, 0.28)},
 	"S": {"skin": Color(0.82, 0.66, 0.52)},
 	"%": {"skin": Color(0.7, 0.55, 0.42), "hat": Color(0.45, 0.15, 0.35)},

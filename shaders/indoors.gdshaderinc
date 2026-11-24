@@ -8,6 +8,7 @@
 global uniform sampler2D indoor_mask;
 global uniform vec4 indoor_area;
 const float INDOOR_SCALE = 16.0;
+const float INDOOR_MARGIN = 0.12;
 
 bool indoors(vec3 p) {
 	if (indoor_area.w < 0.5) {
@@ -20,7 +21,10 @@ bool indoors(vec3 p) {
 	}
 	// 0 is the open air (the ground there may lie a little below 0 m).
 	float top = texelFetch(indoor_mask, px, 0).r * INDOOR_SCALE;
-	return top > 0.0 && p.y < top;
+	// A little over the top: the mask's heights come in steps of INDOOR_SCALE/255 (6 cm), and the top of a
+	// wall lies exactly at its height, so without it the wall tops flickered in and out of the fog (z-fighting
+	// shown as a dashed line along them).
+	return top > 0.0 && p.y < top + INDOOR_MARGIN;
 }
 
 // The world spot of the solid surface seen at a pixel (from the depth buffer).

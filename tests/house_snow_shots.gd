@@ -42,18 +42,22 @@ func _run() -> void:
 	game.set_weather(Weather.SNOW, 3.0)
 	game.snow_cover = 1.0
 	var spot := Vector3.ZERO
+	var cottage := lvl.find_child("SmithCottage", true, false) as Node3D
 	for st: Dictionary in lvl.stations:
 		if st.kind == "steinmetz":
 			spot = st.pos
+	var places := {"mason": spot, "smith": cottage.global_position if cottage else spot}
 	game.player.global_position = spot + Vector3(0, 0, 6)
-	await _wait(200)
+	await _wait(120)
 	var cam := Camera3D.new()
 	cam.fov = 55.0
 	root.add_child(cam)
-	for view: Array in [["front", Vector3(-1.5, 4.5, 5.5)], ["close", Vector3(-1.0, 2.6, 3.4)]]:
-		cam.global_position = spot + (view[1] as Vector3)
-		cam.look_at(spot + Vector3(-0.5, 1.6, 0))
+	for who: String in places:
+		var at: Vector3 = places[who]
+		game.player.global_position = at + Vector3(0, 0, 9)
+		cam.global_position = at + Vector3(-2.0, 4.0, 6.5)
+		cam.look_at(at + Vector3(0, 1.8, 0))
 		cam.make_current()
-		await _wait(20)
-		root.get_texture().get_image().save_png(shots.path_join("mason_" + view[0] + ".png"))
+		await _wait(30)
+		root.get_texture().get_image().save_png(shots.path_join(who + "_house.png"))
 	quit()

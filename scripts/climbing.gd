@@ -27,6 +27,10 @@ const REACH_BASE := 3.5
 const REACH_PER_LEVEL := 0.4
 
 
+## The climbing gear the shopkeeper always has (id -> how many): see RockClimb.
+const GEAR_FOR_SALE := {"kletterhammer": 1, "kletterseil": 1, "kletterhaken": 6, "kletterhelm": 1}
+
+
 ## Seconds for climbing `height` metres at skill `level` by a hero who walks
 ## `walk_speed` metres a second: SLOWDOWN times the walk at level 1, a little less
 ## with each level.

@@ -1792,12 +1792,15 @@ func _ladder(house: HouseSketch, p: Array, parent: Node3D, mat: Material) -> Nod
 	var side := Vector3(-push.z, 0, push.x)
 	var line: Vector3 = f.edge - push * (THICK * 0.5 + 0.08)
 	var low: float = f.low
-	var tall: float = f.high - low + 1.0
+	# The rails stand a metre over the top to hold on to, except in the sewers: there the ladder ends
+	# below the ground, so it does not stick out of a shut hatch.
+	var over := -0.1 if house.flush_ladders else 1.0
+	var tall: float = f.high - low + over
 	var parts: Array[MeshInstance3D] = []
 	for sign_ in [-1.0, 1.0]:
 		parts.append(_box(parent, line + side * sign_ * 0.3 + Vector3(0, low + tall * 0.5, 0), (side * 0.07 + push * 0.07).abs() + Vector3(0, tall, 0), mat))
 	var y := low + 0.3
-	while y < f.high + 0.75:
+	while y < f.high + (over - 0.25):
 		parts.append(_box(parent, line + Vector3(0, y, 0), (side * 0.6 + push * 0.05).abs() + Vector3(0, 0.05, 0), mat))
 		y += 0.3
 	# A ladder on the ground or higher belongs to its floor: it fades with the storeys over the

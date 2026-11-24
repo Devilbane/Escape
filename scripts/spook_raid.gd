@@ -28,6 +28,18 @@ const SNEAK_DIP := 0.18
 const MOSTLY_ASLEEP := 0.8
 ## Seconds he lingers at a house.
 const LINGER := 3.5
+## The villager he fears: the town guard (Villager role "4", Ulrich), out and about at night. When the guard
+## comes within DODGE metres and could see him, he slips away to cover (a spot out of the guard's sight,
+## at most HIDE_REACH tiles (of 4 m) off, never on the way towards him) and lies low until no guard is within
+## CLEAR metres for LAY_LOW seconds (at most COVER_MAX), then goes on. After HIDES_MAX hides in a night he
+## gives the round up and goes home.
+const GUARD_ROLE := "4"
+const DODGE := 15.0
+const CLEAR := 28.0
+const HIDE_REACH := 4
+const LAY_LOW := 2.0
+const COVER_MAX := 45.0
+const HIDES_MAX := 4
 ## How close the hero may stand to the drain (metres) for him to come out, and how close to see him.
 const SHY := 12.0
 const SEEN := 16.0
@@ -42,7 +54,7 @@ const EMPTY := "Spooknortz legt den Finger an die Lippen und huscht weiter. Noch
 const NOT_NOW := "Du hast das Diebesgut schon. Spooknortz huscht davon."
 const FULL := "Spooknortz lässt das Bündel fallen, aber deine Tasche ist voll. Er rafft es wieder an sich und huscht davon."
 
-enum { IDLE, WALK, LINGER_AT, FLEE }
+enum { IDLE, WALK, LINGER_AT, FLEE, HIDE, COVER }
 
 var level: Outdoor
 var state := IDLE
@@ -63,6 +75,14 @@ var _station := {}
 var _sack: Node3D = null
 var _catch_until := 0.0
 var _clock := 0.0
+## The cell his current leg leads to, how many times he hid tonight (and in all), how long he has lain
+## low and how long since he last looked for the guard.
+var _goal := Vector2i.ZERO
+var hid_tonight := 0
+var hid := 0
+var _cover_clock := 0.0
+var _cover_wait := 0.0
+var _guard_clock := 0.0
 
 
 func setup(lvl: Outdoor) -> void:
@@ -92,6 +112,7 @@ func step(delta: float) -> void:
 	if not level.night:
 		_done_tonight = false
 		_spotted = false
+		hid_tonight = 0
 		if state == IDLE and tonight > 0 and not _told_morning:
 			_told_morning = true
 			Events.tell(Lang.t(MORNING), Color(1.0, 0.85, 0.5))
@@ -113,20 +134,34 @@ func step(delta: float) -> void:
 	if not _spotted and _flat(game.player.global_position, figure.global_position) < SEEN:
 		_spotted = true
 		Events.tell(Lang.t(SPOTTED), Color(0.8, 0.85, 1.0))
+	_guard_clock += delta
+	if state in [WALK, LINGER_AT] and _guard_clock >= 0.25:
+		_guard_clock = 0.0
+		var guard := _guard_near(figure.global_position, DODGE, true)
+		if guard != null:
+			_take_cover(guard)
 	match state:
-		WALK, FLEE:
+		WALK, FLEE, HIDE:
 			_walk(delta)
 		LINGER_AT:
 			_wait -= delta
 			if _wait <= 0.0:
 				_steal()
 				_next_leg()
+		COVER:
+			_cover_clock += delta
+			if _guard_near(figure.global_position, CLEAR, false) != null and _cover_clock < COVER_MAX:
+				_cover_wait = LAY_LOW
+			else:
+				_cover_wait -= delta
+			if _cover_wait <= 0.0:
+				_come_out()
 
 
 func _can_come_out(game: Node) -> bool:
 	if Spooknortz.slain(game) or Spooknortz.hostile():
 		return false
-	if not village_asleep():
+	if not village_asleep() or _guard_near(level.cell_to_world(START), DODGE, true) != null:
 		return false
 	return _flat(game.player.global_position, level.cell_to_world(START)) >= SHY
 
@@ -227,6 +262,8 @@ func _next_leg() -> void:
 	var leg: Dictionary = _legs.pop_front()
 	_path = leg.path
 	_at = 1 if _path.size() > 1 else 0
+	if not _path.is_empty():
+		_goal = level.world_to_cell(_path[_path.size() - 1])
 	state = WALK
 	_lingers = leg.linger
 	_idle_pose(false)
@@ -306,7 +343,12 @@ func _idle_pose(walking: bool, speed := 0.0) -> void:
 
 
 func _arrived() -> void:
-	if state == FLEE:
+	if state == HIDE:
+		state = COVER
+		_cover_wait = LAY_LOW
+		_cover_clock = 0.0
+		_idle_pose(false)
+	elif state == FLEE:
 		_home()
 	elif _lingers:
 		state = LINGER_AT
@@ -317,6 +359,95 @@ func _arrived() -> void:
 
 
 ## He takes something from the house: a sack hangs on his back from the first theft on.
+## The nearest guard within `radius` metres of `from`, and (with `seen`) with a clear line of sight to it;
+## null when there is none.
+func _guard_near(from: Vector3, radius: float, seen: bool) -> Villager:
+	var best: Villager = null
+	var best_d := radius
+	for v: Variant in level.villagers:
+		if not is_instance_valid(v) or v.role != GUARD_ROLE or v.at_home or not v.visible:
+			continue
+		var d := _flat(v.global_position, from)
+		if d < best_d and (not seen or level.has_line_of_sight(v.global_position, from)):
+			best = v
+			best_d = d
+	return best
+
+
+## The guard comes: he slips off to the nearest spot the guard cannot see (or gives up and goes home).
+func _take_cover(guard: Villager) -> void:
+	var here := level.world_to_cell(figure.global_position)
+	if hid_tonight >= HIDES_MAX:
+		_run_home(here)
+		return
+	var spot := _cover_cell(guard, here)
+	if spot == here and level.has_line_of_sight(guard.global_position, figure.global_position):
+		_run_home(here)
+		return
+	hid += 1
+	hid_tonight += 1
+	_path = _points(here, spot)
+	_at = 1 if _path.size() > 1 else 0
+	state = HIDE if _path.size() > 1 else COVER
+	_cover_wait = LAY_LOW
+	_cover_clock = 0.0
+	_idle_pose(false)
+
+
+## He gives the round up and heads for the drain.
+func _run_home(here: Vector2i) -> void:
+	_legs = []
+	_goal = START
+	_lingers = false
+	_path = _points(here, START)
+	_at = 1 if _path.size() > 1 else 0
+	state = WALK
+
+
+## A cell near `here` the guard cannot see, reached without going towards him; `here` when there is none.
+func _cover_cell(guard: Villager, here: Vector2i) -> Vector2i:
+	var gpos := guard.global_position
+	var mine := figure.global_position
+	var best := here
+	var best_score := INF
+	for dy in range(-HIDE_REACH, HIDE_REACH + 1):
+		for dx in range(-HIDE_REACH, HIDE_REACH + 1):
+			var c := here + Vector2i(dx, dy)
+			if (dx == 0 and dy == 0) or Vector2(dx, dy).length() > HIDE_REACH or not level.astar.is_in_boundsv(c) or level.astar.is_point_solid(c):
+				continue
+			var w := level.cell_to_world(c)
+			if level.has_line_of_sight(gpos, w) or _flat(gpos, w) < _flat(gpos, mine) - 1.0:
+				continue
+			var way := level.astar.get_id_path(here, c)
+			if way.is_empty() or way.size() > HIDE_REACH + 4:
+				continue
+			var safe := true
+			for p: Vector2i in way:
+				if _flat(gpos, level.cell_to_world(p)) < 5.0:
+					safe = false
+					break
+			if not safe:
+				continue
+			var score := float(way.size()) - _flat(gpos, w) * 0.2
+			if score < best_score:
+				best = c
+				best_score = score
+	return best
+
+
+## The guard has gone: he sets out for his goal again.
+func _come_out() -> void:
+	var here := level.world_to_cell(figure.global_position)
+	var way := _points(here, _goal)
+	if way.is_empty() and here != _goal:
+		_run_home(here)
+		return
+	_path = way
+	_at = 1 if _path.size() > 1 else 0
+	state = WALK
+	_idle_pose(false)
+
+
 func _steal() -> void:
 	carried += 1
 	tonight += 1

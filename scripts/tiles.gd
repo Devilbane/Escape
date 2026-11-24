@@ -135,6 +135,7 @@ const OUTDOOR := {
 	"~": "village pond (fishing)",
 	"≈": "river: the water of the farming valley, fished like a pond, frozen over in winter (see RiverBridge)",
 	"‖": "bridge: a plank bridge over the river, walkable, two tiles wide with rails (see RiverBridge)",
+	"∩": "the river's spring: a notch in the rock face, a waterfall pouring over it and a causeway of path tiles south through the pool; the way into the hidden cave behind is disguised as rock (see Waterfall)",
 	"Ω": "the stream's grating: a stone culvert head with an iron grille where the stream dives under the village, two tiles wide (see SewerSurface)",
 	"Ψ": "the sewer outfall: a stone head wall with a round arch where the sewer's water comes out into the river, two tiles wide (see SewerSurface)",
 	"Θ": "a manhole hatch with a stone lid, opened by running into it, a ladder down into the sewers (see Sewers.HATCHES)",

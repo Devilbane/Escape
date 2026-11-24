@@ -11,7 +11,7 @@
 set -u
 cd "$(dirname "$0")/.."
 mapfile -t changed
-shopt -s extglob
+shopt -s extglob; set -f
 declare -A scope
 quests=(); extra=()
 
@@ -45,12 +45,12 @@ done < <(grep -v '^#' tests/ci_scopes.txt | grep .)
 for f in "${changed[@]}"; do
   [ -z "$f" ] && continue
   case "$f" in tests/ci_*|tests/*/*) known=; break;; esac
-  [[ "$f" == @($neutral) ]] && continue
   seen=
   for t in "${!scope[@]}"; do
     for p in ${scope[$t]}; do [[ "$f" == $p ]] && { seen=1; hits+="$t "; }; done
   done
-  [ -z "$seen" ] && { known=; break; }
+  [ -n "$seen" ] && continue
+  [[ "$f" == @($neutral) ]] || { known=; break; }
 done
 if [ -n "$known" ]; then
   for t in "${!scope[@]}"; do

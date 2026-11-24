@@ -6,6 +6,9 @@ extends SceneTree
 ## - Walking in at nightfall, Bruno, Pip and Pippi cross the doorway in line with its middle, the door
 ##   leaf open by then, are in sight while they do (no vanishing in the street), and the door shuts
 ##   behind them; in the morning they walk out the same way and the door is open for them.
+## - Above the shop the parents' beds and the children's beds stand in two rooms, a partition wall between
+##   them with a doorway: Mira and Bruno sleep in the one, Pip and Pippi in the other, and nobody walks
+##   through the wall to get to bed or out of it.
 ## Run with: godot --headless --fixed-fps 60 -s tests/villager_doors.gd
 
 var failures := 0
@@ -75,6 +78,23 @@ func _crossing(lvl: Outdoor, v: Villager, seconds: float, done: Callable) -> Dic
 	return result
 
 
+## Whether `v` stands inside the partition wall above the shop (its solid parts, not the doorway).
+func _in_partition(lvl: Outdoor, v: Villager) -> bool:
+	for r: Dictionary in lvl.walk_in.buildings:
+		if r.kind != "shop" or not r.has("partition"):
+			continue
+		var p := (r.node as Node3D).global_transform.affine_inverse() * v.global_position
+		if p.y < float(r.top) + 0.5:
+			return false # Not upstairs.
+		var wall: Node3D = (r.node as Node3D).find_child("Partition", true, false)
+		var q := (r.node as Node3D).global_transform.affine_inverse() * wall.global_position
+		var local_z := p.z - q.z
+		var door_via := (r.node as Node3D).global_transform.affine_inverse() * (r.partition.via as Vector3)
+		var in_door := absf(p.z - door_via.z) < 0.45
+		return absf(p.x - float(r.partition.x)) < 0.04 and not in_door and local_z >= 0.0
+	return false
+
+
 func _run() -> void:
 	game.load_level(game._outdoor_index(), false)
 	game.state = game.State.PLAYING
@@ -101,6 +121,20 @@ func _run() -> void:
 	for role in ["6", "3", "7", "pippi"]:
 		var v := _villager(lvl, role)
 		check(v != null and v.bed_trip.get("house", {}).get("kind", "") == "shop", "%s sleeps above the shop" % role)
+	# The shop's two bedrooms: a wall with a doorway between the parents' and the children's beds.
+	var shop: Dictionary = {}
+	for r: Dictionary in lvl.walk_in.buildings:
+		if r.kind == "shop":
+			shop = r
+	check(shop.has("partition"), "the bedrooms above the shop have a partition wall")
+	if shop.has("partition"):
+		var inv: Transform3D = (shop.node as Node3D).global_transform.affine_inverse()
+		var wall_x: float = shop.partition.x
+		var side := {}
+		for role in ["6", "3", "7", "pippi"]:
+			side[role] = signf((inv * _villager(lvl, role).global_position).x - wall_x)
+		check(side["6"] == side["3"] and side["7"] == side["pippi"] and side["6"] != side["7"], "Mira and Bruno sleep in one room, Pip and Pippi in the other (%s)" % [side])
+		check(not (shop.node as Node3D).find_child("Partition", true, false) == null, "the partition is built")
 	for v: Villager in lvl.villagers:
 		v.set_night(false, true)
 	await _wait(60 * 90)
@@ -108,9 +142,12 @@ func _run() -> void:
 
 	# In through the door, one after the other.
 	for role in ["3", "7", "pippi"]:
+		var walled := 0
 		var v := _villager(lvl, role)
-		var home: Vector3 = v.house_door()
-		v.global_position = home + Vector3(0, 0, 6.0)
+		# Five metres out from the front of the house the villager sleeps in.
+		var way := lvl.walk_in.door_points(lvl.walk_in.owned_house(role))
+		var street := Vector3(way[0].x - way[1].x, 0, way[0].z - way[1].z).normalized()
+		v.global_position = way[0] + street * 5.0
 		v.reset_physics_interpolation()
 		v.set_night(true, false)
 		# Wait for the walk to the door and the first step of the trip.
@@ -127,8 +164,11 @@ func _run() -> void:
 		check(r.seen, "%s is in sight in the doorway" % role)
 		for k in 60 * 30:
 			await physics_frame
+			if _in_partition(lvl, v):
+				walled += 1
 			if String(v.bed_trip.get("step", "")) == "upstairs":
 				break
+		check(walled == 0, "%s never walks through the partition wall (%d ticks)" % [role, walled])
 		check(String(v.bed_trip.get("step", "")) == "upstairs", "%s is in bed upstairs" % role)
 		var leaf: HouseDoor = v.bed_trip.house.leaf
 		await _wait(int((HouseDoor.CLOSE_TIME + 1.6) * 60))

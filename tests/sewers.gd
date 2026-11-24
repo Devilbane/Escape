@@ -59,6 +59,7 @@ func _check_layout() -> void:
 			if cells.has(c + d) and not seen.has(c + d):
 				seen[c + d] = true
 				todo.append(c + d)
+	check(Sewers.sketch().flush_ladders, "the shaft ladders end flush, none sticks out of a shut hatch")
 	check(seen.size() == cells.size(), "every cell is reached from the grating (%d of %d)" % [seen.size(), cells.size()])
 	var channel := Sewers.channel()
 	var walk := cells.keys().filter(func(c): return cells[c] in ["w", "r"] and not channel.has(c))

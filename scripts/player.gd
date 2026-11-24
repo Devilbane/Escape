@@ -25,7 +25,7 @@ const SPEED := 5.2
 const WALK_FACTOR := 0.34
 ## The most the base speed (Tempo, gear, gifts, level, companions) can reach, as a
 ## share of SPEED. The run's boost and the slowing ailments are counted after it.
-const BASE_SPEED_CAP := 1.75
+const BASE_SPEED_CAP := 2.0
 ## Running speeds up to this many times the walking pace (twice: 3.6 m/s)...
 const RUN_TOP := 2.0
 ## ...over this many seconds of holding the run,
@@ -2072,6 +2072,8 @@ func skill(id: String) -> int:
 	for slot in equipped:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	level_now += int(companion_perks.get("skills", {}).get(id, 0))
+	if id == "klettern":
+		level_now += Climbing.set_bonus(equipped)
 	return maxi(0, level_now - Injury.skill_drop(self))
 
 
@@ -3228,14 +3230,18 @@ func _end_pit_climb(out: bool) -> void:
 
 # --- Climbing the mountain rock (see ClimbSpots, RockClimb and RopeClimbPose) ----------------
 
-enum RockPhase { PULL, HAMMER, THREAD, FALL, TOP }
+enum RockPhase { PULL, SLIP, REST, HAMMER, THREAD, FALL, ARREST, DESCEND, TOP }
 const NAIL := "kletterhaken"
 const HAMMER := "kletterhammer"
 const ROPE := "kletterseil"
 ## Seconds of one pull-up at the first Klettern level; each level above takes a little off.
 const ROCK_PULL_SECONDS := 1.3
-const ROCK_HAMMER_SECONDS := 1.7
-const ROCK_THREAD_SECONDS := 1.0
+const ROCK_SLIP_SECONDS := 0.6
+const ROCK_HAMMER_SECONDS := 2.4
+const ROCK_THREAD_SECONDS := 1.6
+const ROCK_ARREST_SECONDS := 1.6
+## Seconds of one hold going down, and the tests' roll for a fall (see RockClimb.fall_chance).
+const ROCK_DESCEND_SECONDS := 1.0
 const ROCK_TOP_SECONDS := 1.4
 const ROCK_FALL_SPEED := 7.0
 var _rock: RockClimb = null
@@ -3250,12 +3256,17 @@ var _rock_y := 0.0
 var _rock_from := 0.0
 var _rock_warned := false
 var _rock_push := 0.0
+## Pressed hard against a wall, the hero's contact with it can drop out for a physics tick now and then; the hold on
+## the rock goes on through such a gap (seconds).
+var _rock_wall_grace := 0.0
+const ROCK_WALL_GRACE := 0.12
 var _rock_start := Vector3.ZERO
 var _rock_fall_top := 0.0
 var _rock_pose := {}
 var _rock_rope: Node3D = null
 ## Tests: the roll of the hands (0..1) instead of a random one; a roll at or above the chance slips.
 var rock_roll_forced := -1.0
+var rock_fall_forced := -1.0
 const ROCK_DIR := Vector3(0, 0, -1)
 
 
@@ -3273,6 +3284,8 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 		if absf(hit.get_normal().y) < 0.5 and push.dot(-hit.get_normal()) > 0.5 and not hit.get_collider() is Enemy and not hit.get_collider() is Crate:
 			wall = true
 			break
+	_rock_wall_grace = ROCK_WALL_GRACE if wall else _rock_wall_grace - delta
+	wall = _rock_wall_grace > 0.0
 	var cell := level.world_to_cell(global_position + push * (radius + 0.4))
 	if not wall or level.cell_char(cell) != Mountains.ROCK_LETTER:
 		_rock_push = 0.0
@@ -3290,7 +3303,7 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 
 
 func _rock_has_gear() -> bool:
-	return bag.has(HAMMER) and bag.has(ROPE) and bag.has(NAIL)
+	return equipped.get("waffe", "") == HAMMER and equipped.get("schild", "") == ROPE and bag.has(NAIL)
 
 
 func _start_rock(spot: Dictionary) -> void:
@@ -3317,6 +3330,8 @@ func _start_rock(spot: Dictionary) -> void:
 	_rock_begin_pull()
 	_rock_place(0.0)
 	_rock_pose = RopeClimbPose.at("pull_l", 0.0)
+	# Both hands are needed for rock, hammer and rope: the weapons are stowed.
+	_stow_hands(true)
 	_rock_rope = Node3D.new()
 	_rock_rope.name = "ClimbRope"
 	level.add_child(_rock_rope)
@@ -3352,18 +3367,28 @@ func _rock_step(delta: float) -> void:
 			if not _rock_rolled and _rock_u >= RopeClimbPose.PULL_ROLL:
 				_rock_rolled = true
 				var gear := _rock_has_gear()
-				_rock_result = _rock.pull(rock_roll_forced if rock_roll_forced >= 0.0 else randf(), gear)
-				if _rock_result == RockClimb.Result.FELL:
-					train("klettern", Training.CLIMB_PER_METRE * 0.3)
-					_rock_fall_top = _rock_y
-					_rock_phase = RockPhase.FALL
-					_rock_u = 0.0
-				elif _rock.streak >= _rock.needed() and not gear and not _rock_warned and _rock_result != RockClimb.Result.TOP:
-					_rock_warned = true
-					Events.tell(Lang.t("Dir fehlen Hammer, Seil oder ein Kletternagel für einen Sicherungspunkt."), Color(0.8, 0.85, 1.0))
+				var roll := rock_roll_forced if rock_roll_forced >= 0.0 else randf()
+				var fall_roll := rock_fall_forced if rock_fall_forced >= 0.0 else randf()
+				_rock_result = _rock.pull(roll, gear, fall_roll)
+				match _rock_result:
+					RockClimb.Result.FELL, RockClimb.Result.GAVE_UP:
+						train("klettern", Training.CLIMB_PER_METRE * 0.3)
+						_rock_fall_top = _rock_y
+						_rock_phase = RockPhase.FALL
+						_rock_u = 0.0
+					RockClimb.Result.SLIP:
+						_rock_phase = RockPhase.SLIP
+						_rock_u = 0.0
+					RockClimb.Result.REST:
+						_rock_phase = RockPhase.REST
+						_rock_u = 0.0
+					_:
+						if _rock.streak >= _rock.needed() and not gear and not _rock_warned and _rock_result != RockClimb.Result.TOP:
+							_rock_warned = true
+							Events.tell(Lang.t("Dir fehlen Hammer, Seil oder ein Kletternagel für einen Sicherungspunkt."), Color(0.8, 0.85, 1.0))
 			if _rock_phase == RockPhase.PULL:
 				_rock_pose = RopeClimbPose.at("pull_l" if _rock_left else "pull_r", _rock_u)
-				var lift := smoothstep(RopeClimbPose.PULL_ROLL, 0.75, _rock_u) if _rock_rolled else 0.0
+				var lift := smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, _rock_u) if _rock_rolled else 0.0
 				_rock_place(_rock_from + RockClimb.PULL * lift)
 				if _rock_u >= 1.0:
 					match _rock_result:
@@ -3376,6 +3401,18 @@ func _rock_step(delta: float) -> void:
 							_rock_u = 0.0
 						_:
 							_rock_begin_pull()
+		RockPhase.SLIP:
+			# The hands hold on; the next try follows at once.
+			_rock_u = minf(1.0, _rock_u + delta / ROCK_SLIP_SECONDS)
+			_rock_pose = RopeClimbPose.at("slip", _rock_u)
+			if _rock_u >= 1.0:
+				_rock_begin_pull()
+		RockPhase.REST:
+			# Hanging on the hands, getting the breath back.
+			_rock_u = minf(1.0, _rock_u + delta / RockClimb.REST_SECONDS)
+			_rock_pose = RopeClimbPose.at("rest", _rock_u)
+			if _rock_u >= 1.0:
+				_rock_begin_pull()
 		RockPhase.HAMMER:
 			_rock_u = minf(1.0, _rock_u + delta / ROCK_HAMMER_SECONDS)
 			_rock_pose = RopeClimbPose.at("hammer", _rock_u)
@@ -3392,10 +3429,12 @@ func _rock_step(delta: float) -> void:
 				train("klettern", Training.CLIMB_PER_METRE * 0.2)
 				_rock_begin_pull()
 		RockPhase.FALL:
+			# The slip, then the drop down to the last safe spot (or the ground).
 			_rock_u = minf(1.0, _rock_u + delta / 0.6)
 			_rock_pose = RopeClimbPose.at("fall", _rock_u)
 			var low := _rock.safe
-			_rock_place(maxf(low, _rock_y - ROCK_FALL_SPEED * delta))
+			if _rock_u >= 0.4:
+				_rock_place(maxf(low, _rock_y - ROCK_FALL_SPEED * delta))
 			if _rock_y <= low + 0.001:
 				var hurt := RockClimb.fall_damage(_rock_fall_top - low)
 				# A climbing helmet takes half of the blow.
@@ -3409,7 +3448,33 @@ func _rock_step(delta: float) -> void:
 					_end_rock(false)
 				else:
 					Events.tell(Lang.t("Abgerutscht! Das Seil fängt dich am Sicherungspunkt auf."), Color(0.8, 0.85, 1.0))
+					_rock_phase = RockPhase.ARREST
+					_rock_u = 0.0
+		RockPhase.ARREST:
+			# The rope goes taut and stretches, the feet brace against the wall, the hero settles.
+			_rock_u = minf(1.0, _rock_u + delta / ROCK_ARREST_SECONDS)
+			_rock_pose = RopeClimbPose.at("arrest", _rock_u)
+			_rock_place(_rock.safe - 0.35 * sin(minf(1.0, _rock_u * 2.0) * PI))
+			if _rock_u >= 1.0:
+				_rock_place(_rock.safe)
+				if _rock_result == RockClimb.Result.GAVE_UP:
+					Events.tell(Lang.t("Du gibst auf und kletterst am Seil hinunter."), Color(0.8, 0.85, 1.0))
+					_rock_phase = RockPhase.DESCEND
+					_rock_u = 0.0
+					_rock_left = true
+				else:
 					_rock_begin_pull()
+		RockPhase.DESCEND:
+			# Down hold by hold, one metre in a step, to the ground.
+			_rock_u = minf(1.0, _rock_u + delta / ROCK_DESCEND_SECONDS)
+			_rock_pose = RopeClimbPose.at("desc_l" if _rock_left else "desc_r", _rock_u)
+			_rock_place(maxf(0.0, _rock_y - delta / ROCK_DESCEND_SECONDS))
+			if _rock_u >= 1.0:
+				_rock_left = not _rock_left
+				_rock_u = 0.0
+			if _rock_y <= 0.001:
+				_end_rock(false)
+				return
 		RockPhase.TOP:
 			_rock_u = minf(1.0, _rock_u + delta / ROCK_TOP_SECONDS)
 			_rock_pose = RopeClimbPose.at("top", _rock_u)
@@ -3421,6 +3486,14 @@ func _rock_step(delta: float) -> void:
 	if _rock != null and _skeleton != null:
 		ClimbPose.apply(_skeleton, _pit_base, _rock_pose)
 		_rock_rope_update()
+
+
+## Hides (or shows again) what the hands hold: the weapon and the shield.
+func _stow_hands(stowed: bool) -> void:
+	for hand_name in ["handslot_r", "handslot_l"]:
+		var hand := _model.find_child(hand_name, true, false) as Node3D
+		if hand != null:
+			hand.visible = not stowed
 
 
 ## An iron nail in the rock where the hero hangs.
@@ -3491,6 +3564,7 @@ func _end_rock(up: bool) -> void:
 		global_position = _rock_start
 		_rock_push = -ClimbSpots.HOLD
 	_rock = null
+	_stow_hands(false)
 	if _rock_rope != null:
 		_rock_rope.queue_free()
 		_rock_rope = null

@@ -1641,6 +1641,9 @@ func _solid_cellar(house: HouseSketch, holes: Array, ceilinged: Array = [], buri
 		var is_dig: bool = piece.kind == HouseSketch.DIG
 		if is_dig:
 			_floor_box(middle + Vector3(0, -HouseSketch.DEPTH - 0.04, 0), Vector3(HouseSketch.CELL, 0.08, HouseSketch.CELL), piece.get("floor", ""), demolish)
+			# Down in the pit no snow settles on the floor (seen from above through an open shaft it showed
+			# as a flat pale square).
+			_into.get_child(_into.get_child_count() - 1).set_meta("no_snow", true)
 			_collide(middle + Vector3(0, -HouseSketch.DEPTH - 0.25, 0), Vector3(HouseSketch.CELL, 0.5, HouseSketch.CELL))
 		var wall_mat := _wall_material(piece.get("wall", "") if is_dig else "", demolish)
 		var tall: float = HouseSketch.DEPTH - (CEILING_GAP if roofed.has(c) else 0.0)

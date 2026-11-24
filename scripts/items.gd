@@ -30,7 +30,7 @@ const BAG_SIZE := 8
 ## stays a plain list of ids (one entry per item), so saving, dropping and
 ## lighting a torch take one from a bundle; only the count of slots and the
 ## inventory's grid see bundles (see slots_used and stacks).
-const STACK := {"fackel": 5, "donnererz": 5, "wurfmesser": 10,
+const STACK := {"fackel": 5, "kletterhaken": 10, "donnererz": 5, "wurfmesser": 10,
 		"heiltrank_schwach": 5, "heiltrank": 5, "heiltrank_stark": 5,
 		"bauholz": 5, "steinblock": 3}
 ## Small things bundle by their slot too: jewellery (rings, amulets, bracelets)
@@ -201,6 +201,12 @@ static var ALL := {
 	# it down into iron bars, and the merchant pays well for it.
 	"donnererz": {"name": "Donnererz", "slot": "erz", "weight": 1, "price": 32, "no_loot": true, "material": "metal", "tint": Color(0.55, 0.75, 1.0), "effect": "Nur bei Gewitter zu finden. Gorm schmiedet daraus Donnerwaffen"},
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
+	# Climbing gear for the mountain rock (see Climbing): the shopkeeper always has some. The hammer and the
+	# rope stay in the bag; every safe spot takes one nail.
+	"kletterhammer": {"name": "Kletterhammer", "slot": "erz", "weight": 1.2, "price": 14, "no_loot": true, "material": "metal", "effect": "Zum Einschlagen von Kletternägeln in den Fels"},
+	"kletterhaken": {"name": "Kletternagel", "slot": "erz", "weight": 0.15, "price": 3, "no_loot": true, "material": "metal", "effect": "Ein Nagel aus Eisen: Mit Hammer und Seil wird er zum Sicherungspunkt in der Felswand"},
+	"kletterhelm": {"name": "Kletterhelm", "slot": "kopf", "weight": 1, "price": 22, "hat": ["", "ClimbHelmet"], "material": "leather", "gear": true, "no_loot": true, "effect": "Fängt Stürze in der Felswand ab: nur der halbe Schaden"},
+	"kletterseil": {"name": "Kletterseil", "slot": "erz", "weight": 2.0, "price": 12, "no_loot": true, "effect": "Ein langes, festes Seil für die Felswand"},
 	# Food for a fox (see Animal and Pet): the shopkeeper always has some.
 	"wurst": {"name": "Wurst", "slot": "futter", "weight": 0.3, "price": 2, "no_loot": true, "effect": "Füchse lieben sie. Sie leben auf der Wiese am Waldteich westlich vom Dorf: Füttere einen Fuchs dreimal, und er wird dein Freund"},
 	# Food for a doe and a stag (see Companions): the shopkeeper always has some too.
@@ -588,7 +594,7 @@ const RARITY := {
 	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
 	# Everyday things, tasks and materials.
-	"kiste": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
+	"kiste": "normal", "kletterhammer": "normal", "kletterhelm": "normal", "kletterhaken": "normal", "kletterseil": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "mehlsack": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"kartenstueck_1": "ungewoehnlich", "kartenstueck_2": "ungewoehnlich", "kartenstueck_3": "ungewoehnlich", "schatzkarte": "selten",

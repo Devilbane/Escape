@@ -428,12 +428,29 @@ static func _hatch(lvl: Outdoor, c: Vector2i) -> void:
 		lid.box(at + Vector3(-away.x, 0, -away.y) * 0.2, Vector3(0.3 if away.x != 0 else 0.14, 0.03, 0.3 if away.y != 0 else 0.14) + Vector3(0, 0, 0), W.vary(IRON, rng, 0.05), W.IRON)
 		lid.cylinder(at + Vector3(0, 0.02, 0), 0.05, 0.05, 0.1, W.vary(IRON, rng, 0.05), W.IRON, 8, Basis.from_euler(Vector3(PI * 0.5 if away.x == 0 else 0.0, 0, PI * 0.5 if away.x != 0 else 0.0)))
 	lid.finish(hinge)
+	var shape: CollisionShape3D = lvl._add_box(lvl._walls_body, Vector3(shaft.x, 0.5, shaft.z), Vector3(span + 0.6, 1.0, span + 0.6))
 	if is_open:
 		hinge.rotation = _lid_turn(away, deg_to_rad(105.0))
-		return
-	var shape := lvl._add_box(lvl._walls_body, Vector3(shaft.x, 0.5, shaft.z), Vector3(span + 0.6, 1.0, span + 0.6))
+		shape.disabled = true
+	# The station stays for good: running into the shut lid or clicking the hatch (shut or open) walks up
+	# to the head of the ladder ("stand") and climbs down (see Sewers.use).
+	var head := HouseSketch.ladder_top(spec.cell.x, spec.cell.y, HouseSketch.LADDER_ORIENTS[spec.dir])
+	var stand := Sewers.sketch().cell_world(head.x, head.y)
 	lvl.stations.append({"kind": LID, "cell": lvl.world_to_cell(shaft), "pos": Vector3(shaft.x, 0.0, shaft.z), "used": false,
-			"touch": 1.9, "hinge": hinge, "shape": shape, "key": key, "away": away})
+			"touch": 1.9, "hinge": hinge, "shape": shape, "key": key, "away": away, "stand": Vector3(stand.x, 0.0, stand.z)})
+
+
+## Swings the lid of station `s` shut again and makes it solid (see Sewers._close_later).
+static func swing_shut(s: Dictionary) -> void:
+	var hinge: Node3D = s.hinge
+	if not is_instance_valid(hinge):
+		return
+	var tween := hinge.create_tween()
+	tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(hinge, "rotation", Vector3.ZERO, 0.6)
+	var shape: CollisionShape3D = s.shape
+	if is_instance_valid(shape):
+		shape.set_deferred("disabled", false)
 
 
 ## The rotation that swings a lid hinged on the side `away` up by `angle`.

@@ -6,6 +6,9 @@ extends RefCounted
 const EN := {
 	"Oberfläche": "Surface",
 	"Silbergrube": "Silver mine",
+	"Kanalisation": "Sewers",
+	"Leiter zur Kanalluke": "Ladder up to the manhole hatch",
+	"Spooknortz' Höhle": "Spooknortz' den",
 	"Eine Ebene höher (Bild ↑)": "One floor up (Page Up)",
 	"Eine Ebene tiefer (Bild ↓)": "One floor down (Page Down)",
 	"Leiter zur Steigerhütte": "Ladder up to the foreman's hut",

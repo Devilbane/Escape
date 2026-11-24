@@ -54,6 +54,10 @@ const SKETCH_ALPHA := 0.35
 ## (see LostMine), once the hero has been down there.
 const GROUND := 0
 const DEEP := -1
+## The village's sewers (see Sewers), the lowest floor of the open air's map.
+const SEWER := -2
+## The colours of the sewers' cells by their letter (see Sewers).
+const SEWER_COLORS := {"c": Color(0.2, 0.34, 0.3), "w": Color(0.5, 0.36, 0.28), "r": Color(0.46, 0.38, 0.32), "s": Color(0.66, 0.64, 0.6)}
 ## Which floor shows. On DEEP the ground above is drawn dim under the mine's tunnels, and
 ## only the mine's own marks show (see deep_places).
 var storey := GROUND
@@ -81,16 +85,22 @@ static func storeys(owner_journal: Journal, level_file: String) -> Array[int]:
 	var out: Array[int] = [GROUND]
 	if owner_journal.map_of(level_file).get("outdoor", false) and owner_journal.has_deep():
 		out.append(DEEP)
+	if owner_journal.map_of(level_file).get("outdoor", false) and owner_journal.has_sewer():
+		out.append(SEWER)
 	return out
 
 
 ## The German name of a floor (see storey).
 static func storey_name(which: int) -> String:
+	if which == SEWER:
+		return "Kanalisation"
 	return "Silbergrube" if which == DEEP else "Oberfläche"
 
 
 ## The floor the hero stands on (see storey).
 static func hero_storey(hero: Vector3) -> int:
+	if Sewers.holds(hero):
+		return SEWER
 	return DEEP if LostMine.holds(hero) else GROUND
 
 
@@ -322,7 +332,7 @@ func _draw() -> void:
 			var color := tile_color(ch, outdoor)
 			if ch == "?" and _secret_open(c):
 				color = tile_color(".", false)
-			if storey == DEEP:
+			if storey != GROUND:
 				color = UNSEEN.lerp(color, GROUND_UNDER)
 			draw_rect(Rect2(o + Vector2(x, y) * t, Vector2(t, t)), color)
 	if t >= 10.0:
@@ -331,7 +341,7 @@ func _draw() -> void:
 		for x in range(lo.x, hi.x + 1):
 			draw_line(o + Vector2(x, lo.y) * t, o + Vector2(x, hi.y) * t, GRID_LINE)
 	var r := clampf(t * 0.55, 6.0, 11.0)
-	if storey == DEEP:
+	if storey != GROUND:
 		_draw_deep(o, t, r)
 		_draw_hero(o, t, r)
 		return
@@ -385,17 +395,19 @@ static func _map_point(world: Vector3) -> Vector2:
 func _draw_deep(o: Vector2, t: float, r: float) -> void:
 	var cell := HouseSketch.CELL / Level.TILE * t
 	var half := Vector3(HouseSketch.CELL, 0, HouseSketch.CELL) * 0.5
-	var mine := LostMine.cells()
+	var sewers := storey == SEWER
+	var mine: Dictionary = Sewers.cells() if sewers else LostMine.cells()
+	var colors: Dictionary = SEWER_COLORS if sewers else DEEP_COLORS
 	var seen: Array[Vector2i] = []
 	for c: Vector2i in mine:
-		if journal.is_deep_seen(c):
+		if (journal.is_sewer_seen(c) if sewers else journal.is_deep_seen(c)):
 			seen.append(c)
 	for c in seen:
-		var at := o + _map_point(LostMine.floor_at(c) - half) * t
-		draw_rect(Rect2(at, Vector2(cell, cell)), DEEP_COLORS.get(mine[c], DEEP_COLORS["."]))
+		var at := o + _map_point(_floor_of(c) - half) * t
+		draw_rect(Rect2(at, Vector2(cell, cell)), colors.get(mine[c], colors.get("w", DEEP_COLORS["."])) if sewers else colors.get(mine[c], colors["."]))
 	var line := clampf(t * 0.08, 1.0, 3.0)
 	for c in seen:
-		var at := o + _map_point(LostMine.floor_at(c) - half) * t
+		var at := o + _map_point(_floor_of(c) - half) * t
 		var corners := [at, at + Vector2(cell, 0), at + Vector2(cell, cell), at + Vector2(0, cell)]
 		for i in 4:
 			var d: Vector2i = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)][i]
@@ -413,10 +425,17 @@ func _draw_deep(o: Vector2, t: float, r: float) -> void:
 			draw_string(_font, p + Vector2(-w * 0.5, fs * 0.38), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.03, 0.05))
 
 
+## The middle of a cell's floor on the floor shown (see storey).
+func _floor_of(c: Vector2i) -> Vector3:
+	return Sewers.floor_at(c) if storey == SEWER else LostMine.floor_at(c)
+
+
 ## The marks of the forgotten mine the hero has seen, numbered in this order: the ladder up to
 ## the hut, the sealed gate and the ore veins. Each {"kind", "name" (German), "at" (map tiles), "color"}.
 func deep_places() -> Array:
 	var out: Array = []
+	if storey == SEWER:
+		return _sewer_places()
 	var marks: Array = [["stairs", "Leiter zur Steigerhütte", LostMine.SHAFT], ["lair", "Versiegeltes Tor", LostMine.GATE_CELL]]
 	for v: Array in LostMine.VEINS:
 		marks.append(["ore", "Erzader im Fels", v[0]])
@@ -424,6 +443,25 @@ func deep_places() -> Array:
 		if journal.is_deep_seen(m[2]):
 			out.append({"kind": m[0], "name": m[1], "at": _map_point(LostMine.floor_at(m[2])),
 				"color": Journal.MARK_COLORS.get(m[0], Journal.FIND_COLORS.get(m[0], Color.WHITE))})
+	return out
+
+
+## The marks of the sewers the hero has seen, numbered in this order: the ladders up to the street, the
+## grating the stream comes in by, the outfall and (once found) Spooknortz' den. Each {"kind", "name"
+## (German), "at" (map tiles), "color"}.
+func _sewer_places() -> Array:
+	var out: Array = []
+	var marks: Array = []
+	for h: Dictionary in Sewers.HATCHES:
+		marks.append(["stairs", "Leiter zur Kanalluke", h.cell])
+	marks.append(["sewer", "Gitter des Baches", Sewers.ROUTE[0]])
+	marks.append(["sewer", "Auslauf der Kanalisation", Sewers.ROUTE[Sewers.ROUTE.size() - 1]])
+	if Spooknortz.opened:
+		marks.append(["lair", "Spooknortz' Höhle", Spooknortz.SPOT])
+	for m: Array in marks:
+		if journal.is_sewer_seen(m[2]):
+			out.append({"kind": m[0], "name": m[1], "at": _map_point(Sewers.floor_at(m[2])),
+				"color": Journal.MARK_COLORS.get(m[0], Color.WHITE)})
 	return out
 
 

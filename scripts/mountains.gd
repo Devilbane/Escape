@@ -130,6 +130,7 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 	var origin := Vector2((area.position.x - 0.5) * tile, (area.position.y - 0.5) * tile)
 	var nx := int(ceil(area.size.x * tile / STEP))
 	var nz := int(ceil(area.size.y * tile / STEP))
+	var shelves := ClimbSpots.shelves(level)
 	var points := []
 	for iz in nz + 1:
 		var row := []
@@ -141,7 +142,13 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 			# standing on ground the hero can walk on.
 			var jx := rng.randf_range(-JITTER, JITTER)
 			var jz := rng.randf_range(-JITTER, JITTER)
-			if ix > 0 and ix < nx and iz > 0 and iz < nz and _distance_at(dist, x, z) > STEP * 1.25:
+			var shelf := -1.0
+			for sh: Dictionary in shelves:
+				var r: Rect2 = sh.rect
+				# The terrace is flat from the middle of its tile back, the front row of points stays on the foot.
+				if x >= r.position.x - 0.01 and x <= r.end.x + 0.01 and z >= r.position.y - 0.01 and z <= r.end.y - STEP * 0.5 + 0.01:
+					shelf = sh.height
+			if shelf < 0.0 and ix > 0 and ix < nx and iz > 0 and iz < nz and _distance_at(dist, x, z) > STEP * 1.25:
 				x += jx
 				z += jz
 			var h := _height(dist, north, x, z, noise)
@@ -151,6 +158,8 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 				# Craggy: higher rock is shaken more.
 				h = maxf(0.6, h + rng.randf_range(-0.6, 0.6) * minf(1.0, h / 5.0))
 			# Flat on a plot, after the shake so the rest of the rock stays as it was.
+			if shelf >= 0.0:
+				h = shelf
 			if level_ground.any(func(r: Rect2) -> bool: return r.has_point(Vector2(x, z))):
 				h = 0.0
 			row.append(Vector3(x, h - SINK, z))

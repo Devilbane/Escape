@@ -1,0 +1,1 @@
+- The Windows build number now always counts up, so a build started by hand shows the right version and patch notes.

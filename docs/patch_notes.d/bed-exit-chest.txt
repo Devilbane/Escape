@@ -1,0 +1,1 @@
+- Fixed the hero getting stuck between the bed and a nearby chest when getting out of bed; the chest's blocking area and click area are smaller.

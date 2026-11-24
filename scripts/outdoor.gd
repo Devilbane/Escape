@@ -97,7 +97,7 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
@@ -199,8 +199,6 @@ const GROUND_CHUNK := 12
 ## see few lights each, and their lighting changes in small steps nobody notices.
 const GROUND_PIECE := 4
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
-## Where the temple's nest sits, on the stone ridge behind the spire (relative to the chapel, in metres).
-const TEMPLE_NEST := Vector3(0.0, 11.1, -1.5)
 ## The temple: a chapel from the Modular Cathedral Kit (see _build_chapel).
 ## Pieces in the kit's own metres, with the door looking south (+z): name,
 ## where it stands and how far it is turned (degrees).
@@ -686,6 +684,8 @@ var snow: SnowCover
 ## How thickly the ponds are frozen over, 0 open water to 1 solid ice (see IceCover).
 var ice := 0.0
 var ice_cover: IceCover
+## The river's spring (see Waterfall), built by its letter.
+var waterfall: Waterfall
 ## The snow dust the herald's broom kicks up (see SweepDust), made when he first sweeps.
 var sweep_dust: SweepDust
 
@@ -792,6 +792,8 @@ func build() -> void:
 		birds.winter_perches.append_array(_lamp_perches)
 		add_child(birds)
 	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
+	if waterfall != null:
+		waterfall.lay_water(self)
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
@@ -1553,6 +1555,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			TreasureMaps.place(self, c, ch)
 		"‖":
 			RiverBridge.build(self, c)
+		"∩":
+			Waterfall.build(self, c)
 		"Ω", "Ψ", "Θ", "Ξ":
 			SewerSurface.build(self, c, ch)
 		"~", ";", "≈":
@@ -2536,8 +2540,9 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			for x in [-2.0, 0.0, 2.0]:
 				for z in [0.0, -1.5, -3.0]:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
-			# Its nest sits on the ridge behind the spire (the highest corner is the spire's own foot).
-			_dress_building(node, center, door_spots, 1.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW, node.global_position + node.global_transform.basis.orthonormalized() * TEMPLE_NEST)
+			# No nest on the temple: the spire stands at the front of its ridge and hides anything on it
+			# from the game camera; the nest goes to another roof instead.
+			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
 			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
 			if walk_in.has(node):
 				walk_in.open_temple(node)
@@ -3273,7 +3278,7 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST, nest_at := Vector3.INF) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
 	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
@@ -3314,7 +3319,7 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
 			for w: Vector4 in warm_spots:
 				smoky.append(Vector3(w.x, w.y, w.z) + offset)
-			spot = nest_at if nest_at != Vector3.INF else AgedStone.nest_spot(tris, ground, smoky)
+			spot = AgedStone.nest_spot(tris, ground, smoky)
 		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
 		# (shown only while snow lies, see SnowCaps), with dice of their own.
 		var ice_rng := RandomNumberGenerator.new()
@@ -5586,6 +5591,8 @@ func set_snow(cover: float, daylight := 1.0, moon := 0.0) -> void:
 		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
 			flow.set_snow(cover)
 		SewerSurface.set_snow(self, cover)
+	if waterfall != null:
+		waterfall.set_snow(cover)
 	if snowman != null and is_instance_valid(snowman):
 		if cover < Snowman.MELTED:
 			astar.set_point_solid(world_to_cell(snowman.global_position), false)
@@ -5604,6 +5611,8 @@ func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
 	if ice_cover != null:
 		ice_cover.set_amount(ice)
+	if waterfall != null:
+		waterfall.set_ice(ice)
 
 
 ## A grey footprint in the snow that fades again; the hero and the villagers leave them while

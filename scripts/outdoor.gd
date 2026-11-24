@@ -4798,6 +4798,9 @@ func hero_sees(pos: Vector3) -> bool:
 	# Up on the ground nothing down in the forgotten mine shows (see LostMine).
 	if LostMine.holds(pos):
 		return false
+	# Likewise the sewers: a spider's legs or a slime's top would poke up through the street.
+	if Sewers.holds(pos):
+		return false
 	if player == null or not hero_indoors:
 		return true
 	return has_line_of_sight(player.global_position, pos)

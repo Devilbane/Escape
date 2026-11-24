@@ -50,6 +50,9 @@ func _run() -> void:
 	slime.global_position = below
 	lvl.enemies.append(slime)
 	check(not VillageAlarm.intruders(lvl).has(slime), "a slime in the sewers is no intruder of the village")
+	for i in 12:
+		await physics_frame
+	check(not slime.visible, "a slime in the sewers is hidden from the street above (the spider's legs would poke through)")
 	var v: Villager = lvl.villagers[0]
 	v.global_position = above
 	v.at_home = false

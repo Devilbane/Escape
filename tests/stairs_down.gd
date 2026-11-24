@@ -37,6 +37,10 @@ func _initialize() -> void:
 	check(is_equal_approx(top.position.z - WoodStairs.UP_RUN * 0.5, -2.0), "the top step meets the north wall")
 	var tex := StairsDown.doorway_texture()
 	check(tex != null and tex.get_height() > 0, "the doorway picture exists")
+	var pic := tex.get_image()
+	var mid := pic.get_width() / 2
+	check(pic.get_pixel(mid, 0).get_luminance() < 0.05, "the roof of the passage fades to black")
+	check(pic.get_pixel(0, pic.get_height() - 1).get_luminance() < pic.get_pixel(mid, pic.get_height() - 1).get_luminance(), "the passage closes in dark at its sides")
 	# The flight runs away from the open floor, never along a wall.
 	var lvl := Level.new()
 	var rows: Array[String] = ["###", "#.#", "#>#", "###"]

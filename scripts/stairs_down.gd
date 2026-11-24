@@ -144,36 +144,49 @@ static func darkness(i: int, count: int) -> float:
 	return clampf(t * t * 0.5 + t * 0.3, 0.0, 1.0)
 
 
-## A picture of a stairway seen from the front, going down into a doorway:
-## the lit steps at the foot of the opening and the dark closing in above
-## them, used for the black hole behind the lair's arch.
+## A picture of a stairway seen from the front, going down into a doorway: the first steps lit by
+## the glow from below, their treads crowding together in perspective and sinking into the dark,
+## and the roof of the passage closing in above. Used for the black hole behind the lair's arch.
+## Everything fades smoothly to black; no flat bands.
 static func doorway_texture(glow := Color(0.55, 0.16, 0.06)) -> Texture2D:
-	var w := 64
-	var h := 128
+	var w := 128
+	var h := 256
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var steps := 8
+	var noise := FastNoiseLite.new()
+	noise.frequency = 0.08
+	noise.seed = 31
+	var horizon := 0.34
 	for y in h:
-		# The lower part of the picture is the flight: bands, lighter on the
-		# top edge of each step, getting darker towards the top (further in).
 		var v := float(y) / float(h - 1)
-		var col := BOTTOM
-		var floor_start := 0.30
-		if v >= floor_start:
-			var f := (v - floor_start) / (1.0 - floor_start)
-			var band := f * float(steps)
-			var within := band - floorf(band)
-			var depth := 1.0 - f
-			var light := STONE.lerp(BOTTOM, clampf(depth * 0.95, 0.0, 1.0))
-			col = light * (0.8 + 0.4 * (1.0 - within))
-			col = col.lerp(glow, clampf(depth * 0.35, 0.0, 0.35))
-		else:
-			col = BOTTOM.lerp(glow * 0.25, v / floor_start * 0.5)
-		col.a = 1.0
 		for x in w:
-			var edge := absf(float(x) / float(w - 1) - 0.5) * 2.0
-			var c := col.darkened(clampf(edge * edge * 0.6, 0.0, 0.6))
-			c.a = 1.0
-			img.set_pixel(x, y, c)
+			var u := float(x) / float(w - 1)
+			var side := absf(u - 0.5) * 2.0
+			var col := BOTTOM
+			if v >= horizon:
+				# The floor: steps seen from above and ahead. Further steps are lower on the
+				# picture and narrower in depth.
+				var f := (v - horizon) / (1.0 - horizon)
+				var z := 2.2 * (1.0 - f) / (f + 0.1)
+				var within := z - floorf(z)
+				var fade := exp(-z * 0.2)
+				# The tread catches the light at its front edge and falls into shadow towards
+				# the next drop.
+				var tread := 0.22 + 1.0 * pow(1.0 - within, 2.2)
+				var speck := 0.82 + 0.36 * (noise.get_noise_2d(float(x) * 1.4, float(y) * 1.4) * 0.5 + 0.5)
+				var lit := (STONE * 0.55).lerp(glow * 1.7, 0.35) * tread * speck * fade
+				col = BOTTOM.lerp(lit, clampf(fade * 1.15, 0.0, 1.0))
+				col = col.lerp(glow, clampf((1.0 - fade) * 0.3, 0.0, 0.3) * tread)
+			else:
+				# The passage's roof: dark, with the ember glow just reaching its far end.
+				var c := v / horizon
+				col = BOTTOM.lerp(glow * 0.3, smoothstep(0.55, 1.0, c) * 0.6)
+				var rock := 0.75 + 0.5 * (noise.get_noise_2d(float(x) * 1.2, float(y) * 2.0) * 0.5 + 0.5)
+				col *= rock
+			# Closing in at the sides, where the walls of the passage stand.
+			col = col.darkened(clampf(pow(side, 2.4) * 0.85, 0.0, 0.85))
+			col.a = 1.0
+			img.set_pixel(x, y, col)
+	img.generate_mipmaps()
 	return ImageTexture.create_from_image(img)
 
 

@@ -373,6 +373,43 @@ static func ruin_material(colour: Color) -> ShaderMaterial:
 	return _mats[key]
 
 
+## The dragon lair's arch and columns: the dungeon kit's carved blocks in one calm, warm grey
+## stone, patchy from block to block, smooth enough to read as cut stone (the other ruins' grain
+## is rougher), with a little moss at the foot. The kit's own colours (a strong red-brown) are
+## not used.
+static func lair_stone(shade := 0.0) -> ShaderMaterial:
+	var key := "lair_stone_%s" % shade
+	if not _mats.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = SHADER
+		mat.set_shader_parameter("use_palette", false)
+		mat.set_shader_parameter("tint", Color(0.56, 0.56, 0.55).darkened(shade))
+		mat.set_shader_parameter("trim", load(TRIM))
+		mat.set_shader_parameter("age", GRAVE_AGE)
+		mat.set_shader_parameter("blocks", 0.0)
+		mat.set_shader_parameter("lichen", 0.2)
+		mat.set_shader_parameter("rough", 0.12)
+		mat.set_shader_parameter("mottle", 0.6)
+		_mats[key] = mat
+	return _mats[key]
+
+
+## Old planks for the lair's door: the villagers' timber grain laid on from three sides over a
+## dark weathered brown.
+static func lair_timber(colour: Color) -> StandardMaterial3D:
+	var key := "lair_timber_%s" % colour.to_html()
+	if not _mats.has(key):
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = load(WOOD_TEX)
+		mat.albedo_color = colour
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(0.9, 0.9, 0.9)
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		mat.roughness = 0.88
+		_mats[key] = mat
+	return _mats[key]
+
+
 ## Old timber for a plain-coloured wooden piece (the mine entrances' frames):
 ## the villagers' grain laid over the colour, faded and weathered like the
 ## rest of the old stone.

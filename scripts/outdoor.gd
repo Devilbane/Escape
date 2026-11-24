@@ -2727,9 +2727,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	var depth := block.size.y * TILE * 0.5
 	var front := center + Vector3(0, 0, depth - 0.6)
 	var arch := _put("lair/Arch", front, 0.0, 1.0)
-	_age_ruin(arch)
-	# The door swung open against the arch's side.
-	_age_ruin(_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0))
+	_dress_lair(arch, AgedStone.lair_stone())
+	# The door swung open against the arch's side, dark old planks.
+	_dress_lair(_put("lair/Arch_Door", front + Vector3(-1.2, 0, 0.2), -PI * 0.55, 1.0), AgedStone.lair_timber(Color(0.5, 0.4, 0.33)))
 	# The opening: steps going down, fading into the dark.
 	var hole := MeshInstance3D.new()
 	var quad := QuadMesh.new()
@@ -2738,15 +2738,16 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_texture = StairsDown.doorway_texture()
+	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	hole.material_override = black
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)
 	for i in 2:
-		_age_ruin(_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3))
+		_dress_lair(_put("lair/Stairs_Modular", front + Vector3(0, -0.55 - i * 0.9, 0.55 - i * 0.9), PI, 1.3), AgedStone.lair_stone(0.12 * i))
 	var lair_parts: Array = [arch]
 	for side in [-1.0, 1.0]:
 		var column := _put("lair/Column2", front + Vector3(side * 2.9, 0, -0.1), 0.0, 0.9)
-		_age_ruin(column)
+		_dress_lair(column, AgedStone.lair_stone(0.05))
 		lair_parts.append(column)
 		_put("lair/Skull", front + Vector3(side * 2.2 + _rng.randf_range(-0.4, 0.4), 0, 1.6 + _rng.randf_range(0.0, 0.8)), _rng.randf() * TAU, 0.8)
 	# The mountain the lair is dug into, rising behind the arch, and a few
@@ -2761,9 +2762,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
-	glow.light_energy = 1.8
-	glow.omni_range = 7.0
-	glow.position = front + Vector3(0, 1.2, -0.8)
+	glow.light_energy = 1.1
+	glow.omni_range = 6.0
+	glow.position = front + Vector3(0, 1.0, -1.2)
 	add_child(glow)
 	_add_solid(center, Vector3(block.size.x * TILE * 0.86, 4, block.size.y * TILE * 0.86))
 	var top := _aabb_of("lair/Arch")
@@ -2783,6 +2784,14 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	if interiors.has("E"):
 		stations.append({"kind": "eingang", "building": "E", "name": BUILDING_NAMES.E,
 				"cell": world_to_cell(front - Vector3(0, 0, 0.5)), "pos": front + Vector3(0, 0, 0.6), "used": false})
+
+
+## One piece of the lair's entrance (arch, columns, steps, door) in `material`, replacing the
+## kit's own colours.
+func _dress_lair(node: Node, material: Material) -> void:
+	for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh != null:
+			mi.material_override = material
 
 
 ## The dungeon kit's pieces at the lair (plain colours, one per surface) in

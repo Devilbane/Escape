@@ -58,14 +58,12 @@ func _run() -> void:
 	check(_alerts(lvl) <= 1, "one \"!\" for a hunt dropped and picked up again at once (got %d)" % _alerts(lvl))
 	check(_alerts(lvl) == 1, "the first notice does show the \"!\" (got %d)" % _alerts(lvl))
 	# Fully off the hunt for long enough: noticing again shows it again.
+	var before := _alerts(lvl)
 	slime._awake = false
 	slime._alert_gap = 0.0
-	for c in lvl.find_children("*", "Label3D", true, false):
-		if c is DamageNumber:
-			c.free()
-	slime._awake = false
-	await physics_frame
-	check(_alerts(lvl) == 1, "a monster that lost track and re-spots the hero shows it again (got %d)" % _alerts(lvl))
+	for i in 5:
+		await physics_frame
+	check(_alerts(lvl) == before + 1, "a monster that lost track and re-spots the hero shows it again (%d -> %d)" % [before, _alerts(lvl)])
 	print("PASS: enemy alert once" if failures == 0 else "FAILED: %d" % failures)
 	game.delete_save(game.save_path())
 	quit(1 if failures > 0 else 0)

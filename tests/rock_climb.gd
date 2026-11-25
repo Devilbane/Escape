@@ -93,7 +93,7 @@ func _rules() -> void:
 	check(w.traverse(0.999, true, 0.0) == RockClimb.Result.FELL and w.metres == 0.0, "a fall on a step along the face drops like any other")
 	check(RockClimb.new(5.4, 8, 20).chance() > RockClimb.new(5.4, 8, 8).chance(), "skill makes a pull-up safer")
 	check(RockClimb.new(5.4, 12, 12).chance() < RockClimb.new(5.4, 8, 12).chance(), "a harder spot is less safe")
-	for s: Dictionary in ClimbSpots.SPOTS["Die Freiheit"]:
+	for s: Dictionary in ClimbSpots.SPOTS["Apfeltal"]:
 		check(Climbing.can_climb(float(s.height), int(s.level)), "the skill a spot asks for can climb its height")
 
 
@@ -129,10 +129,10 @@ func _run() -> void:
 			e.queue_free()
 	lvl.enemies.clear()
 	hero.global_position = Vector3(0, 0, 0)
-	var spot: Dictionary = ClimbSpots.SPOTS["Die Freiheit"][0]
+	var spot: Dictionary = ClimbSpots.SPOTS["Apfeltal"][0]
 	var other := Vector2i(119, 23)
 	check(lvl.cell_char(spot.cell) == "=" and lvl.cell_char(spot.cell + Vector2i(0, 1)) != "=", "the spot is rock with open ground south of it")
-	for s: Dictionary in ClimbSpots.SPOTS["Die Freiheit"]:
+	for s: Dictionary in ClimbSpots.SPOTS["Apfeltal"]:
 		check(lvl.cell_char(s.cell) == "=" and not "#=".contains(lvl.cell_char(s.cell + Vector2i(0, 1))), "spot %s has open ground in front" % s.cell)
 
 	# A plain rock face: the message, no climb.

@@ -279,7 +279,6 @@ static func furnish_hut(parent: Node3D) -> void:
 	var web := _mat("web", Color(0.85, 0.85, 0.82, 0.32))
 	web.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	web.cull_mode = BaseMaterial3D.CULL_DISABLED
-	web.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	var high := HouseSketcher.WALL_HEIGHT - 0.05
 	for corner in [Vector2(lo.x + inner, lo.z + inner), Vector2(hi.x - inner, lo.z + inner), Vector2(lo.x + inner, hi.z - inner), Vector2(hi.x - inner, hi.z - inner)]:
 		var sx := 1.0 if corner.x < (lo.x + hi.x) * 0.5 else -1.0

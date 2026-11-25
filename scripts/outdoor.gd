@@ -174,8 +174,8 @@ const FILL_DEPTH := 3
 ## How far behind a block's open side its undergrowth grows (metres).
 const UNDERGROWTH_DEPTH := 2.0
 ## The forest's living trees are spruces (see Fern.needle_tree_mesh, _plant_tree). In these tiles of
-## Die Freiheit, the wood west of the road from the crypt down past the pond, every tree is one.
-const SPRUCE_MAP := "Die Freiheit"
+## Apfeltal, the wood west of the road from the crypt down past the pond, every tree is one.
+const SPRUCE_MAP := "Apfeltal"
 const SPRUCE_PATCH := Rect2i(0, 14, 14, 26)
 ## How much of a spruce's reach hides the ground (see CROWN).
 const SPRUCE_CROWN := 0.95

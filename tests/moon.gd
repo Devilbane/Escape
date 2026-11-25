@@ -107,7 +107,9 @@ func _full_moon() -> void:
 	_go_out(full, 23.0)
 	var out: Outdoor = game.level
 	check(out.moon_night == full, "the open air knows tonight's moon")
-	check(game._clock_text().contains(Lang.t("Vollmond")), "the HUD clock names the full moon at night")
+	check(game._moon_icon.visible and game._moon_icon.modulate.a > 0.5 and game._moon_icon.phase == Moon.FULL, "the HUD shows the full moon icon at night")
+	check(game._moon_icon.tooltip_text == Lang.t("Vollmond"), "the icon names the phase on hover")
+	check(not game._clock_text().contains(Lang.t("Vollmond")), "the top line holds no moon text")
 	var bright: float = game._moon.light_energy
 	check(out._pack.size() == Outdoor.PACK_SIZE, "a wolf pack gets its spots at full moon")
 	for s in out._pack:
@@ -157,7 +159,7 @@ func _full_moon() -> void:
 	for s in out.enemies:
 		if is_instance_valid(s) and s.kind == "wolf" and s.elite:
 			check(s.dead or s._dawn, "the pack's leader goes back at dawn")
-	check(not game._clock_text().contains(Lang.t("Vollmond")), "by day the HUD clock names no moon")
+	check(game._moon_icon.modulate.a < 0.5, "by day the moon icon is clear")
 	game.day = full
 	game.day_hour = 23.0
 	game._tick_clock(0.0)
@@ -182,7 +184,7 @@ func _new_moon() -> void:
 	check(game._env.ambient_light_energy < 0.004 and game._moon.light_energy < bright * 0.03, "and the new moon leaves the night nearly pitch black")
 	check(game._moon.light_energy > 0.0, "but a trace of moonlight still shows the shapes of things")
 	check(game.player._lantern.omni_range < 8.5 * 0.8 and game.player._lantern.light_energy < Player.LANTERN_ENERGY * 0.8, "the hero's lantern shows only a small pool on a moonless night")
-	check(game._clock_text().contains(Lang.t("Neumond")), "the HUD clock names the new moon")
+	check(game._moon_icon.phase == Moon.NEW and game._moon_icon.tooltip_text == Lang.t("Neumond"), "the HUD shows the new moon icon")
 	check(out.holes_breathe(), "the holes breathe at new moon")
 	check(out._breaths.size() == out.holes.size() and out._breaths.all(func(b): return b.emitting), "a dark breath rises out of every hole")
 	check(out._pack.is_empty() and out.flowers_open() == 0, "no pack and no flowers at new moon")

@@ -57,6 +57,12 @@ func _run() -> void:
 		check(lvl.has_leaf_tree(c) and Plots.problem(lvl, Rect2i(c.x, c.y, 2, 2)) != "", "no plot may cover a leaf apple tree (%s)" % c)
 		# Not in the graveyard.
 		check(not AppleTree._near_letters(lvl, c, AppleTree.LEAF_KEEP_OUT_LETTERS, AppleTree.LEAF_KEEP_OUT), "no leaf apple tree by graves or rock faces (%s)" % c)
+	var wild := trees.filter(func(t): return t.wild)
+	check(not wild.is_empty(), "leaf trees grow wild outside the village (%d of %d)" % [wild.size(), trees.size()])
+	for t in trees:
+		check(t.wild != lvl.near_village(t.cell), "a leaf tree is wild exactly outside the village (%s)" % t.cell)
+		var ground := (t.node as Node3D).get_node_or_null("Ground")
+		check((ground == null) == t.wild, "only the village's leaf trees have the grass patch (%s)" % t.cell)
 	# Coverage of the ground the leaves lie on.
 	var sources: Array[Vector2] = []
 	for t in lvl.square_trees + trees:

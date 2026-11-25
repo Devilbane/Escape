@@ -5651,7 +5651,7 @@ func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
 	if ice_cover != null:
 		ice_cover.set_amount(ice)
-	if ice_fish == null and ice >= IceFish.SHOW_FROM and is_inside_tree() and not _pond_waters.is_empty():
+	if ice_fish == null and is_inside_tree() and not _pond_waters.is_empty():
 		ice_fish = IceFish.build(self, _pond_waters)
 	if ice_fish != null:
 		ice_fish.set_ice(ice)

@@ -118,6 +118,7 @@ candle_stand.gd | 30 | free | passfail | Candle stand: flames split from the can
 reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a wall solid from floor to ceiling
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
 click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top
+click_refusal.gd | 120 | fixed | passfail | A click on open ground walks the hero there or says why not (water, steep, blocked, off the map) with a red cross
 forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
 house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere

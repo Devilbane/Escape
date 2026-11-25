@@ -65,6 +65,7 @@ const PARTS := [
 	preload("res://scripts/lang/loading_screen.gd"),
 	preload("res://scripts/lang/godmode.gd"),
 	preload("res://scripts/lang/unstick.gd"),
+	preload("res://scripts/lang/click_refusal.gd"),
 	preload("res://scripts/lang/title.gd"),
 	preload("res://scripts/lang/floor_packs.gd"),
 	preload("res://scripts/lang/ash_spire.gd"),

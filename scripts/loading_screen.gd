@@ -23,17 +23,19 @@ const FADE_OUT := 0.5
 
 var _age := 0.0
 var _leaving := false
+var _game: Node
 var _status: Label
 
 
 ## Puts the screen over everything of `game`'s HUD, unless there is nothing to wait for (the
 ## village is ready already, or no window is drawn) or the language is still to be chosen.
-static func start(parent: Node, headless_ok := false) -> LoadingScreen:
+static func start(parent: Node, game: Node, headless_ok := false) -> LoadingScreen:
 	if WorldPreload.is_ready() or Lang.language == "":
 		return null
 	if DisplayServer.get_name() == "headless" and not headless_ok:
 		return null
 	var screen := LoadingScreen.new()
+	screen._game = game
 	parent.add_child(screen)
 	return screen
 
@@ -157,7 +159,11 @@ func _process(delta: float) -> void:
 	_age += delta
 	# A slow pulse on the status line: the game is not frozen.
 	_status.modulate.a = 0.6 + 0.4 * sin(_age * 3.0)
-	if not _leaving and _age >= MIN_SECONDS and WorldPreload.is_ready():
+	if _leaving:
+		return
+	# A game that has begun (a level is loaded, the title is gone) never waits behind this screen.
+	var begun: bool = _game != null and _game.state != _game.State.TITLE
+	if begun or (_age >= MIN_SECONDS and WorldPreload.is_ready()):
 		leave()
 
 

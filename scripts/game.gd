@@ -727,7 +727,7 @@ func _ready() -> void:
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
 	# The village gets ready behind the title, so the crypt door is quick later.
 	WorldPreload.start(self)
-	LoadingScreen.start(_hud)
+	LoadingScreen.start(_hud, self)
 	if Engine.has_meta(ASK_NAME_FLAG):
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)

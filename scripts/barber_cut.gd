@@ -235,7 +235,7 @@ func _make_particles(amount: int, lifetime: float, one_shot: bool) -> CPUParticl
 	quad.size = Vector2(0.17, 0.017)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.albedo_color = Color.WHITE
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	mat.billboard_keep_scale = true

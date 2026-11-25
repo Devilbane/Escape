@@ -70,6 +70,16 @@ reports green (patch note fragments do not count as documentation: `tests/launch
 main that merges a pull request ("... (#123)" or "Merge pull request") skips the shards too, because that
 pull request was tested; the nightly run tests main as a whole.
 
+**Editing a test list** (`tests/ci_manifest.txt`, `ci_scopes.txt`, `ci_quests.txt`, `ci_nightly.txt`, `ci_timings.txt`)
+does not run the whole required list: only the tests whose lines you added or changed (plus the unscoped core
+tests that always run) are picked. Changing a runner script (`tests/ci_*.sh`) or a workflow still runs everything.
+
+**Quarantine:** a required test that fails twice on a pull request but also failed twice in the latest finished
+nightly run on main does not block (a warning and a "Quarantined tests" line in the job summary). The nightly
+shards keep the names of their failed tests as `failed-blocking-*` artifacts and `tests/ci_known_failing.sh` reads
+them. So a test that is broken on main stops blocking every other pull request until the nightly run sees it pass
+again; fix it anyway, the warning is easy to miss.
+
 ## Nightly: everything
 
 Every night on main (and on a manual run: Actions > Tests > Run workflow, on any branch) the required shards run

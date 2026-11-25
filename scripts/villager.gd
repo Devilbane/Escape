@@ -873,6 +873,8 @@ func _start(task: String, time: float) -> void:
 		return
 	if task != "post":
 		_leave_post()
+	if _seed_bag != null and _seed_bag.visible and not (task in ["walk", "work"] and _job.has("sow")):
+		_seed_bag.visible = false
 	if task != "climb" and _climb != null:
 		_climb.leave(self)
 	if task != "service":
@@ -2190,6 +2192,51 @@ func is_posed() -> bool:
 	return _body_posed or _blow_posed
 
 
+## The seed bag at the hip and the spray of one handful (see Sowing).
+var _seed_bag: Node3D
+var _sow_spray: CPUParticles3D
+
+
+## One physics tick of sowing: turn to the field and throw handful after handful in a wide sweep of the arm; each
+## lets go of the seed (in the middle of the throw) over the soil, and the nearest bare tile is sown. With no bare
+## tile left in reach the work ends, and the next job takes him on (see ValleyFolk.pick).
+func _sow(delta: float) -> void:
+	_show_seed_bag(true)
+	var face: Vector3 = _job.face
+	_turn_to(face - global_position, delta)
+	_toss_clock += delta
+	if _current_anim == "Throw":
+		if not _tossed and _toss_clock >= SEED_RELEASE:
+			_tossed = true
+			if level.crop_fields != null and level.crop_fields.sow_near(String(_job.sow), face, Sowing.REACH):
+				_task_time = maxf(_task_time, 2.5)
+			else:
+				_task_time = minf(_task_time, 0.3)
+			_sow_spray = Sowing.spray(self, _sow_spray, hand_at(), face)
+		if _toss_clock >= SEED_RELEASE and not _anim.is_playing():
+			play("Idle", 0.2)
+			_toss_clock = -_rng.randf_range(Sowing.PAUSE.x, Sowing.PAUSE.y)
+		return
+	if _toss_clock >= 0.0:
+		_current_anim = "Throw"
+		_anim.play("Throw", 0.15)
+		_toss_clock = 0.0
+		_tossed = false
+	elif _current_anim != "Idle":
+		play("Idle", 0.2)
+
+
+## The linen seed bag on his left hip while he is on his way to sow or sowing, put away otherwise.
+func _show_seed_bag(on: bool) -> void:
+	if _seed_bag == null:
+		if not on or _model == null:
+			return
+		_seed_bag = Sowing.build_bag()
+		_seed_bag.position = Sowing.BAG_AT
+		_model.add_child(_seed_bag)
+	_seed_bag.visible = on
+
+
 ## The farming valley's day plan (see ValleyFolk): the next job of the season, walked to and worked at.
 func _farm_day() -> void:
 	var job := ValleyFolk.pick(self, String(_job.get("id", "")))
@@ -2198,6 +2245,9 @@ func _farm_day() -> void:
 		_start("work", _rng.randf_range(6.0, 10.0))
 		return
 	_job = job
+	_show_seed_bag(job.has("sow"))
+	_toss_clock = -0.3
+	_tossed = false
 	if _rng.randf() < ValleyFolk.SAY_CHANCE and level.player != null \
 			and level.player.global_position.distance_to(global_position) < ValleyFolk.SAY_RANGE:
 		Effects.head_text(level, self, 2.6 * float(_info.get("scale", 1.0)), Lang.t(job.say), Color(0.96, 0.9, 0.7))
@@ -2727,6 +2777,9 @@ func _do(task: String, delta: float) -> void:
 		return
 	if task == "sit":
 		play(_info.work)
+		return
+	if task == "work" and _job.has("sow"):
+		_sow(delta)
 		return
 	var work: String = _job.get("anim", _info.work)
 	if _job.has("face") and task == "work":

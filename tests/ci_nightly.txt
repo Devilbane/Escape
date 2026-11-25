@@ -225,5 +225,6 @@ mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn
 river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too
 pond_frogs.gd | 120 | fixed | pass | Pond frogs: a few on the banks and in the water, hop and swim, croak more at night, hibernate in winter
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
+sowing.gd | 180 | fixed | pass | Spring sowing (fields start bare, a handful sows a tile, sprouts grow over days, auto-sow, the farmer throws seed with a bag)
 map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)
 slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring rain, storm or fog and retreat to the pond when it clears or the season turns

@@ -480,7 +480,7 @@ static func candle_stand() -> Node3D:
 
 
 ## The library and reading room on the first floor: bookcases round the back and left walls, a
-## long reading table with chairs on a rug, two sofa chairs and a sofa round it, a globe and a lamp.
+## long reading table with chairs on a rug, two sofa chairs and a sofa round it (a hero's width, 1.1 m, clear of the table on every side), a globe and a lamp.
 static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 	var upper: Node3D = (rec.node as Node3D).get_node("GuildUpper")
 	var room: Rect2 = lay.up_room
@@ -493,22 +493,22 @@ static func _library(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> void:
 		_put(walk_in, rec, upper, skill_bookcase(2.2, 2.3, 0.42, int(x * 10.0)), Vector3(x + 0.0, y, back + 0.22), 0.0, Vector3(2.2, 2.3, 0.42))
 		x += 2.25
 	# The reading corner: a rug, the long table with a candle, and the seats round it.
-	var mid := Vector3(-0.9, y, -0.6)
-	_put(walk_in, rec, upper, WalkInFurniture.rug(Vector2(4.2, 3.2)), mid + Vector3(0, 0.002, 0.2))
-	var table := WalkInFurniture.desk(2.2, 0.8, 1.0)
+	var mid := Vector3(-0.4, y, -0.6)
+	_put(walk_in, rec, upper, WalkInFurniture.rug(Vector2(5.4, 4.2)), mid + Vector3(0, 0.002, 0.7))
+	var table := WalkInFurniture.desk(1.6, 0.8, 1.0)
 	table.name = "ReadingTable"
-	_put(walk_in, rec, upper, table, mid, 0.0, Vector3(2.2, 0.85, 1.0))
+	_put(walk_in, rec, upper, table, mid, 0.0, Vector3(1.6, 0.85, 1.0))
 	_put(walk_in, rec, upper, WalkInFurniture.table_candle(), mid + Vector3(-0.7, 0.8, -0.1))
 	_put(walk_in, rec, upper, WalkInFurniture.chair(), mid + Vector3(-0.5, 0, -0.95), 0.0)
 	Seats.add_indoor(walk_in, rec, mid + Vector3(-0.5, 0, -0.95), 0.0, Vector3(0.5, 0.9, 0.5))
 	_put(walk_in, rec, upper, WalkInFurniture.chair(), mid + Vector3(0.6, 0, -0.95), 0.0)
 	Seats.add_indoor(walk_in, rec, mid + Vector3(0.6, 0, -0.95), 0.0, Vector3(0.5, 0.9, 0.5))
-	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(-1.6, 0, 0.0), PI * 0.5)
-	Seats.add_indoor(walk_in, rec, mid + Vector3(-1.6, 0, 0.0), PI * 0.5, Vector3(0.95, 0.9, 0.9), 0.45)
-	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(1.6, 0, 0.0), -PI * 0.5)
-	Seats.add_indoor(walk_in, rec, mid + Vector3(1.6, 0, 0.0), -PI * 0.5, Vector3(0.95, 0.9, 0.9), 0.45)
-	_put(walk_in, rec, upper, sofa_chair(1.9), mid + Vector3(0, 0, 1.55), PI)
-	Seats.add_indoor(walk_in, rec, mid + Vector3(0, 0, 1.55), PI, Vector3(1.9, 0.9, 0.9), 0.45, [-0.5, 0.5])
+	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(-2.45, 0, 0.0), PI * 0.5)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(-2.45, 0, 0.0), PI * 0.5, Vector3(0.95, 0.9, 0.9), 0.45)
+	_put(walk_in, rec, upper, sofa_chair(), mid + Vector3(2.45, 0, 0.0), -PI * 0.5)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(2.45, 0, 0.0), -PI * 0.5, Vector3(0.95, 0.9, 0.9), 0.45)
+	_put(walk_in, rec, upper, sofa_chair(1.9), mid + Vector3(0, 0, 2.15), PI)
+	Seats.add_indoor(walk_in, rec, mid + Vector3(0, 0, 2.15), PI, Vector3(1.9, 0.9, 0.9), 0.45, [-0.5, 0.5])
 	# A globe on a stand, a floor lamp, a side table with a book by the sofa chair.
 	_put(walk_in, rec, upper, globe(), Vector3(room.end.x - 0.6, y, room.end.y - 0.7), 0.4, Vector3(0.4, 1.4, 0.4))
 	# Books and scrolls on the table, a clock on the right wall, a ladder against the bookcases, plants,

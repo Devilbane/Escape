@@ -196,6 +196,7 @@ tavern_brewer.gd | 300 | fixed | passfail | The brewer keeps the tavern, hands F
 rabbit_shots.gd | 300 | fixed | pass | Rabbits: sit at forest edges, bolt in a bounding run, leave tracks in the snow (pictures with SHOTS=)
 warren_shots.gd | 600 | fixed | pass | The rabbit burrow: mound, mouth, pebbles, grass and roots in summer, autumn and winter (pictures with SHOTS=)
 cow_fur_shots.gd | 300 | fixed | pass | Cows and bull: coat surfaces wear the fur material (pictures with SHOTS=)
+hedgehog_shots.gd | 300 | fixed | pass | Village hedgehog close-ups: pointed snout, bead nose and eyes (pictures with SHOTS=)
 hedgehogs.gd | 120 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, hibernate in winter)
 mage_tower.gd | 900 | fixed | passfail | The mage tower of Aldo and Odo: hall with tapestries, library, sleeping room, cellar lab; walking up and down; the mages sleep up in the top room
 hedgehogs.gd | 300 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, apple run to a hidden hoard, hibernate in winter)

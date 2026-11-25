@@ -430,6 +430,7 @@ static func _mesh(node_name: String, mesh: ArrayMesh, material: Material) -> Mes
 static func _earth(rough: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.albedo_texture = _soil
 	m.normal_enabled = true
 	m.normal_texture = _soil_bumps
@@ -443,6 +444,7 @@ static func _earth(rough: float) -> StandardMaterial3D:
 static func _stone() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.albedo_texture = _rock
 	m.normal_enabled = true
 	m.normal_texture = _rock_bumps
@@ -453,6 +455,7 @@ static func _stone() -> StandardMaterial3D:
 static func _wood_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.albedo_texture = _wood
 	m.roughness = 1.0
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -462,6 +465,7 @@ static func _wood_material() -> StandardMaterial3D:
 static func _grass_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.albedo_color = GRASS_GREEN
 	m.albedo_texture = _blades
 	m.roughness = 0.9
@@ -472,6 +476,7 @@ static func _grass_material() -> StandardMaterial3D:
 static func _leaf_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.albedo_texture = _wood
 	m.roughness = 1.0
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED

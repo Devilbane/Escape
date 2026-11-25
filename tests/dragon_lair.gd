@@ -228,6 +228,8 @@ func _process(_delta: float) -> bool:
 			# The dragon falls too and leaves a heap of gold.
 			var dragon: Enemy = _alive(lvl).filter(func(e): return e.kind == "drache")[0]
 			var before := CoinPile.coins_in(lvl._pickups)
+			# (Other ingredients lie about the lair already, glow mushrooms and the like: count what the fall adds.)
+			var parts_before := lvl._pickups.filter(func(p): return p.kind == "ingredient" and not Loot.is_coin(p.ingredient) and not Ore.is_ore(p.ingredient)).size()
 			dragon.take_hit(99, player.global_position)
 			var after := CoinPile.coins_in(lvl._pickups)
 			check(after - before >= Enemy.KINDS.drache.purse[0], "the dragon leaves a heap of gold (%d coins)" % (after - before))
@@ -236,7 +238,8 @@ func _process(_delta: float) -> bool:
 			# It leaves its scale and its blood, maybe its heart (besides the
 			# coins and ore every intelligent foe may leave, see Loot).
 			var parts := lvl._pickups.filter(func(p): return p.kind == "ingredient" and not Loot.is_coin(p.ingredient) and not Ore.is_ore(p.ingredient))
-			check(parts.size() >= 2 and parts.size() <= 4, "the dragon leaves 2 to 4 parts (%d)" % parts.size())
+			var left := parts.size() - parts_before
+			check(left >= 2 and left <= 4, "the dragon leaves 2 to 4 parts (%d)" % left)
 			var ids := parts.map(func(p): return p.ingredient)
 			check(DragonLair.SCALE in ids and DragonLair.BLOOD in ids, "a scale and dragon blood among them")
 			for p in parts + lvl._pickups.filter(func(q): return q.kind == "coin"):

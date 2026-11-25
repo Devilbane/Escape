@@ -14,7 +14,7 @@ extends Node
 const KIND := "tal_ereignis"
 const LADDER := "leiter"
 const SCARECROW := "vogelscheuche"
-## Where they stand: tiles of the valley map "Die Freiheit".
+## Where they stand: tiles of the valley map "Apfeltal".
 const LADDER_CELL := Vector2i(42, 90)
 const SCARECROW_CELL := Vector2i(53, 88)
 ## The hours the events happen in.

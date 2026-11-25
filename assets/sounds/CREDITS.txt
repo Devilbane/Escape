@@ -157,3 +157,5 @@ no recordings), so it has no licence to credit.
 
 The owls' calls (owl_hoot_0, owl_hoot_1, owl_hoot_2): synthesised from a gliding voice tone, soft breath noise and a slow
 quaver by tools/make_owl_sounds.py, our own work, no third-party material (public domain, CC0).
+The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from scratch by tools/make_goose_sounds.py
+(a buzzing pulse train through nasal formants, no recordings), so they have no licence to credit.

@@ -136,3 +136,4 @@ glow_mushrooms.gd | 120 | free | pass | Glow mushrooms (at most 3 patches of 1 t
 hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)
 furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
+parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)

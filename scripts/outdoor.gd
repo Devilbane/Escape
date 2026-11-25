@@ -804,6 +804,8 @@ func build() -> void:
 		birds.winter_perches.append_array(_lamp_perches)
 		add_child(birds)
 	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
+	MountainFoot.apply(self)
+	MountainFoot.scatter(self)
 	if waterfall != null:
 		waterfall.lay_water(self)
 	_build_forest()
@@ -2080,6 +2082,7 @@ func clear_plot(rect: Rect2i) -> void:
 			if is_instance_valid(node):
 				node.queue_free()
 		_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
+		MountainFoot.rebuild(self)
 
 
 ## The birds and squirrels in the trees along the forest's edge: only trees

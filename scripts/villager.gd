@@ -1742,8 +1742,8 @@ func drawn() -> bool:
 func _draw_blade(on: bool) -> void:
 	_sheathe_in = -1.0
 	# The priestess keeps her staff and strikes no blow; the smith fights
-	# with the hammer already in his hand.
-	if heals() or VillageArms.weapon(role) == VillageArms.HAMMER:
+	# with the hammer already in his hand, Fritz with his mug.
+	if heals() or VillageArms.weapon(role) in [VillageArms.HAMMER, VillageArms.MUG]:
 		return
 	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
 	if hand == null:
@@ -3011,8 +3011,12 @@ func slump(lean: float, down: float, forward: float) -> void:
 		_sleep_arms.active = lean > 0.0
 
 
-## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
+## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over). Fritz keeps
+## his in his hand all the time: the tavern code that puts the brewer's mug away (leaving at once, night)
+## must never take it from him.
 func hold_mug(on: bool) -> void:
+	if role == TavernBrewer.GUEST:
+		on = true
 	var mug := _model.find_child("Mug", true, false) as Node3D
 	if mug != null:
 		mug.visible = on

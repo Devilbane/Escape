@@ -402,7 +402,8 @@ static func plant_for_leaves(level: Node3D, others: Array) -> Array:
 		node.scale = Vector3.ONE * VILLAGE_SCALE
 		level.add_child(node)
 		level._add_solid(node.position, Vector3(0.5, 2.5, 0.5))
-		out.append({"node": node, "cell": pick, "look": "", "leaf": true})
+		# Outside the village it grows wild: no grass patch and ring of stones at its foot.
+		out.append({"node": node, "cell": pick, "look": "", "leaf": true, "wild": not level.near_village(pick)})
 	return out
 
 
@@ -487,6 +488,7 @@ static func dress(trees: Array, day: int) -> void:
 static func dress_begin(trees: Array, day: int) -> Dictionary:
 	var look := "%s:%d" % [Weather.season(day), apples(VILLAGE_TREE, day)]
 	var todo: Array[Node3D] = []
+	var wild: Array[bool] = []
 	for t in trees:
 		if t.look == look:
 			continue
@@ -496,10 +498,11 @@ static func dress_begin(trees: Array, day: int) -> Dictionary:
 			node.remove_child(child)
 			child.queue_free()
 		todo.append(node)
+		wild.append(t.get("wild", false))
 	# A sapling's stake is made with shared furniture helpers; the few young trees go one by one.
 	if todo.size() < 2 or stage(VILLAGE_TREE, day) <= SAPLING:
-		for node in todo:
-			build(node, VILLAGE_TREE, day)
+		for i in todo.size():
+			build(todo[i], VILLAGE_TREE, day, wild[i])
 		return {}
 	# What the trees share is made once, here, before the threads need it.
 	for roughness in [0.9, 0.7, 0.4]:
@@ -516,7 +519,7 @@ static func dress_begin(trees: Array, day: int) -> Dictionary:
 	var grow := func(i: int) -> void:
 		var tmp := Node3D.new()
 		tmp.position = at[i]
-		build(tmp, VILLAGE_TREE, day)
+		build(tmp, VILLAGE_TREE, day, wild[i])
 		made[i] = tmp
 	return {"todo": todo, "made": made, "grow": grow, "id": WorkerThreadPool.add_group_task(grow, todo.size(), -1, true, "Apple trees")}
 
@@ -538,7 +541,7 @@ static func dress_end(pending: Dictionary) -> void:
 		tmp.free()
 
 
-## Builds the tree of `piece` as it looks on `day` into `root` (on the ground, middle at the
+## Builds the tree of `piece` as it looks on `day` (`wild`: without the patch of grass and stones at its foot) into `root` (on the ground, middle at the
 ## origin) and returns its solids ({at, size}, local): the trunk.
 ##
 ## A grown tree is a real skeleton of tapering, bending limbs: the trunk forks into strong limbs,
@@ -547,14 +550,16 @@ static func dress_end(pending: Dictionary) -> void:
 ## one mesh, all the leaves one, the blossom and the apples one each (see _Parts), so a tree costs
 ## a handful of draw calls however many branches it has. The model notes how many apples, clumps,
 ## blossoms and limbs it has in the metas "apples", "leaves", "blossom" and "limbs".
-static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
+static func build(root: Node3D, piece: Dictionary, day: int, wild := false) -> Array:
 	var grown := stage(piece, day)
 	var season := Weather.season(day)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("apple tree:%s" % root.position.snapped(Vector3.ONE * 0.1))
 	var parts := _Parts.new()
 	# Round its foot a patch of grass, bordered by a ring of small field stones.
-	parts.patch(rng, PATCH_RADIUS + grown * PATCH_GROWS)
+	# (A `wild` tree, outside the village, stands straight in the ground like a natural one.)
+	if not wild:
+		parts.patch(rng, PATCH_RADIUS + grown * PATCH_GROWS)
 	var shape: Dictionary = SHAPES[grown]
 	if grown <= SAPLING:
 		# The stake it is tied to, with a band of bast round both.

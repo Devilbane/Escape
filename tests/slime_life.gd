@@ -64,7 +64,8 @@ func _run() -> void:
 	check(s.dry_time == 0.0, "wet weather does not count as drying")
 	# Dry weather: one level a minute, and it shrinks and goes dull.
 	lvl.weather = Weather.CLEAR
-	SlimeLife.tick(s, 61.0)
+	s.dry_time = SlimeLife.FADE_SECONDS
+	SlimeLife.fade_a_level(s)
 	check(s.rated_level == level_before - 1, "a dry minute costs one level (%d, was %d)" % [s.rated_level, level_before])
 	check(float(s._stats.size) < size_before, "the slime is smaller")
 	check(s.dryness > 0.0, "the slime looks duller")

@@ -308,5 +308,5 @@ stuck_watch.gd 62
 house_railing.gd 49
 house_furniture.gd 51
 house_hiding.gd 49
-house_login.gd 111
+house_login.gd 170
 waterfall.gd 49

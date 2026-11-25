@@ -30,10 +30,11 @@ func _initialize() -> void:
 		for i in 6:
 			var node := Node3D.new()
 			node.position = spot.call(i)
-			trees.append({"node": node, "look": ""})
+			# Every other tree grows wild (no grass patch at its foot).
+			trees.append({"node": node, "look": "", "wild": i % 2 == 1})
 			var ref := Node3D.new()
 			ref.position = spot.call(i)
-			AppleTree.build(ref, AppleTree.VILLAGE_TREE, day)
+			AppleTree.build(ref, AppleTree.VILLAGE_TREE, day, i % 2 == 1)
 			plain.append(ref)
 		AppleTree.dress(trees, day)
 		for i in trees.size():
@@ -54,7 +55,7 @@ func _initialize() -> void:
 	for i in dressed.size():
 		var ref := Node3D.new()
 		ref.position = spot.call(i)
-		AppleTree.build(ref, AppleTree.VILLAGE_TREE, winter)
+		AppleTree.build(ref, AppleTree.VILLAGE_TREE, winter, i % 2 == 1)
 		check(_same(dressed[i].node, ref), "a tree dressed for winter is the winter tree, with nothing left of the summer one")
 	print("PASS: parallel build" if failures == 0 else "FAILED: parallel build (%d)" % failures)
 	quit(1 if failures > 0 else 0)

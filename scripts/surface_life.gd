@@ -66,8 +66,12 @@ const PATH := ",aP"
 const SQUARE := ":"
 const WATER := "~;≈‖"
 
+## Only this share of the twigs in RECIPES (and in the path and under-tree
+## tables) is laid: the ground still looked cluttered with sticks, so 80% went.
+const TWIG_KEEP := 0.2
+
 ## How many pieces of each kind lie on one tile, on average. (Twigs were
-## halved once: the ground looked too cluttered with sticks.)
+## halved once, then cut again by TWIG_KEEP.)
 const RECIPES := {
 	FOREST: {"leaf": 7.0, "twig": 1.0, "pebble": 1.0, "cone": 0.8, "moss": 0.5, "dirt": 0.3, "tuft": 2.2, "mushroom": 0.45},
 	VILLAGE: {"leaf": 2.0, "straw": 3.0, "chip": 1.2, "pebble": 1.5, "twig": 0.3, "dirt": 0.5, "tuft": 1.3},
@@ -514,6 +518,8 @@ func _scatter_litter() -> void:
 				var n: float = kinds[kind]
 				if not factor.is_empty():
 					n *= factor.get(kind, 0.0)
+				if kind == "twig":
+					n *= TWIG_KEEP
 				var count := int(n) + (1 if _rng.randf() < n - int(n) else 0)
 				for i in count:
 					if litter_total >= LITTER_CAP:

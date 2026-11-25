@@ -16,7 +16,7 @@ uniform float veil = 0.8;
 // 0 in open water to 1 under a sheet of ice: in open water the fish is darker, bluer and a little clearer.
 uniform float cover = 0.0;
 uniform vec3 water_color = vec3(0.08, 0.2, 0.24);
-uniform float open_veil = 0.62;
+uniform float open_veil = 0.92;
 
 varying vec3 lp;
 
@@ -42,7 +42,13 @@ void fragment() {
 	col *= 0.7 + 0.5 * round_lit;
 	// Darker towards the tail and the fins.
 	col *= 0.85 + 0.25 * (1.0 - abs(along - 0.5) * 1.2);
-	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.5, 0.32, cover));
+	// Seen from the game camera's distance a fish is a few pixels: in open water its whole body must read against
+	// the dark water, so it is lit up (back and flank both) and given a pale rim, and only lightly tinted.
+	float open_water = 1.0 - cover;
+	float edge = 1.0 - clamp(abs(NORMAL.z), 0.0, 1.0);
+	col = mix(col, col * 1.7 + vec3(0.07, 0.09, 0.08), open_water);
+	col += edge * 0.22 * open_water * flank_color;
+	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.12, 0.32, cover));
 	ALPHA = mix(open_veil, veil, cover) * fade;
 	ALBEDO = col;
 	ALBEDO = gl_colour(ALBEDO);

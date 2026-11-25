@@ -205,6 +205,8 @@ static func is_rim(level: Node, c: Vector2i) -> bool:
 ## Whether `c` is a tile he may walk and sweep: a footpath, a gate in the village wall, or the rim of the
 ## paved square.
 static func _is_walkway(level: Node, c: Vector2i) -> bool:
+	if StreetSweeper.is_marked(level, c):
+		return true
 	var ch: String = level.cell_char(c)
 	if ch == SurfaceLife.SQUARE:
 		return level.is_open(c) and is_rim(level, c)
@@ -233,6 +235,22 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 		return none
 	if not swept.is_valid():
 		swept = func(p: Vector3) -> bool: return is_bare(level, p)
+	# The way marked by hand comes first, stretch by stretch (see StreetSweeper.MARKED).
+	var marked_stretches := StreetSweeper.marked(level)
+	for k in marked_stretches.size():
+		var cells: Array = marked_stretches[k]
+		if level.world_hours < float(StreetSweeper.rested.get(k, -1e9)) + StreetSweeper.MARKED_REST:
+			continue
+		var typed: Array[Vector2i] = []
+		typed.assign(cells)
+		var points := _points(level, typed, rng)
+		var left := 0.0
+		for p in points:
+			if not swept.call(p):
+				left += 1.0
+		if left >= 3.0:
+			StreetSweeper.rested[k] = level.world_hours
+			return points
 	# The whole walkway network, nearest first.
 	var came := {}
 	var order := _flood(level, seed_cell, came)

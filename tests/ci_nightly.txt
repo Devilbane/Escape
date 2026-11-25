@@ -39,6 +39,7 @@ cape_wardrobe.gd | 120 | fixed | pass | Cape wardrobe test (the house's wardrobe
 post_cap.gd | 120 | fixed | PASS:_post_cap | Postmaster's cap test
 bandana.gd | 120 | fixed | PASS:_bandana | Smith Gorm wears a bandana
 dreadlocks.gd | 120 | fixed | PASS:_dreadlocks | Guild Master Ragna's dreadlocks test
+miller_quiff.gd | 120 | fixed | PASS:_miller_quiff | Miller Korbinian's copper quiff test
 playtest_map.gd | 180 | free | pass | Testing a map from the workshop
 window_buttons.gd | 120 | free | pass | Window buttons, hover and keyboard focus test
 bronze_frames.gd | 120 | free | pass | Bronze frames test

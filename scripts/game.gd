@@ -1929,6 +1929,8 @@ func _use_station(s: Dictionary) -> void:
 		_refresh_seals()
 	elif s.kind == Mines.CLUSTER:
 		_mine_crystals(s)
+	elif s.kind == SilverSilk.KIND:
+		_harvest_silk(s)
 	elif s.kind == QuarryRocks.KIND:
 		_break_stone(s)
 	elif s.kind == WoodLogs.KIND:
@@ -2023,6 +2025,21 @@ func _close_villager_window(_reason: String) -> void:
 ## How long the hero knocks at a crystal cluster before the crystals come off:
 ## two blows of the strike.
 const DIG_BLOW := 0.42
+
+
+## Running into a web of silver silk: one strand goes into the ingredient pouch and the web is gone
+## (see SilverSilk).
+func _harvest_silk(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	player.play_once(Player.STRIKE_ANIM, DIG_BLOW)
+	var count := SilverSilk.harvest(level, s)
+	if count <= 0:
+		return
+	Sfx.play(self, "word_zing", -6.0, s.pos, 1.5)
+	crafting.add(SilverSilk.ID, count)
+	Effects.loot_text(level, s.pos + Vector3(0, 0.6, 0), "+%d %s" % [count, Crafting.ingredient_name(SilverSilk.ID)], SilverSilk.COLOUR, DamageNumber.item_worth(SilverSilk.ID))
+	Events.found(Lang.t("Ein Strang Silberseide kommt in deinen Zutatenbeutel."), SilverSilk.COLOUR)
+	learn(SilverSilk.LEARN)
 
 
 ## Running into a crystal cluster in a mine: two blows, then its crystals go
@@ -8309,6 +8326,7 @@ func _process(delta: float) -> void:
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
 			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
+			SilverSilk.KIND: Lang.t("Dagegenlaufen, um die Silberseide zu ernten"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),

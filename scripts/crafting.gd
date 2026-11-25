@@ -60,6 +60,9 @@ const INGREDIENTS := {
 		"where": "Rinnt aus Glutschlund, wenn er fällt, ganz unten in der Drachenhöhle."},
 	"glutherz": {"name": "Glutherz", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen, nicht immer",
 		"where": "Das glühende Herz des Drachen. Nicht jedes Mal, wenn Glutschlund fällt, bleibt es heil."},
+	# Harvested from the rare webs of silver silk in the dungeons (see SilverSilk).
+	"silberseide": {"name": "Silberseide", "tier": "selten", "region": "Verlies", "when": "", "source": "Silberne Spinnweben ernten",
+		"where": "Hier und da hängt im Verlies ein Spinnennetz aus Silberseide, das leise schimmert. Lauf dagegen, um einen Strang zu ernten."},
 	# The loot of fallen monsters (see Loot), each with its "tier" (see
 	# Rarity); "store": "metall" marks what a house keeps with the metal. Coins, from every intelligent foe: a hundred of one metal melt
 	# into a bar of it at Gorm's forge.

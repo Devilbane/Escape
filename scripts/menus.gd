@@ -4118,8 +4118,13 @@ func _restyle(field: String, id: String, price: int) -> void:
 	Events.bus().traded.emit(game.trader_role)
 	var look: Dictionary = game.player.hair.duplicate()
 	look[field] = id
-	game.player.set_hair(look)
 	Sfx.play(game, "coin")
+	if game.level is Outdoor and game.level.barber_chair.hero_in(game.level):
+		# In Benno's chair: he cuts for a while, the new look comes at the end (see BarberCut).
+		close()
+		game.level.barber_chair.order(game.level, look)
+		return
+	game.player.set_hair(look)
 	_note = Lang.t("Schnipp, schnapp! Steht dir gut.")
 	if field == "style" and HairLook.shows_scalp(id) and look.tattoo != "":
 		_note = Lang.t("Schnipp, schnapp! Jetzt sieht man auch deine Tätowierung.")

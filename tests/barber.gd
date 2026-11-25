@@ -62,9 +62,10 @@ func _test() -> void:
 	game.load_level(game._outdoor_index(), false)
 	var barber: Dictionary = {}
 	for s in game.level.stations:
-		if s.kind == "barbier":
+		if s.has("npc") and s.npc.role == "Z":
 			barber = s
 	check(not barber.is_empty(), "the barber has a station in the village")
+	check(barber.get("kind", "") == "npc", "talking to the barber opens no window")
 	if not barber.is_empty():
 		check(barber.npc.find_child("Crest", true, false) != null, "the barber wears a mohawk")
 		check(game.level.find_child("BarberPole", true, false) != null and game.level.find_child("ShopSign", true, false) != null, "the barber has a stall with a pole and a sign")
@@ -77,6 +78,8 @@ func _test() -> void:
 		check(linen, "the barber's tent is of clean linen")
 		var plain := WeatheredProps.palette_material(preload("res://assets/village/hexagons_medieval.png"), WeatheredProps.IRON)
 		check(plain.get_shader_parameter("linen") != true, "other tents keep their weathered canvas")
+		var chair: Dictionary = game.level.barber_chair.station
+		check(not chair.is_empty() and chair.get("barber", false), "the barber has a chair")
 		game.menus.open("barbier")
 		check(game.menus.is_open(), "the barber's menu opens")
 		game.menus.close()

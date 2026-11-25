@@ -51,6 +51,14 @@ const UNSHADOWED_LAYER := 1 << 15
 ## The meta of a node whose drawn parts grow on the outside of walls (the ivy, vines and grapes): they
 ## go on UNSHADOWED_LAYER too, so no indoor lamp lights them through the wall.
 const OUTSIDE_ONLY := &"lit_from_outside_only"
+## The meta of the village's ground (the meadow's pieces): it goes on GROUND_LAYER, so the candles on the
+## walls of the villagers' houses (WALL_CANDLE) do not light it through the windows.
+const GROUND := &"village_ground"
+const GROUND_LAYER := 1 << 14
+## The meta of a candle on a wall, next to a window: its light would graze out through the pane onto the
+## grass, so it leaves the ground out of its light. The room lamps keep theirs: the light through the
+## windows is wanted.
+const WALL_CANDLE := &"wall_candle"
 ## The render layer everything is drawn on unless told otherwise.
 const DEFAULT_LAYER := 1
 ## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
@@ -109,7 +117,10 @@ func _on_node_added(node: Node) -> void:
 		warm_up(node as Node3D)
 		return
 	if node is GeometryInstance3D:
-		if is_wall(node):
+		if node.has_meta(GROUND):
+			var ground := node as GeometryInstance3D
+			ground.layers = (ground.layers & ~DEFAULT_LAYER) | GROUND_LAYER
+		elif is_wall(node):
 			(node as GeometryInstance3D).layers |= WALL_LAYER
 		elif takes_no_shadows(node) or is_outside_only(node):
 			# Moved off the default layer, not only onto this one: a light reaches whatever shares a
@@ -162,6 +173,8 @@ func refresh(at_once := false) -> void:
 			continue
 		if light.has_meta(INDOOR):
 			light.light_cull_mask &= ~UNSHADOWED_LAYER
+			if light.has_meta(WALL_CANDLE):
+				light.light_cull_mask &= ~GROUND_LAYER
 		var score := shadow_score(light, at)
 		if score == INF:
 			_drop(light, at_once or not light.is_visible_in_tree())

@@ -160,7 +160,7 @@ const ROLES := {
 		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
 	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"}, "skin": SKIN_LIGHT,
 		"colors": [Color(0.95, 0.95, 0.95), Color(0.25, 0.25, 0.3), Color(1, 1, 1)], "plan": "shop", "work": "Interact",
-		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
+		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Setz dich in meinen Stuhl, dann kümmere ich mich um deine Haare.", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "stay", "work": "Interact",
 		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
@@ -335,6 +335,8 @@ var night := false
 ## Seconds until a child puts its pumpkin on or takes it off (see _mind_pumpkin); -1 before the first look.
 var _pumpkin_clock := -1.0
 var at_home := false
+## Where a customer sits in the barber's chair (see BarberChair): Benno turns to it and snips. INF when none.
+var customer_at := Vector3.INF
 ## The way to bed and out again in a house one can walk into, while it lasts (see VillageBeds).
 var bed_trip := {}
 ## The way to (or out of) her place behind a hall's counter, and that place (see VillagePosts).
@@ -901,10 +903,13 @@ func _start(task: String, time: float) -> void:
 		_begin_sweep()
 	else:
 		_end_sweep()
+	# Matthes puts the hoe, the sack and the flower down when anything but his field work or his courting begins.
+	if role == MatthesLife.ROLE and task != MatthesLife.TASK:
+		MatthesLife.stop(self)
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless", MatthesLife.TASK] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -2090,6 +2095,9 @@ func _next_task() -> void:
 		"stay", "shop":
 			if _sweep_out():
 				return
+			# With nothing to sweep he helps the farmers and looks for a girlfriend (see MatthesLife).
+			if role == MatthesLife.ROLE and MatthesLife.next(self):
+				return
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
@@ -2266,7 +2274,9 @@ func _farm_day() -> void:
 func _rest_on_bench() -> bool:
 	if not can_go_to_meal():
 		return false
-	var seat := level.bench_rest.offer(level, self)
+	var seat := level.barber_chair.offer(level, self)
+	if seat.is_empty():
+		seat = level.bench_rest.offer(level, self)
 	if seat.is_empty():
 		return false
 	go_to_meal(seat)
@@ -2462,6 +2472,8 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 	# from inside it would lead straight through its wall (Mira left her shop through the south
 	# wall at nightfall).
 	_leave_post()
+	if role == MatthesLife.ROLE and then != MatthesLife.TASK:
+		MatthesLife.stop(self)
 	_path.clear()
 	_retry = {}
 	_stuck_watch.reset()
@@ -2589,6 +2601,8 @@ func _physics_process(delta: float) -> void:
 			_mend(delta)
 		"sweep":
 			_sweep_snow(delta)
+		"tend":
+			MatthesLife.step(self, delta)
 		"bless":
 			_bless_step(delta)
 		"defend":
@@ -2789,7 +2803,10 @@ func _do(task: String, delta: float) -> void:
 		_sow(delta)
 		return
 	var work: String = _job.get("anim", _info.work)
-	if _job.has("face") and task == "work":
+	var snipping := customer_at != Vector3.INF and task == "work"
+	if snipping:
+		_turn_to(customer_at - global_position, delta)
+	elif _job.has("face") and task == "work":
 		_turn_to((_job.face as Vector3) - global_position, delta)
 	if _anim.get_animation(work).loop_mode != Animation.LOOP_NONE:
 		play(work)
@@ -2806,6 +2823,8 @@ func _do(task: String, delta: float) -> void:
 	if _current_anim == work:
 		play("Idle", 0.2)
 		_work_pause = _rng.randf_range(0.3, 1.2) if role in ["1", "3"] else _rng.randf_range(1.5, 3.5)
+		if snipping:
+			_work_pause = _rng.randf_range(0.05, 0.3) # Snip, snip, snip.
 		return
 	if _work_pause > 0.0:
 		return
@@ -3427,6 +3446,8 @@ func end_service() -> void:
 ## The hero ran into us: say the next line.
 func talk(hero: Node3D) -> void:
 	var lines: Array = FrozenFritz.MUFFLED if _task == "frozen" else _info.lines
+	if role == MatthesLife.ROLE:
+		lines = MatthesLife.talk_lines(lines)
 	meet()
 	say(Lang.t(lines[_line % lines.size()]), hero.global_position)
 	_line += 1

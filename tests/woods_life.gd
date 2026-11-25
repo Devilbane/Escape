@@ -116,13 +116,36 @@ func _run() -> void:
 	check(sq.visible and sq.state != "den", "and wakes at dawn")
 
 	# A bird in a treetop flies off to another tree when the hero comes close.
+	# (One that has another tree to go to, within reach and clear of the hero: a bird with none stays calm.)
 	var bird: Dictionary = birds.birds[0]
-	bird.state = "sit"
-	bird.at = bird.home
 	var old_home: Vector3 = bird.home
-	hero.global_position = lvl.to_global(Vector3(old_home.x + 3.0, 0.0, old_home.z))
-	for i in 3:
-		await process_frame
+	var done := false
+	for cand: Dictionary in birds.birds:
+		if done:
+			break
+		# The hero stands 3 m from its tree, on a side where he is not set into a trunk or a rock (he would be
+		# moved out of it): the first side where he stays put.
+		for side: Vector3 in [Vector3(3, 0, 0), Vector3(-3, 0, 0), Vector3(0, 0, 3), Vector3(0, 0, -3)]:
+			var spot: Vector3 = cand.home + side
+			var has_tree := false
+			for n in birds.nests.size():
+				var tree: Vector3 = birds.nests[n]
+				if n != int(cand.nest) and Vector2(tree.x - spot.x, tree.z - spot.z).length() > VillageBirds.WILD_SHY + 3.0 \
+						and Vector2(tree.x - cand.home.x, tree.z - cand.home.z).length() < VillageBirds.RANGE * 1.5:
+					has_tree = true
+			if not has_tree:
+				continue
+			bird = cand
+			bird.state = "sit"
+			bird.at = bird.home
+			old_home = bird.home
+			hero.global_position = lvl.to_global(Vector3(spot.x, 0.0, spot.z))
+			hero.velocity = Vector3.ZERO
+			for i in 3:
+				await process_frame
+			if Vector2(hero.global_position.x - lvl.to_global(spot).x, hero.global_position.z - lvl.to_global(spot).z).length() < 1.5:
+				done = true
+				break
 	check(bird.state == "fly", "a bird takes off when the hero comes near (%s)" % bird.state)
 	check(bird.home != old_home, "to another tree")
 	check(VillageBirds._flat_distance(bird.home, lvl.to_local(hero.global_position)) > VillageBirds.WILD_SHY, "away from the hero")

@@ -192,6 +192,7 @@ chimney_flue.gd | 60 | free | pass | Village chimneys end in a rim round an open
 snow_sweep.gd | 120 | free | passfail | Konrad sweeps the snow off the footpaths with a birch broom: a route along the path tiles, the swept strip stays bare, fills in with snowfall, takes no footprints
 tavern_brewer.gd | 300 | fixed | passfail | The brewer keeps the tavern, hands Fritz a beer at his chair by the hearth and chats with him; both leave at night
 rabbit_shots.gd | 300 | fixed | pass | Rabbits: sit at forest edges, bolt in a bounding run, leave tracks in the snow (pictures with SHOTS=)
+warren_shots.gd | 600 | fixed | pass | The rabbit burrow: mound, mouth, pebbles, grass and roots in summer, autumn and winter (pictures with SHOTS=)
 cow_fur_shots.gd | 300 | fixed | pass | Cows and bull: coat surfaces wear the fur material (pictures with SHOTS=)
 hedgehogs.gd | 120 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, hibernate in winter)
 mage_tower.gd | 900 | fixed | passfail | The mage tower of Aldo and Odo: hall with tapestries, library, sleeping room, cellar lab; walking up and down; the mages sleep up in the top room
@@ -216,3 +217,4 @@ ice_fish.gd | 120 | free | passfail | Fish under the river's ice: built at the f
 stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the season's colours, none in winter, a few sticks
 underground_shadows.gd | 120 | free | passfail | Buried rooms far from the hero stop casting shadows (cheaper frames), near ones still do
 mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn, summer and winter: lobes, mounds and stones in the grass (screenshots)
+river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too

@@ -14,6 +14,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
 	preload("res://scripts/lang/climb_spots.gd"),
+	preload("res://scripts/lang/glow_mushrooms.gd"),
 	preload("res://scripts/lang/climber_npc.gd"),
 	preload("res://scripts/lang/summit_garden.gd"),
 	preload("res://scripts/lang/temple_morning.gd"),

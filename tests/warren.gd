@@ -30,6 +30,28 @@ func _finish() -> void:
 	quit(1 if failures > 0 else 0)
 
 
+## The burrow is a mound, a tunnel and loose bits that follow the seasons; snow stays out of the hole.
+func _check_burrow() -> void:
+	var b := Warren.burrow(3)
+	for part in ["Mound", "Tunnel", "Clods", "Pebbles", "Roots", "Grass", "Leaves"]:
+		var m := b.get_node_or_null(part) as MeshInstance3D
+		check(m != null and m.mesh.get_surface_count() == 1, "the burrow has its %s" % part)
+		check(m != null and m.material_override != null, "%s is textured" % part)
+	check(b.get_node("Tunnel").has_meta("no_snow"), "no snow falls down the hole")
+	check(not b.get_node("Mound").has_meta("no_snow"), "snow settles on the mound")
+	var days := {}
+	for d in Weather.YEAR_DAYS:
+		if not days.has(Weather.season(d)):
+			days[Weather.season(d)] = d + 2
+	Warren.dress(b, days[Weather.SUMMER])
+	check(not b.get_node("Leaves").visible and b.get_node("Grass").scale.y == 1.0, "green grass and no leaves in summer")
+	Warren.dress(b, days[Weather.AUTUMN])
+	check(b.get_node("Leaves").visible, "fallen leaves lie by the mouth in autumn")
+	Warren.dress(b, days[Weather.WINTER])
+	check(not b.get_node("Leaves").visible and b.get_node("Grass").scale.y < 1.0, "the grass lies low and the leaves are buried in winter")
+	b.free()
+
+
 func _hidden_count() -> int:
 	return kits.filter(func(k): return k.is_hidden()).size()
 
@@ -54,6 +76,7 @@ func _process(_delta: float) -> bool:
 				check(k.has_burrow(), "a kit has a burrow")
 				check(k.global_position.distance_to(k._burrow_at) < Warren.START_RADIUS + 0.5, "a kit starts beside the burrow")
 			check(kits[0].scale.x <= 1.0 and Animal.KINDS.kit.scale < Animal.KINDS.kaninchen.scale, "kits are smaller than rabbits")
+			_check_burrow()
 			game.player.global_position = lvl.spots.square[0]
 			stage_frames = 0
 			stage = 1

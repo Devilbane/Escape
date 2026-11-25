@@ -40,6 +40,73 @@ static var _straw_texture: ImageTexture
 static var _leather_texture: ImageTexture
 
 
+# --- The marked route -----------------------------------------------------------------------
+
+## The way the village wants swept first, marked on the map by hand: a loop round the paved square, with the
+## road west to the gate and a branch to the south-west. Each stretch is a list of cells (dx, dy) from the
+## fountain's tile (the "F" of the map). He sweeps them in this order, out and back, before any other
+## walkway; when the map has no fountain or a cell is not open ground, he goes by the walkways alone.
+const MARKED := [
+	# The road west of the square, the square's top row, and its second row up to the east side.
+	[[-12, -4], [-11, -4], [-10, -4], [-9, -4], [-8, -4], [-7, -4], [-6, -4], [-5, -4], [-4, -4], [-3, -4], [-2, -4],
+		[-1, -4], [0, -4], [1, -4], [1, -3], [2, -3], [3, -3], [4, -3], [5, -3]],
+	# Down the east side and along the bottom, westward.
+	[[5, -3], [5, -2], [5, -1], [5, 0], [5, 1], [5, 2], [5, 3], [4, 3], [3, 3], [2, 3], [1, 3], [0, 3], [-1, 3], [-2, 3], [-3, 3], [-4, 3]],
+	# Up the west side, back to the top row.
+	[[-5, -4], [-5, -3], [-5, -2], [-5, -1], [-5, 0], [-5, 1], [-6, 1], [-6, 2], [-6, 3], [-5, 3], [-4, 3]],
+	# The branch to the south-west: down the path, then east along the square's bottom edge.
+	[[-9, 1], [-9, 2], [-9, 3], [-9, 4], [-8, 4], [-7, 4], [-6, 4], [-5, 4], [-4, 4]],
+]
+
+## Game hours a marked stretch is left alone after he has swept it, so a stretch that cannot be made clean
+## (a heap he cannot reach) does not keep him from the rest. By stretch: the world hour it was last started.
+const MARKED_REST := 1.0
+static var rested := {}
+static var _marked_for := 0
+static var _marked_cache: Array = []
+static var _marked_cells := {}
+
+
+## The marked stretches as lists of map cells (empty when the map does not fit them, see MARKED).
+static func marked(level: Node) -> Array:
+	if level == null or not (level is Outdoor):
+		return []
+	if _marked_for == level.get_instance_id():
+		return _marked_cache
+	_marked_for = level.get_instance_id()
+	_marked_cache = []
+	_marked_cells = {}
+	rested = {}
+	var f := Vector2i(-1, -1)
+	for y in level.height:
+		for x in level.width:
+			if level.cell_char(Vector2i(x, y)) == "F":
+				f = Vector2i(x, y)
+	if f.x < 0:
+		return _marked_cache
+	var stretches: Array = []
+	for stretch: Array in MARKED:
+		var cells: Array[Vector2i] = []
+		for d: Array in stretch:
+			var c := f + Vector2i(d[0], d[1])
+			if not level.is_open(c) and level.cell_char(c) != SnowSweep.GATE:
+				cells = []
+				break
+			cells.append(c)
+		if cells.size() >= 2:
+			stretches.append(cells)
+			for c in cells:
+				_marked_cells[c] = true
+	_marked_cache = stretches
+	return _marked_cache
+
+
+## Whether `c` lies on the marked route.
+static func is_marked(level: Node, c: Vector2i) -> bool:
+	marked(level)
+	return _marked_for == level.get_instance_id() and _marked_cells.has(c)
+
+
 ## The tile he waits on between his rounds: the open walkway tile nearest to the herald, but not beside
 ## anyone else's spot. (-1, -1) when there is no walkway.
 static func home_cell(level: Outdoor) -> Vector2i:

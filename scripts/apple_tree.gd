@@ -212,8 +212,8 @@ const TRUNK_OUT := 1.1
 const GARDEN_REACH := 3
 const TREE_SPACING := 3
 const DOOR_CLEAR := 4.0
-## The tiles that frame a grass pocket (see plant_in_pockets): paths and the paved square.
-const PAVED := [",", ":", "\\"]
+## The tiles that frame a grass pocket (see plant_in_pockets): paths, the paved square and street drains (flush with the street).
+const PAVED := [",", ":", "\\", "Ξ"]
 ## A pocket's four tiles, from its top left one.
 const POCKET_TILES: Array[Vector2i] = [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1), Vector2i.ONE]
 ## How far the trunk steps aside along each axis from a lamp post on one of the pocket's tiles (m).

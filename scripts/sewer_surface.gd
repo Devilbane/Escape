@@ -231,8 +231,10 @@ static func _stream(lvl: Outdoor) -> void:
 	flow.to = Vector3((MOUTH_TILE.x + 0.5) * tile, 0.06, (STREAM_TO_ROW - 0.2) * tile)
 	flow.width = tile * 2.0 - 1.6
 	flow.speed = 0.55
-	flow.count = 110
-	flow.palette = StreamFlow.LEAVES
+	flow.count = 16
+	flow.foam_every = 0
+	flow.seasonal = true
+	flow.palette = StreamFlow.GREEN_LEAVES
 	lvl.add_child(flow)
 
 

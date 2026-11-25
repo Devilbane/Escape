@@ -97,12 +97,12 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκβΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
 const TEMPLE_KEEPER := "O"
-const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκ"
+const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκβ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -310,6 +310,9 @@ var _tree_stage := IvySeasons.SUMMER
 var woods: WoodsLife
 ## The glowworm swarms that roam the night (see GlowwormSwarms).
 var glowworms: GlowwormSwarms
+## The bee hives of the valley with their bees and flower meadow (see Apiary), and the tiles they stand on.
+var apiary: Apiary
+var _hive_cells: Array[Vector2i] = []
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -1552,6 +1555,9 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_put_layout(pos, VillageClutter.STUMP, 1.2)
 		"e":
 			_put_layout(pos, VillageClutter.heap_for(level_name, c), 1.5)
+		Apiary.HIVE:
+			# Two hives and their bees (see Apiary): collected here, built together once the map is up.
+			_hive_cells.append(c)
 		"q":
 			_put("building_well_yellow", pos, 0.0, 5.0)
 			_add_solid(pos, Vector3(3.2, 2, 3.2))
@@ -2106,6 +2112,9 @@ func _build_woods_life() -> void:
 	add_child(woods)
 	glowworms = GlowwormSwarms.new(self, level_name)
 	add_child(glowworms)
+	if not _hive_cells.is_empty():
+		apiary = Apiary.new(self, _hive_cells, level_name)
+		add_child(apiary)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -4010,7 +4019,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND, Beekeeper.ROLE: Beekeeper.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -4952,6 +4961,8 @@ func _process(delta: float) -> void:
 	_inside_view.tick(self, delta)
 	if glowworms and hour >= 0.0:
 		glowworms.tick(delta, player.global_position, hour, hero_under_cover())
+	if apiary and hour >= 0.0:
+		apiary.tick(delta, player.global_position, hour, hero_under_cover(), season_day, weather)
 	_mind_the_wild(delta)
 	_whisper_from_holes(delta)
 	_mind_the_night(delta)

@@ -46,6 +46,9 @@ const INGREDIENTS := {
 		"where": "Ein purpurn leuchtender Glühpilz, selten und im Verlies etwas häufiger. Die Flecken wechseln jeden Tag."},
 	"gluehpilz_stern": {"name": "Sternenpilz", "tier": "episch", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
 		"where": "Ein violetter Glühpilz mit gelben Tupfen, der seltenste von allen. Tief im Verlies findet man ihn am ehesten."},
+	# Honey from the beekeeper of the valley (see Beekeeper): bought by the jar.
+	"honig": {"name": "Honig", "tier": "ungewoehnlich", "region": "Apfeltal", "when": "", "source": "Imker Ambrosius",
+		"where": "Ambrosius, der Imker im Apfeltal, verkauft ihn im Glas: goldgelb und dick, aus dem Nektar der Wiesenblumen. Am Alchemistentisch gibt er einem Heiltrank Kraft."},
 	# Fish, caught with the line (see Fishing). The perch bites everywhere;
 	# the other three are rare and bite in one water only.
 	"barsch": {"name": "Barsch", "region": "Dorf und Wolfssenke", "when": "", "source": "Angeln in den Teichen",
@@ -346,6 +349,15 @@ const RECIPES := {
 		"ingredients": {"gluehpilz": 3},
 		"lines": [
 			{"id": "pilz", "text": "Drei Glühpilze, in der Nacht gepflückt oder bei Tag, wenn sie ihr Licht gespeichert haben."},
+			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
+	# Honey (see Beekeeper): the first jar bought from the beekeeper teaches it.
+	"honigtrank": {"name": "Honigtrank", "giver": "", "found": "honig",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank", "potency": true,
+		"effect": "Ein Heiltrank, so stark wie dein Können ihn braut, nur aus Honig, ohne Schleimgelee",
+		"ingredients": {"honig": 2},
+		"lines": [
+			{"id": "honig", "text": "Zwei Gläser Honig vom Imker im Apfeltal, warm gerührt, bis er fließt."},
 			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
 		]},
 	"sternentrank": {"name": "Sternentrank", "giver": "", "found": "gluehpilz_blau",

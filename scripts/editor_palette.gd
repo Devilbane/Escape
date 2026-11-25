@@ -90,11 +90,11 @@ const GROUP_COLORS := [Color(0.42, 0.4, 0.38), Color(0.8, 0.7, 0.4), Color(0.75,
 ## The digits there are villagers, not creations.
 const OUTDOOR_GROUPS := [
 	["Gelände", "#.,:~;≈‖∩ΩΨΘΞ='"],
-	["Natur", "Tdrtpy≡‡☼"],
+	["Natur", "Tdrtpy≡‡☼ħ"],
 	["Wege und Eingänge", "PREa([])><|`\"°"],
 	["Gebäude", "hjßnmuskowbØ^IiBL"],
 	["Dorf und Lager", "gzlexπqFv!@NfC+%*$?_\\§¤"],
-	["Dorfbewohner", "0123456789KOGMYZS¢µüöφψχωλκ"],
+	["Dorfbewohner", "0123456789KOGMYZS¢µüöφψχωλκβ"],
 	["Wilde Gegner", "cAXQWHJU{}-/"],
 	["Tiere", "DV&£€"],
 ]
@@ -116,7 +116,7 @@ const OUTDOOR_NAMES := {
 	"@": "Platz des fahrenden Händlers", "N": "Zelt", "f": "Lagerfeuer", "C": "Schatztruhe der Räuber",
 	"+": "Werkbank für Feinarbeit", "%": "Schleifrad", "*": "Alchemietisch", "$": "Deine Lagertruhe",
 	"0": "Dorfvorsteher", "1": "Schmied", "2": "Bäuerin", "3": "Holzfäller", "4": "Wache", "5": "Zecher",
-	"6": "Krämerin", "7": "Kind", "8": "Gelehrter", "9": "Wasserträgerin", "K": "Herold der Krone", "¢": "Amtmann des Grundbuchs", "µ": "Raumausstatterin", "ü": "Müller", "ö": "Brauer",
+	"6": "Krämerin", "7": "Kind", "8": "Gelehrter", "9": "Wasserträgerin", "K": "Herold der Krone", "¢": "Amtmann des Grundbuchs", "µ": "Raumausstatterin", "ü": "Müller", "ö": "Brauer", "β": "Imker", "ħ": "Bienenstöcke mit Bienen und Blumenwiese",
 	"O": "Priesterin", "G": "Gildenmeister", "M": "Postmeister", "Y": "Bankier", "Z": "Barbier", "S": "Steinmetz",
 	"c": "Halsabschneider", "A": "Wilderer", "X": "Schläger", "Q": "Räuberhauptmann", "W": "Wolf", "H": "Ork",
 	"J": "Yeti", "U": "Spinne", "{": "Felstroll", "}": "Bergork", "-": "Eiswolf", "/": "Klippenschütze",

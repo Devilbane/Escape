@@ -42,3 +42,4 @@ mountain_foot.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountai
 # The cave behind the river's spring waterfall.
 spring_cave.gd | scripts/spring_cave.gd scripts/waterfall.gd shaders/waterfall.gdshader
 furniture_passage.gd | scripts/house_furniture.gd scripts/house_sketch.gd scripts/lang/furniture.gd
+beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scripts/bee_veil.gd scripts/lang/bees.gd

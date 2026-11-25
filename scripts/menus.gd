@@ -81,7 +81,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND, Beekeeper.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -357,6 +357,8 @@ func _rebuild() -> void:
 			_build_woodcutter()
 		Mill.KIND:
 			_build_miller()
+		Beekeeper.KIND:
+			_build_beekeeper()
 		"raumausstatter":
 			_build_furnisher()
 		"ausbau":
@@ -2652,6 +2654,37 @@ func _build_miller() -> void:
 					"price_ok": all > 0, "action": _buy_grain.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
 		]},
 	], _shop_pages())
+
+
+## The beekeeper's window (see Beekeeper): honey by the jar, one or as many as the copper pays for.
+func _build_beekeeper() -> void:
+	var honey := Beekeeper.HONEY
+	var price := Beekeeper.price(game)
+	_add_label(Lang.t("Imker"), 38, game.GOLD, game.TITLE_FONT)
+	var header := Lang.t("Dein Kupfer: %d") % game.coins
+	var all := Beekeeper.affordable(game)
+	var have: int = game.crafting.have(honey)
+	var detail := {"subtitle": Lang.t("Zutat"), "lines": [[Lang.t(Beekeeper.NOTE), TradeWindow.BLUE]]}
+	var compare := {"title": Lang.t("Dein Vorrat"), "name": "%s: %d" % [Crafting.ingredient_name(honey), have], "icon": honey}
+	_trade(header, [
+		{"key": "honey", "title": Crafting.ingredient_name(honey), "icon": honey, "entries": [
+			{"key": "one", "id": honey, "name": "1 " + Crafting.ingredient_name(honey), "price": Lang.t("%d Kupfer") % price, "price_ok": game.coins >= price,
+					"action": _buy_honey.bind(1), "enabled": game.coins >= price, "detail": detail, "compare": compare},
+			{"key": "all", "id": honey, "name": "%d %s" % [maxi(all, 1), Crafting.ingredient_name(honey)], "price": Lang.t("%d Kupfer") % (maxi(all, 1) * price),
+					"price_ok": all > 0, "action": _buy_honey.bind(all), "enabled": all > 0, "detail": detail, "compare": compare},
+		]},
+	], null, Lang.t("Zeig auf das Glas, um zu sehen, was der Honig kann."))
+
+
+func _buy_honey(count: int) -> void:
+	var bought := Beekeeper.buy(game, count)
+	if bought > 0:
+		_note = Lang.t("Gekauft: %d × %s") % [bought, Crafting.ingredient_name(Beekeeper.HONEY)]
+		Sfx.play(game, "gear_soft_0", -2.0)
+	else:
+		_note = Lang.t("Dafür reicht dein Kupfer nicht.")
+	game._update_hud()
+	_rebuild()
 
 
 func _buy_grain(count: int) -> void:

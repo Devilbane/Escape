@@ -35,6 +35,13 @@ const JOBS := [
 	{"id": "garden", "say": "Ein paar Rüben und Kohl im Garten halten sich auch im Winter.", "seasons": ["winter", "spring", "autumn"], "who": "ψ", "where": "door", "anim": "PickUp"},
 	{"id": "flock", "say": "Meine Schafe sind brav, solange keiner pfeift.", "seasons": [], "who": "λ", "where": "flock", "anim": "Idle"},
 	{"id": "flock_look", "say": "Der Wolf kommt nie bis ins Tal. Hoffe ich.", "seasons": [], "who": "λ", "where": "flock", "anim": "Interact"},
+	# The beekeeper (see Beekeeper) works among the hives of the apiary (see Apiary), all year round.
+	{"id": "tend", "say": "Ich sehe nach dem Stock. Die Bienen dürfen ruhig zusehen.", "seasons": ["spring", "summer"], "who": "β", "where": "hive", "anim": "Interact"},
+	{"id": "smoke", "say": "Etwas Rauch, und die Bienen bleiben ruhig. Meistens.", "seasons": ["spring", "summer"], "who": "β", "where": "hive", "anim": "Idle"},
+	{"id": "swarm", "say": "Im Sommer schwärmen sie. Dann laufe ich mit dem Korb hinterher.", "seasons": ["summer"], "who": "β", "where": "hive", "anim": "PickUp"},
+	{"id": "honey", "say": "Die Waben sind voll! Der erste Honig der Saison.", "seasons": ["summer", "autumn"], "who": "β", "where": "hive", "anim": "PickUp"},
+	{"id": "wrap", "say": "Im Winter bekommen die Stöcke ein Strohkleid. Die Bienen frieren nie.", "seasons": ["autumn", "winter"], "who": "β", "where": "hive", "anim": "Interact"},
+	{"id": "quiet", "say": "Hör mal: Im Winter summt der Stock leise wie eine Katze.", "seasons": ["winter", "spring"], "who": "β", "where": "hive", "anim": "Idle"},
 	{"id": "rest", "say": "Mittagspause! Ein Schluck Wasser, ein Stück Brot.", "seasons": [], "from": 12.0, "to": 13.5, "who": "φψχ", "where": "well", "anim": "Idle"},
 ]
 
@@ -84,6 +91,8 @@ static func _place(level: Outdoor, v: Villager, job: Dictionary) -> Dictionary:
 		spots = door_spots(level)
 	elif where == "flock":
 		spots = flock_spots(level)
+	elif where == "hive":
+		spots = hive_spots(level)
 	elif CropFields.LETTERS.contains(where):
 		spots = edge_spots(level, where)
 	if spots.is_empty():
@@ -155,6 +164,19 @@ static func door_spots(level: Outdoor) -> Array:
 	for h: Vector3 in level.spots.houses:
 		if level.world_to_cell(h).y >= Outdoor.VALLEY_FROM:
 			out.append({"spot": h, "face": h + Vector3(0, 0, -2)})
+	return out
+
+
+## In front of the hives of the apiary (see Apiary), facing them.
+static func hive_spots(level: Outdoor) -> Array:
+	var out: Array = []
+	if level.apiary == null:
+		return out
+	for h: Dictionary in level.apiary.hives:
+		var spot: Vector3 = h.pos + h.front * 1.15
+		spot.y = 0.0
+		if level.is_open(level.world_to_cell(spot)):
+			out.append({"spot": spot, "face": h.pos})
 	return out
 
 

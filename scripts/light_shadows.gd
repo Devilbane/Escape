@@ -51,14 +51,14 @@ const UNSHADOWED_LAYER := 1 << 15
 ## The meta of a node whose drawn parts grow on the outside of walls (the ivy, vines and grapes): they
 ## go on UNSHADOWED_LAYER too, so no indoor lamp lights them through the wall.
 const OUTSIDE_ONLY := &"lit_from_outside_only"
-## The meta of the village's ground (the meadow's pieces): it goes on GROUND_LAYER, so the lamps of the rooms
-## that have a floor of their own (FLOORED) do not light it through the windows. The lamps of a hero's house
-## keep lighting it: a room of theirs may have no floor, and the ground is what one walks on.
+## The meta of the village's ground (the meadow's pieces): it goes on GROUND_LAYER, so the candles on the
+## walls of the villagers' houses (WALL_CANDLE) do not light it through the windows.
 const GROUND := &"village_ground"
 const GROUND_LAYER := 1 << 14
-## The meta of a building whose rooms have floors (the villagers' houses, the halls, the temple): the lamps
-## inside it (INDOOR) leave the ground out of their light.
-const FLOORED := &"floored_building"
+## The meta of a candle on a wall, next to a window: its light would graze out through the pane onto the
+## grass, so it leaves the ground out of its light. The room lamps keep theirs: the light through the
+## windows is wanted.
+const WALL_CANDLE := &"wall_candle"
 ## The render layer everything is drawn on unless told otherwise.
 const DEFAULT_LAYER := 1
 ## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
@@ -173,7 +173,7 @@ func refresh(at_once := false) -> void:
 			continue
 		if light.has_meta(INDOOR):
 			light.light_cull_mask &= ~UNSHADOWED_LAYER
-			if _in_floored(light):
+			if light.has_meta(WALL_CANDLE):
 				light.light_cull_mask &= ~GROUND_LAYER
 		var score := shadow_score(light, at)
 		if score == INF:
@@ -252,22 +252,6 @@ func _drop(light: Light3D, at_once: bool) -> void:
 		_walled_in(light, false)
 	else:
 		_fading[id] = light
-
-
-## Whether a lamp stands in a building whose rooms have floors (FLOORED on it or a parent).
-static func _in_floored(light: Node) -> bool:
-	if light.has_meta(&"floored_checked"):
-		return light.get_meta(&"floored_checked")
-	var up := light.get_parent()
-	var floored := false
-	while up != null:
-		if up.has_meta(FLOORED):
-			floored = true
-			break
-		up = up.get_parent()
-	if light.is_inside_tree():
-		light.set_meta(&"floored_checked", floored)
-	return floored
 
 
 ## An indoor lamp (INDOOR) lights only while it casts its wall shadows: one left without them (more

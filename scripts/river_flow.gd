@@ -10,7 +10,7 @@ extends RefCounted
 ## The waypoints are tile coordinates (x, y of a tile's middle) in the order of the current; every one lies on
 ## a water tile (tests/river_flow.gd checks).
 
-const MAP := "Die Freiheit"
+const MAP := "Apfeltal"
 const WATER := "≈‖"
 const WAYPOINTS: Array[Vector2] = [
 	Vector2(26.5, 61.5), Vector2(27.5, 63.5), Vector2(30.5, 65.5), Vector2(34.5, 66.5), Vector2(38.5, 67.5),

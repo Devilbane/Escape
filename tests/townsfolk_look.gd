@@ -23,7 +23,7 @@ func _initialize() -> void:
 		var info: Dictionary = Villager.ROLES[role]
 		var look := TownsfolkLook.look_for(role, info)
 		check(look == TownsfolkLook.look_for(role, info), "%s looks the same every time" % role)
-		if role in ["7", "pippi"]:
+		if role in ["7", "pippi"] or info.has("skin"):  # their own skin: the hand-made look stays (Lotte)
 			check(look.is_empty(), "%s keeps the hand-made look" % info.name)
 		else:
 			check(not look.is_empty(), "%s has a look of their own" % info.name)

@@ -148,7 +148,7 @@ const KINDS := {
 	# floor. The dragon spits fire from afar ("fire": orange orbs that
 	# burn instead of curse); it is a boss with a fight of its own (see Dragon).
 	"fledermaus": {"model": "Bat", "dir": "lair", "ext": "fbx", "hp": 1, "speed": 6.6, "damage": 1, "reach": 1.9, "size": 0.8, "cooldown": 1.0,
-		"beast": true, "roam": true, "model_scale": 0.62, "turn": 0.0, "run_anim": 6.0, "lift": 1.0,
+		"beast": true, "roam": true, "model_scale": 0.4, "turn": 0.0, "run_anim": 6.0, "lift": 0.4,
 		"anims": {"Idle": "BatArmature|Bat_Flying", "Walking_A": "BatArmature|Bat_Flying", "Running_A": "BatArmature|Bat_Flying",
 			"1H_Melee_Attack_Chop": "BatArmature|Bat_Attack", "Hit_A": "BatArmature|Bat_Hit", "Death_A": "BatArmature|Bat_Death"},
 		"voice": ["voice_wicht", 1.9, "fiep"], "purse": [0, 1], "gear_chance": 0.0},

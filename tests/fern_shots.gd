@@ -1,6 +1,6 @@
 extends SceneTree
 ## Pictures of the ferns, the stand of spruces (see Fern, Outdoor.SPRUCE_PATCH) and the spruces in
-## the other forests of Die Freiheit.
+## the other forests of Apfeltal.
 ## Run with a display: SHOTS=<folder> godot --fixed-fps 60 -s tests/fern_shots.gd
 
 var game: Node

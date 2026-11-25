@@ -103,6 +103,8 @@ static func problem(level: Level, rect: Rect2i) -> String:
 				return "ground"
 			if level is Outdoor and (level as Outdoor).near_village(c):
 				return "village"
+			if level is Outdoor and (level as Outdoor).has_leaf_tree(c):
+				return "taken"
 			if owner_at(c) != "" or LostMine.covers_tile(c) or BankVault.covers_tile(c) or Sewers.covers_tile(c):
 				return "taken"
 	return ""

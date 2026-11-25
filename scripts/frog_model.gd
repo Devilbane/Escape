@@ -40,6 +40,7 @@ static func skin_material(variant: int) -> StandardMaterial3D:
 		var tex := _skin_textures()
 		var m := StandardMaterial3D.new()
 		m.vertex_color_use_as_albedo = true
+		m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		m.albedo_color = VARIANTS[variant]
 		m.albedo_texture = tex[0]
 		m.normal_enabled = true
@@ -60,6 +61,7 @@ static func eye_material() -> StandardMaterial3D:
 	if _eye_mat == null:
 		_eye_mat = StandardMaterial3D.new()
 		_eye_mat.vertex_color_use_as_albedo = true
+		_eye_mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		_eye_mat.roughness = 0.08
 		_eye_mat.metallic_specular = 1.0
 	return _eye_mat

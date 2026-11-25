@@ -57,9 +57,12 @@ void fragment() {
 	float shift = mod(row, 2.0) > 0.5 ? ROW_SHIFT.x : ROW_SHIFT.y;
 	float col = floor((sp.x - shift) / TILE_PITCH.x);
 	vec3 id = vec3(col, row, patch_seed * 113.0);
-	float h1 = hash3(id + 1.3);
-	float h2 = hash3(id + 7.9);
-	float h3 = hash3(id + 15.1);
+	// A tile is 13-30 cm: from far away the per-tile shades are smaller than a pixel and would
+	// shimmer as the camera moves, so they fade out to their average with the distance.
+	float tile_fade = band(8.0, px);
+	float h1 = mix(0.5, hash3(id + 1.3), tile_fade);
+	float h2 = mix(0.5, hash3(id + 7.9), tile_fade);
+	float h3 = mix(0.5, hash3(id + 15.1), tile_fade);
 
 	// Uneven tiles: lighter or darker, browner or greyer.
 	vec3 col_rgb = tex * tint;
@@ -98,14 +101,15 @@ void fragment() {
 	col_rgb = mix(col_rgb, moss_col, moss * 0.6);
 	// Lichen: small pale crusts.
 	vec3 lp = wpos * 4.0;
-	float crust = smoothstep(0.75, 0.78, fbm(lp + 31.0)) * (1.0 - moss) * age;
-	col_rgb = mix(col_rgb, vec3(0.6, 0.6, 0.5) * (0.85 + 0.3 * vnoise(lp * 7.0)), crust * 0.35);
+	// Soft-edged and gone before the crusts get smaller than a few pixels.
+	float crust = smoothstep(0.70, 0.82, fbm(lp + 31.0)) * (1.0 - moss) * age * band(10.0, px);
+	col_rgb = mix(col_rgb, vec3(0.6, 0.6, 0.5) * (0.85 + 0.3 * vnoise(lp * 2.0)), crust * 0.35);
 
 	ALBEDO = col_rgb;
 	ROUGHNESS = mix(0.9, 0.97, moss);
 	// Relief: the joints between the tiles sink in, the odd tile sits a
 	// little proud.
-	float height = (raw + h1 * 0.08) * band(2.0, px);
+	float height = (raw + h1 * 0.08) * tile_fade;
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.5, dFdy(height) * 0.5), 0.0)).xyz);
 	ALBEDO = gl_colour(ALBEDO);
 }

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Buried rooms far from the hero stop casting shadows | Shipped this week: Villagers skip idle toe-lift and scan for fire targets four times a second; Far-away monsters think every sixth tick (+48 more)
+Escape! dev status | Shipped this week: Buried rooms far from the hero stop casting shadows; Villagers skip idle toe-lift and scan for fire targets four times a second (+48 more)

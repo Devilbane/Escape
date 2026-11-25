@@ -935,7 +935,7 @@ func build() -> void:
 ## paved square, blue water, alpha open ground (the forest floor is darker).
 func _build_ground() -> void:
 	var mask := Image.create(width, height, false, Image.FORMAT_RGBA8)
-	var stones := Image.create(width, height, false, Image.FORMAT_RGBA8)
+	var scree := {}
 	var fence := _bounds_of("z")
 	var square := _bounds_of(":")
 	for y in height:
@@ -952,17 +952,18 @@ func _build_ground() -> void:
 			var open := 0.0 if ch == "#" else 1.0
 			mask.set_pixel(x, y, Color(path, soil, wet, open))
 			# Scree on the mountain ground, and at the foot of the rock.
-			stones.set_pixel(x, y, Color(1.0 if "'=]{}-/".contains(ch) else 0.0, 0, 0, 1))
+			if "'=]{}-/".contains(ch):
+				scree[Vector2i(x, y)] = true
 	# A smoother mask gives softer edges between the tiles.
 	mask.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
-	stones.resize(width * 4, height * 4, Image.INTERPOLATE_BILINEAR)
 	_ground_img = mask
 	_ground_tex = ImageTexture.create_from_image(mask)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/meadow.gdshader")
 	_ground_mat = mat
 	mat.set_shader_parameter("ground_mask", _ground_tex)
-	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(stones))
+	mat.set_shader_parameter("stone_mask", ImageTexture.create_from_image(_distance_field(scree, SCREE_REACH)))
+	mat.set_shader_parameter("stone_reach", SCREE_REACH)
 	mat.set_shader_parameter("grid_size", Vector2(width, height))
 	mat.set_shader_parameter("tile", TILE)
 	_shore_img = _build_shore()
@@ -992,6 +993,8 @@ func _build_ground() -> void:
 
 ## Pixels per tile of the shore picture, and how far from the bank (metres) it tells apart.
 const SHORE_PX := 4
+## How far (metres) the scree's distance picture reaches (see _distance_field).
+const SCREE_REACH := 6.0
 const SHORE_REACH := 8.0
 
 
@@ -1049,6 +1052,55 @@ func _build_shore() -> Image:
 	for at: Vector2i in raw:
 		if at.x >= 0 and at.y >= 0 and at.x < img.get_width() and at.y < img.get_height():
 			img.set_pixel(at.x, at.y, Color(clampf(0.5 + raw[at] / (2.0 * SHORE_REACH), 0.0, 1.0), 0, 0))
+	return img
+
+
+## Like the shore: a picture over the map, SHORE_PX pixels to a tile, of how far each spot lies from the nearest tile
+## in `cells` (minus inside them, plus outside), 0.5 on the edge, softened twice. The ground shader reads it through a
+## little noise, so the edge of the scree runs in soft curves and never along the tiles.
+func _distance_field(cells: Dictionary, reach: float) -> Image:
+	var img := Image.create(width * SHORE_PX, height * SHORE_PX, false, Image.FORMAT_RH)
+	img.fill(Color(1, 0, 0))
+	if cells.is_empty():
+		return img
+	var raw := {}
+	var seen := {}
+	for c: Vector2i in cells:
+		for dy in range(-2, 3):
+			for dx in range(-2, 3):
+				var t := c + Vector2i(dx, dy)
+				if seen.has(t) or t.x < 0 or t.y < 0 or t.x >= width or t.y >= height:
+					continue
+				seen[t] = true
+				for py in SHORE_PX:
+					for px in SHORE_PX:
+						var spot := Vector2(t.x + (px + 0.5) / SHORE_PX - 0.5, t.y + (py + 0.5) / SHORE_PX - 0.5) * TILE
+						var inside := cells.has(t)
+						var best := reach
+						for ey in range(-2, 3):
+							for ex in range(-2, 3):
+								var o := t + Vector2i(ex, ey)
+								if cells.has(o) == inside:
+									continue
+								var near := Vector2(clampf(spot.x, (o.x - 0.5) * TILE, (o.x + 0.5) * TILE),
+										clampf(spot.y, (o.y - 0.5) * TILE, (o.y + 0.5) * TILE))
+								best = minf(best, spot.distance_to(near))
+						raw[Vector2i(t.x * SHORE_PX + px, t.y * SHORE_PX + py)] = -best if inside else best
+	for _round in 2:
+		var soft := {}
+		for at: Vector2i in raw:
+			var sum := 0.0
+			var count := 0
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var v = raw.get(at + Vector2i(dx, dy))
+					if v != null:
+						sum += v
+						count += 1
+			soft[at] = sum / count
+		raw = soft
+	for at: Vector2i in raw:
+		img.set_pixel(at.x, at.y, Color(clampf(0.5 + raw[at] / (2.0 * reach), 0.0, 1.0), 0, 0))
 	return img
 
 

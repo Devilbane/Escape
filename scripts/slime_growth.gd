@@ -32,6 +32,8 @@ extends RefCounted
 ## - Wandering: in the open air a slime does not keep to its home but
 ##   wanders the whole map (WANDER_TILES at a go), the graveyard and the
 ##   mountains too.
+## - Weather: the slimes of the open air come only in spring, in rain, storm or
+##   fog (see may_crawl); when it clears or the season turns they go to the pond.
 ## - Lasting: the slimes of the open air stay in the world while the hero
 ##   is in a dungeon or a house, and in the saved game (see snapshot and
 ##   restore): where they are, their level, colour, life and belly.
@@ -129,6 +131,13 @@ const LEARN := "Schleime wachsen: Ein Schleim fällt über jedes Wesen her, das 
 
 static func grows(kind: String) -> bool:
 	return kind in GROWERS
+
+
+## Whether slimes may crawl about the open air: only in spring, and only in bad weather (rain,
+## storm or fog). In any other season or weather they retreat to the pond (see SlimeLife).
+## The slimes of the sewers and mines do not care about the weather.
+static func may_crawl(weather: String, season_day: int) -> bool:
+	return Weather.is_spring(season_day) and SlimeLife.is_wet(weather)
 
 
 ## Whether this slime is big enough to eat into the village wall: a slime of

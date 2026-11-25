@@ -1,0 +1,1 @@
+- Slimes now only crawl out in spring, in rain, storm or fog, and retreat to the pond when it clears.

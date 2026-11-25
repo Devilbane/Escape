@@ -17,16 +17,16 @@ lang_keys.gd | 60 | free | pass | English texts (no German text translated twice
 shader_colours.gd | 60 | free | pass | Shader colours (every shader of ours looks the same on both renderers)
 jump_windup.gd | 120 | fixed | passfail | Jump wind-up (half a step first, called off by a hit)
 melee_path.gd | 60 | free | passfail | Melee pathfinding (monsters walk round what blocks their blow)
-smooth_motion.gd | 120 | fixed | pass | Smooth running (bodies drawn between physics ticks)
-inventory_fixed_size.gd | 120 | free | pass | Inventory keeps its size (picking, tabs, equipping; both languages)
-storage_fixed_size.gd | 120 | free | pass | Storage chest keeps its size (pointing at torches and other items; both languages)
+smooth_motion.gd | 240 | fixed | pass | Smooth running (bodies drawn between physics ticks)
+inventory_fixed_size.gd | 240 | free | pass | Inventory keeps its size (picking, tabs, equipping; both languages)
+storage_fixed_size.gd | 240 | free | pass | Storage chest keeps its size (pointing at torches and other items; both languages)
 windows_fixed_size.gd | 300 | free | pass | Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
-events.gd | 120 | free | pass | Event bus test
-save_notice.gd | 120 | free | pass | Save notice test ("Game saved" after every save)
+events.gd | 240 | free | pass | Event bus test
+save_notice.gd | 240 | free | pass | Save notice test ("Game saved" after every save)
 bleeding.gd | 120 | free | pass | Bleeding test (cutting hits bleed the hit's life, faster on the move)
 regen_pause.gd | 120 | free | pass | Healing pause test (no regeneration right after a blow)
 door_safety.gd | 120 | fixed | pass | Locked doors (no getting stuck, no blows through them) test
-door_walk_straight.gd | 120 | fixed | pass | Doorways let the hero walk straight through (no zig-zag, no catching on the frame) test
+door_walk_straight.gd | 240 | fixed | pass | Doorways let the hero walk straight through (no zig-zag, no catching on the frame) test
 pillar_shots.gd | 120 | fixed | passfail | Pillars stop shots test
 offline_schedule.gd | 120 | free | pass | Time away (offline activities) test
 wake_up.gd | 120 | fixed | pass | Waking up in bed after loading test
@@ -49,24 +49,24 @@ stay_awake.gd | 120 | fixed | pass | Stay awake and save test
 sleep_till_morning.gd | 120 | fixed | pass | Sleep till morning test
 bed_rise.gd | 120 | fixed | pass | Going to bed and getting up (nobody sinks into the floor or mattress, the blanket lies over the sleeper and is thrown back flat)
 camp.gd | 120 | fixed | pass | Camp with bedroll and campfire test
-rescue.gd | 120 | fixed | pass | Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
+rescue.gd | 240 | fixed | pass | Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
 item_compare.gd | 120 | free | pass | Item comparison in the inventories' details box
-merchant_window.gd | 120 | free | pass | Merchant trading window test
+merchant_window.gd | 240 | free | pass | Merchant trading window test
 level_editor.gd | 180 | free | pass | Map workshop test
-armour_sets.gd | 120 | free | pass | Armour sets test
-factions.gd | 180 | fixed | pass | Monster rivals and befriending test
-cowed_monsters.gd | 180 | fixed | pass | Weak monsters leave a far stronger hero alone test
+armour_sets.gd | 240 | free | pass | Armour sets test
+factions.gd | 300 | fixed | pass | Monster rivals and befriending test
+cowed_monsters.gd | 300 | fixed | pass | Weak monsters leave a far stronger hero alone test
 sneak_attack.gd | 120 | fixed | pass | Sneak attack test
 patch_history.gd | 120 | fixed | pass | Patch notes archive and the compendium's patch notes page
 no_stacking.gd | 120 | fixed | pass | Hero and skeletons cannot stack test
-forge.gd | 120 | fixed | pass | Smith's forge test
+forge.gd | 240 | fixed | pass | Smith's forge test
 smith_stock.gd | 120 | fixed | passfail | Forge shows needed and missing materials, Gorm's shelf
 purse.gd | 120 | fixed | pass | Purse test (coins and gems take no bag or pouch slot)
-quarry_door.gd | 120 | fixed | pass | The house beside the stonemason's quarry can be reached on foot
-player_houses.gd | 120 | fixed | pass | Town houses for many heroes test
-house_exit_quick.gd | 180 | fixed | pass | Stepping out of a building is quick (the open air waits, set aside, and comes back as it was)
-crafting.gd | 120 | free | pass | Recipes and ingredient pouch test
-workbench_crafting.gd | 120 | free | pass | Workbench crafting test
+quarry_door.gd | 240 | fixed | pass | The house beside the stonemason's quarry can be reached on foot
+player_houses.gd | 240 | fixed | pass | Town houses for many heroes test
+house_exit_quick.gd | 300 | fixed | pass | Stepping out of a building is quick (the open air waits, set aside, and comes back as it was)
+crafting.gd | 240 | free | pass | Recipes and ingredient pouch test
+workbench_crafting.gd | 240 | free | pass | Workbench crafting test
 hero_level.gd | 900 | fixed | pass | Hero level and experience test
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
 button_click.gd | 120 | fixed | passfail | UI button click: pressing any button, including one
@@ -77,62 +77,62 @@ jewellery_stacks.gd | 120 | fixed | passfail | small things stack and the bigges
 godborn_backpack.gd | 30 | fixed | passfail | the god-born Traveller backpack gives +1 hardening and +5 % speed
 epic_backpack.gd | 120 | fixed | passfail | the epic 24-slot satchel: scroll loot, recipe, 24 slots
 launcher.gd | 120 | fixed | passfail | Windows launcher (scripts/launcher.gd): what it does with the
-loot.gd | 120 | fixed | passfail | loot of fallen monsters (see Loot and
-npc_keywords.gd | 120 | free | passfail | Elsbeth keeps clear of the temple door; a bump only brings a remark, a keyword opens the window
-npc_personal_space.gd | 120 | fixed | passfail | villagers who walk about (the village kid Pip) never stand
+loot.gd | 240 | fixed | passfail | loot of fallen monsters (see Loot and
+npc_keywords.gd | 240 | free | passfail | Elsbeth keeps clear of the temple door; a bump only brings a remark, a keyword opens the window
+npc_personal_space.gd | 240 | fixed | passfail | villagers who walk about (the village kid Pip) never stand
 pause_menu.gd | 120 | fixed | passfail | pause window on Esc: Esc in the game stops the world
 stairs_down.gd | 120 | fixed | passfail | Headless test for StairsDown: the stairs down are a flight of steps that
 storage_stacking.gd | 120 | fixed | passfail | Headless test for torches bundling in the storage chest just as in the bag:
 stride.gd | 120 | fixed | passfail | feet stay planted (Stride)
 thunder_ore.gd | 120 | fixed | passfail | uses of thunder ore: Gorm forges the thunder weapons
-windows_fit_screen.gd | 120 | fixed | passfail | every window (see Menus) stays inside the screen at small
+windows_fit_screen.gd | 240 | fixed | passfail | every window (see Menus) stays inside the screen at small
 coins_counted_up.gd | 120 | fixed | :_ok | the purse shows its coins counted up into silver and gold
 sneak_charge.gd | 120 | fixed | passfail | Charging an unaware foe: sneak attack on the opening blow, no auto-attack while sneaking
 named_monsters.gd | 60 | free | passfail | Named monsters are tougher than plain ones, bosses and maker-set numbers are left alone
 prison_bars.gd | 60 | free | passfail | Prison bars (a cell's wall of bars is turned with it and closes the gap)
-villager_walls.gd | 120 | fixed | pass | Villagers never cross walls or shut gates
-stuck_watch.gd | 180 | fixed | passfail | Stuck walkers (a villager or animal walking on the spot stands, then tries again 10 s later)
-footprint.gd | 120 | fixed | passfail | every creature claims its own place; stacked ones: the newest moves to the nearest open spot
+villager_walls.gd | 240 | fixed | pass | Villagers never cross walls or shut gates
+stuck_watch.gd | 300 | fixed | passfail | Stuck walkers (a villager or animal walking on the spot stands, then tries again 10 s later)
+footprint.gd | 240 | fixed | passfail | every creature claims its own place; stacked ones: the newest moves to the nearest open spot
 log_out_quits.gd | 120 | fixed | passfail | Sleep and log out saves first, then closes the game
 sleep_roll.gd | 60 | free | pass | Sleep breakthroughs (practice ripens, nights roll, feelings have no numbers)
-blessing.gd | 120 | free | pass | Temple blessing (six gods, thirds lost per rescue, temple window, character title, save)
+blessing.gd | 240 | free | pass | Temple blessing (six gods, thirds lost per rescue, temple window, character title, save)
 durability.gd | 60 | free | pass | Item wear shows on the rim; a destroyed piece can only be melted
-skill_trees.gd | 120 | free | pass | Skill trees (whole data, old heroes keep their levels, the window keeps its size on every tree)
+skill_trees.gd | 240 | free | pass | Skill trees (whole data, old heroes keep their levels, the window keeps its size on every tree)
 training_curve.gd | 60 | free | pass | Use table (the cost of the levels, and saved heroes keep every level)
 plots.gd | 60 | free | pass | Building plots: rules, fee, deeds, the clerk
 plot_clearing.gd | 180 | free | pass | Building plots stay clear (no tree, boulder or mountain slope reaches into one)
 house_sketch.gd | 60 | free | pass | House plan: grid, snapping, sketching, undo, books
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books
-house_cellar_floor.gd | 120 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
-house_cellar_ceiling.gd | 120 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
-house_ladder.gd | 120 | fixed | passfail | House ladder: one cell against a slab or pit wall, built after it, the hero climbs up and down it
-ladder_exit.gd | 120 | fixed | passfail | A ladder is climbed by clicking it, never by walking into it (no up-and-down loop at the foot; click spot and glow)
-storm_build.gd | 120 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
-house_roof_items.gd | 120 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
-house_upper.gd | 120 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading
-house_railing.gd | 120 | fixed | passfail | Roof railings: drawn and ringed round a flat roof, a gap for the stairs, built after the slab, keep the hero on the roof
-built_doors.gd | 180 | fixed | passfail | Built doors and gates: tall doorway, leaf swings open for whoever walks in and falls shut, E holds it open, Shift+E locks out creatures
+house_cellar_floor.gd | 240 | free | pass | House cellar: ground opens over dug cells, pit floor and ramp collide
+house_cellar_ceiling.gd | 240 | free | pass | House cellar ceiling: wood or stone floor over dug cells, stairs stay open, snow and items on it
+house_ladder.gd | 240 | fixed | passfail | House ladder: one cell against a slab or pit wall, built after it, the hero climbs up and down it
+ladder_exit.gd | 240 | fixed | passfail | A ladder is climbed by clicking it, never by walking into it (no up-and-down loop at the foot; click spot and glow)
+storm_build.gd | 240 | fixed | pass | Lightning while building a cellar: nothing calls into a freed node
+house_roof_items.gd | 240 | free | pass | Things on a flat roof: stone blocks and crates stand on a built slab, blocks go back when it goes
+house_upper.gd | 240 | free | pass | House upper floor: slabs, flat and saddle roofs, stairs up, solid ground at every level, roof fading
+house_railing.gd | 240 | fixed | passfail | Roof railings: drawn and ringed round a flat roof, a gap for the stairs, built after the slab, keep the hero on the roof
+built_doors.gd | 300 | fixed | passfail | Built doors and gates: tall doorway, leaf swings open for whoever walks in and falls shut, E holds it open, Shift+E locks out creatures
 wall_clearance.gd | 180 | fixed | passfail | The hero's head, hat, cape, belly and gear stay out of walls, and doorways stay open
-house_furniture.gd | 120 | free | passfail | House furniture: the furnisher sells it, the tool puts it down indoors (floor, roof, walls, doors), placed pieces are stations, torches light, roof gone sends them back
+house_furniture.gd | 240 | free | passfail | House furniture: the furnisher sells it, the tool puts it down indoors (floor, roof, walls, doors), placed pieces are stations, torches light, roof gone sends them back
 candle_stand.gd | 30 | free | passfail | Candle stand: flames split from the candles, a click puts flames and light out together, put out stays out in the saved furniture
 reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a wall solid from floor to ceiling
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
-click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top
-forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
-house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
+click_spots.gd | 240 | fixed | pass | Beds and workbenches open only on their pillow or bench top
+forest_edges.gd | 240 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
+house_login.gd | 360 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere
 carry_arm.gd | 60 | free | passfail | The torch and lamp arm reaches forward and rocks only gently; lamps hang upright; villagers mix lamps and torches
 ground_items.gd | 60 | free | pass | Items on the floor (every item has a flat model, stackables pile up, no floating glow)
 sleep_arms.gd | 60 | free | passfail | A sleeper's arms rest the head in the hands: hands under the face, the arms mirror each other
 lift_keeps_hidden.gd | 30 | free | passfail | A roof lifted off and put back never shows what was hidden (ballista range circles)
-waterfall.gd | 120 | free | passfail | The river's spring waterfall: notch, no path, water on the rock, winter ice
-spring_cave.gd | 120 | free | passfail | The cave behind the spring waterfall: ice wall, hammer, thaw, cave map
+waterfall.gd | 240 | free | passfail | The river's spring waterfall: notch, no path, water on the rock, winter ice
+spring_cave.gd | 240 | free | passfail | The cave behind the spring waterfall: ice wall, hammer, thaw, cave map
 mountain_foot.gd | 240 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
 rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep
 bed_exit_chest.gd | 120 | fixed | pass | The hero steps out of bed on the side without a chest
 climbing_gear.gd | 60 | fixed | pass | Climbing gear: five pieces worn in their slots, +1 Klettern each and +2 for the full set, nothing from the bag
 silver_silk.gd | 60 | fixed | passfail | Silver spider silk: a rare share of webs, the same each visit, an ingredient with picture and English texts
-glow_mushrooms.gd | 120 | free | pass | Glow mushrooms (at most 3 patches of 1 to 7 a day, new places each day, glow follows the clock)
+glow_mushrooms.gd | 240 | free | pass | Glow mushrooms (at most 3 patches of 1 to 7 a day, new places each day, glow follows the clock)
 hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)
 furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split

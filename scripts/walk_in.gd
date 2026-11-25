@@ -35,9 +35,9 @@ const COVER_HEAD := 1.7
 const COVER_LINGER := 0.4
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
-## The doorway as wide as the walls stop the hero (a little wider than the leaf, so the hero, 1.1 m
-## across, fits through without catching on the frame).
-const DOOR_GAP := 1.24
+## The doorway as wide as the walls stop the hero (wider than the leaf, so the hero, 1.1 m across,
+## walks straight through with 0.2 m to spare on each side and is never nudged by the frame).
+const DOOR_GAP := 1.5
 ## How far in front of a house door the ramp up to its floor starts (metres): up the step and
 ## over the threshold, PLINTH high.
 const RAMP := 1.0

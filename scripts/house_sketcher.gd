@@ -95,6 +95,9 @@ const CEILING_LIFT := 0.02
 ## stone jambs JAMB wide at each side.
 const DOOR_HEIGHT := 2.4
 const JAMB := 0.35
+## The jambs of a doorway are slimmer, so the hero (1.1 m across) walks straight through with a hand's
+## breadth to spare on each side and is never nudged sideways by the frame (a window keeps JAMB).
+const DOOR_JAMB := 0.25
 const SILL := 0.9
 const WINDOW_TOP := 1.9
 ## How high the timber lintel over a built window is.
@@ -2371,9 +2374,9 @@ func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool
 	var axis := Vector3.RIGHT if along_x else Vector3.BACK
 	var across := Vector3.BACK if along_x else Vector3.RIGHT
 	var wood: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood()
-	var opening := HouseSketch.CELL - 2.0 * JAMB
+	var opening := HouseSketch.CELL - 2.0 * DOOR_JAMB
 	# The jambs reach into the corner, as a wall piece does.
-	var jamb_long := JAMB + THICK * 0.5
+	var jamb_long := DOOR_JAMB + THICK * 0.5
 	var jamb_deep := THICK + 0.1
 	for sign_ in [-1.0, 1.0]:
 		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)

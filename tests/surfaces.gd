@@ -81,10 +81,12 @@ func _table() -> void:
 	for kind: String in Surfaces.PACE:
 		if kind == Surfaces.PUDDLE:
 			continue
-		check(Surfaces.STEPS.has(kind), "%s has footsteps" % kind)
+		# The sewer slime squelches with sounds of its own (SewerSlime.step_sound), not the STEPS table.
+		if kind != Surfaces.SLIME:
+			check(Surfaces.STEPS.has(kind), "%s has footsteps" % kind)
 		for i in 12:
 			var sound := Surfaces.step_sound(kind)
-			check(ResourceLoader.exists(Sfx.DIR + sound + ".wav"), "the step %s on %s exists" % [sound, kind])
+			check(ResourceLoader.exists(Sfx.DIR + sound + ".wav") or ResourceLoader.exists(Sfx.DIR + sound + ".ogg"), "the step %s on %s exists" % [sound, kind])
 	for kind in [Surfaces.GRASS, Surfaces.WOOD, Surfaces.SCREE, Surfaces.PATH, Surfaces.SOIL, Surfaces.DIRT]:
 		check(not Surfaces.hard(kind), "%s does not sound like stone" % kind)
 		check(Surfaces.step_sound(kind).begins_with("step_" + Surfaces.STEPS[kind] + "_"), "%s plays its own steps" % kind)

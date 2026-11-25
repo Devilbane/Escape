@@ -27,6 +27,8 @@ func _initialize() -> void:
 
 
 func _finish() -> void:
+	check(VillageArms.weapon("5") == VillageArms.MUG, "Fritz fights with his mug")
+	check(VillageArms.arm(null, "5") == null, "Fritz never gets a blade")
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: village arms")

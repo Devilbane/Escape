@@ -993,19 +993,9 @@ static func clear_doors(leaves: Dictionary, doors: Array) -> int:
 	var dropped := 0
 	var keep_x := []
 	var keep_c := []
+	var sweeps := _sweeps(doors)
 	for i in leaves.xforms.size():
-		var at: Vector3 = (leaves.xforms[i] as Transform3D).origin
-		var blocked := false
-		for e: Dictionary in doors:
-			var d: Vector3 = e.door
-			var out: Vector3 = e.out
-			var rel := Vector3(at.x - d.x, 0, at.z - d.z)
-			var along := rel.dot(out)
-			var across := absf(rel.dot(Vector3.UP.cross(out)))
-			if across < DOOR_SWEEP and along > -DOOR_SWEEP_DEPTH.x and along < DOOR_SWEEP_DEPTH.y and at.y - d.y < DOOR_CLEAR.y:
-				blocked = true
-				break
-		if blocked:
+		if _swept((leaves.xforms[i] as Transform3D).origin, sweeps):
 			dropped += 1
 		else:
 			keep_x.append(leaves.xforms[i])
@@ -1017,20 +1007,38 @@ static func clear_doors(leaves: Dictionary, doors: Array) -> int:
 		var keep_s := []
 		var keep_sc := []
 		for i in (leaves.stems as Array).size():
-			var at: Vector3 = (leaves.stems[i] as Transform3D).origin
-			var blocked := false
-			for e: Dictionary in doors:
-				var d: Vector3 = e.door
-				var rel := Vector3(at.x - d.x, 0, at.z - d.z)
-				if absf(rel.dot(Vector3.UP.cross(e.out))) < DOOR_SWEEP and rel.dot(e.out) > -DOOR_SWEEP_DEPTH.x and rel.dot(e.out) < DOOR_SWEEP_DEPTH.y and at.y - d.y < DOOR_CLEAR.y:
-					blocked = true
-					break
-			if not blocked:
+			if not _swept((leaves.stems[i] as Transform3D).origin, sweeps):
 				keep_s.append(leaves.stems[i])
 				keep_sc.append(leaves.stem_colours[i])
 		leaves.stems = keep_s
 		leaves.stem_colours = keep_sc
 	return dropped
+
+
+## Each door's sweep as [spot, out, the way across, how far from the spot anything inside it can be
+## (squared)], so `_swept` need not work out the box for a leaf far away.
+static func _sweeps(doors: Array) -> Array:
+	var out_list := []
+	var depth := maxf(DOOR_SWEEP_DEPTH.x, DOOR_SWEEP_DEPTH.y)
+	for e: Dictionary in doors:
+		var out: Vector3 = e.out
+		var o2 := out.length_squared()
+		out_list.append([e.door, out, Vector3.UP.cross(out), (DOOR_SWEEP * DOOR_SWEEP + depth * depth) / o2 + 0.01 if o2 > 0.0 else INF])
+	return out_list
+
+
+## Whether `at` lies in the box in front of and behind any door (see clear_doors).
+static func _swept(at: Vector3, sweeps: Array) -> bool:
+	for sw: Array in sweeps:
+		var d: Vector3 = sw[0]
+		var rel := Vector3(at.x - d.x, 0, at.z - d.z)
+		if rel.length_squared() > float(sw[3]):
+			continue
+		var out: Vector3 = sw[1]
+		var along := rel.dot(out)
+		if absf(rel.dot(sw[2] as Vector3)) < DOOR_SWEEP and along > -DOOR_SWEEP_DEPTH.x and along < DOOR_SWEEP_DEPTH.y and at.y - d.y < DOOR_CLEAR.y:
+			return true
+	return false
 
 
 ## Whether a grape bunch's spot is within the doors' sweep (see DOOR_SWEEP), a little wider than a leaf's

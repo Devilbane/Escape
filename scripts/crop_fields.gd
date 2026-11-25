@@ -3,7 +3,7 @@ extends Node3D
 ## The fields of the farming valley: wheat ("≡"), maize ("‡") and sunflowers ("☼"), each tile a patch of
 ## dark soil with its crop standing in rows (see Outdoor). The plants of a kind are one MultiMesh, so a
 ## whole field is a single draw call. They follow the seasons (see Weather.season):
-##   spring  green shoots, ankle high;
+##   spring  bare soil until the farmers sow it (see sow_near), then shoots that grow ankle high over a few days;
 ##   summer  wheat ripe and golden, maize tall and green, sunflowers in full yellow bloom;
 ##   autumn  wheat cut to stubble, maize dry and brown, sunflowers drooping and brown;
 ##   winter  stubble and cut stalks, pale and dull.
@@ -30,8 +30,20 @@ const LOOK := {
 			"autumn": [0.9, Color(0.55, 0.5, 0.38)], "winter": [0.16, Color(0.72, 0.68, 0.6)]},
 }
 
+## The days after sowing it takes a sprout to reach its spring height, and the spring day (0 is the first) on which
+## fields nobody sowed are sown anyway (a rainy day, nobody about), so spring never ends with bare soil.
+const SPROUT_DAYS := 3
+const AUTO_SOW_DAY := 3
+## How tall a sprout stands (a share of the spring height) at 0, 1 and 2 days after the seed went in.
+const SPROUT_STEPS := [0.1, 0.4, 0.75]
+## A field with nothing in it yet (a share of the height; not zero, so the transform stays valid).
+const BARE := 0.001
+
 var _fields := {}
 var _season := ""
+var _day := -1
+## Per kind, the tiles: [{"mid": Vector3, "first": int, "count": int, "sown": int}] (spring day sown, -1 = bare).
+var _tiles := {}
 static var _meshes := {}
 
 
@@ -45,13 +57,16 @@ static func grow(parent: Node3D, cells: Dictionary, tile: float, seed_value: int
 	for letter: String in cells:
 		var spots: Array = []
 		var step: float = SPACING[letter]
+		var tiles: Array = []
 		for mid: Vector3 in cells[letter]:
+			tiles.append({"mid": mid, "first": spots.size(), "count": 0, "sown": -1})
 			var n := int(round(tile / step))
 			for ix in n:
 				for iz in n:
 					var at := mid + Vector3((ix + 0.5) * step - tile * 0.5, 0, (iz + 0.5) * step - tile * 0.5)
 					at += Vector3(rng.randf_range(-0.12, 0.12) * step, 0, rng.randf_range(-0.12, 0.12) * step)
 					spots.append([at, rng.randf() * TAU, rng.randf_range(0.85, 1.15), rng.randf()])
+			tiles[-1].count = spots.size() - tiles[-1].first
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
@@ -63,27 +78,110 @@ static func grow(parent: Node3D, cells: Dictionary, tile: float, seed_value: int
 		inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		out.add_child(inst)
 		out._fields[letter] = {"mm": mm, "spots": spots}
+		out._tiles[letter] = tiles
 	return out
 
 
-## Dresses every field for season day `day` (see Weather.season).
+## Dresses every field for season day `day` (see Weather.season). A new day in spring grows the sprouts on.
 func set_season(day: int) -> void:
 	var season := Weather.season(day)
-	if season == _season:
+	if season == _season and (season != Weather.SPRING or day == _day):
 		return
+	if season != Weather.SPRING:
+		# The year's seed is gone with the harvest: next spring starts on bare soil again.
+		for letter: String in _tiles:
+			for t: Dictionary in _tiles[letter]:
+				t.sown = -1
 	_season = season
+	_day = day
 	for letter: String in _fields:
-		var look: Array = LOOK[letter][season]
-		var mm: MultiMesh = _fields[letter].mm
-		var spots: Array = _fields[letter].spots
-		for i in spots.size():
-			var s: Array = spots[i]
-			var grown: float = look[0] * s[2]
-			var basis := Basis(Vector3.UP, s[1]).scaled(Vector3(1.0, grown, 1.0))
-			mm.set_instance_transform(i, Transform3D(basis, s[0]))
-			var tint: Color = look[1]
-			var shade := 0.88 + 0.24 * float(s[3])
-			mm.set_instance_color(i, Color(tint.r * shade, tint.g * shade, tint.b * shade))
+		for i in (_tiles[letter] as Array).size():
+			_dress_tile(letter, i)
+
+
+## The spring day (0 is the first) of season day `day`, or -1 outside spring.
+func spring_day() -> int:
+	return posmod(_day, Weather.YEAR_DAYS) if _season == Weather.SPRING else -1
+
+
+## How tall a tile of kind `letter` stands now, as a share of the season's height: bare soil, sprouts or the
+## full look of the season.
+func tile_growth(letter: String, tile: int) -> float:
+	if _season != Weather.SPRING:
+		return 1.0
+	var sown: int = _tiles[letter][tile].sown
+	var today := spring_day()
+	if sown < 0 and today >= AUTO_SOW_DAY:
+		sown = AUTO_SOW_DAY
+	if sown < 0:
+		return BARE
+	var age := today - sown
+	return 1.0 if age >= SPROUT_STEPS.size() else SPROUT_STEPS[maxi(age, 0)]
+
+
+func _dress_tile(letter: String, tile: int) -> void:
+	var look: Array = LOOK[letter][_season]
+	var mm: MultiMesh = _fields[letter].mm
+	var spots: Array = _fields[letter].spots
+	var t: Dictionary = _tiles[letter][tile]
+	var growth := tile_growth(letter, tile)
+	for i in range(t.first, t.first + t.count):
+		var s: Array = spots[i]
+		var grown: float = look[0] * s[2] * growth
+		# Seedlings are narrow as well as short; bare soil shows no leaf at all.
+		var width := minf(1.0, growth * 4.0)
+		var basis := Basis(Vector3.UP, s[1]).scaled(Vector3(width, grown, width))
+		mm.set_instance_transform(i, Transform3D(basis, s[0]))
+		var tint: Color = look[1]
+		var shade := 0.88 + 0.24 * float(s[3])
+		mm.set_instance_color(i, Color(tint.r * shade, tint.g * shade, tint.b * shade))
+
+
+## Whether the seed may still go in: the first spring days, before the rest is sown anyway (see AUTO_SOW_DAY).
+func sowing_time() -> bool:
+	return _season == Weather.SPRING and spring_day() < AUTO_SOW_DAY
+
+
+## The tiles of kind `letter` nobody has sown yet this spring, as world positions of their middles (empty outside
+## spring, or once every tile is sown).
+func bare_tiles(letter: String) -> Array:
+	var out: Array = []
+	if not sowing_time() or not _tiles.has(letter):
+		return out
+	for t: Dictionary in _tiles[letter]:
+		if t.sown < 0:
+			out.append(t.mid)
+	return out
+
+
+## Whether any tile of any kind still lies bare, waiting for the seed.
+func any_bare() -> bool:
+	for letter: String in _tiles:
+		if not bare_tiles(letter).is_empty():
+			return true
+	return false
+
+
+## A farmer's handful lands at `at`: the nearest bare tile of kind `letter` within `reach` metres is sown (it
+## starts to sprout at once and grows on with the days). True when a tile was sown.
+func sow_near(letter: String, at: Vector3, reach: float) -> bool:
+	if not sowing_time() or not _tiles.has(letter):
+		return false
+	var best := -1
+	var best_d := reach * reach
+	var tiles: Array = _tiles[letter]
+	for i in tiles.size():
+		if tiles[i].sown >= 0:
+			continue
+		var d := Vector2(tiles[i].mid.x - at.x, tiles[i].mid.z - at.z).length_squared()
+		if d <= best_d:
+			best_d = d
+			best = i
+	if best < 0:
+		return false
+	tiles[best].sown = spring_day()
+	_dress_tile(letter, best)
+	return true
 
 
 ## How tall the plants of a kind stand now, as a share of their full height.

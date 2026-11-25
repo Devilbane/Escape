@@ -17,7 +17,7 @@ extends RefCounted
 ## `side` (-1 or 1) mirrors a sequence for a bed one gets out of on its right.
 
 ## Where the hips are, lying and sitting on the mattress, from the bed's origin.
-const LYING := Vector3(-0.075, 0.93, 0.12)
+const LYING := Vector3(-0.075, 0.93, 0.44)
 const SITTING := Vector3(-0.3, 0.97, 0.12)
 ## On the rim: the hips a little in from the rail, the thighs over the mattress and the shins hanging.
 const RIM := Vector3(-0.42, 0.97, 0.12)

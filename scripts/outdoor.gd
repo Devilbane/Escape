@@ -524,6 +524,9 @@ var birds: VillageBirds
 var flyover: DragonFlyover
 var _entrances: Array = []
 var _ground_img: Image
+## The flower beds in the valley's lane (see FlowerBeds): where they are, and the beds themselves.
+var bed_spots: Array[Vector3] = []
+var flower_beds: FlowerBeds
 var _ground_tex: ImageTexture
 ## How far each spot lies from the pond banks (see _build_shore and pond_shore_at).
 var _shore_img: Image
@@ -800,6 +803,10 @@ func build() -> void:
 	# And a few more, spread over the ground the autumn leaves cover, so they have a tree to come from.
 	leaf_trees = AppleTree.plant_for_leaves(self, square_trees)
 	AppleTree.dress(leaf_trees, day)
+	# The flower beds in the paved lane of the valley.
+	if not bed_spots.is_empty():
+		flower_beds = FlowerBeds.grow(self, bed_spots, hash(level_name + "beete"))
+		flower_beds.set_season(day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -3596,6 +3603,7 @@ func _pave_forecourts() -> void:
 ## A way paved like the market square from each door to the square or the
 ## nearest path (only drawn into the ground: the tiles stay as they are).
 func _pave_entrances() -> void:
+	bed_spots = FlowerBeds.find(self)
 	if _ground_img == null:
 		return
 	for e: Dictionary in _entrances:
@@ -3620,6 +3628,8 @@ func _pave_entrances() -> void:
 			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
 				if ",:".contains(cell_char(c + d)) and (cell_char(c + d) == ":" or _in_village(c + d)):
 					_pave_line(cell_to_world(c), cell_to_world(c + d))
+	# The flower beds sit in the lane's seam: no bare square of joints is left under them.
+	FlowerBeds.pave(_ground_img, bed_spots, TILE)
 	_ground_tex.update(_ground_img)
 
 
@@ -4890,6 +4900,8 @@ func set_season(day_of_season: int) -> void:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
 	AppleTree.dress(leaf_trees, day_of_season)
+	if flower_beds != null:
+		flower_beds.set_season(day_of_season)
 	if is_inside_tree():
 		for hole: Node3D in get_tree().get_nodes_in_group("burrows"):
 			Warren.dress(hole, day_of_season)

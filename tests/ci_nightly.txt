@@ -222,3 +222,4 @@ mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn
 river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)
+flower_beds.gd | 120 | free | passfail | Flower beds in the valley lane (at the lane corners in the village, paved under, bloom in spring and summer, fade in autumn, bare and frosty in winter)

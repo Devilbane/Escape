@@ -27,8 +27,15 @@ void fragment() {
 	vec3 col = mix(back_color, flank_color, smoothstep(0.35, 1.0, across) * 0.75);
 	// Bars across the back.
 	col *= 0.8 + 0.28 * smoothstep(0.35, 0.65, abs(fract(along * 6.0 + seed) - 0.5) * 2.0);
-	// Fine scales.
-	col *= 0.9 + 0.1 * sin(lp.y * 1100.0) * sin(lp.x * 1500.0 + lp.z * 400.0);
+	// Overlapping scales: rows of rounded scales along the body, each lighter at its free edge.
+	vec2 sp = vec2(lp.x * 520.0 + lp.z * 260.0, lp.y * 420.0);
+	sp.x += floor(sp.y) * 0.5;
+	vec2 sc = fract(sp) - 0.5;
+	float rim = smoothstep(0.25, 0.5, length(sc * vec2(1.0, 0.8)));
+	col *= 0.86 + 0.2 * rim;
+	// Round shading from the smoothed normals: lit from above, darker towards the belly's edge.
+	float round_lit = clamp(NORMAL.z * 0.5 + 0.5, 0.0, 1.0);
+	col *= 0.7 + 0.5 * round_lit;
 	// Darker towards the tail and the fins.
 	col *= 0.85 + 0.25 * (1.0 - abs(along - 0.5) * 1.2);
 	col = mix(col, ice_color * 0.8, 0.32);

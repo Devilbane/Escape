@@ -666,15 +666,16 @@ var weather := ""
 ## What comes out in which weather (one or more groups): the kind, how many
 ## at most, the map letter they gather around; then how long until a fallen
 ## one is replaced, and how far from the hero they appear (never within
-## sight). Slimes love bad weather: they crawl out of the pond in the rain
-## and the storm, and in the fog too (see SlimeGrowth).
+## sight). Slimes love bad weather: in spring they crawl out of the pond in
+## the rain, the storm and the fog, and only then (see SlimeGrowth.may_crawl).
 const WEATHER_FOES := {
 	Weather.RAIN: [{"kind": "schleim", "count": 12, "near": "~"}],
 	Weather.FOG: [{"kind": "fog_wraith", "count": 6, "near": "d"}, {"kind": "schleim", "count": 8, "near": "~"}],
 	Weather.STORM: [{"kind": "fledermaus", "count": 5, "near": "r"}, {"kind": "schleim", "count": 8, "near": "~"}],
 }
 const WEATHER_RESPAWN := 80.0
-## Slimes stay when the weather turns; at most this many crawl about.
+## Slimes retreat to the pond when the spring weather clears (see SlimeLife);
+## at most this many crawl about.
 const SLIMES_AT_MOST := 24
 const WEATHER_FAR := 14.0
 ## In a thunderstorm lightning strikes every so often (seconds, picked at
@@ -5564,26 +5565,32 @@ func set_weather(kind: String) -> void:
 	weather = kind
 	for s in _weather_foes:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
-			# Slimes stay when the weather turns and wander on (see
-			# SlimeGrowth); the others go back where they came from.
+			# Slimes head for the pond on their own when the spring weather
+			# clears (see SlimeLife); the others go back where they came from.
 			if not SlimeGrowth.grows(s.enemy.kind):
 				s.enemy.sink_at_dawn()
 	_weather_foes.clear()
 	if kind != Weather.STORM:
 		_fade_ore()
 	for foes in WEATHER_FOES.get(kind, []):
+		if SlimeGrowth.grows(foes.kind) and not SlimeGrowth.may_crawl(kind, season_day):
+			continue
 		_place_weather_foes(foes)
 	_strike_timer = randf_range(2.0, STRIKE_EVERY_MIN)
 	if first:
 		return
+	var slimy := SlimeGrowth.may_crawl(kind, season_day)
 	if kind == Weather.RAIN:
-		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser."), 4.5)
+		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser.") if slimy
+				else Lang.t("Es fängt an zu regnen."), 4.5)
 	elif kind == Weather.FOG:
-		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen."), 4.5)
+		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen.") if slimy
+				else Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, und wer schleicht, bleibt ungesehen."), 4.5)
 	elif kind == Weather.SNOW:
 		notice.emit(Lang.t("Es schneit! Dicke Flocken fallen, und auf Dächern und Wiesen bleibt der Schnee liegen."), 4.5)
 	elif kind == Weather.STORM:
-		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
+		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz.") if slimy
+				else Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
 	else:
 		notice.emit(Lang.t("Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.") if was == Weather.STORM
 				else Lang.t("Der Himmel klart auf."), 4.0)
@@ -5770,7 +5777,7 @@ func _mind_the_weather(delta: float) -> void:
 		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > WEATHER_FAR:
 			# The slimes that stayed from earlier weather count: no more
 			# than SLIMES_AT_MOST crawl about at once.
-			if SlimeGrowth.grows(s.kind) and slimes_about() >= SLIMES_AT_MOST:
+			if SlimeGrowth.grows(s.kind) and (slimes_about() >= SLIMES_AT_MOST or not SlimeGrowth.may_crawl(weather, season_day)):
 				s.timer = WEATHER_RESPAWN
 				continue
 			_spawn_weather_foe(s)

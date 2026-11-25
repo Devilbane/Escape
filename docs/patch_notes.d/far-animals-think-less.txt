@@ -1,0 +1,1 @@
+- Wild animals far from you think less often, which saves a little processor time.

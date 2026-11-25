@@ -1,0 +1,1 @@
+- Villagers do less needless work each tick, which saves a little processor time.

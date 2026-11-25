@@ -223,3 +223,4 @@ river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole r
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 bees.gd | 200 | fixed | pass | Bees fly by day in spring and summer when it is dry, sit on flowers, stay in at night and in winter; a vexed hive stings once
 bees_shots.gd | 1200 | fixed | passfail | The apiary in spring, summer and winter: skep, box hive, bees, beekeeper with veil, a vexed hive (screenshots)
+map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)

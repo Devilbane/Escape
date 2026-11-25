@@ -6016,10 +6016,17 @@ func _hero_says(text: String) -> void:
 	Events.hero_says(text, pos)
 
 
+## Where the hero may always stand: the village square on the open map, else the level's start.
+func _safe_home() -> Vector3:
+	if level.get("spots") != null and not level.spots.square.is_empty():
+		return level.spots.square[0]
+	return level.cell_to_world(level.start_cell)
+
+
 ## The chat line's unstuck command (dev builds only, see HeroUnstick).
 func _unstick_command() -> void:
-	var freed := HeroUnstick.release(player, player.free_spot)
-	Events.tell(Lang.t(HeroUnstick.DONE_TEXT if freed else HeroUnstick.NONE_TEXT), TELEPORT_COLOR)
+	var how := HeroUnstick.release(player, player.free_spot, _safe_home())
+	Events.tell(Lang.t(HeroUnstick.DONE_TEXT if how != "" else HeroUnstick.NONE_TEXT), TELEPORT_COLOR)
 
 
 ## The chat line's free camera (see CameraCommand).

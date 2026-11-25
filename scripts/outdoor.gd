@@ -322,6 +322,8 @@ var meals := TownMeals.new()
 var bench_rest := BenchRest.new()
 ## The morning gathering in the temple (see TempleMorning).
 var temple_morning := TempleMorning.new()
+## Buried rooms far from the hero stop casting shadows (see UndergroundShadows).
+var underground_shadows := UndergroundShadows.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -4911,6 +4913,7 @@ func _process(delta: float) -> void:
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
 	temple_morning.tick(self, delta)
+	underground_shadows.tick(self, player.global_position, delta)
 	# The wind carries the swept leaves back over the walkways (see LeafSweep).
 	LeafSweep.advance(self)
 	var cell := world_to_cell(player.global_position)

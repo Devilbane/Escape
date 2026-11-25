@@ -40,8 +40,9 @@ const MUFFLED_HEARING := 2.5
 const TOUCH := 2.2
 ## Seconds a hunting skeleton searches after losing the hero before it gives up.
 const GIVE_UP := 5.0
-## Seconds off the hunt before a monster may show its "!" again.
-const ALERT_GAP := 6.0
+## Seconds after a spotting (and after the hunt ends) in which a monster neither looks for the hero
+## again nor shows its "!"; it also saves the sight checks.
+const ALERT_GAP := 5.0
 ## How long a monster that cannot get at its target waits before it plans a new
 ## way (seconds).
 const STRANDED_REPATH := 2.0
@@ -2160,10 +2161,9 @@ func _physics_process(delta: float) -> void:
 		_awake = false
 		_path.clear()
 		_repath = 0.0
-	if not player.dead and not friendly and _calmed <= 0.0 and not cowed and _notices(player, to_player, dist, sees):
+	if not player.dead and not friendly and _calmed <= 0.0 and not cowed and (_awake or _alert_gap <= 0.0) and _notices(player, to_player, dist, sees):
 		if not _awake:
-			if _alert_gap <= 0.0:
-				Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
+			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
 			_alert_gap = ALERT_GAP
 			if _stats.has("shriek") and _shriek_cool <= 0.0:
 				_shriek(player)

@@ -478,7 +478,17 @@ static func _garden_cell(level: Node3D, c: Vector2i) -> bool:
 
 ## Draws the village's trees again when their look changes on `day` (the season, the apples).
 static func dress(trees: Array, day: int) -> void:
+	dress_end(dress_begin(trees, day))
+
+
+## The first half of `dress`: clears the trees whose look changes and starts building them anew on
+## the worker threads (each into a node of its own, with the same dice as ever), so that the caller
+## can go on with other work meanwhile. Hand what it returns to `dress_end`, which puts the new
+## trees in their places.
+static func dress_begin(trees: Array, day: int) -> Dictionary:
 	var look := "%s:%d" % [Weather.season(day), apples(VILLAGE_TREE, day)]
+	var todo: Array[Node3D] = []
+	var wild: Array[bool] = []
 	for t in trees:
 		if t.look == look:
 			continue
@@ -487,7 +497,48 @@ static func dress(trees: Array, day: int) -> void:
 		for child in node.get_children():
 			node.remove_child(child)
 			child.queue_free()
-		build(node, VILLAGE_TREE, day, t.get("wild", false))
+		todo.append(node)
+		wild.append(t.get("wild", false))
+	# A sapling's stake is made with shared furniture helpers; the few young trees go one by one.
+	if todo.size() < 2 or stage(VILLAGE_TREE, day) <= SAPLING:
+		for i in todo.size():
+			build(todo[i], VILLAGE_TREE, day, wild[i])
+		return {}
+	# What the trees share is made once, here, before the threads need it.
+	for roughness in [0.9, 0.7, 0.4]:
+		_vertex_mat(roughness)
+	_leaf_mat()
+	for sides in [5, 6, 8]:
+		_ball_arrays(sides)
+	SnowCaps.cap_material()
+	var at: Array[Vector3] = []
+	for node in todo:
+		at.append(node.position)
+	var made: Array[Node3D] = []
+	made.resize(todo.size())
+	var grow := func(i: int) -> void:
+		var tmp := Node3D.new()
+		tmp.position = at[i]
+		build(tmp, VILLAGE_TREE, day, wild[i])
+		made[i] = tmp
+	return {"todo": todo, "made": made, "grow": grow, "id": WorkerThreadPool.add_group_task(grow, todo.size(), -1, true, "Apple trees")}
+
+
+## The second half of `dress`: waits for the trees `dress_begin` started and puts them in their places.
+static func dress_end(pending: Dictionary) -> void:
+	if pending.is_empty():
+		return
+	WorkerThreadPool.wait_for_group_task_completion(pending.id)
+	var todo: Array[Node3D] = pending.todo
+	var made: Array[Node3D] = pending.made
+	for i in todo.size():
+		var tmp := made[i]
+		for child in tmp.get_children():
+			tmp.remove_child(child)
+			todo[i].add_child(child)
+		for key in tmp.get_meta_list():
+			todo[i].set_meta(key, tmp.get_meta(key))
+		tmp.free()
 
 
 ## Builds the tree of `piece` as it looks on `day` (`wild`: without the patch of grass and stones at its foot) into `root` (on the ground, middle at the

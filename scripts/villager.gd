@@ -105,7 +105,7 @@ const ROLES := {
 		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
 	# The beekeeper of the farming valley (see Beekeeper): day plan "farm" with his own jobs among the hives (see ValleyFolk),
 	# a straw hat with a net veil (see BeeVeil) and a window for honey.
-	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "natural", "color": "auburn"},
+	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "spiky", "color": "silver"},
 		"colors": [Color(0.86, 0.8, 0.62), Color(0.42, 0.35, 0.27), Color(1, 1, 1)], "plan": "farm", "work": "Interact",
 		"lines": ["Keine Angst, meine Bienen stechen nur, wenn man sie ärgert. Und manchmal, wenn sie schlecht geschlafen haben.", "Der beste Honig im Tal! Das sagt nicht nur mein Spiegel.", "Die Bienen summen den ganzen Tag. Ich summe mit, falsch, aber aus vollem Herzen.", "Im Frühling blühen die Wiesen, im Sommer fließt der Honig. Im Winter esse ich ihn auf.", "Mit zwei Gläsern Honig braust du am Alchemistentisch einen Heiltrank. Frag die Priesterin, ob sie es glaubt."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
@@ -131,7 +131,7 @@ const ROLES := {
 		"colors": [Color(0.8, 0.35, 0.4), Color(0.45, 0.35, 0.3), Color(1, 1, 1)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "7",
 		"lines": ["Hallo! Ich bin Pippi. Pip und ich hüten die Gänse und die Ziegen.", "Pip ist mein bester Freund. Wir spielen Fangen auf der Wiese!", "Die Gänse zwicken, wenn man ihnen den Rücken zudreht.", "Die Ziegen mögen dich, wenn du ruhig bleibst.", "Die Gänse und Ziegen weiden an der Wiese südlich und westlich vom Dorf."]},
 	# The street sweeper: no map letter, Outdoor puts him on a walkway near the square (see StreetSweeper).
-	"sweeper": {"name": "Straßenfeger Matthes", "model": "Rogue", "show": [], "hair": {"style": "natural", "color": "auburn"},
+	"sweeper": {"name": "Straßenfeger Matthes", "model": "Rogue", "show": [], "hair": {"style": "short", "color": "silver"},
 		"colors": [Color(0.5, 0.42, 0.26), Color(0.34, 0.3, 0.24), Color(0.62, 0.5, 0.3)], "plan": "stay", "work": "Idle",
 		"lines": ["Blätter im Herbst, Schnee im Winter: Ein Weg bleibt nie lange sauber.", "Frag mich nach meiner Arbeit, sag einfach „Arbeit“.", "Morgens fege ich, abends weht der Wind alles wieder zurück.", "Pass auf, wo du hintrittst: Ich habe den Weg gerade erst gekehrt!"]},
 	"8": {"name": "Gelehrter Odo", "model": "Mage", "show": ["Mage_Hat", "Spellbook_open"],

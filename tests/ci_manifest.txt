@@ -26,6 +26,7 @@ save_notice.gd | 120 | free | pass | Save notice test ("Game saved" after every 
 bleeding.gd | 120 | free | pass | Bleeding test (cutting hits bleed the hit's life, faster on the move)
 regen_pause.gd | 120 | free | pass | Healing pause test (no regeneration right after a blow)
 door_safety.gd | 120 | fixed | pass | Locked doors (no getting stuck, no blows through them) test
+door_walk_straight.gd | 120 | fixed | pass | Doorways let the hero walk straight through (no zig-zag, no catching on the frame) test
 pillar_shots.gd | 120 | fixed | passfail | Pillars stop shots test
 offline_schedule.gd | 120 | free | pass | Time away (offline activities) test
 wake_up.gd | 120 | fixed | pass | Waking up in bed after loading test

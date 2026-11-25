@@ -222,3 +222,4 @@ mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn
 river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 barber_chair_shots.gd | 240 | fixed | passfail | Benno's barber's chair: the hero sits and gets the cape, his window opens only from the chair, a haircut takes its time with a storm of hair and the new look comes at the end
+map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)

@@ -129,15 +129,39 @@ jobs:
 
       - name: Build number and launcher fingerprint
         run: |
-          # One number that only ever counts up, whoever started the build: the last published build
-          # plus one. (The run numbers of this workflow and of "Tests" are two different counters, so a
+          # One number that only ever counts up, whoever started the build: the highest build number
+          # known plus one. (The run numbers of this workflow and of "Tests" are two different counters, so a
           # build started by hand used to get a lower number than a nightly one: the launcher then saw
           # an older build, and the window and the patch notes stayed on the old one.) Without a
           # published build, or in a pull request, the run number of the workflow is used.
           build=${{ github.run_number }}
           if [ "${{ github.event_name }}" != pull_request ]; then
-            last=$(curl -sfL --max-time 30 "https://github.com/${{ github.repository }}/releases/download/windows/version.json" | python3 -c 'import json,sys; print(int(json.load(sys.stdin)["build"]))' || true)
+            # "Last" is the highest number ever published or archived (version.json, its history and the
+            # committed notes archive), not just the newest build: earlier builds counted with the Tests
+            # run number (3049 ...), so a lower number after them sorts below them in the launcher and in
+            # the compendium's patch notes page.
+            curl -sfL --max-time 30 -o published_version.json "https://github.com/${{ github.repository }}/releases/download/windows/version.json" || rm -f published_version.json
+            last=$(python3 - <<'PY'
+          import json, os
+          nums = []
+          def add(v):
+              if str(v).isdigit():
+                  nums.append(int(v))
+          if os.path.exists("published_version.json"):
+              d = json.load(open("published_version.json"))
+              add(d.get("build", ""))
+              for h in d.get("history") or []:
+                  add(h.get("build", ""))
+          try:
+              for e in json.load(open("docs/patch_history.json")).get("builds", []):
+                  add(e.get("build", ""))
+          except (OSError, ValueError):
+              pass
+          print(max(nums) if nums else "")
+          PY
+            )
             [ -n "$last" ] && build=$((last + 1))
+            rm -f published_version.json
           fi
           version=$(sed -n 's/^const VERSION := "\(.*\)"/\1/p' scripts/game.gd)
           # The launcher fetches a new Escape.exe only when this changes: its own files

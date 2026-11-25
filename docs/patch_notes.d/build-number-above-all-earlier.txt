@@ -1,0 +1,1 @@
+- Build numbers can no longer fall below an earlier build, so the version shown and the compendium's patch notes follow the newest build.

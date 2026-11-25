@@ -706,6 +706,8 @@ var sweep_dust: SweepDust
 
 ## Reeds and cattails round the ponds, with their caps of snow (see PondReeds).
 var pond_reeds: PondReeds
+## The frogs at the water, built with the reeds (see PondFrogs).
+var pond_frogs: PondFrogs
 ## Every pond tile (see IceCover).
 var _pond_waters: Array = []
 var _ground_mat: ShaderMaterial
@@ -850,6 +852,8 @@ func build() -> void:
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
 	pond_reeds = PondReeds.grow(self, _pond_waters)
+	if not _pond_waters.is_empty():
+		pond_frogs = PondFrogs.grow(self, _pond_waters)
 	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []
@@ -5674,6 +5678,8 @@ func set_ice(value: float) -> void:
 		ice_fish = IceFish.build(self, _pond_waters)
 	if ice_fish != null:
 		ice_fish.set_ice(ice)
+	if pond_frogs != null:
+		pond_frogs.set_ice(ice)
 	if waterfall != null:
 		waterfall.set_ice(ice)
 

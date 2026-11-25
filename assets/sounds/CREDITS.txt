@@ -155,5 +155,5 @@ end faded out).
 The village cat's purr (cat_purr): made from scratch by tools/make_cat_purr.py (damped low tones and filtered noise,
 no recordings), so it has no licence to credit.
 
-The sounds of the water's small life (water_plop_*, water_dive_*, water_ring and the frogs' croaks frog_*) are made
+The sounds of the water's small life (water_plop_*, water_dive_* and water_ring) are made
 from scratch by tools/make_water_sounds.py.

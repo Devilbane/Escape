@@ -45,11 +45,9 @@ const SURFACE_PAUSE := Vector2(14.0, 30.0)
 const RISE_TIME := 1.6
 const FLICK_TIME := 1.1
 ## Sounds (see tools/make_water_sounds.py): the plop of a fish at the surface, the splash of its dive, the
-## blip of a ring and the frogs' croaks, played from where they happen. Quieter the farther from the hero.
+## blip of a ring, played from where they happen. Quieter the farther from the hero.
 const PLOPS := ["water_plop_0", "water_plop_1", "water_plop_2"]
 const DIVES := ["water_dive_0", "water_dive_1"]
-const CROAKS := ["frog_0", "frog_1", "frog_2"]
-const CROAK_PAUSE := Vector2(5.0, 16.0)
 ## Sounds fade by this many dB a metre from the hero and are not played from beyond SOUND_RANGE.
 const SOUND_FALL := 0.45
 const SOUND_RANGE := 38.0
@@ -78,7 +76,6 @@ var _rings: MultiMesh
 var _ring_age: Array[float] = []
 var _next_ring := 3.0
 var _next_surface := 8.0
-var _next_croak := 6.0
 var _ring_next := 0
 var _ring_rng := RandomNumberGenerator.new()
 
@@ -297,7 +294,6 @@ func _stir(delta: float) -> void:
 				if f.awake and f.state == "swim":
 					surface_fish(f)
 					break
-	_croak(delta)
 	_next_ring -= delta
 	if _next_ring > 0.0:
 		return
@@ -362,28 +358,6 @@ func surface_fish(f: Dictionary) -> void:
 	f.state = "surface"
 	f.timer = 0.0
 	f.rung = false
-
-
-## Now and then a frog croaks by the water near the hero, from spring to autumn, not in frost.
-func _croak(delta: float) -> void:
-	_next_croak -= delta
-	if _next_croak > 0.0:
-		return
-	_next_croak = _ring_rng.randf_range(CROAK_PAUSE.x, CROAK_PAUSE.y)
-	if _cover > RING_ICE_MAX or Weather.is_winter(level.season_day):
-		return
-	var near: Array[Dictionary] = []
-	for f in _fish:
-		if f.awake:
-			near.append(f)
-	if near.is_empty():
-		return
-	var f: Dictionary = near[_ring_rng.randi() % near.size()]
-	var at: Vector3 = f.home
-	for k in _ring_rng.randi_range(1, 2):
-		get_tree().create_timer(k * 0.9).timeout.connect(func():
-			if is_inside_tree():
-				_sound(CROAKS, -13.0, at))
 
 
 ## Whether `pos` is on the water this fish swims in: clear of the banks of a pond, or between the banks of a stream.

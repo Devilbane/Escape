@@ -43,19 +43,28 @@ static var _leather_texture: ImageTexture
 # --- The marked route -----------------------------------------------------------------------
 
 ## The way the village wants swept first, marked on the map by hand: a loop round the paved square, with the
-## road west to the gate and a branch to the south-west. Each stretch is a list of cells (dx, dy) from the
+## road west to the gate, spurs north and east, a branch to the south-west and another south. Each stretch is a list of cells (dx, dy) from the
 ## fountain's tile (the "F" of the map). He sweeps them in this order, out and back, before any other
 ## walkway; when the map has no fountain or a cell is not open ground, he goes by the walkways alone.
 const MARKED := [
-	# The road west of the square, the square's top row, and its second row up to the east side.
-	[[-12, -4], [-11, -4], [-10, -4], [-9, -4], [-8, -4], [-7, -4], [-6, -4], [-5, -4], [-4, -4], [-3, -4], [-2, -4],
-		[-1, -4], [0, -4], [1, -4], [1, -3], [2, -3], [3, -3], [4, -3], [5, -3]],
+	# The road west of the gate and the top row of the square, east to the corner.
+	[[-12, -4], [-11, -4], [-10, -4], [-9, -4], [-8, -4], [-7, -4], [-6, -4], [-5, -4], [-4, -4], [-3, -4], [-2, -4], [-1, -4], [0, -4], [1, -4], [2, -4], [3, -4], [4, -4], [5, -4]],
 	# Down the east side and along the bottom, westward.
-	[[5, -3], [5, -2], [5, -1], [5, 0], [5, 1], [5, 2], [5, 3], [4, 3], [3, 3], [2, 3], [1, 3], [0, 3], [-1, 3], [-2, 3], [-3, 3], [-4, 3]],
-	# Up the west side, back to the top row.
-	[[-5, -4], [-5, -3], [-5, -2], [-5, -1], [-5, 0], [-5, 1], [-6, 1], [-6, 2], [-6, 3], [-5, 3], [-4, 3]],
-	# The branch to the south-west: down the path, then east along the square's bottom edge.
-	[[-9, 1], [-9, 2], [-9, 3], [-9, 4], [-8, 4], [-7, 4], [-6, 4], [-5, 4], [-4, 4]],
+	[[5, -4], [5, -3], [5, -2], [5, -1], [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [4, 4], [3, 4], [2, 4], [1, 4], [0, 4], [-1, 4], [-2, 4], [-3, 4], [-4, 4]],
+	# The bottom row on to the south-west corner.
+	[[-4, 4], [-5, 4], [-6, 4], [-7, 4], [-8, 4], [-9, 4]],
+	# Up the west side to the top row (the dots step in at the fountain's west).
+	[[-5, -4], [-5, -3], [-5, -2], [-5, -1], [-5, 0], [-5, 1], [-6, 1], [-6, 2], [-6, 3]],
+	# The branch to the south-west: down the path, then back east to the square's west side.
+	[[-9, 1], [-9, 2], [-9, 3], [-8, 3], [-7, 3], [-6, 3]],
+	# Short spurs north from the top row to the doors of the temple, the office and the guild.
+	[[-2, -4], [-2, -5]],
+	[[2, -4], [2, -5]],
+	[[4, -4], [4, -5]],
+	# A spur east by the house on the east side.
+	[[5, -1], [6, -1]],
+	# The new branch south from the square past the two houses, then east along the path.
+	[[0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [0, 9], [1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [6, 9]],
 ]
 
 ## Game hours a marked stretch is left alone after he has swept it, so a stretch that cannot be made clean
@@ -86,12 +95,20 @@ static func marked(level: Node) -> Array:
 		return _marked_cache
 	var stretches: Array = []
 	for stretch: Array in MARKED:
+		# The open cells of the stretch; where one is blocked (a lantern post, a stall) he walks round it.
 		var cells: Array[Vector2i] = []
 		for d: Array in stretch:
 			var c := f + Vector2i(d[0], d[1])
-			if not level.is_open(c) and level.cell_char(c) != SnowSweep.GATE:
-				cells = []
-				break
+			if not level.is_open(c):
+				continue
+			if not cells.is_empty() and (cells.back() - c).abs() != Vector2i(1, 0) and (cells.back() - c).abs() != Vector2i(0, 1):
+				var around: Array = level.grid_path(cells.back(), c)
+				if around.size() < 2 or around.size() > 6:
+					cells = []
+					break
+				for a: Vector2i in around.slice(1):
+					cells.append(a)
+				continue
 			cells.append(c)
 		if cells.size() >= 2:
 			stretches.append(cells)

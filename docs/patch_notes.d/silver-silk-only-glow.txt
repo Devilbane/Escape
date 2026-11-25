@@ -1,0 +1,1 @@
+- Only harvestable silver spider silk glows now: it replaces some ordinary cobwebs in the dungeons as a rare silver web with a faint glow, and gives silver silk when you run into it. All other cobwebs and thrown webs no longer glow in the dark.

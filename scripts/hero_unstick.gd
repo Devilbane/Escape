@@ -25,7 +25,7 @@ const NO_PROGRESS := 0.2
 ## How far the hero tries to step when probing a direction (metres).
 const PROBE := 0.12
 ## The rings searched for a free spot (metres from the hero) and the spots on each ring.
-const RINGS := [0.6, 1.0, 1.5, 2.0, 2.6, 3.4, 4.4]
+const RINGS := [0.6, 1.0, 1.5, 2.0, 2.6, 3.4, 4.4, 6.0, 8.0, 11.0, 15.0]
 const SPOTS := 16
 ## An anchor farther away than this (metres) is out of date (a teleport, a long fall).
 const MAX_ANCHOR := 6.0
@@ -70,7 +70,7 @@ static func is_wedged(hero: CharacterBody3D) -> bool:
 ## The nearest free spot for the hero on their own side, or Vector3.INF when there is none.
 ## "Their own side" is the side of `anchor`, the last place they stood free (a hero sunk into
 ## a thin wall could be on either side of it by their own middle); without one it is where they stand.
-static func find_spot(hero: CharacterBody3D, anchor := Vector3.INF) -> Vector3:
+static func find_spot(hero: CharacterBody3D, anchor := Vector3.INF, strict := true) -> Vector3:
 	var space := hero.get_world_3d().direct_space_state
 	var from := hero.global_position
 	if anchor == Vector3.INF or anchor.distance_to(from) > MAX_ANCHOR:
@@ -83,7 +83,7 @@ static func find_spot(hero: CharacterBody3D, anchor := Vector3.INF) -> Vector3:
 		for i in SPOTS:
 			var a := TAU * i / SPOTS
 			var spot: Vector3 = from + Vector3(cos(a), 0.0, sin(a)) * ring
-			var d := _fits(hero, space, spot, chest, inside)
+			var d := _fits(hero, space, spot, chest, inside or not strict, strict)
 			if d >= 0.0 and d < best_d:
 				best_d = d
 				best = spot + Vector3(0.0, d, 0.0)
@@ -92,20 +92,34 @@ static func find_spot(hero: CharacterBody3D, anchor := Vector3.INF) -> Vector3:
 	return Vector3.INF
 
 
-## Sets the hero on the nearest free spot (see find_spot). Returns whether one was found.
-static func release(hero: CharacterBody3D, anchor := Vector3.INF) -> bool:
+## Sets the hero on a free spot, and never gives up: first the nearest one on their own side
+## (see find_spot); failing that the nearest one anywhere in reach, even past a wall (the hero
+## is shut in); failing that the last place they stood free (`anchor`); failing that `fallback`
+## (the village or the start). Returns where the hero was set down: "near", "far", "back" or
+## "home", or "" when there was nothing to go back to (only without an anchor and a fallback).
+static func release(hero: CharacterBody3D, anchor := Vector3.INF, fallback := Vector3.INF) -> String:
 	var spot: Vector3 = find_spot(hero, anchor)
+	var how := "near"
 	if spot == Vector3.INF:
-		return false
+		spot = find_spot(hero, anchor, false)
+		how = "far"
+	if spot == Vector3.INF and anchor != Vector3.INF:
+		spot = anchor
+		how = "back"
+	if spot == Vector3.INF and fallback != Vector3.INF:
+		spot = fallback
+		how = "home"
+	if spot == Vector3.INF:
+		return ""
 	hero.global_position = spot
 	hero.velocity = Vector3.ZERO
 	hero.reset_physics_interpolation()
-	return true
+	return how
 
 
 ## The height to stand at on `spot` (relative to the hero's feet; -1 when the spot is no good):
 ## the body fits there, there is ground under it, and a straight line from the hero crosses nothing.
-static func _fits(hero: CharacterBody3D, space: PhysicsDirectSpaceState3D, spot: Vector3, chest: Vector3, inside: bool) -> float:
+static func _fits(hero: CharacterBody3D, space: PhysicsDirectSpaceState3D, spot: Vector3, chest: Vector3, inside: bool, strict := true) -> float:
 	var down := PhysicsRayQueryParameters3D.create(spot + Vector3(0.0, 0.6, 0.0), spot + Vector3(0.0, -GROUND_REACH, 0.0), hero.collision_mask, [hero.get_rid()])
 	var ground := space.intersect_ray(down)
 	if ground.is_empty() or Vector3(ground.normal).y < 0.7:
@@ -115,9 +129,10 @@ static func _fits(hero: CharacterBody3D, space: PhysicsDirectSpaceState3D, spot:
 	t.origin = Vector3(spot.x, hero.global_position.y + lift, spot.z)
 	if _overlaps(hero, t):
 		return -1.0
-	var line := PhysicsRayQueryParameters3D.create(chest, Vector3(spot.x, chest.y + lift, spot.z), hero.collision_mask, [hero.get_rid()])
-	if not space.intersect_ray(line).is_empty():
-		return -1.0
+	if strict:
+		var line := PhysicsRayQueryParameters3D.create(chest, Vector3(spot.x, chest.y + lift, spot.z), hero.collision_mask, [hero.get_rid()])
+		if not space.intersect_ray(line).is_empty():
+			return -1.0
 	# The body's own width must clear the line too, or it squeezes through a gap it could not walk.
 	# (Not when the hero already overlaps something: every sweep would hit it at once.)
 	if not inside and hero.test_move(hero.global_transform, Vector3(spot.x - hero.global_position.x, 0.0, spot.z - hero.global_position.z)):

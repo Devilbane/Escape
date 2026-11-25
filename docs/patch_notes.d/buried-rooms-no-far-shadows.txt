@@ -1,0 +1,1 @@
+- The village renders a little faster: the buried mine, sewers and vault no longer cast shadows when you are far from them.

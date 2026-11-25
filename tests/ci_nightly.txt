@@ -214,3 +214,4 @@ mage_tower_stairs.gd | 240 | fixed | passfail | The mage tower's stairs: pushing
 mountain_snow_edge_shots.gd | 600 | fixed | passfail | Winter snow at the mountain's foot: as bright as the plain's and no hard line between them (screenshots)
 ice_fish.gd | 120 | free | passfail | Fish under the river's ice: built at the first frost, shown while frozen, hidden in a thaw, keep to the water
 stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the season's colours, none in winter, a few sticks
+underground_shadows.gd | 120 | free | passfail | Buried rooms far from the hero stop casting shadows (cheaper frames), near ones still do

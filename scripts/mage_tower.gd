@@ -696,7 +696,7 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 		inner.append(hall.transform * p)
 	rec["inner_way"] = inner
 	# The circle on the floor: two rings and runes of violet light on a disc of dark stone.
-	var circle := Vector3(2.0, y, 0.3)
+	var circle := Vector3(0.0, y, 0.0) # In the middle of the room: the chandelier hangs over it, the reading lectern stands beside it.
 	_put(walk_in, rec, cellar, summoning_circle(), circle)
 	# The cauldron on its fire at the back wall, the bench of flasks along the right wall.
 	_put(walk_in, rec, cellar, cauldron(), Vector3(-0.2, y, -h + 0.95), 0.0, Vector3(1.3, 1.0, 1.3))
@@ -714,10 +714,10 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 	_put(walk_in, rec, cellar, WalkInFurniture.crate(0.7), Vector3(-1.2, y, h - 0.45), 0.2, Vector3(0.7, 0.7, 0.7))
 	_put(walk_in, rec, cellar, WalkInFurniture.crate(0.6), Vector3(3.3, y, h - 0.4), 0.0, Vector3(0.6, 0.6, 0.6))
 	# A lectern with an open spellbook beside the circle, a skull on it.
-	_put(walk_in, rec, cellar, lectern(), Vector3(0.2, y, 1.9), PI * 0.8, Vector3(0.35, 1.2, 0.35))
+	_put(walk_in, rec, cellar, lectern(), Vector3(2.15, y, 0.0), -PI * 0.5, Vector3(0.35, 1.2, 0.35))
 	# Crystals growing round the circle's edge and in the corners, a skull and a scroll on the bench, herbs
 	# drying from the ceiling, toadstools in the damp corner, chains on the back wall, a big book on the lectern.
-	for spec: Array in [[0.9, -1.2, 0.5], [3.4, -0.6, 0.7], [3.5, 1.9, 0.45], [-1.6, -3.4, 0.6]]:
+	for spec: Array in [[1.5, -1.7, 0.5], [3.4, -0.6, 0.7], [1.6, 1.9, 0.45], [-1.6, -3.4, 0.6]]:
 		_put(walk_in, rec, cellar, crystal_cluster(GLOW, float(spec[2])), Vector3(spec[0], y, spec[1]), float(spec[0]) * 2.0)
 	_put(walk_in, rec, cellar, toadstools(), Vector3(-1.5, y, 3.3))
 	_put(walk_in, rec, cellar, skull(), Vector3(h - 0.55, y + 0.95, 1.7), -2.0)
@@ -738,14 +738,14 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 		torch.rotation.y = -PI * 0.5
 		cellar.add_child(torch)
 	var hover := floating_candles(7, 1.9)
-	hover.position = Vector3(2.0, y + 1.0, 0.3)
+	hover.position = Vector3(0.0, y + 1.0, 0.0)
 	cellar.add_child(hover)
 	_put(walk_in, rec, cellar, alembic(), Vector3(h - 0.55, y + 0.95, 1.0), -PI * 0.5)
 	_put(walk_in, rec, cellar, crystal_orb(Color(0.45, 1.0, 0.7)), Vector3(1.6, y, 3.2))
 	_put(walk_in, rec, cellar, crystal_orb(), Vector3(-1.6, y, -3.3))
 	var book := floating_book()
-	book.position = Vector3(0.2, y + 1.55, 1.9)
-	book.rotation.y = 0.8
+	book.position = Vector3(2.15, y + 1.55, 0.0)
+	book.rotation.y = -PI * 0.5
 	cellar.add_child(book)
 	var chart := star_chart(Vector2(1.5, 1.5))
 	chart.position = Vector3(0.9, y + 1.0, h - 0.05)
@@ -760,9 +760,9 @@ static func _laboratory(walk_in: WalkIn, rec: Dictionary, lay: Dictionary) -> vo
 	tall.scale = Vector3.ONE * 1.4
 	cellar.add_child(tall)
 	var ring_light := chandelier(0.55, 0.5, 6)
-	ring_light.position = Vector3(2.0, -0.35, 0.3)
+	ring_light.position = Vector3(0.0, -0.35, 0.0)
 	cellar.add_child(ring_light)
-	var lamp := _storey_lamp(rec, cellar, GuildHall.CELLAR_STOREY, Vector3(0.5, y + 2.1, 0.0), LAB_LAMP)
+	var lamp := _storey_lamp(rec, cellar, GuildHall.CELLAR_STOREY, Vector3(0.0, y + 2.1, 0.0), LAB_LAMP)
 	lamp.light_energy = 1.2
 	# The hole in the ground: the 2 m cells under the cellar (world, see Outdoor.set_floor_holes).
 	var holes = walk_in.level.get("hall_holes")

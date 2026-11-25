@@ -154,3 +154,6 @@ end faded out).
 
 The village cat's purr (cat_purr): made from scratch by tools/make_cat_purr.py (damped low tones and filtered noise,
 no recordings), so it has no licence to credit.
+
+The owls' calls (owl_hoot_0, owl_hoot_1, owl_hoot_2): synthesised from a gliding voice tone, soft breath noise and a slow
+quaver by tools/make_owl_sounds.py, our own work, no third-party material (public domain, CC0).

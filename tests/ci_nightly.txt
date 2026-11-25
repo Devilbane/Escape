@@ -219,3 +219,4 @@ stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the
 underground_shadows.gd | 120 | free | passfail | Buried rooms far from the hero stop casting shadows (cheaper frames), near ones still do
 mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn, summer and winter: lobes, mounds and stones in the grass (screenshots)
 river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too
+owls.gd | 120 | free | pass | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)

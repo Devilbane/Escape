@@ -1742,8 +1742,8 @@ func drawn() -> bool:
 func _draw_blade(on: bool) -> void:
 	_sheathe_in = -1.0
 	# The priestess keeps her staff and strikes no blow; the smith fights
-	# with the hammer already in his hand.
-	if heals() or VillageArms.weapon(role) == VillageArms.HAMMER:
+	# with the hammer already in his hand, Fritz with his mug.
+	if heals() or VillageArms.weapon(role) in [VillageArms.HAMMER, VillageArms.MUG]:
 		return
 	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
 	if hand == null:

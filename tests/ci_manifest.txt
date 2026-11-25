@@ -119,7 +119,7 @@ reach_walls.gd | 300 | fixed | passfail | Nothing is picked up or used through a
 house_hiding.gd | 300 | fixed | passfail | Monsters neither see, hear, strike nor shoot a hero inside a built house unless a window or open door lets them, and the hero inside sees out only that way too
 click_spots.gd | 120 | fixed | pass | Beds and workbenches open only on their pillow or bench top
 forest_edges.gd | 120 | free | pass | Forest edges (what looks walkable is walkable, what blocks looks blocked, the woods stay shut)
-house_login.gd | 180 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
+house_login.gd | 360 | fixed | passfail | Logging out inside the self-built house (any storey, cellar or roof) logs back in at that spot
 house_login_flow.gd | 240 | fixed | passfail | Sleeping in a built bed, closing the game and continuing wakes up in that bed, also with an open doorway and a camp elsewhere
 carry_arm.gd | 60 | free | passfail | The torch and lamp arm reaches forward and rocks only gently; lamps hang upright; villagers mix lamps and torches
 ground_items.gd | 60 | free | pass | Items on the floor (every item has a flat model, stackables pile up, no floating glow)
@@ -136,4 +136,5 @@ silver_silk.gd | 60 | fixed | passfail | Silver spider silk: a rare share of web
 glow_mushrooms.gd | 120 | free | pass | Glow mushrooms (at most 3 patches of 1 to 7 a day, new places each day, glow follows the clock)
 hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)
 furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)
+enemy_alert_once.gd | 60 | fixed | pass | A monster's red alert shows once per hunt
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split

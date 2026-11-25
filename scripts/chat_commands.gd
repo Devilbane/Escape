@@ -47,4 +47,11 @@ static func entries() -> Array:
 			"text": "Wechselt sofort in eine Jahreszeit (spring, summer, autumn, winter; auch frühling, sommer, herbst): Laub, Ranken und Trauben, Kleidung, Schnee und das Wetter der Jahreszeit. Danach läuft der Kalender von dort weiter, eine echte Woche je Jahreszeit.",
 			"examples": ["season:spring", "season:summer", "season:autumn", "season:winter"],
 		})
+	if CameraCommand.ENABLED:
+		out.append({
+			"name": "Freie Kamera",
+			"syntax": "camera:<free|low|top|off|Winkel>",
+			"text": "Für Bildschirmfotos: Das Mausrad (oder + und -) zoomt bis weit hinaus, Bild hoch und Bild runter (oder [ und ]) neigen die Kamera bis fast auf Bodenhöhe. low und top springen in eine tiefe oder senkrechte Ansicht, eine Zahl von 3 bis 89 setzt den Neigungswinkel. camera:off oder noch einmal camera:free beendet sie.",
+			"examples": ["camera:free", "camera:low", "camera:20", "camera:off"],
+		})
 	return out

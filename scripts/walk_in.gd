@@ -332,6 +332,8 @@ func open_house(house: Node3D) -> void:
 	var rec := _record(house)
 	if rec.is_empty():
 		return
+	# Its rooms have floors: its candles light no ground (see LightShadows.FLOORED).
+	house.set_meta(LightShadows.FLOORED, true)
 	# A villagers' house has a floor above one climbs to; Gorm's cottage (see SmithCottage) does not.
 	var upper: bool = (rec.kind == "house" and not rec.has("owner")) or rec.kind == "tavern" or VillageHalls.HOME_OWNERS.has(rec.kind)
 	var hatch := hatch_of(house.get_meta("shape")) if upper else Rect2()
@@ -859,6 +861,7 @@ static func lit_at(from: float, bed: float, hour: float) -> bool:
 ## Pews in two rows either side of an aisle, facing the altar under the rose window, and the altar
 ## with its candles; a floor of stone flags.
 func _furnish_temple(rec: Dictionary, chapel: Node3D) -> void:
+	chapel.set_meta(LightShadows.FLOORED, true)
 	var s := chapel.scale.x
 	var inside := Node3D.new()
 	inside.name = "TempleInside"

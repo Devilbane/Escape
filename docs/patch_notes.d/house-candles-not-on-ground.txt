@@ -1,0 +1,1 @@
+- The candles inside the village's houses no longer light the ground outside.

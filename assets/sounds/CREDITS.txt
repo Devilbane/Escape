@@ -163,3 +163,5 @@ from scratch by tools/make_water_sounds.py.
 
 The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from scratch by tools/make_goose_sounds.py
 (a buzzing pulse train through nasal formants, no recordings), so they have no licence to credit.
+
+Scissor snips (snip_0 to snip_2): synthesised from scratch by tools/make_snip_sounds.py (no recordings).

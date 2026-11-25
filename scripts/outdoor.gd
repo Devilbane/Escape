@@ -320,6 +320,8 @@ var village_alarm := VillageAlarm.new()
 var meals := TownMeals.new()
 ## Idle townsfolk resting on the benches round the fountain (see BenchRest).
 var bench_rest := BenchRest.new()
+## Benno's chair beside his tent: the hero's haircuts, and now and then a villager (see BarberChair).
+var barber_chair := BarberChair.new()
 ## The morning gathering in the temple (see TempleMorning).
 var temple_morning := TempleMorning.new()
 ## Buried rooms far from the hero stop casting shadows (see UndergroundShadows).
@@ -4010,7 +4012,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "Z": "barbier", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -4020,6 +4022,7 @@ func _spawn_villagers() -> void:
 				_herald = v
 			elif ch == "Z":
 				_build_barber_shop(c + Vector2i(0, -1))
+				barber_chair.build(self, v)
 			elif ch == "S":
 				_build_stone_yard(c + MASON_YARD)
 				_build_quarry(v, c)
@@ -4923,6 +4926,7 @@ func _process(delta: float) -> void:
 	village_wall.tick(self, delta)
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
+	barber_chair.tick(self, delta)
 	temple_morning.tick(self, delta)
 	underground_shadows.tick(self, player.global_position, delta)
 	# The wind carries the swept leaves back over the walkways (see LeafSweep).

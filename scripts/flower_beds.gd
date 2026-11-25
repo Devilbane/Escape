@@ -167,13 +167,10 @@ func season() -> String:
 
 ## How many flower heads show now (for the tests): a head too small to see does not count.
 func visible_heads() -> int:
-	var n := 0
-	for name in ["daisies", "cups"]:
-		var mm: MultiMesh = _mm[name]
-		for i in mm.instance_count:
-			if mm.get_instance_transform(i).basis.get_scale().x > 0.01:
-				n += 1
-	return n
+	if _season == "":
+		return 0
+	var share: float = LOOK[_season].heads
+	return _plants.filter(func(pl: Dictionary): return pl.dice < share).size()
 
 
 ## How many beds there are.

@@ -28,6 +28,8 @@ uniform float max_distance = 90.0;
 // The heights of the cloud layers above the ground, and the thin haze left on the ground.
 uniform vec3 layers = vec3(2.4, 3.3, 4.3);
 uniform float ground_haze = 0.18;
+// How many metres below a layer's height its cloud thins out against a surface that rises into it.
+uniform float soft_edge = 1.6;
 // How much thinner the clouds are drawn on the modern renderer (see the end of fragment()).
 uniform float modern_thin = 0.55;
 
@@ -68,11 +70,14 @@ void fragment() {
 	float alpha = 0.0;
 	for (int i = 2; i >= 0; i--) {
 		float h = layers[i];
-		if (cam.y <= h || world.y >= h) {
+		// Where the ground or a rock face rises through a layer the cloud thins out over the last
+		// `soft_edge` metres below it, so it fades into the surface instead of ending in a hard line.
+		float fade = 1.0 - smoothstep(h - soft_edge, h, world.y);
+		if (cam.y <= h || fade <= 0.0) {
 			continue;
 		}
 		vec3 q = mix(cam, world, (cam.y - h) / (cam.y - world.y));
-		float a = cloud(q.xz, float(i) * 0.29) * 0.45;
+		float a = cloud(q.xz, float(i) * 0.29) * 0.45 * fade;
 		alpha += (1.0 - alpha) * a;
 	}
 	// Under the clouds only a thin haze lies on the ground.

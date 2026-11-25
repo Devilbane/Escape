@@ -826,6 +826,7 @@ func build() -> void:
 	SummitGarden.build(self)
 	_setup_astar()
 	meals.garland.block(self)
+	GlowMushrooms.build(self)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.
 		var free: Array[Vector3] = []
@@ -1942,21 +1943,9 @@ func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 	light.position = light_at
 	add_child(light)
 	_lamps.append(light)
-	if _candle_mat == null:
-		_candle_mat = StandardMaterial3D.new()
-		_candle_mat.albedo_color = Color(1.0, 0.8, 0.5)
-		_candle_mat.emission_enabled = true
-		_candle_mat.emission = Color(1.0, 0.7, 0.35)
-		_candle_mat.emission_energy_multiplier = 0.0
-	var candle := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.06
-	ball.height = 0.12
-	candle.mesh = ball
-	candle.material_override = _candle_mat
-	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = candle_at
-	candle.visible = false
+	# A glow mushroom is what a lantern burns: pale by day, glowing with the night (see GlowMushrooms).
+	var candle := GlowMushrooms.lamp_node()
+	candle.position = candle_at + Vector3(0, -0.07, 0)
 	add_child(candle)
 	_candles.append(candle)
 
@@ -5008,10 +4997,8 @@ func set_hour(new_hour: float) -> void:
 	var glow := DayNight.glow_at(hour)
 	for lamp in _lamps:
 		lamp.light_energy = lerpf(LAMP_DAY, LAMP_NIGHT, glow)
-	if _candle_mat:
-		_candle_mat.emission_energy_multiplier = CANDLE_GLOW * glow
-	for candle in _candles:
-		candle.visible = glow > 0.02
+	# The wild glow mushrooms and the ones in the lanterns soak up the day and light up with the night.
+	GlowMushrooms.set_glow(glow)
 	# The lanterns and candles at the dining tables (see TownMeals).
 	meals.set_glow(glow)
 	if walk_in != null:

@@ -76,6 +76,7 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator) -> void:
 	mat.set_shader_parameter("flank_color", Vector3((palette[1] as Color).r, (palette[1] as Color).g, (palette[1] as Color).b))
 	mat.set_shader_parameter("seed", rng.randf())
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).mesh = smoothed(mi.mesh)
 		(mi as MeshInstance3D).material_override = mat
 		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var player := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -88,6 +89,31 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator) -> void:
 	holder.position = home + Vector3(0, 0.03, 0)
 	_fish.append({"node": holder, "mat": mat, "home": home, "heading": rng.randf() * TAU, "t": rng.randf() * 20.0,
 			"turn": rng.randf_range(0.25, 0.55), "speed": SPEED * rng.randf_range(0.7, 1.2)})
+
+
+## The same mesh with its normals averaged over the vertices that share a spot, so the faceted low-poly
+## body shades as one round fish (the skin weights and everything else stay as they are).
+static func smoothed(mesh: Mesh) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for surf in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surf)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+		if normals.size() != verts.size():
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			continue
+		var sums := {}
+		for i in verts.size():
+			var key := Vector3i((verts[i] * 20000.0).round())
+			sums[key] = sums.get(key, Vector3.ZERO) + normals[i]
+		var smooth := PackedVector3Array()
+		smooth.resize(verts.size())
+		for i in verts.size():
+			smooth[i] = (sums[Vector3i((verts[i] * 20000.0).round())] as Vector3).normalized()
+		arrays[Mesh.ARRAY_NORMAL] = smooth
+		arrays[Mesh.ARRAY_TANGENT] = null
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
 
 
 ## How much of the water is frozen, 0 to 1 (see Outdoor.set_ice).

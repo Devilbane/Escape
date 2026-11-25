@@ -1,0 +1,1 @@
+- Fixed the woodcutter's trunk and the felled logs in the woods, whose bark was invisible so only the sawn ends showed.

@@ -1,0 +1,1 @@
+- Monsters show their red "!" once per hunt, not over and over.

@@ -20,6 +20,10 @@ window/size/viewport_height=720
 window/size/viewport_width.launcher=960
 window/size/viewport_height.launcher=540
 window/size/resizable.launcher=false
+window/size/mode=2
+window/size/mode.launcher=0
+window/size/initial_position_type=1
+window/size/initial_position_type.launcher=1
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

@@ -328,6 +328,18 @@ static func _river(lvl: Outdoor) -> void:
 	flow.rubbish = true
 	flow.palette = StreamFlow.RUBBISH
 	lvl.add_child(flow)
+	# And the leaves and sticks every river carries (see RiverFlow).
+	var leaves := StreamFlow.new()
+	leaves.name = "OutfallLeaves"
+	leaves.from = flow.from
+	leaves.to = flow.to
+	leaves.width = flow.width
+	leaves.speed = flow.speed
+	leaves.count = 24
+	leaves.foam_every = 0
+	leaves.seasonal = true
+	leaves.palette = StreamFlow.GREEN_LEAVES
+	lvl.add_child(leaves)
 
 
 # --- The street's grating and the manhole -------------------------------------

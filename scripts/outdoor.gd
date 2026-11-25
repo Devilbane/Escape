@@ -812,6 +812,7 @@ func build() -> void:
 	_build_house()
 	_build_wall_collision()
 	_grow_ferns()
+	RiverFlow.build(self)
 	if not _undergrowth.xforms.is_empty():
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"

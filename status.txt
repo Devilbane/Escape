@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Widen doorways so the hero walks straight through; Keep the bank's candle lights inside its walls | Shipped this week: Village hedgehogs active by day and not shy; Build number above every earlier build; Keep fog out of cellar stairs beyond the roof (+47 more)
+Escape! dev status | Working on: Widen doorways so the hero walks straight through | Shipped this week: Keep the bank's candle lights inside its walls; Village hedgehogs active by day and not shy; Build number above every earlier build (+47 more)

@@ -826,6 +826,7 @@ func build() -> void:
 	SummitGarden.build(self)
 	_setup_astar()
 	meals.garland.block(self)
+	GlowMushrooms.build(self)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.
 		var free: Array[Vector3] = []
@@ -1942,21 +1943,9 @@ func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 	light.position = light_at
 	add_child(light)
 	_lamps.append(light)
-	if _candle_mat == null:
-		_candle_mat = StandardMaterial3D.new()
-		_candle_mat.albedo_color = Color(1.0, 0.8, 0.5)
-		_candle_mat.emission_enabled = true
-		_candle_mat.emission = Color(1.0, 0.7, 0.35)
-		_candle_mat.emission_energy_multiplier = 0.0
-	var candle := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.06
-	ball.height = 0.12
-	candle.mesh = ball
-	candle.material_override = _candle_mat
-	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = candle_at
-	candle.visible = false
+	# A glow mushroom is what a lantern burns: pale by day, glowing with the night (see GlowMushrooms).
+	var candle := GlowMushrooms.lamp_node()
+	candle.position = candle_at + Vector3(0, -0.07, 0)
 	add_child(candle)
 	_candles.append(candle)
 
@@ -4519,9 +4508,12 @@ func _spawn_animals() -> void:
 ## A burrow on the meadow with its huddle of baby rabbits (see Warren).
 func _spawn_warren(cell: Vector2i) -> void:
 	var centre := cell_to_world(cell)
-	var hole := Warren.burrow()
+	var hole := Warren.burrow(cell.x * 31 + cell.y)
 	add_child(hole)
 	hole.global_position = centre
+	hole.rotation.y = float(hash(cell) % 628) / 100.0
+	hole.add_to_group("burrows")
+	Warren.dress(hole, season_day)
 	for i in Warren.KITS:
 		var a := Animal.new()
 		a.setup(self, "kit", cell)
@@ -4886,6 +4878,9 @@ func set_season(day_of_season: int) -> void:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
 	if is_inside_tree():
+		for hole: Node3D in get_tree().get_nodes_in_group("burrows"):
+			Warren.dress(hole, day_of_season)
+	if is_inside_tree():
 		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
 			flow.set_season(day_of_season)
 	if crop_fields != null:
@@ -5008,10 +5003,8 @@ func set_hour(new_hour: float) -> void:
 	var glow := DayNight.glow_at(hour)
 	for lamp in _lamps:
 		lamp.light_energy = lerpf(LAMP_DAY, LAMP_NIGHT, glow)
-	if _candle_mat:
-		_candle_mat.emission_energy_multiplier = CANDLE_GLOW * glow
-	for candle in _candles:
-		candle.visible = glow > 0.02
+	# The wild glow mushrooms and the ones in the lanterns soak up the day and light up with the night.
+	GlowMushrooms.set_glow(glow)
 	# The lanterns and candles at the dining tables (see TownMeals).
 	meals.set_glow(glow)
 	if walk_in != null:
@@ -5664,7 +5657,7 @@ func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
 	if ice_cover != null:
 		ice_cover.set_amount(ice)
-	if ice_fish == null and ice >= IceFish.SHOW_FROM and is_inside_tree() and not _pond_waters.is_empty():
+	if ice_fish == null and is_inside_tree() and not _pond_waters.is_empty():
 		ice_fish = IceFish.build(self, _pond_waters)
 	if ice_fish != null:
 		ice_fish.set_ice(ice)

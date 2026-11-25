@@ -2335,6 +2335,9 @@ func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> voi
 		Events.found(Lang.t("%s kommt in deinen Geldbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 	else:
 		Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
+	if GlowMushrooms.is_glow(id):
+		learn(GlowMushrooms.LEARN)
+		Events.tell(Lang.t(GlowMushrooms.PICKED), GlowMushrooms.colour(GlowMushrooms.kind_of(id)))
 	if id == SummitGarden.INGREDIENT:
 		learn(SummitGarden.PICKED_LEARN)
 		Events.tell(Lang.t(SummitGarden.PICKED), Color(0.9, 0.95, 1.0))
@@ -3141,6 +3144,7 @@ func _new_day(quiet := false) -> void:
 		QuarryRocks.refresh(level, day, true)
 		WoodLogs.refresh(level, day, true)
 		SummitGarden.refresh(level, day, true)
+		GlowMushrooms.refresh(level, day, true)
 	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
@@ -3561,6 +3565,7 @@ func _load_parked(index: int) -> void:
 		QuarryRocks.refresh(level, day, true)
 		WoodLogs.refresh(level, day, true)
 		SummitGarden.refresh(level, day, true)
+		GlowMushrooms.refresh(level, day, true)
 	_spawn_pet()
 	apply_companion_perk()
 	_refresh_seals()
@@ -3656,6 +3661,7 @@ func load_level(index: int, restock := true) -> void:
 	QuarryRocks.refresh(level, day)
 	WoodLogs.refresh(level, day)
 	SummitGarden.refresh(level, day)
+	GlowMushrooms.refresh(level, day)
 	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)

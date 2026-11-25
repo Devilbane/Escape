@@ -27,6 +27,8 @@ uniform float age = 1.0;
 const vec2 PATCH_ORIGIN = vec2(256.0, 30.72);
 const vec2 TILE_PITCH = vec2(29.75, 13.0);
 const float FIRST_ROW = 4.0;
+// How many mip levels softer than the screen needs the tiles are sampled.
+const float SOFT_MIPS = 1.5;
 const vec2 ROW_SHIFT = vec2(16.0, 29.5);
 
 varying vec3 wpos;
@@ -48,7 +50,12 @@ float lum(vec3 c) {
 void fragment() {
 	vec3 n = normalize(wnrm);
 	float px = length(fwidth(wpos));
-	vec3 tex = texture(trim, UV).rgb;
+	// The tiles' dark joints are a pixel or two wide: sampled a mip level softer than the screen
+	// asks for (and so not stretched sharp by anisotropy), they no longer crawl as the camera moves.
+	vec2 tex_dx = dFdx(UV * 512.0);
+	vec2 tex_dy = dFdy(UV * 512.0);
+	float lod = max(0.0, 0.5 * log2(max(dot(tex_dx, tex_dx), dot(tex_dy, tex_dy))) + SOFT_MIPS);
+	vec3 tex = textureLod(trim, UV, lod).rgb;
 	float raw = lum(tex);
 
 	// Which tile of the patch this is.
@@ -110,6 +117,6 @@ void fragment() {
 	// Relief: the joints between the tiles sink in, the odd tile sits a
 	// little proud.
 	float height = (raw + h1 * 0.08) * tile_fade;
-	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.5, dFdy(height) * 0.5), 0.0)).xyz);
+	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.3, dFdy(height) * 0.3), 0.0)).xyz);
 	ALBEDO = gl_colour(ALBEDO);
 }

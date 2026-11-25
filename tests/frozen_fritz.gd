@@ -69,6 +69,11 @@ func _run() -> void:
 		_finish()
 		return
 	check(not fritz.is_frozen() and fritz._ice == null, "Fritz is not frozen while the snow is away")
+	# His mug is part of his look: the tavern code that puts the brewer's mug away never takes it from him.
+	var mug := fritz.find_child("Mug", true, false) as Node3D
+	check(mug != null and mug.visible, "Fritz holds his mug")
+	fritz.hold_mug(false)
+	check(mug != null and mug.visible, "Fritz keeps his mug when the tavern puts a mug away")
 
 	# The snow is thick: he goes to the market square (put near it to keep the test short).
 	var spot := FrozenFritz.spot(lvl)

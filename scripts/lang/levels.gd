@@ -23,7 +23,8 @@ const EN := {
 	"Stacheln, Klingen und Zauber. Alles, was du gelernt hast, zählt jetzt.": "Spikes, blades and spells. Everything you have learned counts now.",
 	"Das Tor": "The Gate",
 	"Dahinter liegt die Freiheit. Zwei Kolosse bewachen den letzten Weg.": "Freedom lies beyond. Two brutes guard the last way out.",
-	"Die Freiheit": "Freedom",
+	"Apfeltal": "Apple Valley",
+	"Die Freiheit": "Apple Valley",  # old saves and ranking entries
 	"Der Tresorkeller": "The Vault Cellar",
 	"Die Drachenhöhle": "The Dragon's Lair",
 	"Unter dem alten Steinbogen im Wald: ein Gewirr aus Gängen voller Fledermäuse, Schleime und Skelette. Ein Schlüssel öffnet die Tür zum Schacht in die Tiefe, und ganz unten schläft ein Drache auf seinem Gold.": "Below the old stone arch in the woods: a tangle of passages full of bats, slimes and skeletons. A key opens the door to the shaft into the depths, and at the very bottom a dragon sleeps on its gold.",

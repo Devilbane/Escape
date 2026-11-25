@@ -115,7 +115,7 @@ const BLOCK_MODELS := {
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
-	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
+	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "die Schenke Apples & Ivy!", "m": "den Laden",
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
 	"|": "die Ruinen von Sternhall", "\"": "die Verlassene Wüste",
 }
@@ -779,6 +779,8 @@ func build() -> void:
 	meals.garland.build(self, meals.tables, _ivy)
 	# The braziers that warm the diners in winter (see MealBraziers).
 	meals.braziers.build(self, meals.tables)
+	# The tavern's pub sign on a post south of the two dining tents (see PubSign).
+	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -2673,6 +2675,26 @@ func _bank_sign(door: Vector3) -> void:
 	box.position = box_at
 	add_child(box)
 	_add_solid(box_at + Vector3(0, 0.5, 0), box.get_meta("solid_size"))
+
+
+## Where the pub sign's post stands south of the dining tables' middle line, and the sign's board
+## (it hangs a bit out from the post) is centred between the two tents.
+const PUB_POST_SOUTH := 3.4
+
+
+## The pub's sign on the village square: a freestanding post with an iron bracket, the painted board
+## of Apples & Ivy! hanging between the two dining tents, a little south of them (see PubSign).
+func _square_pub_sign() -> void:
+	if meals.tables.size() < 2:
+		return
+	var a: Vector3 = meals.tables[0]
+	var b: Vector3 = meals.tables[1]
+	var at := Vector3((a.x + b.x) * 0.5 - PubSign.ARM_OUT * 0.53, 0.0, maxf(a.z, b.z) + PUB_POST_SOUTH)
+	var post := PubSign.on_post()
+	post.name = "PubSignSquare"
+	post.position = at
+	add_child(post)
+	_add_solid(at, Vector3(0.62, PubSign.POST_HIGH, 0.62))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level

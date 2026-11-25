@@ -242,6 +242,9 @@ var _burn_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
+var _wedge := HeroUnstick.new()
+## The last place the hero stood and moved freely (where HeroUnstick leads them back to).
+var free_spot := Vector3.INF
 var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
@@ -3983,7 +3986,13 @@ func _physics_process(delta: float) -> void:
 	var before := global_position
 	move_and_slide()
 	_keep_off_furniture(before, dir)
-	_train_legs(Vector2(global_position.x - before.x, global_position.z - before.z).length())
+	var stepped := Vector2(global_position.x - before.x, global_position.z - before.z).length()
+	_train_legs(stepped)
+	# Pressed on for a second without getting anywhere and no way out in any direction: get free.
+	if _wedge.tick(dir != Vector3.ZERO and is_on_floor(), stepped, pace * delta, delta) and HeroUnstick.is_wedged(self):
+		HeroUnstick.release(self, free_spot)
+	elif is_on_floor() and stepped > 0.0 and stepped >= pace * delta * 0.8:
+		free_spot = global_position
 	# Walking a path but pressed against something, like a door frame: first
 	# step back to the middle of the tile, and give the path up if that fails.
 	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < pace * delta * 0.2:

@@ -132,3 +132,4 @@ foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes
 rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep
 bed_exit_chest.gd | 120 | fixed | pass | The hero steps out of bed on the side without a chest
 climbing_gear.gd | 60 | fixed | pass | Climbing gear: five pieces worn in their slots, +1 Klettern each and +2 for the full set, nothing from the bag
+hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)

@@ -5946,6 +5946,9 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	if HeroUnstick.is_command(text):
+		_unstick_command()
+		return
 	var cam: Variant = CameraCommand.parse(text)
 	if cam != null:
 		_camera_command(cam)
@@ -5964,6 +5967,12 @@ func _hero_says(text: String) -> void:
 	Effects.float_text(level, pos + Vector3(0, 3.0, 0), text, HERO_SAY_COLOR)
 	Events.say(hero_name, text, pos)
 	Events.hero_says(text, pos)
+
+
+## The chat line's unstuck command (dev builds only, see HeroUnstick).
+func _unstick_command() -> void:
+	var freed := HeroUnstick.release(player, player.free_spot)
+	Events.tell(Lang.t(HeroUnstick.DONE_TEXT if freed else HeroUnstick.NONE_TEXT), TELEPORT_COLOR)
 
 
 ## The chat line's free camera (see CameraCommand).

@@ -45,7 +45,7 @@ func _run() -> void:
 	for e in all:
 		for ex in e.examples:
 			var line: String = ex
-			check(Godmode.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null or SkyCommand.parse_season(line) != null or CameraCommand.parse(line) != null, "example '%s' is a command" % line)
+			check(Godmode.is_command(line) or HeroUnstick.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null or SkyCommand.parse_season(line) != null or CameraCommand.parse(line) != null, "example '%s' is a command" % line)
 	check(CameraCommand.parse("camera:low").pitch == CameraCommand.LOW_PITCH, "camera:low parses")
 	check(CameraCommand.parse("camera:500").pitch == CameraCommand.PITCH_MAX, "the tilt is clamped")
 	check(CameraCommand.parse("camera:off").has("off") and CameraCommand.parse("hallo") == null, "off and no command")

@@ -36,6 +36,9 @@ static var style := "foot"
 const EARTH := Color(0.5, 0.44, 0.37)
 ## The ground letters the foot spreads over: open meadow and the scree of the passes (Notch Pass, say). Every
 ## rock tile of an Outdoor map gets a foot this way, so a new mountain needs nothing of its own.
+## The foot's edge where it touches the rock: how opaque it is there, and how far out it is solid again (metres).
+const EDGE_ALPHA := 0.5
+const EDGE_FADE := 2.0
 const OPEN := ".\'"
 const GREEN := Color(0.3, 0.37, 0.16)
 
@@ -437,7 +440,7 @@ static func _rock_colour(x: float, z: float, h: float, up: float, greyer: float)
 
 ## A height field over `box` (x and z in metres), `step` apart, as a smooth mesh (null when nothing rises) and the
 ## triangles for a collision shape. `greyer` takes the rock's colour towards grey.
-static func _terrain(box: Rect2, step: float, height: Callable, greyer: float) -> Dictionary:
+static func _terrain(box: Rect2, step: float, height: Callable, greyer: float, rects: Array[Rect2] = []) -> Dictionary:
 	var nx := ceili(box.size.x / step)
 	var nz := ceili(box.size.y / step)
 	# One extra ring of heights all round, for the normals at the border.
@@ -456,7 +459,11 @@ static func _terrain(box: Rect2, step: float, height: Callable, greyer: float) -
 		var n := Vector3(float(hs[iz + 1][ix]) - float(hs[iz + 1][ix + 2]), 2.0 * step, float(hs[iz][ix + 1]) - float(hs[iz + 2][ix + 1])).normalized()
 		var x := box.position.x + ix * step
 		var z := box.position.y + iz * step
-		return [Vector3(x, h - 0.03, z), n, _rock_colour(x, z, h, n.y, greyer)]
+		var colour := _rock_colour(x, z, h, n.y, greyer)
+		# Where the foot meets the rock it is half see-through, and solid again EDGE_FADE metres out.
+		if not rects.is_empty():
+			colour.a = lerpf(EDGE_ALPHA, 1.0, smoothstep(0.2, EDGE_FADE, _dist(rects, x, z)))
+		return [Vector3(x, h - 0.03, z), n, colour]
 	for iz in nz:
 		for ix in nx:
 			var top := maxf(maxf(float(hs[iz + 1][ix + 1]), float(hs[iz + 1][ix + 2])), maxf(float(hs[iz + 2][ix + 1]), float(hs[iz + 2][ix + 2])))
@@ -489,13 +496,26 @@ static func _terrain(box: Rect2, step: float, height: Callable, greyer: float) -
 	return {"mesh": st.commit(), "faces": faces}
 
 
+static var _foot_rock: ShaderMaterial = null
+
+
+## The rock of the foot: the mountain's stone with its edge towards the rock see-through (mountain_foot_rock.gdshader).
+static func foot_material() -> ShaderMaterial:
+	if _foot_rock == null:
+		_foot_rock = ShaderMaterial.new()
+		_foot_rock.shader = preload("res://shaders/mountain_foot_rock.gdshader")
+		_foot_rock.set_shader_parameter("age", AgedStone.ROCK_AGE)
+		_foot_rock.set_shader_parameter("lichen", AgedStone.ROCK_LICHEN)
+	return _foot_rock
+
+
 static func _place_terrain(root: Node3D, level: Outdoor, name: String, made: Dictionary) -> void:
 	if made.is_empty():
 		return
 	var node := MeshInstance3D.new()
 	node.name = name
 	node.mesh = made.mesh
-	node.material_override = AgedStone.rock_material()
+	node.material_override = foot_material()
 	node.visibility_range_end = 90.0
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(node)
@@ -556,7 +576,7 @@ static func scatter(level: Outdoor) -> void:
 			var box := Rect2((cx - 0.5) * tile - 1.5, (cy - 0.5) * tile - 1.5, mini(chunk, level.width - cx) * tile + 3.0, mini(chunk, level.height - cy) * tile + 3.0)
 			var rects := _rects_near(level, box.get_center().x, box.get_center().y, 4)
 			var height := func(x: float, z: float) -> float: return lobe_height(level, rects, x, z)
-			_place_terrain(root, level, "Lobes%d_%d" % [cx, cy], _terrain(box, LOBE_STEP, height, 0.0))
+			_place_terrain(root, level, "Lobes%d_%d" % [cx, cy], _terrain(box, LOBE_STEP, height, 0.0, rects))
 	for i in all_mounds.size():
 		var m: Dictionary = all_mounds[i]
 		var r: float = float(m.r) * 1.5

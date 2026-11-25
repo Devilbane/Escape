@@ -146,6 +146,24 @@ static func roofed(house: HouseSketch, sheltered: Dictionary) -> Dictionary:
 	return out
 
 
+## The cells (see cell_at) over the cellar of `house`: its dug cells and the first two cells of its
+## stairs, built or being built. They lie under the roof or beyond it; below the ground the weather
+## stays out in either case (see IndoorMask).
+static func pits(house: HouseSketch) -> Dictionary:
+	var out := {}
+	for key in house.pieces:
+		var piece: Dictionary = house.pieces[key]
+		if not _stands(piece) or not HouseSketch.CELLAR_KINDS.has(piece.kind):
+			continue
+		var p := HouseSketch.parts_of(key)
+		var cells: Array = [Vector2i(p[1], p[2])]
+		if piece.kind == HouseSketch.STAIRS:
+			cells = HouseSketch.stairs_cells(p[1], p[2], p[3]).slice(0, 2)
+		for c: Vector2i in cells:
+			out[cell_at(house.node_world(c.x, c.y) + Vector3(HouseSketch.CELL * 0.5, 0, HouseSketch.CELL * 0.5))] = true
+	return out
+
+
 ## Whether a world point lies inside a built house, out of the weather (see shelter).
 static func sheltered(shelters: Dictionary, pos: Vector3) -> bool:
 	return shelters.has(cell_at(pos)) and pos.y < float(shelters[cell_at(pos)])

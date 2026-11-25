@@ -1355,6 +1355,7 @@ func _redraw() -> void:
 	var buried := []
 	var shelters := {}
 	var roofs := {}
+	var pits := {}
 	own_shelter = {}
 	_covered.clear()
 	_fade_state = ""
@@ -1436,9 +1437,11 @@ func _redraw() -> void:
 		var shelter := HouseGround.shelter(house)
 		shelters.merge(shelter, true)
 		roofs.merge(HouseGround.roofed(house, shelter), true)
+		pits.merge(HouseGround.pits(house), true)
 		if house == plan:
 			own_shelter = shelter
 	(game.level as Outdoor).roofs = roofs
+	(game.level as Outdoor).pits = pits
 	(game.level as Outdoor).shelters = shelters
 	# The cellars under the village's halls (the guildhall's, see GuildHall), under their floors.
 	holes.append_array((game.level as Outdoor).hall_holes)

@@ -894,10 +894,13 @@ func _start(task: String, time: float) -> void:
 		_begin_sweep()
 	else:
 		_end_sweep()
+	# Matthes puts the hoe, the sack and the flower down when anything but his field work or his courting begins.
+	if role == MatthesLife.ROLE and task != MatthesLife.TASK:
+		MatthesLife.stop(self)
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless", MatthesLife.TASK] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -2083,6 +2086,9 @@ func _next_task() -> void:
 		"stay", "shop":
 			if _sweep_out():
 				return
+			# With nothing to sweep he helps the farmers and looks for a girlfriend (see MatthesLife).
+			if role == MatthesLife.ROLE and MatthesLife.next(self):
+				return
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
@@ -2455,6 +2461,8 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 	# from inside it would lead straight through its wall (Mira left her shop through the south
 	# wall at nightfall).
 	_leave_post()
+	if role == MatthesLife.ROLE and then != MatthesLife.TASK:
+		MatthesLife.stop(self)
 	_path.clear()
 	_retry = {}
 	_stuck_watch.reset()
@@ -2582,6 +2590,8 @@ func _physics_process(delta: float) -> void:
 			_mend(delta)
 		"sweep":
 			_sweep_snow(delta)
+		"tend":
+			MatthesLife.step(self, delta)
 		"bless":
 			_bless_step(delta)
 		"defend":
@@ -3420,6 +3430,8 @@ func end_service() -> void:
 ## The hero ran into us: say the next line.
 func talk(hero: Node3D) -> void:
 	var lines: Array = FrozenFritz.MUFFLED if _task == "frozen" else _info.lines
+	if role == MatthesLife.ROLE:
+		lines = MatthesLife.talk_lines(lines)
 	meet()
 	say(Lang.t(lines[_line % lines.size()]), hero.global_position)
 	_line += 1

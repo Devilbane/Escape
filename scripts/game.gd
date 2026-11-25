@@ -4099,6 +4099,7 @@ func begin_new_game() -> void:
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
+	MatthesLife.clear()
 	village_worries.clear()
 	village_rumours.clear()
 	drinking_songs.clear()
@@ -4603,6 +4604,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
+	MatthesLife.load_from(data.get("matthes_love", {}))
 	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
 	MonsterLore.load_from(data.get("monster_lore", {}))
@@ -4884,6 +4886,7 @@ func hero_record() -> Dictionary:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
+		"matthes_love": MatthesLife.for_save(),
 		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
 		"monster_lore": MonsterLore.for_save(),

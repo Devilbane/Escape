@@ -17,6 +17,8 @@ const GRASS := "grass"
 const SOIL := "soil"
 const SCREE := "scree"
 const PUDDLE := "puddle"
+## A patch of slime on the sewers' floors (see SewerSlime): a squelch with every step.
+const SLIME := "slime"
 ## Snow is not a ground of its own (it does not change the pace): while it lies thick enough to
 ## take prints (see Weather.PRINT_FROM), every step in the open air crunches (see step_ground).
 const SNOW := "snow"
@@ -32,6 +34,7 @@ const PACE := {
 	SOIL: 0.88,
 	SCREE: 0.82,
 	PUDDLE: 0.75,
+	SLIME: SewerSlime.PACE,
 }
 
 ## Each ground and the footsteps heard on it: the sounds step_<name>_0 to
@@ -66,6 +69,8 @@ static func ground(level: Level, p: Vector3) -> String:
 	var outdoor := level as Outdoor
 	if outdoor and outdoor.in_puddle(p):
 		return PUDDLE
+	if SewerSlime.at(p):
+		return SLIME
 	return level.ground_at(level.world_to_cell(p))
 
 
@@ -75,7 +80,7 @@ static func ground(level: Level, p: Vector3) -> String:
 static func step_ground(level: Level, p: Vector3) -> String:
 	var kind := ground(level, p)
 	var outdoor := level as Outdoor
-	if outdoor and kind != WOOD and kind != PUDDLE and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM and not outdoor.is_roofed(p):
+	if outdoor and kind != WOOD and kind != PUDDLE and kind != SLIME and outdoor.snow != null and outdoor.snow.amount >= Weather.PRINT_FROM and not outdoor.is_roofed(p):
 		return SNOW
 	return kind
 
@@ -93,6 +98,8 @@ static func ease_pace(now: float, level: Level, p: Vector3, delta: float) -> flo
 ## A footstep that fits a ground (one of the grounds above), one of the six
 ## for that ground.
 static func step_sound(kind: String) -> String:
+	if kind == SLIME:
+		return SewerSlime.step_sound()
 	var sounds: String = STEPS.get(kind, "")
 	var k := randi() % STEP_SOUNDS
 	return "step_%d" % k if sounds.is_empty() else "step_%s_%d" % [sounds, k]

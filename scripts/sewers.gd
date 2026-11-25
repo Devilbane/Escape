@@ -693,7 +693,8 @@ static func _normals_of(height: PackedFloat32Array, size: int, strength: float) 
 
 ## Builds everything down here that is no part of the sketch, under `parent` (shown only while the
 ## hero is down in a cellar): the kerb and the water of the channel with the rubbish it carries, the
-## sluice where the stream comes in, the outfall's bars, the lamps and the light shafts under the
+## sluice where the stream comes in, the outfall's bars, the lamps, the slime patches on the floor (see
+## SewerSlime) and the light shafts under the
 ## street drains. The kerb stops the hero (nobody wades the channel); so do the bars.
 static func build(level: Level, parent: Node3D) -> void:
 	var body := StaticBody3D.new()
@@ -706,6 +707,7 @@ static func build(level: Level, parent: Node3D) -> void:
 	_ribs(parent)
 	_litter(parent)
 	_pipes(parent)
+	SewerSlime.build(parent)
 	for tile: Vector2i in GRILLES:
 		_light_shaft(parent, tile)
 	for hatch: Dictionary in HATCHES:

@@ -466,6 +466,12 @@ var roofs := {}:
 		IndoorMask.mark()
 		if snow != null:
 			snow.set_shelter(roofs, width, height, TILE)
+## The cells (see HouseGround.cell_at) over a house's cellar: dug cells and the cells of the cellar stairs,
+## also those beyond the roof. Below the ground there no weather shows (see IndoorMask).
+var pits := {}:
+	set(value):
+		pits = value
+		IndoorMask.mark()
 ## Where something burns (campfires, the forge, smoking chimneys): xyz and how far round it no snow
 ## settles (see SnowCover.set_warm).
 var warm_spots: Array[Vector4] = []

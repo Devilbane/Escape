@@ -61,6 +61,14 @@ func _unit_checks() -> void:
 	house.pieces.erase(HouseSketch.key_of(4, 0, HouseSketch.CELL_ORIENT))
 	house.pieces[HouseSketch.key_of(1, 1, "x")].state = HouseSketch.SKETCH
 	check(HouseGround.shelter(house).is_empty(), "a sketched wall leaves the ring open")
+	# A cellar reaching beyond the roof: its dug cells and the first two cells of its stairs keep the weather
+	# out below the ground (see IndoorMask), under the roof or not.
+	house.pieces[HouseSketch.key_of(7, 7, HouseSketch.CELL_ORIENT, HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.DIG, "state": HouseSketch.BUILT}
+	house.pieces[HouseSketch.key_of(4, 7, "e", HouseSketch.CELLAR_STOREY)] = {"kind": HouseSketch.STAIRS, "state": HouseSketch.BUILT}
+	var pits := HouseGround.pits(house)
+	check(pits.has(HouseGround.cell_at(house.cell_world(7, 7))), "a dug cell is a pit")
+	check(pits.has(HouseGround.cell_at(house.cell_world(4, 7))) and pits.has(HouseGround.cell_at(house.cell_world(5, 7))), "the cellar stairs' two cells are pits")
+	check(pits.size() == 3, "nothing else is (%d)" % pits.size())
 
 
 func _process(_delta: float) -> bool:

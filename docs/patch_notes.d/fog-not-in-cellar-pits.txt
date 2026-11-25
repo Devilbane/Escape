@@ -1,0 +1,1 @@
+- Fog no longer shows on a cellar's stairs or over the part of a cellar that reaches beyond the house's roof.

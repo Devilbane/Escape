@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Fix the flaky foot_lobes walks (hero landing, a dead hero on a mound); Give waking geese goose sounds (+8 more) | Shipped this week: Move foot_lobes to nightly until the mountain-foot regression is fixed (+49 more)
+Escape! dev status | Working on: Show a monster's "!" alert once per hunt; Make wild glow mushrooms larger; Fix the flaky foot_lobes walks (hero landing, a dead hero on a mound) (+9 more) | Shipped this week: Move foot_lobes to nightly until the mountain-foot regression is fixed (+49 more)

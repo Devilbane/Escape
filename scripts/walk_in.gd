@@ -106,7 +106,7 @@ const UPPER_FROM := 1.0
 ## beds (metres), its height, and the doorway's width.
 const PARTITION_GAP := 0.2
 const PARTITION_HIGH := 2.5
-const PARTITION_DOOR := 1.0
+const PARTITION_DOOR := 1.5
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
 const BED_WIDE := CosyBed.RIGHT - CosyBed.LEFT
 const BED_GAP := 0.1

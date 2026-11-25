@@ -154,3 +154,6 @@ end faded out).
 
 The village cat's purr (cat_purr): made from scratch by tools/make_cat_purr.py (damped low tones and filtered noise,
 no recordings), so it has no licence to credit.
+
+The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from scratch by tools/make_goose_sounds.py
+(a buzzing pulse train through nasal formants, no recordings), so they have no licence to credit.

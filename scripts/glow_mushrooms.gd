@@ -45,6 +45,8 @@ const SIZES := [26, 26, 20, 9, 8, 3, 2]
 const VILLAGE_CLEAR := 30.0
 ## A patch is picked by walking this close to it (metres).
 const REACH := 1.0
+## How much bigger than modelled the wild mushrooms stand (a bigger patch is easier to spot and to pick).
+const SIZE_SCALE := 1.4
 ## How big the pool of light on the ground is (metres across) and how strong, and how high above the ground it lies.
 const POOL := 2.8
 const POOL_STRENGTH := 0.4
@@ -410,7 +412,8 @@ static func patches_for(level: Level, day: int) -> Array:
 		if out.any(func(s: Dictionary) -> bool: return Vector2(s.cell).distance_to(Vector2(c)) < SPACING):
 			continue
 		var at := level.cell_to_world(c) + Vector3(rng.randf_range(-0.9, 0.9), 0.0, rng.randf_range(-0.9, 0.9))
-		at.y = 0.0
+		# On the mountain foot's mounds the ground is higher: stand on top of it, not in it.
+		at.y = MountainFoot.surface_at(level, at.x, at.z)
 		out.append({"cell": c, "pos": at, "kind": pick_kind(rng, not level is Outdoor), "count": 1 + _weighted(rng, SIZES),
 				"variant": rng.randi() % VARIANTS})
 	return out
@@ -475,11 +478,12 @@ static func _grow(level: Level, patch: Dictionary, key: String, animate: bool) -
 	cluster.name = "Cluster"
 	cluster.mesh = cluster_mesh(kind, patch.count, patch.variant)
 	cluster.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	cluster.scale = Vector3.ONE * SIZE_SCALE
 	holder.add_child(cluster)
 	var pool := MeshInstance3D.new()
 	pool.name = "Pool"
 	var quad := PlaneMesh.new()
-	quad.size = Vector2.ONE * POOL * (0.6 + 0.1 * patch.count)
+	quad.size = Vector2.ONE * POOL * (0.6 + 0.1 * patch.count) * SIZE_SCALE
 	pool.mesh = quad
 	pool.material_override = pool_material(kind)
 	pool.position = Vector3(0, 0.04, 0)

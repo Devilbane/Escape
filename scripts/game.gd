@@ -2019,15 +2019,18 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == HouseFurniture.CANDLE_STATION:
 		player.face(s.pos - player.global_position)
 		house_furnisher.toggle_candles(s)
-	elif s.kind == Seats.KIND and level is Outdoor and level.bench_rest.taken(s):
-		# Someone from the village rests there already (see BenchRest).
+	elif s.kind == Seats.KIND and level is Outdoor and (level.bench_rest.taken(s) or level.barber_chair.taken(s)):
+		# Someone from the village rests there already (see BenchRest, BarberChair).
 		player.face(s.pos - player.global_position)
-		var taken_text := Lang.t("Auf dieser Bank sitzt schon jemand.")
+		var taken_text := Lang.t("Im Barbierstuhl sitzt schon jemand.") if s.get("barber", false) else Lang.t("Auf dieser Bank sitzt schon jemand.")
 		# Once per push against it, not every bump of a held key.
 		if _message.text != taken_text or _message.modulate.a < 0.05:
 			show_message(taken_text, read_time(taken_text))
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
+		if s.get("barber", false) and level is Outdoor:
+			# Benno's chair: the cape goes on and his window opens (see BarberChair).
+			level.barber_chair.hero_sits(self, level)
 	else:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
@@ -4099,6 +4102,7 @@ func begin_new_game() -> void:
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
+	MatthesLife.clear()
 	village_worries.clear()
 	village_rumours.clear()
 	drinking_songs.clear()
@@ -4603,6 +4607,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
+	MatthesLife.load_from(data.get("matthes_love", {}))
 	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
 	MonsterLore.load_from(data.get("monster_lore", {}))
@@ -4884,6 +4889,7 @@ func hero_record() -> Dictionary:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
+		"matthes_love": MatthesLife.for_save(),
 		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
 		"monster_lore": MonsterLore.for_save(),
@@ -8423,7 +8429,7 @@ func _process(delta: float) -> void:
 			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
 			SilverSilk.KIND: Lang.t("Dagegenlaufen, um die Silberseide zu ernten"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
-			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
+			Seats.KIND: Lang.t("Dagegenlaufen, um dich in den Barbierstuhl zu setzen") if station.get("barber", false) else Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
 		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind, station)))
 	elif _prompt.text == "" and at_camp():

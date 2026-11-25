@@ -234,7 +234,7 @@ static func mage(village: Outdoor, role: String) -> Villager:
 
 ## The duel ground on the market square: where Aldo and Odo stand, north and south of each other, on the
 ## middle line between the crafting benches in the west and the apple trees round the fountain in the
-## east, as far apart as GROUND_APART lets the open ground be. [Aldo's place, Odo's place], or [] when
+## east (the fountain's own trees: not the gardens' or the pockets'), as far apart as GROUND_APART lets the open ground be. [Aldo's place, Odo's place], or [] when
 ## the village has no such stretch (or it is crowded): the duel is held where Aldo stands then.
 static func duel_ground(village: Outdoor) -> Array:
 	var bench_x := -INF
@@ -246,7 +246,7 @@ static func duel_ground(village: Outdoor) -> Array:
 	var tree_x := INF
 	for t in village.square_trees:
 		var tree = t.get("node")
-		if tree is Node3D and not t.has("garden"):
+		if tree is Node3D and not t.has("garden") and not t.has("pocket"):
 			tree_x = minf(tree_x, (tree as Node3D).global_position.x)
 	if bench_x == -INF or tree_x == INF or tree_x - bench_x < 8.0:
 		return []

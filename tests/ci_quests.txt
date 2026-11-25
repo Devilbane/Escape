@@ -5,22 +5,22 @@
 village_run.gd | 120 | free | pass | scripts/village_run.gd | The protected run from the crypt to the village (two minutes, ends at the village)
 dragon_hoard.gd | 300 | free | pass | scripts/dragon_hoard.gd scripts/dragon_helpers.gd | Dragon's helpers and hoard test
 spider_hole.gd | 120 | fixed | pass | scripts/spider_queen.gd levels/16_das_spinnenloch.txt levels/27_das_nest_der_koenigin.txt | Spider hole and Spider Queen test
-quests.gd | 120 | free | pass | scripts/quests.gd scripts/lang/quests.gd | Villager quests test
-tutorial.gd | 120 | fixed | pass | scripts/tutorial.gd levels/01_die_zelle.txt | First steps in the cell (tutorial cards) test
-dragon_lair.gd | 120 | fixed | pass | scripts/dragon_lair.gd levels/13_die_drachenhoehle.txt | Dragon's lair test
-dragon_boss.gd | 120 | fixed | pass | scripts/dragon.gd scripts/dragon_lair.gd scripts/fire_field.gd | Dragon boss fight test
-bandit_chief.gd | 120 | fixed | pass | scripts/bandit_chief.gd | Bandit chief boss fight test
+quests.gd | 240 | free | pass | scripts/quests.gd scripts/lang/quests.gd | Villager quests test
+tutorial.gd | 240 | fixed | pass | scripts/tutorial.gd levels/01_die_zelle.txt | First steps in the cell (tutorial cards) test
+dragon_lair.gd | 240 | fixed | pass | scripts/dragon_lair.gd levels/13_die_drachenhoehle.txt | Dragon's lair test
+dragon_boss.gd | 240 | fixed | pass | scripts/dragon.gd scripts/dragon_lair.gd scripts/fire_field.gd | Dragon boss fight test
+bandit_chief.gd | 240 | fixed | pass | scripts/bandit_chief.gd | Bandit chief boss fight test
 stone_puzzle.gd | 120 | fixed | pass | scripts/stone_block.gd levels/03_das_labyrinth.txt | Stone walls and the block-pushing puzzle test
 ash_spire.gd | 300 | fixed | pass | scripts/ash_*.gd scripts/archivist.gd levels/*_sonnet.txt | Ashen Spire test (floors, sweepers, ledge, grimoire, respawn)
-treasure_maps.gd | 120 | fixed | pass | scripts/treasure_maps.gd | Treasure maps test
+treasure_maps.gd | 240 | fixed | pass | scripts/treasure_maps.gd | Treasure maps test
 mountains.gd | 200 | fixed | pass | scripts/mountains.gd scripts/mines.gd scripts/mountain_king.gd | Mountains, tavern and mines test
 elder_lair.gd | 200 | fixed | pass | scripts/elder_lair.gd scripts/elder_dragon.gd levels/26_das_lager_des_grossen_alten.txt | The Great Old One's dungeon (sneak to the hoard, epic treasure rooms)
 sternhall.gd | 300 | fixed | pass | scripts/stern*.gd scripts/arcane_bolt.gd levels/38_der_sternenschlund.txt levels/39_das_sternengewoelbe.txt | Sternhall (star reliefs, wardens, eyes, the chasm, the tome and the drain)
-bounties.gd | 120 | free | passfail | scripts/bounties.gd | Bounty board (taken, counted and paid once; kept in the saved game)
-lost_mine.gd | 180 | fixed | passfail | scripts/lost_mine.gd | Forgotten silver mine: under the forest, drawn like a house cellar with whole ground over it, pages, gate, no plots over it
-map_storeys.gd | 180 | fixed | passfail | scripts/map_view.gd scripts/journal.gd scripts/lang/map_storeys.gd scripts/lost_mine.gd | Map floors: the silver mine's tunnels go on the open air's map as a second floor, switched with buttons or Page Up/Down
+bounties.gd | 240 | free | passfail | scripts/bounties.gd | Bounty board (taken, counted and paid once; kept in the saved game)
+lost_mine.gd | 300 | fixed | passfail | scripts/lost_mine.gd | Forgotten silver mine: under the forest, drawn like a house cellar with whole ground over it, pages, gate, no plots over it
+map_storeys.gd | 300 | fixed | passfail | scripts/map_view.gd scripts/journal.gd scripts/lang/map_storeys.gd scripts/lost_mine.gd | Map floors: the silver mine's tunnels go on the open air's map as a second floor, switched with buttons or Page Up/Down
 sewers.gd | 240 | fixed | passfail | scripts/sewers.gd scripts/spooknortz.gd scripts/lang/spooknortz.gd scripts/sewer_surface.gd scripts/sewer_slime.gd scripts/stream_flow.gd scripts/journal.gd scripts/map_view.gd scripts/cellar_view.gd scripts/house_sketcher.gd shaders/sewer_water.gdshader levels/11_die_freiheit.txt | Village sewers: stream to the grating, drain under the village, manhole hatches, outfall, drawn under whole ground
-sewer_slime.gd | 120 | fixed | passfail | scripts/sewer_slime.gd scripts/sewers.gd scripts/surfaces.gd assets/sounds/slime_squelch_0.wav tools/make_slime_squelch.py | Slime patches on the sewers' floors: ragged blobs on walkway and chambers, squelching and slightly slowing steps
+sewer_slime.gd | 240 | fixed | passfail | scripts/sewer_slime.gd scripts/sewers.gd scripts/surfaces.gd assets/sounds/slime_squelch_0.wav tools/make_slime_squelch.py | Slime patches on the sewers' floors: ragged blobs on walkway and chambers, squelching and slightly slowing steps
 rock_climber.gd | 600 | fixed | passfail | scripts/climber_*.gd scripts/lang/climber_npc.gd scripts/climb_spots.gd scripts/rock_climb.gd scripts/rope_climb_pose.gd | The rock climber Wolfram: climbs the face under the climbing rules, rests at the top, comes down taking nails and rope; watching him ripens Klettern; his limited, dearer gear
 summit_garden.gd | 400 | fixed | passfail | scripts/summit_garden.gd scripts/lang/summit_garden.gd scripts/climb_spots.gd scripts/rock_climb.gd | The secret garden on the mountain: the hidden level 16 climb, the silver edelweiss that grows back, the tablet and the healing spring
 spook_raid.gd | 240 | fixed | passfail | scripts/spook_raid.gd shaders/ghoul_sneak.gdshader scripts/spooknortz.gd scripts/lang/spooknortz.gd levels/11_die_freiheit.txt | Spooknortz sneaks through the village at night: climbs out of the street drain, steals at two houses, goes home; the hero can catch him in the act

@@ -44,3 +44,4 @@ spring_cave.gd | scripts/spring_cave.gd scripts/waterfall.gd shaders/waterfall.g
 silver_silk.gd | scripts/silver_silk.gd scripts/dungeon_life.gd scripts/lang/silver_silk.gd scripts/crafting.gd scripts/item_icon.gd assets/ui/icons/spider_silk.svg
 furniture_passage.gd | scripts/house_furniture.gd scripts/house_sketch.gd scripts/lang/furniture.gd
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
+parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd

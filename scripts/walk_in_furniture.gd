@@ -161,6 +161,7 @@ static func candle_shelf() -> Node3D:
 	glow.position = Vector3(0.12, 0.4, 0.35)
 	# Walls all round it (see LightShadows.INDOOR), or it lit the ivy outside through the wall.
 	glow.set_meta(LightShadows.INDOOR, true)
+	glow.set_meta(LightShadows.WALL_CANDLE, true)
 	root.add_child(glow)
 	return root
 
@@ -202,6 +203,7 @@ static func sconce() -> Node3D:
 	# Walls all round it: picked for its wall shadows before the lamps in the open (see
 	# LightShadows.INDOOR), or its light fell through the house's walls onto the ivy and the snow.
 	glow.set_meta(LightShadows.INDOOR, true)
+	glow.set_meta(LightShadows.WALL_CANDLE, true)
 	glow.visible = false
 	root.add_child(glow)
 	return root

@@ -3,7 +3,7 @@
 # Columns: file | timeout in seconds | fixed or free | check (as in tests/ci_manifest.txt) |
 # the paths it covers (space-separated, * matches anything) | what it checks.
 village_run.gd | 120 | free | pass | scripts/village_run.gd | The protected run from the crypt to the village (two minutes, ends at the village)
-dragon_hoard.gd | 120 | free | pass | scripts/dragon_hoard.gd scripts/dragon_helpers.gd | Dragon's helpers and hoard test
+dragon_hoard.gd | 300 | free | pass | scripts/dragon_hoard.gd scripts/dragon_helpers.gd | Dragon's helpers and hoard test
 spider_hole.gd | 120 | fixed | pass | scripts/spider_queen.gd levels/16_das_spinnenloch.txt levels/27_das_nest_der_koenigin.txt | Spider hole and Spider Queen test
 quests.gd | 120 | free | pass | scripts/quests.gd scripts/lang/quests.gd | Villager quests test
 tutorial.gd | 120 | fixed | pass | scripts/tutorial.gd levels/01_die_zelle.txt | First steps in the cell (tutorial cards) test

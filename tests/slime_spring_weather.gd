@@ -48,6 +48,12 @@ func _run() -> void:
 	for w in [Weather.RAIN, Weather.FOG, Weather.STORM]:
 		check(SlimeGrowth.may_crawl(w, spring), "slimes may crawl in spring %s" % w)
 		check(not SlimeGrowth.may_crawl(w, summer), "no slimes in summer %s" % w)
+	var autumn := Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1
+	var winter := Weather.YEAR_DAYS - 1
+	check(Weather.is_winter(winter) and Weather.is_autumn(autumn), "day setup: winter")
+	check(not SlimeGrowth.may_crawl(Weather.FOG, autumn) and not SlimeGrowth.may_crawl(Weather.RAIN, autumn), "no slimes in autumn")
+	check(SlimeGrowth.may_crawl(Weather.FOG, winter), "winter fog brings frost slimes")
+	check(not SlimeGrowth.may_crawl(Weather.RAIN, winter) and not SlimeGrowth.may_crawl(Weather.STORM, winter) and not SlimeGrowth.may_crawl(Weather.CLEAR, winter), "winter without fog has none")
 	check(not SlimeGrowth.may_crawl(Weather.CLEAR, spring), "no slimes in clear spring skies")
 	check(not SlimeGrowth.may_crawl(Weather.SNOW, spring), "no slimes in snow")
 	# Spots: only in spring.

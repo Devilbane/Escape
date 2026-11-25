@@ -32,8 +32,8 @@ extends RefCounted
 ## - Wandering: in the open air a slime does not keep to its home but
 ##   wanders the whole map (WANDER_TILES at a go), the graveyard and the
 ##   mountains too.
-## - Weather: the slimes of the open air come only in spring, in rain, storm or
-##   fog (see may_crawl); when it clears or the season turns they go to the pond.
+## - Weather: the slimes of the open air come only in spring bad weather and in winter fog (see
+##   may_crawl); when it clears or the season turns they go to the pond.
 ## - Lasting: the slimes of the open air stay in the world while the hero
 ##   is in a dungeon or a house, and in the saved game (see snapshot and
 ##   restore): where they are, their level, colour, life and belly.
@@ -73,6 +73,8 @@ const PREY_MARGIN := 2
 const SLIME_GAP := 2
 ## The colours of the plain slimes (the water they are made of). The first
 ## one is the classic murky green of the neglected fountain (no tint).
+## The icy tint of a plain slime in winter (see born and SlimeShatter).
+const FROST := Color(0.7, 0.9, 1.0)
 const COLOURS := [
 	null,
 	Color(0.25, 0.55, 1.0), # blue
@@ -133,10 +135,13 @@ static func grows(kind: String) -> bool:
 	return kind in GROWERS
 
 
-## Whether slimes may crawl about the open air: only in spring, and only in bad weather (rain,
-## storm or fog). In any other season or weather they retreat to the pond (see SlimeLife).
+## Whether slimes may crawl about the open air: in spring in bad weather (rain, storm or fog),
+## in winter only in fog (frozen slimes that shatter into slime crystals, see SlimeShatter),
+## never in summer or autumn. Otherwise they retreat to the pond (see SlimeLife).
 ## The slimes of the sewers and mines do not care about the weather.
 static func may_crawl(weather: String, season_day: int) -> bool:
+	if Weather.is_winter(season_day):
+		return weather == Weather.FOG
 	return Weather.is_spring(season_day) and SlimeLife.is_wet(weather)
 
 
@@ -202,6 +207,10 @@ static func born(e: Enemy) -> void:
 		var colour = COLOURS[randi() % COLOURS.size()]
 		if colour != null:
 			e._stats.tint = colour
+		# In winter the plain slimes of the open air are frozen through: pale, glassy ice
+		# (the random colour is still drawn, so the random stream stays the same).
+		if e.level is Outdoor and Weather.is_winter((e.level as Outdoor).season_day):
+			e._stats.tint = FROST
 	var fixed: bool = e.custom.has("hp") or e.custom.has("damage")
 	# A slime kept from before (see snapshot): back at its own level.
 	if e.custom.has("kept_level"):

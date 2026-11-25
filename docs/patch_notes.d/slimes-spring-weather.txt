@@ -1,1 +1,1 @@
-- Slimes now only crawl out in spring, in rain, storm or fog, and retreat to the pond when it clears.
+- Slimes now only crawl out in spring rain, storm or fog, and in winter fog as icy slimes that shatter into slime crystals; they never appear in summer or autumn.

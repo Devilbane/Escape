@@ -982,6 +982,8 @@ func _build_ground() -> void:
 			piece.mesh = plane
 			piece.material_override = mat
 			piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# The candles of the village's houses do not light the ground outside (see LightShadows.GROUND).
+			piece.set_meta(LightShadows.GROUND, true)
 			piece.position = Vector3((cx - 0.5) * TILE + size * 0.5, 0, (cy - 0.5) * TILE + size * 0.5)
 			add_child(piece)
 

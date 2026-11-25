@@ -224,6 +224,7 @@ stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the
 underground_shadows.gd | 120 | free | passfail | Buried rooms far from the hero stop casting shadows (cheaper frames), near ones still do
 mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn, summer and winter: lobes, mounds and stones in the grass (screenshots)
 river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too
+house_wall_light_shots.gd | 600 | free | passfail | Candles inside the village's houses light neither the outside walls nor the ground (SHOTS=<folder> renders it)
 pond_frogs.gd | 120 | fixed | pass | Pond frogs: a few on the banks and in the water, hop and swim, croak more at night, hibernate in winter
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 sowing.gd | 180 | fixed | pass | Spring sowing (fields start bare, a handful sows a tile, sprouts grow over days, auto-sow, the farmer throws seed with a bag)

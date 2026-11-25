@@ -115,7 +115,7 @@ const BLOCK_MODELS := {
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
-	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
+	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "die Schenke Apples & Ivy!", "m": "den Laden",
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
 	"|": "die Ruinen von Sternhall", "\"": "die Verlassene Wüste",
 }
@@ -534,6 +534,10 @@ var _village_near := {}
 ## What the dressing found for each building (see _dress_building), kept
 ## for the session.
 static var _dressed := {}
+## While the village is built, the dressings are collected and grown on worker threads (see _dress_building).
+var _dress_batch := false
+var _dress_queue: Array = []
+var _dress_keys := {}
 ## Nests at most, and how likely one of Weavers' Lane's town houses gets ivy
 ## and a nest (the other buildings all have ivy, and most of them a nest).
 const MAX_NESTS := 10
@@ -668,15 +672,16 @@ var weather := ""
 ## What comes out in which weather (one or more groups): the kind, how many
 ## at most, the map letter they gather around; then how long until a fallen
 ## one is replaced, and how far from the hero they appear (never within
-## sight). Slimes love bad weather: they crawl out of the pond in the rain
-## and the storm, and in the fog too (see SlimeGrowth).
+## sight). Slimes love bad weather: in spring they crawl out of the pond in
+## the rain, the storm and the fog, and only then (see SlimeGrowth.may_crawl).
 const WEATHER_FOES := {
 	Weather.RAIN: [{"kind": "schleim", "count": 12, "near": "~"}],
 	Weather.FOG: [{"kind": "fog_wraith", "count": 6, "near": "d"}, {"kind": "schleim", "count": 8, "near": "~"}],
 	Weather.STORM: [{"kind": "fledermaus", "count": 5, "near": "r"}, {"kind": "schleim", "count": 8, "near": "~"}],
 }
 const WEATHER_RESPAWN := 80.0
-## Slimes stay when the weather turns; at most this many crawl about.
+## Slimes retreat to the pond when the spring weather clears (see SlimeLife);
+## at most this many crawl about.
 const SLIMES_AT_MOST := 24
 const WEATHER_FAR := 14.0
 ## In a thunderstorm lightning strikes every so often (seconds, picked at
@@ -708,6 +713,8 @@ var sweep_dust: SweepDust
 
 ## Reeds and cattails round the ponds, with their caps of snow (see PondReeds).
 var pond_reeds: PondReeds
+## The frogs at the water, built with the reeds (see PondFrogs).
+var pond_frogs: PondFrogs
 ## Every pond tile (see IceCover).
 var _pond_waters: Array = []
 var _ground_mat: ShaderMaterial
@@ -778,6 +785,8 @@ func build() -> void:
 	meals.garland.build(self, meals.tables, _ivy)
 	# The braziers that warm the diners in winter (see MealBraziers).
 	meals.braziers.build(self, meals.tables)
+	# The tavern's pub sign on a post south of the two dining tents (see PubSign).
+	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -798,10 +807,10 @@ func build() -> void:
 	square_trees.append_array(AppleTree.plant_in_village(self))
 	# And one in each grass pocket framed by paths.
 	square_trees.append_array(AppleTree.plant_in_pockets(self, square_trees))
-	AppleTree.dress(square_trees, day)
 	# And a few more, spread over the ground the autumn leaves cover, so they have a tree to come from.
 	leaf_trees = AppleTree.plant_for_leaves(self, square_trees)
-	AppleTree.dress(leaf_trees, day)
+	# The trees grow on the worker threads while the mountains are built (see AppleTree.dress_begin).
+	var dressing := AppleTree.dress_begin(square_trees + leaf_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -814,6 +823,7 @@ func build() -> void:
 	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
 	MountainFoot.apply(self)
 	MountainFoot.scatter(self)
+	AppleTree.dress_end(dressing)
 	if waterfall != null:
 		waterfall.lay_water(self)
 	_build_forest()
@@ -852,6 +862,8 @@ func build() -> void:
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
 	pond_reeds = PondReeds.grow(self, _pond_waters)
+	if not _pond_waters.is_empty():
+		pond_frogs = PondFrogs.grow(self, _pond_waters)
 	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []
@@ -2403,6 +2415,7 @@ func _build_fence(c: Vector2i, gate: bool) -> void:
 ## Each block of building tiles gets one building, scaled to fill it.
 func _build_blocks() -> void:
 	walk_in = WalkIn.new(self)
+	_dress_collect()
 	var seen := {}
 	for y in height:
 		for x in width:
@@ -2419,6 +2432,7 @@ func _build_blocks() -> void:
 				for bx in range(block.position.x, block.end.x):
 					seen[Vector2i(bx, by)] = true
 			_build_block(ch, block)
+	_dress_settle()
 
 
 func _build_block(ch: String, block: Rect2i) -> void:
@@ -2468,9 +2482,7 @@ func _build_block(ch: String, block: Rect2i) -> void:
 			var rec := walk_in.claim(node, "house", block)
 			if ch == "ß":
 				rec["owner"] = SmithCottage.OWNER
-		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
-		if walk_in.has(node):
-			walk_in.open_house(node)
+		_dress_building(node, center, [door], 0.75, AgedStone.IVY_PATCHES, _standalone(block), 0.0, 0.0, 1.0, false, 0, SnowCaps.LOWEST, _open_house.bind(node))
 	elif VillageHalls.KINDS.has(ch) and WalkIn.is_on(ch):
 		# A hall rebuilt in the village's style to be walked into (see VillageHalls).
 		# Its own dice, so switching a hall on or off leaves every other building as it was.
@@ -2556,17 +2568,18 @@ func _build_block(ch: String, block: Rect2i) -> void:
 					door_spots.append(door + Vector3(x, 0, z).rotated(Vector3.UP, rot))
 			# No nest on the temple: the spire stands at the front of its ridge and hides anything on it
 			# from the game camera; the nest goes to another roof instead.
-			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW)
-			_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
-			if walk_in.has(node):
-				walk_in.open_temple(node)
-				for lamp in find_children("TempleLamp*", "Node3D", false, false):
-					walk_in.add_front(node, lamp)
+			# Its stones and its opening wait for the dressing to be in place (see _dress_building).
+			var finish := func() -> void:
+				_temple_stones(node, center, door, Vector3(facing.x, 0, facing.y))
+				if walk_in.has(node):
+					walk_in.open_temple(node)
+					for lamp in find_children("TempleLamp*", "Node3D", false, false):
+						walk_in.add_front(node, lamp)
+			_dress_building(node, center, door_spots, 0.0, TEMPLE_IVY, true, 0.0, 0.0, 1.0, false, TEMPLE_ROOF_VINES, TEMPLE_STEP_SNOW, finish)
 		elif walk_in.has(node):
 			# A hall wears ivy like the villagers' houses (see VillageHalls).
 			var hall_door: Vector3 = node.transform * (node.get_meta("door") as Vector3)
-			_dress_building(node, center, [hall_door], 0.75, AgedStone.IVY_PATCHES, _standalone(block))
-			walk_in.open_house(node)
+			_dress_building(node, center, [hall_door], 0.75, AgedStone.IVY_PATCHES, _standalone(block), 0.0, 0.0, 1.0, false, 0, SnowCaps.LOWEST, _open_house.bind(node))
 		elif ch == "w" or ch == "k":
 			# The gate's passage runs from the front in to the middle: all of it stays free of ivy.
 			var gate := [0.0, 0.25, 0.5, 0.75, 1.0].map(func(t: float): return front.lerp(center, t))
@@ -2670,6 +2683,26 @@ func _bank_sign(door: Vector3) -> void:
 	box.position = box_at
 	add_child(box)
 	_add_solid(box_at + Vector3(0, 0.5, 0), box.get_meta("solid_size"))
+
+
+## Where the pub sign's post stands south of the dining tables' middle line, and the sign's board
+## (it hangs a bit out from the post) is centred between the two tents.
+const PUB_POST_SOUTH := 3.4
+
+
+## The pub's sign on the village square: a freestanding post with an iron bracket, the painted board
+## of Apples & Ivy! hanging between the two dining tents, a little south of them (see PubSign).
+func _square_pub_sign() -> void:
+	if meals.tables.size() < 2:
+		return
+	var a: Vector3 = meals.tables[0]
+	var b: Vector3 = meals.tables[1]
+	var at := Vector3((a.x + b.x) * 0.5 - PubSign.ARM_OUT * 0.53, 0.0, maxf(a.z, b.z) + PUB_POST_SOUTH)
+	var post := PubSign.on_post()
+	post.name = "PubSignSquare"
+	post.position = at
+	add_child(post)
+	_add_solid(at, Vector3(0.62, PubSign.POST_HIGH, 0.62))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level
@@ -3301,62 +3334,143 @@ func _standalone(block: Rect2i) -> bool:
 ## time; and what was found is kept, so when the hero steps out of the crypt
 ## the village built behind the title screen (see WorldPreload) has already
 ## done the work.
-func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST) -> void:
+func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chance := 0.75, patches := AgedStone.IVY_PATCHES, old := false, foot_max := 0.0, proud := 0.0, window_room := 1.0, all_sides := false, roof_vines := 0, cap_from := SnowCaps.LOWEST, then := Callable()) -> void:
 	# Stone buildings (old) also carry icicles under their ledges.
 	if old:
 		patches = maxi(patches, AgedStone.OLD_IVY_PATCHES)
 	var key := "%s|%s|%s|%s|%s|%s" % [level_name, middle, _bounds_in(node), old, foot_max, proud]
-	if not _dressed.has(key):
-		var rng := RandomNumberGenerator.new()
-		rng.seed = hash(key)
-		# The meshes are read in world space (a copy of the village is built
-		# far below, see WorldPreload); the ivy and the nest are kept in the
-		# village's own.
-		var offset := global_position
-		var tris := AgedStone.triangles(node)
-		var ground := node.global_position.y
-		var doors_at := door_spots.map(func(d: Vector3): return d + offset)
-		var leaves := {"xforms": [], "colours": []}
-		# Window panes the house builder noted (see VillageHouse), in world space.
-		var panes: Array = (node.get_meta("windows", []) as Array).map(func(w: Vector3): return node.global_transform * w)
-		if panes.is_empty():
-			panes = AgedStone.window_panes(tris, WINDOW_UV)
-		panes.append_array(AgedStone.glass_boxes(tris))
-		var ivy_tris := tris
-		var roof_reach := 0.0
-		var density := AgedStone.IVY_DENSITY
-		if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
-			ivy_tris = MageTower.ivy_faces(node, tris)
-			roof_reach = MageTower.IVY_ROOF_REACH + float(GuildHall.layout(node.get_meta("shape")).deck) + MageTower.TOP_H
-			density = MageTower.IVY_DENSITY # Three floors and a roof: more ivy than a house, to cover the top room too.
-		AgedStone.grow_ivy(ivy_tris, middle + offset, ground, doors_at, rng, leaves, patches, old, panes, foot_max, proud, window_room, all_sides, roof_vines, density, roof_reach)
-		for i in leaves.xforms.size():
-			leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
-		var stems: Array = leaves.get("stems", [])
-		for i in stems.size():
-			stems[i] = (stems[i] as Transform3D).translated(-offset)
-		var grapes: Array = leaves.get("grapes", [])
-		for i in grapes.size():
-			grapes[i] = (grapes[i] as Transform3D).translated(-offset)
-		var spot := Vector3.INF
-		if rng.randf() < nest_chance:
-			# Never by a chimney or a fire, where the birds would be smoked.
-			var smoky: Array = []
-			if node.has_meta("chimney"):
-				smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
-			for w: Vector4 in warm_spots:
-				smoky.append(Vector3(w.x, w.y, w.z) + offset)
-			spot = AgedStone.nest_spot(tris, ground, smoky)
-		# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
-		# (shown only while snow lies, see SnowCaps), with dice of their own.
-		var ice_rng := RandomNumberGenerator.new()
-		ice_rng.seed = hash(key + "schnee")
-		var caps := SnowCaps.build(tris, ground, SnowCaps.windows_of(node, tris, WINDOW_UV), ice_rng, -offset, cap_from, old, SnowCaps.ledges_of(node))
+	var job := {}
+	if not _dressed.has(key) and not _dress_keys.has(key):
+		job = _dress_prepare(node, middle, door_spots, nest_chance, patches, old, foot_max, proud, window_room, all_sides, roof_vines, cap_from, key)
+	var entry := {"node": node, "middle": middle, "key": key, "job": job, "then": then}
+	if not _dress_batch:
+		if not job.is_empty():
+			_dress_grow(job)
+		_dress_apply(entry)
+		return
+	# While the village is being built the ivy and the snow are grown on the worker threads, as the
+	# buildings come, and put in their places in the same order at the end (see _dress_settle).
+	if not job.is_empty():
+		_dress_keys[key] = true
+		job["task"] = WorkerThreadPool.add_task(_dress_grow.bind(job), true)
+	_dress_queue.append(entry)
+
+
+## Opens a walked-in house once its dressing is in place (see _dress_building).
+func _open_house(node: Node3D) -> void:
+	if walk_in.has(node):
+		walk_in.open_house(node)
+
+
+## Starts collecting dressings (see _dress_building) to grow side by side; `_dress_settle` ends it.
+func _dress_collect() -> void:
+	_dress_batch = true
+
+
+## Waits for every dressing collected and puts each in its place, in the order they were asked for,
+## so the village comes out the same as if they had been done one by one.
+func _dress_settle() -> void:
+	var queue := _dress_queue
+	_dress_queue = []
+	for entry: Dictionary in queue:
+		var job: Dictionary = entry.job
+		if job.has("task"):
+			WorkerThreadPool.wait_for_task_completion(job.task)
+	_dress_batch = false
+	for entry: Dictionary in queue:
+		_dress_apply(entry)
+	_dress_keys.clear()
+
+
+## Everything a dressing reads from the scene (the part that must run on the main thread): the
+## building's triangles, windows, doors and chimney, with the dice it will use.
+func _dress_prepare(node: Node3D, middle: Vector3, door_spots: Array, nest_chance: float, patches: int, old: bool, foot_max: float, proud: float, window_room: float, all_sides: bool, roof_vines: int, cap_from: float, key: String) -> Dictionary:
+	var job := {"key": key, "middle": middle, "nest_chance": nest_chance, "patches": patches, "old": old, "foot_max": foot_max,
+			"proud": proud, "window_room": window_room, "all_sides": all_sides, "roof_vines": roof_vines, "cap_from": cap_from}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(key)
+	job["rng"] = rng
+	# The meshes are read in world space (a copy of the village is built
+	# far below, see WorldPreload); the ivy and the nest are kept in the
+	# village's own.
+	var offset := global_position
+	var tris := AgedStone.triangles(node)
+	var ground := node.global_position.y
+	var doors_at := door_spots.map(func(d: Vector3): return d + offset)
+	# Window panes the house builder noted (see VillageHouse), in world space.
+	var panes: Array = (node.get_meta("windows", []) as Array).map(func(w: Vector3): return node.global_transform * w)
+	if panes.is_empty():
+		panes = AgedStone.window_panes(tris, WINDOW_UV)
+	panes.append_array(AgedStone.glass_boxes(tris))
+	var ivy_tris := tris
+	var roof_reach := 0.0
+	var density := AgedStone.IVY_DENSITY
+	if node.has_meta("shape") and bool((node.get_meta("shape") as Dictionary).get("mage", false)):
+		ivy_tris = MageTower.ivy_faces(node, tris)
+		roof_reach = MageTower.IVY_ROOF_REACH + float(GuildHall.layout(node.get_meta("shape")).deck) + MageTower.TOP_H
+		density = MageTower.IVY_DENSITY # Three floors and a roof: more ivy than a house, to cover the top room too.
+	# Never by a chimney or a fire, where the birds would be smoked.
+	var smoky: Array = []
+	if node.has_meta("chimney"):
+		smoky.append(node.global_transform * (node.get_meta("chimney") as Vector3))
+	for w: Vector4 in warm_spots:
+		smoky.append(Vector3(w.x, w.y, w.z) + offset)
+	# Its snow with a body: caps on the roofs and ledges, icicles at the eaves and windows
+	# (shown only while snow lies, see SnowCaps), with dice of their own.
+	var ice_rng := RandomNumberGenerator.new()
+	ice_rng.seed = hash(key + "schnee")
+	# The snow's materials are made once, here, before the threads need them.
+	SnowCaps.cap_material()
+	SnowCaps.ice_material()
+	job.merge({"offset": offset, "tris": tris, "ground": ground, "doors_at": doors_at, "panes": panes, "ivy_tris": ivy_tris,
+			"roof_reach": roof_reach, "density": density, "smoky": smoky, "ice_rng": ice_rng,
+			"snow_windows": SnowCaps.windows_of(node, tris, WINDOW_UV), "snow_ledges": SnowCaps.ledges_of(node),
+			"in_village": _in_village(world_to_cell(middle))})
+	return job
+
+
+## The dressing's own work, on its own data only (so it can run on a worker thread): its ivy, the
+## spot for a nest and the snow caps.
+func _dress_grow(job: Dictionary) -> void:
+	var rng: RandomNumberGenerator = job.rng
+	var offset: Vector3 = job.offset
+	var tris: Array = job.tris
+	var ground: float = job.ground
+	var leaves := {"xforms": [], "colours": []}
+	AgedStone.grow_ivy(job.ivy_tris, job.middle + offset, ground, job.doors_at, rng, leaves, job.patches, job.old, job.panes, job.foot_max, job.proud, job.window_room, job.all_sides, job.roof_vines, job.density, job.roof_reach)
+	for i in leaves.xforms.size():
+		leaves.xforms[i] = (leaves.xforms[i] as Transform3D).translated(-offset)
+	var stems: Array = leaves.get("stems", [])
+	for i in stems.size():
+		stems[i] = (stems[i] as Transform3D).translated(-offset)
+	var grapes: Array = leaves.get("grapes", [])
+	for i in grapes.size():
+		grapes[i] = (grapes[i] as Transform3D).translated(-offset)
+	var spot := Vector3.INF
+	if rng.randf() < float(job.nest_chance):
+		spot = AgedStone.nest_spot(tris, ground, job.smoky)
+	job["leaves"] = leaves
+	job["spot"] = spot
+	job["turn"] = rng.randf() * TAU
+	job["caps"] = SnowCaps.build(tris, ground, job.snow_windows, job.ice_rng, -offset, job.cap_from, job.old, job.snow_ledges)
+
+
+## The rest of a dressing, in the village's own order: the grass at the foot (it keeps clear of the
+## buildings dressed before), then everything put into place (see _dress_building).
+func _dress_apply(entry: Dictionary) -> void:
+	var node: Node3D = entry.node
+	var middle: Vector3 = entry.middle
+	var key: String = entry.key
+	var job: Dictionary = entry.job
+	if not job.is_empty():
+		var offset: Vector3 = job.offset
+		var tris: Array = job.tris
+		var ground: float = job.ground
 		# Grass, flowers and mossy stones at its foot (see WallFoot), with dice of their own.
 		var foot_rng := RandomNumberGenerator.new()
 		foot_rng.seed = hash(key + "fuss")
 		var fringe := {}
-		WallFoot.grow(tris, middle + offset, ground, doors_at, foot_rng, fringe, func(at: Vector3, stone: bool) -> bool: return _fringe_ground(at - offset, stone), WallFoot.look_for(_in_village(world_to_cell(middle))))
+		WallFoot.grow(tris, middle + offset, ground, job.doors_at, foot_rng, fringe, func(at: Vector3, stone: bool) -> bool: return _fringe_ground(at - offset, stone), WallFoot.look_for(job.in_village))
 		for kind: String in fringe:
 			var xforms: Array = fringe[kind].xforms
 			for i in xforms.size():
@@ -3364,7 +3478,15 @@ func _dress_building(node: Node3D, middle: Vector3, door_spots: Array, nest_chan
 		var outline := WallFoot.footprint(tris, middle + offset, ground)
 		for i in outline.size():
 			outline[i] -= Vector2(offset.x, offset.z)
-		_dressed[key] = {"leaves": leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": rng.randf() * TAU, "caps": caps, "fringe": fringe, "outline": outline}
+		var spot: Vector3 = job.spot
+		_dressed[key] = {"leaves": job.leaves, "nest": spot - offset if spot != Vector3.INF else spot, "turn": job.turn, "caps": job.caps, "fringe": fringe, "outline": outline}
+	_dress_place(node, key)
+	if entry.then.is_valid():
+		(entry.then as Callable).call()
+
+
+## Puts a dressing made for `key` on `node`: its footprint, grass, snow, ivy and nest.
+func _dress_place(node: Node3D, key: String) -> void:
 	var done: Dictionary = _dressed[key]
 	_add_footprint(done.get("outline", PackedVector2Array()))
 	for kind: String in done.get("fringe", {}):
@@ -5564,26 +5686,32 @@ func set_weather(kind: String) -> void:
 	weather = kind
 	for s in _weather_foes:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
-			# Slimes stay when the weather turns and wander on (see
-			# SlimeGrowth); the others go back where they came from.
+			# Slimes head for the pond on their own when the spring weather
+			# clears (see SlimeLife); the others go back where they came from.
 			if not SlimeGrowth.grows(s.enemy.kind):
 				s.enemy.sink_at_dawn()
 	_weather_foes.clear()
 	if kind != Weather.STORM:
 		_fade_ore()
 	for foes in WEATHER_FOES.get(kind, []):
+		if SlimeGrowth.grows(foes.kind) and not SlimeGrowth.may_crawl(kind, season_day):
+			continue
 		_place_weather_foes(foes)
 	_strike_timer = randf_range(2.0, STRIKE_EVERY_MIN)
 	if first:
 		return
+	var slimy := SlimeGrowth.may_crawl(kind, season_day)
 	if kind == Weather.RAIN:
-		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser."), 4.5)
+		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser.") if slimy
+				else Lang.t("Es fängt an zu regnen."), 4.5)
 	elif kind == Weather.FOG:
-		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen."), 4.5)
+		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen.") if slimy
+				else Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, und wer schleicht, bleibt ungesehen."), 4.5)
 	elif kind == Weather.SNOW:
 		notice.emit(Lang.t("Es schneit! Dicke Flocken fallen, und auf Dächern und Wiesen bleibt der Schnee liegen."), 4.5)
 	elif kind == Weather.STORM:
-		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
+		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz.") if slimy
+				else Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
 	else:
 		notice.emit(Lang.t("Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.") if was == Weather.STORM
 				else Lang.t("Der Himmel klart auf."), 4.0)
@@ -5678,6 +5806,8 @@ func set_ice(value: float) -> void:
 		ice_fish = IceFish.build(self, _pond_waters)
 	if ice_fish != null:
 		ice_fish.set_ice(ice)
+	if pond_frogs != null:
+		pond_frogs.set_ice(ice)
 	if waterfall != null:
 		waterfall.set_ice(ice)
 
@@ -5768,7 +5898,7 @@ func _mind_the_weather(delta: float) -> void:
 		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > WEATHER_FAR:
 			# The slimes that stayed from earlier weather count: no more
 			# than SLIMES_AT_MOST crawl about at once.
-			if SlimeGrowth.grows(s.kind) and slimes_about() >= SLIMES_AT_MOST:
+			if SlimeGrowth.grows(s.kind) and (slimes_about() >= SLIMES_AT_MOST or not SlimeGrowth.may_crawl(weather, season_day)):
 				s.timer = WEATHER_RESPAWN
 				continue
 			_spawn_weather_foe(s)

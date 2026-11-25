@@ -15,6 +15,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 const PARTS := [
 	preload("res://scripts/lang/climb_spots.gd"),
 	preload("res://scripts/lang/barber_chair.gd"),
+	preload("res://scripts/lang/matthes_life.gd"),
 	preload("res://scripts/lang/glow_mushrooms.gd"),
 	preload("res://scripts/lang/climber_npc.gd"),
 	preload("res://scripts/lang/summit_garden.gd"),

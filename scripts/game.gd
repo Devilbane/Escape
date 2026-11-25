@@ -326,6 +326,10 @@ var save_notice: SaveNotice
 ## Frames per second, CPU and GPU time and ping under it, shown with F1 (see PerfOverlay).
 var perf_overlay: PerfOverlay
 var _level_label: Label
+var _moon_icon: MoonIcon
+var _season_icon: SeasonIcon
+var _season_shown := ""
+var _moon_shown := -2
 ## The copper coins (the money) on the HUD; the silver and gold coins of the
 ## purse are counted after it (see _update_purse).
 var _coin_label: Label
@@ -1547,8 +1551,20 @@ func _setup_hud() -> void:
 	var left := VBoxContainer.new()
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(left)
+	var level_row := HBoxContainer.new()
+	level_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	level_row.add_theme_constant_override("separation", 10)
+	left.add_child(level_row)
+	# The season as a picture, then tonight's moon (see _update_season_icon, _update_moon_icon).
+	_season_icon = SeasonIcon.make(Weather.SUMMER)
+	_season_icon.visible = false
+	level_row.add_child(_season_icon)
+	# Tonight's moon as a picture in front of the location name (see _update_moon_icon).
+	_moon_icon = MoonIcon.make(Moon.FULL)
+	_moon_icon.visible = false
+	level_row.add_child(_moon_icon)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
-	left.add_child(_level_label)
+	level_row.add_child(_level_label)
 	# Life as a bar under the hero's feet, its fill the share of life left,
 	# MMO-style: a glossy red in a bronze rim, a heart at its left end. It
 	# has one fixed size, so nothing moves as life changes.
@@ -2940,6 +2956,8 @@ func _update_hud() -> void:
 	_clock_shown = _clock_text()
 	if _clock_shown != "":
 		_level_label.text += "    " + _clock_shown
+	_update_season_icon()
+	_update_moon_icon()
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
 	_hp_hover.tooltip_text = hp_tip()
@@ -3038,7 +3056,7 @@ func hp_tip() -> String:
 	return tip
 
 
-## The time of day for the HUD, e.g. "21:30, night, full moon". Down in
+## The time of day for the HUD, e.g. "21:30, night, winter". Down in
 ## the dungeon only the hour and the part of the day.
 func _clock_text() -> String:
 	if level == null:
@@ -3047,14 +3065,47 @@ func _clock_text() -> String:
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
-	# The season, always (see Seasons): it follows the real calendar, a week each.
-	text += ", " + Lang.t(Seasons.WORDS[Weather.season(season_day())])
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
-	# At night the clock names tonight's moon (see Moon).
-	if DayNight.is_night(day_hour):
-		text += ", " + Lang.t(Moon.word(day))
 	return text
+
+
+## The season for the HUD's icon (see Seasons): it follows the real calendar, a week each; "" down
+## in the dungeon.
+func _season_shown_now() -> String:
+	if level == null or not (level.outdoor or level.building != ""):
+		return ""
+	return Weather.season(season_day())
+
+
+func _update_season_icon() -> void:
+	_season_shown = _season_shown_now()
+	if _season_icon == null:
+		return
+	_season_icon.visible = _season_shown != ""
+	if _season_shown != "":
+		_season_icon.set_season(_season_shown, Lang.t(Seasons.WORDS[_season_shown]))
+
+
+## Tonight's moon phase for the HUD's icon, or -1 by day and out of the open air.
+func _moon_phase_shown() -> int:
+	if level == null or not (level.outdoor or level.building != ""):
+		return -1
+	return Moon.phase(day) if DayNight.is_night(day_hour) else -1
+
+
+## The moon icon at the end of the top line: at night, in the open air, drawn for tonight's phase,
+## with the phase's name on hover (no words in the line itself).
+func _update_moon_icon() -> void:
+	_moon_shown = _moon_phase_shown()
+	if _moon_icon == null:
+		return
+	# The slot stays while the hero is outdoors (clear by day), so the location name never shifts.
+	var outdoors := _season_shown_now() != ""
+	_moon_icon.visible = outdoors
+	_moon_icon.modulate.a = 1.0 if _moon_shown >= 0 else 0.0
+	if outdoors:
+		_moon_icon.set_phase(maxi(_moon_shown, 0), Lang.t(Moon.word(day)) if _moon_shown >= 0 else "")
 
 
 ## The world's clock runs wherever the hero is, down in the dungeon too,
@@ -3111,7 +3162,7 @@ func _tick_clock(delta: float) -> void:
 			level.set_ice(ice_cover)
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
-	if _clock_text() != _clock_shown:
+	if _clock_text() != _clock_shown or _moon_phase_shown() != _moon_shown or _season_shown_now() != _season_shown:
 		_update_hud()
 
 
@@ -4051,6 +4102,7 @@ func begin_new_game() -> void:
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
+	MatthesLife.clear()
 	village_worries.clear()
 	village_rumours.clear()
 	drinking_songs.clear()
@@ -4555,6 +4607,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
+	MatthesLife.load_from(data.get("matthes_love", {}))
 	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
 	MonsterLore.load_from(data.get("monster_lore", {}))
@@ -4836,6 +4889,7 @@ func hero_record() -> Dictionary:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
+		"matthes_love": MatthesLife.for_save(),
 		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
 		"monster_lore": MonsterLore.for_save(),

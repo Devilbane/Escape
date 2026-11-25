@@ -450,19 +450,19 @@ func _winter() -> void:
 	var before: int = game.season_shift
 	game.escaped = true
 	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS - 1)
-	check(game._clock_text().contains(Lang.t("Herbst")), "the HUD's top line names the season: %s" % game._clock_text())
+	check(game._season_icon.season == Weather.AUTUMN and game._season_icon.tooltip_text == Lang.t("Herbst"), "the HUD's season icon shows autumn")
 	game.set_weather(Weather.RAIN, 4.0)
 	_season_to(Weather.YEAR_DAYS - Weather.WINTER_DAYS)
 	check(Weather.is_winter(game.season_day()), "the first day of winter")
 	check(game.weather == Weather.SNOW, "winter begins with snow, the rain stops")
 	game.set_weather(Weather.STORM, 2.0)
 	check(game.weather == Weather.SNOW, "no storm in winter")
-	check(game._clock_text().contains(Lang.t("Winter")), "the clock says it is winter")
+	check(game._season_icon.season == Weather.WINTER, "the season icon shows winter")
 	_season_to(Weather.YEAR_DAYS - 1)
 	check(Weather.is_winter(game.season_day()), "still winter on its last day")
 	_season_to(Weather.YEAR_DAYS)
 	check(not Weather.is_winter(game.season_day()), "winter ends after a week")
-	check(game._clock_text().contains(Lang.t("Frühling")), "the HUD's top line says spring: %s" % game._clock_text())
+	check(game._season_icon.season == Weather.SPRING, "the season icon shows spring")
 	game.set_weather(Weather.RAIN, 2.0)
 	check(game.weather == Weather.RAIN, "after winter it can rain again")
 	game.season_shift = before

@@ -93,6 +93,17 @@ func _run() -> void:
 	game._chop_wood(trunk)
 	await create_timer(1.5).timeout
 	check(trunk.spent and _timber() == 1 + WoodLogs.TIMBER_YIELD, "timber goes onto the bundle in a full bag (%d)" % _timber())
+	# The bark must face outwards (Godot draws clockwise faces), or the trunk is see-through.
+	var mesh := WoodLogs.trunk_mesh(2.6, 0.3, RandomNumberGenerator.new())
+	var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var centre := mesh.get_aabb().get_center()
+	var outward := 0
+	for i in range(0, verts.size(), 3):
+		var at := (verts[i] + verts[i + 1] + verts[i + 2]) / 3.0 - centre
+		at.x = 0.0
+		if (verts[i + 2] - verts[i]).cross(verts[i + 1] - verts[i]).dot(at) > 0.0:
+			outward += 1
+	check(outward == verts.size() / 3, "every bark face looks outwards (%d of %d)" % [outward, verts.size() / 3])
 	# A windfall is a whole tree: more swings, more timber.
 	if not windfalls.is_empty():
 		var tree: Dictionary = windfalls[0]

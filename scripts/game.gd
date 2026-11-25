@@ -315,6 +315,10 @@ var _zoom_target := 0.0
 ## Metres the camera is pulled further back than the zoom says (the blueprint tool uses it
 ## to fit a big plot on screen, see HouseSketcher.solve_frame).
 var frame_pull := 0.0
+## The free camera for screenshots (chat: camera:free): its own distance and tilt.
+var free_camera := false
+var free_pitch := CAMERA_PITCH
+var free_distance := CAMERA_DISTANCE
 
 var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
@@ -5942,6 +5946,10 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	var cam: Variant = CameraCommand.parse(text)
+	if cam != null:
+		_camera_command(cam)
+		return
 	var season: Variant = SkyCommand.parse_season(text)
 	if season != null:
 		_season_command(season)
@@ -5956,6 +5964,27 @@ func _hero_says(text: String) -> void:
 	Effects.float_text(level, pos + Vector3(0, 3.0, 0), text, HERO_SAY_COLOR)
 	Events.say(hero_name, text, pos)
 	Events.hero_says(text, pos)
+
+
+## The chat line's free camera (see CameraCommand).
+func _camera_command(cmd: Dictionary) -> void:
+	if cmd.has("help"):
+		Events.found(Lang.t(CameraCommand.HELP), TELEPORT_COLOR)
+		return
+	var was := free_camera
+	if cmd.has("off"):
+		free_camera = false
+	elif cmd.has("toggle"):
+		free_camera = not free_camera
+	else:
+		free_camera = true
+	if free_camera and not was:
+		free_distance = CAMERA_DISTANCE
+		free_pitch = CAMERA_PITCH
+	if cmd.has("pitch"):
+		free_pitch = cmd.pitch
+	if free_camera != was:
+		Events.tell(Lang.t(CameraCommand.ON_TEXT) if free_camera else Lang.t(CameraCommand.OFF_TEXT), TELEPORT_COLOR)
 
 
 const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
@@ -8018,6 +8047,9 @@ func _autosave() -> void:
 # --- Per frame --------------------------------------------------------------
 
 func _camera_offset() -> Vector3:
+	if free_camera:
+		var tilt := deg_to_rad(free_pitch)
+		return Vector3(0, sin(tilt), cos(tilt)) * free_distance + Vector3(0, 1.0, 0)
 	var pitch := deg_to_rad(lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
 	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom) + frame_pull
 	# Up close the camera looks at the hero's chest instead of the feet.
@@ -8030,6 +8062,9 @@ func can_zoom() -> bool:
 
 
 func zoom_by(steps: float) -> void:
+	if free_camera:
+		free_distance = CameraCommand.distance_after(free_distance, steps)
+		return
 	# Steps below 0 look from further out (and a little more from above) than the normal view.
 	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_OUT_STEPS * ZOOM_STEP, 1.0)
 
@@ -8148,7 +8183,7 @@ func _process(delta: float) -> void:
 	var p := drawn
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
-	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
+	camera.rotation_degrees.x = -(free_pitch if free_camera else lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
 	var target := p + _camera_offset()
 	if house_sketcher != null and house_sketcher.active:
 		# The blueprint tool looks at the whole plot, a little above the middle so
@@ -8438,6 +8473,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
 		if event.pressed and can_zoom() and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			zoom_by(event.factor if event.factor > 0.0 else 1.0) if event.button_index == MOUSE_BUTTON_WHEEL_UP else zoom_by(-(event.factor if event.factor > 0.0 else 1.0))
+		return
+	if free_camera and event is InputEventKey and event.pressed and can_zoom() and event.physical_keycode in [KEY_PAGEUP, KEY_PAGEDOWN, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]:
+		free_pitch = CameraCommand.pitch_after(free_pitch, 1.0 if event.physical_keycode in [KEY_PAGEUP, KEY_BRACKETRIGHT] else -1.0)
 		return
 	if event is InputEventKey and event.pressed and can_zoom() and event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]:
 		zoom_by(2.0 if event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD] else -2.0)

@@ -1,0 +1,1 @@
+- A free camera for screenshots: type camera:free in the chat line to zoom far out and tilt down to ground level (camera:off ends it).

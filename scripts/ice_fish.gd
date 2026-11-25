@@ -21,6 +21,22 @@ const DENSITY := 0.03
 const BIG_BODY := 60
 ## Fish farther from the hero than this metres are paused and hidden (they cost nothing).
 const ACTIVE_RANGE := 45.0
+## Rings of ripples where a fish stirs just below the surface: how many can be spreading at once, how long
+## one lasts (seconds), how wide it grows (metres across) and the pause between two (seconds).
+const RING_SHADER := preload("res://shaders/water_ring.gdshader")
+const RINGS := 6
+const RING_LIFE := 2.6
+const RING_SIZE := 1.7
+const RING_PAUSE := Vector2(2.5, 6.0)
+## Rings only show in open water: from this much ice on they stop.
+const RING_ICE_MAX := 0.25
+## A fish within RING_SCARE metres of a new ring bolts (DART_SPEED m/s) and dives DIVE_DEPTH metres in
+## DART_TIME seconds, then stays away for GONE_TIME seconds.
+const RING_SCARE := 1.4
+const DART_SPEED := 1.9
+const DART_TIME := 1.1
+const DIVE_DEPTH := 0.7
+const GONE_TIME := Vector2(8.0, 16.0)
 ## Fish length (metres) and how fast it swims; a lazy pace under the ice.
 const LENGTH_MIN := 0.38
 const LENGTH_MAX := 0.56
@@ -42,6 +58,11 @@ var _fish: Array[Dictionary] = []
 var active_range := ACTIVE_RANGE
 var _cover := 0.0
 var _since_check := 0.0
+var _rings: MultiMesh
+var _ring_age: Array[float] = []
+var _next_ring := 3.0
+var _ring_next := 0
+var _ring_rng := RandomNumberGenerator.new()
 
 
 ## Puts fish on the water of `ponds` (the pond and river tiles of the map, see Outdoor._pond_waters) and along
@@ -101,6 +122,7 @@ static func build(lvl: Outdoor, ponds: Array) -> IceFish:
 			var at := flow.from.lerp(flow.to, rng.randf_range(0.2, 0.8))
 			school._add_fish(Vector3(at.x, 0, at.z), rng, {"from": flow.from, "to": flow.to, "half": maxf(flow.width * 0.5 - 0.7, 0.3)})
 	school._wake_near()
+	school._make_rings()
 	return school
 
 
@@ -137,7 +159,7 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator, lane := {}) -> void:
 		player.play(anim)
 		player.seek(rng.randf() * 1.2)
 	holder.position = home + Vector3(0, 0.03, 0)
-	_fish.append({"node": holder, "mat": mat, "home": home, "awake": true, "heading": rng.randf() * TAU, "t": rng.randf() * 20.0,
+	_fish.append({"node": holder, "mat": mat, "home": home, "awake": true, "state": "swim", "timer": 0.0, "heading": rng.randf() * TAU, "t": rng.randf() * 20.0,
 			"lane": lane, "turn": rng.randf_range(0.25, 0.55), "speed": SPEED * rng.randf_range(0.7, 1.2)})
 
 
@@ -176,12 +198,15 @@ func set_ice(value: float) -> void:
 
 
 func _process(delta: float) -> void:
+	_stir(delta)
 	_since_check += delta
 	if _since_check >= 0.5:
 		_since_check = 0.0
 		_wake_near()
 	for f in _fish:
 		if not f.awake:
+			continue
+		if f.state != "swim" and _startled(f, delta):
 			continue
 		var holder: Node3D = f.node
 		f.t += delta
@@ -212,6 +237,122 @@ func _process(delta: float) -> void:
 		holder.rotation.y = heading + HEAD_TURN
 
 
+## The pool of rings: flat quads on the water, each aged by its custom data (see water_ring.gdshader).
+func _make_rings() -> void:
+	_ring_rng.seed = hash(level.level_name + "wellen")
+	_rings = MultiMesh.new()
+	_rings.transform_format = MultiMesh.TRANSFORM_3D
+	_rings.use_custom_data = true
+	var quad := QuadMesh.new()
+	quad.orientation = PlaneMesh.FACE_Y
+	quad.size = Vector2(RING_SIZE, RING_SIZE)
+	_rings.mesh = quad
+	_rings.instance_count = RINGS
+	for i in RINGS:
+		_ring_age.append(1.0)
+		_rings.set_instance_transform(i, Transform3D(Basis.IDENTITY, Vector3(0, -50, 0)))
+		_rings.set_instance_custom_data(i, Color(1, 0, 0, 0))
+	var mat := ShaderMaterial.new()
+	mat.shader = RING_SHADER
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = _rings
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.extra_cull_margin = 200.0
+	add_child(mi)
+
+
+## Ages the rings and now and then starts one beside a fish near the hero, in open water only.
+func _stir(delta: float) -> void:
+	if _rings == null:
+		return
+	for i in RINGS:
+		if _ring_age[i] < 1.0:
+			_ring_age[i] = minf(_ring_age[i] + delta / RING_LIFE, 1.0)
+			_rings.set_instance_custom_data(i, Color(_ring_age[i], 0, 0, 0))
+	_next_ring -= delta
+	if _next_ring > 0.0:
+		return
+	_next_ring = _ring_rng.randf_range(RING_PAUSE.x, RING_PAUSE.y)
+	if _cover > RING_ICE_MAX:
+		return
+	var near: Array[Dictionary] = []
+	for f in _fish:
+		if f.awake and f.state == "swim":
+			near.append(f)
+	if near.is_empty():
+		return
+	# A ring can come up anywhere on the water round a fish's home, with or without a fish at it.
+	var base: Dictionary = near[_ring_rng.randi() % near.size()]
+	var at: Vector3 = (base.node as Node3D).position
+	if _ring_rng.randf() < 0.5:
+		var spot: Vector3 = base.home + Vector3(_ring_rng.randf_range(-2.5, 2.5), 0, _ring_rng.randf_range(-2.5, 2.5))
+		if _on_water(spot, base.lane):
+			at = spot
+	var i := _ring_next
+	_ring_next = (_ring_next + 1) % RINGS
+	_ring_age[i] = 0.0
+	_rings.set_instance_transform(i, Transform3D(Basis.IDENTITY, Vector3(at.x, 0.05, at.z)))
+	_rings.set_instance_custom_data(i, Color(0, 0, 0, 0))
+	# The fish that made the ring bolts away from it and dives out of sight; a fish the ring came up beside does the same.
+	for f in near:
+		var p: Vector3 = (f.node as Node3D).position
+		if Vector2(p.x - at.x, p.z - at.z).length() < RING_SCARE:
+			var away := Vector2(p.x - at.x, p.z - at.z)
+			f.heading = atan2(away.x, away.y) if away.length() > 0.05 else f.heading
+			f.state = "dart"
+			f.timer = 0.0
+
+
+## Whether `pos` is on the water this fish swims in: clear of the banks of a pond, or between the banks of a stream.
+func _on_water(pos: Vector3, lane: Dictionary) -> bool:
+	if lane.is_empty():
+		return level.pond_shore_at(pos) >= SHORE_MIN
+	var a: Vector3 = lane.from
+	var line: Vector3 = lane.to - a
+	var along := clampf((pos - a).dot(line) / maxf(line.length_squared(), 0.01), 0.0, 1.0)
+	var nearest := a + line * along
+	return Vector2(pos.x - nearest.x, pos.z - nearest.z).length() <= lane.half
+
+
+## A fish startled by a ring: it bolts, sinking as it goes, until it is gone (see DART_TIME); it comes back
+## later from its home spot, fading in (see GONE_TIME). Returns true while the fish is not swimming about.
+func _startled(f: Dictionary, delta: float) -> bool:
+	var holder: Node3D = f.node
+	var mat: ShaderMaterial = f.mat
+	match f.state:
+		"dart":
+			f.timer += delta
+			var k: float = clampf(f.timer / DART_TIME, 0.0, 1.0)
+			var dir := Vector3(sin(f.heading), 0, cos(f.heading))
+			var next := holder.position + dir * DART_SPEED * (1.0 - k * 0.4) * delta
+			if _on_water(next, f.lane):
+				holder.position = Vector3(next.x, holder.position.y, next.z)
+			holder.position.y = lerpf(0.03, -DIVE_DEPTH, k * k)
+			holder.rotation.y = f.heading + HEAD_TURN
+			mat.set_shader_parameter("fade", 1.0 - smoothstep(0.35, 1.0, k))
+			if k >= 1.0:
+				f.state = "gone"
+				f.timer = _ring_rng.randf_range(GONE_TIME.x, GONE_TIME.y)
+				holder.visible = false
+		"gone":
+			f.timer -= delta
+			if f.timer <= 0.0:
+				holder.position = Vector3(f.home.x, 0.03, f.home.z)
+				holder.visible = f.awake
+				f.state = "return"
+				f.timer = 0.0
+		"return":
+			f.timer += delta
+			mat.set_shader_parameter("fade", smoothstep(0.0, 3.0, f.timer))
+			if f.timer >= 3.0:
+				f.state = "swim"
+				mat.set_shader_parameter("fade", 1.0)
+		_:
+			return false
+	return true
+
+
 ## Fish near the hero swim; the others are hidden and paused (see ACTIVE_RANGE).
 func _wake_near() -> void:
 	var hero := level.player as Node3D
@@ -220,7 +361,7 @@ func _wake_near() -> void:
 		var near := hero == null or holder.global_position.distance_to(hero.global_position) <= active_range
 		if near != f.awake:
 			f.awake = near
-			holder.visible = near
+			holder.visible = near and f.state != "gone"
 			holder.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
 
 

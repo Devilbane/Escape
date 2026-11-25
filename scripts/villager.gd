@@ -61,8 +61,9 @@ const ARRIVE_FREE := 2.0
 ## A rosier face for a Rogue (see HairLook.tint_skin): the model's own skin
 ## turns pale yellow in the midday sun.
 const SKIN_ROSY := Color(0.97, 0.85, 0.88)
-## A lighter face for Benno: the skin is multiplied by it, so values above 1 brighten the model's own tone.
-const SKIN_LIGHT := Color(1.22, 1.14, 1.1)
+## A fair face for Benno: the skin is multiplied by it, and values above 1 washed it out to white, so it stays
+## just a touch warmer than SKIN_ROSY.
+const SKIN_LIGHT := Color(0.95, 0.79, 0.72)
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see

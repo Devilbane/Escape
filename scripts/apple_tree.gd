@@ -314,6 +314,124 @@ static func plant_in_pockets(level: Node3D, others: Array) -> Array:
 	return out
 
 
+## The apple trees that explain the fallen leaves (see plant_for_leaves): the village's and the
+## surrounding areas' ground lies deep in autumn leaves but the woods are all spruce, so a few apple
+## trees are spread out so that no leaf lies more than LEAF_REACH tiles from one (about one screen at
+## the normal zoom, with the tree in the middle), or from the ivy and vines on the walls, which drop
+## leaves in autumn too.
+const LEAF_REACH := 6.0
+## They keep this many tiles from any other apple tree, and this far (tiles) from graves, the crypt,
+## the graveyard fence, the mountain's rock face and the climber.
+const LEAF_SPACING := 3.0
+const LEAF_KEEP_OUT := 4
+const LEAF_KEEP_OUT_LETTERS := "gRz=κ"
+## Where they grow: the open ground north of the farming valley (Outdoor.VALLEY_FROM), where leaves lie.
+const LEAF_GROUND := ".,:'"
+
+
+## Plants a few more apple trees (not for picking, like the others) so that every spot of the
+## ground where fallen leaves lie has one within LEAF_REACH tiles: again and again the leaf tile
+## farthest from every tree gets the tree closest to it, on grass with only grass and path tiles round
+## it (so no door, walkway or prop is blocked), clear of doors, bushes, building plots, Zarek's camp,
+## the hero's start, graves and rock faces. The graveyard (its dead trees) and the farming valley are left
+## alone, and the ground leaves lie exactly as before (SurfaceLife does not know of these trees).
+## Returned as [{node, cell, look, leaf}] like plant_in_village (see dress); `others` are the trees
+## already planted.
+static func plant_for_leaves(level: Node3D, others: Array) -> Array:
+	var out := []
+	var camp: Array[Vector2i] = []
+	if level.has_method("merchant_camp"):
+		camp = level.merchant_camp()
+	var trees: Array[Vector2] = []
+	for t in others:
+		trees.append(Vector2((t.node as Node3D).position.x, (t.node as Node3D).position.z) / Level.TILE)
+	# The tiles where leaves lie and the tiles a tree may stand on.
+	var leaf_cells: Array[Vector2i] = []
+	var spots: Array[Vector2i] = []
+	for y in mini(level.height, Outdoor.VALLEY_FROM):
+		for x in level.width:
+			var c := Vector2i(x, y)
+			if not LEAF_GROUND.contains(level.cell_char(c)) or _near_letters(level, c, LEAF_KEEP_OUT_LETTERS, LEAF_KEEP_OUT):
+				continue
+			leaf_cells.append(c)
+			if _leaf_spot(level, c, camp):
+				spots.append(c)
+	# Ivy and vines on the walls drop leaves in autumn just as well: a leaf tile within LEAF_REACH
+	# of one needs no tree (one point per half tile of ivy).
+	var sources: Array[Vector2] = trees.duplicate()
+	var seen := {}
+	for xf: Transform3D in level._ivy.xforms:
+		var at := Vector2(xf.origin.x, xf.origin.z) / Level.TILE
+		var key := Vector2i((at * 2.0).floor())
+		if not seen.has(key):
+			seen[key] = true
+			sources.append(at)
+	var gap := PackedFloat32Array()
+	gap.resize(leaf_cells.size())
+	for i in leaf_cells.size():
+		var best := 99999.0
+		for t in sources:
+			best = minf(best, Vector2(leaf_cells[i]).distance_to(t))
+		gap[i] = best
+	while true:
+		var far := -1
+		for i in leaf_cells.size():
+			if gap[i] > LEAF_REACH and (far < 0 or gap[i] > gap[far]):
+				far = i
+		if far < 0:
+			break
+		# The spot nearest to that leaf, at least LEAF_SPACING from every tree.
+		var pick := Vector2i(-1, -1)
+		var best := INF
+		for c in spots:
+			var d := Vector2(c).distance_to(Vector2(leaf_cells[far]))
+			if d < best and not trees.any(func(t: Vector2): return Vector2(c).distance_to(t) < LEAF_SPACING):
+				best = d
+				pick = c
+		if pick.x < 0 or best > LEAF_REACH:
+			# Nowhere to plant for it: leave it be.
+			gap[far] = 0.0
+			continue
+		trees.append(Vector2(pick))
+		for i in leaf_cells.size():
+			gap[i] = minf(gap[i], Vector2(leaf_cells[i]).distance_to(Vector2(pick)))
+		var node := Node3D.new()
+		node.name = "LeafAppleTree"
+		node.position = level.cell_to_world(pick)
+		node.rotation.y = hash("leaf apple:%s" % pick) % 628 / 100.0
+		node.scale = Vector3.ONE * VILLAGE_SCALE
+		level.add_child(node)
+		level._add_solid(node.position, Vector3(0.5, 2.5, 0.5))
+		out.append({"node": node, "cell": pick, "look": "", "leaf": true})
+	return out
+
+
+## Whether a tree may stand on tile `c` (see plant_for_leaves): grass, with only grass and path
+## tiles round it, no door, bush or building plot close by, not at Zarek's camp or the hero's start.
+static func _leaf_spot(level: Node3D, c: Vector2i, camp: Array[Vector2i]) -> bool:
+	if level.cell_char(c) != "." or level.on_plot(level.cell_to_world(c), 3.0):
+		return false
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if not ".,".contains(level.cell_char(c + Vector2i(dx, dy))):
+				return false
+	if camp.any(func(t: Vector2i): return maxi(absi(t.x - c.x), absi(t.y - c.y)) <= 1) or maxi(absi(level.start_cell.x - c.x), absi(level.start_cell.y - c.y)) <= 3:
+		return false
+	var pos: Vector3 = level.cell_to_world(c)
+	return not (level._entrances.any(func(e): return Vector2((e.door as Vector3).x - pos.x, (e.door as Vector3).z - pos.z).length() < DOOR_CLEAR) \
+			or level.shrubs.any(func(s: Vector3): return Vector2(s.x - pos.x, s.z - pos.z).length() < 1.5))
+
+
+## Whether any tile within `reach` tiles of `c` holds one of the letters.
+static func _near_letters(level: Node3D, c: Vector2i, letters: String, reach: int) -> bool:
+	for dy in range(-reach, reach + 1):
+		for dx in range(-reach, reach + 1):
+			var ch: String = level.cell_char(c + Vector2i(dx, dy))
+			if ch != "" and letters.contains(ch):
+				return true
+	return false
+
+
 ## Whether the 2x2 tiles from `c` (its top left) are a grass pocket (see plant_in_pockets): grass,
 ## with at most one lamp post.
 static func _pocket(level: Node3D, c: Vector2i) -> bool:

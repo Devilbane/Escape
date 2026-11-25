@@ -642,6 +642,9 @@ var valley_events: ValleyEvents
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
+## The few more apple trees that explain the fallen leaves (see AppleTree.plant_for_leaves). They are not
+## the hedgehogs' apple trees, so those runs stay as they were.
+var leaf_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -794,6 +797,9 @@ func build() -> void:
 	# And one in each grass pocket framed by paths.
 	square_trees.append_array(AppleTree.plant_in_pockets(self, square_trees))
 	AppleTree.dress(square_trees, day)
+	# And a few more, spread over the ground the autumn leaves cover, so they have a tree to come from.
+	leaf_trees = AppleTree.plant_for_leaves(self, square_trees)
+	AppleTree.dress(leaf_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -3617,6 +3623,11 @@ func _pave_entrances() -> void:
 	_ground_tex.update(_ground_img)
 
 
+## Whether one of the leaf apple trees stands on a tile (no building plot may cover it, see Plots.problem).
+func has_leaf_tree(c: Vector2i) -> bool:
+	return leaf_trees.any(func(t): return t.cell == c)
+
+
 ## Whether a tile lies within the village's reach (see Plots: no building plots there).
 func near_village(c: Vector2i) -> bool:
 	return _in_village(c)
@@ -4878,6 +4889,7 @@ func set_season(day_of_season: int) -> void:
 	if surface_life != null:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
+	AppleTree.dress(leaf_trees, day_of_season)
 	if is_inside_tree():
 		for hole: Node3D in get_tree().get_nodes_in_group("burrows"):
 			Warren.dress(hole, day_of_season)

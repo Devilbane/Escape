@@ -412,7 +412,8 @@ static func patches_for(level: Level, day: int) -> Array:
 		if out.any(func(s: Dictionary) -> bool: return Vector2(s.cell).distance_to(Vector2(c)) < SPACING):
 			continue
 		var at := level.cell_to_world(c) + Vector3(rng.randf_range(-0.9, 0.9), 0.0, rng.randf_range(-0.9, 0.9))
-		at.y = 0.0
+		# On the mountain foot's mounds the ground is higher: stand on top of it, not in it.
+		at.y = MountainFoot.surface_at(level, at.x, at.z)
 		out.append({"cell": c, "pos": at, "kind": pick_kind(rng, not level is Outdoor), "count": 1 + _weighted(rng, SIZES),
 				"variant": rng.randi() % VARIANTS})
 	return out

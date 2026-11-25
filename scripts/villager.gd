@@ -61,8 +61,9 @@ const ARRIVE_FREE := 2.0
 ## A rosier face for a Rogue (see HairLook.tint_skin): the model's own skin
 ## turns pale yellow in the midday sun.
 const SKIN_ROSY := Color(0.97, 0.85, 0.88)
-## A lighter face for Benno: the skin is multiplied by it, so values above 1 brighten the model's own tone.
-const SKIN_LIGHT := Color(1.22, 1.14, 1.1)
+## A fair face for Benno: the skin is multiplied by it, and values above 1 washed it out to white, so it stays
+## just a touch warmer than SKIN_ROSY.
+const SKIN_LIGHT := Color(0.95, 0.79, 0.72)
 
 ## name: shown above the head; model; show: extra parts; hair: a look for a
 ## Rogue (see HairLook); skin: a tint for a Rogue's face; sex: "female" for a woman built on the Rogue (see
@@ -770,6 +771,11 @@ func _stride(anim: String, speed: float) -> float:
 func _lift_onto_toes(delta: float) -> void:
 	var moved := Vector2(global_position.x - _last_spot.x, global_position.z - _last_spot.z).length()
 	_last_spot = global_position
+	if moved < 0.0001:
+		# Standing still the lift is nil (see Stride.lift): no need to ask each tick.
+		if _model.position.y != 0.0:
+			_model.position.y = 0.0
+		return
 	var speed := moved / delta if delta > 0.0 and moved < 1.0 else 0.0
 	_model.position.y = Stride.lift(_anim, _current_anim, _model.scale.x, speed)
 
@@ -1996,10 +2002,19 @@ var _fire_cool := 0.0
 
 ## Aldo and Odo, the village's mages, hurl a fireball at the nearest monster
 ## in sight that can ignite (see Ignition). Aldo's hit far harder.
+const FIRE_SCAN_EVERY := 0.25
+var _fire_scan := 0.0
+
+
 func _cast_fireball(delta: float) -> void:
 	_fire_cool = maxf(0.0, _fire_cool - delta)
 	if _fire_cool > 0.0 or not Ignition.VILLAGE_MAGES.has(role) or eaten or at_home or not visible or _task == "hide":
 		return
+	# Looking for a target is a scan of every monster: a few times a second is plenty.
+	_fire_scan -= delta
+	if _fire_scan > 0.0:
+		return
+	_fire_scan = FIRE_SCAN_EVERY
 	var best: Enemy = null
 	var best_d := Ignition.VILLAGE_RANGE
 	for e in level.enemies:
@@ -3133,6 +3148,7 @@ func _make_torch() -> void:
 		_torch.add_child(stick)
 		var flame := Effects.make_flame()
 		flame.scale = Vector3.ONE * 0.55
+		flame.local_coords = true # sparks ride with the torch instead of smearing behind
 		flame.position = Vector3(0, 0.5, 0)
 		_torch.add_child(flame)
 	# The light rides on the torch itself, so it follows the hand (the arm only rocks gently, see

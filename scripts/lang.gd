@@ -14,6 +14,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
 	preload("res://scripts/lang/climb_spots.gd"),
+	preload("res://scripts/lang/glow_mushrooms.gd"),
 	preload("res://scripts/lang/climber_npc.gd"),
 	preload("res://scripts/lang/summit_garden.gd"),
 	preload("res://scripts/lang/temple_morning.gd"),
@@ -62,6 +63,7 @@ const PARTS := [
 	preload("res://scripts/lang/chat_commands.gd"),
 	preload("res://scripts/lang/patch_history.gd"),
 	preload("res://scripts/lang/godmode.gd"),
+	preload("res://scripts/lang/unstick.gd"),
 	preload("res://scripts/lang/title.gd"),
 	preload("res://scripts/lang/floor_packs.gd"),
 	preload("res://scripts/lang/ash_spire.gd"),

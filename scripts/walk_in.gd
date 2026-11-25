@@ -35,9 +35,9 @@ const COVER_HEAD := 1.7
 const COVER_LINGER := 0.4
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
-## The doorway as wide as the walls stop the hero (a little wider than the leaf, so the hero, 1.1 m
-## across, fits through without catching on the frame).
-const DOOR_GAP := 1.24
+## The doorway as wide as the walls stop the hero (wider than the leaf, so the hero, 1.1 m across,
+## walks straight through with 0.2 m to spare on each side and is never nudged by the frame).
+const DOOR_GAP := 1.5
 ## How far in front of a house door the ramp up to its floor starts (metres): up the step and
 ## over the threshold, PLINTH high.
 const RAMP := 1.0
@@ -106,7 +106,7 @@ const UPPER_FROM := 1.0
 ## beds (metres), its height, and the doorway's width.
 const PARTITION_GAP := 0.2
 const PARTITION_HIGH := 2.5
-const PARTITION_DOOR := 1.0
+const PARTITION_DOOR := 1.5
 ## A bed's footprint across (CosyBed without its table) and the gap between two.
 const BED_WIDE := CosyBed.RIGHT - CosyBed.LEFT
 const BED_GAP := 0.1

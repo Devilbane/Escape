@@ -95,6 +95,9 @@ const CEILING_LIFT := 0.02
 ## stone jambs JAMB wide at each side.
 const DOOR_HEIGHT := 2.4
 const JAMB := 0.35
+## The jambs of a doorway are slimmer, so the hero (1.1 m across) walks straight through with a hand's
+## breadth to spare on each side and is never nudged sideways by the frame (a window keeps JAMB).
+const DOOR_JAMB := 0.25
 const SILL := 0.9
 const WINDOW_TOP := 1.9
 ## How high the timber lintel over a built window is.
@@ -2005,7 +2008,7 @@ func _tiled_board(a: Vector3, b: Vector3, width: float, ymin: float) -> void:
 	var uv := VillageHouse.TILES_UV
 	var uvs := [uv.position, uv.position + Vector2(uv.size.x, 0), uv.end, uv.position + Vector2(0, uv.size.y)]
 	# From the ridge (row 0) down to the eaves, as on the villagers' roofs.
-	var origin := b + up * 0.02 - side * width * 0.5
+	var origin := b + up * 0.03 - side * width * 0.5
 	for r in rows:
 		for c in cols:
 			var p0 := origin + side * (c * width / cols) - along * (r * length / rows)
@@ -2170,12 +2173,14 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 	var at := Transform3D(basis, a + slope * 0.5 - up * thick * 0.5)
 	var size := Vector3(length, thick, width)
 	if show:
+		# The drawn board lies a little under and inside the tiled board over it (_tiled_board), so the
+		# two never share a face (z-fighting at the roof's edges).
 		var m := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = size
+		box.size = size - Vector3(0, 0, 0.04)
 		m.mesh = box
 		m.material_override = _solid_material(colour)
-		m.transform = at
+		m.transform = Transform3D(basis, at.origin - up * 0.03)
 		m.set_meta("ymin", minf(a.y, b.y) - thick)
 		_solid.add_child(m)
 	if collide:
@@ -2371,9 +2376,9 @@ func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool
 	var axis := Vector3.RIGHT if along_x else Vector3.BACK
 	var across := Vector3.BACK if along_x else Vector3.RIGHT
 	var wood: Material = _solid_material(DEMOLISH_COLOR) if demolish else HouseLooks.stair_wood()
-	var opening := HouseSketch.CELL - 2.0 * JAMB
+	var opening := HouseSketch.CELL - 2.0 * DOOR_JAMB
 	# The jambs reach into the corner, as a wall piece does.
-	var jamb_long := JAMB + THICK * 0.5
+	var jamb_long := DOOR_JAMB + THICK * 0.5
 	var jamb_deep := THICK + 0.1
 	for sign_ in [-1.0, 1.0]:
 		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)

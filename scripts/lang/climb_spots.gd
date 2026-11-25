@@ -3,6 +3,7 @@ extends RefCounted
 
 const EN := {
 	"Hier ist es zu steil.": "It is too steep here.",
+	"Halte links oder rechts gedrückt, um dich am Fels entlangzuhangeln.": "Hold left or right to shuffle along the rock.",
 	"Dir fehlen Hammer, Seil oder ein Kletternagel für einen Sicherungspunkt.": "You lack a hammer, a rope or a climbing nail for a safe spot.",
 	"Du schlägst einen Kletternagel in den Fels und fädelst das Seil ein: ein Sicherungspunkt.": "You hammer a climbing nail into the rock and thread the rope through it: a safe spot.",
 	"Abgerutscht! Du fällst zu Boden.": "You slip! You fall to the ground.",

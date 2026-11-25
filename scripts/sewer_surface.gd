@@ -231,8 +231,10 @@ static func _stream(lvl: Outdoor) -> void:
 	flow.to = Vector3((MOUTH_TILE.x + 0.5) * tile, 0.06, (STREAM_TO_ROW - 0.2) * tile)
 	flow.width = tile * 2.0 - 1.6
 	flow.speed = 0.55
-	flow.count = 110
-	flow.palette = StreamFlow.LEAVES
+	flow.count = 16
+	flow.foam_every = 0
+	flow.seasonal = true
+	flow.palette = StreamFlow.GREEN_LEAVES
 	lvl.add_child(flow)
 
 
@@ -326,6 +328,18 @@ static func _river(lvl: Outdoor) -> void:
 	flow.rubbish = true
 	flow.palette = StreamFlow.RUBBISH
 	lvl.add_child(flow)
+	# And the leaves and sticks every river carries (see RiverFlow).
+	var leaves := StreamFlow.new()
+	leaves.name = "OutfallLeaves"
+	leaves.from = flow.from
+	leaves.to = flow.to
+	leaves.width = flow.width
+	leaves.speed = flow.speed
+	leaves.count = 24
+	leaves.foam_every = 0
+	leaves.seasonal = true
+	leaves.palette = StreamFlow.GREEN_LEAVES
+	lvl.add_child(leaves)
 
 
 # --- The street's grating and the manhole -------------------------------------

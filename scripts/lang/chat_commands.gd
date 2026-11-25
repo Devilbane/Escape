@@ -16,5 +16,10 @@ const EN := {
 	"Jahreszeit": "Season",
 	"Wechselt sofort in eine Jahreszeit (spring, summer, autumn, winter; auch frühling, sommer, herbst): Laub, Ranken und Trauben, Kleidung, Schnee und das Wetter der Jahreszeit. Danach läuft der Kalender von dort weiter, eine echte Woche je Jahreszeit.": "Switches to a season at once (spring, summer, autumn, winter): leaves, vines and grapes, clothes, snow and the season's weather. The calendar then runs on from there, one real week per season.",
 	"Zeigt jedes Wetter eine Minute lang, während die Uhr einen ganzen Tag und eine Nacht durchläuft, und fängt dann von vorn an. Stop oder ein anderer Himmelsbefehl beendet sie.": "Shows each weather for a minute while the clock sweeps a whole day and night, then starts over. Stop, or any other sky command, ends it.",
+	"Freie Kamera": "Free camera",
+	"Für Bildschirmfotos: Das Mausrad (oder + und -) zoomt bis weit hinaus, Bild hoch und Bild runter (oder [ und ]) neigen die Kamera bis fast auf Bodenhöhe. low und top springen in eine tiefe oder senkrechte Ansicht, eine Zahl von 3 bis 89 setzt den Neigungswinkel. camera:off oder noch einmal camera:free beendet sie.": "For screenshots: the mouse wheel (or + and -) zooms far out, Page Up and Page Down (or [ and ]) tilt the camera down to nearly ground level. low and top jump to a low or a straight-down view, a number from 3 to 89 sets the tilt angle. camera:off, or camera:free again, ends it.",
+	"Freie Kamera an: Mausrad zoomt weit hinaus, Bild hoch und Bild runter neigen sie.": "Free camera on: the mouse wheel zooms far out, Page Up and Page Down tilt it.",
+	"Freie Kamera aus.": "Free camera off.",
+	"Kamera: free, low, top, off oder ein Neigungswinkel von 3 bis 89.": "Camera: free, low, top, off or a tilt angle from 3 to 89.",
 	"Keine Befehle eingeschaltet.": "No commands are switched on.",
 }

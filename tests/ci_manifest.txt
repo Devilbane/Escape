@@ -26,6 +26,7 @@ save_notice.gd | 120 | free | pass | Save notice test ("Game saved" after every 
 bleeding.gd | 120 | free | pass | Bleeding test (cutting hits bleed the hit's life, faster on the move)
 regen_pause.gd | 120 | free | pass | Healing pause test (no regeneration right after a blow)
 door_safety.gd | 120 | fixed | pass | Locked doors (no getting stuck, no blows through them) test
+door_walk_straight.gd | 120 | fixed | pass | Doorways let the hero walk straight through (no zig-zag, no catching on the frame) test
 pillar_shots.gd | 120 | fixed | passfail | Pillars stop shots test
 offline_schedule.gd | 120 | free | pass | Time away (offline activities) test
 wake_up.gd | 120 | fixed | pass | Waking up in bed after loading test
@@ -127,6 +128,10 @@ lift_keeps_hidden.gd | 30 | free | passfail | A roof lifted off and put back nev
 waterfall.gd | 120 | free | passfail | The river's spring waterfall: notch, no path, water on the rock, winter ice
 spring_cave.gd | 120 | free | passfail | The cave behind the spring waterfall: ice wall, hammer, thaw, cave map
 mountain_foot.gd | 240 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
+foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep
 bed_exit_chest.gd | 120 | fixed | pass | The hero steps out of bed on the side without a chest
 climbing_gear.gd | 60 | fixed | pass | Climbing gear: five pieces worn in their slots, +1 Klettern each and +2 for the full set, nothing from the bag
+glow_mushrooms.gd | 120 | free | pass | Glow mushrooms (at most 3 patches of 1 to 7 a day, new places each day, glow follows the clock)
+hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)
+furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)

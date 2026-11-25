@@ -21,6 +21,14 @@ uniform sampler2D ground_mask : filter_linear, repeat_disable;
 // Scree in the mountains (see Mountains): one pixel per tile, red 1 where
 // the ground is stony. Black (no scree) everywhere else by default.
 uniform sampler2D stone_mask : filter_linear, repeat_disable, hint_default_black;
+// The apron of earth at the foot of the mountains (see MountainFoot): 1 inside the rock at its foot, falling to 0 a few
+// metres out on the open ground. foot_apron is how strongly it is drawn, foot_gravel how stony and foot_moss how
+// grassy it is. foot_earth is the colour of the earth on the foot of the rock mesh (MountainFoot.EARTH).
+uniform sampler2D foot_mask : filter_linear, repeat_disable, hint_default_black;
+uniform float foot_apron = 0.0;
+uniform float foot_gravel = 0.0;
+uniform float foot_moss = 0.0;
+uniform vec3 foot_earth = vec3(0.5, 0.44, 0.37);
 uniform vec2 grid_size = vec2(16.0, 16.0);
 uniform float tile = 4.0;
 // Holes in the ground (a player's cellar): one pixel per 2 m cell of the map.
@@ -250,6 +258,32 @@ void fragment() {
 		vec3 sc = scree(p, px, hs);
 		col = mix(col, sc, stony);
 		h = mix(h, hs, stony);
+	}
+	if (foot_apron > 0.0) {
+		float f = texture(foot_mask, uv).r;
+		// The outline wanders in lobes a few metres wide and frays at the very edge: no tile line shows.
+		float edge = f + (fbm2(p * 0.33 + 7.0) - 0.5) * 0.85 + (fbm2(p * 1.6 + 3.0) - 0.5) * 0.24 + (noise(p * 9.0) - 0.5) * 0.08;
+		float apron = smoothstep(0.3, 0.58, edge) * foot_apron;
+		if (apron > 0.001) {
+			vec3 fe = foot_earth * (0.86 + 0.28 * fbm2(p * 0.8 + 21.0));
+			fe *= 1.0 + (noise(p * 30.0) - 0.5) * 0.18 * band(30.0, px) + (noise(p * 90.0) - 0.5) * 0.14 * band(90.0, px);
+			// Damp, darker patches in the dust.
+			fe = mix(fe, fe * vec3(0.78, 0.76, 0.74), smoothstep(0.6, 0.78, fbm2(p * 0.45 + 90.0)) * 0.7);
+			float fh = 0.0;
+			if (foot_gravel > 0.0) {
+				vec4 gs = cells(p * 5.0, 1.0);
+				float gr = 0.14 + 0.14 * gs.w;
+				float gst = step(0.42, gs.z) * (1.0 - smoothstep(gr - 0.05, gr, gs.x)) * band(5.0, px);
+				vec3 gc = mix(vec3(0.6, 0.55, 0.5), vec3(0.4, 0.37, 0.34), gs.w) * (0.8 + 0.3 * (1.0 - gs.x / gr));
+				fe = mix(fe, gc, gst * foot_gravel);
+				fh = 0.012 * gst * foot_gravel;
+			}
+			// Grass creeps in over the earth in patches, thickest out where the apron thins.
+			float gp = foot_moss * smoothstep(0.52, 0.72, fbm2(p * 0.85 + 55.0) + (1.0 - edge) * 0.35);
+			fe = mix(fe, col * vec3(1.0, 0.97, 0.82), gp * 0.8);
+			col = mix(col, fe, apron);
+			h = mix(h, fh, apron);
+		}
 	}
 	if (path > 0.001) {
 		float he;

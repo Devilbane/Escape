@@ -322,6 +322,8 @@ var meals := TownMeals.new()
 var bench_rest := BenchRest.new()
 ## The morning gathering in the temple (see TempleMorning).
 var temple_morning := TempleMorning.new()
+## Buried rooms far from the hero stop casting shadows (see UndergroundShadows).
+var underground_shadows := UndergroundShadows.new()
 ## The wall round the village and its gates, mended by the stonemason (see VillageWall).
 var village_wall := VillageWall.new()
 ## Where the alarm horn stands by the west gate (see WarHorn), INF when there is none.
@@ -640,6 +642,9 @@ var valley_events: ValleyEvents
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
+## The few more apple trees that explain the fallen leaves (see AppleTree.plant_for_leaves). They are not
+## the hedgehogs' apple trees, so those runs stay as they were.
+var leaf_trees: Array = []
 ## Whether the village wears its winter clothes (see WinterWear), set by Game from the day and the
 ## hour: the clothes change in the night, so the village is asleep when they do.
 var winter_wear := false
@@ -792,6 +797,9 @@ func build() -> void:
 	# And one in each grass pocket framed by paths.
 	square_trees.append_array(AppleTree.plant_in_pockets(self, square_trees))
 	AppleTree.dress(square_trees, day)
+	# And a few more, spread over the ground the autumn leaves cover, so they have a tree to come from.
+	leaf_trees = AppleTree.plant_for_leaves(self, square_trees)
+	AppleTree.dress(leaf_trees, day)
 	if not nests.is_empty():
 		var pecking: Array[Vector3] = []
 		pecking.assign(spots.square)
@@ -802,12 +810,15 @@ func build() -> void:
 		birds.winter_perches.append_array(_lamp_perches)
 		add_child(birds)
 	_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
+	MountainFoot.apply(self)
+	MountainFoot.scatter(self)
 	if waterfall != null:
 		waterfall.lay_water(self)
 	_build_forest()
 	_build_house()
 	_build_wall_collision()
 	_grow_ferns()
+	RiverFlow.build(self)
 	if not _undergrowth.xforms.is_empty():
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"
@@ -822,6 +833,7 @@ func build() -> void:
 	SummitGarden.build(self)
 	_setup_astar()
 	meals.garland.block(self)
+	GlowMushrooms.build(self)
 	if birds:
 		# Not where the fountain, a bench or a stall stands.
 		var free: Array[Vector3] = []
@@ -1938,21 +1950,9 @@ func _lantern_glow(light_at: Vector3, candle_at: Vector3) -> void:
 	light.position = light_at
 	add_child(light)
 	_lamps.append(light)
-	if _candle_mat == null:
-		_candle_mat = StandardMaterial3D.new()
-		_candle_mat.albedo_color = Color(1.0, 0.8, 0.5)
-		_candle_mat.emission_enabled = true
-		_candle_mat.emission = Color(1.0, 0.7, 0.35)
-		_candle_mat.emission_energy_multiplier = 0.0
-	var candle := MeshInstance3D.new()
-	var ball := SphereMesh.new()
-	ball.radius = 0.06
-	ball.height = 0.12
-	candle.mesh = ball
-	candle.material_override = _candle_mat
-	candle.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	candle.position = candle_at
-	candle.visible = false
+	# A glow mushroom is what a lantern burns: pale by day, glowing with the night (see GlowMushrooms).
+	var candle := GlowMushrooms.lamp_node()
+	candle.position = candle_at + Vector3(0, -0.07, 0)
 	add_child(candle)
 	_candles.append(candle)
 
@@ -2078,6 +2078,7 @@ func clear_plot(rect: Rect2i) -> void:
 			if is_instance_valid(node):
 				node.queue_free()
 		_mountain_nodes = Mountains.build(self, hash(level_name + "berge"), _plot_areas)
+		MountainFoot.rebuild(self)
 
 
 ## The birds and squirrels in the trees along the forest's edge: only trees
@@ -3622,6 +3623,11 @@ func _pave_entrances() -> void:
 	_ground_tex.update(_ground_img)
 
 
+## Whether one of the leaf apple trees stands on a tile (no building plot may cover it, see Plots.problem).
+func has_leaf_tree(c: Vector2i) -> bool:
+	return leaf_trees.any(func(t): return t.cell == c)
+
+
 ## Whether a tile lies within the village's reach (see Plots: no building plots there).
 func near_village(c: Vector2i) -> bool:
 	return _in_village(c)
@@ -4514,9 +4520,12 @@ func _spawn_animals() -> void:
 ## A burrow on the meadow with its huddle of baby rabbits (see Warren).
 func _spawn_warren(cell: Vector2i) -> void:
 	var centre := cell_to_world(cell)
-	var hole := Warren.burrow()
+	var hole := Warren.burrow(cell.x * 31 + cell.y)
 	add_child(hole)
 	hole.global_position = centre
+	hole.rotation.y = float(hash(cell) % 628) / 100.0
+	hole.add_to_group("burrows")
+	Warren.dress(hole, season_day)
 	for i in Warren.KITS:
 		var a := Animal.new()
 		a.setup(self, "kit", cell)
@@ -4880,6 +4889,13 @@ func set_season(day_of_season: int) -> void:
 	if surface_life != null:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
+	AppleTree.dress(leaf_trees, day_of_season)
+	if is_inside_tree():
+		for hole: Node3D in get_tree().get_nodes_in_group("burrows"):
+			Warren.dress(hole, day_of_season)
+	if is_inside_tree():
+		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
+			flow.set_season(day_of_season)
 	if crop_fields != null:
 		crop_fields.set_season(day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
@@ -4908,6 +4924,7 @@ func _process(delta: float) -> void:
 	meals.tick(self, delta)
 	bench_rest.tick(self, delta)
 	temple_morning.tick(self, delta)
+	underground_shadows.tick(self, player.global_position, delta)
 	# The wind carries the swept leaves back over the walkways (see LeafSweep).
 	LeafSweep.advance(self)
 	var cell := world_to_cell(player.global_position)
@@ -4999,10 +5016,8 @@ func set_hour(new_hour: float) -> void:
 	var glow := DayNight.glow_at(hour)
 	for lamp in _lamps:
 		lamp.light_energy = lerpf(LAMP_DAY, LAMP_NIGHT, glow)
-	if _candle_mat:
-		_candle_mat.emission_energy_multiplier = CANDLE_GLOW * glow
-	for candle in _candles:
-		candle.visible = glow > 0.02
+	# The wild glow mushrooms and the ones in the lanterns soak up the day and light up with the night.
+	GlowMushrooms.set_glow(glow)
 	# The lanterns and candles at the dining tables (see TownMeals).
 	meals.set_glow(glow)
 	if walk_in != null:
@@ -5655,7 +5670,7 @@ func set_ice(value: float) -> void:
 	ice = clampf(value, 0.0, 1.0)
 	if ice_cover != null:
 		ice_cover.set_amount(ice)
-	if ice_fish == null and ice >= IceFish.SHOW_FROM and is_inside_tree() and not _pond_waters.is_empty():
+	if ice_fish == null and is_inside_tree() and not _pond_waters.is_empty():
 		ice_fish = IceFish.build(self, _pond_waters)
 	if ice_fish != null:
 		ice_fish.set_ice(ice)

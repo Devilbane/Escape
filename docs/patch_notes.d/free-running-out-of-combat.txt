@@ -1,0 +1,1 @@
+- Running no longer costs breath outside of combat; it only drains for a few seconds after you deal or take damage.

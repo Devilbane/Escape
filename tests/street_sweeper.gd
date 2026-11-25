@@ -115,6 +115,19 @@ func _run() -> void:
 		again += LeafSweep.leaves_near(lvl, p, LeafSweep.REACH)
 	check(again == before, "the walkway is strewn as before (%d)" % again)
 
+	# The route marked by hand: the loop round the square comes first, every stretch of it.
+	var marked := StreetSweeper.marked(lvl)
+	check(marked.size() == StreetSweeper.MARKED.size(), "all the marked stretches fit the map (%d)" % marked.size())
+	StreetSweeper.rested = {}
+	var first := SnowSweep.route(lvl, sweeper.home, rng, Callable(LeafSweep, "is_clear").bind(lvl))
+	check(not first.is_empty() and StreetSweeper.is_marked(lvl, lvl.world_to_cell(first[first.size() / 2])), "he starts on the marked route")
+	var ring_cells := {}
+	for st: Array in marked:
+		for c in st:
+			ring_cells[c] = true
+	check(ring_cells.size() >= 50, "the marked route is a long way (%d tiles)" % ring_cells.size())
+	StreetSweeper.rested = {}
+
 	# One stretch after the other: he does not stop after the first, and the square is last.
 	var clear := Callable(LeafSweep, "is_clear").bind(lvl)
 	var cells := {}
@@ -132,17 +145,20 @@ func _run() -> void:
 			for swing in [-1.0, -0.5, 0.0, 0.5, 1.0]:
 				var head: Vector3 = next[k] + heading * 0.85 + heading.cross(Vector3.UP) * swing * LeafSweep.SWING
 				LeafSweep.stamp(lvl, head, next[k], heading)
-			cells[lvl.world_to_cell(next[k])] = true
+			if stretches > marked.size():
+				cells[lvl.world_to_cell(next[k])] = true
 		on_square = lvl.cell_char(lvl.world_to_cell(next.back())) == SurfaceLife.SQUARE
 		for p in next:
 			var pc: Vector2i = lvl.world_to_cell(p)
-			if lvl.cell_char(pc) == SurfaceLife.SQUARE and not SnowSweep.is_rim(lvl, pc):
+			if lvl.cell_char(pc) == SurfaceLife.SQUARE and not SnowSweep.is_rim(lvl, pc) and not StreetSweeper.is_marked(lvl, pc):
 				interior += 1
+		if stretches <= marked.size():
+			on_square = false
 		if on_square and square_at < 0:
 			square_at = stretches
 	check(stretches >= 3, "he works through several stretches, not one (%d, %d cells)" % [stretches, cells.size()])
-	check(square_at < 0 or square_at > 5, "the square waits until the footpaths are done (square from stretch %d)" % square_at)
-	check(interior == 0, "he sweeps only the rim of the village centre, not its inside (%d inner points)" % interior)
+	check(square_at < 0 or square_at > marked.size() + 5, "the square waits until the footpaths are done (square from stretch %d)" % square_at)
+	check(interior == 0, "he sweeps only the rim and the marked loop, not the inside of the village centre (%d inner points)" % interior)
 	check(cells.size() >= 40, "he covers many walkway tiles (%d)" % cells.size())
 	var far := 0
 	for c: Vector2i in cells:

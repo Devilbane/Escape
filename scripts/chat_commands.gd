@@ -21,6 +21,13 @@ static func entries() -> Array:
 			"text": "Unverwundbar und dreifaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.",
 			"examples": [Godmode.COMMAND],
 		})
+	if HeroUnstick.ENABLED:
+		out.append({
+			"name": "Unstuck",
+			"syntax": HeroUnstick.COMMAND,
+			"text": "Setzt den Helden auf den nächsten freien Platz, wenn er irgendwo festhängt. Nie durch eine Wand oder eine verschlossene Tür.",
+			"examples": [HeroUnstick.COMMAND],
+		})
 	if Teleport.ENABLED:
 		out.append({
 			"name": "Teleport",
@@ -46,5 +53,12 @@ static func entries() -> Array:
 			"syntax": "season:<spring|summer|autumn|winter>",
 			"text": "Wechselt sofort in eine Jahreszeit (spring, summer, autumn, winter; auch frühling, sommer, herbst): Laub, Ranken und Trauben, Kleidung, Schnee und das Wetter der Jahreszeit. Danach läuft der Kalender von dort weiter, eine echte Woche je Jahreszeit.",
 			"examples": ["season:spring", "season:summer", "season:autumn", "season:winter"],
+		})
+	if CameraCommand.ENABLED:
+		out.append({
+			"name": "Freie Kamera",
+			"syntax": "camera:<free|low|top|off|Winkel>",
+			"text": "Für Bildschirmfotos: Das Mausrad (oder + und -) zoomt bis weit hinaus, Bild hoch und Bild runter (oder [ und ]) neigen die Kamera bis fast auf Bodenhöhe. low und top springen in eine tiefe oder senkrechte Ansicht, eine Zahl von 3 bis 89 setzt den Neigungswinkel. camera:off oder noch einmal camera:free beendet sie.",
+			"examples": ["camera:free", "camera:low", "camera:20", "camera:off"],
 		})
 	return out

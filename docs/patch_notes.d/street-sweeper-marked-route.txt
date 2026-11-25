@@ -1,0 +1,1 @@
+- Matthes the street sweeper now sweeps the way marked on the village map first: the loop round the fountain square, the road west to the gate and the branch to the south-west.

@@ -43,17 +43,66 @@ func _run() -> void:
 	game.load_level(game._outdoor_index(), false)
 	await _wait(30)
 	var lvl: Outdoor = game.level
-	check(lvl.ice_fish == null, "in summer there are no fish to build")
-	game.ice_cover = 1.0
-	lvl.set_ice(1.0)
+	game.ice_cover = 0.0
+	lvl.set_ice(0.0)
 	await _wait(5)
 	var school: IceFish = lvl.ice_fish
-	check(school != null, "the first frost builds the fish")
+	check(school != null, "the fish live in the open water all year")
 	if school == null:
 		quit(1)
 		return
-	check(school._fish.size() >= 3, "there are fish under the ice (%d)" % school._fish.size())
-	check(school.visible, "the fish show under the ice")
+	check(school._fish.size() >= 6 and school._fish.size() <= IceFish.MAX_FISH, "a few fish, not a crowd (%d)" % school._fish.size())
+	check(school.visible, "the fish show in open water")
+	check(school._cover == 0.0, "open water: no ice over the fish")
+	# Ripples: a ring starts beside a fish now and then in open water, and none under the ice.
+	school.active_range = 1.0e9
+	school._wake_near()
+	var rings := 0
+	var darted := 0
+	for i in 120:
+		school._stir(0.2)
+		var now := 0
+		for a in school._ring_age:
+			if a < 1.0:
+				now += 1
+		rings = maxi(rings, now)
+		darted = maxi(darted, school._fish.filter(func(f): return f.state != "swim").size())
+	check(rings >= 1, "a ring spreads on the water (%d)" % rings)
+	check(darted >= 1, "a fish startled by a ring bolts and dives (%d)" % darted)
+	# A bolting fish sinks and fades, then is gone, then comes back.
+	var scared: Dictionary = {}
+	for f in school._fish:
+		if f.state != "swim":
+			scared = f
+			break
+	if not scared.is_empty():
+		for i in 80:
+			school._startled(scared, 0.1)
+			if scared.state == "gone":
+				break
+		check(scared.state == "gone" and not scared.node.visible, "the startled fish dives out of sight")
+		scared.timer = 0.01
+		for i in 5:
+			school._startled(scared, 0.1)
+		check(scared.state == "return" or scared.state == "swim", "and comes back later")
+		scared.state = "swim"
+		scared.node.visible = true
+		scared.mat.set_shader_parameter("fade", 1.0)
+	game.ice_cover = 1.0
+	lvl.set_ice(1.0)
+	await _wait(3)
+	check(school._cover > 0.9, "the frost veils the fish")
+	for i in school._ring_age.size():
+		school._ring_age[i] = 1.0
+	for i in 60:
+		school._stir(0.2)
+	var iced := 0
+	for a in school._ring_age:
+		if a < 1.0:
+			iced += 1
+	check(iced == 0, "no rings under the ice")
+	school.active_range = 1.0e9
+	school._wake_near()
 	var start: Array[Vector3] = []
 	for f in school._fish:
 		start.append(f.node.position)
@@ -83,7 +132,19 @@ func _run() -> void:
 	game.ice_cover = 0.0
 	lvl.set_ice(0.0)
 	await _wait(3)
-	check(not school.visible, "the thaw hides the fish")
+	school.active_range = 0.5
+	school._wake_near()
+	var asleep := 0
+	for f in school._fish:
+		if not (f.node as Node3D).visible:
+			asleep += 1
+	check(asleep >= school._fish.size() - 2, "far fish are paused and hidden (%d of %d)" % [asleep, school._fish.size()])
+	check(school.visible and school._cover == 0.0, "the thaw brings the fish back into the open")
+	# Every river and pond has a fish (the bodies of water, see IceFish.build).
+	var bodies := {}
+	for f in school._fish:
+		bodies[lvl.world_to_cell(f.home)] = true
+	check(bodies.size() >= 5, "the fish are spread over the waters (%d spots)" % bodies.size())
 	game.delete_save(game.save_path())
 	if failures == 0:
 		print("PASS: ice_fish")

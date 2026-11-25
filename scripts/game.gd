@@ -315,6 +315,10 @@ var _zoom_target := 0.0
 ## Metres the camera is pulled further back than the zoom says (the blueprint tool uses it
 ## to fit a big plot on screen, see HouseSketcher.solve_frame).
 var frame_pull := 0.0
+## The free camera for screenshots (chat: camera:free): its own distance and tilt.
+var free_camera := false
+var free_pitch := CAMERA_PITCH
+var free_distance := CAMERA_DISTANCE
 
 var _hud: CanvasLayer
 ## The "Game saved" plate in the top right corner (see SaveNotice).
@@ -2314,6 +2318,9 @@ func _on_ingredient_collected(id: String, count := 1, from_loot := false) -> voi
 		Events.found(Lang.t("%s kommt in deinen Geldbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
 	else:
 		Events.found(Lang.t("%s kommt in deinen Zutatenbeutel. Du findest ihn im Inventar (I) als eigenen Reiter.") % Rarity.marked(id), Color(0.7, 0.95, 0.5))
+	if GlowMushrooms.is_glow(id):
+		learn(GlowMushrooms.LEARN)
+		Events.tell(Lang.t(GlowMushrooms.PICKED), GlowMushrooms.colour(GlowMushrooms.kind_of(id)))
 	if id == SummitGarden.INGREDIENT:
 		learn(SummitGarden.PICKED_LEARN)
 		Events.tell(Lang.t(SummitGarden.PICKED), Color(0.9, 0.95, 1.0))
@@ -2874,13 +2881,15 @@ func _update_run_meter() -> void:
 	var left := full if player.stamina < 0.0 else player.stamina
 	_run_bar.max_value = full
 	_run_bar.value = left
-	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
-	var key := [ceili(left), player.winded, Lang.language]
+	var free := not player.in_combat() and not player.winded
+	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else (Color(0.4, 0.75, 0.9) if free else Color(0.55, 0.85, 0.4))
+	var key := [ceili(left), player.winded, free, Lang.language]
 	if key == _run_meter_key:
 		return
 	_run_meter_key = key
-	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
+	_run_label.text = Lang.t("Rennen: frei") if free else Lang.t("Rennen: %d s") % ceili(left)
 	var run_tip := Lang.t("So lange kannst du noch rennen. Im Gehen und Stehen kommt die Puste zurück.")
+	run_tip += "\n" + Lang.t("Außerhalb eines Kampfes kostet Rennen keine Puste.")
 	if player.winded:
 		run_tip += "\n" + Lang.t("Außer Atem: Erst wenn sich die Leiste wieder etwas gefüllt hat, kannst du rennen.")
 	_run_row.tooltip_text = run_tip
@@ -3118,6 +3127,7 @@ func _new_day(quiet := false) -> void:
 		QuarryRocks.refresh(level, day, true)
 		WoodLogs.refresh(level, day, true)
 		SummitGarden.refresh(level, day, true)
+		GlowMushrooms.refresh(level, day, true)
 	_dragon_morning(quiet)
 	var expired := bounties.refresh(day)
 	if quiet or not escaped:
@@ -3538,6 +3548,7 @@ func _load_parked(index: int) -> void:
 		QuarryRocks.refresh(level, day, true)
 		WoodLogs.refresh(level, day, true)
 		SummitGarden.refresh(level, day, true)
+		GlowMushrooms.refresh(level, day, true)
 	_spawn_pet()
 	apply_companion_perk()
 	_refresh_seals()
@@ -3633,6 +3644,7 @@ func load_level(index: int, restock := true) -> void:
 	QuarryRocks.refresh(level, day)
 	WoodLogs.refresh(level, day)
 	SummitGarden.refresh(level, day)
+	GlowMushrooms.refresh(level, day)
 	level.restore_floor()
 	level.restore_stones()
 	level.key_collected.connect(_on_key_collected)
@@ -5942,6 +5954,13 @@ func _hero_says(text: String) -> void:
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
+	if HeroUnstick.is_command(text):
+		_unstick_command()
+		return
+	var cam: Variant = CameraCommand.parse(text)
+	if cam != null:
+		_camera_command(cam)
+		return
 	var season: Variant = SkyCommand.parse_season(text)
 	if season != null:
 		_season_command(season)
@@ -5956,6 +5975,33 @@ func _hero_says(text: String) -> void:
 	Effects.float_text(level, pos + Vector3(0, 3.0, 0), text, HERO_SAY_COLOR)
 	Events.say(hero_name, text, pos)
 	Events.hero_says(text, pos)
+
+
+## The chat line's unstuck command (dev builds only, see HeroUnstick).
+func _unstick_command() -> void:
+	var freed := HeroUnstick.release(player, player.free_spot)
+	Events.tell(Lang.t(HeroUnstick.DONE_TEXT if freed else HeroUnstick.NONE_TEXT), TELEPORT_COLOR)
+
+
+## The chat line's free camera (see CameraCommand).
+func _camera_command(cmd: Dictionary) -> void:
+	if cmd.has("help"):
+		Events.found(Lang.t(CameraCommand.HELP), TELEPORT_COLOR)
+		return
+	var was := free_camera
+	if cmd.has("off"):
+		free_camera = false
+	elif cmd.has("toggle"):
+		free_camera = not free_camera
+	else:
+		free_camera = true
+	if free_camera and not was:
+		free_distance = CAMERA_DISTANCE
+		free_pitch = CAMERA_PITCH
+	if cmd.has("pitch"):
+		free_pitch = cmd.pitch
+	if free_camera != was:
+		Events.tell(Lang.t(CameraCommand.ON_TEXT) if free_camera else Lang.t(CameraCommand.OFF_TEXT), TELEPORT_COLOR)
 
 
 const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
@@ -8018,6 +8064,9 @@ func _autosave() -> void:
 # --- Per frame --------------------------------------------------------------
 
 func _camera_offset() -> Vector3:
+	if free_camera:
+		var tilt := deg_to_rad(free_pitch)
+		return Vector3(0, sin(tilt), cos(tilt)) * free_distance + Vector3(0, 1.0, 0)
 	var pitch := deg_to_rad(lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
 	var distance := lerpf(CAMERA_DISTANCE, CLOSE_DISTANCE, _zoom) + frame_pull
 	# Up close the camera looks at the hero's chest instead of the feet.
@@ -8030,6 +8079,9 @@ func can_zoom() -> bool:
 
 
 func zoom_by(steps: float) -> void:
+	if free_camera:
+		free_distance = CameraCommand.distance_after(free_distance, steps)
+		return
 	# Steps below 0 look from further out (and a little more from above) than the normal view.
 	_zoom_target = clampf(_zoom_target + steps * ZOOM_STEP, -ZOOM_OUT_STEPS * ZOOM_STEP, 1.0)
 
@@ -8148,7 +8200,7 @@ func _process(delta: float) -> void:
 	var p := drawn
 	p.y = minf(p.y, 0.5) if not player.frozen else p.y
 	_zoom = move_toward(_zoom, _zoom_target, delta * 2.5)
-	camera.rotation_degrees.x = -lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom)
+	camera.rotation_degrees.x = -(free_pitch if free_camera else lerpf(CAMERA_PITCH, CLOSE_PITCH, _zoom))
 	var target := p + _camera_offset()
 	if house_sketcher != null and house_sketcher.active:
 		# The blueprint tool looks at the whole plot, a little above the middle so
@@ -8438,6 +8490,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_LEFT, MOUSE_BUTTON_WHEEL_RIGHT]:
 		if event.pressed and can_zoom() and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			zoom_by(event.factor if event.factor > 0.0 else 1.0) if event.button_index == MOUSE_BUTTON_WHEEL_UP else zoom_by(-(event.factor if event.factor > 0.0 else 1.0))
+		return
+	if free_camera and event is InputEventKey and event.pressed and can_zoom() and event.physical_keycode in [KEY_PAGEUP, KEY_PAGEDOWN, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]:
+		free_pitch = CameraCommand.pitch_after(free_pitch, 1.0 if event.physical_keycode in [KEY_PAGEUP, KEY_BRACKETRIGHT] else -1.0)
 		return
 	if event is InputEventKey and event.pressed and can_zoom() and event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD, KEY_MINUS, KEY_KP_SUBTRACT]:
 		zoom_by(2.0 if event.physical_keycode in [KEY_EQUAL, KEY_PLUS, KEY_KP_ADD] else -2.0)

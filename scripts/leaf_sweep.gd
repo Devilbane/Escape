@@ -78,6 +78,12 @@ static func _key(e: Array) -> String:
 	return "%d:%d" % [(e[0] as MultiMesh).get_instance_id(), e[1]]
 
 
+## Whether a cluster at `o` lies on a walkway (a footpath, a gate or the square): only those are swept.
+static func _on_walkway(level: Node, o: Vector3) -> bool:
+	var under: String = level.cell_char(level.world_to_cell(o))
+	return SurfaceLife.PATH.contains(under) or under == SurfaceLife.SQUARE or under == SnowSweep.GATE
+
+
 ## How many clusters of leaves still lie within `radius` metres of `at`, for the route and the tests.
 static func leaves_near(level: Node, at: Vector3, radius := LANE) -> int:
 	var life: SurfaceLife = level.surface_life
@@ -85,7 +91,7 @@ static func leaves_near(level: Node, at: Vector3, radius := LANE) -> int:
 		return 0
 	var count := 0
 	for e: Array in _near(life, level, at, radius):
-		if not is_swept(e) and is_instance_valid(e[0]):
+		if not is_swept(e) and is_instance_valid(e[0]) and _on_walkway(level, e[2]):
 			count += 1
 	return count
 
@@ -111,8 +117,7 @@ static func stamp(level: Node, head: Vector3, feet: Vector3, heading: Vector3) -
 			continue
 		var o: Vector3 = e[2]
 		# Only what lies on a walkway: a heap on the grass beside it stays.
-		var under: String = level.cell_char(level.world_to_cell(o))
-		if not (SurfaceLife.PATH.contains(under) or under == SurfaceLife.SQUARE or under == SnowSweep.GATE):
+		if not _on_walkway(level, o):
 			continue
 		var lateral := (o - feet).dot(side)
 		if absf(lateral) > LANE:

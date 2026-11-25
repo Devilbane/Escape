@@ -17,10 +17,11 @@ const OWN_HEAD := "own_head"
 ## the Rogue, Mage and Knight faces), while the head's box differs from model to model.
 const EYE_Y := 1.585
 
-## Skin tones, a multiplier on the model's own skin (white keeps it).
-const FAIR := Color(1.0, 0.94, 0.9)
-const PALE := Color(0.96, 0.9, 0.87)
-const ASHEN := Color(0.92, 0.9, 0.95)
+## Skin tones, a multiplier on the model's own skin (white keeps it). No tone is above Pip and Pippi's SKIN_ROSY
+## in red or in blue/green: the model's skin is already bright in the midday sun, so a pale multiplier washes it out.
+const FAIR := Color(0.95, 0.8, 0.74)
+const PALE := Color(0.94, 0.77, 0.7)
+const ASHEN := Color(0.93, 0.82, 0.8)
 const WARM := Color(0.95, 0.86, 0.77)
 const RUDDY := Color(0.95, 0.74, 0.66)
 const OLIVE := Color(0.86, 0.78, 0.62)
@@ -53,15 +54,15 @@ const LOOKS := {
 	"8": {"skin": ASHEN, "glasses": "monocle", "frame": GOLD, "hat": Color(0.22, 0.2, 0.46)},
 	"9": {"skin": FAIR},
 	"K": {"skin": BROWN, "dye": "black"},
-	"¢": {"skin": Color(0.97, 0.88, 0.8), "glasses": "square", "frame": IRON},
-	"µ": {"skin": Color(0.98, 0.8, 0.7), "glasses": "round", "frame": SILVER},
+	"¢": {"skin": Color(0.95, 0.82, 0.73), "glasses": "square", "frame": IRON},
+	"µ": {"skin": Color(0.96, 0.78, 0.68), "glasses": "round", "frame": SILVER},
 	"O": {"skin": DARK},
 	"G": {"skin": Color(0.72, 0.52, 0.4)},
-	"M": {"skin": Color(0.9, 0.8, 0.66)},
+	"M": {"skin": Color(0.92, 0.78, 0.64)},
 	"Z": {"skin": DEEP},
 	# Matthes, the street sweeper: weathered by a life outdoors, an ordinary tone (a multiplier above 1 made his face glow).
 	"sweeper": {"skin": WARM},
-	"Y": {"skin": Color(0.94, 0.85, 0.82), "glasses": "half", "frame": SILVER, "hat": Color(0.16, 0.36, 0.28)},
+	"Y": {"skin": Color(0.93, 0.79, 0.74), "glasses": "half", "frame": SILVER, "hat": Color(0.16, 0.36, 0.28)},
 	"S": {"skin": Color(0.82, 0.66, 0.52)},
 	"%": {"skin": Color(0.7, 0.55, 0.42), "hat": Color(0.45, 0.15, 0.35)},
 }
@@ -77,7 +78,7 @@ static func look_for(role: String, info: Dictionary) -> Dictionary:
 	var base: Dictionary = LOOKS.get(role, {})
 	if base.is_empty():
 		var h := absi(hash(role))
-		base = {"skin": Color.from_hsv(0.06 + (h % 7) * 0.004, 0.18 + (h / 7 % 5) * 0.08, 0.98 - (h / 35 % 6) * 0.07)}
+		base = {"skin": Color.from_hsv(0.05 + (h % 7) * 0.004, 0.26 + (h / 7 % 5) * 0.07, 0.95 - (h / 35 % 6) * 0.07)}
 	var hair: Dictionary = {}
 	if info.model == "Rogue" and not info.has("hair") and base.has("hair"):
 		hair = base.hair

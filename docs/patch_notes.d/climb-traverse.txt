@@ -1,0 +1,1 @@
+- Climbing: hold left or right on a rock face to shuffle sideways along it, under the same rules (pull-up chance, slips, safe spots, falls) as climbing up.

@@ -693,6 +693,7 @@ func build() -> void:
 	sweepers = AshBlades.make(self)
 	if sweepers:
 		add_child(sweepers)
+	GlowMushrooms.build(self)
 
 
 # --- Keeping the way free ---------------------------------------------------

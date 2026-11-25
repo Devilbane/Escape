@@ -1,0 +1,1 @@
+- House furniture can no longer be put down where it would wall a corner of a room off, so nobody gets shut in.

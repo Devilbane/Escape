@@ -45,6 +45,9 @@ const CALM_FACTOR := 1.5
 ## From how far an animal smells its food on the hero and comes over, and
 ## how long it chews (how close it comes: Companions.SPECIES "reach").
 const CURIOUS_RANGE := 14.0
+## Beyond this distance from the hero (metres) an animal thinks only every FAR_EVERY physics ticks.
+const FAR_RANGE := 70.0
+const FAR_EVERY := 6
 const EAT_TIME := 2.5
 
 var level: Level
@@ -71,6 +74,8 @@ var _trail: SnowTrail
 ## stands still, then strolls on to `_retry` (or simply carries on, for a run or the hero's food).
 var _stuck_watch := StuckWatch.new()
 var _hold := 0.0
+## Time let pass by the ticks an animal far from the hero skipped.
+var _held := 0.0
 var _retry := Vector3.INF
 ## Where a kit dives in (the middle of its home tile) and how long it stays down.
 var _burrow_at := Vector3.ZERO
@@ -194,6 +199,14 @@ func _physics_process(delta: float) -> void:
 	var hero: Node3D = level.player
 	var away := global_position - hero.global_position
 	away.y = 0.0
+	if away.length_squared() > FAR_RANGE * FAR_RANGE:
+		# Far from the hero nothing it does can be seen: it thinks every few ticks, for the time
+		# that passed (a walk covers the way of all of them in one step).
+		_held += delta
+		if (Engine.get_physics_frames() + get_instance_id()) % FAR_EVERY != 0:
+			return
+		delta = minf(_held, 0.25)
+	_held = 0.0
 	if state == "hidden":
 		# Down in the burrow: comes up again once the hero is well away from it.
 		_timer -= delta

@@ -75,7 +75,8 @@ static func near_rock(level: Level, x: float, z: float, margin: float) -> bool:
 			var oz := maxf(0.0, absf(z - mid.z) - tile * 0.5)
 			if ox * ox + oz * oz < margin * margin:
 				return true
-	return false
+	# The foot's lobes and mounds (see MountainFoot) are part of the rock too.
+	return MountainFoot.covers(level, x, z, margin)
 
 
 ## Whether a tile of `level` is mountain rock. Off the map, the nearest tile
@@ -402,7 +403,17 @@ static func _paint(p: Vector3, n: Vector3, noise: FastNoiseLite, rng: RandomNumb
 	var steep := 0.45 + patch * 0.12
 	if top > line and n.y > steep:
 		colour = colour.lerp(SNOW, clampf((top - line) / 5.0, 0.0, 1.0) * clampf((n.y - steep) * 3.0, 0.0, 1.0))
-	colour = colour.lerp(EARTH, 1.0 - smoothstep(0.2, 1.2, top))
+	if MountainFoot.style == "":
+		colour = colour.lerp(EARTH, 1.0 - smoothstep(0.2, 1.2, top))
+	else:
+		# The foot is earth in the colours of the apron on the ground in front of it, in patches that climb the rock
+		# to different heights (and, where moss is wanted, grass that creeps up in tongues).
+		var lump := noise.get_noise_2d(p.x * 1.7 + 11.0, p.z * 1.7) * 0.5 + 0.5
+		var foot := 1.0 - smoothstep(0.1, 1.2 + 2.6 * lump, top)
+		colour = colour.lerp(MountainFoot.EARTH * (0.88 + 0.24 * lump), foot)
+		if MountainFoot.has("moss"):
+			var tongue := (noise.get_noise_2d(p.x * 2.3 + 71.0, p.z * 2.3) * 0.5 + 0.5)
+			colour = colour.lerp(MountainFoot.GREEN * (0.8 + 0.4 * lump), (1.0 - smoothstep(0.2, 0.5 + 1.4 * tongue, top)) * smoothstep(0.45, 0.65, tongue) * 0.8)
 	colour *= rng.randf_range(0.95, 1.04)
 	colour.a = 1.0
 	return colour

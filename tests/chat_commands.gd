@@ -45,7 +45,17 @@ func _run() -> void:
 	for e in all:
 		for ex in e.examples:
 			var line: String = ex
-			check(Godmode.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null or SkyCommand.parse_season(line) != null, "example '%s' is a command" % line)
+			check(Godmode.is_command(line) or HeroUnstick.is_command(line) or Teleport.parse(line) != null or SkyCommand.parse(line) != null or SkyCommand.parse_season(line) != null or CameraCommand.parse(line) != null, "example '%s' is a command" % line)
+	check(CameraCommand.parse("camera:low").pitch == CameraCommand.LOW_PITCH, "camera:low parses")
+	check(CameraCommand.parse("camera:500").pitch == CameraCommand.PITCH_MAX, "the tilt is clamped")
+	check(CameraCommand.parse("camera:off").has("off") and CameraCommand.parse("hallo") == null, "off and no command")
+	check(CameraCommand.distance_after(27.0, 100.0) == CameraCommand.FAR_MIN and CameraCommand.distance_after(27.0, -100.0) == CameraCommand.FAR_MAX, "the distance is clamped")
+	game._camera_command({"pitch": 10.0})
+	check(game.free_camera and game.free_pitch == 10.0, "camera:10 turns the free camera on")
+	game.zoom_by(-15.0)
+	check(game.free_distance > game.CAMERA_DISTANCE, "the free camera zooms out beyond the normal view")
+	game._camera_command({"off": true})
+	check(not game.free_camera, "camera:off ends it")
 	check(Lang.EN.has("Befehle") and Lang.EN.has("Beispiele"), "page texts have English")
 
 	# The page.

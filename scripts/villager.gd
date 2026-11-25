@@ -159,7 +159,7 @@ const ROLES := {
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "stay", "work": "Interact",
 		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
-	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [],
+	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [], "locks": "quiff",
 		"colors": [Color(0.92, 0.9, 0.84), Color(0.55, 0.5, 0.42), Color(0.9, 0.88, 0.82)], "plan": "shop", "work": "Interact",
 		"lines": ["Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.", "Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.", "Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche."]},
 	"ö": {"name": "Brauer Eberhard", "model": "Barbarian", "show": ["Mug"],
@@ -486,6 +486,9 @@ func _ready() -> void:
 		Dreadlocks.grow(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).
 	GearLook.dress_body(_model, "outfit")
+	# After the clothes' look, which would otherwise take over the hair's own material.
+	if _info.get("locks", "") == "quiff":
+		MillerQuiff.grow(_model)
 	# Their own skin tone, hat colour and glasses (see TownsfolkLook).
 	TownsfolkLook.apply(_model, _info, _look)
 	if role == ClimberNpc.ROLE:

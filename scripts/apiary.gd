@@ -20,7 +20,7 @@ extends Node3D
 ## The map letter of a hive tile: a skep and a box hive side by side.
 const HIVE := "ħ"
 ## The bees of each hive, and how far from the hero the apiary wakes up (metres).
-const BEES_PER_HIVE := 3
+const BEES_PER_HIVE := 9
 const ACTIVE_RANGE := 46.0
 ## When the bees fly: from this hour to that, in these seasons, unless the weather is one of WET.
 const FLY_FROM := 7.0
@@ -42,8 +42,8 @@ const CALM_TIME := 35.0
 const STING_MIN_HP := 4
 const STING := 1
 ## The hum: how far it carries (metres), how loud it is at a hive and how much louder it is when the bees are vexed.
-const HEARD := 22.0
-const HUM_DB := -15.0
+const HEARD := 30.0
+const HUM_DB := -7.0
 const ANGRY_DB := 5.0
 ## Where the hive's bees fly in and out, in front of it (metres).
 const FRONT := 0.4
@@ -63,6 +63,7 @@ var _bees_root: Node3D
 var _rng := RandomNumberGenerator.new()
 var _clock := 0.0
 var _awake := false
+var _near_hum: AudioStreamPlayer3D
 static var _buzz: AudioStreamWAV
 
 
@@ -246,6 +247,7 @@ func tick(delta: float, hero: Vector3, hour: float, indoors: bool, season_day: i
 		_step(b, delta, hero)
 	for i in hives.size():
 		_hum(hives[i], hero, true)
+	_near_buzz(hero)
 
 
 func _step(b: Dictionary, delta: float, hero: Vector3) -> void:
@@ -392,6 +394,38 @@ func _hum(h: Dictionary, hero: Vector3, on: bool) -> void:
 	player.pitch_scale = 1.2 if angry else 1.0
 	if not player.playing:
 		player.play(_rng.randf() * 0.9)
+
+
+## The bee nearest the hero buzzes on its own, so one passing by is heard going past: its hum follows it and
+## swells as it comes close.
+func _near_buzz(hero: Vector3) -> void:
+	var best: Node3D = null
+	var best_d := 9.0
+	for b in _bees:
+		var node: Node3D = b.node
+		if not node.visible:
+			continue
+		var d := node.position.distance_to(hero + Vector3(0, 1.0, 0))
+		if d < best_d:
+			best_d = d
+			best = node
+	if best == null:
+		if _near_hum != null and _near_hum.playing:
+			_near_hum.stop()
+		return
+	if _near_hum == null:
+		_near_hum = AudioStreamPlayer3D.new()
+		_near_hum.stream = buzz_stream()
+		_near_hum.bus = Sfx.BUS
+		_near_hum.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+		_near_hum.panning_strength = 1.5
+		_near_hum.name = "NearHum"
+		add_child(_near_hum)
+	_near_hum.global_position = best.position
+	_near_hum.volume_db = -3.0 - 18.0 * best_d / 9.0
+	_near_hum.pitch_scale = 1.15
+	if not _near_hum.playing:
+		_near_hum.play(_rng.randf() * 0.9)
 
 
 ## A hero who stands at a hive disturbs it (see the top): the bees swarm round, and one may sting.

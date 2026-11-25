@@ -56,6 +56,8 @@ const RUN_CHANCE := 0.6
 ## The model's ground level (the lowest foot) and how far it sinks when curled (model units).
 const FOOT := 0.142
 const SINK := 0.08
+## How far the pointed snout reaches out in front of the head (model units).
+const SNOUT := 0.07
 
 ## "snuffle" (nose down, searching), "walk", "curl" (rolled up, scared) or
 ## "sleep" (rolled up by day or all winter); on an apple run also "to_tree", "wait",
@@ -66,6 +68,15 @@ var tree: Dictionary
 var level: Level
 var _rng := RandomNumberGenerator.new()
 var _tilt: Node3D
+## The four feet (back right, back left, front left, front right), their step phases, the nose bead.
+var _feet: Array[MeshInstance3D] = []
+var _foot_phase: Array[float] = []
+var _foot_rest: Array[float] = []
+var _seed := 0.0
+## How many times in a row it found no way to roam.
+var _stuck := 0
+var _nose: MeshInstance3D
+var _nose_rest := Vector3.ZERO
 var _path: Array[Vector3] = []
 var _waiting := 0.0
 var _timer := 0.0
@@ -95,6 +106,15 @@ func setup(owner_level: Level, home_tree: Dictionary) -> void:
 	level = owner_level
 	tree = home_tree
 	_rng.seed = hash(Vector2(tree.pos.x, tree.pos.z)) + 17
+	_seed = float(_rng.seed % 628) / 100.0
+
+
+## A hedgehog that stands where nothing can walk (a wall or a fence has since closed its tile) is
+## put on the nearest open, reachable spot, so that it can roam instead of sitting stuck.
+func _get_out_of_walls() -> void:
+	if level == null or not is_inside_tree() or Footprint.open_at(level, global_position):
+		return
+	Footprint.settle(level, self, [])
 
 
 ## Called after the footprint pass moved this animal to a free spot: the way on from there is found again.
@@ -108,23 +128,49 @@ func _ready() -> void:
 	_build()
 	var spot := _nearby(2)
 	global_position = Vector3(spot.x, 0.0, spot.z)
+	_get_out_of_walls()
 	rotation.y = _rng.randf() * TAU
 	_begin("sleep", _rng.randf_range(2.0, 6.0))
 	_curl = 1.0
 	_pose(0.0)
 
 
-## The model: one mesh of eleven parts (spikes, body, nose, four feet, two eyes, two
-## ears), each with its own plain colour, the spikes and the body with their painted
-## texture. The head points along +X in the file; the body turns it to +Z.
+## The model: eleven parts of one file (spikes, body, nose, four feet, two eyes, two ears), each
+## its own node so that the feet can patter. The spikes and the body keep their painted texture
+## (brown and grey spines with pale tips, soft fur), the plain parts get a colour. The nose and
+## the eyes of the file are tiny specks: they are swapped for little shiny black beads, and a
+## pointed snout is added in front of the face. The head points along +X in the file; the body
+## turns it to +Z.
 func _build() -> void:
 	var mesh: Mesh = load("res://assets/hedgehog/Hedgehog.obj")
-	var parts := MeshInstance3D.new()
-	parts.mesh = mesh
+	var parts := Node3D.new()
 	parts.rotation.y = -PI * 0.5
-	parts.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for i in mesh.get_surface_count():
-		parts.set_surface_override_material(i, _material(i))
+		if i == 2 or i == 7 or i == 8:
+			continue
+		var arrays := mesh.surface_get_arrays(i)
+		var mat := _material(i)
+		if i >= 3 and i <= 6:
+			# A foot swings about its top, where it hangs from the body.
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var box := AABB(verts[0], Vector3.ZERO)
+			for v in verts:
+				box = box.expand(v)
+			var hip := Vector3(box.get_center().x, box.end.y, box.get_center().z)
+			for k in verts.size():
+				verts[k] -= hip
+			arrays[Mesh.ARRAY_VERTEX] = verts
+			var foot := _part(arrays, mat)
+			foot.position = hip
+			parts.add_child(foot)
+			_feet.append(foot)
+			_foot_rest.append(hip.y)
+			# The feet are listed back right, back left, front left, front right: a diagonal pair
+			# steps together.
+			_foot_phase.append(0.0 if i in [3, 5] else PI)
+		else:
+			parts.add_child(_part(arrays, mat))
+	_add_face(parts, mesh)
 	_tilt = Node3D.new()
 	_tilt.position.y = FOOT
 	_tilt.add_child(parts)
@@ -132,6 +178,85 @@ func _build() -> void:
 	root.scale = Vector3.ONE * SIZE
 	root.add_child(_tilt)
 	add_child(root)
+
+
+static func _part(arrays: Array, mat: Material) -> MeshInstance3D:
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	m.surface_set_material(0, mat)
+	var node := MeshInstance3D.new()
+	node.mesh = m
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
+
+
+## The face: a pointed snout with a shiny black bead of a nose, and two small shiny black eyes.
+func _add_face(parts: Node3D, mesh: Mesh) -> void:
+	var nose_at := _centre(mesh, 2)
+	var snout := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.004
+	cone.bottom_radius = 0.05
+	cone.height = SNOUT
+	cone.radial_segments = 14
+	cone.rings = 2
+	snout.mesh = cone
+	snout.material_override = _fur(1)
+	# The cone's axis is Y: lay it along +X, its point forward, so that it grows out of the head.
+	snout.rotation.z = -PI * 0.5
+	snout.position = Vector3(nose_at.x - SNOUT * 0.45, nose_at.y + 0.004, 0.0)
+	snout.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parts.add_child(snout)
+	var bead := _bead(0.021)
+	bead.position = Vector3(nose_at.x + SNOUT * 0.5, nose_at.y + 0.012, 0.0)
+	parts.add_child(bead)
+	_nose = bead
+	_nose_rest = bead.position
+	for i in [7, 8]:
+		var at := _centre(mesh, i)
+		var eye := _bead(0.016)
+		eye.position = at + Vector3(0.012, 0.004, signf(at.z) * 0.006)
+		parts.add_child(eye)
+
+
+## A small shiny black bead.
+static func _bead(radius: float) -> MeshInstance3D:
+	var s := SphereMesh.new()
+	s.radius = radius
+	s.height = radius * 2.0
+	s.radial_segments = 16
+	s.rings = 8
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.02, 0.02, 0.025)
+	m.roughness = 0.12
+	m.metallic_specular = 1.0
+	m.clearcoat_enabled = true
+	m.clearcoat = 1.0
+	m.clearcoat_roughness = 0.05
+	var node := MeshInstance3D.new()
+	node.mesh = s
+	node.material_override = m
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return node
+
+
+## The middle of surface `i` of the file.
+static func _centre(mesh: Mesh, i: int) -> Vector3:
+	var verts: PackedVector3Array = mesh.surface_get_arrays(i)[Mesh.ARRAY_VERTEX]
+	var box := AABB(verts[0], Vector3.ZERO)
+	for v in verts:
+		box = box.expand(v)
+	return box.get_center()
+
+
+## The body's fur, for the snout.
+static func _fur(_i: int) -> Material:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.74, 0.62, 0.48)
+	m.albedo_texture = load("res://assets/hedgehog/hedgehog_low_BodyMaterial_BaseColor.png")
+	m.uv1_scale = Vector3(0.3, 0.3, 1.0)
+	m.roughness = 0.95
+	return m
 
 
 ## The look of surface `i` of the file: 0 spikes, 1 body, 2 nose, 3 to 6 feet, 7 and 8 eyes,
@@ -285,8 +410,14 @@ func _next() -> void:
 		_begin("snuffle", _rng.randf_range(2.0, 6.0))
 		return
 	if _set_path(_nearby(ROAM)):
+		_stuck = 0
 		_begin("walk", 0.0)
 	else:
+		# No way anywhere from here: after a few tries it is lifted to a free spot.
+		_stuck += 1
+		if _stuck >= 3:
+			_stuck = 0
+			_get_out_of_walls()
 		_begin("snuffle", 2.0)
 
 
@@ -463,10 +594,48 @@ func _pose(delta: float) -> void:
 			roll = sin(_clock * 14.0) * 0.3
 			pitch = 0.05
 	# Rolled up: the head goes down and the rump up, the body shortens and rounds.
+	# It looks about while it snuffles, and breathes all the time.
+	var look := 0.0
+	if state in ["snuffle", "wait"]:
+		look = sin(_clock * 0.9 + _seed) * 0.3 + sin(_clock * 2.3 + _seed * 2.0) * 0.08
+	var breath := 1.0 + sin(_clock * (2.4 if state != "sleep" else 1.4) + _seed) * 0.022
 	_tilt.rotation.x = pitch * up + 0.6 * k
+	_tilt.rotation.y = look * up
 	_tilt.rotation.z = roll * up
-	_tilt.scale = Vector3(1.0 + 0.12 * k, 1.0 + 0.08 * k, 1.0 - 0.25 * k)
+	_tilt.scale = Vector3(1.0 + 0.12 * k, (1.0 + 0.08 * k) * breath, 1.0 - 0.25 * k)
 	_tilt.position.y = FOOT + bob * up - SINK * k
+	_pose_legs(k, up)
+	_pose_nose(up)
+
+
+## The feet patter in step with the walk (a diagonal pair together), shuffle a little while it
+## snuffles, and are tucked away when it is rolled up.
+func _pose_legs(k: float, up: float) -> void:
+	var walking := state in ["walk", "to_tree", "carry", "falling"]
+	var snuffling := state in ["snuffle", "wait"]
+	for i in _feet.size():
+		var f := _feet[i]
+		var swing := 0.0
+		var lift := 0.0
+		if walking:
+			var a := _phase * 2.0 + _foot_phase[i]
+			swing = sin(a) * 0.7
+			lift = maxf(0.0, cos(a)) * 0.015
+		elif snuffling:
+			swing = sin(_clock * 5.0 + _foot_phase[i]) * 0.06
+		f.rotation.z = swing * up
+		f.position.y = _foot_rest[i] + lift * up
+		f.scale = Vector3.ONE * (1.0 - 0.85 * k)
+
+
+## The nose twitches all the time, and quickly while it snuffles.
+func _pose_nose(up: float) -> void:
+	if _nose == null:
+		return
+	var fast := state in ["snuffle", "wait"]
+	var w := sin(_clock * (22.0 if fast else 7.0) + _seed)
+	var tw := (0.006 if fast else 0.002) * w * up
+	_nose.position = _nose_rest + Vector3(tw * 0.5, tw, 0.0)
 
 
 ## Fills the path along the tiles to `target`, ending on the exact spot (also within the tile it

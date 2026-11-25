@@ -4519,9 +4519,12 @@ func _spawn_animals() -> void:
 ## A burrow on the meadow with its huddle of baby rabbits (see Warren).
 func _spawn_warren(cell: Vector2i) -> void:
 	var centre := cell_to_world(cell)
-	var hole := Warren.burrow()
+	var hole := Warren.burrow(cell.x * 31 + cell.y)
 	add_child(hole)
 	hole.global_position = centre
+	hole.rotation.y = float(hash(cell) % 628) / 100.0
+	hole.add_to_group("burrows")
+	Warren.dress(hole, season_day)
 	for i in Warren.KITS:
 		var a := Animal.new()
 		a.setup(self, "kit", cell)
@@ -4885,6 +4888,9 @@ func set_season(day_of_season: int) -> void:
 	if surface_life != null:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
+	if is_inside_tree():
+		for hole: Node3D in get_tree().get_nodes_in_group("burrows"):
+			Warren.dress(hole, day_of_season)
 	if is_inside_tree():
 		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
 			flow.set_season(day_of_season)

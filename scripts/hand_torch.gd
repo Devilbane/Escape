@@ -174,6 +174,7 @@ func _make_holder() -> void:
 	_holder.add_child(stick)
 	var flame := Effects.make_flame()
 	flame.scale = Vector3.ONE * 0.55
+	flame.local_coords = true # sparks ride with the torch instead of smearing behind
 	flame.position = Vector3(0, 0.5, 0)
 	_holder.add_child(flame)
 	if not is_instance_valid(_light):

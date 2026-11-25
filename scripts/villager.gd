@@ -3147,6 +3147,7 @@ func _make_torch() -> void:
 		_torch.add_child(stick)
 		var flame := Effects.make_flame()
 		flame.scale = Vector3.ONE * 0.55
+		flame.local_coords = true # sparks ride with the torch instead of smearing behind
 		flame.position = Vector3(0, 0.5, 0)
 		_torch.add_child(flame)
 	# The light rides on the torch itself, so it follows the hand (the arm only rocks gently, see

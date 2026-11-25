@@ -46,6 +46,15 @@ func run() -> void:
 	for yaw in [0.0, 1.7, -2.4]:
 		var up := HandLamp.held_up(yaw, 1.0)
 		check(up.y.normalized().y > 0.98, "a held torch keeps its flame up (yaw %.1f)" % yaw)
+	var lamp_root := Node3D.new()
+	HandLamp.build(lamp_root)
+	var lamp_flames := 0
+	for c in lamp_root.get_children():
+		if c is CPUParticles3D:
+			lamp_flames += 1
+			check((c as CPUParticles3D).local_coords, "the lamp's flame stays with the lamp, no blaze trail")
+	check(lamp_flames == 1, "the lamp has one flame")
+	lamp_root.free()
 	var lamps := 0
 	var torches := 0
 	for role: String in Villager.ROLES:

@@ -25,7 +25,7 @@ const ARTICLES := ["die", "der", "das", "den", "dem"]
 ## (the lair is set up on its way in, see DragonLair).
 ## The village square on the open-air map has a place of its own.
 const VILLAGE_CODE := "dorfx"
-const VILLAGE_NAME := "Das Dorf"
+const VILLAGE_NAME := "Orchardby"
 const SKIPPED_BUILDINGS := ["^", "E", "E2", "E3"]
 
 

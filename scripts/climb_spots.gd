@@ -16,7 +16,7 @@ const TOO_STEEP := "Hier ist es zu steil."
 ## Per map (Level.level_name): the rock tile, the Klettern level a hero needs and the height of the terrace
 ## (metres, well above what a stack of crates and a jump reach, and within Climbing.reach of the level).
 const SPOTS := {
-	"Die Freiheit": [
+	"Apfeltal": [
 		{"cell": Vector2i(123, 23), "level": 1, "height": 3.6},
 		{"cell": Vector2i(136, 26), "level": 6, "height": 5.4},
 		{"cell": Vector2i(84, 54), "level": 12, "height": 6.6},

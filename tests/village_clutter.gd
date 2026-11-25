@@ -37,7 +37,7 @@ func _initialize() -> void:
 	var seen := {}
 	for x in 60:
 		for y in 4:
-			seen[VillageClutter.HEAPS.find(VillageClutter.heap_for("Die Freiheit", Vector2i(x, y)))] = true
+			seen[VillageClutter.HEAPS.find(VillageClutter.heap_for("Apfeltal", Vector2i(x, y)))] = true
 	check(seen.size() == VillageClutter.HEAPS.size(), "all %d heaps are used" % VillageClutter.HEAPS.size())
 	_check_footprints()
 	if failures == 0:

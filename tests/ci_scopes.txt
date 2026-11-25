@@ -41,5 +41,6 @@ mountain_foot.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountai
 
 # The cave behind the river's spring waterfall.
 spring_cave.gd | scripts/spring_cave.gd scripts/waterfall.gd shaders/waterfall.gdshader
+silver_silk.gd | scripts/silver_silk.gd scripts/dungeon_life.gd scripts/lang/silver_silk.gd scripts/crafting.gd scripts/item_icon.gd assets/ui/icons/spider_silk.svg
 furniture_passage.gd | scripts/house_furniture.gd scripts/house_sketch.gd scripts/lang/furniture.gd
 beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scripts/bee_veil.gd scripts/lang/bees.gd

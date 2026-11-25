@@ -720,14 +720,34 @@ func _ready() -> void:
 	if playtest_file != "":
 		_start_playtest()
 		return
-	load_level(_start_level())
+	if defers_start_level():
+		_rest_hero()
+	else:
+		load_level(_start_level())
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
 	# The village gets ready behind the title, so the crypt door is quick later.
 	WorldPreload.start(self)
+	LoadingScreen.start(_hud, self)
 	if Engine.has_meta(ASK_NAME_FLAG):
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)
 		new_game()
+
+
+## Whether the first level waits until a game really starts ("New", or a saved game's own level)
+## instead of being built behind the title. Always, where a window is drawn; headless (the tests)
+## the level is there at once, unless a test asks for the real thing with `lazy_start`.
+static var lazy_start := false
+
+
+func defers_start_level() -> bool:
+	return lazy_start or DisplayServer.get_name() != "headless"
+
+
+## The hero waits out of the world while no level is loaded: unseen, and nothing of them runs.
+func _rest_hero() -> void:
+	player.visible = false
+	player.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Straight onto the map from the workshop, with a new hero called Tester.
@@ -1929,6 +1949,8 @@ func _use_station(s: Dictionary) -> void:
 		_refresh_seals()
 	elif s.kind == Mines.CLUSTER:
 		_mine_crystals(s)
+	elif s.kind == SilverSilk.KIND:
+		_harvest_silk(s)
 	elif s.kind == QuarryRocks.KIND:
 		_break_stone(s)
 	elif s.kind == WoodLogs.KIND:
@@ -2023,6 +2045,21 @@ func _close_villager_window(_reason: String) -> void:
 ## How long the hero knocks at a crystal cluster before the crystals come off:
 ## two blows of the strike.
 const DIG_BLOW := 0.42
+
+
+## Running into a web of silver silk: one strand goes into the ingredient pouch and the web is gone
+## (see SilverSilk).
+func _harvest_silk(s: Dictionary) -> void:
+	player.face(s.pos - player.global_position)
+	player.play_once(Player.STRIKE_ANIM, DIG_BLOW)
+	var count := SilverSilk.harvest(level, s)
+	if count <= 0:
+		return
+	Sfx.play(self, "word_zing", -6.0, s.pos, 1.5)
+	crafting.add(SilverSilk.ID, count)
+	Effects.loot_text(level, s.pos + Vector3(0, 0.6, 0), "+%d %s" % [count, Crafting.ingredient_name(SilverSilk.ID)], SilverSilk.COLOUR, DamageNumber.item_worth(SilverSilk.ID))
+	Events.found(Lang.t("Ein Strang Silberseide kommt in deinen Zutatenbeutel."), SilverSilk.COLOUR)
+	learn(SilverSilk.LEARN)
 
 
 ## Running into a crystal cluster in a mine: two blows, then its crystals go
@@ -3587,6 +3624,8 @@ func load_level(index: int, restock := true) -> void:
 			return
 		_drop_parked()
 	level_index = index
+	player.visible = true
+	player.process_mode = Node.PROCESS_MODE_INHERIT
 	tutorial.restart()
 	writing_card.hide_now()
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()
@@ -8325,6 +8364,7 @@ func _process(delta: float) -> void:
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
 			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
+			SilverSilk.KIND: Lang.t("Dagegenlaufen, um die Silberseide zu ernten"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),

@@ -8918,6 +8918,12 @@ func _mouse_to_floor(screen_pos: Vector2):
 	var dir := camera.project_ray_normal(screen_pos)
 	if dir.y > -0.01:
 		return null
+	# Inside a hall of several storeys the click meets its steps and its upper floors (see WalkIn.surface_under_ray).
+	var walk_in = level.get("walk_in")
+	if walk_in != null:
+		var on_surface = walk_in.surface_under_ray(origin, dir)
+		if on_surface != null:
+			return on_surface
 	return origin + dir * (-origin.y / dir.y)
 
 
@@ -8970,6 +8976,9 @@ func _click(point: Vector3) -> void:
 		return
 	# A bed or a workbench only on its pillow or the middle of its top (see Level.station_clicked).
 	var station := level.station_clicked(point, camera.global_position, (point - camera.global_position).normalized(), 2.2)
+	var walk_in = level.get("walk_in")
+	if not station.is_empty() and walk_in != null and walk_in.hidden_above_hero(station.get("spot", station.get("pos", Vector3.ZERO))):
+		station = {} # A bed on a storey above the hero's, hidden from them.
 	if not station.is_empty():
 		if station.kind == Seats.KIND and station.get("indoor", false):
 			# A seat of a hall: walk to where one gets up from it (free by its front or side), then sit

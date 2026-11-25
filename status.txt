@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Smooth the fish under the river's ice | Shipped this week: Swim animated fish under the river's ice, seen from above; Keep surface leaves out of sight in cellars; Let it snow only in winter (+47 more)
+Escape! dev status | Shipped this week: Smooth the fish under the river's ice; Swim animated fish under the river's ice, seen from above; Keep surface leaves out of sight in cellars (+47 more)

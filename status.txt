@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Smooth the fish under the river's ice; Swim animated fish under the river's ice, seen from above; Keep surface leaves out of sight in cellars (+47 more)
+Escape! dev status | Working on: Keep fog out of cellar stairs beyond the roof | Shipped this week: Smooth the fish under the river's ice; Swim animated fish under the river's ice, seen from above; Keep surface leaves out of sight in cellars (+47 more)

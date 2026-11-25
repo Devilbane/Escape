@@ -420,7 +420,66 @@ func problem(house: HouseSketch, kind: String, storey: int, x: int, y: int, rot:
 		var at := _floor_piece_at(storey, c)
 		if at != -1 and at != skip:
 			return "taken"
+	if not in_garden(kind) and _cuts_off(house, storey, spots, skip):
+		return "cut off"
 	return ""
+
+
+## Whether a piece on `spots` would wall a free part of the floor off from the rest of its room, so
+## the hero standing there (or coming for what is there) could never get out again. The floor is on
+## a 2 m grid, so a gap is either a whole cell wide or shut: the piece may not split one region of
+## free floor into two. Regions that were shut before (a closet without a door) do not count.
+func _cuts_off(house: HouseSketch, storey: int, spots: Array, skip: int) -> bool:
+	var free := _free_floor(house, storey, skip)
+	var before := _regions(house, storey, free)
+	for c: Vector2i in spots:
+		free.erase(c)
+	return _regions(house, storey, free) > before
+
+
+## The cells of a storey where the hero can stand: a floor, no piece on it (but the one at `skip`).
+func _free_floor(house: HouseSketch, storey: int, skip: int) -> Dictionary:
+	var out := {}
+	var n := house.nodes()
+	for y in n.y:
+		for x in n.x:
+			var c := Vector2i(x, y)
+			if floor_problem(house, storey, c) == "":
+				out[c] = true
+	for i in placed.size():
+		var p: Dictionary = placed[i]
+		if i != skip and p.storey == storey and not on_wall(p.kind):
+			for c: Vector2i in cells(p.kind, p.x, p.y, p.rot):
+				out.erase(c)
+	return out
+
+
+## How many separate regions the free cells make: cells join over an edge with no wall or window
+## (a door, a gate or open air lets the hero through).
+static func _regions(house: HouseSketch, storey: int, free: Dictionary) -> int:
+	var seen := {}
+	var regions := 0
+	for start: Vector2i in free:
+		if seen.has(start):
+			continue
+		regions += 1
+		seen[start] = true
+		var todo: Array[Vector2i] = [start]
+		while not todo.is_empty():
+			var c: Vector2i = todo.pop_back()
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var next := c + d
+				if free.has(next) and not seen.has(next) and not _shut(house, storey, c, next):
+					seen[next] = true
+					todo.append(next)
+	return regions
+
+
+## Whether a built wall or window stands on the edge between two neighbouring cells.
+static func _shut(house: HouseSketch, storey: int, a: Vector2i, b: Vector2i) -> bool:
+	var e := HouseSketch.edge_between(a, b)
+	var p := house.piece(e[0], e[1], e[2], storey)
+	return (p.get("kind", "") == HouseSketch.WALL or p.get("kind", "") == HouseSketch.WINDOW) and p.get("state", "") != HouseSketch.SKETCH
 
 
 ## Puts a waiting piece down. Returns "" or why not (see problem).
@@ -493,6 +552,8 @@ static func reason(why: String) -> String:
 			return Lang.t("Vor einer Tür muss Platz bleiben.")
 		"taken":
 			return Lang.t("Da steht schon ein Möbelstück.")
+		"cut off":
+			return Lang.t("Da käme man nicht mehr durch: Lass einen Weg frei.")
 		"garden":
 			return Lang.t("Das gehört in den Garten: auf den Boden deines Grundstücks, im Erdgeschoss.")
 		"roof":

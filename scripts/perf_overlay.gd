@@ -53,7 +53,8 @@ var gpu_graph: Graph
 var fps := 0.0
 var cpu_ms := 0.0
 var gpu_ms := 0.0
-## The averages over everything measured since the plate was shown (hide and show it to start over).
+## The averages over everything measured since the game started (the plate hidden or shown, the
+## world paused or not), so two builds can be compared after some play.
 var cpu_avg_ms := 0.0
 var gpu_avg_ms := 0.0
 var ping_ms := -1
@@ -63,6 +64,9 @@ var _frames := 0
 var _cpu_sum := 0.0
 var _gpu_sum := 0.0
 var _total_frames := 0
+var _logged := false
+## The build named in the session log line (set by the game).
+var session_version := ""
 var _cpu_total := 0.0
 var _gpu_total := 0.0
 
@@ -151,7 +155,8 @@ func _ready() -> void:
 	gpu_graph = _graph(GPU_COLOR)
 	column.add_child(gpu_graph)
 	visible = false
-	set_process(false)
+	# Measures from the start of the game even while hidden: the session averages count it all.
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	_show_values()
 
 
@@ -176,19 +181,10 @@ func toggle() -> void:
 
 func set_shown(on: bool) -> void:
 	visible = on
-	set_process(on)
-	# The graphics card's time is only measured while the plate shows.
-	var rid := get_viewport().get_viewport_rid()
-	RenderingServer.viewport_set_measure_render_time(rid, on)
 	_since = 0.0
 	_frames = 0
 	_cpu_sum = 0.0
 	_gpu_sum = 0.0
-	_total_frames = 0
-	_cpu_total = 0.0
-	_gpu_total = 0.0
-	cpu_avg_ms = 0.0
-	gpu_avg_ms = 0.0
 	if on:
 		cpu_graph.values.clear()
 		gpu_graph.values.clear()
@@ -198,29 +194,54 @@ func set_shown(on: bool) -> void:
 
 func _process(delta: float) -> void:
 	var rid := get_viewport().get_viewport_rid()
-	_frames += 1
-	_cpu_sum += (Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)) * 1000.0 \
+	var cpu := (Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)) * 1000.0 \
 			+ RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu()
-	_gpu_sum += RenderingServer.viewport_get_measured_render_time_gpu(rid)
+	var gpu := RenderingServer.viewport_get_measured_render_time_gpu(rid)
+	_frames += 1
+	_cpu_sum += cpu
+	_gpu_sum += gpu
+	# The whole session: every frame since the game started counts once.
+	_total_frames += 1
+	_cpu_total += cpu
+	_gpu_total += gpu
+	cpu_avg_ms = _cpu_total / _total_frames
+	gpu_avg_ms = _gpu_total / _total_frames
 	_since += delta
 	if _since < STEP:
 		return
 	fps = Engine.get_frames_per_second()
 	cpu_ms = _cpu_sum / _frames
 	gpu_ms = _gpu_sum / _frames
-	_total_frames += _frames
-	_cpu_total += _cpu_sum
-	_gpu_total += _gpu_sum
-	cpu_avg_ms = _cpu_total / _total_frames
-	gpu_avg_ms = _gpu_total / _total_frames
 	ping_ms = ping_source.call()
-	cpu_graph.add(cpu_ms)
-	gpu_graph.add(gpu_ms)
 	_since = 0.0
 	_frames = 0
 	_cpu_sum = 0.0
 	_gpu_sum = 0.0
-	_show_values()
+	if visible:
+		cpu_graph.add(cpu_ms)
+		gpu_graph.add(gpu_ms)
+		_show_values()
+
+
+## Adds this session's averages to user://perf_sessions.log, one line per session, so builds
+## can be compared later. Called when the game closes.
+func write_session_log(version: String) -> void:
+	if _total_frames < 600 or _logged:
+		return
+	_logged = true
+	var path := "user://perf_sessions.log"
+	var f := FileAccess.open(path, FileAccess.READ_WRITE if FileAccess.file_exists(path) else FileAccess.WRITE)
+	if f == null:
+		return
+	f.seek_end()
+	f.store_line("%s  version %s  frames %d  avg CPU %.2f ms  avg GPU %.2f ms" % [
+			Time.get_datetime_string_from_system(false, true), version, _total_frames, cpu_avg_ms, gpu_avg_ms])
+	f.close()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
+		write_session_log(session_version)
 
 
 func _show_values() -> void:

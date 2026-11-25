@@ -1789,6 +1789,7 @@ func _setup_hud() -> void:
 	add_child(save_notice)
 	perf_overlay = PerfOverlay.new()
 	perf_overlay.ping_source = func() -> int: return coop.client.ping_ms() if coop != null and coop.client != null else -1
+	perf_overlay.session_version = VERSION + ("." + BUILD if BUILD != "" else "")
 	add_child(perf_overlay)
 
 	_setup_shrine_panel()

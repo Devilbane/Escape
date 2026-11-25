@@ -12,6 +12,17 @@ set -u
 cd "$(dirname "$0")/.."
 mapfile -t changed
 shopt -s extglob; set -f
+base=${BASE:-origin/main}
+
+# The test lists (tests/ci_*.txt) are not shared code: editing one runs only the tests whose lines were added or
+# changed in it (their first column), never the whole list. Those names join the changed files.
+for list in tests/ci_manifest.txt tests/ci_scopes.txt tests/ci_quests.txt tests/ci_nightly.txt; do
+  printf '%s\n' "${changed[@]}" | grep -qx "$list" || continue
+  while IFS= read -r line; do
+    n=${line%% *}; n=${n%%|*}
+    [ -f "tests/$n" ] && changed+=("tests/$n")
+  done < <(git diff -U0 "$base"...HEAD -- "$list" 2>/dev/null | grep -E '^\+[^+]' | cut -c2- | grep -v '^#')
+done
 declare -A scope
 quests=(); extra=()
 
@@ -44,7 +55,7 @@ while IFS='|' read -r file paths; do
 done < <(grep -v '^#' tests/ci_scopes.txt | grep .)
 for f in "${changed[@]}"; do
   [ -z "$f" ] && continue
-  case "$f" in tests/ci_*|tests/*/*) known=; break;; esac
+  case "$f" in tests/ci_*.txt) continue;; tests/ci_*|tests/*/*) known=; break;; esac
   seen=
   for t in "${!scope[@]}"; do
     for p in ${scope[$t]}; do [[ "$f" == $p ]] && { seen=1; hits+="$t "; }; done

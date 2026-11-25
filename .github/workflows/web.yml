@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: tests-${{ github.ref }}
@@ -34,6 +35,7 @@ jobs:
       quests: ${{ steps.scope.outputs.quests }}
       skip: ${{ steps.scope.outputs.skip }}
       shards: ${{ steps.scope.outputs.shards }}
+      known: ${{ steps.scope.outputs.known }}
       extra: ${{ steps.scope.outputs.extra }}
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +43,7 @@ jobs:
           fetch-depth: 0
       - id: scope
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
@@ -51,6 +54,8 @@ jobs:
           # Pull requests use 4 shards, not 6: every job pays for its own setup and the runner pool is shared
           # by all open PRs, so fewer, longer jobs finish sooner overall (docs/testing.md).
           { echo "nightly=false"; echo "shards=[0,1,2,3]"; } >> "$GITHUB_OUTPUT"
+          # Required tests that already fail on main (latest nightly run) do not block this run.
+          echo "known=$(tests/ci_known_failing.sh | tail -n 1)" | tee -a "$GITHUB_OUTPUT"
           # A push to main that merges a pull request was tested as that pull request; the nightly run tests
           # main as a whole. Only a direct push (no "(#123)" or "Merge pull request") runs the shards.
           if [ "$EVENT" = push ] && git log -1 --format=%s | grep -Eq '\(#[0-9]+\)$|^Merge pull request'; then
@@ -97,7 +102,18 @@ jobs:
         env:
           CI_QUESTS: ${{ needs.scope.outputs.quests }}
           CI_SKIP: ${{ needs.scope.outputs.skip }}
+          CI_KNOWN: ${{ needs.scope.outputs.known }}
         run: tests/ci_shard.sh blocking ${{ matrix.shard }} ${{ strategy.job-total }}
+
+      # The nightly run keeps the names of the tests that failed twice: pull requests quarantine them
+      # (tests/ci_known_failing.sh) until they pass on main again.
+      - name: Keep the failed tests of this nightly run
+        if: ${{ always() && needs.scope.outputs.nightly == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-blocking-${{ matrix.shard }}
+          path: ci_logs/failed.txt
+          if-no-files-found: ignore
 
   # The test files a pull request or push changed that are not required (tests/ci_nightly.txt, or not listed
   # anywhere yet), so a new or edited test runs once. Not part of `tests`, so it never blocks a merge. It starts

@@ -688,7 +688,7 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 	for side: float in [-1.0, 1.0]:
 		var b := Basis(Vector3(1, 0, 0), side * slope)
 		var mid := Vector3(0, eaves + ridge - sin(slope) * len * 0.5 + 0.1, side * d * 0.25)
-		_box(parts, "timber", mid, Vector3(w, 0.14, len), b)
+		_box(parts, "timber", mid - b * Vector3.UP * 0.03, Vector3(w, 0.14, len), b)
 		var n := b * Vector3.UP
 		# From the ridge (row 0) down to the eaves.
 		var along := b * Vector3(0, 0, side)
@@ -711,7 +711,7 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 	# The ridge board under the cap tiles, and the cap shingles over the ridge and down the two gable
 	# edges (RoofCaps), which hide the hard line where the slopes and their boards end.
 	var apex := eaves + ridge + 0.1 + 0.08 * cos(slope)
-	_box(parts, "timber", Vector3(0, apex - 0.05, 0), Vector3(w + 0.1, 0.16, 0.2))
+	_box(parts, "timber", Vector3(0, apex - 0.05, 0), Vector3(w + 0.04, 0.16, 0.2))
 	RoofCaps.ridge(st, Vector3(-w * 0.5 - 0.05, apex, 0), Vector3(w * 0.5 + 0.05, apex, 0), tan(slope), hash(Vector3(w, d, ridge)))
 	for side: float in [-1.0, 1.0]:
 		var b := Basis(Vector3(1, 0, 0), side * slope)

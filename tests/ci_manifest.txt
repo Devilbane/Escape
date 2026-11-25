@@ -128,6 +128,7 @@ lift_keeps_hidden.gd | 30 | free | passfail | A roof lifted off and put back nev
 waterfall.gd | 240 | free | passfail | The river's spring waterfall: notch, no path, water on the rock, winter ice
 spring_cave.gd | 240 | free | passfail | The cave behind the spring waterfall: ice wall, hammer, thaw, cave map
 mountain_foot.gd | 240 | free | passfail | The rock of the mountains does not rise where the hero's feet can stand, so nobody sinks into the face
+foot_lobes.gd | 420 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-ups to a safe spot, two to each next, a fall only to the last one; every other rock face just says it is too steep
 bed_exit_chest.gd | 120 | fixed | pass | The hero steps out of bed on the side without a chest
 climbing_gear.gd | 60 | fixed | pass | Climbing gear: five pieces worn in their slots, +1 Klettern each and +2 for the full set, nothing from the bag

@@ -670,6 +670,7 @@ static func _hearts_at(level: Outdoor, at: Vector3) -> void:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		mat.vertex_color_use_as_albedo = true
+		mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		quad.material = mat
 		emitter.mesh = quad

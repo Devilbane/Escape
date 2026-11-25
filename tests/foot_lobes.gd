@@ -115,6 +115,9 @@ func _run() -> void:
 				var near: Array = made.filter(func(m: Dictionary) -> bool: return (m.at as Vector2).distance_to(Vector2(o.x, o.z)) < float(m.r) * 1.5 + 1.0)
 				if MountainFoot.ground_height(lvl, rects, near, o.x, o.z) > 0.03:
 					buried += 1
+	for node in root.get_children():
+		if node is MultiMeshInstance3D:
+			check((node as MultiMeshInstance3D).visibility_range_end == 0.0, "%s has no visibility range (it spans the map, so it would vanish with the hero's distance from its middle)" % node.name)
 	check(seen > 100 and buried == 0, "no small thing lies inside a lobe or a mound (%d of %d)" % [buried, seen])
 	# The scree of the passes gets a foot too (the open "'" ground), and leaves lie on top of a lobe.
 	var scree_lobe := false

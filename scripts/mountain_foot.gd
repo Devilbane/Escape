@@ -546,7 +546,8 @@ static func _spread(root: Node3D, name: String, mesh: Mesh, material: Material, 
 	node.name = name
 	node.multimesh = multi
 	node.material_override = material
-	node.visibility_range_end = 70.0
+	# No visibility range: one multimesh spans the whole map, so its distance from the camera is that of its
+	# middle, and the stones vanished from the foot as the hero walked by.
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(node)
 

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Wild animals far from the hero think every sixth tick | Shipped this week: Buried rooms far from the hero stop casting shadows; Villagers skip idle toe-lift and scan for fire targets four times a second (+48 more)
+Escape! dev status | Shipped this week: Wild animals far from the hero think every sixth tick; Buried rooms far from the hero stop casting shadows (+48 more)

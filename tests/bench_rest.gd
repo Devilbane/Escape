@@ -95,6 +95,7 @@ func _test() -> void:
 	for v: Villager in resters:
 		v._start("idle", 1.0)
 		v.hush()
+	village.barber_chair.seat = {} # Only the benches are counted here, not the barber's chair.
 	var sent := 0
 	for v: Villager in resters:
 		for i in 60:

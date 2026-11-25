@@ -11,6 +11,9 @@
 # The tests are split by their measured length (tests/ci_timings.txt): longest first, each to the shard with the
 # least work so far, so all shards end at about the same time. Runs all its tests, then fails if any failed.
 # A failed test is run once more: passing on the retry makes it a reported flaky test, not a failure.
+# A test that fails twice but is named in $CI_KNOWN (the required tests that failed in the latest nightly run on
+# main, see tests/ci_known_failing.sh) is quarantined: reported as a warning, it does not block the pull request.
+# Every test that fails twice is written to ci_logs/failed.txt (the nightly run keeps it as an artifact).
 set -u
 mode=${1:?blocking, extra, nightly or on_demand}; shard=${2:?shard number from 0}; shards=${3:?number of shards}
 godot=${GODOT:-$HOME/godot/godot}
@@ -70,7 +73,7 @@ awk -v tf=tests/ci_timings.txt 'BEGIN { while ((getline l < tf) > 0) if (l !~ /^
       if (b == k) { $1 = ""; print substr($0, 2) } }' \
   | sort -k1,1n | cut -d' ' -f2- > "$mine"
 
-fail=0; flaky=()
+fail=0; flaky=(); quarantined=()
 while read -r name secs fps check; do
   start=$SECONDS
   run_test
@@ -85,12 +88,21 @@ while read -r name secs fps check; do
       echo "::warning::tests/$name is flaky: it failed once and passed on the retry"
       flaky+=("$name")
     else
-      echo "::error::tests/$name did not pass (twice)"; tail -n 15 "$log"; fail=1
+      echo "$name" >> ci_logs/failed.txt
+      if [[ " ${CI_KNOWN:-} " == *" $name "* ]]; then
+        echo "::warning::tests/$name did not pass (twice), but it already fails on main: quarantined, not blocking"; tail -n 15 "$log"
+        quarantined+=("$name")
+      else
+        echo "::error::tests/$name did not pass (twice)"; tail -n 15 "$log"; fail=1
+      fi
     fi
   fi
 done < "$mine"
 rm -f "$list" "$mine"
 if [ ${#flaky[@]} -gt 0 ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   { echo "### Flaky tests ($mode shard $shard)"; echo "Failed once and passed on the retry. Please make them deterministic:"; for f in "${flaky[@]}"; do echo "- \`$f\`"; done; } >> "$GITHUB_STEP_SUMMARY"
+fi
+if [ ${#quarantined[@]} -gt 0 ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+  { echo "### Quarantined tests ($mode shard $shard)"; echo "Failed twice here, but they already fail on main (latest nightly run), so they do not block:"; for f in "${quarantined[@]}"; do echo "- \`$f\`"; done; } >> "$GITHUB_STEP_SUMMARY"
 fi
 exit $fail

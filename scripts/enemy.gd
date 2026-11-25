@@ -40,6 +40,8 @@ const MUFFLED_HEARING := 2.5
 const TOUCH := 2.2
 ## Seconds a hunting skeleton searches after losing the hero before it gives up.
 const GIVE_UP := 5.0
+## Seconds off the hunt before a monster may show its "!" again.
+const ALERT_GAP := 6.0
 ## How long a monster that cannot get at its target waits before it plans a new
 ## way (seconds).
 const STRANDED_REPATH := 2.0
@@ -400,6 +402,9 @@ var _home := Vector3.INF
 ## Where the hero was last noticed, and how long ago.
 var _last_known := Vector3.ZERO
 var _lost := 0.0
+## The red "!" shows once per hunt: this counts down only while the monster is off the hunt
+## (a leash, a calm or a lost trail flipping it awake again must not repeat the alert).
+var _alert_gap := 0.0
 ## A guard at rest looks around now and then.
 var _look_angle := 0.0
 ## The way the body heads while it moves (zero at rest); it swings towards the
@@ -2143,7 +2148,10 @@ func _physics_process(delta: float) -> void:
 	var friendly := is_friend()
 	_calmed = maxf(0.0, _calmed - delta)
 	_hero_aggro = maxf(0.0, _hero_aggro - delta)
-	if not _awake:
+	if _awake:
+		_alert_gap = ALERT_GAP
+	else:
+		_alert_gap = maxf(0.0, _alert_gap - delta)
 		_provoked = false
 	var cowed := is_cowed()
 	if (friendly or _calmed > 0.0 or cowed) and _awake:
@@ -2154,7 +2162,9 @@ func _physics_process(delta: float) -> void:
 		_repath = 0.0
 	if not player.dead and not friendly and _calmed <= 0.0 and not cowed and _notices(player, to_player, dist, sees):
 		if not _awake:
-			Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
+			if _alert_gap <= 0.0:
+				Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
+			_alert_gap = ALERT_GAP
 			if _stats.has("shriek") and _shriek_cool <= 0.0:
 				_shriek(player)
 			if _stats.has("scare"):

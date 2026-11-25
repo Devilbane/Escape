@@ -17,7 +17,9 @@ float snow_growth() {
 }
 
 void vertex() {
-	VERTEX += CUSTOM0.xyz * snow_growth();
+	// A hair out of the surface it covers even when thin, so the slab never shares a plane with the
+	// roof tiles under it (z-fighting, a flicker over the shingles).
+	VERTEX += CUSTOM0.xyz * snow_growth() + NORMAL * 0.012;
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
 }

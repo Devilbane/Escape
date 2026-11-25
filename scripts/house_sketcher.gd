@@ -2008,7 +2008,7 @@ func _tiled_board(a: Vector3, b: Vector3, width: float, ymin: float) -> void:
 	var uv := VillageHouse.TILES_UV
 	var uvs := [uv.position, uv.position + Vector2(uv.size.x, 0), uv.end, uv.position + Vector2(0, uv.size.y)]
 	# From the ridge (row 0) down to the eaves, as on the villagers' roofs.
-	var origin := b + up * 0.02 - side * width * 0.5
+	var origin := b + up * 0.03 - side * width * 0.5
 	for r in rows:
 		for c in cols:
 			var p0 := origin + side * (c * width / cols) - along * (r * length / rows)
@@ -2173,12 +2173,14 @@ func _slanted(a: Vector3, b: Vector3, width: float, thick: float, colour: Color,
 	var at := Transform3D(basis, a + slope * 0.5 - up * thick * 0.5)
 	var size := Vector3(length, thick, width)
 	if show:
+		# The drawn board lies a little under and inside the tiled board over it (_tiled_board), so the
+		# two never share a face (z-fighting at the roof's edges).
 		var m := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = size
+		box.size = size - Vector3(0, 0, 0.04)
 		m.mesh = box
 		m.material_override = _solid_material(colour)
-		m.transform = at
+		m.transform = Transform3D(basis, at.origin - up * 0.03)
 		m.set_meta("ymin", minf(a.y, b.y) - thick)
 		_solid.add_child(m)
 	if collide:

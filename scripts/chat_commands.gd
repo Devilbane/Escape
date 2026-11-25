@@ -21,6 +21,13 @@ static func entries() -> Array:
 			"text": "Unverwundbar und dreifaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.",
 			"examples": [Godmode.COMMAND],
 		})
+	if HeroUnstick.ENABLED:
+		out.append({
+			"name": "Unstuck",
+			"syntax": HeroUnstick.COMMAND,
+			"text": "Setzt den Helden auf den nächsten freien Platz, wenn er irgendwo festhängt. Nie durch eine Wand oder eine verschlossene Tür.",
+			"examples": [HeroUnstick.COMMAND],
+		})
 	if Teleport.ENABLED:
 		out.append({
 			"name": "Teleport",

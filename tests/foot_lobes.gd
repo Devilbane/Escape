@@ -40,13 +40,26 @@ func _walk(hero: Player, from: Vector3, to: Vector3, seconds: float) -> Dictiona
 	hero.velocity = Vector3.ZERO
 	hero.reset_physics_interpolation()
 	await _wait(10)
+	# Let him land first (the drop from 0.6 m counts as no climb, however slowly the ticks come on a busy machine).
+	var settle := 0
+	while is_instance_valid(hero) and not hero.is_on_floor() and settle < 240:
+		await physics_frame
+		settle += 1
 	var top := 0.0
 	var dir := Vector3(to.x - from.x, 0, to.z - from.z).normalized()
 	for i in int(seconds * 60.0):
+		if not is_instance_valid(hero) or not is_instance_valid(hero.level):
+			break
 		hero.steer = dir
 		await physics_frame
+		if not is_instance_valid(hero) or not is_instance_valid(hero.level):
+			break
 		hero.hp = hero.max_hp
+		# Nothing may kill him on the way: a dead hero stands still on a mound.
+		hero._invulnerable = 1.0
 		top = maxf(top, hero.global_position.y)
+	if not is_instance_valid(hero) or not is_instance_valid(hero.level):
+		return {"top": top, "end": Vector3(INF, INF, INF)}
 	hero.steer = Vector3.ZERO
 	await _wait(10)
 	print("walk from z %.1f to %.1f: ended at (%.2f, %.2f, %.2f) top %.2f speed %.1f" % [from.z, to.z, hero.global_position.x, hero.global_position.y, hero.global_position.z, top, hero.speed])
@@ -170,6 +183,8 @@ func _run() -> void:
 	var crossed := false
 	var tried := 0
 	for i in made.size():
+		if not is_instance_valid(lvl) or not is_instance_valid(hero):
+			break
 		var m: Dictionary = made[i]
 		if tried >= 8 or crossed:
 			break

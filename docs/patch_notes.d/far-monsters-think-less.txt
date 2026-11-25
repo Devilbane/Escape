@@ -1,0 +1,1 @@
+- The game runs smoother: monsters far away from you now think less often, which frees up processor time.

@@ -2088,6 +2088,18 @@ func _physics_process(delta: float) -> void:
 		return
 	if _home == Vector3.INF:
 		_home = global_position
+	_tick_span = 1.0
+	if _dormant:
+		# Far from the hero and unnoticed: nothing here can be seen or heard, so it thinks only
+		# every few ticks, for all the time that passed (see _can_doze).
+		_held += delta
+		if not _hero_within():
+			if (Engine.get_physics_frames() + get_instance_id()) % DORMANT_EVERY != 0:
+				return
+			delta = minf(_held, 0.25)
+			_tick_span = maxf(1.0, delta * Engine.physics_ticks_per_second)
+		_held = 0.0
+		_dormant = false
 	_busy = maxf(0.0, _busy - delta)
 	_trap_cool = maxf(0.0, _trap_cool - delta)
 	# Crippled by a vital hit, it needs longer between attacks.
@@ -2318,11 +2330,15 @@ func _physics_process(delta: float) -> void:
 	velocity = way * _meant_speed + _knockback
 	velocity.y = 0.0 if is_ghost() else -9.0
 	_knockback = _knockback.move_toward(Vector3.ZERO, delta * 40.0)
+	# A dozing walker covers the way of all the ticks it skipped in one step.
+	velocity.x *= _tick_span
+	velocity.z *= _tick_span
 	move_and_slide()
 	if move != Vector3.ZERO:
 		_face(way, delta)
 		_note_wall()
 	_check_stuck(delta, move)
+	_dormant = _can_doze()
 	var walker := is_human() and not is_ghost()
 	if _busy > 0.0:
 		if walker:
@@ -2339,6 +2355,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		_footfalls(delta, move != Vector3.ZERO, dist)
 	_voice(delta, dist)
+	if _tick_span > 1.0:
+		return # The long step above would read as a sprint to the feet.
 	# Feet keep pace with the ground (see Stride): every walk and run plays
 	# just as fast as its planted foot must travel, bigger bodies taking
 	# longer strides. A walking bandit rises onto the toes at each push-off.
@@ -2704,6 +2722,33 @@ func is_hunting() -> bool:
 
 
 ## Whether the skeleton sees or hears the hero right now.
+## Far from the hero, a monster that is not after anything thinks only every DORMANT_EVERY physics
+## ticks and walks the way of all of them in one step (see _physics_process). Nothing it does
+## then can be seen or heard: the range is well beyond sight, hearing, a shriek and a slime's hunt.
+const DORMANT_RANGE := 70.0
+const DORMANT_EVERY := 6
+var _dormant := false
+var _held := 0.0
+## How many physics ticks the step now taken stands for (1 for an ordinary tick).
+var _tick_span := 1.0
+
+
+## Whether the hero is within DORMANT_RANGE of this monster.
+func _hero_within() -> bool:
+	var to := level.player.global_position - global_position
+	return to.x * to.x + to.z * to.z < DORMANT_RANGE * DORMANT_RANGE
+
+
+## Whether the monster that just finished a tick may doze while the hero is far: asleep, and with
+## no hunt, meal, snack, wound, fire or goo on it. Slimes and ghosts always think.
+func _can_doze() -> bool:
+	return not _awake and _busy <= 0.0 and _knockback == Vector3.ZERO \
+			and foe == null and meal == null and snack == null and drawn_to == null \
+			and burning <= 0.0 and slimed <= 0.0 and goo_left <= 0.0 and _calmed <= 0.0 \
+			and not wound.active() and not retreating and not is_ghost() \
+			and not SlimeGrowth.grows(kind) and kind != "feuerelementar"
+
+
 func _notices(player: Player, to_player: Vector3, dist: float, sees: bool) -> bool:
 	var in_view := ahead_angle(to_player) <= SIGHT_CONE
 	# Inside a built house with the door shut, the walls hide the hero and

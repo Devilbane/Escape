@@ -37,6 +37,22 @@ const DART_SPEED := 1.9
 const DART_TIME := 1.1
 const DIVE_DEPTH := 0.7
 const GONE_TIME := Vector2(8.0, 16.0)
+## Deep in the open water a fish is only half seen (see _base_fade). Now and then one comes up to the
+## surface (SURFACE_PAUSE seconds apart), breaks it with a ring, flicks its fin (a rolling wiggle) and dives
+## away in zigzags, much as a startled fish does.
+const DEEP_FADE := 0.55
+const SURFACE_PAUSE := Vector2(14.0, 30.0)
+const RISE_TIME := 1.6
+const FLICK_TIME := 1.1
+## Sounds (see tools/make_water_sounds.py): the plop of a fish at the surface, the splash of its dive, the
+## blip of a ring and the frogs' croaks, played from where they happen. Quieter the farther from the hero.
+const PLOPS := ["water_plop_0", "water_plop_1", "water_plop_2"]
+const DIVES := ["water_dive_0", "water_dive_1"]
+const CROAKS := ["frog_0", "frog_1", "frog_2"]
+const CROAK_PAUSE := Vector2(5.0, 16.0)
+## Sounds fade by this many dB a metre from the hero and are not played from beyond SOUND_RANGE.
+const SOUND_FALL := 0.45
+const SOUND_RANGE := 38.0
 ## Fish length (metres) and how fast it swims; a lazy pace under the ice.
 const LENGTH_MIN := 0.38
 const LENGTH_MAX := 0.56
@@ -61,6 +77,8 @@ var _since_check := 0.0
 var _rings: MultiMesh
 var _ring_age: Array[float] = []
 var _next_ring := 3.0
+var _next_surface := 8.0
+var _next_croak := 6.0
 var _ring_next := 0
 var _ring_rng := RandomNumberGenerator.new()
 
@@ -159,7 +177,7 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator, lane := {}) -> void:
 		player.play(anim)
 		player.seek(rng.randf() * 1.2)
 	holder.position = home + Vector3(0, 0.03, 0)
-	_fish.append({"node": holder, "mat": mat, "home": home, "awake": true, "state": "swim", "timer": 0.0, "heading": rng.randf() * TAU, "t": rng.randf() * 20.0,
+	_fish.append({"node": holder, "mat": mat, "home": home, "awake": true, "state": "swim", "timer": 0.0, "fade_from": 1.0, "zig": false, "heading": rng.randf() * TAU, "t": rng.randf() * 20.0,
 			"lane": lane, "turn": rng.randf_range(0.25, 0.55), "speed": SPEED * rng.randf_range(0.7, 1.2)})
 
 
@@ -193,7 +211,8 @@ static func smoothed(mesh: Mesh) -> ArrayMesh:
 func set_ice(value: float) -> void:
 	_cover = smoothstep(SHOW_FROM, 1.0, value)
 	for f in _fish:
-		(f.mat as ShaderMaterial).set_shader_parameter("fade", 1.0)
+		if f.state == "swim":
+			(f.mat as ShaderMaterial).set_shader_parameter("fade", _base_fade())
 		(f.mat as ShaderMaterial).set_shader_parameter("cover", _cover)
 
 
@@ -270,6 +289,15 @@ func _stir(delta: float) -> void:
 		if _ring_age[i] < 1.0:
 			_ring_age[i] = minf(_ring_age[i] + delta / RING_LIFE, 1.0)
 			_rings.set_instance_custom_data(i, Color(_ring_age[i], 0, 0, 0))
+	_next_surface -= delta
+	if _next_surface <= 0.0:
+		_next_surface = _ring_rng.randf_range(SURFACE_PAUSE.x, SURFACE_PAUSE.y)
+		if _cover <= RING_ICE_MAX:
+			for f in _fish:
+				if f.awake and f.state == "swim":
+					surface_fish(f)
+					break
+	_croak(delta)
 	_next_ring -= delta
 	if _next_ring > 0.0:
 		return
@@ -289,11 +317,7 @@ func _stir(delta: float) -> void:
 		var spot: Vector3 = base.home + Vector3(_ring_rng.randf_range(-2.5, 2.5), 0, _ring_rng.randf_range(-2.5, 2.5))
 		if _on_water(spot, base.lane):
 			at = spot
-	var i := _ring_next
-	_ring_next = (_ring_next + 1) % RINGS
-	_ring_age[i] = 0.0
-	_rings.set_instance_transform(i, Transform3D(Basis.IDENTITY, Vector3(at.x, 0.05, at.z)))
-	_rings.set_instance_custom_data(i, Color(0, 0, 0, 0))
+	_ring_at(at)
 	# The fish that made the ring bolts away from it and dives out of sight; a fish the ring came up beside does the same.
 	for f in near:
 		var p: Vector3 = (f.node as Node3D).position
@@ -302,6 +326,64 @@ func _stir(delta: float) -> void:
 			f.heading = atan2(away.x, away.y) if away.length() > 0.05 else f.heading
 			f.state = "dart"
 			f.timer = 0.0
+			f.zig = false
+			f.fade_from = _base_fade()
+			_sound(DIVES, -11.0, p)
+
+
+## Plays a sound from `at`, softer the farther the hero is (none beyond SOUND_RANGE).
+func _sound(names: Array, db: float, at: Vector3) -> void:
+	var hero := level.player as Node3D
+	var far := 0.0 if hero == null else Vector2(hero.global_position.x - at.x, hero.global_position.z - at.z).length()
+	if far > SOUND_RANGE:
+		return
+	Sfx.play_3d(level, names[_ring_rng.randi() % names.size()], db - far * SOUND_FALL, at, _ring_rng.randf_range(0.92, 1.1))
+
+
+## Starts a ring of ripples at `at`.
+func _ring_at(at: Vector3) -> void:
+	if _rings == null:
+		return
+	var i := _ring_next
+	_ring_next = (_ring_next + 1) % RINGS
+	_ring_age[i] = 0.0
+	_sound(["water_ring"], -16.0, at)
+	_rings.set_instance_transform(i, Transform3D(Basis.IDENTITY, Vector3(at.x, 0.05, at.z)))
+	_rings.set_instance_custom_data(i, Color(0, 0, 0, 0))
+
+
+## How much of a swimming fish shows: half in open water (it swims deep), all of it under the ice.
+func _base_fade() -> float:
+	return lerpf(DEEP_FADE, 1.0, _cover)
+
+
+## Sends a fish up to break the surface: see _startled's "surface" state.
+func surface_fish(f: Dictionary) -> void:
+	f.state = "surface"
+	f.timer = 0.0
+	f.rung = false
+
+
+## Now and then a frog croaks by the water near the hero, from spring to autumn, not in frost.
+func _croak(delta: float) -> void:
+	_next_croak -= delta
+	if _next_croak > 0.0:
+		return
+	_next_croak = _ring_rng.randf_range(CROAK_PAUSE.x, CROAK_PAUSE.y)
+	if _cover > RING_ICE_MAX or Weather.is_winter(level.season_day):
+		return
+	var near: Array[Dictionary] = []
+	for f in _fish:
+		if f.awake:
+			near.append(f)
+	if near.is_empty():
+		return
+	var f: Dictionary = near[_ring_rng.randi() % near.size()]
+	var at: Vector3 = f.home
+	for k in _ring_rng.randi_range(1, 2):
+		get_tree().create_timer(k * 0.9).timeout.connect(func():
+			if is_inside_tree():
+				_sound(CROAKS, -13.0, at))
 
 
 ## Whether `pos` is on the water this fish swims in: clear of the banks of a pond, or between the banks of a stream.
@@ -321,16 +403,45 @@ func _startled(f: Dictionary, delta: float) -> bool:
 	var holder: Node3D = f.node
 	var mat: ShaderMaterial = f.mat
 	match f.state:
+		"surface":
+			# Up from the deep, barely under the skin of the water, then a flick of the fin (a roll) in a ring.
+			f.timer += delta
+			# It drifts on a little, barely moving, while it comes up and flicks.
+			var next := holder.position + Vector3(sin(f.heading), 0, cos(f.heading)) * 0.12 * delta
+			if _on_water(next, f.lane):
+				holder.position = Vector3(next.x, holder.position.y, next.z)
+			var up: float = clampf(f.timer / RISE_TIME, 0.0, 1.0)
+			holder.position.y = lerpf(0.03, 0.055, up)
+			mat.set_shader_parameter("fade", lerpf(_base_fade(), 1.0, smoothstep(0.0, 1.0, up)))
+			if up >= 1.0 and not f.rung:
+				f.rung = true
+				_sound(PLOPS, -10.0, holder.position)
+				_ring_at(holder.position)
+			if f.timer > RISE_TIME:
+				var flick: float = f.timer - RISE_TIME
+				holder.rotation.z = sin(flick * 26.0) * 0.5 * sin(PI * clampf(flick / FLICK_TIME, 0.0, 1.0))
+				if flick >= FLICK_TIME:
+					holder.rotation.z = 0.0
+					_ring_at(holder.position)
+					_sound(DIVES, -9.0, holder.position)
+					f.state = "dart"
+					f.timer = 0.0
+					f.zig = true
+					f.fade_from = 1.0
+					f.heading += _ring_rng.randf_range(-1.0, 1.0)
 		"dart":
 			f.timer += delta
+			if f.zig:
+				# Erratic: the heading jerks about as the fish dives.
+				f.heading += sin(f.timer * 17.0 + f.heading * 3.0) * 6.0 * delta
 			var k: float = clampf(f.timer / DART_TIME, 0.0, 1.0)
 			var dir := Vector3(sin(f.heading), 0, cos(f.heading))
 			var next := holder.position + dir * DART_SPEED * (1.0 - k * 0.4) * delta
 			if _on_water(next, f.lane):
 				holder.position = Vector3(next.x, holder.position.y, next.z)
-			holder.position.y = lerpf(0.03, -DIVE_DEPTH, k * k)
+			holder.position.y = lerpf(holder.position.y if k < 0.02 else 0.03, -DIVE_DEPTH, k * k)
 			holder.rotation.y = f.heading + HEAD_TURN
-			mat.set_shader_parameter("fade", 1.0 - smoothstep(0.35, 1.0, k))
+			mat.set_shader_parameter("fade", lerpf(f.fade_from, 0.0, smoothstep(0.35, 1.0, k)))
 			if k >= 1.0:
 				f.state = "gone"
 				f.timer = _ring_rng.randf_range(GONE_TIME.x, GONE_TIME.y)
@@ -347,7 +458,7 @@ func _startled(f: Dictionary, delta: float) -> bool:
 			mat.set_shader_parameter("fade", smoothstep(0.0, 3.0, f.timer))
 			if f.timer >= 3.0:
 				f.state = "swim"
-				mat.set_shader_parameter("fade", 1.0)
+				mat.set_shader_parameter("fade", _base_fade())
 		_:
 			return false
 	return true

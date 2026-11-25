@@ -215,3 +215,4 @@ mountain_snow_edge_shots.gd | 600 | fixed | passfail | Winter snow at the mounta
 ice_fish.gd | 120 | free | passfail | Fish under the river's ice: built at the first frost, shown while frozen, hidden in a thaw, keep to the water
 stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the season's colours, none in winter, a few sticks
 underground_shadows.gd | 120 | free | passfail | Buried rooms far from the hero stop casting shadows (cheaper frames), near ones still do
+mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn, summer and winter: lobes, mounds and stones in the grass (screenshots)

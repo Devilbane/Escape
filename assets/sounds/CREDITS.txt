@@ -102,6 +102,9 @@ https://opengameart.org/content/80-cc0-creture-sfx-2
 License: CC0 (public domain). (The "Slime Squelch" pack there is CC-BY-SA and
 is not used.)
 
+The squelch of a step in the sewers' slime patches (slime_squelch_0..3) is synthesised from scratch
+(noise and sine bubbles) by tools/make_slime_squelch.py: no third-party material, no licence to note.
+
 The village's warning bell (village_bell) is a 9.5 second cut of "Church_Bells_Loop_01"
 from "Fantasy Ambience Sounds Pack V2", mixed down to mono, resampled to 22.05 kHz and
 faded in and out (tools/make_pack_sounds.py). It plays once per alarm, so it is not
@@ -159,5 +162,8 @@ Frog croaks and ribbits (frog_0 to frog_6): "Frog Croaks" and "Ribbit Frog Sound
 https://opengameart.org/content/frog-croaks and https://opengameart.org/content/ribbit-frog-sounds
 License: CC0 (public domain). Converted to mono Ogg Vorbis, levelled, the ends faded. The splash of a frog
 hopping into the water reuses splash_soft_0 to splash_soft_2.
+The sounds of the water's small life (water_plop_*, water_dive_* and water_ring) are made
+from scratch by tools/make_water_sounds.py.
+
 The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from scratch by tools/make_goose_sounds.py
 (a buzzing pulse train through nasal formants, no recordings), so they have no licence to credit.

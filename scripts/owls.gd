@@ -426,6 +426,7 @@ static func _material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = feather_texture()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = 0.95
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -435,6 +436,7 @@ static func _material() -> StandardMaterial3D:
 static func _eye_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = 0.1
 	m.metallic_specular = 0.9
 	m.emission_enabled = true

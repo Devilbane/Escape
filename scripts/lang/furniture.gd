@@ -85,6 +85,7 @@ const EN := {
 	"Die Treppe muss frei bleiben.": "The stairs must stay clear.",
 	"Da steht eine Wand im Weg.": "A wall is in the way.",
 	"Vor einer Tür muss Platz bleiben.": "Leave room in front of a door.",
+	"Da käme man nicht mehr durch: Lass einen Weg frei.": "Nobody could get through there: leave a way free.",
 	"Da steht schon ein Möbelstück.": "There is already furniture there.",
 	"Das gehört an eine Wand: Zeig auf eine gebaute Wand im Haus.": "That goes on a wall: point at a built wall in the house.",
 	"Davon hast du keins mehr zum Aufstellen.": "You have none of those left to set up.",

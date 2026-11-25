@@ -176,6 +176,8 @@ static func _desk(hall: Node3D, body: StaticBody3D) -> void:
 	glow.light_energy = 0.9
 	glow.omni_range = 3.5
 	glow.position = Vector3(cx, top + 0.4, -0.2)
+	# Walls all round it (see LightShadows.INDOOR), or it lit the ivy and the snow outside through the wall.
+	glow.set_meta(LightShadows.INDOOR, true)
 	desk.add_child(glow)
 	# His high-backed chair, behind him against the west wall's window.
 	var wood := _mat("chair_wood", Color(0.36, 0.22, 0.14))
@@ -512,6 +514,7 @@ static func _sconces(hall: Node3D, size: Vector2) -> void:
 		light.light_energy = 0.9
 		light.omni_range = 4.5
 		light.position = cup + out * 0.15 + Vector3(0, 0.3, 0)
+		light.set_meta(LightShadows.INDOOR, true) # Walls all round it: it must not light the outside.
 		hall.add_child(light)
 
 

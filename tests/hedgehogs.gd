@@ -60,6 +60,10 @@ func _run() -> void:
 		_finish()
 		return
 	var hog: Hedgehog = hogs[0]
+	for h: Hedgehog in hogs:
+		if not h.is_village():
+			hog = h
+			break
 	var far := hog.global_position + Vector3(60, 0, 0)
 
 	# By day it sleeps in a ball.
@@ -139,6 +143,31 @@ func _run() -> void:
 			check(seen.has(st), "the run goes through %s" % st)
 		check(keeper.hoard.count == before + 1, "it adds the apple to its hoard (%d)" % keeper.hoard.count)
 		check(keeper._apple == null, "it no longer carries the apple")
+
+	# A village hedgehog is about by day and does not curl up when the hero comes close.
+	game.season_shift = 100
+	game._tick_clock(0.0)
+	_set_hour(12.0)
+	lvl.night = false
+	var local: Hedgehog
+	for h: Hedgehog in hogs:
+		if h.is_village():
+			local = h
+	check(local != null, "there is a village hedgehog")
+	if local != null:
+		local.state = "sleep"
+		hero.global_position = local.global_position + Vector3(60, 0, 0)
+		var up := false
+		for i in 60 * 6:
+			await physics_frame
+			up = up or local.state in ["snuffle", "walk"]
+		check(up, "a village hedgehog is about by day")
+		for i in 60 * 3:
+			hero.global_position = local.global_position + Vector3(1.0, 0, 0)
+			await physics_frame
+			check(local.state != "curl", "a village hedgehog does not curl up near the hero (%s)" % local.state)
+			if local.state == "curl":
+				break
 
 	# In winter it hibernates: curled up even at night.
 	game.season_shift = Weather.YEAR_DAYS - 3

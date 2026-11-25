@@ -720,14 +720,34 @@ func _ready() -> void:
 	if playtest_file != "":
 		_start_playtest()
 		return
-	load_level(_start_level())
+	if defers_start_level():
+		_rest_hero()
+	else:
+		load_level(_start_level())
 	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
 	# The village gets ready behind the title, so the crypt door is quick later.
 	WorldPreload.start(self)
+	LoadingScreen.start(_hud)
 	if Engine.has_meta(ASK_NAME_FLAG):
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)
 		new_game()
+
+
+## Whether the first level waits until a game really starts ("New", or a saved game's own level)
+## instead of being built behind the title. Always, where a window is drawn; headless (the tests)
+## the level is there at once, unless a test asks for the real thing with `lazy_start`.
+static var lazy_start := false
+
+
+func defers_start_level() -> bool:
+	return lazy_start or DisplayServer.get_name() != "headless"
+
+
+## The hero waits out of the world while no level is loaded: unseen, and nothing of them runs.
+func _rest_hero() -> void:
+	player.visible = false
+	player.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Straight onto the map from the workshop, with a new hero called Tester.
@@ -3587,6 +3607,8 @@ func load_level(index: int, restock := true) -> void:
 			return
 		_drop_parked()
 	level_index = index
+	player.visible = true
+	player.process_mode = Node.PROCESS_MODE_INHERIT
 	tutorial.restart()
 	writing_card.hide_now()
 	level = Outdoor.new() if Level.is_outdoor_file(level_files[index]) else Level.new()

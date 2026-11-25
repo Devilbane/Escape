@@ -402,7 +402,8 @@ static func plant_for_leaves(level: Node3D, others: Array) -> Array:
 		node.scale = Vector3.ONE * VILLAGE_SCALE
 		level.add_child(node)
 		level._add_solid(node.position, Vector3(0.5, 2.5, 0.5))
-		out.append({"node": node, "cell": pick, "look": "", "leaf": true})
+		# Outside the village it grows wild: no grass patch and ring of stones at its foot.
+		out.append({"node": node, "cell": pick, "look": "", "leaf": true, "wild": not level.near_village(pick)})
 	return out
 
 
@@ -486,10 +487,10 @@ static func dress(trees: Array, day: int) -> void:
 		for child in node.get_children():
 			node.remove_child(child)
 			child.queue_free()
-		build(node, VILLAGE_TREE, day)
+		build(node, VILLAGE_TREE, day, t.get("wild", false))
 
 
-## Builds the tree of `piece` as it looks on `day` into `root` (on the ground, middle at the
+## Builds the tree of `piece` as it looks on `day` (`wild`: without the patch of grass and stones at its foot) into `root` (on the ground, middle at the
 ## origin) and returns its solids ({at, size}, local): the trunk.
 ##
 ## A grown tree is a real skeleton of tapering, bending limbs: the trunk forks into strong limbs,
@@ -498,14 +499,16 @@ static func dress(trees: Array, day: int) -> void:
 ## one mesh, all the leaves one, the blossom and the apples one each (see _Parts), so a tree costs
 ## a handful of draw calls however many branches it has. The model notes how many apples, clumps,
 ## blossoms and limbs it has in the metas "apples", "leaves", "blossom" and "limbs".
-static func build(root: Node3D, piece: Dictionary, day: int) -> Array:
+static func build(root: Node3D, piece: Dictionary, day: int, wild := false) -> Array:
 	var grown := stage(piece, day)
 	var season := Weather.season(day)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("apple tree:%s" % root.position.snapped(Vector3.ONE * 0.1))
 	var parts := _Parts.new()
 	# Round its foot a patch of grass, bordered by a ring of small field stones.
-	parts.patch(rng, PATCH_RADIUS + grown * PATCH_GROWS)
+	# (A `wild` tree, outside the village, stands straight in the ground like a natural one.)
+	if not wild:
+		parts.patch(rng, PATCH_RADIUS + grown * PATCH_GROWS)
 	var shape: Dictionary = SHAPES[grown]
 	if grown <= SAPLING:
 		# The stake it is tied to, with a band of bast round both.

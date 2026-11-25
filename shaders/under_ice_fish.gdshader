@@ -13,6 +13,10 @@ uniform float seed = 0.0;
 uniform float fade = 0.0;
 // How much of the fish shows through the ice, 0 to 1.
 uniform float veil = 0.8;
+// 0 in open water to 1 under a sheet of ice: in open water the fish is darker, bluer and a little clearer.
+uniform float cover = 0.0;
+uniform vec3 water_color = vec3(0.08, 0.2, 0.24);
+uniform float open_veil = 0.62;
 
 varying vec3 lp;
 
@@ -38,8 +42,8 @@ void fragment() {
 	col *= 0.7 + 0.5 * round_lit;
 	// Darker towards the tail and the fins.
 	col *= 0.85 + 0.25 * (1.0 - abs(along - 0.5) * 1.2);
-	col = mix(col, ice_color * 0.8, 0.32);
-	ALPHA = veil * fade;
+	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.5, 0.32, cover));
+	ALPHA = mix(open_veil, veil, cover) * fade;
 	ALBEDO = col;
 	ALBEDO = gl_colour(ALBEDO);
 }

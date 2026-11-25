@@ -43,6 +43,8 @@ func _run() -> void:
 	game.load_level(game._outdoor_index(), false)
 	await _wait(30)
 	var lvl: Outdoor = game.level
+	for sound in IceFish.PLOPS + IceFish.DIVES + ["water_ring"]:
+		check(ResourceLoader.exists("res://assets/sounds/" + sound + ".wav"), "the sound %s exists" % sound)
 	game.ice_cover = 0.0
 	lvl.set_ice(0.0)
 	await _wait(5)
@@ -88,6 +90,37 @@ func _run() -> void:
 		scared.state = "swim"
 		scared.node.visible = true
 		scared.mat.set_shader_parameter("fade", 1.0)
+	# A fish comes up, breaks the surface with a ring, flicks its fin and dives away in zigzags.
+	var riser: Dictionary = {}
+	for f in school._fish:
+		if f.state == "swim":
+			riser = f
+			break
+	if not riser.is_empty():
+		for a in school._ring_age.size():
+			school._ring_age[a] = 1.0
+		school.surface_fish(riser)
+		var rolled := 0.0
+		var peak := 0.0
+		var zig := false
+		for i in 120:
+			school._startled(riser, 0.05)
+			rolled = maxf(rolled, absf((riser.node as Node3D).rotation.z))
+			peak = maxf(peak, (riser.node as Node3D).position.y)
+			zig = zig or riser.zig
+			if riser.state == "gone":
+				break
+		check(peak > 0.05 and rolled > 0.2, "the fish comes up and flicks a fin (%.2f, %.2f)" % [peak, rolled])
+		check(zig and riser.state == "gone", "then it dives away in zigzags and is gone")
+		var rings_now := 0
+		for a in school._ring_age:
+			if a < 1.0:
+				rings_now += 1
+		check(rings_now >= 1, "the surfacing leaves a ring")
+		riser.state = "swim"
+		riser.node.visible = true
+		riser.node.rotation.z = 0.0
+		riser.zig = false
 	game.ice_cover = 1.0
 	lvl.set_ice(1.0)
 	await _wait(3)

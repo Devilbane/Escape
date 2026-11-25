@@ -4060,7 +4060,7 @@ func _physics_process(delta: float) -> void:
 	_train_legs(stepped)
 	# Pressed on for a second without getting anywhere and no way out in any direction: get free.
 	if _wedge.tick(dir != Vector3.ZERO and is_on_floor(), stepped, pace * delta, delta) and HeroUnstick.is_wedged(self):
-		HeroUnstick.release(self, free_spot)
+		HeroUnstick.release(self, free_spot, level.cell_to_world(level.start_cell) if level != null else Vector3.INF)
 	elif is_on_floor() and stepped > 0.0 and stepped >= pace * delta * 0.8:
 		free_spot = global_position
 	# Walking a path but pressed against something, like a door frame: first

@@ -133,3 +133,5 @@ rock_climb.gd | 420 | fixed | passfail | Climbing the mountain rock: three pull-
 bed_exit_chest.gd | 120 | fixed | pass | The hero steps out of bed on the side without a chest
 climbing_gear.gd | 60 | fixed | pass | Climbing gear: five pieces worn in their slots, +1 Klettern each and +2 for the full set, nothing from the bag
 glow_mushrooms.gd | 120 | free | pass | Glow mushrooms (at most 3 patches of 1 to 7 a day, new places each day, glow follows the clock)
+hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)
+furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)

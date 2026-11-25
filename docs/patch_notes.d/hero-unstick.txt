@@ -1,0 +1,1 @@
+- A hero who gets truly wedged in a tight corner is now set free on the nearest open spot after a second, and the developer chat command `unstuck` does the same on request.

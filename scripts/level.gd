@@ -4248,6 +4248,7 @@ func restore_taken() -> void:
 		if p.has("id") and taken.has(p.id):
 			_pickups.erase(p)
 			p.node.queue_free()
+	SilverSilk.restore(self)
 
 
 ## A coin or two and a torn page left on the floor in front of a searched

@@ -178,7 +178,7 @@ house_ballista.gd | 120 | fixed | passfail | House ballista: planned on the grou
 house_garden.gd | 120 | free | passfail | House garden: flowers, garden torches, a lamp and a grill stand only outdoors on the plot, light it at night, follow the seasons, and the grill cooks food into life
 apple_tree.gd | 120 | free | passfail | Apple tree: a garden seedling grows by the seasons into a tree, keeps its age, blossoms, bears apples to pick in summer and autumn, bare in winter
 leaf_apple_trees.gd | 120 | free | passfail | Leaf apple trees: a handful of apple trees spread over the village and its surroundings so every spot with autumn leaves has a tree or wall ivy within a screen, clear of doors, paths and plots, hedgehog hoards unchanged
-fern.gd | 180 | free | passfail | Ferns and needle trees: a low fern, slim spruces and open pines light to draw, the spruce stand in Die Freiheit, ferns in the shade along the forest edge, never on a plot
+fern.gd | 180 | free | passfail | Ferns and needle trees: a low fern, slim spruces and open pines light to draw, the spruce stand in Apfeltal, ferns in the shade along the forest edge, never on a plot
 light_shadows.gd | 120 | fixed | passfail | Walls block light (nearest lamps cast shadows within a budget; house torches flush on the wall)
 autumn_leaves.gd | 120 | free | passfail | Autumn leaves: most undergrowth bushes shed their leaves in autumn, and fallen leaves in the ivy's autumn colours lie spread over the ground
 stone_look_shots.gd | 180 | fixed | passfail | Natural stonework: village buildings carry their rounded edges, built houses and cellars are stone

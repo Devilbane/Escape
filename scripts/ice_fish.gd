@@ -37,7 +37,7 @@ const DART_SPEED := 1.9
 const DART_TIME := 1.1
 const DIVE_DEPTH := 0.7
 const GONE_TIME := Vector2(8.0, 16.0)
-## Deep in the open water a fish is only half seen (see _base_fade). Now and then one comes up to the
+## Deep in the open water a fish is a little dimmer (see _base_fade). Now and then one comes up to the
 ## surface (SURFACE_PAUSE seconds apart), breaks it with a ring, flicks its fin (a rolling wiggle) and dives
 ## away in zigzags, much as a startled fish does.
 const DEEP_FADE := 0.9

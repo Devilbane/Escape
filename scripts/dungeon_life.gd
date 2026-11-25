@@ -528,6 +528,10 @@ func _web(web_kind: String, corner: Vector3, a: Vector3, b: Vector3) -> bool:
 	if not _web_fits(web_kind, mid, [corner, a, b, far]):
 		return false
 	webs.append({"kind": web_kind, "mid": mid, "points": [corner, a, b, far]})
+	# A rare few are silver silk: the only webs that glow, and ones the hero can harvest.
+	if SilverSilk.is_silver(level.level_name, mid):
+		SilverSilk.build(level, self, corner, a, b, far, absi(hash(mid)) % WEB_KINDS)
+		return true
 	# Each web gets one of the images, sometimes mirrored, and an age: old
 	# webs are greyer and thinner.
 	var image := _rng.randi() % WEB_KINDS

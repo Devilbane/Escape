@@ -225,7 +225,8 @@ static func trunk_mesh(length: float, r: float, rng: RandomNumberGenerator, flat
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in steps:
 		for j in around:
-			var quad := [[i, j], [i, j + 1], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i + 1, j]]
+			# Clockwise seen from outside, which is what Godot draws (the other way round it is culled).
+			var quad := [[i, j], [i + 1, j + 1], [i, j + 1], [i, j], [i + 1, j], [i + 1, j + 1]]
 			for q in quad:
 				var v: Array = rings[q[0]][0][q[1]]
 				st.set_uv(Vector2(v[0].x, float(q[1]) / around))

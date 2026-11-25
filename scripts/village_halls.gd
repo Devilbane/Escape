@@ -47,6 +47,8 @@ const SIGN_OUT := 1.15
 const SIGN_HIGH := 3.0
 ## How far beside the door a sign hung flat to the wall is, so it clears the doorway.
 const SIGN_ASIDE := 1.65
+## How far the tavern's pub sign reaches out from the wall (it is wider than a shield).
+const PUB_SIGN_OUT := 1.6
 
 
 ## The style a hall's VillageHouse is built in (see VillageHouse.build).
@@ -183,7 +185,7 @@ static func _tavern(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> void:
 	rec["glows"] = [hearth.get_node("HearthGlow")]
 	(hearth.get_node("HearthGlow") as Light3D).visible = false
 	# A notice by the door side.
-	var notice := WalkInFurniture.poster("Wirtshaus", ["Bier vom Fass", "Suppe, Brot, Käse", "Anschreiben: Fritz"])
+	var notice := WalkInFurniture.poster(PubSign.NAME, ["Bier vom Fass", "Suppe, Brot, Käse", "Anschreiben: Fritz"])
 	notice.position = Vector3(half, floor_y + 1.85, back + room.size.y * 0.5 + 0.4)
 	notice.rotation.y = -PI * 0.5
 	inside.add_child(notice)
@@ -437,7 +439,8 @@ static func hang_sign(hall: Node3D, kind: String) -> Node3D:
 	var d: float = shape.d
 	var out_dir := Basis(Vector3.UP, hall.rotation.y) * Vector3.BACK
 	var flat := out_dir.z > 0.7
-	var board := HangingShield.on_wall(kind, SIGN_OUT, not flat)
+	# The tavern hangs the pub's painted board, Apples & Ivy! (see PubSign); the other halls a shield.
+	var board := PubSign.on_wall(PUB_SIGN_OUT, not flat) if kind == "tavern" else HangingShield.on_wall(kind, SIGN_OUT, not flat)
 	board.name = "HallSign"
 	board.position = Vector3(-SIGN_ASIDE if flat else -1.0, VillageHouse.PLINTH + SIGN_HIGH, d * 0.5 + 0.02)
 	hall.add_child(board)

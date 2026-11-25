@@ -42,6 +42,8 @@ static func make(id: String, size := 44.0, plain := false) -> ItemIcon:
 const INGREDIENT_ICONS := {
 	"baerlauch": "garlic", "glimmermoos": "moss", "mondblume": "moonflower", "edelweiss": "edelweiss", "silberedelweiss": "edelweiss",
 	"steinpilz": "porcini", "trueffel": "truffle", "hoehlenpilz": "cave_mushroom",
+	"gluehpilz": "glow_mushroom", "gluehpilz_blau": "glow_mushroom_blue", "gluehpilz_purpur": "glow_mushroom_purple",
+	"gluehpilz_stern": "glow_mushroom_star",
 	"barsch": "perch", "goldkarpfen": "carp", "silberhecht": "pike", "mondforelle": "trout",
 	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal", "schleimkristall": "crystal",
 	"holzkohle": "coal", "kalkstein": "lime",

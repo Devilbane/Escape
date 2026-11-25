@@ -37,6 +37,15 @@ const INGREDIENTS := {
 		"where": "Wächst unter dem Staub der Verliesböden. Nur ein Fuchs erschnüffelt ihn."},
 	"glimmermoos": {"name": "Glimmermoos", "tier": "ungewoehnlich", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 2,
 		"where": "Leuchtet schwach unter den Steinen des Verlieses. Nur ein Fuchs erschnüffelt es."},
+	# Glow mushrooms (see GlowMushrooms): random patches, new every day, picked by walking into them.
+	"gluehpilz": {"name": "Glühpilz", "tier": "normal", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Wächst in bernsteinfarbenen Flecken am Waldrand, im feuchten Schatten am Wasser und im Verlies, jeden Tag woanders, höchstens drei Flecken in einer Karte. Tagsüber blass, nachts leuchtend. Er brennt in den Laternen des Dorfes."},
+	"gluehpilz_blau": {"name": "Blauer Glühpilz", "tier": "ungewoehnlich", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Ein himmelblau leuchtender Glühpilz, seltener als der bernsteinfarbene. Wächst jeden Tag in anderen Flecken am Waldrand, am Wasser und im Verlies."},
+	"gluehpilz_purpur": {"name": "Purpurner Glühpilz", "tier": "selten", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Ein purpurn leuchtender Glühpilz, selten und im Verlies etwas häufiger. Die Flecken wechseln jeden Tag."},
+	"gluehpilz_stern": {"name": "Sternenpilz", "tier": "episch", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Ein violetter Glühpilz mit gelben Tupfen, der seltenste von allen. Tief im Verlies findet man ihn am ehesten."},
 	# Fish, caught with the line (see Fishing). The perch bites everywhere;
 	# the other three are rare and bite in one water only.
 	"barsch": {"name": "Barsch", "region": "Dorf und Wolfssenke", "when": "", "source": "Angeln in den Teichen",
@@ -329,6 +338,23 @@ const RECIPES := {
 			{"id": "lauch", "text": "Ein Bund Bärlauch, den nur ein Fuchs im Gras der Wiesen findet."},
 			{"id": "gelee", "text": "Ein Klumpen Schleimgelee als Grund, damit der Trank im Leib bleibt."},
 			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
+	# Glow mushrooms (see GlowMushrooms): the first one picked teaches how to brew with them.
+	"pilztrank": {"name": "Pilztrank", "giver": "", "found": "gluehpilz",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank", "potency": true,
+		"effect": "Ein Heiltrank, so stark wie dein Können ihn braut, ohne Schleimgelee",
+		"ingredients": {"gluehpilz": 3},
+		"lines": [
+			{"id": "pilz", "text": "Drei Glühpilze, in der Nacht gepflückt oder bei Tag, wenn sie ihr Licht gespeichert haben."},
+			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
+	"sternentrank": {"name": "Sternentrank", "giver": "", "found": "gluehpilz_blau",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank_stark",
+		"effect": "Ein starker Heiltrank: heilt sofort 40 bis 60 % deiner Leben, dann 20 Sekunden lang 1 Leben pro Sekunde",
+		"ingredients": {"gluehpilz_blau": 2, "gluehpilz_purpur": 1},
+		"lines": [
+			{"id": "blau", "text": "Zwei blaue Glühpilze, kühl wie der Morgen."},
+			{"id": "purpur", "text": "Ein purpurner Glühpilz, der dem Trank sein Feuer gibt."},
 		]},
 	# Cold brewing: the first slime crystal teaches it. A strong healing potion, whatever the brewer's skill.
 	"frosttrank": {"name": "Frosttrank", "giver": "", "found": "schleimkristall",

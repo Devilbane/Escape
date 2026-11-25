@@ -166,10 +166,18 @@ func is_curled() -> bool:
 	return state in ["curl", "sleep"]
 
 
-## Whether it is its time of day: dusk to dawn, and not in winter.
+## Whether it lives in the village, among people.
+func is_village() -> bool:
+	return bool(tree.get("in_village", false))
+
+
+## Whether it is its time of day: dusk to dawn, and not in winter. A village hedgehog is used to
+## people and is about all day long (it still hibernates in winter).
 func awake_time() -> bool:
 	if Weather.is_winter(int(level.get("season_day"))):
 		return false
+	if is_village():
+		return true
 	if level.get("night") == true:
 		return true
 	var h: float = level.get("hour")
@@ -177,6 +185,8 @@ func awake_time() -> bool:
 
 
 func shy_distance() -> float:
+	if is_village():
+		return 0.0
 	var d := SHY
 	if level and level.player and level.player.get("sneaking"):
 		d *= SNEAK_FACTOR

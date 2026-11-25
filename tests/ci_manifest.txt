@@ -137,3 +137,4 @@ hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down fr
 furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)
 enemy_alert_once.gd | 240 | fixed | pass | A monster's red alert shows once per hunt
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
+parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)

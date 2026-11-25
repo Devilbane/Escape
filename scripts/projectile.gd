@@ -113,13 +113,13 @@ static func village_knife(owner_level: Level, origin: Vector3, dir: Vector3, tar
 
 
 ## A spider's web in flight: a pale, see-through ball of silk with a few
-## threads trailing behind it and a faint glimmer, so it reads in the dark too.
+## threads trailing behind it. Lit like everything else: ordinary silk never glows.
 static func _web_ball() -> Node3D:
 	var ball := Node3D.new()
 	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = Color(0.93, 0.93, 0.88, 0.8)
+	mat.roughness = 1.0
 	var core := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.28
@@ -139,7 +139,6 @@ static func _web_ball() -> Node3D:
 		strand.position = Vector3((i - 1) * 0.12, (i % 2) * 0.1 - 0.05, 0.55)
 		strand.rotation.y = (i - 1) * 0.18
 		ball.add_child(strand)
-	ball.add_child(Effects.make_sparkles(Color(0.95, 0.95, 0.9)))
 	return ball
 
 

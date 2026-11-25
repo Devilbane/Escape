@@ -286,7 +286,11 @@ func _drop_leaves() -> void:
 					continue
 				var dice := lane_rng if spot_no >= verge_spots else rng
 				var basis := Basis(Vector3.UP, dice.randf() * TAU).scaled(Vector3.ONE * dice.randf_range(0.85, 1.15))
-				var t := Transform3D(basis, spot + Vector3(0, dice.randf_range(0.008, 0.016), 0))
+				# On the mountain foot's lobes and mounds the leaves lie on top of them, not under.
+				var lift := MountainFoot.surface_at(level, spot.x, spot.z)
+				if lift > 0.03:
+					lift += 0.08
+				var t := Transform3D(basis, spot + Vector3(0, lift + dice.randf_range(0.008, 0.016), 0))
 				var shade := dice.randf_range(0.82, 1.05)
 				var kind := dice.randi() % CLUSTER_KINDS
 				var key := Vector3i(floori(c.x / float(CHUNK)), floori(c.y / float(CHUNK)), kind)

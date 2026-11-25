@@ -37,13 +37,22 @@ const INGREDIENTS := {
 		"where": "Wächst unter dem Staub der Verliesböden. Nur ein Fuchs erschnüffelt ihn."},
 	"glimmermoos": {"name": "Glimmermoos", "tier": "ungewoehnlich", "region": "Verlies", "when": "", "source": "Dein Fuchs", "fox": 2,
 		"where": "Leuchtet schwach unter den Steinen des Verlieses. Nur ein Fuchs erschnüffelt es."},
+	# Glow mushrooms (see GlowMushrooms): random patches, new every day, picked by walking into them.
+	"gluehpilz": {"name": "Glühpilz", "tier": "normal", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Wächst in bernsteinfarbenen Flecken am Waldrand, im feuchten Schatten am Wasser und im Verlies, jeden Tag woanders, höchstens drei Flecken in einer Karte. Tagsüber blass, nachts leuchtend. Er brennt in den Laternen des Dorfes."},
+	"gluehpilz_blau": {"name": "Blauer Glühpilz", "tier": "ungewoehnlich", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Ein himmelblau leuchtender Glühpilz, seltener als der bernsteinfarbene. Wächst jeden Tag in anderen Flecken am Waldrand, am Wasser und im Verlies."},
+	"gluehpilz_purpur": {"name": "Purpurner Glühpilz", "tier": "selten", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Ein purpurn leuchtender Glühpilz, selten und im Verlies etwas häufiger. Die Flecken wechseln jeden Tag."},
+	"gluehpilz_stern": {"name": "Sternenpilz", "tier": "episch", "region": "Wildnis und Verlies", "when": "", "source": "Pilzflecken pflücken",
+		"where": "Ein violetter Glühpilz mit gelben Tupfen, der seltenste von allen. Tief im Verlies findet man ihn am ehesten."},
 	# Fish, caught with the line (see Fishing). The perch bites everywhere;
 	# the other three are rare and bite in one water only.
 	"barsch": {"name": "Barsch", "region": "Dorf und Wolfssenke", "when": "", "source": "Angeln in den Teichen",
 		"where": "Beißt im Dorfteich und im Tümpel der Wolfssenke."},
-	"goldkarpfen": {"name": "Goldkarpfen", "rare": true, "region": "Dorf", "when": "", "source": "Angeln im Brunnen",
+	"goldkarpfen": {"name": "Goldkarpfen", "rare": true, "region": "Orchardby", "when": "", "source": "Angeln im Brunnen",
 		"where": "Ein seltener Fang im Brunnen auf dem Dorfplatz."},
-	"silberhecht": {"name": "Silberhecht", "rare": true, "region": "Dorf", "when": "in der Dämmerung", "source": "Angeln im Dorfteich",
+	"silberhecht": {"name": "Silberhecht", "rare": true, "region": "Orchardby", "when": "in der Dämmerung", "source": "Angeln im Dorfteich",
 		"where": "Beißt im Dorfteich, aber nur in der Dämmerung."},
 	"mondforelle": {"name": "Mondforelle", "rare": true, "region": "Wolfssenke", "when": "nur nachts", "source": "Angeln im Tümpel",
 		"where": "Beißt im Tümpel der Wolfssenke, aber nur bei Nacht."},
@@ -60,6 +69,9 @@ const INGREDIENTS := {
 		"where": "Rinnt aus Glutschlund, wenn er fällt, ganz unten in der Drachenhöhle."},
 	"glutherz": {"name": "Glutherz", "rare": true, "region": "Drachenhöhle", "when": "", "source": "Beute des Drachen, nicht immer",
 		"where": "Das glühende Herz des Drachen. Nicht jedes Mal, wenn Glutschlund fällt, bleibt es heil."},
+	# Harvested from the rare webs of silver silk in the dungeons (see SilverSilk).
+	"silberseide": {"name": "Silberseide", "tier": "selten", "region": "Verlies", "when": "", "source": "Silberne Spinnweben ernten",
+		"where": "Hier und da hängt im Verlies ein Spinnennetz aus Silberseide, das leise schimmert. Lauf dagegen, um einen Strang zu ernten."},
 	# The loot of fallen monsters (see Loot), each with its "tier" (see
 	# Rarity); "store": "metall" marks what a house keeps with the metal. Coins, from every intelligent foe: a hundred of one metal melt
 	# into a bar of it at Gorm's forge.
@@ -123,19 +135,19 @@ const INGREDIENTS := {
 		"where": "Steckt in Edelerz. Erst geschliffen taugt er zu etwas; Gorm schleift ihn, dabei verliert er 15 bis 50 Prozent seines Gewichts."},
 	# What a steel bar is made of besides iron (see Forge.STEEL_RECIPE):
 	# charcoal for its carbon, limestone as a flux.
-	"holzkohle": {"name": "Holzkohle", "store": "metall", "tier": "normal", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+	"holzkohle": {"name": "Holzkohle", "store": "metall", "tier": "normal", "region": "Orchardby", "when": "", "source": "Schmied Gorm",
 		"where": "Gorm brennt sie selbst und verkauft sie an seiner Esse. Mit Kalkstein macht er aus Eisen Stahl."},
 	"kalkstein": {"name": "Kalkstein", "store": "metall", "tier": "normal", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
 		"where": "Trolle und die Wesen der Berge tragen oft ein paar Brocken bei sich. Mit Holzkohle macht Gorm aus Eisen Stahl."},
-	"edelstein": {"name": "Geschliffener Edelstein", "store": "metall", "tier": "selten", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+	"edelstein": {"name": "Geschliffener Edelstein", "store": "metall", "tier": "selten", "region": "Orchardby", "when": "", "source": "Schmied Gorm",
 		"where": "Ein Edelstein, von Gorm geschliffen. Je mehr Karat, desto seltener und wertvoller; Gorm kauft ihn dir ab."},
 }
 ## The smith's iron bars in the ingredient book.
-const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+const IRON := {"name": "Eisenbarren", "region": "Orchardby", "when": "", "source": "Schmied Gorm",
 	"where": "Gorm verkauft Eisenbarren und schmilzt Metall aus deiner Tasche zu neuen ein."}
 ## The fine bars from Gorm's forge (Forge.FINE, kept in game.bars) in the
 ## ingredient book: a recipe names them by their metal, e.g. "silber".
-const FINE_BARS := {"region": "Dorf", "when": "", "source": "Schmied Gorm",
+const FINE_BARS := {"region": "Orchardby", "when": "", "source": "Schmied Gorm",
 	"where": "Gorm schmilzt Schmuck und feine Waffen und Rüstungen an seiner Esse zu Barren ein."}
 
 ## The recipes. "giver" is the villager who hands out the scroll, "craft" and
@@ -329,6 +341,23 @@ const RECIPES := {
 			{"id": "lauch", "text": "Ein Bund Bärlauch, den nur ein Fuchs im Gras der Wiesen findet."},
 			{"id": "gelee", "text": "Ein Klumpen Schleimgelee als Grund, damit der Trank im Leib bleibt."},
 			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
+	# Glow mushrooms (see GlowMushrooms): the first one picked teaches how to brew with them.
+	"pilztrank": {"name": "Pilztrank", "giver": "", "found": "gluehpilz",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank", "potency": true,
+		"effect": "Ein Heiltrank, so stark wie dein Können ihn braut, ohne Schleimgelee",
+		"ingredients": {"gluehpilz": 3},
+		"lines": [
+			{"id": "pilz", "text": "Drei Glühpilze, in der Nacht gepflückt oder bei Tag, wenn sie ihr Licht gespeichert haben."},
+			{"id": "kunst", "text": "Wer klug ist und die Alchemie übt, braut ihn stärker."},
+		]},
+	"sternentrank": {"name": "Sternentrank", "giver": "", "found": "gluehpilz_blau",
+		"craft": "alchemie", "craft_level": 0, "result": "heiltrank_stark",
+		"effect": "Ein starker Heiltrank: heilt sofort 40 bis 60 % deiner Leben, dann 20 Sekunden lang 1 Leben pro Sekunde",
+		"ingredients": {"gluehpilz_blau": 2, "gluehpilz_purpur": 1},
+		"lines": [
+			{"id": "blau", "text": "Zwei blaue Glühpilze, kühl wie der Morgen."},
+			{"id": "purpur", "text": "Ein purpurner Glühpilz, der dem Trank sein Feuer gibt."},
 		]},
 	# Cold brewing: the first slime crystal teaches it. A strong healing potion, whatever the brewer's skill.
 	"frosttrank": {"name": "Frosttrank", "giver": "", "found": "schleimkristall",

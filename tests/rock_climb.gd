@@ -81,9 +81,19 @@ func _rules() -> void:
 	h.set_nail()
 	check(h.pull(0.999, true, 0.0) == RockClimb.Result.FELL and h.pull(0.999, true, 0.0) == RockClimb.Result.FELL, "two falls to the safe spot go on")
 	check(h.pull(0.999, true, 0.0) == RockClimb.Result.GAVE_UP, "the third fall to the safe spot gives up")
+	# Along the face: the same rules and chance, but no height and never the top.
+	var t := RockClimb.new(5.4, 8, 8)
+	check(t.traverse(ok_roll, true) == RockClimb.Result.UP and is_equal_approx(t.metres, 0.0), "a step along the face gains no height")
+	check(t.traverse(ok_roll, true) == RockClimb.Result.UP and t.traverse(ok_roll, true) == RockClimb.Result.PITON, "steps along the face count towards a safe spot")
+	check(t.traverse(0.999, true) == RockClimb.Result.SLIP and t.traverse(0.999, true) == RockClimb.Result.REST, "a step along the face slips like a pull-up")
+	var u := RockClimb.new(0.9, 8, 8)
+	check(u.traverse(ok_roll, true) != RockClimb.Result.TOP, "a step along the face never reaches the top")
+	var w := RockClimb.new(5.4, 8, 8)
+	w.pull(ok_roll, true)
+	check(w.traverse(0.999, true, 0.0) == RockClimb.Result.FELL and w.metres == 0.0, "a fall on a step along the face drops like any other")
 	check(RockClimb.new(5.4, 8, 20).chance() > RockClimb.new(5.4, 8, 8).chance(), "skill makes a pull-up safer")
 	check(RockClimb.new(5.4, 12, 12).chance() < RockClimb.new(5.4, 8, 12).chance(), "a harder spot is less safe")
-	for s: Dictionary in ClimbSpots.SPOTS["Die Freiheit"]:
+	for s: Dictionary in ClimbSpots.SPOTS["Apfeltal"]:
 		check(Climbing.can_climb(float(s.height), int(s.level)), "the skill a spot asks for can climb its height")
 
 
@@ -119,10 +129,10 @@ func _run() -> void:
 			e.queue_free()
 	lvl.enemies.clear()
 	hero.global_position = Vector3(0, 0, 0)
-	var spot: Dictionary = ClimbSpots.SPOTS["Die Freiheit"][0]
+	var spot: Dictionary = ClimbSpots.SPOTS["Apfeltal"][0]
 	var other := Vector2i(119, 23)
 	check(lvl.cell_char(spot.cell) == "=" and lvl.cell_char(spot.cell + Vector2i(0, 1)) != "=", "the spot is rock with open ground south of it")
-	for s: Dictionary in ClimbSpots.SPOTS["Die Freiheit"]:
+	for s: Dictionary in ClimbSpots.SPOTS["Apfeltal"]:
 		check(lvl.cell_char(s.cell) == "=" and not "#=".contains(lvl.cell_char(s.cell + Vector2i(0, 1))), "spot %s has open ground in front" % s.cell)
 
 	# A plain rock face: the message, no climb.
@@ -206,6 +216,45 @@ func _run() -> void:
 	check(hero.global_position.y < 0.3, "after three falls the hero climbed down (y %.2f)" % hero.global_position.y)
 	check(told.has(Lang.t("Du gibst auf und kletterst am Seil hinunter.")), "the hero gives up and says so")
 	check(hands != null and hands.visible, "the weapons are back in the hands")
+	# Along the face: a held sideways key moves the hero over, to the edge of the spot and no further.
+	hero.rock_roll_forced = 0.0
+	hero.rock_fall_forced = -1.0
+	hero.bag.append_array(["kletterhaken", "kletterhaken"])
+	await _push(hero, lvl, spot.cell, 3.2)
+	check(hero.is_climbing(), "the third climb begins")
+	guard = 0
+	while hero.is_climbing() and hero._rock_y < 1.7 and guard < 3000:
+		await _wait(1)
+		guard += 1
+	var x_side := hero.global_position.x
+	Input.action_press("ui_left")
+	guard = 0
+	while hero.is_climbing() and hero._rock_side == 0 and guard < 600:
+		await _wait(1)
+		guard += 1
+	var y_side := hero._rock_y
+	Input.action_release("ui_left")
+	guard = 0
+	while hero.is_climbing() and absf(hero._rock_dx) < Player.ROCK_SIDE_STEP - 0.02 and guard < 600:
+		await _wait(1)
+		guard += 1
+	check(hero.is_climbing() and absf(hero._rock_y - y_side) < 0.01, "moving along the face keeps the height (%.2f to %.2f)" % [y_side, hero._rock_y])
+	check(hero.global_position.x < x_side - 0.7, "a held left key moves the hero left (x %.2f to %.2f)" % [x_side, hero.global_position.x])
+	# Held on, the hero stops at the edge of the spot's width and climbs on from there.
+	Input.action_press("ui_left")
+	await _wait(300)
+	Input.action_release("ui_left")
+	check(absf(hero.global_position.x - hero._rock_mid_x) <= Player.ROCK_SIDE_MAX + 0.01, "the hero stays within the spot's width")
+	var x_left := hero.global_position.x
+	Input.action_press("ui_right")
+	await _wait(120)
+	Input.action_release("ui_right")
+	check(hero.global_position.x > x_left + 0.7, "a held right key moves the hero right (x %.2f to %.2f)" % [x_left, hero.global_position.x])
+	guard = 0
+	while hero.is_climbing() and guard < 3000:
+		await _wait(1)
+		guard += 1
+	check(not hero.is_climbing() and absf(hero.global_position.y - float(spot.height)) < 0.2, "after the traverse the climb still reaches the terrace (y %.2f)" % hero.global_position.y)
 	game.delete_save(game.save_path())
 	print("PASS: rock climbing" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

@@ -48,7 +48,7 @@ func _run() -> void:
 	lvl.set_hour(12.0)
 	game.weather = Weather.CLEAR
 	game.weather_hours = 9999.0
-	var spot: Dictionary = ClimbSpots.SPOTS["Die Freiheit"][0]
+	var spot: Dictionary = ClimbSpots.SPOTS["Apfeltal"][0]
 	var mid := lvl.cell_to_world(spot.cell)
 	var start := Vector3(mid.x, 0.0, mid.z + Level.TILE * 0.5 + 0.6)
 	hero.global_position = start

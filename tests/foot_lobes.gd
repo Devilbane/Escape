@@ -91,8 +91,8 @@ func _run() -> void:
 	for s: Dictionary in ClimbSpots.spots(lvl):
 		var c: Vector2i = s.cell
 		var biggest := 0.0
-		for dx in range(-2, 3):
-			for dy in range(0, 5):
+		for dx in range(-1, 2):
+			for dy in range(0, 4):
 				var at := lvl.cell_to_world(c + Vector2i(dx, dy))
 				var rects := MountainFoot._rects_near(lvl, at.x, at.z, 3)
 				for ox in [-1.5, 0.0, 1.5]:
@@ -101,6 +101,42 @@ func _run() -> void:
 		check(biggest < 0.01, "the approach of the spot at %s has no lobe (%.2f m)" % [c, biggest])
 		for m: Dictionary in made:
 			check((m.at as Vector2).distance_to(Vector2(lvl.cell_to_world(c).x, lvl.cell_to_world(c).z + 2 * tile)) > 3.0 + float(m.r), "no mound stands in front of the spot at %s" % c)
+	# The small things lie round the lobes and mounds, never inside them.
+	var root := lvl.get_node("MountainFoot")
+	var buried := 0
+	var seen := 0
+	for node in root.get_children():
+		if node is MultiMeshInstance3D and not String(node.name).begins_with("Lobes"):
+			var mm := (node as MultiMeshInstance3D).multimesh
+			for i in mm.instance_count:
+				var o := mm.get_instance_transform(i).origin
+				seen += 1
+				var rects := MountainFoot._rects_near(lvl, o.x, o.z, 3)
+				var near: Array = made.filter(func(m: Dictionary) -> bool: return (m.at as Vector2).distance_to(Vector2(o.x, o.z)) < float(m.r) * 1.5 + 1.0)
+				if MountainFoot.ground_height(lvl, rects, near, o.x, o.z) > 0.03:
+					buried += 1
+	for node in root.get_children():
+		if node is MultiMeshInstance3D:
+			check((node as MultiMeshInstance3D).visibility_range_end == 0.0, "%s has no visibility range (it spans the map, so it would vanish with the hero's distance from its middle)" % node.name)
+	check(seen > 100 and buried == 0, "no small thing lies inside a lobe or a mound (%d of %d)" % [buried, seen])
+	# The scree of the passes gets a foot too (the open "'" ground), and leaves lie on top of a lobe.
+	var scree_lobe := false
+	var lifted := 0.0
+	for y in lvl.height:
+		for x in lvl.width:
+			var c := Vector2i(x, y)
+			if lvl.cell_char(c) != "'" or scree_lobe:
+				continue
+			var mid := lvl.cell_to_world(c)
+			var rects := MountainFoot._rects_near(lvl, mid.x, mid.z, 3)
+			for ox in [-1.5, 0.0, 1.5]:
+				for oz in [-1.5, 0.0, 1.5]:
+					var h := MountainFoot.lobe_height(lvl, rects, mid.x + ox, mid.z + oz)
+					if h > 0.2:
+						scree_lobe = true
+						lifted = maxf(lifted, MountainFoot.surface_at(lvl, mid.x + ox, mid.z + oz))
+	check(scree_lobe, "the scree of a pass has lobes too")
+	check(lifted > 0.2, "the leaves and litter are lifted onto a lobe (%.2f m)" % lifted)
 	# The hero still reaches a spot's foot and walks up to its rock.
 	var spot := ClimbSpots.at(lvl, Vector2i(84, 54))
 	var front := lvl.cell_to_world(spot.cell + Vector2i(0, 3))
@@ -130,12 +166,20 @@ func _run() -> void:
 		check(absf(end.y - MountainFoot.lobe_height(lvl, rects, end.x, end.z)) < 0.35, "his feet follow the lobe (y %.2f, lobe %.2f)" % [end.y, MountainFoot.lobe_height(lvl, rects, end.x, end.z)])
 
 	# A mound: through the middle of it and out on the other side.
-	if not made.is_empty():
-		var m: Dictionary = made[0]
+	# (A tree, a boulder or a building may stand beside one: a few mounds are tried.)
+	var crossed := false
+	var tried := 0
+	for i in made.size():
+		var m: Dictionary = made[i]
+		if tried >= 8 or crossed:
+			break
+		if MountainFoot.rock_distance(lvl, m.at.x, m.at.y) < float(m.r) + 6.0 or not MountainFoot._plain(lvl, m.at.x, m.at.y - 6.0) or not MountainFoot._plain(lvl, m.at.x, m.at.y + 6.0):
+			continue
+		tried += 1
 		var mid := Vector3(m.at.x, 0, m.at.y)
 		var cross := await _walk(hero, mid + Vector3(0, 0, 5.0), mid + Vector3(0, 0, -5.0), 8.0)
-		check(float(cross.top) > float(m.h) * 0.5, "the hero walks over a mound (top %.2f of %.2f)" % [float(cross.top), float(m.h)])
-		check((cross.end as Vector3).z < mid.z - 1.0, "and out the other side (z %.2f, mound at %.2f)" % [(cross.end as Vector3).z, mid.z])
+		crossed = float(cross.top) > float(m.h) * 0.5 and (cross.end as Vector3).z < mid.z - 1.0 and (cross.end as Vector3).y < 0.3 and float(cross.top) < 1.2
+	check(crossed, "the hero walks over a mound and out on the other side (%d tried)" % tried)
 
 	game.delete_save(game.save_path())
 	print("PASS: foot lobes" if failures == 0 else "FAILED: %d" % failures)

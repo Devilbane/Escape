@@ -9,7 +9,8 @@ extends RefCounted
 ## - an apron of earth and gravel in the rock's colours under and round both (the meadow shader draws it from
 ##   `field`, its outline frays into the grass);
 ## - small things over all of it: stones, tufts of grass and weeds, and a few small boulders.
-## The approach of every climbing spot (see ClimbSpots) is left clean, and fades into the foot over a few metres.
+## The approach of every climbing spot (see ClimbSpots), a lane the width of the spot and its neighbours, is left walkable
+## and clean, and fades into the foot over a few metres beside it.
 ## `style` picks the parts (the sketches of the foot compare them).
 
 ## How far the plain apron reaches out from the rock tiles' edge (metres).
@@ -33,6 +34,12 @@ static var style := "foot"
 ## The earth at the rock's foot, on the mesh and on the ground (see meadow.gdshader, foot_earth), and the moss and
 ## grass that creep up the rock's base.
 const EARTH := Color(0.5, 0.44, 0.37)
+## The ground letters the foot spreads over: open meadow and the scree of the passes (Notch Pass, say). Every
+## rock tile of an Outdoor map gets a foot this way, so a new mountain needs nothing of its own.
+## The foot's edge where it touches the rock: how opaque it is there, and how far out it is solid again (metres).
+const EDGE_ALPHA := 0.5
+const EDGE_FADE := 2.0
+const OPEN := ".\'"
 const GREEN := Color(0.3, 0.37, 0.16)
 
 
@@ -88,7 +95,7 @@ static func clear_fade(level: Level, x: float, z: float) -> float:
 	var fade := 1.0
 	for s: Dictionary in ClimbSpots.spots(level):
 		var c: Vector2i = s.cell
-		var box := Rect2((c.x - 2.5) * tile, (c.y - 1.5) * tile, 5.0 * tile, 6.0 * tile)
+		var box := Rect2((c.x - 1.5) * tile, (c.y - 1.5) * tile, 3.0 * tile, 5.0 * tile)
 		var ox := maxf(0.0, maxf(box.position.x - x, x - box.end.x))
 		var oz := maxf(0.0, maxf(box.position.y - z, z - box.end.y))
 		fade = minf(fade, smoothstep(0.0, CLEAR_FADE, sqrt(ox * ox + oz * oz)))
@@ -111,7 +118,7 @@ static func _plain(level: Level, x: float, z: float) -> bool:
 	var c := Vector2i(roundi(x / tile), roundi(z / tile))
 	if c.x < 0 or c.y < 0 or c.x >= level.width or c.y >= level.height:
 		return false
-	return level.cell_char(c) == "."
+	return OPEN.contains(level.cell_char(c))
 
 
 ## The tiles the foot can touch: every tile within three tiles of a rock tile that borders open ground, and those round
@@ -202,7 +209,7 @@ static func mounds(level: Outdoor) -> Array:
 		for y in level.height:
 			for x in level.width:
 				var c := Vector2i(x, y)
-				if level.cell_char(c) != ".":
+				if not OPEN.contains(level.cell_char(c)):
 					continue
 				var mid := level.cell_to_world(c)
 				var rects := _rects_near(level, mid.x, mid.z, 3)
@@ -433,7 +440,7 @@ static func _rock_colour(x: float, z: float, h: float, up: float, greyer: float)
 
 ## A height field over `box` (x and z in metres), `step` apart, as a smooth mesh (null when nothing rises) and the
 ## triangles for a collision shape. `greyer` takes the rock's colour towards grey.
-static func _terrain(box: Rect2, step: float, height: Callable, greyer: float) -> Dictionary:
+static func _terrain(box: Rect2, step: float, height: Callable, greyer: float, rects: Array[Rect2] = []) -> Dictionary:
 	var nx := ceili(box.size.x / step)
 	var nz := ceili(box.size.y / step)
 	# One extra ring of heights all round, for the normals at the border.
@@ -452,7 +459,11 @@ static func _terrain(box: Rect2, step: float, height: Callable, greyer: float) -
 		var n := Vector3(float(hs[iz + 1][ix]) - float(hs[iz + 1][ix + 2]), 2.0 * step, float(hs[iz][ix + 1]) - float(hs[iz + 2][ix + 1])).normalized()
 		var x := box.position.x + ix * step
 		var z := box.position.y + iz * step
-		return [Vector3(x, h - 0.03, z), n, _rock_colour(x, z, h, n.y, greyer)]
+		var colour := _rock_colour(x, z, h, n.y, greyer)
+		# Where the foot meets the rock it is half see-through, and solid again EDGE_FADE metres out.
+		if not rects.is_empty():
+			colour.a = lerpf(EDGE_ALPHA, 1.0, smoothstep(0.2, EDGE_FADE, _dist(rects, x, z)))
+		return [Vector3(x, h - 0.03, z), n, colour]
 	for iz in nz:
 		for ix in nx:
 			var top := maxf(maxf(float(hs[iz + 1][ix + 1]), float(hs[iz + 1][ix + 2])), maxf(float(hs[iz + 2][ix + 1]), float(hs[iz + 2][ix + 2])))
@@ -485,13 +496,26 @@ static func _terrain(box: Rect2, step: float, height: Callable, greyer: float) -
 	return {"mesh": st.commit(), "faces": faces}
 
 
+static var _foot_rock: ShaderMaterial = null
+
+
+## The rock of the foot: the mountain's stone with its edge towards the rock see-through (mountain_foot_rock.gdshader).
+static func foot_material() -> ShaderMaterial:
+	if _foot_rock == null:
+		_foot_rock = ShaderMaterial.new()
+		_foot_rock.shader = preload("res://shaders/mountain_foot_rock.gdshader")
+		_foot_rock.set_shader_parameter("age", AgedStone.ROCK_AGE)
+		_foot_rock.set_shader_parameter("lichen", AgedStone.ROCK_LICHEN)
+	return _foot_rock
+
+
 static func _place_terrain(root: Node3D, level: Outdoor, name: String, made: Dictionary) -> void:
 	if made.is_empty():
 		return
 	var node := MeshInstance3D.new()
 	node.name = name
 	node.mesh = made.mesh
-	node.material_override = AgedStone.rock_material()
+	node.material_override = foot_material()
 	node.visibility_range_end = 90.0
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(node)
@@ -522,7 +546,8 @@ static func _spread(root: Node3D, name: String, mesh: Mesh, material: Material, 
 	node.name = name
 	node.multimesh = multi
 	node.material_override = material
-	node.visibility_range_end = 70.0
+	# No visibility range: one multimesh spans the whole map, so its distance from the camera is that of its
+	# middle, and the stones vanished from the foot as the hero walked by.
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(node)
 
@@ -544,7 +569,7 @@ static func scatter(level: Outdoor) -> void:
 		var chunk := 3
 		var chunks := {}
 		for c: Vector2i in tiles:
-			if level.cell_char(c) == ".":
+			if OPEN.contains(level.cell_char(c)):
 				chunks[Vector2i(floori(float(c.x) / chunk), floori(float(c.y) / chunk))] = true
 		for key: Vector2i in chunks:
 			var cx := key.x * chunk
@@ -552,7 +577,7 @@ static func scatter(level: Outdoor) -> void:
 			var box := Rect2((cx - 0.5) * tile - 1.5, (cy - 0.5) * tile - 1.5, mini(chunk, level.width - cx) * tile + 3.0, mini(chunk, level.height - cy) * tile + 3.0)
 			var rects := _rects_near(level, box.get_center().x, box.get_center().y, 4)
 			var height := func(x: float, z: float) -> float: return lobe_height(level, rects, x, z)
-			_place_terrain(root, level, "Lobes%d_%d" % [cx, cy], _terrain(box, LOBE_STEP, height, 0.0))
+			_place_terrain(root, level, "Lobes%d_%d" % [cx, cy], _terrain(box, LOBE_STEP, height, 0.0, rects))
 	for i in all_mounds.size():
 		var m: Dictionary = all_mounds[i]
 		var r: float = float(m.r) * 1.5
@@ -571,7 +596,7 @@ static func scatter(level: Outdoor) -> void:
 	var pebbles: Array[Array] = [[], []]
 	var tufts: Array[Transform3D] = []
 	for c: Vector2i in tiles:
-		if level.cell_char(c) != ".":
+		if not OPEN.contains(level.cell_char(c)):
 			continue
 		var mid := level.cell_to_world(c)
 		var rects := _rects_near(level, mid.x, mid.z, 3)
@@ -593,6 +618,9 @@ static func scatter(level: Outdoor) -> void:
 			if clear_fade(level, at.x, at.z) < 1.0 or level.on_plot(at, 0.4):
 				continue
 			var ground := ground_height(level, rects, near, at.x, at.z)
+			# The small things lie round the lobes and mounds, on the open ground where they show, never inside them.
+			if not _bare(level, rects, near, at):
+				continue
 			at.y = ground
 			var wander := fbm(at.x * 0.3, at.z * 0.3)
 			if stone_part and rng.randf() < 0.9 * influence * (0.4 + 1.2 * wander):
@@ -624,6 +652,31 @@ static func scatter(level: Outdoor) -> void:
 		_spread(root, "Tufts", _tuft_mesh(), grass, tufts)
 
 
+## Whether the ground round `at` (a stone's or tuft's reach) is free of lobes and mounds.
+static func _bare(level: Outdoor, rects: Array[Rect2], near: Array, at: Vector3) -> bool:
+	for off in [Vector2.ZERO, Vector2(0.6, 0), Vector2(-0.6, 0), Vector2(0, 0.6), Vector2(0, -0.6)]:
+		if ground_height(level, rects, near, at.x + off.x, at.z + off.y) > 0.03:
+			return false
+	return true
+
+
+## The height of the foot's ground (lobes and mounds) at (x, z), 0 where there is none: the fallen leaves and
+## other litter lie on it (see SurfaceLife).
+static func surface_at(level: Level, x: float, z: float) -> float:
+	if not level is Outdoor or not (has("lobes") or has("mounds")):
+		return 0.0
+	var tile := Level.TILE
+	var c := Vector2i(roundi(x / tile), roundi(z / tile))
+	var out: Outdoor = level as Outdoor
+	if not out.has_meta("foot_tiles"):
+		out.set_meta("foot_tiles", _candidates(out, mounds(out)))
+	if not (out.get_meta("foot_tiles") as Dictionary).has(c):
+		return 0.0
+	var rects := _rects_near(level, x, z, 3)
+	var near: Array = mounds(out).filter(func(m: Dictionary) -> bool: return (m.at as Vector2).distance_to(Vector2(x, z)) < float(m.r) * 1.5 + 1.0)
+	return ground_height(out, rects, near, x, z)
+
+
 ## Smooth value noise, 0..1.
 static func fbm(x: float, z: float) -> float:
 	if not _noise_ready:
@@ -641,6 +694,7 @@ static var _noise_ready := false
 static func restyle(level: Outdoor, name: String) -> void:
 	style = name
 	level.remove_meta("foot_mounds")
+	level.remove_meta("foot_tiles")
 	apply(level)
 	scatter(level)
 	for node in level._mountain_nodes:
@@ -652,6 +706,7 @@ static func restyle(level: Outdoor, name: String) -> void:
 ## The foot dressed again after a plot was laid out beside the rock (see Outdoor).
 static func rebuild(level: Outdoor) -> void:
 	level.remove_meta("foot_mounds")
+	level.remove_meta("foot_tiles")
 	level.remove_meta("foot_field")
 	apply(level)
 	scatter(level)

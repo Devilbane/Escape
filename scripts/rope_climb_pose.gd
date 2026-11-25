@@ -17,6 +17,8 @@ const POSES := {
 	# Threading the rope through the nail: both hands together before the face.
 	"thread": {"hips_y": -0.04, "spine": 8.0, "head": -34.0, "arm_l": 128.0, "elbow_l": 82.0, "arm_r": 120.0, "elbow_r": 96.0, "hip_l": 24.0, "hip_r": 8.0, "knee_l": 50.0, "knee_r": 62.0},
 	"fall": {"hips_y": 0.0, "spine": -10.0, "head": 6.0, "arm_l": 150.0, "elbow_l": 24.0, "arm_r": 125.0, "elbow_r": 30.0, "hip_l": 46.0, "hip_r": 8.0, "knee_l": 84.0, "knee_r": 38.0},
+	# Along the face: both hands high on the rock, the knees bent, the body kept upright.
+	"shuffle": {"hips_y": -0.04, "spine": 6.0, "head": -24.0, "arm": 172.0, "elbow": 16.0, "hip_l": 34.0, "hip_r": 34.0, "knee_l": 64.0, "knee_r": 64.0},
 	"kneel": ClimbPose.POSES["kneel"],
 	"stand": {},
 	# The foot feels for a hold while both hands keep the weight (the weight stays on the other leg).
@@ -43,6 +45,10 @@ const KEYS := {
 	# Grab, the foot searches a hold, pull up.
 	"pull_l": [[0.0, "hang"], [0.2, "reach_l"], [0.38, "reach_l"], [0.55, "probe_r"], [0.78, "pull"], [1.0, "hang"]],
 	"pull_r": [[0.0, "hang"], [0.2, "reach_r"], [0.38, "reach_r"], [0.55, "probe_l"], [0.78, "pull"], [1.0, "hang"]],
+	# Along the face (a traverse): the leading hand grips, the same-side foot feels for a hold, the body
+	# shuffles over. It takes the weight at PULL_ROLL like a pull-up.
+	"side_l": [[0.0, "hang"], [0.2, "reach_l"], [0.38, "reach_l"], [0.55, "probe_l"], [0.78, "shuffle"], [1.0, "hang"]],
+	"side_r": [[0.0, "hang"], [0.2, "reach_r"], [0.38, "reach_r"], [0.55, "probe_r"], [0.78, "shuffle"], [1.0, "hang"]],
 	# Find the spot, three blows, then clip the rope and test the hold.
 	"hammer": [[0.0, "hang"], [0.1, "find_spot"], [0.22, "find_spot"], [0.32, "hammer_up"], [0.42, "hammer_hit"], [0.52, "hammer_up"], [0.62, "hammer_hit"], [0.72, "hammer_up"], [0.82, "hammer_hit"], [1.0, "hang"]],
 	"thread": [[0.0, "hang"], [0.15, "thread"], [0.55, "thread"], [0.7, "tug"], [0.85, "tug"], [1.0, "hang"]],

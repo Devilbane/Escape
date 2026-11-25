@@ -1,5 +1,5 @@
 extends RefCounted
-## English for the farming valley south of the village (see RiverBridge and the map "Die Freiheit").
+## English for the farming valley south of the village (see RiverBridge and the map "Apfeltal").
 
 const EN := {
 	"Brücke": "Bridge",

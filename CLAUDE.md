@@ -60,6 +60,15 @@ map (`tests/level_editor.gd`). A new tile letter also needs a group, a German na
 `EditorPalette` (the test checks it). The digits are each map's own creations (`Creations`, header `custom:`).
 
 
+## Mountain foot
+
+Every rock tile of an Outdoor map gets a foot: lobes, mounds, an earth apron and small stones and tufts
+(`scripts/mountain_foot.gd`, `MountainFoot`, called from `Outdoor` after `Mountains.build`), on open meadow and on scree
+(`MountainFoot.OPEN`), the Notch Pass included. A new mountain needs nothing of its own: draw the rock `=` and the foot follows. Stones,
+tufts and boulders lie outside the lobes and mounds; litter that lies on the ground (the fallen leaves, see
+`SurfaceLife`) asks `MountainFoot.surface_at` for the height so it lies on top, not under. Climbing spots keep a
+walkable lane of the spot's width and its neighbours (`MountainFoot.clear_fade`); `tests/foot_lobes.gd` checks it.
+
 ## Smooth motion
 
 Physics interpolation is on, but the game's root turns it off and only bodies that move in

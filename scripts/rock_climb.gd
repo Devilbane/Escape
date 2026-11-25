@@ -67,8 +67,9 @@ func fall_chance() -> float:
 
 ## One pull-up with the roll of the hands (0..1, a roll at or above the chance fails) and the roll for
 ## a fall after a failure. `has_gear` is whether the hero carries hammer, rope and a nail for a safe
-## spot. Returns what came of it.
-func pull(roll: float, has_gear: bool, fall_roll := 1.0) -> int:
+## spot. `sideways` is a step along the face (a traverse): the same rules and the same chance, but no
+## height gained and never the top. Returns what came of it.
+func pull(roll: float, has_gear: bool, fall_roll := 1.0, sideways := false) -> int:
 	if roll >= chance():
 		tries += 1
 		if fall_roll < fall_chance():
@@ -85,13 +86,19 @@ func pull(roll: float, has_gear: bool, fall_roll := 1.0) -> int:
 		retry = true
 		return Result.REST
 	retry = true
-	metres = minf(height, metres + PULL)
+	if not sideways:
+		metres = minf(height, metres + PULL)
 	streak += 1
-	if metres >= height - 0.001:
+	if not sideways and metres >= height - 0.001:
 		return Result.TOP
 	if streak >= needed() and has_gear:
 		return Result.PITON
 	return Result.UP
+
+
+## One step along the face: the rules of a pull-up without the height (see `pull`).
+func traverse(roll: float, has_gear: bool, fall_roll := 1.0) -> int:
+	return pull(roll, has_gear, fall_roll, true)
 
 
 ## Sets a safe spot where the hero hangs.

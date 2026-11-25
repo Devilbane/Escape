@@ -263,6 +263,10 @@ ICONS = {
                + f'<circle cx="32" cy="26" r="6" fill="url(#gold)" {O}/><path d="M32 40v20" stroke="#3f7a32" stroke-width="3"/>', None),
     "mushroom": (f'<path d="M26 32h12l2 24H24z" fill="#efe7d4" {O}/><path d="M6 34C8 18 20 10 32 10s24 8 26 24z" fill="#9a5a2c" {O}/>'
                  f'<circle cx="22" cy="22" r="3" fill="#e9c9a0"/><circle cx="38" cy="18" r="2.5" fill="#e9c9a0"/><circle cx="46" cy="28" r="2" fill="#e9c9a0"/>', None),
+    "glow_mushroom": (f'<circle cx="32" cy="30" r="24" fill="#ffb347" fill-opacity=".3"/><path d="M26 32h12l2 24H24z" fill="#efe7d4" {O}/><path d="M6 34C8 18 20 10 32 10s24 8 26 24z" fill="#ffb347" {O}/><path d="M12 28c6-8 14-10 20-10" stroke="#ffffff" stroke-opacity=".5" stroke-width="2" fill="none"/>', None),
+    "glow_mushroom_blue": (f'<circle cx="32" cy="30" r="24" fill="#8ccbff" fill-opacity=".3"/><path d="M26 32h12l2 24H24z" fill="#efe7d4" {O}/><path d="M6 34C8 18 20 10 32 10s24 8 26 24z" fill="#8ccbff" {O}/><path d="M12 28c6-8 14-10 20-10" stroke="#ffffff" stroke-opacity=".5" stroke-width="2" fill="none"/>', None),
+    "glow_mushroom_purple": (f'<circle cx="32" cy="30" r="24" fill="#b847f2" fill-opacity=".3"/><path d="M26 32h12l2 24H24z" fill="#efe7d4" {O}/><path d="M6 34C8 18 20 10 32 10s24 8 26 24z" fill="#b847f2" {O}/><path d="M12 28c6-8 14-10 20-10" stroke="#ffffff" stroke-opacity=".5" stroke-width="2" fill="none"/>', None),
+    "glow_mushroom_star": (f'<circle cx="32" cy="30" r="24" fill="#ffd92e" fill-opacity=".3"/><path d="M26 32h12l2 24H24z" fill="#efe7d4" {O}/><path d="M6 34C8 18 20 10 32 10s24 8 26 24z" fill="#6b33ff" {O}/><path d="M12 28c6-8 14-10 20-10" stroke="#ffffff" stroke-opacity=".5" stroke-width="2" fill="none"/><circle cx="20" cy="22" r="3" fill="#ffd92e"/><circle cx="33" cy="16" r="2.6" fill="#ffd92e"/><circle cx="44" cy="26" r="3" fill="#ffd92e"/><circle cx="27" cy="29" r="2" fill="#ffd92e"/>', None),
     "fish": (f'<path d="M6 32c8-12 24-16 38-8l12-10v36L44 40C30 48 14 44 6 32z" fill="url(#steel)" {O}/><circle cx="16" cy="29" r="2.5" fill="#1b1108"/>'
              f'<path d="M22 38c8 2 14 1 20-3" stroke="#5d6470" stroke-width="1.5" fill="none"/>', None),
     "key": (f'<circle cx="18" cy="22" r="11" fill="none" stroke="#1b1108" stroke-width="8"/><circle cx="18" cy="22" r="11" fill="none" stroke="url(#gold)" stroke-width="5"/>'
@@ -301,6 +305,11 @@ ICONS = {
     "spider_egg": (f'<path d="M32 6c12 0 20 14 20 28s-8 24-20 24-20-10-20-24S20 6 32 6z" fill="#efe9d6" {O}/>'
                    '<g fill="none" stroke="#a89f86" stroke-width="1.2"><path d="M14 22c10 4 26 4 36 0M12 34c12 4 28 4 40 0M14 46c10 4 26 4 36 0M32 6c-8 14-8 36 0 52M32 6c8 14 8 36 0 52"/></g>'
                    '<ellipse cx="25" cy="20" rx="4" ry="6" fill="#fff" fill-opacity=".6"/>', None),
+    "spider_silk": ('<path d="M8 52C20 30 30 22 56 10" fill="none" stroke="#1b1108" stroke-width="7" stroke-linecap="round"/>'
+                    '<path d="M8 52C20 30 30 22 56 10" fill="none" stroke="#cfe0f5" stroke-width="4" stroke-linecap="round"/>'
+                    '<path d="M10 46c8-14 18-22 40-30" fill="none" stroke="#fff" stroke-width="1.5" stroke-opacity=".8"/>'
+                    '<g fill="none" stroke="#8fb0d8" stroke-width="1.2"><path d="M14 40l-7 3M22 31l-4 9M32 25l-1 10M42 19l1 9M50 14l3 8"/></g>'
+                    '<circle cx="46" cy="44" r="3" fill="#eaf3ff" stroke="#8fb0d8"/><path d="M46 44l-14-6M46 44l8 10M46 44l-4 12" stroke="#8fb0d8" stroke-width="1.2"/>', None),
     "slime_jelly": (f'<path d="M10 54c-4 0-4-4-2-8 2-10 4-26 24-28 20 2 22 18 24 28 2 4 2 8-2 8z" fill="url(#slime)" {O}/>'
                     '<path d="M18 30c2-4 6-6 10-6" stroke="#fff" stroke-width="3" stroke-opacity=".7" fill="none" stroke-linecap="round"/>'
                     '<g fill="#2a6a14" fill-opacity=".5"><circle cx="30" cy="40" r="3"/><circle cx="40" cy="46" r="2"/><circle cx="22" cy="46" r="2"/></g>', None),

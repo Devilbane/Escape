@@ -242,6 +242,9 @@ var _burn_tick := 0.0
 ## A direction to run in, set every frame while the mouse button is held.
 var steer := Vector3.ZERO
 var _stuck_time := 0.0
+var _wedge := HeroUnstick.new()
+## The last place the hero stood and moved freely (where HeroUnstick leads them back to).
+var free_spot := Vector3.INF
 var _sidestepped := false
 ## Speed carried through the air by a running jump.
 var _air_momentum := Vector3.ZERO
@@ -266,7 +269,14 @@ var in_shadow := false
 ## Seconds left before the hero may start sneaking again after a fight:
 ## every blow given or taken, and every skeleton hunting them, resets it.
 var fight_cooldown := 0.0
+
+## Seconds left in which running still costs breath: set whenever the hero deals or takes
+## damage, so running is free outside of combat (see COMBAT_WINDOW).
+var combat_clock := 0.0
 const FIGHT_SNEAK_BLOCK := 2.0
+
+## How long after the last damage dealt or taken the hero counts as in combat.
+const COMBAT_WINDOW := 5.0
 ## Sneaking pace as a share of SPEED, and what each level of Schleichen adds.
 const SNEAK_SPEED := 0.16
 const SNEAK_ANIM := "Walking_C"
@@ -490,6 +500,11 @@ func set_display_name(text: String) -> void:
 	if name_tag:
 		name_tag.text = text
 		name_tag.visible = text != ""
+
+
+## True while running costs breath: damage was dealt or taken a moment ago.
+func in_combat() -> bool:
+	return combat_clock > 0.0
 
 
 ## Called while a fight goes on; sneaking stays barred until it has been
@@ -1172,6 +1187,7 @@ func revive(at: Vector3, heal := true) -> void:
 	if heal or hp <= 0:
 		hp = max_hp
 	stamina = -1.0
+	combat_clock = 0.0
 	winded = false
 	path.clear()
 	_target = null
@@ -1254,7 +1270,7 @@ func _breathe(delta: float, moving: bool) -> void:
 		stamina = full
 	var run_key := not typing and Input.is_physical_key_pressed(KEY_SHIFT)
 	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0 and not Injury.cannot_run(self)
-	if sprinting:
+	if sprinting and in_combat():
 		stamina = maxf(0.0, stamina - delta)
 		# Running out of breath slowly hardens the body.
 		train("konstitution", delta * 0.1)
@@ -1634,6 +1650,8 @@ func vital_struck(e: Enemy, sound := "hit") -> void:
 ## the weapon (or the higher of the two). The wound bleeds as much life as
 ## the hit cost (see Bleeding, Enemy.bleed). Returns whether it bleeds.
 func wound_foe(e: Enemy, lost: int, cutting: bool, vital := false) -> bool:
+	if lost > 0:
+		combat_clock = COMBAT_WINDOW
 	if e == null or e.dead:
 		return false
 	var chance := Bleeding.CHANCE if cutting else 0.0
@@ -2922,6 +2940,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	combat_clock = COMBAT_WINDOW
 	_regen_pause = REGEN_PAUSE_AFTER_HIT
 	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
@@ -3318,6 +3337,17 @@ const ROCK_WALL_GRACE := 0.12
 var _rock_start := Vector3.ZERO
 var _rock_fall_top := 0.0
 var _rock_pose := {}
+## Along the face (a traverse, see ROCK_SIDE_*): the sideways offset from where the climb began, the
+## offset at the start of this step, which way it goes (-1, 0, 1), where the spot's middle is, and
+## the offsets of the nails.
+var _rock_dx := 0.0
+var _rock_dx_from := 0.0
+var _rock_side := 0
+var _rock_mid_x := 0.0
+var _rock_nail_dx: Array[float] = []
+var _rock_hinted := false
+const ROCK_SIDE_STEP := 0.8
+const ROCK_SIDE_MAX := 1.6
 var _rock_rope: Node3D = null
 ## Tests: the roll of the hands (0..1) instead of a random one; a roll at or above the chance slips.
 var rock_roll_forced := -1.0
@@ -3341,6 +3371,10 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 			break
 	_rock_wall_grace = ROCK_WALL_GRACE if wall else _rock_wall_grace - delta
 	wall = _rock_wall_grace > 0.0
+	# Standing right at the rock counts too: a foot of rubble in front of it (see MountainFoot) can take the
+	# contact with the wall out of the slide list while the hero is stopped by it.
+	if not wall and level.cell_char(level.world_to_cell(global_position + push * (radius + 0.12))) == Mountains.ROCK_LETTER:
+		wall = true
 	var cell := level.world_to_cell(global_position + push * (radius + 0.4))
 	if not wall or level.cell_char(cell) != Mountains.ROCK_LETTER:
 		_rock_push = 0.0
@@ -3375,6 +3409,9 @@ func _start_rock(spot: Dictionary) -> void:
 	_rock_spot = spot
 	var mid := level.cell_to_world(spot.cell)
 	_rock_start = Vector3(clampf(global_position.x, mid.x - 1.4, mid.x + 1.4), 0.0, mid.z + Level.TILE * 0.5 + radius + 0.05)
+	_rock_mid_x = mid.x
+	_rock_dx = 0.0
+	_rock_nail_dx.clear()
 	_rock_y = 0.0
 	_rock_warned = false
 	_rock_bitten = false
@@ -3388,6 +3425,9 @@ func _start_rock(spot: Dictionary) -> void:
 	_rock_pose = RopeClimbPose.at("pull_l", 0.0)
 	# Both hands are needed for rock, hammer and rope: the weapons are stowed.
 	_stow_hands(true)
+	if not _rock_hinted:
+		_rock_hinted = true
+		Events.tell(Lang.t("Halte links oder rechts gedrückt, um dich am Fels entlangzuhangeln."), Color(0.8, 0.85, 1.0))
 	_rock_rope = Node3D.new()
 	_rock_rope.name = "ClimbRope"
 	level.add_child(_rock_rope)
@@ -3400,7 +3440,25 @@ func _rock_begin_pull() -> void:
 	_rock_rolled = false
 	_rock_from = _rock_y
 	_rock_left = not _rock_left
+	_rock_dx_from = _rock_dx
+	_rock_side = _rock_wanted_side()
+	if _rock_side != 0:
+		_rock_left = _rock_side < 0
 	_rock_seconds = maxf(0.7, ROCK_PULL_SECONDS - 0.03 * (climbing_level() - 1))
+
+
+## Left (-1) or right (1) when the hero holds a sideways key on the face and there is room along it; else 0
+## and the climb goes up. Only a purely sideways key counts, so up and sideways together still climb.
+func _rock_wanted_side() -> int:
+	if _rock_y < 0.1 or not controllable:
+		return 0
+	var dir := _keyboard_direction()
+	if absf(dir.x) < 0.9:
+		return 0
+	var side := 1 if dir.x > 0.0 else -1
+	if absf(_rock_start.x + _rock_dx + side * ROCK_SIDE_STEP - _rock_mid_x) > ROCK_SIDE_MAX:
+		return 0
+	return side
 
 
 ## Puts the hero on the face at height `y`: the face leans back, so the hero moves in with it.
@@ -3410,12 +3468,12 @@ func _rock_place(y: float) -> void:
 		_rock_bitten = true
 		SummitGarden.bite(self)
 	var along := 2.0 * y / maxf(0.5, float(_rock_spot.height))
-	global_position = _rock_start + ROCK_DIR * along + Vector3(0, y, 0)
+	global_position = _rock_start + ROCK_DIR * along + Vector3(_rock_dx, y, 0)
 
 
 ## Where the rock's surface is at height `y` (the safe spots are set there).
-func _rock_surface(y: float) -> Vector3:
-	return _rock_start + ROCK_DIR * (2.0 * y / maxf(0.5, float(_rock_spot.height)) + radius) + Vector3(0, y, 0)
+func _rock_surface(y: float, dx := 0.0) -> Vector3:
+	return _rock_start + ROCK_DIR * (2.0 * y / maxf(0.5, float(_rock_spot.height)) + radius) + Vector3(dx, y, 0)
 
 
 func _rock_step(delta: float) -> void:
@@ -3428,7 +3486,7 @@ func _rock_step(delta: float) -> void:
 				var gear := _rock_has_gear()
 				var roll := rock_roll_forced if rock_roll_forced >= 0.0 else randf()
 				var fall_roll := rock_fall_forced if rock_fall_forced >= 0.0 else randf()
-				_rock_result = _rock.pull(roll, gear, fall_roll)
+				_rock_result = _rock.traverse(roll, gear, fall_roll) if _rock_side != 0 else _rock.pull(roll, gear, fall_roll)
 				match _rock_result:
 					RockClimb.Result.FELL, RockClimb.Result.GAVE_UP:
 						train("klettern", Training.CLIMB_PER_METRE * 0.3)
@@ -3446,9 +3504,14 @@ func _rock_step(delta: float) -> void:
 							_rock_warned = true
 							Events.tell(Lang.t("Dir fehlen Hammer, Seil oder ein Kletternagel für einen Sicherungspunkt."), Color(0.8, 0.85, 1.0))
 			if _rock_phase == RockPhase.PULL:
-				_rock_pose = RopeClimbPose.at("pull_l" if _rock_left else "pull_r", _rock_u)
 				var lift := smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, _rock_u) if _rock_rolled else 0.0
-				_rock_place(_rock_from + RockClimb.PULL * lift)
+				if _rock_side != 0:
+					_rock_pose = RopeClimbPose.at("side_l" if _rock_side < 0 else "side_r", _rock_u)
+					_rock_dx = _rock_dx_from + _rock_side * ROCK_SIDE_STEP * lift
+					_rock_place(_rock_from)
+				else:
+					_rock_pose = RopeClimbPose.at("pull_l" if _rock_left else "pull_r", _rock_u)
+					_rock_place(_rock_from + RockClimb.PULL * lift)
 				if _rock_u >= 1.0:
 					match _rock_result:
 						RockClimb.Result.TOP:
@@ -3477,6 +3540,7 @@ func _rock_step(delta: float) -> void:
 			_rock_pose = RopeClimbPose.at("hammer", _rock_u)
 			if _rock_u >= 1.0:
 				_rock.set_nail()
+				_rock_nail_dx.append(_rock_dx)
 				_rock_phase = RockPhase.THREAD
 				_rock_u = 0.0
 				_rock_add_nail()
@@ -3493,6 +3557,7 @@ func _rock_step(delta: float) -> void:
 			_rock_pose = RopeClimbPose.at("fall", _rock_u)
 			var low := _rock.safe
 			if _rock_u >= 0.4:
+				_rock_dx = move_toward(_rock_dx, _rock_last_nail_dx(), ROCK_FALL_SPEED * 0.5 * delta)
 				_rock_place(maxf(low, _rock_y - ROCK_FALL_SPEED * delta))
 			if _rock_y <= low + 0.001:
 				var hurt := RockClimb.fall_damage(_rock_fall_top - low)
@@ -3513,8 +3578,10 @@ func _rock_step(delta: float) -> void:
 			# The rope goes taut and stretches, the feet brace against the wall, the hero settles.
 			_rock_u = minf(1.0, _rock_u + delta / ROCK_ARREST_SECONDS)
 			_rock_pose = RopeClimbPose.at("arrest", _rock_u)
+			_rock_dx = move_toward(_rock_dx, _rock_last_nail_dx(), 2.0 * delta)
 			_rock_place(_rock.safe - 0.35 * sin(minf(1.0, _rock_u * 2.0) * PI))
 			if _rock_u >= 1.0:
+				_rock_dx = _rock_last_nail_dx()
 				_rock_place(_rock.safe)
 				if _rock_result == RockClimb.Result.GAVE_UP:
 					Events.tell(Lang.t("Du gibst auf und kletterst am Seil hinunter."), Color(0.8, 0.85, 1.0))
@@ -3547,6 +3614,11 @@ func _rock_step(delta: float) -> void:
 		_rock_rope_update()
 
 
+## Where the last safe spot sits along the face (where the hero hangs when there is none).
+func _rock_last_nail_dx() -> float:
+	return _rock_nail_dx.back() if not _rock_nail_dx.is_empty() else _rock_dx
+
+
 ## Hides (or shows again) what the hands hold: the weapon and the shield.
 func _stow_hands(stowed: bool) -> void:
 	for hand_name in ["handslot_r", "handslot_l"]:
@@ -3570,7 +3642,7 @@ func _rock_add_nail() -> void:
 	nail.material_override = mat
 	nail.name = "Nail"
 	nail.rotation.x = PI * 0.5
-	nail.position = _rock_surface(_rock_y + 0.9) - ROCK_DIR * 0.08
+	nail.position = _rock_surface(_rock_y + 0.9, _rock_dx) - ROCK_DIR * 0.08
 	_rock_rope.add_child(nail)
 
 
@@ -3579,8 +3651,8 @@ func _rock_rope_update() -> void:
 	if _rock_rope == null:
 		return
 	var points: Array[Vector3] = [_rock_surface(0.0) + Vector3(0, 0.05, 0) - ROCK_DIR * 0.15]
-	for n in _rock.nails:
-		points.append(_rock_surface(n + 0.9) - ROCK_DIR * 0.15)
+	for i in _rock.nails.size():
+		points.append(_rock_surface(_rock.nails[i] + 0.9, _rock_nail_dx[i] if i < _rock_nail_dx.size() else 0.0) - ROCK_DIR * 0.15)
 	points.append(global_position + Vector3(0, 0.9, 0) - ROCK_DIR * 0.0)
 	var segs := _rock_rope.find_children("Seg*", "MeshInstance3D", false, false)
 	while segs.size() < points.size() - 1:
@@ -3620,7 +3692,7 @@ func _end_rock(up: bool) -> void:
 	if up:
 		train("klettern", Training.CLIMB_PER_METRE * _rock.height)
 	else:
-		global_position = _rock_start
+		global_position = _rock_start + Vector3(_rock_dx, 0, 0)
 		_rock_push = -ClimbSpots.HOLD
 	_rock = null
 	_stow_hands(false)
@@ -3905,6 +3977,7 @@ func _physics_process(delta: float) -> void:
 	_invulnerable = maxf(0.0, _invulnerable - delta)
 	_fear_calm = maxf(0.0, _fear_calm - delta)
 	fight_cooldown = maxf(0.0, fight_cooldown - delta)
+	combat_clock = maxf(0.0, combat_clock - delta)
 	# Slimed, the hero's arms are slow too (see SlimeCoat).
 	var arms := delta / (SlimeCoat.ATTACK_SLOW if ailments.has(SlimeCoat.KIND) else 1.0)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - arms)
@@ -3983,7 +4056,13 @@ func _physics_process(delta: float) -> void:
 	var before := global_position
 	move_and_slide()
 	_keep_off_furniture(before, dir)
-	_train_legs(Vector2(global_position.x - before.x, global_position.z - before.z).length())
+	var stepped := Vector2(global_position.x - before.x, global_position.z - before.z).length()
+	_train_legs(stepped)
+	# Pressed on for a second without getting anywhere and no way out in any direction: get free.
+	if _wedge.tick(dir != Vector3.ZERO and is_on_floor(), stepped, pace * delta, delta) and HeroUnstick.is_wedged(self):
+		HeroUnstick.release(self, free_spot)
+	elif is_on_floor() and stepped > 0.0 and stepped >= pace * delta * 0.8:
+		free_spot = global_position
 	# Walking a path but pressed against something, like a door frame: first
 	# step back to the middle of the tile, and give the path up if that fails.
 	if not path.is_empty() and dir != Vector3.ZERO and (global_position - before).length() < pace * delta * 0.2:

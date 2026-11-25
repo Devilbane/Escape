@@ -134,6 +134,7 @@ shop_signs.gd | 120 | fixed | passfail | shop signs: a name that fits on the boa
 hanging_sign_shots.gd | 180 | fixed | passfail | Hanging shop signs: every hall, the smithy and the bank hang a big shield high enough to walk under
 shop_front_shots.gd | 180 | fixed | passfail | Shop fronts: every hall sets out its wares beside its door, the way in and the street stay free, the bank has its strongbox
 slime_bar.gd | 120 | fixed | passfail | slime's health bar and level (see SlimeBar): a calm
+goose_voice.gd | 120 | fixed | passfail | geese's voices (tools/make_goose_sounds.py, GooseVoice): honks and a startled cackle
 slime_sounds.gd | 120 | fixed | passfail | slimes' sounds (tools/make_slime_sounds.py,
 speech_bubble.gd | 120 | fixed | passfail | Headless test that spoken lines show in a compact multi-row speech bubble
 surface_detail.gd | 120 | fixed | passfail | villagers, bandits and skeletons show what they are made

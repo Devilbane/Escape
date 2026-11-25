@@ -144,6 +144,8 @@ var _speed := 0.0
 ## The way the body heads while it walks (zero at rest), see Turning.
 var _heading := Vector3.ZERO
 var _timer := 0.0
+## Seconds until a goose honks again (see GooseVoice).
+var _voice_timer := 0.0
 var _check := 0.0
 var _phase := 0.0
 var _clock := 0.0
@@ -210,6 +212,7 @@ func _ready() -> void:
 		_bubble = SpeechBubble.new()
 		_bubble.position.y = 2.3
 		add_child(_bubble)
+	_voice_timer = _rng.randf_range(GooseVoice.GAP_MIN, GooseVoice.GAP_MAX)
 	rotation.y = _rng.randf() * TAU
 	_phase = _rng.randf() * TAU
 	_begin("graze" if _rng.randf() < 0.5 else "idle", _rng.randf_range(0.5, 5.0))
@@ -272,6 +275,8 @@ func _physics_process(delta: float) -> void:
 		visible = away.length() < HIDE_RANGE
 	if away.length() > ACTIVE_RANGE:
 		return
+	if kind == "goose" and not _resting:
+		GooseVoice.chatter(self, delta)
 	if _trail == null and SnowTrail.FEET.has(kind):
 		_trail = SnowTrail.new(kind)
 	if _trail != null:
@@ -525,6 +530,8 @@ func _wake() -> void:
 		_resting = false
 		_set_lying(false)
 		_begin("idle", 1.0)
+		if kind == "goose":
+			GooseVoice.startled(self)
 
 
 func _alarm_flock(danger: Vector3) -> void:

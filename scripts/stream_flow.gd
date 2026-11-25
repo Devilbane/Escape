@@ -10,6 +10,14 @@ extends Node3D
 ## across it the bits spread, `kinds` the colours the bits take.
 
 const LEAVES := [Color(0.62, 0.36, 0.12), Color(0.5, 0.3, 0.1), Color(0.42, 0.45, 0.14), Color(0.7, 0.5, 0.15)]
+## Seasonal leaves of a river (see `seasonal`): the green ones of spring and summer, and the sticks the water
+## now and then brings down. In autumn the leaves take the trees' autumn colours (IvySeasons.AUTUMN_COLOURS).
+const GREEN_LEAVES := [Color(0.28, 0.42, 0.14), Color(0.36, 0.5, 0.16), Color(0.22, 0.36, 0.12), Color(0.42, 0.5, 0.2)]
+const STICKS := [Color(0.3, 0.22, 0.14), Color(0.38, 0.28, 0.18), Color(0.26, 0.2, 0.12)]
+## One stick for this many leaves (at least two sticks), and the share of the leaves that float in spring
+## and summer; in winter there are none.
+const STICK_EVERY := 8
+const GREEN_SHARE := 0.5
 const FOAM := [Color(0.62, 0.66, 0.62), Color(0.56, 0.6, 0.58)]
 const RUBBISH := [Color(0.34, 0.26, 0.16), Color(0.45, 0.4, 0.3), Color(0.27, 0.3, 0.2), Color(0.55, 0.5, 0.4), Color(0.3, 0.22, 0.14)]
 ## How far from each end the bits fade (fraction of the length).
@@ -32,6 +40,11 @@ var palette: Array = LEAVES
 var foam_every := 4
 ## Whether the bits are small bits of rubbish (bigger, squarer) instead of leaves.
 var rubbish := false
+## Leaves are real leaves (the ground leaves' shape and texture) that follow the season (see set_season)
+## and are joined by a few sticks, instead of plain coloured bits.
+var seasonal := false
+## The bits are thin sticks (a rubbish flow of its own, see seasonal).
+var stick := false
 
 var _mm: MultiMesh
 var _phase: Array[float] = []
@@ -42,6 +55,8 @@ var _wobble: Array[float] = []
 var _time := 0.0
 var _colours: Array[Color] = []
 var _snowed := 0.0
+var _sticks: StreamFlow
+var _shown := 1.0
 
 
 ## One bit as a pointed oval lying flat on the water, one metre long (along z) and wide before it is scaled: a leaf,
@@ -82,8 +97,14 @@ func _ready() -> void:
 		if streak:
 			_size.append(Vector2(rng.randf_range(0.3, 0.7), rng.randf_range(0.08, 0.14)))
 			_mm.set_instance_color(i, FOAM[rng.randi() % FOAM.size()])
+		elif stick:
+			_size.append(Vector2(rng.randf_range(0.45, 0.8), rng.randf_range(0.03, 0.05)))
+			_mm.set_instance_color(i, palette[rng.randi() % palette.size()])
 		elif rubbish:
 			_size.append(Vector2(rng.randf_range(0.14, 0.36), rng.randf_range(0.1, 0.26)))
+			_mm.set_instance_color(i, palette[rng.randi() % palette.size()])
+		elif seasonal:
+			_size.append(Vector2(rng.randf_range(0.26, 0.38), rng.randf_range(0.24, 0.34)))
 			_mm.set_instance_color(i, palette[rng.randi() % palette.size()])
 		else:
 			_size.append(Vector2(rng.randf_range(0.16, 0.3), rng.randf_range(0.1, 0.18)))
@@ -94,6 +115,15 @@ func _ready() -> void:
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
 	mat.roughness = 0.8
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if seasonal:
+		# The ground leaves' look: the five-lobed leaf of the ivy, cut out of a flat quad.
+		var quad := QuadMesh.new()
+		quad.orientation = PlaneMesh.FACE_Y
+		_mm.mesh = quad
+		mat.albedo_texture = AgedStone.leaf_material().albedo_texture
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		mat.alpha_scissor_threshold = 0.5
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = _mm
 	mi.material_override = mat
@@ -103,6 +133,21 @@ func _ready() -> void:
 	for i in count:
 		_colours.append(_mm.get_instance_color(i))
 	add_to_group(GROUP)
+	if seasonal:
+		_sticks = StreamFlow.new()
+		_sticks.name = "Sticks"
+		_sticks.from = from
+		_sticks.to = to
+		_sticks.width = width
+		_sticks.speed = speed
+		_sticks.count = maxi(2, count / STICK_EVERY)
+		_sticks.foam_every = 0
+		_sticks.rubbish = true
+		_sticks.stick = true
+		_sticks.palette = STICKS
+		add_child(_sticks)
+		var world_now := get_parent() as Outdoor
+		set_season(world_now.season_day if world_now != null else 0)
 	# Built into a world where snow already lies: the bits are white from the start.
 	var world := get_parent() as Outdoor
 	if world != null and world.snow != null:
@@ -113,12 +158,34 @@ func _ready() -> void:
 ## Snow settles on the leaves and rubbish floating by: they turn white as the cover builds up and
 ## take their colours back as it melts away. `cover` is the snow on the open air, 0 to 1.
 func set_snow(cover: float) -> void:
+	if _sticks != null:
+		_sticks.set_snow(cover)
 	var white := smoothstep(SNOW_FROM, SNOW_FULL, cover)
 	if _mm == null or absf(white - _snowed) < 0.01:
 		return
 	_snowed = white
 	for i in count:
 		_mm.set_instance_color(i, _colours[i].lerp(SNOWY, white))
+
+
+## The season's leaves (seasonal flows only): the autumn colours in autumn, green in spring and summer,
+## fewer of them than in autumn, and none in winter, when only the odd stick drifts by.
+func set_season(day: int) -> void:
+	if not seasonal or _mm == null:
+		return
+	var autumn := Weather.is_autumn(day)
+	var colours: Array = IvySeasons.AUTUMN_COLOURS if autumn else GREEN_LEAVES
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%s|%s|blaetter" % [from, to])
+	for i in count:
+		var c: Color = colours[rng.randi() % colours.size()] * rng.randf_range(0.8, 1.05)
+		c.a = 1.0
+		_colours[i] = c
+	_shown = 0.0 if Weather.is_winter(day) else (1.0 if autumn else GREEN_SHARE)
+	_mm.visible_instance_count = int(round(count * _shown))
+	_snowed = -1.0
+	var world := get_parent() as Outdoor
+	set_snow(world.snow.amount if world != null and world.snow != null else 0.0)
 
 
 func _process(delta: float) -> void:
@@ -142,6 +209,6 @@ func _place() -> void:
 		var fade := smoothstep(0.0, FADE, t) * smoothstep(1.0, 1.0 - FADE, t)
 		var sway := sin(_time * 0.7 + _wobble[i]) * 0.12
 		var at := from + along * (t * length) + side * (_across[i] * width + sway)
-		var turn := angle + _spin[i] * sin(_time * 0.5 + _wobble[i]) + (0.0 if i % foam_every == 0 and foam_every > 0 else _spin[i])
+		var turn := angle + _spin[i] * sin(_time * 0.5 + _wobble[i]) + (0.0 if foam_every > 0 and i % foam_every == 0 else _spin[i])
 		var basis := Basis(Vector3.UP, turn) * Basis.from_scale(Vector3(_size[i].y, 1.0, _size[i].x) * fade)
 		_mm.set_instance_transform(i, Transform3D(basis, at))

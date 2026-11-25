@@ -4880,6 +4880,9 @@ func set_season(day_of_season: int) -> void:
 	if surface_life != null:
 		surface_life.set_autumn(autumn)
 	AppleTree.dress(square_trees, day_of_season)
+	if is_inside_tree():
+		for flow: StreamFlow in get_tree().get_nodes_in_group(StreamFlow.GROUP):
+			flow.set_season(day_of_season)
 	if crop_fields != null:
 		crop_fields.set_season(day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).

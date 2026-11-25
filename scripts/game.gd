@@ -2878,13 +2878,15 @@ func _update_run_meter() -> void:
 	var left := full if player.stamina < 0.0 else player.stamina
 	_run_bar.max_value = full
 	_run_bar.value = left
-	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else Color(0.55, 0.85, 0.4)
-	var key := [ceili(left), player.winded, Lang.language]
+	var free := not player.in_combat() and not player.winded
+	_run_fill.modulate_color = Color(0.85, 0.3, 0.25) if player.winded else (Color(0.4, 0.75, 0.9) if free else Color(0.55, 0.85, 0.4))
+	var key := [ceili(left), player.winded, free, Lang.language]
 	if key == _run_meter_key:
 		return
 	_run_meter_key = key
-	_run_label.text = Lang.t("Rennen: %d s") % ceili(left)
+	_run_label.text = Lang.t("Rennen: frei") if free else Lang.t("Rennen: %d s") % ceili(left)
 	var run_tip := Lang.t("So lange kannst du noch rennen. Im Gehen und Stehen kommt die Puste zurück.")
+	run_tip += "\n" + Lang.t("Außerhalb eines Kampfes kostet Rennen keine Puste.")
 	if player.winded:
 		run_tip += "\n" + Lang.t("Außer Atem: Erst wenn sich die Leiste wieder etwas gefüllt hat, kannst du rennen.")
 	_run_row.tooltip_text = run_tip

@@ -266,7 +266,14 @@ var in_shadow := false
 ## Seconds left before the hero may start sneaking again after a fight:
 ## every blow given or taken, and every skeleton hunting them, resets it.
 var fight_cooldown := 0.0
+
+## Seconds left in which running still costs breath: set whenever the hero deals or takes
+## damage, so running is free outside of combat (see COMBAT_WINDOW).
+var combat_clock := 0.0
 const FIGHT_SNEAK_BLOCK := 2.0
+
+## How long after the last damage dealt or taken the hero counts as in combat.
+const COMBAT_WINDOW := 5.0
 ## Sneaking pace as a share of SPEED, and what each level of Schleichen adds.
 const SNEAK_SPEED := 0.16
 const SNEAK_ANIM := "Walking_C"
@@ -490,6 +497,11 @@ func set_display_name(text: String) -> void:
 	if name_tag:
 		name_tag.text = text
 		name_tag.visible = text != ""
+
+
+## True while running costs breath: damage was dealt or taken a moment ago.
+func in_combat() -> bool:
+	return combat_clock > 0.0
 
 
 ## Called while a fight goes on; sneaking stays barred until it has been
@@ -1172,6 +1184,7 @@ func revive(at: Vector3, heal := true) -> void:
 	if heal or hp <= 0:
 		hp = max_hp
 	stamina = -1.0
+	combat_clock = 0.0
 	winded = false
 	path.clear()
 	_target = null
@@ -1254,7 +1267,7 @@ func _breathe(delta: float, moving: bool) -> void:
 		stamina = full
 	var run_key := not typing and Input.is_physical_key_pressed(KEY_SHIFT)
 	sprinting = (wants_run or run_key) and moving and not sneaking and not winded and stamina > 0.0 and not Injury.cannot_run(self)
-	if sprinting:
+	if sprinting and in_combat():
 		stamina = maxf(0.0, stamina - delta)
 		# Running out of breath slowly hardens the body.
 		train("konstitution", delta * 0.1)
@@ -1634,6 +1647,8 @@ func vital_struck(e: Enemy, sound := "hit") -> void:
 ## the weapon (or the higher of the two). The wound bleeds as much life as
 ## the hit cost (see Bleeding, Enemy.bleed). Returns whether it bleeds.
 func wound_foe(e: Enemy, lost: int, cutting: bool, vital := false) -> bool:
+	if lost > 0:
+		combat_clock = COMBAT_WINDOW
 	if e == null or e.dead:
 		return false
 	var chance := Bleeding.CHANCE if cutting else 0.0
@@ -2922,6 +2937,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	# Every life lost hardens the body a little.
 	train("konstitution", amount)
 	hp -= amount
+	combat_clock = COMBAT_WINDOW
 	_regen_pause = REGEN_PAUSE_AFTER_HIT
 	var knocked := _note_run_hit(amount)
 	if attacker and has_special("dornenrune") and attacker.has_method("take_hit"):
@@ -3905,6 +3921,7 @@ func _physics_process(delta: float) -> void:
 	_invulnerable = maxf(0.0, _invulnerable - delta)
 	_fear_calm = maxf(0.0, _fear_calm - delta)
 	fight_cooldown = maxf(0.0, fight_cooldown - delta)
+	combat_clock = maxf(0.0, combat_clock - delta)
 	# Slimed, the hero's arms are slow too (see SlimeCoat).
 	var arms := delta / (SlimeCoat.ATTACK_SLOW if ailments.has(SlimeCoat.KIND) else 1.0)
 	_attack_cooldown = maxf(0.0, _attack_cooldown - arms)

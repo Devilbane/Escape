@@ -48,9 +48,9 @@ const HINTS := {
 ## fine_glow: the glow round lights drawn smooth rather than in blocks. deband: no stripes in dark skies.
 const LOOKS := {
 	QUALITY: {"msaa": Viewport.MSAA_4X, "smooth": Viewport.SCREEN_SPACE_AA_SMAA, "scale": 1.5, "sun_map": 8192, "lamp_map": 4096,
-		"soft": RenderingServer.SHADOW_QUALITY_SOFT_HIGH, "lamps": 8, "sharp": Viewport.ANISOTROPY_16X, "fine_glow": true, "deband": true},
+		"soft": RenderingServer.SHADOW_QUALITY_SOFT_HIGH, "lamps": 6, "sharp": Viewport.ANISOTROPY_16X, "fine_glow": true, "deband": true},
 	BALANCED: {"msaa": Viewport.MSAA_2X, "smooth": Viewport.SCREEN_SPACE_AA_SMAA, "scale": 1.0, "sun_map": 4096, "lamp_map": 4096,
-		"soft": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "lamps": 8, "sharp": Viewport.ANISOTROPY_4X, "fine_glow": true, "deband": true},
+		"soft": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "lamps": 6, "sharp": Viewport.ANISOTROPY_4X, "fine_glow": true, "deband": true},
 	PERFORMANCE: {"msaa": Viewport.MSAA_DISABLED, "smooth": Viewport.SCREEN_SPACE_AA_FXAA, "scale": 0.77, "sun_map": 2048, "lamp_map": 2048,
 		"soft": RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, "lamps": 4, "sharp": Viewport.ANISOTROPY_2X, "fine_glow": false, "deband": false},
 }

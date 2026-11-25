@@ -53,12 +53,18 @@ var gpu_graph: Graph
 var fps := 0.0
 var cpu_ms := 0.0
 var gpu_ms := 0.0
+## The averages over everything measured since the plate was shown (hide and show it to start over).
+var cpu_avg_ms := 0.0
+var gpu_avg_ms := 0.0
 var ping_ms := -1
 
 var _since := 0.0
 var _frames := 0
 var _cpu_sum := 0.0
 var _gpu_sum := 0.0
+var _total_frames := 0
+var _cpu_total := 0.0
+var _gpu_total := 0.0
 
 
 ## A strip that draws the last values as a line, over a dim line at the
@@ -178,6 +184,11 @@ func set_shown(on: bool) -> void:
 	_frames = 0
 	_cpu_sum = 0.0
 	_gpu_sum = 0.0
+	_total_frames = 0
+	_cpu_total = 0.0
+	_gpu_total = 0.0
+	cpu_avg_ms = 0.0
+	gpu_avg_ms = 0.0
 	if on:
 		cpu_graph.values.clear()
 		gpu_graph.values.clear()
@@ -197,6 +208,11 @@ func _process(delta: float) -> void:
 	fps = Engine.get_frames_per_second()
 	cpu_ms = _cpu_sum / _frames
 	gpu_ms = _gpu_sum / _frames
+	_total_frames += _frames
+	_cpu_total += _cpu_sum
+	_gpu_total += _gpu_sum
+	cpu_avg_ms = _cpu_total / _total_frames
+	gpu_avg_ms = _gpu_total / _total_frames
 	ping_ms = ping_source.call()
 	cpu_graph.add(cpu_ms)
 	gpu_graph.add(gpu_ms)
@@ -210,5 +226,5 @@ func _process(delta: float) -> void:
 func _show_values() -> void:
 	fps_label.text = "%d FPS" % roundi(fps)
 	ping_label.text = (Lang.t("Ping %d ms") % ping_ms) if ping_ms >= 0 else Lang.t("Ping: getrennt")
-	cpu_label.text = Lang.t("CPU %.1f ms pro Bild") % cpu_ms
-	gpu_label.text = Lang.t("GPU %.1f ms pro Bild") % gpu_ms
+	cpu_label.text = Lang.t("CPU %.1f ms, Ø %.1f") % [cpu_ms, cpu_avg_ms]
+	gpu_label.text = Lang.t("GPU %.1f ms, Ø %.1f") % [gpu_ms, gpu_avg_ms]

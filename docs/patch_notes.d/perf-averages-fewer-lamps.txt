@@ -1,0 +1,1 @@
+- The F1 performance plate now shows the average CPU and GPU time per frame, and the village needs fewer wall-shadow lamps at once.

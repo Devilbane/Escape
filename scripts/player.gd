@@ -3352,6 +3352,10 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 			break
 	_rock_wall_grace = ROCK_WALL_GRACE if wall else _rock_wall_grace - delta
 	wall = _rock_wall_grace > 0.0
+	# Standing right at the rock counts too: a foot of rubble in front of it (see MountainFoot) can take the
+	# contact with the wall out of the slide list while the hero is stopped by it.
+	if not wall and level.cell_char(level.world_to_cell(global_position + push * (radius + 0.12))) == Mountains.ROCK_LETTER:
+		wall = true
 	var cell := level.world_to_cell(global_position + push * (radius + 0.4))
 	if not wall or level.cell_char(cell) != Mountains.ROCK_LETTER:
 		_rock_push = 0.0

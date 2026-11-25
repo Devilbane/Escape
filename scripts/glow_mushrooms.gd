@@ -69,9 +69,10 @@ static var _glow := 0.0
 const CAP_SHADER := """
 shader_type spatial;
 render_mode cull_disabled;
-uniform vec3 pale_col : source_color;
-uniform vec3 glow_col : source_color;
-uniform vec3 spot_col : source_color = vec3(1.0, 0.86, 0.2);
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 pale_col;
+uniform vec3 glow_col;
+uniform vec3 spot_col = vec3(1.0, 0.86, 0.2);
 uniform float spots = 0.0;
 uniform float glow = 0.0;
 uniform float strength = 3.0;
@@ -111,13 +112,16 @@ void fragment() {
 	lit = mix(lit, spot_col * 1.1, spot);
 	// By day they only keep a faint warmth; the glow grows with the night.
 	EMISSION = lit * strength * glow * glow + day * 0.04;
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }
 """
 
 const POOL_SHADER := """
 shader_type spatial;
 render_mode blend_add, unshaded, depth_draw_never, cull_disabled, shadows_disabled;
-uniform vec3 col : source_color;
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 col;
 uniform float glow = 0.0;
 uniform float strength = 0.5;
 
@@ -127,6 +131,7 @@ void fragment() {
 	a = a * a;
 	ALBEDO = col * strength;
 	ALPHA = a * glow * glow;
+	ALBEDO = gl_colour(ALBEDO);
 }
 """
 

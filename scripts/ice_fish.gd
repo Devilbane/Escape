@@ -37,10 +37,10 @@ const DART_SPEED := 1.9
 const DART_TIME := 1.1
 const DIVE_DEPTH := 0.7
 const GONE_TIME := Vector2(8.0, 16.0)
-## Deep in the open water a fish is only half seen (see _base_fade). Now and then one comes up to the
+## Deep in the open water a fish is a little dimmer (see _base_fade). Now and then one comes up to the
 ## surface (SURFACE_PAUSE seconds apart), breaks it with a ring, flicks its fin (a rolling wiggle) and dives
 ## away in zigzags, much as a startled fish does.
-const DEEP_FADE := 0.55
+const DEEP_FADE := 0.9
 const SURFACE_PAUSE := Vector2(14.0, 30.0)
 const RISE_TIME := 1.6
 const FLICK_TIME := 1.1
@@ -52,8 +52,11 @@ const DIVES := ["water_dive_0", "water_dive_1"]
 const SOUND_FALL := 0.45
 const SOUND_RANGE := 38.0
 ## Fish length (metres) and how fast it swims; a lazy pace under the ice.
-const LENGTH_MIN := 0.38
-const LENGTH_MAX := 0.56
+const LENGTH_MIN := 0.55
+const LENGTH_MAX := 0.8
+## The models are very slim seen from above; they are widened across by this much so the body reads from the
+## game camera's distance (a trout is about a fifth as wide as it is long).
+const WIDEN := 2.2
 const SPEED := 0.3
 ## How far from the bank a fish keeps (see Outdoor.pond_shore_at), and the ice it shows from.
 const SHORE_MIN := 1.5
@@ -155,7 +158,7 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator, lane := {}) -> void:
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var box := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
 		natural = maxf(natural, maxf(box.size.x, maxf(box.size.y, box.size.z)))
-	model.scale = Vector3.ONE * (length / maxf(natural, 0.0001))
+	model.scale = Vector3(WIDEN, 1.0, 1.0) * (length / maxf(natural, 0.0001))
 	var palette: Array = COLOURS[rng.randi() % COLOURS.size()]
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER

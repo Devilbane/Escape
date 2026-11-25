@@ -9,7 +9,7 @@ extends RefCounted
 ## the village's own business (see Villager.set_night).
 ##
 ## Jobs: {id, say, seasons (empty: all year), from/to (hours; a job with them is only done then, and goes first), who (role letters), where,
-## anim, extra}. `where` is a field letter (see CropFields), "river", "well", "door", "flock" or "edge" (any field).
+## anim, sow (true: the seed goes in the ground, see edge_sow_spots), extra}. `where` is a field letter (see CropFields), "river", "well", "door", "flock" or "edge" (any field).
 
 const FARMERS := "φψχλ"
 ## Their lines of the day, said now and then over their head: German, with English in scripts/lang/valley.gd.
@@ -18,9 +18,9 @@ const SAY_RANGE := 22.0
 
 const JOBS := [
 	{"id": "plough", "say": "Ich pflüge den Acker für die Aussaat.", "seasons": ["spring"], "who": "φχ", "where": "≡", "anim": "1H_Melee_Attack_Chop"},
-	{"id": "sow_wheat", "say": "Der Weizen kommt in die Erde.", "seasons": ["spring"], "who": "φψχ", "where": "≡", "anim": "PickUp"},
-	{"id": "sow_maize", "say": "Hier säe ich den Mais.", "seasons": ["spring"], "who": "φχ", "where": "‡", "anim": "PickUp"},
-	{"id": "sow_sun", "say": "Die Sonnenblumenkerne brauchen Sonne und Geduld.", "seasons": ["spring"], "who": "ψ", "where": "☼", "anim": "PickUp"},
+	{"id": "sow_wheat", "say": "Der Weizen kommt in die Erde.", "seasons": ["spring"], "who": "φψχ", "where": "≡", "anim": "Throw", "sow": true},
+	{"id": "sow_maize", "say": "Hier säe ich den Mais.", "seasons": ["spring"], "who": "φχ", "where": "‡", "anim": "Throw", "sow": true},
+	{"id": "sow_sun", "say": "Die Sonnenblumenkerne brauchen Sonne und Geduld.", "seasons": ["spring"], "who": "ψ", "where": "☼", "anim": "Throw", "sow": true},
 	{"id": "water", "say": "Wasser vom Fluss für die Setzlinge!", "seasons": ["spring", "summer"], "who": "ψχ", "where": "river", "anim": "PickUp"},
 	{"id": "weed_maize", "say": "Unkraut zwischen dem Mais. Es wächst schneller als der Mais selbst.", "seasons": ["summer"], "who": "φχ", "where": "‡", "anim": "PickUp"},
 	{"id": "weed_sun", "say": "Die Sonnenblumen sehen aus wie lauter kleine Sonnen.", "seasons": ["summer"], "who": "ψ", "where": "☼", "anim": "PickUp"},
@@ -59,7 +59,11 @@ static func pick(v: Villager, last_id := "") -> Dictionary:
 			continue
 		if job.has("from") and not (hour >= float(job.from) and hour < float(job.to)):
 			continue
-		if job.id == last_id and not job.has("from"):
+		if job.get("sow", false):
+			# Sowing goes on tile after tile while some soil lies bare, and not a day longer.
+			if edge_sow_spots(level, job.where).is_empty():
+				continue
+		elif job.id == last_id and not job.has("from"):
 			continue
 		choices.append(job)
 	# The rest at noon overrides everything else.
@@ -75,7 +79,10 @@ static func pick(v: Villager, last_id := "") -> Dictionary:
 		if not place.is_empty():
 			# Hannes does not just rest at noon: he sits down and dozes off (see ValleyEvents).
 			var anim: String = "Sit_Floor_Idle" if job.id == "rest" and v.role == "φ" else job.anim
-			return {"id": job.id, "say": job.say, "spot": place.spot, "face": place.face, "anim": anim}
+			var out := {"id": job.id, "say": job.say, "spot": place.spot, "face": place.face, "anim": anim}
+			if job.get("sow", false):
+				out["sow"] = job.where
+			return out
 	return {}
 
 
@@ -94,9 +101,14 @@ static func _place(level: Outdoor, v: Villager, job: Dictionary) -> Dictionary:
 	elif where == "hive":
 		spots = hive_spots(level)
 	elif CropFields.LETTERS.contains(where):
-		spots = edge_spots(level, where)
+		spots = edge_sow_spots(level, where) if job.get("sow", false) else edge_spots(level, where)
 	if spots.is_empty():
 		return {}
+	if job.get("sow", false):
+		# Along the rows: on to the bare tile nearest to where the sower stands now.
+		var here := v.global_position
+		spots.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.spot.distance_squared_to(here) < b.spot.distance_squared_to(here))
+		return spots[v._rng.randi() % mini(spots.size(), 3)]
 	# Nearest few to the farmer's home, one of them by chance: the whole farm is worked, not one corner.
 	var home := level.cell_to_world(v.home)
 	var sorted := spots.duplicate()
@@ -121,6 +133,23 @@ static func edge_spots(level: Outdoor, letter: String) -> Array:
 				if level.is_open(c + d) and level.cell_char(c + d) in ".,":
 					out.append({"spot": level.cell_to_world(c + d), "face": level.cell_to_world(c)})
 	level.set_meta(key, out)
+	return out
+
+
+## The spots beside the bare tiles of a field still waiting for the seed (see CropFields.bare_tiles): a sower
+## stands beside the next tile to sow, so he works along the rows. Empty outside spring or when all is sown.
+static func edge_sow_spots(level: Outdoor, letter: String) -> Array:
+	if level.crop_fields == null:
+		return []
+	var bare: Array = level.crop_fields.bare_tiles(letter)
+	if bare.is_empty():
+		return []
+	var out: Array = []
+	for e: Dictionary in edge_spots(level, letter):
+		for mid: Vector3 in bare:
+			if Vector2(mid.x - e.face.x, mid.z - e.face.z).length() < 0.5:
+				out.append(e)
+				break
 	return out
 
 

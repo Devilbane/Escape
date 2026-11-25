@@ -8,6 +8,8 @@ extends RefCounted
 ##   that is down to level 1 and dries out once more is gone, and what it
 ##   gathered in its belly lies on the ground (see Level.spill_belly), the
 ##   townsfolk it swallowed free.
+## - Slimes only belong to spring's bad weather (see SlimeGrowth.may_crawl): when the rain, storm or
+##   fog clears, or the season turns, every slime of the open air retreats to the pond at once.
 ## - A slime that has crawled about for LIFESPAN seconds retreats to the
 ##   nearest pond (see Outdoor._pond_waters) and sinks into it. It takes
 ##   everything it gathered with it, but lets the townsfolk out on the bank.
@@ -58,7 +60,7 @@ static func tick(e: Enemy, delta: float) -> void:
 		e.dryness = minf(1.0, e.dryness + delta / DULL_SECONDS)
 	e.show_dryness()
 	e.slime_age += delta
-	if not e.retreating and e.slime_age >= LIFESPAN:
+	if not e.retreating and (e.slime_age >= LIFESPAN or not SlimeGrowth.may_crawl(outdoor.weather, outdoor.season_day)):
 		start_retreat(e)
 	if e.retreating or wet:
 		return

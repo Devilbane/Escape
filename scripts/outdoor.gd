@@ -115,7 +115,7 @@ const BLOCK_MODELS := {
 }
 const BUILDING_NAMES := {
 	"b": "die Bank der Krone", "s": "den Tempel", "k": "das Amt der Krone", "w": "die Abenteurergilde",
-	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "das Wirtshaus", "m": "den Laden",
+	"o": "die Post", "Ø": "den Magierturm", "j": "die Schmiede", "n": "die Schenke Apples & Ivy!", "m": "den Laden",
 	"E": "die Drachenhöhle", "[": "die Bergschenke", ")": "den Hort des Großen Alten", "<": "die Aschenzinne",
 	"|": "die Ruinen von Sternhall", "\"": "die Verlassene Wüste",
 }
@@ -669,15 +669,16 @@ var weather := ""
 ## What comes out in which weather (one or more groups): the kind, how many
 ## at most, the map letter they gather around; then how long until a fallen
 ## one is replaced, and how far from the hero they appear (never within
-## sight). Slimes love bad weather: they crawl out of the pond in the rain
-## and the storm, and in the fog too (see SlimeGrowth).
+## sight). Slimes love bad weather: in spring they crawl out of the pond in
+## the rain, the storm and the fog, and only then (see SlimeGrowth.may_crawl).
 const WEATHER_FOES := {
 	Weather.RAIN: [{"kind": "schleim", "count": 12, "near": "~"}],
 	Weather.FOG: [{"kind": "fog_wraith", "count": 6, "near": "d"}, {"kind": "schleim", "count": 8, "near": "~"}],
 	Weather.STORM: [{"kind": "fledermaus", "count": 5, "near": "r"}, {"kind": "schleim", "count": 8, "near": "~"}],
 }
 const WEATHER_RESPAWN := 80.0
-## Slimes stay when the weather turns; at most this many crawl about.
+## Slimes retreat to the pond when the spring weather clears (see SlimeLife);
+## at most this many crawl about.
 const SLIMES_AT_MOST := 24
 const WEATHER_FAR := 14.0
 ## In a thunderstorm lightning strikes every so often (seconds, picked at
@@ -709,6 +710,8 @@ var sweep_dust: SweepDust
 
 ## Reeds and cattails round the ponds, with their caps of snow (see PondReeds).
 var pond_reeds: PondReeds
+## The frogs at the water, built with the reeds (see PondFrogs).
+var pond_frogs: PondFrogs
 ## Every pond tile (see IceCover).
 var _pond_waters: Array = []
 var _ground_mat: ShaderMaterial
@@ -779,6 +782,8 @@ func build() -> void:
 	meals.garland.build(self, meals.tables, _ivy)
 	# The braziers that warm the diners in winter (see MealBraziers).
 	meals.braziers.build(self, meals.tables)
+	# The tavern's pub sign on a post south of the two dining tents (see PubSign).
+	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
 	if not _ivy.xforms.is_empty():
@@ -853,6 +858,8 @@ func build() -> void:
 	puddles = Puddles.new(self, hash(level_name + "pfuetzen"))
 	add_child(puddles)
 	pond_reeds = PondReeds.grow(self, _pond_waters)
+	if not _pond_waters.is_empty():
+		pond_frogs = PondFrogs.grow(self, _pond_waters)
 	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []
@@ -2677,6 +2684,26 @@ func _bank_sign(door: Vector3) -> void:
 	box.position = box_at
 	add_child(box)
 	_add_solid(box_at + Vector3(0, 0.5, 0), box.get_meta("solid_size"))
+
+
+## Where the pub sign's post stands south of the dining tables' middle line, and the sign's board
+## (it hangs a bit out from the post) is centred between the two tents.
+const PUB_POST_SOUTH := 3.4
+
+
+## The pub's sign on the village square: a freestanding post with an iron bracket, the painted board
+## of Apples & Ivy! hanging between the two dining tents, a little south of them (see PubSign).
+func _square_pub_sign() -> void:
+	if meals.tables.size() < 2:
+		return
+	var a: Vector3 = meals.tables[0]
+	var b: Vector3 = meals.tables[1]
+	var at := Vector3((a.x + b.x) * 0.5 - PubSign.ARM_OUT * 0.53, 0.0, maxf(a.z, b.z) + PUB_POST_SOUTH)
+	var post := PubSign.on_post()
+	post.name = "PubSignSquare"
+	post.position = at
+	add_child(post)
+	_add_solid(at, Vector3(0.62, PubSign.POST_HIGH, 0.62))
 
 
 ## The vault cellar under the bank (see BankVault) when it is walked into; the old cellar level
@@ -5571,26 +5598,32 @@ func set_weather(kind: String) -> void:
 	weather = kind
 	for s in _weather_foes:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
-			# Slimes stay when the weather turns and wander on (see
-			# SlimeGrowth); the others go back where they came from.
+			# Slimes head for the pond on their own when the spring weather
+			# clears (see SlimeLife); the others go back where they came from.
 			if not SlimeGrowth.grows(s.enemy.kind):
 				s.enemy.sink_at_dawn()
 	_weather_foes.clear()
 	if kind != Weather.STORM:
 		_fade_ore()
 	for foes in WEATHER_FOES.get(kind, []):
+		if SlimeGrowth.grows(foes.kind) and not SlimeGrowth.may_crawl(kind, season_day):
+			continue
 		_place_weather_foes(foes)
 	_strike_timer = randf_range(2.0, STRIKE_EVERY_MIN)
 	if first:
 		return
+	var slimy := SlimeGrowth.may_crawl(kind, season_day)
 	if kind == Weather.RAIN:
-		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser."), 4.5)
+		notice.emit(Lang.t("Es fängt an zu regnen. Am Teich im Wald kriechen Schleime aus dem Wasser.") if slimy
+				else Lang.t("Es fängt an zu regnen."), 4.5)
 	elif kind == Weather.FOG:
-		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen."), 4.5)
+		notice.emit(Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, am Teich kriechen Schleime, und wer schleicht, bleibt ungesehen.") if slimy
+				else Lang.t("Nebel zieht auf. Zwischen den toten Bäumen treiben Nebelgeister, und wer schleicht, bleibt ungesehen."), 4.5)
 	elif kind == Weather.SNOW:
 		notice.emit(Lang.t("Es schneit! Dicke Flocken fallen, und auf Dächern und Wiesen bleibt der Schnee liegen."), 4.5)
 	elif kind == Weather.STORM:
-		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
+		notice.emit(Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, Schleime kriechen aus dem Teich, und wo der Blitz einschlägt, glimmt Donnererz.") if slimy
+				else Lang.t("Ein Gewitter zieht auf! Fledermäuse schwärmen um die Felsen, und wo der Blitz einschlägt, glimmt Donnererz."), 5.0)
 	else:
 		notice.emit(Lang.t("Das Gewitter zieht ab. Liegengebliebenes Donnererz verglimmt.") if was == Weather.STORM
 				else Lang.t("Der Himmel klart auf."), 4.0)
@@ -5685,6 +5718,8 @@ func set_ice(value: float) -> void:
 		ice_fish = IceFish.build(self, _pond_waters)
 	if ice_fish != null:
 		ice_fish.set_ice(ice)
+	if pond_frogs != null:
+		pond_frogs.set_ice(ice)
 	if waterfall != null:
 		waterfall.set_ice(ice)
 
@@ -5775,7 +5810,7 @@ func _mind_the_weather(delta: float) -> void:
 		if s.timer <= 0.0 and _flat_distance(player.global_position, cell_to_world(s.cell)) > WEATHER_FAR:
 			# The slimes that stayed from earlier weather count: no more
 			# than SLIMES_AT_MOST crawl about at once.
-			if SlimeGrowth.grows(s.kind) and slimes_about() >= SLIMES_AT_MOST:
+			if SlimeGrowth.grows(s.kind) and (slimes_about() >= SLIMES_AT_MOST or not SlimeGrowth.may_crawl(weather, season_day)):
 				s.timer = WEATHER_RESPAWN
 				continue
 			_spawn_weather_foe(s)

@@ -39,6 +39,7 @@ cape_wardrobe.gd | 120 | fixed | pass | Cape wardrobe test (the house's wardrobe
 post_cap.gd | 120 | fixed | PASS:_post_cap | Postmaster's cap test
 bandana.gd | 120 | fixed | PASS:_bandana | Smith Gorm wears a bandana
 dreadlocks.gd | 120 | fixed | PASS:_dreadlocks | Guild Master Ragna's dreadlocks test
+miller_quiff.gd | 120 | fixed | PASS:_miller_quiff | Miller Korbinian's copper quiff test
 playtest_map.gd | 180 | free | pass | Testing a map from the workshop
 window_buttons.gd | 120 | free | pass | Window buttons, hover and keyboard focus test
 bronze_frames.gd | 120 | free | pass | Bronze frames test
@@ -132,6 +133,7 @@ moon.gd | 120 | fixed | passfail | moon: its phases run on the game's day counte
 puddle_sound.gd | 120 | fixed | passfail | a step into a nearly dried-out puddle gives a soft squelch
 shop_signs.gd | 120 | fixed | passfail | shop signs: a name that fits on the board is written
 hanging_sign_shots.gd | 180 | fixed | passfail | Hanging shop signs: every hall, the smithy and the bank hang a big shield high enough to walk under
+pub_sign_shots.gd | 180 | fixed | passfail | Apples & Ivy! pub sign: hung by the tavern door and on a post between the dining tents, high enough to walk under
 shop_front_shots.gd | 180 | fixed | passfail | Shop fronts: every hall sets out its wares beside its door, the way in and the street stay free, the bank has its strongbox
 slime_bar.gd | 120 | fixed | passfail | slime's health bar and level (see SlimeBar): a calm
 goose_voice.gd | 120 | fixed | passfail | geese's voices (tools/make_goose_sounds.py, GooseVoice): honks and a startled cackle
@@ -196,6 +198,7 @@ tavern_brewer.gd | 300 | fixed | passfail | The brewer keeps the tavern, hands F
 rabbit_shots.gd | 300 | fixed | pass | Rabbits: sit at forest edges, bolt in a bounding run, leave tracks in the snow (pictures with SHOTS=)
 warren_shots.gd | 600 | fixed | pass | The rabbit burrow: mound, mouth, pebbles, grass and roots in summer, autumn and winter (pictures with SHOTS=)
 cow_fur_shots.gd | 300 | fixed | pass | Cows and bull: coat surfaces wear the fur material (pictures with SHOTS=)
+hedgehog_shots.gd | 300 | fixed | pass | Village hedgehog close-ups: pointed snout, bead nose and eyes (pictures with SHOTS=)
 hedgehogs.gd | 120 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, hibernate in winter)
 mage_tower.gd | 900 | fixed | passfail | The mage tower of Aldo and Odo: hall with tapestries, library, sleeping room, cellar lab; walking up and down; the mages sleep up in the top room
 hedgehogs.gd | 300 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, apple run to a hidden hoard, hibernate in winter)
@@ -220,7 +223,10 @@ stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the
 underground_shadows.gd | 120 | free | passfail | Buried rooms far from the hero stop casting shadows (cheaper frames), near ones still do
 mountain_foot_shots.gd | 1200 | fixed | passfail | The mountains' feet in autumn, summer and winter: lobes, mounds and stones in the grass (screenshots)
 river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole river: the waypoints lie on water, every stretch has seasonal leaves, the outfall river too
+pond_frogs.gd | 120 | fixed | pass | Pond frogs: a few on the banks and in the water, hop and swim, croak more at night, hibernate in winter
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
 bees.gd | 200 | fixed | pass | Bees fly by day in spring and summer when it is dry, sit on flowers, stay in at night and in winter; a vexed hive stings once
 bees_shots.gd | 1200 | fixed | passfail | The apiary in spring, summer and winter: skep, box hive, bees, beekeeper with veil, a vexed hive (screenshots)
+sowing.gd | 180 | fixed | pass | Spring sowing (fields start bare, a handful sows a tile, sprouts grow over days, auto-sow, the farmer throws seed with a bag)
 map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)
+slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring rain, storm or fog and retreat to the pond when it clears or the season turns

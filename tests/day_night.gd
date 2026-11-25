@@ -239,7 +239,7 @@ func _clock_and_saving() -> void:
 	game._tick_clock(60.0)
 	check(is_equal_approx(game.day_hour, 15.0 + 24.0 / 20.0), "time goes on in the dungeon")
 	check(game._clock_text().begins_with(DayNight.clock_text(game.day_hour)), "the HUD shows the hour in the dungeon")
-	check(not game._clock_text().contains(Lang.t(Moon.word(game.day))), "but no moon down there")
+	check(not game._moon_icon.visible and not game._season_icon.visible, "but no moon or season icon down there")
 	game.state = before_state
 
 	# The hour goes into the saved game and comes back from it.

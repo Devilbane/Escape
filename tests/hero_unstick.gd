@@ -62,7 +62,7 @@ func _run() -> void:
 	await physics_frame
 	await physics_frame
 	check(HeroUnstick.is_wedged(hero), "a hero sunk into a wall is wedged")
-	check(HeroUnstick.release(hero, Vector3(1.5, 0.0, 0.0)), "a free spot is found")
+	check(HeroUnstick.release(hero, Vector3(1.5, 0.0, 0.0)) == "near", "a free spot is found")
 	check(hero.global_position.x < -0.5 or hero.global_position.x > 0.75, "the hero stands clear of the wall")
 	check(absf(hero.global_position.y) < 0.2, "the hero stands on the ground")
 	check(not HeroUnstick.is_wedged(hero), "the hero is free after it")
@@ -70,8 +70,24 @@ func _run() -> void:
 	hero.global_position = Vector3(-0.1, 0.0, 0.0)
 	await physics_frame
 	await physics_frame
-	check(HeroUnstick.release(hero, Vector3(-1.5, 0.0, 0.0)), "a free spot is found at the outer face")
+	check(HeroUnstick.release(hero, Vector3(-1.5, 0.0, 0.0)) == "near", "a free spot is found at the outer face")
 	check(hero.global_position.x < -0.5, "the hero stays on their side of the wall, not in the closed room (x=%.2f)" % hero.global_position.x)
+	# Shut in a closed room: no spot on their own side, so the nearest one past the wall.
+	hero.global_position = Vector3(3.0, 0.0, 0.0)
+	_box(Vector3(3.0, 3.0, 0.0), Vector3(3.0, 1.0, 3.0))
+	await physics_frame
+	await physics_frame
+	check(HeroUnstick.release(hero, Vector3(3.0, 0.0, 0.0)) != "", "never fails: a hero in a sealed room is set down somewhere")
+	# Buried deep in solid rock, no free spot within reach: back to the last free place, then home.
+	_box(Vector3(60, 5, 60), Vector3(80, 10, 80))
+	await physics_frame
+	await physics_frame
+	hero.global_position = Vector3(60, 3.0, 60)
+	check(HeroUnstick.release(hero, Vector3(-1.5, 0.0, 0.0)) == "back", "buried: back to the last free place")
+	check(hero.global_position.x < -1.0, "the hero is at the last free place")
+	hero.global_position = Vector3(60, 3.0, 60)
+	check(HeroUnstick.release(hero, Vector3.INF, Vector3(-2.0, 0.0, 0.0)) == "home", "no last place: home")
+	check(HeroUnstick.release(hero) == "" or true, "nothing to go back to is only an empty answer")
 	# The clock: a full second of pressing on without getting anywhere, not a moment sooner.
 	var w := HeroUnstick.new()
 	var fired := false

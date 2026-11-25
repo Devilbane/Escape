@@ -38,7 +38,7 @@ func _wait(n: int) -> void:
 
 func _rules() -> void:
 	var spot := {}
-	for s: Dictionary in ClimbSpots.SPOTS["Die Freiheit"]:
+	for s: Dictionary in ClimbSpots.SPOTS["Apfeltal"]:
 		if s.cell == SummitGarden.CELL:
 			spot = s
 	check(not spot.is_empty(), "the garden's rock is a climbing spot")

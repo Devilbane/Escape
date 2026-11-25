@@ -36,7 +36,7 @@ const EN := {
 	"Erzader": "an ore vein",
 	"Verlies": "The dungeon",
 	"Beute der Knochenmagier": "loot of the skeleton mages",
-	"Dorf": "The village",
+	"Orchardby": "Orchardby",
 	"Gorm verkauft Eisenbarren und schmilzt Metall aus deiner Tasche zu neuen ein.": "Gorm sells iron bars and melts metal from your bag down into new ones.",
 	"Ort: %s": "Where: %s",
 	"Zeit: %s": "When: %s",

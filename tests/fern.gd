@@ -1,7 +1,7 @@
 extends SceneTree
 ## Ferns and needle trees (see Fern): a fern is a low rosette, the spruce a slim cone about three times
 ## as tall as it is wide in several sizes, besides a few pines with open crowns, both light enough to draw by the hundred, with a far model
-## of the same outline that is much lighter still. In Die Freiheit the forest is spruces, no pine is left, the
+## of the same outline that is much lighter still. In Apfeltal the forest is spruces, no pine is left, the
 ## stand west of the road is all spruces, and ferns grow in the shade along the forest's edge, on
 ## forest tiles only and never on a building plot.
 
@@ -65,11 +65,11 @@ func _run() -> void:
 		check(_triangles(far) * 4 <= _triangles(tree), "far spruce %d is much lighter (%d triangles)" % [v, _triangles(far)])
 	check(heights.max() - heights.min() > 1.5, "the spruces differ in height (%s)" % [heights])
 
-	# In Die Freiheit.
+	# In Apfeltal.
 	game.escaped = true
 	game.load_level(game._outdoor_index(), false)
 	var level: Outdoor = game.level
-	check(level.level_name == Outdoor.SPRUCE_MAP, "the open-air map is Die Freiheit")
+	check(level.level_name == Outdoor.SPRUCE_MAP, "the open-air map is Apfeltal")
 	var spruces := 0
 	var others := 0
 	var pines := 0

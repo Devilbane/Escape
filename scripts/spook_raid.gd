@@ -52,7 +52,7 @@ const LEAN_WEIGHT := 1.2
 const ARRIVE_FREE := 2.0
 
 ## How see-through he is, 0 solid to 1 invisible.
-const SEE_THROUGH := 0.4
+const SEE_THROUGH := 0.65
 const SNEAK_SHADER := preload("res://shaders/ghoul_sneak.gdshader")
 ## Marks the see-through materials he wears (for the tests).
 const SEE_THROUGH_META := "see_through"

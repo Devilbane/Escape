@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Fix the flaky foot_lobes walks (hero landing, a dead hero on a mound); Give waking geese goose sounds (+10 more) | Shipped this week: Fix the woods bird test: a bird with a tree to go to, a spot to stand on; Ripple rings on the water, fish bolt and dive from them (+48 more)
+Escape! dev status | Working on: Fix the flaky foot_lobes walks (hero landing, a dead hero on a mound); Give waking geese goose sounds (+8 more) | Shipped this week: Move foot_lobes to nightly until the mountain-foot regression is fixed (+49 more)

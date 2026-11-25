@@ -57,7 +57,7 @@ const EN := {
 	"die Abenteurergilde": "the adventurers' guild",
 	"die Post": "the post office",
 	"die Schmiede": "the smithy",
-	"das Wirtshaus": "the tavern",
+	"die Schenke Apples & Ivy!": "the Apples & Ivy! tavern",
 	"den Laden": "the shop",
 	"Frische Luft! Folge dem Weg durch den Wald ins Dorf. Dort wartet ein Zuhause auf dich.": "Fresh air! Follow the path through the woods to the village. A home is waiting for you there.",
 }

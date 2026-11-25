@@ -13,11 +13,13 @@ const AXE := "res://assets/weapons/axe_1handed.gltf"
 const DAGGER := "res://assets/weapons/dagger.gltf"
 ## The smith keeps the hammer already in his hand (see Villager._draw_blade).
 const HAMMER := "hammer"
+## Fritz fights with the mug already in his hand and never draws a blade.
+const MUG := "mug"
 ## Zarek's staff: a level 50 mage who fights from a distance (see CASTERS).
 const STAFF := "res://assets/weapons/Skeleton_Staff.gltf"
 
 ## Roles with their own weapon; everyone else takes a sword.
-const WEAPONS := {"4": SWORD, "K": SWORD, "1": HAMMER, "3": AXE, "S": AXE, "G": AXE, "0": DAGGER, "8": DAGGER, "7": DAGGER, "%": STAFF}
+const WEAPONS := {"4": SWORD, "K": SWORD, "1": HAMMER, "5": MUG, "3": AXE, "S": AXE, "G": AXE, "0": DAGGER, "8": DAGGER, "7": DAGGER, "%": STAFF}
 ## Roles that do not stand toe to toe: Pip throws knives, the priestess heals.
 const THROWERS := ["7"]
 const HEALERS := ["O"]
@@ -71,6 +73,8 @@ static func weapon(role: String) -> String:
 ## Puts `role`'s weapon in `hand`, named "SlimeBlade".
 static func arm(hand: Node3D, role: String) -> Node3D:
 	var path := weapon(role)
+	if path == HAMMER or path == MUG:
+		return null
 	var blade: Node3D = (load(path) as PackedScene).instantiate()
 	blade.name = "SlimeBlade"
 	hand.add_child(blade)

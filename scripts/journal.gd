@@ -45,7 +45,7 @@ const QUIET_KINDS := ["shrine"]
 ## one landmark, marked in its middle.
 const OUTDOOR_MARKS := {
 	"R": ["crypt", "Gruft"], "E": ["lair", "Drachenhöhle"],
-	"j": ["building", "Schmiede"], "n": ["building", "Wirtshaus"], "m": ["building", "Kramladen"],
+	"j": ["building", "Schmiede"], "n": ["building", "Apples & Ivy!"], "m": ["building", "Kramladen"],
 	"u": ["building", "Windmühle"], "s": ["building", "Tempel"], "k": ["building", "Amt der Krone"],
 	"o": ["building", "Post"], "w": ["building", "Abenteurergilde"], "b": ["building", "Bank der Krone"],
 	"Θ": ["sewer", "Kanalluke"], "Ω": ["sewer", "Gitter des Baches"], "Ψ": ["sewer", "Auslauf der Kanalisation"],

@@ -48,6 +48,9 @@ static func build(parent: Node3D) -> void:
 		_add(parent, post)
 	var flame := Effects.make_flame()
 	flame.scale = Vector3.ONE * 0.28
+	# The flame's sparks ride with the lamp. In world space they are left behind while the bearer
+	# walks and smear into a big blaze.
+	flame.local_coords = true
 	flame.position = FLAME_AT + Vector3(0, -0.03, 0)
 	parent.add_child(flame)
 

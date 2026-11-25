@@ -1,0 +1,1 @@
+- A lamp's flame no longer smears into a big blaze while its bearer walks.

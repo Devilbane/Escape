@@ -24,7 +24,7 @@ func _initialize() -> void:
 
 func _process(_delta: float) -> bool:
 	frames += 1
-	if frames == 5 and not started:
+	if frames >= 5 and not started and "state" in game:
 		started = true
 		_run()
 	return false

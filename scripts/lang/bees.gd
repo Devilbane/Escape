@@ -30,7 +30,6 @@ const EN := {
 	"Honig: Ambrosius, der Imker im Tal, verkauft ihn im Glas. Am Alchemistentisch braust du aus zwei Gläsern einen Heiltrank, so stark, wie dein Können ihn hergibt. Frag ihn nach dem Rezept, oder koste einfach.": "Honey: Ambrosius, the beekeeper of the valley, sells it by the jar. At the alchemist's table two jars brew a healing potion as strong as your skill allows. Ask him about the recipe, or just taste.",
 	"Honig vom Apfeltal: goldgelb und dick, aus dem Nektar der Wiesenblumen. Der Imker nimmt nur, was die Bienen entbehren können. Am Alchemistentisch gibt er einem Heiltrank Kraft.": "Honey from Apple Valley: golden and thick, from the nectar of the meadow flowers. The beekeeper takes only what the bees can spare. At the alchemist's table it gives a healing potion its strength.",
 	"Zeig auf das Glas, um zu sehen, was der Honig kann.": "Point at the jar to see what the honey can do.",
-	"Apfeltal": "Apple Valley",
 	"Ambrosius, der Imker im Apfeltal, verkauft ihn im Glas: goldgelb und dick, aus dem Nektar der Wiesenblumen. Am Alchemistentisch gibt er einem Heiltrank Kraft.": "Ambrosius, the beekeeper in Apple Valley, sells it by the jar: golden and thick, from the nectar of the meadow flowers. At the alchemist's table it gives a healing potion its strength.",
 	"Honigtrank": "Honey draught",
 	"Ein Heiltrank, so stark wie dein Können ihn braut, nur aus Honig, ohne Schleimgelee": "A healing potion as strong as your skill brews it, from honey alone, without slime jelly",

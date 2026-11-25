@@ -50,9 +50,9 @@ const INGREDIENTS := {
 	# the other three are rare and bite in one water only.
 	"barsch": {"name": "Barsch", "region": "Dorf und Wolfssenke", "when": "", "source": "Angeln in den Teichen",
 		"where": "Beißt im Dorfteich und im Tümpel der Wolfssenke."},
-	"goldkarpfen": {"name": "Goldkarpfen", "rare": true, "region": "Dorf", "when": "", "source": "Angeln im Brunnen",
+	"goldkarpfen": {"name": "Goldkarpfen", "rare": true, "region": "Orchardby", "when": "", "source": "Angeln im Brunnen",
 		"where": "Ein seltener Fang im Brunnen auf dem Dorfplatz."},
-	"silberhecht": {"name": "Silberhecht", "rare": true, "region": "Dorf", "when": "in der Dämmerung", "source": "Angeln im Dorfteich",
+	"silberhecht": {"name": "Silberhecht", "rare": true, "region": "Orchardby", "when": "in der Dämmerung", "source": "Angeln im Dorfteich",
 		"where": "Beißt im Dorfteich, aber nur in der Dämmerung."},
 	"mondforelle": {"name": "Mondforelle", "rare": true, "region": "Wolfssenke", "when": "nur nachts", "source": "Angeln im Tümpel",
 		"where": "Beißt im Tümpel der Wolfssenke, aber nur bei Nacht."},
@@ -132,19 +132,19 @@ const INGREDIENTS := {
 		"where": "Steckt in Edelerz. Erst geschliffen taugt er zu etwas; Gorm schleift ihn, dabei verliert er 15 bis 50 Prozent seines Gewichts."},
 	# What a steel bar is made of besides iron (see Forge.STEEL_RECIPE):
 	# charcoal for its carbon, limestone as a flux.
-	"holzkohle": {"name": "Holzkohle", "store": "metall", "tier": "normal", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+	"holzkohle": {"name": "Holzkohle", "store": "metall", "tier": "normal", "region": "Orchardby", "when": "", "source": "Schmied Gorm",
 		"where": "Gorm brennt sie selbst und verkauft sie an seiner Esse. Mit Kalkstein macht er aus Eisen Stahl."},
 	"kalkstein": {"name": "Kalkstein", "store": "metall", "tier": "normal", "region": "Gebirge", "when": "", "source": "Beute der Trolle und Bergwesen",
 		"where": "Trolle und die Wesen der Berge tragen oft ein paar Brocken bei sich. Mit Holzkohle macht Gorm aus Eisen Stahl."},
-	"edelstein": {"name": "Geschliffener Edelstein", "store": "metall", "tier": "selten", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+	"edelstein": {"name": "Geschliffener Edelstein", "store": "metall", "tier": "selten", "region": "Orchardby", "when": "", "source": "Schmied Gorm",
 		"where": "Ein Edelstein, von Gorm geschliffen. Je mehr Karat, desto seltener und wertvoller; Gorm kauft ihn dir ab."},
 }
 ## The smith's iron bars in the ingredient book.
-const IRON := {"name": "Eisenbarren", "region": "Dorf", "when": "", "source": "Schmied Gorm",
+const IRON := {"name": "Eisenbarren", "region": "Orchardby", "when": "", "source": "Schmied Gorm",
 	"where": "Gorm verkauft Eisenbarren und schmilzt Metall aus deiner Tasche zu neuen ein."}
 ## The fine bars from Gorm's forge (Forge.FINE, kept in game.bars) in the
 ## ingredient book: a recipe names them by their metal, e.g. "silber".
-const FINE_BARS := {"region": "Dorf", "when": "", "source": "Schmied Gorm",
+const FINE_BARS := {"region": "Orchardby", "when": "", "source": "Schmied Gorm",
 	"where": "Gorm schmilzt Schmuck und feine Waffen und Rüstungen an seiner Esse zu Barren ein."}
 
 ## The recipes. "giver" is the villager who hands out the scroll, "craft" and

@@ -29,6 +29,7 @@ const EN := {
 	"Vorratstruhe": "Storage chest",
 	"Gruft": "Crypt",
 	"Drachenhöhle": "Dragon's lair",
+	"Wirtshaus": "Tavern",
 	"Kramladen": "General store",
 	"Windmühle": "Windmill",
 	"Tempel": "Temple",

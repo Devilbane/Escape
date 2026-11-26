@@ -15,7 +15,7 @@ shader_type spatial;
 
 #include "res://shaders/detail.gdshaderinc"
 
-uniform sampler2D trim : filter_linear_mipmap, repeat_enable;
+uniform sampler2D trim : filter_linear_mipmap_anisotropic, repeat_enable;
 // The house's roof shade (VillageHouse.ROOFS).
 uniform vec3 tint = vec3(1.0);
 // How weathered the roof is.

@@ -26,7 +26,7 @@ shader_type spatial;
 
 // The colours are read and weathered as they were painted (sRGB); the
 // result goes into linear light at the end.
-uniform sampler2D palette : filter_linear_mipmap, repeat_enable;
+uniform sampler2D palette : filter_linear_mipmap_anisotropic, repeat_enable;
 // Where the colour comes from: 0 the palette, 1 vertex colours, 2 base_colour.
 uniform int source = 0;
 uniform vec3 base_colour = vec3(0.5);
@@ -200,7 +200,7 @@ void fragment() {
 	// Everything outside is matt; bare iron keeps a little sheen, fruit skin
 	// a soft one.
 	float sheen = is_iron * (1.0 - rust);
-	ROUGHNESS = mix(0.94, 0.6, sheen) - 0.2 * fresh;
+	ROUGHNESS = mix(0.94, 0.68, sheen) - 0.15 * fresh;
 	SPECULAR = mix(0.25, 0.45, sheen + fresh * 0.5);
 	float h = grit * 0.012 - crack * 0.006 * is_wood + pits * 0.006 * is_stone + rust * 0.003 * is_iron + crust * 0.004;
 	h = mix(h, weave_h * 0.003, clean);

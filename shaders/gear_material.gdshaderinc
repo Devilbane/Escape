@@ -33,7 +33,7 @@ const int PELT = 11;
 // the roots, over a fine fuzz (see CreatureSkin).
 const int BRISTLE = 12;
 
-uniform sampler2D tex : filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap_anisotropic;
 // recolor: keep the light and dark of the texture but swap its colour for the tint.
 uniform bool recolor = true;
 uniform vec3 tint = vec3(1.0);

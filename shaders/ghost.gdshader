@@ -7,7 +7,7 @@ render_mode depth_draw_always;
 // the light of each lamp. Without it every layer behind (the back of the head, the body
 // under the cape) adds that light again, and the hero glares white near lamps.
 
-uniform sampler2D tex : filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap_anisotropic;
 uniform bool use_tex = false;
 uniform vec4 color = vec4(1.0);
 uniform float fade = 0.0;

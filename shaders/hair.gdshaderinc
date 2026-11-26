@@ -21,7 +21,7 @@
 // fade out, for a sneaking hero.
 #include "res://shaders/gl_colour.gdshaderinc"
 
-uniform sampler2D tex : filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap_anisotropic;
 // true for the crest of locks, false for the head.
 uniform bool crest = false;
 // Head: the hair is shaved off (the mesh is too; this switches the look).

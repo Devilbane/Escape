@@ -10,8 +10,8 @@ shader_type spatial;
 #include "res://shaders/reveal.gdshaderinc"
 #include "res://shaders/masonry.gdshaderinc"
 
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
-uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec3 albedo_color = vec3(1.0);
 // The flat cartoon pieces (spike and grate tiles, stairs, doorways) have no
 // normal map and need a little more grain to match the kit's carved stone.
@@ -65,6 +65,7 @@ void fragment() {
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	if (use_normal_map && laid < 0.5) {
 		NORMAL_MAP = texture(normal_tex, UV).rgb;
+		NORMAL_MAP_DEPTH = relief_strength;
 	}
 	ROUGHNESS = 0.92 + 0.08 * grit;
 	SPECULAR = 0.2;

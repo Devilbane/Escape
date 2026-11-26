@@ -3,9 +3,9 @@
 // its hollows, soft drifts and a fine grain, and a gently bumpy surface that catches the light.
 
 uniform float amount : hint_range(0.0, 1.0) = 0.0;
-uniform vec3 snow_color = vec3(0.78, 0.81, 0.86);
+uniform vec3 snow_color = vec3(0.70, 0.73, 0.79);
 // The colour of the snow in its hollows and on its steeper flanks.
-uniform vec3 hollow_color = vec3(0.56, 0.63, 0.74);
+uniform vec3 hollow_color = vec3(0.52, 0.59, 0.70);
 // How much of the light of the hour is on the snow (0 night to 1 day): the
 // night's snow glows a little blue, so it is not as black as the ground was.
 uniform float daylight : hint_range(0.0, 1.0) = 1.0;

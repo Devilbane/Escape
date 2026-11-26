@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep the village houses' candle light off their outer walls; Hide a sunflower riddle in the field (+3 more) | Shipped this week: Make river fish bodies read clearly from the game camera; Monsters help a struck mate and call for help (+48 more)
+Escape! dev status | Working on: Keep the village houses' candle light off their outer walls; Hide a riddle in the sunflower field (+2 more) | Shipped this week: Add a testing panel with time, season, travel and godmode buttons; Make river fish bodies read clearly from the game camera (+48 more)

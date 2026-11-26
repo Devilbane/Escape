@@ -10,7 +10,7 @@ const CLOSE_PITCH := 22.0
 const CLOSE_DISTANCE := 7.5
 const ZOOM_STEP := 0.12
 ## How many zoom steps the camera can pull back beyond the normal view.
-const ZOOM_OUT_STEPS := 2
+const ZOOM_OUT_STEPS := 4
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)
@@ -3112,12 +3112,12 @@ func hp_tip() -> String:
 	return tip
 
 
-## The time of day for the HUD, e.g. "21:30, night, winter". Down in
-## the dungeon only the hour and the part of the day.
+## The time of day for the HUD, e.g. "21:30, rain". Down in
+## the dungeon only the hour.
 func _clock_text() -> String:
 	if level == null:
 		return ""
-	var text := "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+	var text := DayNight.clock_text(day_hour)
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
@@ -6093,6 +6093,10 @@ func _hero_says(text: String) -> void:
 	if typed != null:
 		_teleport_command(String(typed))
 		return
+	var goto: Variant = GotoCommand.parse(text)
+	if goto != null:
+		_goto_command(goto)
+		return
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return
@@ -6374,7 +6378,71 @@ func _to_spot(spot: String) -> void:
 	player.reset_physics_interpolation()
 
 
-func teleport_to(index: int, to_square := false, spot := "") -> bool:
+## The chat line's goto command (see GotoCommand): to an exact tile of a place, in an exact season
+## and at an exact time. Alone it writes the line for where the hero stands and copies it.
+func _goto_command(cmd: Dictionary) -> void:
+	if cmd.is_empty():
+		var here := _goto_here()
+		if here == "":
+			Events.tell(Lang.t("Dieser Ort hat keinen Teleport-Code."), TELEPORT_COLOR)
+			return
+		DisplayServer.clipboard_set(here)
+		Events.found(Lang.t("Hier (kopiert):"), TELEPORT_COLOR)
+		Events.found(here, TELEPORT_COLOR)
+		return
+	if cmd.has("error"):
+		if cmd.error != "":
+			Events.tell(Lang.t("Unverständlich: \"%s\".") % cmd.error, TELEPORT_COLOR)
+		Events.found(Lang.t("Ort, Tile, Jahreszeit und Uhrzeit: goto <Code> <x> <y> <Jahreszeit> <Zeit>, z. B. goto dorfx 149 127 autumn 14:30. Nur \"goto\" schreibt die Zeile für diesen Platz und kopiert sie."), TELEPORT_COLOR)
+		return
+	var area := Teleport.by_code(Teleport.areas(level_files), String(cmd.code))
+	if area.is_empty():
+		Events.tell(Lang.t("Kein Ort hat den Code \"%s\". Schreibe \"teleport\" für die Liste.") % String(cmd.code).to_upper(), TELEPORT_COLOR)
+		return
+	var after := func() -> void:
+		if cmd.season != "":
+			_season_command({"season": cmd.season})
+		if cmd.hour >= 0.0:
+			_tour_time = -1.0
+			_sky_force({"weather": "", "hour": cmd.hour, "winter": -1, "tour": "", "autumn": false})
+	# The square's code is the village; every other code is the map's own tile grid.
+	teleport_to(int(area.index), bool(area.get("square", false)), "", cmd.cell, after)
+
+
+## The goto line for where the hero stands now, or "" when the place has no code.
+func _goto_here() -> String:
+	for area in Teleport.areas(level_files):
+		if int(area.index) == level_index and not area.has("square"):
+			var cell := level.world_to_cell(player.global_position)
+			return GotoCommand.line(String(area.code), cell, Weather.season(season_day()), day_hour)
+	return ""
+
+
+## Sets the hero down on tile `cell` of the current map after a goto: on the ground found by a
+## ray from above, and on the nearest free spot once physics has settled if that is a wall or
+## furniture. A tile outside the map is refused (the hero stays at the entrance).
+func _to_cell(cell: Vector2i) -> void:
+	if level.cell_char(cell) == "#":
+		Events.tell(Lang.t("Dort gibt es kein begehbares Tile (%d, %d).") % [cell.x, cell.y], TELEPORT_COLOR)
+		return
+	var at := level.cell_to_world(cell)
+	var top := player.global_position.y + 3.0
+	var ray := PhysicsRayQueryParameters3D.create(Vector3(at.x, top, at.z), Vector3(at.x, top - 60.0, at.z), player.collision_mask, [player.get_rid()])
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(ray)
+	at.y = hit.position.y if not hit.is_empty() else player.global_position.y
+	player.global_position = at
+	player.velocity = Vector3.ZERO
+	player.reset_physics_interpolation()
+	_free_hero_after_goto()
+
+
+func _free_hero_after_goto() -> void:
+	await get_tree().physics_frame
+	if is_instance_valid(player) and HeroUnstick.is_wedged(player):
+		HeroUnstick.release(player, Vector3.INF, level.cell_to_world(level.start_cell))
+
+
+func teleport_to(index: int, to_square := false, spot := "", cell := Vector2i(-1, -1), after := Callable()) -> bool:
 	if index < 0 or index >= level_files.size() or not chat_allowed():
 		return false
 	var name := Lang.t(level_hint(index).name)
@@ -6399,6 +6467,10 @@ func teleport_to(index: int, to_square := false, spot := "") -> bool:
 			load_level(index, false)
 			_to_village_square(to_square)
 			_to_spot(spot)
+		if cell.x >= 0:
+			_to_cell(cell)
+		if after.is_valid():
+			after.call()
 		_snap_camera()
 		if is_instance_valid(pet):
 			pet.arrive()

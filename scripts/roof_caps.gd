@@ -4,7 +4,8 @@ extends RefCounted
 ## tiles, each a little raised at one end so it rests on its neighbour like the ridge tiles of a
 ## real roof. Without them two slopes meet in a bare, hard line (and, snowed in, a dark thin
 ## crack). The tiles are made of the aged roof tiles' own sheet (aged_roof.gdshader) and share
-## their surface, so they weather with the roof; snow caps (SnowCaps) lie over them like over
+## their surface, so they weather with the roof (their vertex colour's green marks them to the shader, which
+## samples them softer); snow caps (SnowCaps) lie over them like over
 ## any other roof.
 
 ## How long one cap tile is, and how far the next one starts after it (they overlap).
@@ -22,7 +23,11 @@ const RIDGE_BEVEL := 0.12
 const EDGE_IN := 0.26
 const EDGE_OUT := 0.07
 ## The tile sheet's single roof tile the caps show (the same sheet VillageHouse's roofs use).
-const TILE_UV := Rect2(0.5894, 0.0932, 0.0581, 0.0254)
+## The rectangle is kept a texel inside the tile (TILE_INSET): its edges lie exactly on the roof shader's
+## tile grid, where the shader's pick of "which tile is this" flips from pixel to pixel by rounding and
+## shows a random neighbour's shade (a newer, redder tile came out as a dotted tile).
+const TILE_INSET := 1.0 / 512.0
+const TILE_UV := Rect2(0.5894 + TILE_INSET, 0.0932 + TILE_INSET, 0.0581 - TILE_INSET * 2.0, 0.0254 - TILE_INSET * 2.0)
 
 
 ## The tiles of a ridge cap, into `st` (a SurfaceTool of the roof surface: positions, normals, UVs and
@@ -145,7 +150,7 @@ static func _quad(st: SurfaceTool, q: Array[Vector3], uvs: Array, outward: Vecto
 	if cross.dot(n) > 0.0 or cross.length() < 0.00001 and (q[2] - q[0]).cross(q[3] - q[0]).dot(n) > 0.0:
 		order = [0, 2, 1, 0, 3, 2]
 	for k: int in order:
-		st.set_color(colour)
+		st.set_color(Color(colour.r, 1.0, 0.0))
 		st.set_normal(n)
 		st.set_uv(uvs[k] as Vector2)
 		st.add_vertex(q[k])

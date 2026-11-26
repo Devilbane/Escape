@@ -10,6 +10,8 @@ const EN := {
 	"Unverwundbar und fünffaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.": "Invulnerable and five times the speed. Typing it again turns it off.",
 	"Teleport": "Teleport",
 	"Ohne Code listet das Ereignisprotokoll alle Orte mit ihrem Fünf-Buchstaben-Code; der Code in der nächsten Zeile bringt den Helden zum Eingang des Ortes.": "Without a code the event log lists every place with its five-letter code; the code on the next line takes the hero to that place's entrance.",
+	"Gehe zu": "Go to",
+	"Bringt den Helden auf ein genaues Tile eines Ortes, in einer Jahreszeit und zu einer Uhrzeit (beides kann fehlen). Der Code ist der des Teleports, x und y zeigt F2. Nur \"goto\" schreibt die Zeile für den jetzigen Platz ins Protokoll und kopiert sie.": "Puts the hero on an exact tile of a place, in a season and at a time of day (either may be left out). The code is the teleport's, x and y are shown by F2. \"goto\" alone writes the line for the current spot into the log and copies it.",
 	"Wetter und Zeit": "Weather and time",
 	"Erzwingt Wetter (clear, rain, fog, storm, snow), Tageszeit (dawn, morning, noon, afternoon, dusk, evening, night, midnight oder eine Stunde wie 14 oder 14:30) und Jahreszeit (winter, autumn, spring). Jeder Teil geht auch allein; time: ist dasselbe wie weather:. Schnee legt sofort eine volle Schneedecke.": "Forces the weather (clear, rain, fog, storm, snow), the time of day (dawn, morning, noon, afternoon, dusk, evening, night, midnight or an hour like 14 or 14:30) and the season (winter, autumn, spring). Either part works alone; time: is the same as weather:. Snow lays a full cover of snow at once.",
 	"Himmelstour": "Sky tour",

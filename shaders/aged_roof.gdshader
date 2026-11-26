@@ -29,19 +29,26 @@ const vec2 TILE_PITCH = vec2(29.75, 13.0);
 const float FIRST_ROW = 4.0;
 // How many mip levels softer than the screen needs the tiles are sampled.
 const float SOFT_MIPS = 1.5;
+const float MAX_LOD = 3.0;
+const float CAP_LOD = 2.5;
 // How deep the joints between the tiles sink in, in metres.
 const float RELIEF = 0.02;
 const vec2 ROW_SHIFT = vec2(16.0, 29.5);
 
 varying vec3 wpos;
 varying vec3 wnrm;
-varying float patch_seed;
+// Flat: one value over the whole patch. Interpolated, it came out a hair different from pixel to pixel
+// (rounding), and the hash below magnifies a hair into a different random number, so some tiles
+// showed a dotted mix of shades that crawled as the camera moved.
+varying flat float patch_seed;
+varying float cap_mark;
 varying float foot;
 
 void vertex() {
 	wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	wnrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	patch_seed = COLOR.r;
+	cap_mark = COLOR.g;
 	foot = NODE_POSITION_WORLD.y;
 }
 
@@ -50,13 +57,17 @@ float lum(vec3 c) {
 }
 
 void fragment() {
+	bool is_cap = cap_mark > 0.5;
 	vec3 n = normalize(wnrm);
 	float px = length(fwidth(wpos));
 	// The tiles' dark joints are a pixel or two wide: sampled a mip level softer than the screen
 	// asks for (and so not stretched sharp by anisotropy), they no longer crawl as the camera moves.
 	vec2 tex_dx = dFdx(UV * 512.0);
 	vec2 tex_dy = dFdy(UV * 512.0);
-	float lod = max(0.0, 0.5 * log2(max(dot(tex_dx, tex_dx), dot(tex_dy, tex_dy))) + SOFT_MIPS);
+	// A cap tile (vertex colour green, see RoofCaps) shows one tile's picture stretched over a curved,
+	// stepped shape, so its texels would flicker; it is sampled at least CAP_LOD soft. Never above
+	// MAX_LOD: a patch's UV rectangle keeps that many texels clear of the sheet's other pictures.
+	float lod = clamp(0.5 * log2(max(dot(tex_dx, tex_dx), dot(tex_dy, tex_dy))) + SOFT_MIPS, is_cap ? CAP_LOD : 0.0, MAX_LOD);
 	vec3 tex = textureLod(trim, UV, lod).rgb;
 	float raw = lum(tex);
 
@@ -65,7 +76,8 @@ void fragment() {
 	float row = floor((sp.y - FIRST_ROW) / TILE_PITCH.y);
 	float shift = mod(row, 2.0) > 0.5 ? ROW_SHIFT.x : ROW_SHIFT.y;
 	float col = floor((sp.x - shift) / TILE_PITCH.x);
-	vec3 id = vec3(col, row, patch_seed * 113.0);
+	// Rounded to a whole number, so that no rounding hair is left to magnify.
+	vec3 id = vec3(col, row, floor(patch_seed * 4096.0 + 0.5) * (113.0 / 4096.0));
 	// A tile is 13-30 cm: from far away the per-tile shades are smaller than a pixel and would
 	// shimmer as the camera moves, so they fade out to their average with the distance.
 	float tile_fade = band(8.0, px);
@@ -103,7 +115,8 @@ void fragment() {
 	// Low on the roof (near the eaves), more moss and more grime.
 	float low = 1.0 - smoothstep(0.0, 3.0, wpos.y - foot - 5.0);
 	// Moss: in the joints first, and in patches over the tiles.
-	float joint = 1.0 - smoothstep(0.06, 0.16, raw);
+	// The joints are a pixel or two wide from afar, where a hard-edged mask of them would crawl: it fades out.
+	float joint = (1.0 - smoothstep(0.06, 0.16, raw)) * tile_fade;
 	float clump = smoothstep(0.68, 0.86, fbm(p * 2.2 + 5.0) + low * 0.15);
 	float moss = clamp(joint * (0.15 + 0.35 * cloud) + clump * 0.85, 0.0, 1.0) * age;
 	vec3 moss_col = mix(vec3(0.12, 0.16, 0.05), vec3(0.24, 0.28, 0.09), vnoise(wpos * 5.0));

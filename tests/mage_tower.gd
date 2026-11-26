@@ -96,6 +96,14 @@ func _run() -> void:
 			var box: AABB = (part as MeshInstance3D).get_aabb()
 			low = minf(low, ((part as MeshInstance3D).global_transform * box).position.y)
 		check(low > hall.global_position.y + 1.9, "the hero walks under the sign (its lowest point %.2f m up)" % (low - hall.global_position.y))
+	# A door opens for a hero at its foot, not for one standing on the matching spot a storey above.
+	var door_foot: Vector3 = hall.global_transform * (rec.door as Vector3)
+	rec["push"] = 0.0
+	lvl.walk_in._mind_door(rec, door_foot + Vector3(0.0, 3.4, 0.5), 0.1)
+	check(float(rec.push) <= 0.0, "the door does not open for a hero a floor above it")
+	rec["push"] = 0.0
+	lvl.walk_in._mind_door(rec, door_foot + Vector3(0.0, 0.1, 0.5), 0.1)
+	check(float(rec.push) > 0.0, "the door opens for a hero at its foot")
 	var open_lights := 0
 	for l: Node in hall.find_children("*", "Light3D", true, false):
 		if not l.has_meta(LightShadows.INDOOR):

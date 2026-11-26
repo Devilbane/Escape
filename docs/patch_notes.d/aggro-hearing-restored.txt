@@ -1,0 +1,1 @@
+- Monsters notice and hear you as before again. Only when you strike a monster that was not after you yet do other monsters with a clear line of sight to it come to its aid.

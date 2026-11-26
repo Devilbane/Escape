@@ -136,8 +136,20 @@ func _run() -> void:
 	if OS.get_environment("HIDE") != "":
 		for n: Node in root.find_children(OS.get_environment("HIDE") + "*", "Node3D", true, false):
 			(n as Node3D).visible = false
+	var targets: Array = []
+	if OS.get_environment("TARGETS") != "":
+		# Buildings by the letter of their door instead of the villagers' houses (the bank "b", the temple "s").
+		for key in OS.get_environment("TARGETS").split(","):
+			if lvl.doors.has(key):
+				var holder := Node3D.new()
+				holder.name = "Door_" + key
+				holder.position = lvl.doors[key]
+				lvl.add_child(holder)
+				targets.append({"node": holder, "door": true})
+	else:
+		targets = lvl.walk_in.buildings
 	var lit_houses := 0
-	for rec in lvl.walk_in.buildings:
+	for rec in targets:
 		var node: Node3D = rec.node
 		if OS.get_environment("HOUSES") != "" and lit_houses >= int(OS.get_environment("HOUSES")):
 			break
@@ -153,7 +165,10 @@ func _run() -> void:
 			if OS.get_environment("VIEW") != "" and view != int(OS.get_environment("VIEW")):
 				continue
 			var turn := Basis(Vector3.UP, view * PI * 0.5)
-			if view == 3:
+			if rec.get("door", false):
+				cam.global_position = front + Vector3(0, 8.0, 10.0)
+				cam.look_at(front + Vector3(0, 2.5, -3.0))
+			elif view == 3:
 				# From inside, looking at the floor and the far wall: the room must stay candle-lit.
 				cam.global_position = front + Vector3(0, 1.9, 1.6)
 				cam.look_at(front + Vector3(0, 0.2, -1.6))

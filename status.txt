@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Do less per frame in the open air; Climbing wall: hidden rock door, Chaos slider in the workshop | Shipped this week: Climbing wall: sleeping bag in the hammock, closed eyes, body and rope outside the rock; Settings: option to skip the loading screen at startup (+48 more)
+Escape! dev status | Working on: Do less per frame in the open air | Shipped this week: Climbing wall: hidden rock door, Chaos slider in the workshop (+49 more)

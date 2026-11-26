@@ -3,7 +3,7 @@ extends RefCounted
 ## GraveLore). Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"Er hörte, was die Nacht verschwieg. Wenn der Mond sich rundet, lausche den Eulen und läute es ihm zurück.": "He heard what the night kept silent. When the moon grows round, listen to the owls and ring it back to him.",
+	"Er hörte, was die Nacht verschwieg.": "He heard what the night kept silent.",
 	"Er sagte, die Suppe sei nicht vergiftet. Er hatte recht: Es war der Pilz.": "He said the soup was not poisoned. He was right: it was the mushroom.",
 	"Sie liebte ihren Garten so sehr, dass sie jetzt darin bleibt.": "She loved her garden so much that she now stays in it.",
 	"Er wollte nur kurz nachsehen, ob die Falle noch scharf ist.": "He only wanted to check quickly whether the trap was still armed.",
@@ -26,7 +26,7 @@ const EN := {
 	"Sie verlor ihren Schlüssel. Er liegt jetzt bei ihr, und niemand schließt mehr auf.": "She lost her key. It lies with her now, and nobody unlocks anything any more.",
 	"Egbert sagte nie viel. Hier sagt er nichts mehr, aber ausführlich.": "Egbert never said much. Here he says nothing, but at length.",
 	"Sie war nie allein. Die Raben und die Würmer leisten ihr Gesellschaft.": "She was never alone. The ravens and the worms keep her company.",
-	"Owlav Hearings Grabstein: „Er hörte, was die Nacht verschwieg. Wenn der Mond sich rundet, lausche den Eulen und läute es ihm zurück.“": "Owlav Hearing's gravestone: “He heard what the night kept silent. When the moon grows round, listen to the owls and ring it back to him.”",
+	"Owlav Hearings Grabstein: „Er hörte, was die Nacht verschwieg.“": "Owlav Hearing's gravestone: “He heard what the night kept silent.”",
 	"Totenläuter": "The Deathringer",
 	"Einzigartig: Taste 3 läutet die Glocke. Die Toten hören zu, wenn man sie nicht zu oft ruft": "Unique: key 3 rings the bell. The dead listen, as long as they are not called too often",
 	"Owlavs Lauschamulett": "Owlav's Listening Amulet",

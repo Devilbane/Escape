@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Open the test panel with F6 too and the wall workshop by chat command | Shipped this week: Add five more apple trees to the DB logo tile; Add the ossuary: shelves of named skulls and Zarek's two-skull task (+48 more)
+Escape! dev status | Shipped this week: Open the test panel with F6 too and the wall workshop by chat command; Add five more apple trees to the DB logo tile (+48 more)

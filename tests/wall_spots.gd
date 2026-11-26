@@ -13,10 +13,16 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
-	for kind in ["tar", "edelweiss", "door"]:
+	for kind in ["tar", "edelweiss", "door", "secret"]:
 		check(WallMap.MARKERS.has(kind), "%s is a marker" % kind)
 		var spot := WallSpots.build(kind, 7)
-		check(spot != null and spot.get_child_count() > 3, "%s builds a scene with parts" % kind)
+		check(spot != null and spot.get_child_count() > (1 if kind == "secret" else 3), "%s builds a scene with parts" % kind)
+		if kind == "secret" and spot != null:
+			var slab := spot.get_node_or_null("Pivot/Slab") as Node3D
+			check(slab != null, "the hidden door is a slab of rock on a pivot")
+			check(bool(WallMap.MARKERS.secret.get("hidden", false)), "the hidden door has no sign")
+			spot.free()
+			continue
 		if spot != null:
 			var textured := 0
 			for c in spot.get_children():
@@ -28,6 +34,8 @@ func _initialize() -> void:
 		var id: String = WallSpots.GATHER[kind].id
 		check(Crafting.INGREDIENTS.has(id), "ingredient %s of %s exists" % [id, kind])
 		check(int(WallSpots.GATHER[kind].count) >= 1, "%s gives at least one" % kind)
+	var hidden := WallBuild.new(WallMap.load_file("res://walls/sample_three_paths.txt")).secret_mesh(9, 2)
+	check(hidden != null and hidden.surface_get_arrays(0)[Mesh.ARRAY_COLOR] != null, "the hidden door is made of the wall's own weathered stones")
 	check(WallSpots.build("camp", 1) == null, "a kind without a scene gives none")
 	var wall := WallMap.load_file("res://walls/sample_three_paths.txt")
 	var found := {}

@@ -17,7 +17,8 @@ extends RefCounted
 ##   name: Sample face
 ##   level: 3
 ##   summit: 11_die_freiheit.txt:square   (optional: where the top of the wall leads)
-##   door: 22_die_glutstollen.txt:square  (optional: where a door marker leads, into a dungeon or mine)
+##   door: 22_die_glutstollen.txt:square  (optional: where a door or secret marker leads, into a dungeon or mine; a secret
+##   door looks like plain rock, with no sign, until the climber reaches it)
 ##   size: 24 24
 ##   [holds]
 ##   - 1udlr 2r ...          (one line per row, the squares divided by spaces)
@@ -65,6 +66,7 @@ const MARKERS := {
 	"tar": {"name": "Bergteer", "text": "Aus einem Riss im Fels quillt dunkles, klebriges Harz: Bergteer. Du kratzt davon ab.", "colour": Color(0.85, 0.6, 0.25)},
 	"edelweiss": {"name": "Edelweiß", "text": "Auf einem schmalen Absatz blüht ein Büschel Edelweiß. Du pflückst es.", "colour": Color(0.95, 0.97, 1.0)},
 	"door": {"name": "Stollentür", "text": "Eine alte Tür im Fels. Dahinter beginnt ein Stollen.", "colour": Color(0.8, 0.6, 0.35)},
+	"secret": {"name": "Geheimtür", "text": "Der Fels klingt hohl. Ein Stein schwingt auf: eine verborgene Tür!", "colour": Color(0.8, 0.6, 0.35), "hidden": true},
 	"camp": {"name": "Rastplatz", "text": "Ein Felsband, breit genug zum Rasten: hier kann man die Nacht verbringen (R).", "colour": Color(1.0, 0.8, 0.4)},
 	"body": {"name": "Toter Kletterer", "text": "Ein toter Kletterer hängt im Seil. Seine Ausrüstung ist noch brauchbar.", "colour": Color(0.75, 0.75, 0.8)},
 }

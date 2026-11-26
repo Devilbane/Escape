@@ -363,7 +363,7 @@ func decor_at(c: int, r: int) -> Vector3:
 	# Keep clear of the special spots (tar, edelweiss, door) so they are seen.
 	for dr in range(-1, 2):
 		for dc in range(-1, 2):
-			if map.marker_at(c + dc, r + dr) in ["tar", "edelweiss", "door"]:
+			if map.marker_at(c + dc, r + dr) in ["tar", "edelweiss", "door", "secret"]:
 				return Vector3(-1, -1, 0)
 	var h1 := _hash(c * 7 + 1, r * 5 + 2)
 	var h2 := _hash(c * 11 + 5, r * 3 + 9)
@@ -655,6 +655,34 @@ func decor_mesh() -> ArrayMesh:
 			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h2 - 0.5) * 70.0)) * Basis(Vector3.UP, h3 * TAU)
 			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.08)))
 			count += 1
+	if count == 0:
+		return null
+	return _weathered(st.commit())
+
+
+## The stones of a hidden door (marker "secret") at square (c, r): the very stones the wall itself is dressed with (the
+## same rock meshes, in the same weathering, chalk and ice as the decorative stones), a few lapping over the door's
+## opening so that nothing sets it apart from its neighbours. In wall coordinates, like the other stone meshes; the stage
+## hangs them on the door's pivot.
+func secret_mesh(c: int, r: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var centre := square_centre(map, c, r)
+	var kinds := ["rock_single_A", "rock_single_C", "rock_single_E"]
+	var spots := [Vector3(-0.1, 0.05, 1.7), Vector3(0.12, 0.7, 1.8), Vector3(-0.06, 1.3, 1.6)]
+	var count := 0
+	for i in spots.size():
+		var h1 := _hash(c * 7 + i, r * 5 + 2)
+		var h2 := _hash(c * 11 + 5 + i, r * 3 + 9)
+		var h3 := _hash(c * 17 + 2, r * 13 + 4 + i)
+		var mesh: ArrayMesh = NaturalRock.mesh(kinds[int(h3 * 3.0) % 3])
+		if mesh == null:
+			continue
+		var at: Vector3 = spots[i]
+		var x := centre.x + at.x
+		var y := centre.y + at.y
+		var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h2 - 0.5) * 70.0)) * Basis(Vector3.UP, h3 * TAU)
+		st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * at.z * (0.9 + 0.2 * h1)), Vector3(x, y, depth_at(centre.x, centre.y) - 0.08)))
+		count += 1
 	if count == 0:
 		return null
 	return _weathered(st.commit())

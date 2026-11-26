@@ -32,6 +32,9 @@ signal gathered(ingredient: String, count: int)
 ## The climber reached a door in the wall (marker "door"); the wall's `door` says where it leads.
 signal door_reached(cell: Vector2i)
 
+## The hidden doors on the face (marker "secret") by cell, to swing them open.
+var _secrets := {}
+
 const FOLLOW_DISTANCE := 10.0
 const OVERVIEW_MARGIN := 1.25
 const WARN_SECONDS := 1.5
@@ -267,10 +270,24 @@ func _build() -> void:
 
 ## The signs of the goals and events on the wall, and the dead climber hanging in his rope where there is one.
 func _build_markers() -> void:
+	_secrets.clear()
 	for cell: Vector2i in wall.markers:
 		var kind := String(wall.markers[cell])
 		var xy := WallBuild.square_centre(wall, cell.x, cell.y)
 		var z := _builder.depth_at(xy.x, xy.y)
+		if bool(WallMap.MARKERS[kind].get("hidden", false)):
+			var secret := WallSpots.build(kind, int(cell.x * 31 + cell.y))
+			secret.position = Vector3(xy.x, xy.y, z)
+			var stones := _builder.secret_mesh(cell.x, cell.y)
+			if stones != null:
+				var rock := MeshInstance3D.new()
+				rock.mesh = stones
+				rock.material_override = AgedStone.rock_material()
+				rock.position = Vector3(WallSpots.SECRET_WIDTH * 0.5 - xy.x, -xy.y, -z)
+				secret.get_node("Pivot/Slab").add_child(rock)
+			wall_root.add_child(secret)
+			_secrets[cell] = secret
+			continue
 		var label := Label3D.new()
 		label.text = Lang.t(String(WallMap.MARKERS[kind].name))
 		label.font_size = 56
@@ -772,6 +789,8 @@ func try_move(dir: int, roll: float, fall_roll: float) -> int:
 			gathered.emit(String(WallSpots.GATHER[kind].id), int(WallSpots.GATHER[kind].count))
 		elif kind == "door":
 			door_reached.emit(to)
+		elif kind == "secret":
+			_open_secret(to)
 	return out
 
 
@@ -962,6 +981,20 @@ func _play_cues(key: String, from_u: float, to_u: float) -> void:
 		if (from_u < at_u and at_u <= to_u) or (from_u < 0.0 and at_u <= to_u and at_u < 0.05):
 			var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0) if bool(c.get("tired", false)) else 0.0
 			_sound(String(c.kind), float(c.db) + tired * 6.0, 1.0 - tired * 0.18)
+
+
+## The hidden door swings open (it looked like rock until now), then the way leads through it.
+func _open_secret(cell: Vector2i) -> void:
+	var secret: Node3D = _secrets.get(cell)
+	if secret == null or not is_instance_valid(secret):
+		door_reached.emit(cell)
+		return
+	var pivot := secret.get_node("Pivot") as Node3D
+	(secret.get_node("Recess") as Node3D).visible = true
+	var tween := create_tween()
+	tween.tween_property(pivot, "rotation:y", -1.5, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(0.6)
+	tween.tween_interval(0.8)
+	tween.tween_callback(func() -> void: door_reached.emit(cell))
 
 
 ## The sounds of a special spot (tar, edelweiss, door), spread over the next seconds.

@@ -1,0 +1,1 @@
+- The HUD shows just the clock; the written time-of-day word is gone.

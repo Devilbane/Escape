@@ -3112,12 +3112,12 @@ func hp_tip() -> String:
 	return tip
 
 
-## The time of day for the HUD, e.g. "21:30, night, winter". Down in
-## the dungeon only the hour and the part of the day.
+## The time of day for the HUD, e.g. "21:30, rain". Down in
+## the dungeon only the hour.
 func _clock_text() -> String:
 	if level == null:
 		return ""
-	var text := "%s, %s" % [DayNight.clock_text(day_hour), Lang.t(DayNight.part_of_day(day_hour))]
+	var text := DayNight.clock_text(day_hour)
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text

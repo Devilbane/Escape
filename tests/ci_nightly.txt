@@ -246,3 +246,4 @@ test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens
 house_puddle_shots.gd | 600 | fixed | pass | A rain puddle across a self-built house stops at its walls (screenshots with SHOTS)
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
 bush_variety.gd | 120 | free | pass | Bushes come in many kinds (shapes, leaf shapes, colours, branches, berries, blooms), neighbours differ, seasons turn the green ones and keep the evergreens, details drawn only near
+grave_styles.gd | 120 | free | pass | Gravestone styles: every style builds, fits its footprint, and the graveyard mixes them

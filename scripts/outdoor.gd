@@ -1649,12 +1649,26 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"\\":
 			village_wall.add(self, c, true)
 		"g":
-			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
-			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
-			_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			# Each stone is its own: its kind, model and lean follow from its tile, so the rest of the map's
+			# random numbers do not move when graves are added.
+			var grave_rng := RandomNumberGenerator.new()
+			grave_rng.seed = hash("%s|grab|%s" % [level_name, c])
+			var style := GraveStyles.pick(level_name, c)
+			if c == OwlClock.grave_cell() or c == RiddleCount.grave_of(level_name):
+				style = "classic"
+			var jitter := Vector3(grave_rng.randf_range(-0.3, 0.3), 0, grave_rng.randf_range(-0.3, 0.3))
+			var lean := grave_rng.randf_range(-0.15, 0.15)
+			if style == "classic":
+				var stone := _put(GRAVES[grave_rng.randi() % GRAVES.size()], pos + Vector3(0, 0, -0.6) + jitter, lean)
+				_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			else:
+				var memorial := GraveStyles.build(style, grave_rng.randi())
+				memorial.position = pos + Vector3(0, 0, -0.6) + jitter * 0.5
+				memorial.rotation.y = lean
+				add_child(memorial)
 			OwlClock.place_grave(self, c, pos, _graves.size())
 			_graves.append(c)
-			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
+			_add_solid(pos + Vector3(0, 0, -0.6), GraveStyles.footprint(style))
 			_grave_light(c, pos)
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]

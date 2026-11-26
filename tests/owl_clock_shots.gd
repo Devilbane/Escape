@@ -78,6 +78,9 @@ func _run() -> void:
 	var lvl: Outdoor = game.level
 	var grave := lvl.owlav_pos
 	var hero: Player = game.player
+	if OS.get_environment("ONLY_YARD") != "":
+		await _yard_by_day(lvl)
+		return
 	hero.global_position = lvl.cell_to_world(lvl.start_cell)
 	hero.reset_physics_interpolation()
 	game.treasure_maps.state[OwlClock.ID] = ""
@@ -115,6 +118,31 @@ func _run() -> void:
 	var tell: String = game.riddles.card(lvl.level_name)
 	check(tell.contains("Apple Valley") and tell.contains("00/02"), "the counter reads in English: %s" % tell)
 	await _inside()
+
+
+## The graveyard by day, from the gate and from above, and a few stones close up.
+func _yard_by_day(lvl: Outdoor) -> void:
+	game.day_hour = 12.0
+	game.player.global_position = lvl.cell_to_world(Vector2i(12, 7))
+	game.player.reset_physics_interpolation()
+	await _wait(40)
+	_hide_hud()
+	var mid := lvl.cell_to_world(Vector2i(12, 8))
+	_view(mid, Vector3(0, 34, 26), Vector3(0, 0, 0))
+	await _wait(5)
+	await _shot("yard_day_overview")
+	_view(lvl.cell_to_world(Vector2i(8, 8)), Vector3(0, 7, 14), Vector3(0, 0.5, 0))
+	await _wait(5)
+	await _shot("yard_day_west")
+	_view(lvl.cell_to_world(Vector2i(18, 8)), Vector3(0, 7, 14), Vector3(0, 0.5, 0))
+	await _wait(5)
+	await _shot("yard_day_east")
+	_view(lvl.cell_to_world(Vector2i(6, 11)), Vector3(0, 4, 9), Vector3(0, 0.8, 0))
+	await _wait(5)
+	await _shot("yard_day_close")
+	game.delete_save(game.save_path())
+	print("PASS: owl clock shots")
+	quit(0)
 
 
 func _inside() -> void:

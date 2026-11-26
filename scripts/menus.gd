@@ -1180,18 +1180,18 @@ func _build_inventory() -> void:
 		label.custom_minimum_size.x = WORN_CELL.x
 		place.add_child(label)
 		row.add_child(place)
-	# Two tabs share the space below: the bag and the ingredient pouch.
+	# Tabs share the space below: the bag, the ingredient pouch, the purse and
+	# the bonuses and penalties of gear and weight.
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 8)
 	_box.add_child(tabs)
 	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag_used(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
-	# The bag is three cells wide, the pouch two, the purse (coins and gems)
-	# one: together as wide as the bag's grid.
-	for tab in [["tasche", bag_tab, 3], ["beutel", pouch_tab, 2], ["muenzen", Lang.t("Geldbeutel"), 1]]:
+	# Four tabs as wide as the window (their widths in px, with the gaps).
+	for tab in [["tasche", bag_tab, 372], ["beutel", pouch_tab, 214], ["muenzen", Lang.t("Geldbeutel"), 150], ["effekte", Lang.t("Boni / Mali"), 156]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
-		b.custom_minimum_size = Vector2(tab[2] * ACTION_WIDTH + (tab[2] - 1) * 8, 44)
+		b.custom_minimum_size = Vector2(tab[2], 44)
 		b.clip_text = true
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.modulate = Color(1.0, 0.9, 0.6) if inventory_tab == tab[0] else Color(0.75, 0.75, 0.8)
@@ -1209,8 +1209,90 @@ func _build_inventory() -> void:
 		var room := page.get_combined_minimum_size()
 		_box.remove_child(page)
 		page.queue_free()
-		_box.add_child(_pouch_page(room, 6) if inventory_tab == "beutel" else _purse_page(room))
+		match inventory_tab:
+			"beutel": _box.add_child(_pouch_page(room, 6))
+			"effekte": _box.add_child(_gear_page(p, room))
+			_: _box.add_child(_purse_page(room))
 	_box.add_child(_inventory_details())
+
+
+## Height of one row of the bonuses box, and the box's rows: the equipment's
+## seven in two columns, the weight's four. Fixed, so the box never resizes.
+const GEAR_ROW := 21
+const GEAR_GOOD := Color(0.4, 0.92, 0.4)
+const GEAR_BAD := Color(1.0, 0.38, 0.32)
+const GEAR_NONE := Color(0.6, 0.6, 0.66)
+
+
+## The bonuses tab: the box as wide as the window, in a region as high as the
+## bag's page, so switching to it moves nothing.
+func _gear_page(p: Player, room: Vector2) -> Control:
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(INVENTORY_WIDTH, room.y)
+	var box := _gear_box(p)
+	box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	holder.add_child(box)
+	return holder
+
+
+## "Bonuses and penalties" (a tab of the inventory): what the whole worn gear
+## adds or takes (left) and what the carried weight does (right), each row
+## green for a bonus, red for a penalty and grey for nothing. The rows are
+## always the same, so putting something on or off moves nothing.
+func _gear_box(p: Player) -> Control:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UiKit.frame_style(Color(0.05, 0.035, 0.03, 0.6), Color(0.45, 0.3, 0.15, 0.8), 2))
+	panel.custom_minimum_size.x = INVENTORY_WIDTH
+	var margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	for side in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 4)
+	panel.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 22)
+	margin.add_child(row)
+	var left := GearEffects.equipment_lines(p)
+	row.add_child(_gear_column(Lang.t("Von der Ausrüstung"), [left.slice(0, 3), left.slice(3, 5), left.slice(5)], 3.0))
+	var right := GearEffects.weight_lines(p)
+	row.add_child(_gear_column(Lang.t("Vom Gewicht (bremst höchstens %d %%)") % roundi(Items.MAX_WEIGHT_SLOW * 100.0),
+			[right.slice(0, 2), right.slice(2)], 2.4))
+	return panel
+
+
+## One column of the box: a gold heading and its rows ([name, text, sign]), in
+## one or two sub-columns; `stretch` is its share of the box's width.
+func _gear_column(title: String, groups: Array, stretch: float) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.size_flags_stretch_ratio = stretch
+	var heading: Label = game._make_label(game.TEXT_FONT, INVENTORY_TEXT, game.GOLD)
+	heading.text = title
+	col.add_child(heading)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 16)
+	col.add_child(cols)
+	for group in groups:
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_theme_constant_override("h_separation", 10)
+		grid.add_theme_constant_override("v_separation", 0)
+		cols.add_child(grid)
+		for line in group:
+			var name: Label = game._make_label(game.TEXT_FONT, INVENTORY_TEXT - 1, Color(0.8, 0.78, 0.7))
+			name.text = line[0]
+			name.custom_minimum_size.y = GEAR_ROW
+			name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			name.clip_text = true
+			name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			grid.add_child(name)
+			var value: Label = game._make_label(game.TEXT_FONT, INVENTORY_TEXT - 1, [GEAR_BAD, GEAR_NONE, GEAR_GOOD][int(line[2]) + 1])
+			value.text = line[1]
+			value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			grid.add_child(value)
+	return col
 
 
 ## A line of the hero's values at the top of the inventory: wrapped at the

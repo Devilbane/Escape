@@ -66,7 +66,7 @@ func _loops(id: String, seen: Array) -> bool:
 
 func _test() -> void:
 	# --- The data.
-	check(SkillTrees.ALL.size() == 79, "79 skills in all (%d)" % SkillTrees.ALL.size())
+	check(SkillTrees.ALL.size() == 80, "80 skills in all (%d)" % SkillTrees.ALL.size())
 	var tree_ids := SkillTrees.TREES.map(func(t): return t[0])
 	for id in SkillTrees.ALL:
 		var s: Dictionary = SkillTrees.ALL[id]

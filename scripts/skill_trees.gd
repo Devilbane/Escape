@@ -104,6 +104,7 @@ const ALL := {
 	"transmutation": {"name": "Transmutation", "tree": "alchemie_kueche", "row": "master", "levels": 10, "attributes": ["intelligenz"], "needs": {"saeuren_salze": 12, "magie": 12},},
 	# --- Arkanum
 	"magie": {"name": "Arkane Energie", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
+	"nekromantie": {"name": "Nekromantie", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
 	"meditation": {"name": "Meditation", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["weisheit", "intelligenz"],},
 	"elementarmagie": {"name": "Elementarmagie", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"magie": 10},},
 	"schutzzauber": {"name": "Schutzzauber", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["weisheit"], "needs": {"magie": 8, "meditation": 5},},

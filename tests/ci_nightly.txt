@@ -251,3 +251,4 @@ wall_climb.gd | 400 | fixed | passfail | The mountaineer climbs the sample wall 
 bush_variety.gd | 120 | free | pass | Bushes come in many kinds (shapes, leaf shapes, colours, branches, berries, blooms), neighbours differ, seasons turn the green ones and keep the evergreens, details drawn only near
 wall_auto.gd | 300 | fixed | passfail | Wolfram climbs the sample wall by himself (plans a route, looks at cracks, rests, curses and screams, turns back, reaches the top)
 grave_styles.gd | 120 | free | pass | Gravestone styles: every style builds, fits its footprint, and the graveyard mixes them
+grave_secrets_shots.gd | 600 | fixed | pass | Pictures of the bell grave, Archy's grave and the spirit

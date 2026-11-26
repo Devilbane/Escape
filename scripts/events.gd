@@ -42,6 +42,8 @@ signal bounty_paid(id: String)
 signal riddle_solved(kind: String, place_level: int)
 ## An official riddle is solved (its id, see RiddleCount): the counter gravestones count it.
 signal riddle_done(id: String)
+## A riddle of the graveyards is solved (its id, see GraveyardRiddles): two of them teach Necromancy.
+signal graveyard_riddle(id: String)
 ## The hero fished up a bottle with a treasure map in it (see Fishing and
 ## TreasureMaps): the map's id. Its spot shows in the world from now on.
 signal treasure_map_found(id: String)

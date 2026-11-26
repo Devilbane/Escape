@@ -209,6 +209,8 @@ var treasure_maps := TreasureMaps.new(self)
 var owl_clock := OwlClock.new(self)
 ## The riddle counter: which of the official riddles are solved (see RiddleCount).
 var riddles := RiddleCount.new()
+## The graveyards' riddles solved, and the Necromancy they teach (see GraveyardRiddles).
+var graveyard_riddles := GraveyardRiddles.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -588,6 +590,7 @@ func _bus_links() -> Array:
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
 		[bus.riddle_done, riddles.solve],
+		[bus.graveyard_riddle, _on_graveyard_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
@@ -1958,6 +1961,7 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
 		show_message(riddles.card(level.level_name) if s.get("counter", false) else GraveLore.card(s), 7.0)
+		quests.start_found(Quests.TALES)
 		if s.get("owlav", false):
 			learn(GraveLore.OWLAV_LORE)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
@@ -4117,6 +4121,7 @@ func begin_new_game() -> void:
 	treasure_maps.clear()
 	owl_clock.clear()
 	riddles.clear()
+	graveyard_riddles.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -4521,6 +4526,7 @@ func _apply_save(data: Dictionary) -> void:
 	treasure_maps.load_from(data.get("treasure_maps", {}))
 	owl_clock.load_from(data.get("owl_clock", {}))
 	riddles.load_from(data.get("riddles", []))
+	graveyard_riddles.load_from(data.get("graveyard_riddles", []))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -4874,7 +4880,7 @@ func _home_given_now() -> bool:
 func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "graveyard_riddles": graveyard_riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -6041,9 +6047,23 @@ func chat_allowed() -> bool:
 ## and goes into the event log (as every spoken line does), and whoever is
 ## near may answer (see HeroChat).
 ## The hero spoke: by the scarecrow in the sunflower field the right words set off the fireworks (see SunflowerRiddle).
+## A riddle of the graveyards is solved: the second one teaches Necromancy (see GraveyardRiddles).
+func _on_graveyard_riddle(id: String) -> void:
+	if not graveyard_riddles.solve(id):
+		return
+	riddles.solve(id)
+	quests.start_found(Quests.TALES)
+	quests.update_tales()
+	if graveyard_riddles.riddles_solved() >= GraveyardRiddles.NEEDED and GraveyardRiddles.teach(player):
+		Training.save_hero(hero_name, player.xp, player.level_data())
+		Events.tell(Lang.t(GraveyardRiddles.OPENED), Color(0.7, 1.0, 0.85), 7.0)
+
+
 func _on_riddle_spoken(text: String, pos: Vector3) -> void:
 	if level is Outdoor and level.sunflower_riddle != null:
 		level.sunflower_riddle.on_hero_spoke(text, pos)
+	if level is Outdoor and level.grave_spirit != null:
+		level.grave_spirit.on_hero_spoke(text, pos)
 
 
 func _hero_says(text: String) -> void:

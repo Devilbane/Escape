@@ -73,4 +73,6 @@ static func other(index: int) -> Dictionary:
 
 ## What a stone says, as the message shows it.
 static func card(entry: Dictionary) -> String:
+	if str(entry.name) == "":
+		return "„" + Lang.t(entry.text) + "“"
 	return Lang.t(entry.name) + "\n„" + Lang.t(entry.text) + "“"

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Let fog and weather reach the ground right outside house walls; Climbing: 85% rest, give-up rule, hammock sleep | Shipped this week: Climbing wall: injuries, no regeneration, chaos and fog, free camera, feet on stones; Fade the mountain rock's edge into the ground (+48 more)
+Escape! dev status | Working on: Climbing: 85% rest, give-up rule, hammock sleep | Shipped this week: Let fog and weather reach the ground right outside house walls; Climbing wall: injuries, no regeneration, chaos and fog, free camera, feet on stones (+48 more)

@@ -39,7 +39,7 @@ Every square you climb onto is one move.
 The climbing meter **is** the run meter (`Player.max_stamina`: Konstitution x 2 seconds, back at Konstitution / 10 per second), so a climb leaves the hero as winded as a long run. Konstitution is the key attribute here: it sets how many moves a climb can last, and Klettern sets how likely each move is.
 
 * **Cost per move** (run-seconds): 1.0 per step, +0.25 per point of malus, +1.0 on ice, loose stones or moss, +0.5 in rain or snow (+1.0 in storm); a jump costs 3 plus 1 per metre of gap. Bracing against a falling stone costs 1.5 per second.
-* **Rest:** hanging still gives the meter back. On the ground, at a nail or on an easy hold (malus 2 or less, no surface) it comes back **4x** as fast as running recovery; on any other hold only a quarter of the base rate.
+* **Rest:** hanging still gives **nothing** back while climbing. Only resting does: catching breath (R; more on the ground, at a nail or on an easy hold), a rest place by day or night, and the hammock there.
 * **Tired:** below 30 % of the meter every chance shrinks, down to 40 % of itself at empty (a 62 % move becomes 25 %).
 * **Empty:** the next move is a fall ("your arms give out").
 * Example: Konstitution 10 has 20 run-seconds. A malus-3 step costs 1.75, so about 11 such steps in a row; then rest on an easy hold (about 5 s for a full refill) or at a nail.

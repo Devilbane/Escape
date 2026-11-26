@@ -1,0 +1,1 @@
+- On the climbing wall the breath meter no longer comes back by hanging still: only resting (catching breath, rest places, the hammock) restores it.

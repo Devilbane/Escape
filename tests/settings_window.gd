@@ -1,5 +1,5 @@
 extends SceneTree
-## The settings window and the graphics options behind it: the three tabs keep one window size, a choice
+## The settings window, its profiles and the graphics options behind it: the three tabs keep one window size, a choice
 ## changes the game at once and is remembered in the settings file, a preset lets go of single options, a
 ## value that does not fit is refused, and the bump strength reaches the shaders' global parameter.
 ## Run with: godot --headless --fixed-fps 60 -s tests/settings_window.gd
@@ -59,6 +59,11 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	var size := _rect().size
+	if shots != "":
+		SettingsProfiles.save_slot(1, "Calm evening")
+		Graphics.choose_tone("brightness", 1.2)
+		SettingsProfiles.save_slot(3, "Bright")
+		Graphics.choose_tone("brightness", 1.0)
 	for t in SettingsWindow.TABS:
 		SettingsWindow.tab = t[0]
 		menus._rebuild()
@@ -113,6 +118,37 @@ func _run() -> void:
 	Graphics.choose(Graphics.PERFORMANCE, view)
 	check(not Graphics.is_custom() and LightShadows.budget == 4, "a preset clears the options")
 	check(Graphics.fps_cap == 60, "a preset keeps the frame limit")
+	# Profiles: saved in places, loaded, told apart, overwritten and deleted.
+	Graphics.choose(Graphics.QUALITY, view)
+	Graphics.choose_option("lamps", 3, view)
+	Graphics.choose_tone("saturation", 0.5)
+	SettingsProfiles.save_slot(2, "  Calm  ")
+	check(SettingsProfiles.get_slot(2).name == "Calm", "a profile keeps its trimmed name")
+	check(SettingsProfiles.is_current(2), "the settings equal the profile just saved")
+	Graphics.choose(Graphics.PERFORMANCE, view)
+	Graphics.choose_tone("saturation", 1.0)
+	check(not SettingsProfiles.is_current(2), "changed settings no longer equal the profile")
+	check(SettingsProfiles.load_slot(2, view), "a saved profile loads")
+	check(Graphics.preset == Graphics.QUALITY and Graphics.value("lamps") == 3 and LightShadows.budget == 3, "the profile's options are used")
+	check(is_equal_approx(Graphics.tone.saturation, 0.5) and SettingsProfiles.is_current(2), "the profile's colours are used")
+	check(not SettingsProfiles.load_slot(5, view), "an empty place loads nothing")
+	SettingsProfiles.save_slot(5, "")
+	check(SettingsProfiles.get_slot(5).name == "Profile 5", "an empty name becomes Profile N")
+	SettingsProfiles.save_slot(2, "Calmer")
+	check(SettingsProfiles.get_slot(2).name == "Calmer" and not SettingsProfiles.get_slot(5).is_empty(), "overwriting changes only that place")
+	SettingsProfiles.save_slot(99, "x")
+	check(SettingsProfiles.get_slot(99).is_empty(), "a place that does not exist is refused")
+	var bad := {"preset": "nonsense", "custom": {"lamps": 99, "aa": "bogus", "shadows": "high"}, "tone": {"contrast": 50.0}, "vsync": "x", "fps": 7}
+	Graphics.adopt(bad, view)
+	check(Graphics.preset == Graphics.DEFAULT and Graphics.custom == {"shadows": "high"} and Graphics.tone.contrast == Graphics.TONES.contrast.z and Graphics.vsync == "on" and Graphics.fps_cap == 0, "a profile with bad values is cleaned, not trusted")
+	SettingsProfiles.delete_slot(2)
+	SettingsProfiles.delete_slot(5)
+	check(SettingsProfiles.get_slot(2).is_empty() and SettingsProfiles.get_slot(5).is_empty(), "deleted profiles are gone")
+	Graphics.choose_tone("saturation", 1.0)
+	Graphics.choose_tone("contrast", 1.3)
+	Graphics.choose(Graphics.PERFORMANCE, view)
+	SettingsProfiles.delete_slot(1)
+	SettingsProfiles.delete_slot(3)
 	# Put things back.
 	check(is_equal_approx(Graphics.tone.contrast, 1.3), "a preset keeps the colour adjustments")
 	Graphics.choose_fps(0)

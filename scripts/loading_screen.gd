@@ -1,17 +1,24 @@
 class_name LoadingScreen
 extends Control
-## The screen shown while the game sets up at start (see WorldPreload): the "db" logo in the
-## middle at full size, the newest patch notes to its left and right.
+## The screen shown while the game sets up at start (see WorldPreload): the key art picture as large as
+## the upper part allows, with the newest patch notes in two columns below it, so no text lies on the picture.
 ##
-## The logo is loaded from disk only for this screen and let go of with it, so its large picture
-## does not stay in memory. The notes come from the patch archive (see PatchHistory), the
+## The picture is loaded from disk only for this screen and let go of with it, so it does not stay in
+## memory. The notes come from the patch archive (see PatchHistory), the
 ## newest build, cut into two halves. Nothing here reads the game's level, so it works before any
 ## level is loaded. Tested by tests/loading_screen.gd.
 
-const LOGO := "res://assets/logo/escape_logo_tile_2048.png"
+const ART := "res://assets/logo/loading_art.jpg"
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const MARGIN := 80
+## The picture fills the top of the screen down to here; the notes start below it.
+const ART_BOTTOM := 0.57
+## The tagline sits between the picture and the notes.
+const TAGLINE := "A Tale of Valor and Mysteries!"
+const TAGLINE_TOP := 0.58
+const TAGLINE_BOTTOM := 0.63
+const NOTES_TOP := 0.645
 const BACKDROP := Color(0.03, 0.015, 0.04, 1.0)
 const GOLD := Color(0.96, 0.8, 0.38)
 ## Notes shown per side; what does not fit is counted in a line below.
@@ -63,20 +70,34 @@ func _ready() -> void:
 	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(back)
 
+	add_child(_art())
+
+	# The tagline is the same in every language (like the pub's name), so it has no Lang entry.
+	var tagline := UiKit.label(TITLE_FONT, UiKit.sized(34), GOLD)
+	tagline.text = TAGLINE
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tagline.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tagline.anchor_right = 1.0
+	tagline.anchor_top = TAGLINE_TOP
+	tagline.anchor_bottom = TAGLINE_BOTTOM
+	tagline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tagline.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	add_child(tagline)
+
+	# The notes sit in a band below the picture: heading and version on top, the notes in two columns.
 	var row := HBoxContainer.new()
 	row.anchor_right = 1.0
-	row.anchor_top = 0.1
-	row.anchor_bottom = 0.86
+	row.anchor_top = NOTES_TOP
+	row.anchor_bottom = 0.9
 	row.offset_left = MARGIN
 	row.offset_right = -MARGIN
-	row.add_theme_constant_override("separation", 32)
+	row.add_theme_constant_override("separation", 48)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
 
 	var build := _newest_build()
 	var parts := halves(build.get("notes", []))
 	row.add_child(_column(Lang.t("Patchnotes"), parts.left, "", HORIZONTAL_ALIGNMENT_LEFT))
-	row.add_child(_logo())
 	var version_line := ""
 	if build.has("version"):
 		version_line = "%s %s" % [Lang.t("Version"), build.version]
@@ -104,23 +125,21 @@ func _more_line(count: int) -> String:
 	return Lang.t("… und %d weitere in der Enzyklopädie") % count if count > 0 else ""
 
 
-## The logo, as large as the middle allows, never stretched.
-func _logo() -> Control:
-	var holder := Control.new()
-	holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	holder.size_flags_stretch_ratio = 1.5
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+## The key art, as large as the upper part allows, never stretched.
+func _art() -> Control:
 	var pic := TextureRect.new()
-	pic.texture = load(LOGO)
-	pic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pic.name = "Art"
+	pic.texture = load(ART)
+	pic.anchor_left = 0.0
+	pic.anchor_right = 1.0
+	pic.anchor_top = 0.02
+	pic.anchor_bottom = ART_BOTTOM
 	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	# Mipmaps: the 2048 pixel picture is drawn smaller than it is.
+	# Mipmaps: the picture is drawn smaller than it is.
 	pic.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(pic)
-	return holder
+	return pic
 
 
 ## One side's notes under a heading; the heading is always there so both sides line up.
@@ -130,7 +149,7 @@ func _column(heading: String, lines: Array, footer: String, align: int) -> Contr
 	col.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.size_flags_stretch_ratio = 1.0
 	col.custom_minimum_size.x = 120
-	col.add_theme_constant_override("separation", 14)
+	col.add_theme_constant_override("separation", 6)
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var head := UiKit.label(TITLE_FONT, UiKit.sized(30), GOLD)
 	head.text = heading
@@ -167,7 +186,7 @@ func _process(delta: float) -> void:
 		leave()
 
 
-## Fades out and goes; the logo's picture is freed with the node.
+## Fades out and goes; the picture is freed with the node.
 func leave() -> void:
 	if _leaving:
 		return

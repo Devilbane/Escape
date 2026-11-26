@@ -886,7 +886,7 @@ func _tick_animation(delta: float) -> void:
 			var rest_pose := ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6)
 			climber.pose(ClimbPose.mix(rest_pose, STRETCH_POSE, sin(clampf(u, 0.0, 1.0) * PI) if waking else 0.0))
 			var into := smoothstep(0.0, 0.05, u) if key == "bed" else 1.0
-			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, into * PI * 0.5)
+			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, -into * PI * 0.5)
 			climber.sleep_eyes(not waking or u < 0.5)
 			if waking and u < 0.05 and not _yawned:
 				_yawned = true
@@ -917,7 +917,7 @@ func _tick_animation(delta: float) -> void:
 	climber.model.position = feet
 	_slack = 0.9 * (1.0 - u * u) * sin(minf(1.0, u * 3.0) * PI * 0.5) if key == "fall" else 0.0
 	if key != "bed" and key != "wake":
-		climber.model.rotation = Vector3.ZERO
+		climber.model.rotation = Vector3(0.0, PI, 0.0)   # back to the camera, face to the wall
 		climber.sleep_eyes(false)
 		_yawned = false
 	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):

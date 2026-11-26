@@ -2745,6 +2745,8 @@ func join_defence(at: Vector3, mate_at: Vector3) -> void:
 		return
 	Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
 	_alert_gap = ALERT_GAP
+	# A monster that leaves the hero be for the level difference (see is_cowed) fights all the same now.
+	_provoked = true
 	var to := mate_at - global_position
 	if Vector2(to.x, to.z).length() > 0.1:
 		_model.rotation.y = atan2(to.x, to.z)

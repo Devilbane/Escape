@@ -7,8 +7,8 @@ extends RefCounted
 ##  - a few kinds also call for help (wolves howl, orcs roar, robbers shout): that call carries
 ##    CALLERS[kind].reach metres and wakes its friends without a line of sight. A caller that
 ##    falls to the very blow that woke it cannot call: striking hard is the way to cut it short.
-## Slimes neither call nor answer. A monster far below the hero's level (cowed) stays out of it, and so
-## does the hero's friend (see Factions). Once per monster per CALL_GAP seconds.
+## Slimes neither call nor answer, and the hero's friends (see Factions) stay out of it. A mate far below the
+## hero's level (cowed) joins all the same: seeing a mate struck outweighs the level difference. Once per monster per CALL_GAP seconds.
 
 ## How far a monster sees a mate being struck.
 const SEE_RANGE := 14.0
@@ -48,7 +48,7 @@ static func on_struck(victim: Enemy, hero_at: Vector3) -> void:
 
 ## Whether `e` would come to the aid of `victim`: unaware, not a slime, of the same family, not rivals.
 static func can_answer(e: Enemy, victim: Enemy) -> bool:
-	if e.dead or e.is_hunting() or e.is_friend() or e.is_cowed() or SlimeCoat.is_slime(e):
+	if e.dead or e.is_hunting() or e.is_friend() or SlimeCoat.is_slime(e):
 		return false
 	if LostMine.apart(e.global_position, victim.global_position) or Sewers.apart(e.global_position, victim.global_position):
 		return false

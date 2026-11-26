@@ -3439,6 +3439,10 @@ func _house_glass() -> ShaderMaterial:
 		var glass := WindowLights.glass_material(WINDOW_LIGHT)
 		_scenes["mat_house_glass"] = glass
 		_window_mats[glass] = glass
+		# The curtains inside the windows one looks through go with it.
+		var curtains := VillageHouse.curtain_cloth()
+		curtains.set_shader_parameter("colour", Vector3(WINDOW_LIGHT.r, WINDOW_LIGHT.g, WINDOW_LIGHT.b))
+		_window_mats[curtains] = curtains
 	return _scenes["mat_house_glass"]
 
 

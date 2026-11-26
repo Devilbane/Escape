@@ -58,25 +58,17 @@ float curtains_shut(vec2 place) {
 }
 """ % [ON_FROM, ON_TO]
 
-const GLASS_SHADER := """
-shader_type spatial;
-#include "res://shaders/gl_colour.gdshaderinc"
-uniform vec3 colour = vec3(1.0, 0.7, 0.36);
-uniform float glow = 0.0;
-varying vec2 key;
-varying vec2 home;
-""" + LIT_FUNCTION + SHUT_FUNCTION + """
+## GLSL: the curtains of a window (see the glass and CURTAIN_SHADER). `uv` is the place on the pane in
+## metres (0.8 wide, 0.9 high); returns the colour of the cloth, brass or pelmet and in .a how solid it
+## is there (0 in the open middle), and `lit_tint` how it takes the warm light of the room at night.
+const CLOTH_FUNCTION := """
 float h21(vec2 p) {
 	return fract(sin(dot(p, vec2(41.31, 289.17))) * 43758.5453);
 }
-void vertex() {
-	key = UV2 + MODEL_MATRIX[3].xz;
-	home = floor(MODEL_MATRIX[3].xz + 0.5);
-}
-void fragment() {
-	vec2 q = clamp(vec2(UV.x / 0.8, UV.y / 0.9), 0.0, 1.0);
+vec4 drape(vec2 uv, vec2 hm, vec2 pk, out vec3 lit_tint) {
+	vec2 q = clamp(vec2(uv.x / 0.8, uv.y / 0.9), 0.0, 1.0);
 	// The house's cloth: six dyes, a little different from house to house.
-	float hh = h21(home);
+	float hh = h21(hm);
 	vec3 dye = vec3(0.85, 0.8, 0.68);
 	if (hh < 0.17) {
 		dye = vec3(0.72, 0.27, 0.2);
@@ -89,11 +81,11 @@ void fragment() {
 	} else if (hh < 0.83) {
 		dye = vec3(0.52, 0.16, 0.26);
 	}
-	dye *= 0.9 + 0.2 * h21(home + 3.7);
-	float wk = h21(key * 0.5 + 5.3);
+	dye *= 0.9 + 0.2 * h21(hm + 3.7);
+	float wk = h21(pk * 0.5 + 5.3);
 	// The curtain: from each side to `reach`, pinched where it is tied back, flaring below.
 	float d = min(q.x, 1.0 - q.x);
-	float shut = curtains_shut(key);
+	float shut = curtains_shut(pk);
 	float tie = exp(-pow((q.y - 0.45) / 0.1, 2.0)) * (1.0 - shut);
 	float reach = mix(0.27 + 0.05 * wk - 0.1 * tie + 0.07 * (1.0 - smoothstep(0.0, 0.4, q.y)), 0.52, shut);
 	float cover = smoothstep(reach + 0.012, reach - 0.012, d);
@@ -101,7 +93,7 @@ void fragment() {
 	float fold = 0.5 + 0.5 * sin(d * 58.0 + hh * 6.0 + q.y * 1.6 + tie * 3.0);
 	float shade = 0.62 + 0.5 * fold - 0.2 * smoothstep(0.0, reach, reach - d);
 	// A pattern in the cloth: stripes, checks or plain, by house.
-	float kind = h21(home + 9.1);
+	float kind = h21(hm + 9.1);
 	vec3 cloth = dye;
 	if (kind < 0.3) {
 		cloth = mix(dye, vec3(0.9, 0.86, 0.74), step(0.5, fract(d * 15.0)) * 0.55);
@@ -110,8 +102,8 @@ void fragment() {
 		cloth = mix(dye, dye * 0.55, chk);
 	}
 	// The weave: fine threads, left out where a pixel would cover several of them.
-	float aa = clamp(1.0 - fwidth(UV.x) * 90.0, 0.0, 1.0);
-	float weave = 1.0 + aa * 0.09 * sin(UV.x * 240.0) * sin(UV.y * 280.0);
+	float aa = clamp(1.0 - fwidth(uv.x) * 90.0, 0.0, 1.0);
+	float weave = 1.0 + aa * 0.09 * sin(uv.x * 240.0) * sin(uv.y * 280.0);
 	cloth *= shade * weave;
 	// A band of trim along the hem.
 	cloth = mix(cloth, dye * 1.2 + 0.05, smoothstep(0.075, 0.06, q.y) * smoothstep(0.03, 0.04, q.y));
@@ -121,22 +113,72 @@ void fragment() {
 	vec3 pel = dye * (0.92 + 0.18 * sin(q.x * 90.0 + hh * 5.0)) * weave;
 	vec3 brass = vec3(0.4, 0.3, 0.13) * (0.7 + 0.6 * sin(q.y * 260.0));
 	float rod = step(0.955, q.y);
+	vec3 seen = mix(cloth, pel, pelmet);
+	seen = mix(seen, brass, rod);
+	lit_tint = mix(cloth * 1.4, pel * 1.4, pelmet);
+	lit_tint = mix(lit_tint, brass * 1.2, rod);
+	return vec4(seen, max(cover, max(pelmet, rod)));
+}
+"""
+
+const GLASS_SHADER := """
+shader_type spatial;
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.7, 0.36);
+uniform float glow = 0.0;
+varying vec2 key;
+varying vec2 home;
+""" + LIT_FUNCTION + SHUT_FUNCTION + CLOTH_FUNCTION + """
+void vertex() {
+	key = UV2 + MODEL_MATRIX[3].xz;
+	home = floor(MODEL_MATRIX[3].xz + 0.5);
+}
+void fragment() {
+	vec2 q = clamp(vec2(UV.x / 0.8, UV.y / 0.9), 0.0, 1.0);
+	float wk = h21(key * 0.5 + 5.3);
+	vec3 lit_cloth;
+	vec4 drawn = drape(UV, home, key, lit_cloth);
 	// The dim room between the curtains: a back wall, darker towards the top.
 	vec3 room = vec3(0.17, 0.125, 0.09) * (0.55 + 0.7 * (1.0 - q.y)) * (0.8 + 0.4 * wk);
-	vec3 seen = mix(room, cloth, cover);
-	seen = mix(seen, pel, pelmet);
-	seen = mix(seen, brass, rod);
+	vec3 seen = mix(room, drawn.rgb, drawn.a);
 	// Glass: a faint blue tint and a slanting glint.
 	float glint = smoothstep(0.07, 0.0, abs(q.x - q.y * 0.7 - 0.35)) * 0.05;
 	ALBEDO = seen * vec3(0.78, 0.86, 0.95) * 0.7 + glint;
 	ROUGHNESS = 0.08;
 	SPECULAR = 0.55;
 	// At night the room is lit: the open middle shines, the cloth in its own colour.
-	vec3 lit_tint = mix(vec3(1.0), cloth * 1.4, cover);
-	lit_tint = mix(lit_tint, pel * 1.4, pelmet);
-	lit_tint = mix(lit_tint, brass * 1.2, rod);
+	vec3 lit_tint = mix(vec3(1.0), lit_cloth, drawn.a);
 	lit_tint *= 0.65 + 0.35 * smoothstep(0.7, 0.0, abs(q.x - 0.5) + abs(q.y - 0.5) * 0.4);
 	EMISSION = gl_glow(colour * lit_tint, glow * window_lit(key));
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
+}
+"""
+
+## The curtains of a window one looks through (see VillageHouse.clear_glass): the same cloth as the
+## glass's, cut out where the curtains are open, hung just inside the pane on both of its sides.
+const CURTAIN_SHADER := """
+shader_type spatial;
+render_mode cull_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
+uniform vec3 colour = vec3(1.0, 0.7, 0.36);
+uniform float glow = 0.0;
+varying vec2 key;
+varying vec2 home;
+""" + LIT_FUNCTION + SHUT_FUNCTION + CLOTH_FUNCTION + """
+void vertex() {
+	key = UV2 + MODEL_MATRIX[3].xz;
+	home = floor(MODEL_MATRIX[3].xz + 0.5);
+}
+void fragment() {
+	vec3 lit_cloth;
+	vec4 drawn = drape(UV, home, key, lit_cloth);
+	if (drawn.a < 0.5) {
+		discard;
+	}
+	ALBEDO = drawn.rgb * 0.8;
+	ROUGHNESS = 1.0;
+	EMISSION = gl_glow(colour * lit_cloth, glow * window_lit(key) * 0.5);
 	ALBEDO = gl_colour(ALBEDO);
 	EMISSION = gl_colour(EMISSION);
 }
@@ -151,9 +193,18 @@ static func key(at: Vector3) -> Vector2:
 
 ## The glass of the houses' windows; `light` is the glow colour.
 static func glass_material(light: Color) -> ShaderMaterial:
+	return _lit_material(GLASS_SHADER, light)
+
+
+## The curtains inside the windows one looks through; driven like the glass (see Outdoor.set_hour).
+static func curtain_material(light: Color) -> ShaderMaterial:
+	return _lit_material(CURTAIN_SHADER, light)
+
+
+static func _lit_material(code: String, light: Color) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	var shader := Shader.new()
-	shader.code = GLASS_SHADER
+	shader.code = code
 	mat.shader = shader
 	mat.set_shader_parameter("colour", Vector3(light.r, light.g, light.b))
 	mat.set_shader_parameter("glow", 0.0)

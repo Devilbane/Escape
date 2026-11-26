@@ -153,3 +153,4 @@ settings_window.gd | 60 | fixed | pass | Settings window (tabs keep one size, gr
 farm_house_windows.gd | 60 | fixed | pass | Farm houses: curtains hang clear of the clear panes, the door is locked while a farmer sleeps
 wall_holds.gd | 60 | free | passfail | Climbing wall: a foot stone under every hold, so the feet never stand on air
 wall_spots.gd | 60 | free | passfail | Climbing wall: tar, edelweiss and door spots build, give their ingredients and survive saving
+wall_facing.gd | 20 | free | passfail | The climber faces the wall while climbing and lies face up in the hammock

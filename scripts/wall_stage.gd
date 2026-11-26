@@ -767,6 +767,7 @@ func try_move(dir: int, roll: float, fall_roll: float) -> int:
 		var kind := wall.marker_at(to.x, to.y)
 		_tell(String(WallMap.MARKERS[kind].text))
 		marker_reached.emit(kind, to)
+		_play_spot(kind)
 		if WallSpots.GATHER.has(kind):
 			gathered.emit(String(WallSpots.GATHER[kind].id), int(WallSpots.GATHER[kind].count))
 		elif kind == "door":
@@ -885,7 +886,7 @@ func _tick_animation(delta: float) -> void:
 			var rest_pose := ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6)
 			climber.pose(ClimbPose.mix(rest_pose, STRETCH_POSE, sin(clampf(u, 0.0, 1.0) * PI) if waking else 0.0))
 			var into := smoothstep(0.0, 0.05, u) if key == "bed" else 1.0
-			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, into * PI * 0.5)
+			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, -into * PI * 0.5)
 			climber.sleep_eyes(not waking or u < 0.5)
 			if waking and u < 0.05 and not _yawned:
 				_yawned = true
@@ -916,7 +917,7 @@ func _tick_animation(delta: float) -> void:
 	climber.model.position = feet
 	_slack = 0.9 * (1.0 - u * u) * sin(minf(1.0, u * 3.0) * PI * 0.5) if key == "fall" else 0.0
 	if key != "bed" and key != "wake":
-		climber.model.rotation = Vector3.ZERO
+		climber.model.rotation = Vector3(0.0, PI, 0.0)   # back to the camera, face to the wall
 		climber.sleep_eyes(false)
 		_yawned = false
 	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):
@@ -961,6 +962,14 @@ func _play_cues(key: String, from_u: float, to_u: float) -> void:
 		if (from_u < at_u and at_u <= to_u) or (from_u < 0.0 and at_u <= to_u and at_u < 0.05):
 			var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0) if bool(c.get("tired", false)) else 0.0
 			_sound(String(c.kind), float(c.db) + tired * 6.0, 1.0 - tired * 0.18)
+
+
+## The sounds of a special spot (tar, edelweiss, door), spread over the next seconds.
+func _play_spot(kind: String) -> void:
+	if DisplayServer.get_name() == "headless" or not is_inside_tree() or not WallSounds.SPOTS.has(kind):
+		return
+	for c in WallSounds.SPOTS[kind]:
+		get_tree().create_timer(float(c.after)).timeout.connect(_sound.bind(String(c.kind), float(c.db)))
 
 
 ## One varied take of a wall sound at the climber, panned and faded by the camera.

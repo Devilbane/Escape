@@ -1,0 +1,1 @@
+- Reaching tar, edelweiss or a mine door on the climbing wall now plays its own sounds.

@@ -685,6 +685,7 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Monitor.apply(get_window())
 	Graphics.load_settings()
 	Graphics.apply(get_viewport())
 	Sfx.load_settings()

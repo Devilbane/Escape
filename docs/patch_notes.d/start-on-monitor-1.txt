@@ -1,0 +1,1 @@
+- The game and the launcher now open on Windows' monitor 1 even when another screen is the main one (set `monitor=N` under [fenster] in the settings file to pick another).

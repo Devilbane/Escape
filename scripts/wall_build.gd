@@ -29,6 +29,9 @@ const KNOB_SHRINK := 0.035
 ## The smallest hold (malus 9) is this wide and this high; the biggest (malus 0) is KNOB_RADIUS wide and KNOB_HEIGHT high.
 ## Share of the holds that break the stone/hole alternation.
 const POCKET_SHARE := 0.2
+## Colour of the set-in stones: darkened by this and greyed towards the dark rock by STONE_WEATHER.
+const STONE_SHADE := 0.86
+const STONE_WEATHER := 0.2
 const KNOB_MIN_RADIUS := 0.22
 const KNOB_HEIGHT_HARD := 0.11
 ## Share of chalk on the easiest and on the hardest hold (an easy jug is well chalked, a crimp hardly).
@@ -413,7 +416,7 @@ func stones_mesh() -> ArrayMesh:
 				count += 1
 	if count == 0:
 		return null
-	return st.commit()
+	return _weathered(st.commit())
 
 
 ## Where the feet of a climber on the hold of square (c, r) stand on the wall (x, y), or (-1, -1) when they stand on
@@ -445,7 +448,7 @@ func foot_mesh() -> ArrayMesh:
 			count += 1
 	if count == 0:
 		return null
-	return st.commit()
+	return _weathered(st.commit())
 
 
 ## Decorative stones that jut out of the face here and there, only on plain squares (no hold, no gap, no loose
@@ -475,7 +478,23 @@ func decor_mesh() -> ArrayMesh:
 			count += 1
 	if count == 0:
 		return null
-	return st.commit()
+	return _weathered(st.commit())
+
+
+## The set-in stones take the face's weather: a shade darker and greyer than the plain mountain stone, so they sit in the
+## rock instead of looking pale and stuck on.
+static func _weathered(mesh: ArrayMesh) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0)
+	var colours = arrays[Mesh.ARRAY_COLOR]
+	if colours == null:
+		return mesh
+	var out := PackedColorArray()
+	for c in colours:
+		out.append(c.lerp(ROCK_DARK, STONE_WEATHER) * STONE_SHADE)
+	arrays[Mesh.ARRAY_COLOR] = out
+	var made := ArrayMesh.new()
+	made.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return made
 
 
 ## The gap's label: its area in square metres, written in the crack.

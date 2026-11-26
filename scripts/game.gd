@@ -1939,6 +1939,10 @@ func set_world_paused(paused: bool) -> void:
 
 
 ## Running into a shrine, the bed, the storage chest or the merchant.
+## The skill whose monk of Nohpaan the hero is talking to (see Monastery, Menus._build_monastery).
+var monastery_teacher := ""
+
+
 func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	# Still saying the last line: a new bump does not start a new one yet, or
@@ -1986,6 +1990,13 @@ func _use_station(s: Dictionary) -> void:
 		player.play("Idle")
 		bumped_person = true
 		s.figure.talk(player)
+		# A monk of Nohpaan who teaches opens the window of the lessons (see Monastery).
+		var teaches := str(s.figure.spec.get("teaches", ""))
+		if Monastery.SKILLS.has(teaches):
+			monastery_teacher = teaches
+			menus.open(Monastery.KIND)
+	elif s.kind == Nohpaan.SEALED_KIND:
+		Nohpaan.use_sealed(self, s)
 	elif s.kind == "hort":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
@@ -8462,6 +8473,7 @@ func _process(delta: float) -> void:
 		_prompt.text = _hint(station.kind, {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			RuinedShrine.KIND: Lang.t("Dagegenlaufen, um am Schrein der Gnädigen Herrin zu beten"),
+			Nohpaan.SEALED_KIND: Lang.t("Dagegenlaufen, um das versiegelte Tor zu untersuchen"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),

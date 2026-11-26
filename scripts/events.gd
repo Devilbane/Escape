@@ -120,6 +120,11 @@ signal village_alarmed(reason: String)
 signal mercy_prayed(restored: int)
 
 
+## A hero learned a lesson of the monks of Nohpaan (see Monastery): the skill's id and how many lessons of it
+## the hero has now (1 to 3).
+signal lesson_learned(skill: String, lessons: int)
+
+
 ## A hero registered a building plot at the Crown Office (see PlotOffice): the
 ## tiles it covers. The open map clears the trees, boulders and mountain slopes
 ## reaching into it (see Outdoor.clear_plot).

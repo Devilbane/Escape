@@ -13,20 +13,17 @@ const WHEAT := "≡"
 const MAIZE := "‡"
 const SUNFLOWER := "☼"
 const LETTERS := "≡‡☼"
-## The riddle field (see SunflowerRiddle): one 5 x 5 block of sunflowers 0.6 m apart on each 4 m tile, with a lane of bare
-## soil 1.6 m wide between the blocks, so every block stands out. It is
-## no map letter (its tiles are ☼ on the map): RIDDLE is the plants of the unmarked flowers, MARKED the flowers whose
-## seed disc is light brown in the middle.
+## The riddle field (see SunflowerRiddle) is the big sunflower field with a code in it: it looks like any sunflower field, one
+## continuous lattice of plants 1 m apart. It is no map letter (its tiles are ☼ on the map): RIDDLE is the plants of the
+## unmarked flowers, MARKED the flowers whose seed disc is light brown in the middle.
 const RIDDLE := "☀"
 const MARKED := "☀m"
-## Plants in a row of a riddle block.
-const BLOCK := 5
 ## How far the light centre of a marked flower reaches (a share of the disc's radius).
 const MARK_RADIUS := 0.8
 ## Soil under the crops (the ground draws the same dark earth as the pumpkin field).
 const NAMES := {"≡": "wheat", "‡": "maize", "☼": "sunflower", "☀": "riddle sunflower", "☀m": "marked sunflower"}
 ## Plants in a row and between rows (metres): a tile is 4 m, so 7 x 7 tufts of wheat, 4 x 4 maize and sunflowers.
-const SPACING := {"≡": 0.57, "‡": 1.0, "☼": 1.0, "☀": 0.6, "☀m": 0.6}
+const SPACING := {"≡": 0.57, "‡": 1.0, "☼": 1.0, "☀": 1.0, "☀m": 1.0}
 ## Full height of a plant (metres, before the season scales it).
 const HEIGHT := {"≡": 1.0, "‡": 1.9, "☼": 1.75, "☀": 1.75, "☀m": 1.75}
 
@@ -105,42 +102,43 @@ func _add_plants(letter: String, spots: Array, tiles: Array, mesh: Mesh) -> void
 	_tiles[letter] = tiles
 
 
-## The riddle field: every tile in `mids` is one block of 5 x 5 sunflowers, read in the order of the tiles (left to
-## right, top to bottom). The flower of each block that SunflowerRiddle.marks() names gets the light centre; flowers
-## within SunflowerRiddle.CLEAR_RADIUS of a point in `clear` (the scarecrow's post) are left out.
+## The riddle field: every tile in `mids` holds 4 x 4 flowers of one lattice for the whole field. The flowers that
+## SunflowerRiddle.is_marked() names get the light centre; flowers within SunflowerRiddle.CLEAR_RADIUS of a point in
+## `clear` (the scarecrow's post) are left out.
 func _plant_riddle(mids: Array, tile: float, rng: RandomNumberGenerator, clear: Array) -> void:
-	var blocks := mids.duplicate()
-	blocks.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.z < b.z or (is_equal_approx(a.z, b.z) and a.x < b.x))
-	var marks := SunflowerRiddle.marks()
 	var step: float = SPACING[RIDDLE]
+	var corner := Vector2(INF, INF)
+	for mid: Vector3 in mids:
+		corner = Vector2(minf(corner.x, mid.x - tile * 0.5), minf(corner.y, mid.z - tile * 0.5))
 	var plain: Array = []
 	var marked: Array = []
 	var plain_tiles: Array = []
 	var marked_tiles: Array = []
-	for b in blocks.size():
-		var mid: Vector3 = blocks[b]
-		var mark: int = marks[b] if b < marks.size() else 0
+	var n := int(round(tile / step))
+	for mid: Vector3 in mids:
 		plain_tiles.append({"mid": mid, "first": plain.size(), "count": 0, "sown": -1})
 		marked_tiles.append({"mid": mid, "first": marked.size(), "count": 0, "sown": -1})
-		for iz in BLOCK:
-			for ix in BLOCK:
-				var at := mid + Vector3((ix - 2) * step, 0, (iz - 2) * step)
+		for ix in n:
+			for iz in n:
+				var at := mid + Vector3((ix + 0.5) * step - tile * 0.5, 0, (iz + 0.5) * step - tile * 0.5)
+				var col := int(floor((at.x - corner.x) / step))
+				var row := int(floor((at.z - corner.y) / step))
 				var cleared := false
 				for point: Vector3 in clear:
 					if Vector2(at.x - point.x, at.z - point.z).length() < SunflowerRiddle.CLEAR_RADIUS:
 						cleared = true
+				var jitter := Vector3(rng.randf_range(-0.12, 0.12) * step, 0, rng.randf_range(-0.12, 0.12) * step)
+				var spot := [at + jitter, rng.randf() * TAU, rng.randf_range(0.85, 1.15), rng.randf()]
 				if cleared:
 					continue
-				at += Vector3(rng.randf_range(-0.03, 0.03), 0, rng.randf_range(-0.03, 0.03))
-				var spot := [at, rng.randf() * TAU, rng.randf_range(0.96, 1.04), rng.randf()]
-				if iz * BLOCK + ix + 1 == mark:
+				if SunflowerRiddle.is_marked(col, row):
 					marked.append(spot)
 				else:
 					plain.append(spot)
 		plain_tiles[-1].count = plain.size() - plain_tiles[-1].first
 		marked_tiles[-1].count = marked.size() - marked_tiles[-1].first
-	_add_plants(RIDDLE, plain, plain_tiles, _sunflower_mesh("bloom", false, true))
-	_add_plants(MARKED, marked, marked_tiles, _sunflower_mesh("bloom", true, true))
+	_add_plants(RIDDLE, plain, plain_tiles, _sunflower_mesh("bloom"))
+	_add_plants(MARKED, marked, marked_tiles, _sunflower_mesh("bloom", true))
 
 
 ## Dresses every field for season day `day` (see Weather.season). A new day in spring grows the sprouts on.
@@ -159,7 +157,7 @@ func set_season(day: int) -> void:
 		if letter == SUNFLOWER:
 			(_fields[letter].mm as MultiMesh).mesh = _sunflower_mesh(sunflower_look(season))
 		elif letter == RIDDLE or letter == MARKED:
-			(_fields[letter].mm as MultiMesh).mesh = _sunflower_mesh(riddle_look(season), letter == MARKED, true)
+			(_fields[letter].mm as MultiMesh).mesh = _sunflower_mesh(riddle_look(season), letter == MARKED)
 		for i in (_tiles[letter] as Array).size():
 			_dress_tile(letter, i)
 
@@ -196,12 +194,9 @@ func _dress_tile(letter: String, tile: int) -> void:
 		# Seedlings are narrow as well as short; bare soil shows no leaf at all.
 		var width := minf(1.0, growth * 4.0)
 		# Sunflower heads follow the sun: the plants only turn a little away from south.
-		# The riddle field's heads all look the same way, so the code reads from the camera.
 		var yaw: float = s[1]
-		if letter == SUNFLOWER:
+		if letter == SUNFLOWER or letter == RIDDLE or letter == MARKED:
 			yaw = (float(s[1]) / TAU - 0.5) * 1.4
-		elif letter == RIDDLE or letter == MARKED:
-			yaw = (float(s[1]) / TAU - 0.5) * 0.15
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(width, grown, width))
 		mm.set_instance_transform(i, Transform3D(basis, s[0]))
 		var tint: Color = look[1]
@@ -363,16 +358,16 @@ static func riddle_look(season: String) -> String:
 	return "bloom" if season == "summer" or season == "autumn" else "young"
 
 
-## `marked`: the seed disc is light in the middle; `raised`: the head looks up at the camera (the riddle field's flowers).
-static func _sunflower_mesh(look: String, marked := false, raised := false) -> ArrayMesh:
-	var key := "☼" + look + ("*" if marked else "") + ("^" if raised else "")
+## `marked`: the seed disc is light in the middle (the riddle field's marked flowers).
+static func _sunflower_mesh(look: String, marked := false) -> ArrayMesh:
+	var key := "☼" + look + ("*" if marked else "")
 	if _meshes.has(key):
 		return _meshes[key]
 	var stalk := _Soup.new()
 	var leaf := _Soup.new()
 	var petal := _Soup.new()
 	var disc := _Soup.new()
-	_sunflower(look, stalk, leaf, petal, disc, raised)
+	_sunflower(look, stalk, leaf, petal, disc)
 	var mesh := ArrayMesh.new()
 	stalk.commit(mesh, _sunflower_material(_stalk_texture_cached(), false, 0.85))
 	leaf.commit(mesh, _sunflower_material(_sunflower_leaf_texture_cached(), true, 0.8))
@@ -396,7 +391,7 @@ static func _sunflower_material(tex: Texture2D, scissor: bool, rough: float) -> 
 	return mat
 
 
-static func _sunflower(look: String, stalk: _Soup, leaves: _Soup, petals: _Soup, disc: _Soup, raised := false) -> void:
+static func _sunflower(look: String, stalk: _Soup, leaves: _Soup, petals: _Soup, disc: _Soup) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 21
 	var h: float = HEIGHT[SUNFLOWER]
@@ -437,7 +432,7 @@ static func _sunflower(look: String, stalk: _Soup, leaves: _Soup, petals: _Soup,
 	if look == "young":
 		return
 	# The head: a dished seed disc in the middle, two rings of soft petals round it, green bracts behind.
-	var normal := Vector3(0, 0.75, 0.7).normalized() if raised else Vector3(0, 0.28, 1.0).normalized()
+	var normal := Vector3(0, 0.28, 1.0).normalized()
 	if drooping:
 		normal = Vector3(0, -0.55, 0.85).normalized()
 	var centre: Vector3 = p3 + normal * 0.05

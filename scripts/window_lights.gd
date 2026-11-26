@@ -39,20 +39,104 @@ float window_lit(vec2 place) {
 }
 """ % [OFF_FROM, OFF_TO, ON_FROM, ON_TO, FADE, FADE]
 
+## The pane seen from outside: real glass over a room. Behind the glass hang a pair of curtains (a
+## woven cloth in a colour of the house's own, plain, striped or checked, in folds, tied back at the
+## middle, with a short pelmet and a brass rod), and between them the dim room. At night the room is
+## lit and the curtains glow in their own colour. UV is the pane in metres (0.8 wide, 0.9 high).
+## GLSL: how far (0 to 1) the curtains of the window with this key are drawn. They stand open by day;
+## when the residents come home, at the hour the window lights up, they draw them shut, and they stay
+## shut until the morning.
+const SHUT_FUNCTION := """
+float curtains_shut(vec2 place) {
+	vec2 k = floor(place * 4.0 + 0.5);
+	float h2 = fract(sin(dot(k, vec2(39.346, 11.135))) * 24634.6345);
+	float back = mix(%f, %f, h2) - 0.4;
+	if (hour < 12.0) {
+		return 1.0 - smoothstep(6.5, 7.5, hour);
+	}
+	return smoothstep(back, back + 0.3, hour);
+}
+""" % [ON_FROM, ON_TO]
+
 const GLASS_SHADER := """
 shader_type spatial;
 #include "res://shaders/gl_colour.gdshaderinc"
 uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 varying vec2 key;
-""" + LIT_FUNCTION + """
+varying vec2 home;
+""" + LIT_FUNCTION + SHUT_FUNCTION + """
+float h21(vec2 p) {
+	return fract(sin(dot(p, vec2(41.31, 289.17))) * 43758.5453);
+}
 void vertex() {
 	key = UV2 + MODEL_MATRIX[3].xz;
+	home = floor(MODEL_MATRIX[3].xz + 0.5);
 }
 void fragment() {
-	ALBEDO = vec3(0.16, 0.18, 0.22);
-	ROUGHNESS = 0.25;
-	EMISSION = gl_glow(colour, glow * window_lit(key));
+	vec2 q = clamp(vec2(UV.x / 0.8, UV.y / 0.9), 0.0, 1.0);
+	// The house's cloth: six dyes, a little different from house to house.
+	float hh = h21(home);
+	vec3 dye = vec3(0.85, 0.8, 0.68);
+	if (hh < 0.17) {
+		dye = vec3(0.72, 0.27, 0.2);
+	} else if (hh < 0.34) {
+		dye = vec3(0.3, 0.5, 0.34);
+	} else if (hh < 0.5) {
+		dye = vec3(0.82, 0.62, 0.22);
+	} else if (hh < 0.66) {
+		dye = vec3(0.24, 0.33, 0.58);
+	} else if (hh < 0.83) {
+		dye = vec3(0.52, 0.16, 0.26);
+	}
+	dye *= 0.9 + 0.2 * h21(home + 3.7);
+	float wk = h21(key * 0.5 + 5.3);
+	// The curtain: from each side to `reach`, pinched where it is tied back, flaring below.
+	float d = min(q.x, 1.0 - q.x);
+	float shut = curtains_shut(key);
+	float tie = exp(-pow((q.y - 0.45) / 0.1, 2.0)) * (1.0 - shut);
+	float reach = mix(0.27 + 0.05 * wk - 0.1 * tie + 0.07 * (1.0 - smoothstep(0.0, 0.4, q.y)), 0.52, shut);
+	float cover = smoothstep(reach + 0.012, reach - 0.012, d);
+	// Folds run down the cloth, deeper towards the edge, and swing a little with the height.
+	float fold = 0.5 + 0.5 * sin(d * 58.0 + hh * 6.0 + q.y * 1.6 + tie * 3.0);
+	float shade = 0.62 + 0.5 * fold - 0.2 * smoothstep(0.0, reach, reach - d);
+	// A pattern in the cloth: stripes, checks or plain, by house.
+	float kind = h21(home + 9.1);
+	vec3 cloth = dye;
+	if (kind < 0.3) {
+		cloth = mix(dye, vec3(0.9, 0.86, 0.74), step(0.5, fract(d * 15.0)) * 0.55);
+	} else if (kind < 0.5) {
+		float chk = abs(step(0.5, fract(d * 12.0)) - step(0.5, fract(q.y * 10.0)));
+		cloth = mix(dye, dye * 0.55, chk);
+	}
+	// The weave: fine threads, left out where a pixel would cover several of them.
+	float aa = clamp(1.0 - fwidth(UV.x) * 90.0, 0.0, 1.0);
+	float weave = 1.0 + aa * 0.09 * sin(UV.x * 240.0) * sin(UV.y * 280.0);
+	cloth *= shade * weave;
+	// A band of trim along the hem.
+	cloth = mix(cloth, dye * 1.2 + 0.05, smoothstep(0.075, 0.06, q.y) * smoothstep(0.03, 0.04, q.y));
+	// The pelmet across the top: scalloped, and the brass rod above it.
+	float scallop = 0.86 + 0.03 * abs(sin(q.x * 15.7));
+	float pelmet = step(scallop, q.y);
+	vec3 pel = dye * (0.92 + 0.18 * sin(q.x * 90.0 + hh * 5.0)) * weave;
+	vec3 brass = vec3(0.4, 0.3, 0.13) * (0.7 + 0.6 * sin(q.y * 260.0));
+	float rod = step(0.955, q.y);
+	// The dim room between the curtains: a back wall, darker towards the top.
+	vec3 room = vec3(0.17, 0.125, 0.09) * (0.55 + 0.7 * (1.0 - q.y)) * (0.8 + 0.4 * wk);
+	vec3 seen = mix(room, cloth, cover);
+	seen = mix(seen, pel, pelmet);
+	seen = mix(seen, brass, rod);
+	// Glass: a faint blue tint and a slanting glint.
+	float glint = smoothstep(0.07, 0.0, abs(q.x - q.y * 0.7 - 0.35)) * 0.05;
+	ALBEDO = seen * vec3(0.78, 0.86, 0.95) * 0.7 + glint;
+	ROUGHNESS = 0.08;
+	SPECULAR = 0.55;
+	// At night the room is lit: the open middle shines, the cloth in its own colour.
+	vec3 lit_tint = mix(vec3(1.0), cloth * 1.4, cover);
+	lit_tint = mix(lit_tint, pel * 1.4, pelmet);
+	lit_tint = mix(lit_tint, brass * 1.2, rod);
+	lit_tint *= 0.65 + 0.35 * smoothstep(0.7, 0.0, abs(q.x - 0.5) + abs(q.y - 0.5) * 0.4);
+	EMISSION = gl_glow(colour * lit_tint, glow * window_lit(key));
 	ALBEDO = gl_colour(ALBEDO);
 	EMISSION = gl_colour(EMISSION);
 }

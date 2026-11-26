@@ -112,6 +112,16 @@ const DUNGEON := {
 	# The Forsaken Wasteland (see Wasteland and RuinedShrine).
 	"\"": "the ruined shrine of Mirenna, Lady of Mercy: pray, heal, and mend it with small gifts (the wasteland)",
 	"°": "a dead tree (the wasteland)",
+	# Nohpaan, the hidden valley (see Nohpaan).
+	"π": "a mountain cedar (Nohpaan)",
+	"ψ": "a flowering rhododendron (Nohpaan)",
+	"ω": "a prayer wheel that turns slowly (Nohpaan)",
+	"Ξ": "a stupa with prayer flags (Nohpaan)",
+	"ζ": "a limewashed monastery wall with a tiled cap; it joins its neighbours (Nohpaan)",
+	"Θ": "the gate of the monastery: open between two timber pillars, under a tower roof (Nohpaan)",
+	"Λ": "a lotus pond: water the hero walks round (Nohpaan)",
+	"Π": "slate flagstones laid on the ground (Nohpaan)",
+	"Γ": "a sealed gate under ice: the road to a place to come (Nohpaan)",
 	# Made in the map workshop: what each digit places is written in the
 	# map's own header (see Creations).
 	"1": "your own creation (header \"custom: 1 {...}\", see Creations)",

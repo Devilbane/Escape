@@ -899,6 +899,7 @@ func build() -> void:
 		IvySeasons.apply(undergrowth_shed, day)
 	_build_rock_collision()
 	SummitGarden.build(self)
+	Nohpaan.place_door(self)
 	_setup_astar()
 	meals.garland.block(self)
 	GlowMushrooms.build(self)

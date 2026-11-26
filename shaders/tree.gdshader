@@ -68,7 +68,7 @@ vec3 turn_leaf(vec3 c, vec3 p) {
 	// Snow on some clusters, more on the upper side of the crown.
 	float drift = vnoise(p * 1.6 + 90.0) + 0.25 * (p.y - root_pos.y) / 8.0;
 	float snow = snowy * smoothstep(1.0 - SNOW_SHARE - 0.05, 1.0 - SNOW_SHARE + 0.05, drift);
-	return mix(leaf, vec3(0.88, 0.91, 0.96) * clamp(0.75 + 0.3 * light, 0.8, 1.05), snow * green);
+	return mix(leaf, vec3(0.72, 0.75, 0.81) * clamp(0.85 + 0.2 * light, 0.85, 1.05), snow * green);
 }
 
 void vertex() {

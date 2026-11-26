@@ -47,7 +47,7 @@ const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
 const ROCK_HIGH := Color(0.62, 0.61, 0.6)
 const MOSS := Color(0.32, 0.38, 0.24)
-const SNOW := Color(0.92, 0.94, 0.98)
+const SNOW := Color(0.72, 0.75, 0.81)  # the same off-white as the laid snow, see snow.gdshaderinc
 const EARTH := Color(0.36, 0.33, 0.29)
 
 

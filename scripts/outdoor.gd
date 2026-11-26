@@ -570,7 +570,6 @@ const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
 ## How much taller than wide Benno's tent is drawn, and how far round it no shrub grows (metres).
-const BARBER_TENT_TALL := 1.35
 const BARBER_CLEAR := 7.0
 ## The share of these shrubs that keep their leaves in autumn (the rest shed them, see
 ## undergrowth_shed), and fewer still within SHRUB_TEMPLE_REACH tiles of the temple.
@@ -4351,14 +4350,11 @@ func _spawn_street_sweeper() -> void:
 ## fresh woven linen, not the stained canvas of the bandits' tents.
 func _build_barber_shop(cell: Vector2i) -> Node3D:
 	var pos := cell_to_world(cell)
-	var box := _aabb_of("tent")
-	# A quarter bigger than it was and taller still. One can walk in under it: the chair stands there
-	# (see BarberChair), and the tent fades away while someone sits.
-	var width := 4.5 / maxf(box.size.x, box.size.z)
-	var tent := _put("tent", pos, 0.0, width)
-	tent.scale = Vector3(width, width * BARBER_TENT_TALL, width)
-	tent.name = "BarberTent"
-	WeatheredProps.clean_linen(tent)
+	# Built by hand (see BarberTent): round timber poles and a saggy linen roof. One can walk in under it:
+	# the chair stands there (see BarberChair), and the tent fades away while someone sits.
+	var tent := BarberTent.build()
+	tent.position = pos
+	add_child(tent)
 	var pole := Effects.barber_pole()
 	pole.position = pos + Vector3(-2.6, 0, 2.4)
 	add_child(pole)

@@ -10,7 +10,7 @@ const CLOSE_PITCH := 22.0
 const CLOSE_DISTANCE := 7.5
 const ZOOM_STEP := 0.12
 ## How many zoom steps the camera can pull back beyond the normal view.
-const ZOOM_OUT_STEPS := 2
+const ZOOM_OUT_STEPS := 4
 const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const GOLD := Color(1.0, 0.82, 0.4)

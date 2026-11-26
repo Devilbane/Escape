@@ -1,0 +1,1 @@
+- Each wall hold is either a stone or a hole, never both; stones side by side join into one rib and holes side by side into one slot.

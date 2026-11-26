@@ -4,7 +4,8 @@ extends RefCounted
 ## rules are RockClimb's, one square at a time: FIRST moves in a row from the ground earn a nail, NEXT
 ## from each nail the next one; a failed move is a slip (a try again at once), then a rest, and every failed
 ## try raises the chance of a fall (RockClimb.fall_chance); a fall off a surface or a jump is always a fall.
-## A fall drops the climber to the last nail, or the ground; MAX_FALLS falls to a nail end the climb.
+## A fall drops the climber to the last nail, or the ground; GIVE_UP_FALLS_TIRED falls to a nail with the meter under
+## GIVE_UP_METER, or GIVE_UP_FALLS in any case, end the climb. Resting resets the count of falls.
 ## Rolls come in as arguments (0..1, a roll at or above the chance fails), so a test can play it through.
 
 enum Outcome { MOVED, TOP, NAILED, SLIPPED, RESTED, FELL, GAVE_UP, BLOCKED, BRACED, GRAZED, EXHAUSTED, CAMPED }
@@ -40,10 +41,16 @@ const NIGHT_HOUR := 20.0
 const DAWN_HOUR := 6.0
 const DARK_LEVELS := [0, 1, 3]
 const DARK_COST := [1.0, 1.15, 1.4]
-const BREATH_GOOD := 0.4
-const BREATH_POOR := 0.15
+## Resting gives back this share of the meter's maximum (catching breath on the wall, a day's rest at a rest place).
+const REST_BOOST := 0.85
+const BREATH_GOOD := REST_BOOST
+const BREATH_POOR := REST_BOOST
+## The climber gives up after this many falls to a nail with less than GIVE_UP_METER of the meter, or after GIVE_UP_FALLS.
+const GIVE_UP_FALLS_TIRED := 3
+const GIVE_UP_FALLS := 4
+const GIVE_UP_METER := 0.5
 const BIVOUAC_DAY_HOURS := 3.0
-const BIVOUAC_DAY := 0.7
+const BIVOUAC_DAY := REST_BOOST
 const GOOD_MALUS := 2
 ## Hanging still gives nothing back: only resting does (catching breath, a rest place, the hammock).
 const REST_GOOD := 0.0
@@ -200,6 +207,7 @@ func at_camp() -> bool:
 ## Catches breath on the wall: a part of the meter comes back (more on a good hold) and time passes.
 func catch_breath() -> void:
 	clock += BREATH_HOURS
+	falls = 0
 	stamina = minf(stamina_cap(), stamina + stamina_max * (BREATH_GOOD if good_hold() else BREATH_POOR))
 
 
@@ -217,6 +225,7 @@ func bivouac() -> int:
 		injury = maxi(0, injury - 1)
 		stamina = minf(stamina_cap(), stamina + stamina_max * BIVOUAC_DAY)
 	streak = 0
+	falls = 0
 	return Outcome.CAMPED
 
 
@@ -324,6 +333,6 @@ func _fall() -> int:
 	retry = true
 	if nail != NOWHERE:
 		falls += 1
-		if falls >= RockClimb.MAX_FALLS:
+		if falls >= GIVE_UP_FALLS or falls >= GIVE_UP_FALLS_TIRED and stamina < GIVE_UP_METER * stamina_cap():
 			return Outcome.GAVE_UP
 	return Outcome.FELL

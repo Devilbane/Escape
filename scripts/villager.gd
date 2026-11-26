@@ -103,6 +103,11 @@ const ROLES := {
 	"λ": {"name": "Hirte Moritz", "model": "Rogue", "show": ["Rogue_Cape"], "hair": {"style": "natural", "color": "black"},
 		"colors": [Color(0.5, 0.58, 0.4), Color(0.4, 0.36, 0.3), Color(0.62, 0.5, 0.34)], "plan": "farm", "work": "Idle",
 		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
+	# The beekeeper of the farming valley (see Beekeeper): day plan "farm" with his own jobs among the hives (see ValleyFolk),
+	# a straw hat with a net veil (see BeeVeil) and a window for honey.
+	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "spiky", "color": "silver"},
+		"colors": [Color(0.86, 0.8, 0.62), Color(0.42, 0.35, 0.27), Color(1, 1, 1)], "plan": "farm", "work": "Interact",
+		"lines": ["Keine Angst, meine Bienen stechen nur, wenn man sie ärgert. Und manchmal, wenn sie schlecht geschlafen haben.", "Der beste Honig im Tal! Das sagt nicht nur mein Spiegel.", "Die Bienen summen den ganzen Tag. Ich summe mit, falsch, aber aus vollem Herzen.", "Im Frühling blühen die Wiesen, im Sommer fließt der Honig. Im Winter esse ich ihn auf.", "Mit zwei Gläsern Honig braust du am Alchemistentisch einen Heiltrank. Frag die Priesterin, ob sie es glaubt."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
 		"colors": [Color(0.75, 0.35, 0.3), Color(0.35, 0.4, 0.3), Color(0.6, 0.45, 0.3)], "plan": "work", "work": "2H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Holla! Du kommst vom Friedhof? Da geht doch keiner hin.", "Folge dem Weg, dann kommst du ins Dorf.", "Ein Baum am Tag, so hält man den Wald gesund.", "Am Waldteich westlich vom Dorf schnüren oft Füchse durchs Gras."]},
@@ -332,6 +337,9 @@ var _pumpkin_clock := -1.0
 var at_home := false
 ## Where a customer sits in the barber's chair (see BarberChair): Benno turns to it and snips. INF when none.
 var customer_at := Vector3.INF
+## Where he stands beside the chair while there is a customer, and whether he snips (not while the customer picks).
+var snip_spot := Vector3.INF
+var snips := false
 ## The way to bed and out again in a house one can walk into, while it lasts (see VillageBeds).
 var bed_trip := {}
 ## The way to (or out of) her place behind a hall's counter, and that place (see VillagePosts).
@@ -480,6 +488,8 @@ func _ready() -> void:
 			HairLook.tint_skin(_model, _info.skin)
 	if _info.get("cap", "") == "post":
 		PostCap.put_on(_model)
+	if _info.get("veil", false):
+		BeeVeil.put_on(_model)
 	if role == StreetSweeper.ROLE:
 		StreetSweeper.put_on(_model)
 	if _info.get("bandana", false):
@@ -2091,7 +2101,9 @@ func _next_task() -> void:
 			# With nothing to sweep he helps the farmers and looks for a girlfriend (see MatthesLife).
 			if role == MatthesLife.ROLE and MatthesLife.next(self):
 				return
-			if level.world_to_cell(global_position) != home:
+			if customer_at != Vector3.INF:
+				_start("work", 6.0) # A customer in the chair: he stays beside it.
+			elif level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
 				# In through the door to her place behind the counter (see VillagePosts).
@@ -2796,9 +2808,21 @@ func _do(task: String, delta: float) -> void:
 		_sow(delta)
 		return
 	var work: String = _job.get("anim", _info.work)
-	var snipping := customer_at != Vector3.INF and task == "work"
-	if snipping:
+	var serving := customer_at != Vector3.INF and task == "work"
+	if serving and Vector2(global_position.x - snip_spot.x, global_position.z - snip_spot.z).length() > 0.1:
+		# Round to his place beside the chair (see BarberChair).
+		var to := snip_spot - global_position
+		to.y = 0.0
+		var step := minf(_stride("Walking_A", WALK_SPEED) * delta, to.length())
+		global_position += to.normalized() * step
+		_turn_to(to, delta)
+		return
+	var snipping := serving and snips
+	if serving:
 		_turn_to(customer_at - global_position, delta)
+		if not snips:
+			play("Idle")
+			return
 	elif _job.has("face") and task == "work":
 		_turn_to((_job.face as Vector3) - global_position, delta)
 	if _anim.get_animation(work).loop_mode != Animation.LOOP_NONE:

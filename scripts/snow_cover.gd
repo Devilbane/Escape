@@ -15,7 +15,7 @@ const SHADER := preload("res://shaders/snow_cover.gdshader")
 const CUTOUT_SHADER := preload("res://shaders/snow_cutout.gdshader")
 ## Nodes of these kinds (and everything below them) stay bare, and so do the kinds that extend them (a
 ## BanditChief is an Enemy). Every animal and creature is here: none wears snow on its back.
-const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "MerchantDonkey", "Projectile", "VillageBirds", "Squirrel", "Hedgehog", "Eagle", "Rescue", "DragonFlyover", "Dragon", "VillageCat", "MerchantRaven"]
+const LEAVE_BARE := ["Villager", "Enemy", "Animal", "Pet", "Player", "FarmAnimal", "MerchantDonkey", "Projectile", "VillageBirds", "Owls", "Crows", "Squirrel", "Hedgehog", "Eagle", "Rescue", "DragonFlyover", "Dragon", "VillageCat", "MerchantRaven"]
 
 ## How many burning spots the shader knows (see set_warm).
 const WARM_MAX := 32

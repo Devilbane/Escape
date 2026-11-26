@@ -1,0 +1,1 @@
+- Sewer slime comes in small, medium and large puddles (big sheets in the chambers, all equally sharp), and the sewer floor no longer shows strange mirror-like reflections.

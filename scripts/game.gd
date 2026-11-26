@@ -300,7 +300,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND, Beekeeper.KIND]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -326,6 +326,9 @@ var save_notice: SaveNotice
 ## Frames per second, CPU and GPU time and ping under it, shown with F1 (see PerfOverlay).
 var perf_overlay: PerfOverlay
 var _level_label: Label
+## The hero's tile coordinates under the life bar, shown with F2 (see HeroCoords).
+var _coords_label: Label
+var show_coords := false
 var _moon_icon: MoonIcon
 var _season_icon: SeasonIcon
 var _season_shown := ""
@@ -685,6 +688,7 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Monitor.apply(get_window())
 	Graphics.load_settings()
 	Graphics.apply(get_viewport())
 	Sfx.load_settings()
@@ -800,10 +804,14 @@ func _setup_world() -> void:
 	# their detail. Torch pools in the dungeon still stand out against the
 	# dark, as stealth only cares about the light geometry, not the exposure.
 	env.tonemap_exposure = 0.95
+	# A wider shoulder: sunlit snow and pale stone keep their shading instead of clipping to flat white.
+	env.tonemap_white = 2.5
+	# Only truly bright things (lamps, fire, windows) bloom: a low threshold made pale snow, stones and
+	# barrel rims glare, by day too.
 	env.glow_enabled = true
-	env.glow_intensity = 0.7
+	env.glow_intensity = 0.5
 	env.glow_bloom = 0.05
-	env.glow_hdr_threshold = 0.9
+	env.glow_hdr_threshold = 1.2
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.0
@@ -1600,6 +1608,10 @@ func _setup_hud() -> void:
 	_status_row.add_theme_constant_override("separation", 4)
 	_status_row.theme = tips
 	_hud.add_child(_status_row)
+	_coords_label = _make_label(TEXT_FONT, 16, Color(0.85, 0.85, 0.78))
+	_coords_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coords_label.visible = false
+	_hud.add_child(_coords_label)
 	_ammo_row = HBoxContainer.new()
 	_ammo_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ammo_row.add_theme_constant_override("separation", 0)
@@ -6536,6 +6548,7 @@ func _place_hp_bar() -> void:
 	_hp_bar.visible = on_screen
 	_status_row.visible = on_screen
 	_ammo_row.visible = on_screen
+	_coords_label.visible = on_screen and show_coords
 	if not on_screen:
 		return
 	var screen := _hud.get_viewport().get_visible_rect().size
@@ -6543,6 +6556,11 @@ func _place_hp_bar() -> void:
 	# Under the bar from its left edge: the ammunition, then the troubles.
 	_ammo_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 	_status_row.position = _ammo_row.position + Vector2(AMMO_SLOT.x * AMMO.size() + AMMO_GAP, 0)
+	# F2: one line under the ammunition, from the bar's left edge. It grows to the right and
+	# has its own spot, so it moves nothing else.
+	if show_coords:
+		_coords_label.text = HeroCoords.line(level, player.global_position)
+		_coords_label.position = _ammo_row.position + Vector2(0, AMMO_SLOT.y + 4)
 
 
 ## Writes the ammunition counts under the life bar; an empty kind is dimmed.
@@ -8406,6 +8424,7 @@ func _process(delta: float) -> void:
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			Mill.KIND: Lang.t("Dagegenlaufen, um bei %s Körner zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			Beekeeper.KIND: Lang.t("Dagegenlaufen, um bei %s Honig zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"raumausstatter": Lang.t("Dagegenlaufen, um bei %s Möbel zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",
@@ -8566,6 +8585,11 @@ func _input(event: InputEvent) -> void:
 	# window, while typing in the chat line.
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F1 and perf_overlay != null:
 		perf_overlay.toggle()
+		get_viewport().set_input_as_handled()
+		return
+	# F2 shows or hides the hero's coordinates under the life bar.
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2 and _coords_label != null:
+		show_coords = not show_coords
 		get_viewport().set_input_as_handled()
 		return
 	# Letting go of the mouse ends a drag in the blueprint tool (a wall, a

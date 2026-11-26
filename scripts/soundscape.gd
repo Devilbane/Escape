@@ -35,6 +35,7 @@ const LOOPS := {
 	"amb_magic_0": -4.0, "amb_magic_1": -4.0,
 	"amb_astral_0": -4.0, "amb_astral_1": -4.0,
 	"amb_cellar": -12.0,
+	"crickets_loop": -14.0, "cicadas_loop": -17.0,
 }
 ## How strong the hearth's crackle is inside the hero's own house (0 to 1): a soft
 ## fire in the next corner, and the only sound there (the old cave air rests).
@@ -103,8 +104,14 @@ static func dungeon_loop(theme: String, walls: String, lair: bool, building: Str
 ## The strength (0 to 1) of every outdoor loop at one spot. `near` is the
 ## nearness (0 to 1) of "forge", "fire", "market" and "fields"; `village` says
 ## the hero is among the houses; `rain` is how hard it rains (0 to 1).
-static func outdoor_mix(village: bool, night: bool, near: Dictionary, rain: float) -> Dictionary:
+static func outdoor_mix(village: bool, night: bool, near: Dictionary, rain: float, insects := {}) -> Dictionary:
 	var mix := {}
+	# The insects of the season and the hour (see InsectLife): the cricket chorus and the cicadas' drone.
+	var shy := 0.6 if village else 1.0
+	for loop: String in ["crickets_loop", "cicadas_loop"]:
+		var level := float(insects.get(loop, 0.0)) * shy
+		if level > 0.01:
+			mix[loop] = level
 	if village:
 		mix["village_night" if night else "amb_village_day"] = 1.0
 		if not night:
@@ -180,7 +187,12 @@ static func wanted(game: Node) -> Dictionary:
 			return {}
 		var pos: Vector3 = game.player.global_position
 		var village: bool = level._in_village(level.world_to_cell(pos))
-		var mix := outdoor_mix(village, DayNight.is_night(game.day_hour), nearness(level, pos), float(game._weather_look.rain))
+		var hour: float = game.day_hour
+		var insects := {
+			"crickets_loop": InsectLife.level_crickets(level.season_day, hour, game.weather),
+			"cicadas_loop": InsectLife.level_cicadas(level.season_day, hour, game.weather),
+		}
+		var mix := outdoor_mix(village, DayNight.is_night(game.day_hour), nearness(level, pos), float(game._weather_look.rain), insects)
 		return cellar_mix(mix, cellar_depth(level.house_floors, pos))
 	if level.is_home:
 		if game.player != null and level.storey_of(level.world_to_cell(game.player.global_position)) < 0:

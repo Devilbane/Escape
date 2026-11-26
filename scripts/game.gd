@@ -591,6 +591,7 @@ func _bus_links() -> Array:
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
 		[bus.hero_spoke, hero_chat.on_hero_spoke],
+		[bus.hero_spoke, _on_riddle_spoken],
 		[bus.loot_carried_off, _on_loot_carried_off],
 		[bus.scare_happened, village_worries.on_scare],
 		[bus.enemy_slain, village_rumours.on_slain],
@@ -6110,6 +6111,12 @@ func chat_allowed() -> bool:
 ## The hero said `text` through the chat line: it floats over the hero's head
 ## and goes into the event log (as every spoken line does), and whoever is
 ## near may answer (see HeroChat).
+## The hero spoke: by the scarecrow in the sunflower field the right words set off the fireworks (see SunflowerRiddle).
+func _on_riddle_spoken(text: String, pos: Vector3) -> void:
+	if level is Outdoor and level.sunflower_riddle != null:
+		level.sunflower_riddle.on_hero_spoke(text, pos)
+
+
 func _hero_says(text: String) -> void:
 	var typed: Variant = Teleport.parse(text)
 	if typed != null:

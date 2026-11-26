@@ -278,6 +278,13 @@ func _build_markers() -> void:
 		if bool(WallMap.MARKERS[kind].get("hidden", false)):
 			var secret := WallSpots.build(kind, int(cell.x * 31 + cell.y))
 			secret.position = Vector3(xy.x, xy.y, z)
+			var stones := _builder.secret_mesh(cell.x, cell.y)
+			if stones != null:
+				var rock := MeshInstance3D.new()
+				rock.mesh = stones
+				rock.material_override = AgedStone.rock_material()
+				rock.position = Vector3(WallSpots.SECRET_WIDTH * 0.5 - xy.x, -xy.y, -z)
+				secret.get_node("Pivot/Slab").add_child(rock)
 			wall_root.add_child(secret)
 			_secrets[cell] = secret
 			continue

@@ -18,6 +18,9 @@ const GATHER := {
 	"edelweiss": {"id": "edelweiss", "count": 2},
 }
 
+## The width of a hidden door (m).
+const SECRET_WIDTH := 1.1
+
 static var _mats := {}
 
 
@@ -274,7 +277,7 @@ static func _drip_mesh(length: float, width: float) -> ArrayMesh:
 	return st.commit()
 
 
-## A door disguised as rock: an irregular slab of grey stone like the wall around it, nothing else (no sign, no frame). The slab
+## A door disguised as rock: a few of the wall's own stones (WallBuild.secret_mesh), nothing else (no sign, no frame). The slab
 ## hangs on a pivot ("Pivot", at its left edge) that WallStage swings open when the climber reaches it; behind it is the
 ## dark recess ("Recess").
 static func _secret(seed_value: int) -> Node3D:
@@ -290,16 +293,10 @@ static func _secret(seed_value: int) -> Node3D:
 	pivot.name = "Pivot"
 	pivot.position = Vector3(-w * 0.5, 0, 0)
 	root.add_child(pivot)
-	# An irregular flat stone, not a rectangle, in the face's own grey; it sits only slightly proud of the rock.
-	var stone := NaturalRock.mesh("rock_single_E")
+	# The slab itself is made of the wall's own stones (WallBuild.secret_mesh); WallStage puts them in here.
 	var slab := Node3D.new()
 	slab.name = "Slab"
 	pivot.add_child(slab)
-	if stone != null:
-		for i in 2:
-			_part(slab, stone, _mat("slab"), Vector3(w * 0.5 + rng.randf_range(-0.05, 0.05), 0.5 + i * 0.85, 0.0), Vector3(deg_to_rad(90.0), rng.randf_range(-0.4, 0.4), 0.0), Vector3(3.1, 0.9, 3.4))
-	else:
-		_part(slab, _box(Vector3(w - 0.02, h - 0.02, 0.08)), _mat("slab"), Vector3(w * 0.5, h * 0.5 - 0.2, 0.03))
 	recess.visible = false   # only seen once the slab swings open
 	return root
 

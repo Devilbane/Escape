@@ -34,6 +34,8 @@ func _initialize() -> void:
 		var id: String = WallSpots.GATHER[kind].id
 		check(Crafting.INGREDIENTS.has(id), "ingredient %s of %s exists" % [id, kind])
 		check(int(WallSpots.GATHER[kind].count) >= 1, "%s gives at least one" % kind)
+	var hidden := WallBuild.new(WallMap.load_file("res://walls/sample_three_paths.txt")).secret_mesh(9, 2)
+	check(hidden != null and hidden.surface_get_arrays(0)[Mesh.ARRAY_COLOR] != null, "the hidden door is made of the wall's own weathered stones")
 	check(WallSpots.build("camp", 1) == null, "a kind without a scene gives none")
 	var wall := WallMap.load_file("res://walls/sample_three_paths.txt")
 	var found := {}

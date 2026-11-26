@@ -254,3 +254,4 @@ wall_auto.gd | 300 | fixed | passfail | Wolfram climbs the sample wall by himsel
 grave_styles.gd | 120 | free | pass | Gravestone styles: every style builds, fits its footprint, and the graveyard mixes them
 grave_secrets_shots.gd | 600 | fixed | pass | Pictures of the bell grave, Archy's grave and the spirit
 ossuary_shots.gd | 600 | fixed | pass | Pictures of the ossuary shelves with the named skulls
+goto.gd | 120 | fixed | pass | The goto chat command: place, tile, season and time

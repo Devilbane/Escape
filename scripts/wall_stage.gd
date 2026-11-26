@@ -43,10 +43,10 @@ const CLOUD_FULL := 12.0
 const CLOUD_BAND := 0.42
 const SEQUENCE := [WallWeather.CLEAR, WallWeather.WIND, WallWeather.RAIN, WallWeather.STORM]
 ## Seconds of each move's animation.
-const SECONDS := {"up": 1.0, "side": 0.9, "down": 0.8, "leap": 0.9}
-const HAMMER_SECONDS := 1.5
-const THREAD_SECONDS := 1.0
-const TOP_SECONDS := 1.4
+const SECONDS := {"up": 2.2, "side": 2.4, "down": 1.8, "leap": 1.1}
+const HAMMER_SECONDS := 2.2
+const THREAD_SECONDS := 1.4
+const TOP_SECONDS := 2.0
 const FALL_SECONDS := 0.8
 const REST_SECONDS := 2.4
 ## A leap: crouch, spring and reach (poses on top of RopeClimbPose's).
@@ -87,7 +87,8 @@ var _rope_root: Node3D
 var _queue: Array[Dictionary] = []
 var _step_t := 0.0
 var _left := true
-var _yaw := 0.0
+## The camera looks a little from the side so that both arms and legs read from behind.
+var _yaw := 0.28
 var _pitch := 0.12
 var _zoom := 1.0
 var _drag := false
@@ -258,6 +259,7 @@ func _build_markers() -> void:
 			dead.model.rotation.y = PI
 			dead.pose(ClimbPose.mix(RopeClimbPose.POSES["fall"], RopeClimbPose.POSES["rest"], 0.4))
 			wall_root.add_child(dead.model)
+			WallFrost.freeze(dead.model, int(cell.x * 31 + cell.y))
 
 
 ## The ground at the foot: the same weathered rock, drawn flat.
@@ -800,6 +802,9 @@ func _tick_animation(delta: float) -> void:
 		_:
 			climber.pose(RopeClimbPose.at(key, u))
 			var lift := smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, u) if (key.begins_with("pull") or key.begins_with("side") or key.begins_with("desc")) else 1.0
+			if key.begins_with("side"):
+				# The body goes across once the hand and the foot have reached and gripped (no jump).
+				lift = smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, u)
 			at = from.lerp(to, lift)
 	feet = at
 	climber.model.position = feet
@@ -880,7 +885,7 @@ func _rope_update() -> void:
 		var up := (b - a) / length
 		var axis := Vector3.UP.cross(up)
 		var basis := Basis(axis.normalized(), Vector3.UP.angle_to(up)) if axis.length() > 0.001 else Basis()
-		seg.basis = basis.scaled(Vector3(1, length, 1))
+		seg.basis = basis.scaled_local(Vector3(1, length, 1))
 
 
 # --- weather in play: falling stones, drifting weather, the cloud sea ------------------------------------

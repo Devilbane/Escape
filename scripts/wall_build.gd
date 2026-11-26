@@ -18,6 +18,8 @@ extends RefCounted
 const RES := 4
 const BACK := -1.6
 const GAP_DEPTH := 1.35
+## How far (metres) the crack of a gap runs on below it.
+const GAP_RUN := 5.5
 ## Knob height and radius of a hold of malus 0 (the radius shrinks with every malus point).
 const KNOB_HEIGHT := 0.3
 const KNOB_RADIUS := 0.5
@@ -181,6 +183,15 @@ func _field(x: float, y: float) -> Dictionary:
 		var jag := _noise.get_noise_2d(x * 2.1 + 9.0, y * 2.1) * 0.34 + _fine.get_noise_2d(x * 6.0, y * 6.0 + 5.0) * 0.12
 		var inside := -(sd + jag)
 		trench = maxf(trench, smoothstep(0.0, 0.3, inside))
+		# The crack runs on below the gap, a few steps down, tapering to a needle, so it reads as a break in the face
+		# (not a cave); it keeps clear of the holds.
+		if y < y0:
+			var t := clampf((y0 - y) / GAP_RUN, 0.0, 1.0)
+			var narrow := maxf(0.04, (x1 - x0) * 0.5 * (1.0 - t))
+			var cx := (x0 + x1) * 0.5 + _noise.get_noise_2d(y * 1.3, 4.0) * 0.25
+			var side := narrow - absf(x - cx) + jag * 0.5
+			var run := smoothstep(0.0, minf(0.25, narrow), side) * (1.0 - 0.3 * t) * (1.0 - knob)
+			trench = maxf(trench, run * 0.95)
 	d -= trench * GAP_DEPTH
 	col = col.lerp(ROCK_DARK * 0.15, smoothstep(0.1, 0.6, pocket) * 0.95)
 	col = col.lerp(CHALK, clampf(rim, 0.0, 1.0) * 0.7)

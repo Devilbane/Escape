@@ -34,6 +34,8 @@ const POCKET_FLIP := 0.1
 const FOOT_CLEAR := Vector2(1.1, 0.7)
 const DECOR_CLEAR := 1.0
 const LEDGE_REACH := 1.8
+## Foot stones this close on different levels get connecting stones (see filler_mesh).
+const FILLER_REACH := 1.9
 ## Colour of the set-in stones: darkened by this and greyed towards the dark rock by STONE_WEATHER.
 const STONE_SHADE := 0.86
 const STONE_WEATHER := 0.2
@@ -50,6 +52,7 @@ const DECOR_SHARE := 0.2
 const FOOT_DROP := 1.7
 ## A foot stone is made only where the feet are clear of the ground (on the ground he simply stands).
 const FOOT_MIN_Y := 0.2
+const FOOT_KINDS := ["rock_single_E", "rock_single_C", "rock_single_A"]
 
 const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
@@ -100,6 +103,13 @@ static func node(wall: WallMap) -> Node3D:
 		fm.mesh = feet
 		fm.material_override = AgedStone.rock_material()
 		root.add_child(fm)
+	var filler := b.filler_mesh()
+	if filler != null:
+		var fi := MeshInstance3D.new()
+		fi.name = "Filler"
+		fi.mesh = filler
+		fi.material_override = AgedStone.rock_material()
+		root.add_child(fi)
 	var decor := b.decor_mesh()
 	if decor != null:
 		var dm := MeshInstance3D.new()
@@ -194,8 +204,13 @@ func _field(x: float, y: float) -> Dictionary:
 				var radius := lerpf(KNOB_MIN_RADIUS, KNOB_RADIUS, ease)
 				# A hard hold is a thin, wide crimp (flatter than it is wide); an easy one a round, chunky jug.
 				var squash := lerpf(0.62, 1.0, ease)
-				var off := Vector2(x, y) - centre
-				var dist := Vector2(off.x, off.y / squash).length()
+				# Every hold has its own outline: a little wider or narrower, turned and lopsided, whatever its difficulty.
+				var hv := _hash(c * 5 + 2, r * 3 + 7)
+				var hw := _hash(c * 9 + 4, r * 7 + 1)
+				var off := (Vector2(x, y) - centre).rotated((hv - 0.5) * 0.9)
+				off.x /= lerpf(0.8, 1.3, hw)
+				off.x += off.y * (hv - 0.5) * 0.35
+				var dist := Vector2(off.x, off.y / squash).length() / lerpf(0.88, 1.15, hv)
 				if dist < radius:
 					var k := 0.5 + 0.5 * cos(PI * dist / radius)
 					if k * lerpf(0.35, 1.0, ease) >= knob:
@@ -521,11 +536,52 @@ func foot_mesh() -> ArrayMesh:
 			if spot.x < 0.0:
 				continue
 			var h := _hash(c * 23 + 1, r * 19 + 6)
-			var mesh: ArrayMesh = NaturalRock.mesh("rock_single_E")
+			var h2 := _hash(c * 31 + 4, r * 37 + 2)
+			var h3 := _hash(c * 41 + 9, r * 43 + 5)
+			# Three kinds of stone, each wider or narrower, higher or flatter and tilted differently, so no two look alike.
+			var kind: String = FOOT_KINDS[int(h2 * 3.0) % 3]
+			var mesh: ArrayMesh = NaturalRock.mesh(kind)
 			if mesh == null:
 				continue
-			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0)) * Basis(Vector3.UP, (h - 0.5) * 0.8)
-			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3(2.0, 1.7, 1.6)), Vector3(spot.x, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.07)))
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h3 - 0.5) * 16.0)) * Basis(Vector3.UP, (h - 0.5) * 1.3)
+			var size := Vector3(lerpf(1.5, 2.5, h2), lerpf(1.35, 2.1, h3), lerpf(1.3, 1.9, h))
+			if kind == "rock_single_A":
+				size *= Vector3(1.25, 1.5, 1.3)   # the flat kind is made taller to carry a foot
+			st.append_from(mesh, 0, Transform3D(basis.scaled(size), Vector3(spot.x + (h3 - 0.5) * 0.15, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.07)))
+			count += 1
+	if count == 0:
+		return null
+	return _weathered(st.commit())
+
+
+## Small connecting stones that fill the spaces between the foot stones (along each ledge and between neighbours on
+## different levels) so the stones blend into one rocky face. They are only for the look: no hold, no foot, no climbing.
+func filler_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var count := 0
+	var kinds := ["rock_single_A", "rock_single_C", "rock_single_E"]
+	var feet := _feet()
+	var pairs: Array = _ledges.duplicate()
+	for i in feet.size():
+		for j in range(i + 1, feet.size()):
+			var a: Vector2 = feet[i]
+			var b: Vector2 = feet[j]
+			if absf(a.y - b.y) >= 0.35 and a.distance_to(b) < FILLER_REACH and _hash(int(a.x * 7.0) + i, int(b.y * 7.0) + j) < 0.3:
+				pairs.append([a, b])
+	for pair in pairs:
+		var a: Vector2 = pair[0]
+		var b: Vector2 = pair[1]
+		var n := 1
+		for k in n:
+			var h1 := _hash(int(a.x * 10.0) + k * 7, int(a.y * 10.0) + int(b.x * 10.0))
+			var h2 := _hash(int(b.y * 10.0) + k * 3, int(a.x * 10.0) + 5)
+			var at := a.lerp(b, (k + 1.0) / (n + 1.0)) + Vector2((h1 - 0.5) * 0.25, (h2 - 0.5) * 0.3)
+			var mesh: ArrayMesh = NaturalRock.mesh(kinds[int(h1 * 3.0) % 3])
+			if mesh == null:
+				continue
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h2 - 0.5) * 40.0)) * Basis(Vector3.UP, h1 * TAU)
+			var size := lerpf(0.6, 1.2, h2)
+			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * size), Vector3(at.x, at.y - 0.05, depth_at(at.x, at.y) - 0.06)))
 			count += 1
 	if count == 0:
 		return null

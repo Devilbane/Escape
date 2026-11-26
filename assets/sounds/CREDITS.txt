@@ -176,3 +176,6 @@ tools/make_crow_sounds.py (a rough pulse train through throaty formants; bursts 
 recordings, so they have no licence to credit (public domain, CC0).
 
 Scissor snips (snip_0 to snip_2): synthesised from scratch by tools/make_snip_sounds.py (no recordings).
+
+Cricket chorus, cricket chirps, cicada drone and owl hoots (crickets_loop, cicadas_loop, cricket_0 to cricket_2,
+owl_0, owl_1): synthesised from tones and envelopes by tools/make_insect_sounds.py, no outside material.

@@ -725,6 +725,8 @@ var sweep_dust: SweepDust
 var pond_reeds: PondReeds
 ## The frogs at the water, built with the reeds (see PondFrogs).
 var pond_frogs: PondFrogs
+## The fireflies, gnats and butterflies and the chirps of the night (see InsectLife).
+var insect_life: InsectLife
 ## Every pond tile (see IceCover).
 var _pond_waters: Array = []
 var _ground_mat: ShaderMaterial
@@ -878,6 +880,7 @@ func build() -> void:
 	pond_reeds = PondReeds.grow(self, _pond_waters)
 	if not _pond_waters.is_empty():
 		pond_frogs = PondFrogs.grow(self, _pond_waters)
+	insect_life = InsectLife.grow(self, _pond_waters)
 	ice_cover = IceCover.new(self, _pond_waters, _ground_mat)
 	snow = SnowCover.new(self)
 	var roofed: Array = []

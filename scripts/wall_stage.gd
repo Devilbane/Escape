@@ -52,7 +52,10 @@ const REST_SECONDS := 2.4
 ## A leap: crouch, spring and reach (poses on top of RopeClimbPose's).
 const LEAP_POSES := {
 	"crouch": {"hips_y": -0.14, "spine": 18.0, "head": -20.0, "arm": 150.0, "elbow": 30.0, "hip_l": 70.0, "hip_r": 70.0, "knee_l": 100.0, "knee_r": 100.0},
-	"spring": {"hips_y": 0.1, "spine": -8.0, "head": -26.0, "arm": 176.0, "elbow": 4.0, "hip_l": 20.0, "hip_r": 40.0, "knee_l": 20.0, "knee_r": 60.0},
+	# Both arms stretched out ahead to the target while the legs push off (flight), then the catch: the arms bend and
+	# the knees come up for the new stand.
+	"spring": {"hips_y": 0.1, "spine": -8.0, "head": -26.0, "arm_l": 0.0, "out_l": 50.0, "lift_l": 120.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 50.0, "lift_r": 120.0, "elbow_r": 0.0, "hip_l": 8.0, "hip_r": 12.0, "knee_l": 8.0, "knee_r": 14.0, "abd_l": 20.0, "abd_r": 20.0},
+	"catch": {"hips_y": -0.06, "spine": 12.0, "head": -24.0, "arm": 150.0, "elbow": 75.0, "hip_l": 72.0, "hip_r": 66.0, "knee_l": 92.0, "knee_r": 88.0, "abd_l": 30.0, "abd_r": 30.0},
 }
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],
@@ -818,6 +821,7 @@ func _tick_animation(delta: float) -> void:
 				at.y += 0.14 * sin(clampf((u - 0.2) / 0.14, 0.0, 1.0) * PI)
 	feet = at
 	climber.model.position = feet
+	_slack = 0.9 * (1.0 - u * u) * sin(minf(1.0, u * 3.0) * PI * 0.5) if key == "fall" else 0.0
 	if key != "bed":
 		climber.model.rotation.z = 0.0
 	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
@@ -866,14 +870,17 @@ func _piton_spot(at: Vector3, side: int) -> Vector3:
 func _leap_pose(u: float) -> Dictionary:
 	if u < 0.35:
 		return ClimbPose.mix(RopeClimbPose.POSES["hang"], LEAP_POSES["crouch"], smoothstep(0.0, 1.0, u / 0.35))
-	if u < 0.65:
-		return ClimbPose.mix(LEAP_POSES["crouch"], LEAP_POSES["spring"], smoothstep(0.0, 1.0, (u - 0.35) / 0.3))
-	return ClimbPose.mix(LEAP_POSES["spring"], RopeClimbPose.POSES["hang"], smoothstep(0.0, 1.0, (u - 0.65) / 0.35))
+	if u < 0.6:
+		return ClimbPose.mix(LEAP_POSES["crouch"], LEAP_POSES["spring"], smoothstep(0.0, 1.0, (u - 0.35) / 0.25))
+	if u < 0.78:
+		return ClimbPose.mix(LEAP_POSES["spring"], LEAP_POSES["catch"], smoothstep(0.0, 1.0, (u - 0.6) / 0.18))
+	return ClimbPose.mix(LEAP_POSES["catch"], RopeClimbPose.POSES["hang"], smoothstep(0.0, 1.0, (u - 0.78) / 0.22))
 
 
 # --- nails and rope --------------------------------------------------------------------------------------
 
 var _camp: Node3D
+var _slack := 0.0   ## how much the rope hangs loose in a fall (it is taut again when the fall is caught)
 
 
 func _camp_root() -> Node3D:
@@ -911,6 +918,10 @@ func _rope_update() -> void:
 	for nail in climb.nails:
 		var xy := WallBuild.square_centre(wall, nail.x, nail.y)
 		points.append(Vector3(xy.x, xy.y + 0.35, _builder.depth_at(xy.x, xy.y) + 0.2))
+	if _slack > 0.02:
+		var last := points[points.size() - 1]
+		var belt := feet + Vector3(0, 0.95, 0.25)
+		points.append((last + belt) * 0.5 + Vector3(_slack * 0.5, -_slack * 0.3, _slack))
 	points.append(feet + Vector3(0, 0.95, 0.25))
 	while _rope_root.get_child_count() < points.size() - 1:
 		var seg := MeshInstance3D.new()

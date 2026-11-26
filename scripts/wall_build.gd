@@ -24,6 +24,8 @@ const KNOB_RADIUS := 0.5
 const KNOB_SHRINK := 0.035
 const ICE_LIFT := 0.035
 const STONES_PER_SQUARE := 5
+## Share of the plain squares that carry a decorative stone jutting out of the face (they are no holds).
+const DECOR_SHARE := 0.2
 
 const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
@@ -67,6 +69,13 @@ static func node(wall: WallMap) -> Node3D:
 		st.mesh = stones
 		st.material_override = AgedStone.rock_material()
 		root.add_child(st)
+	var decor := b.decor_mesh()
+	if decor != null:
+		var dm := MeshInstance3D.new()
+		dm.name = "Decor"
+		dm.mesh = decor
+		dm.material_override = AgedStone.rock_material()
+		root.add_child(dm)
 	for i in wall.gaps.size():
 		root.add_child(b._gap_label(i))
 	return root
@@ -299,6 +308,36 @@ func stones_mesh() -> ArrayMesh:
 				var xf := Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.02))
 				st.append_from(mesh, 0, xf)
 				count += 1
+	if count == 0:
+		return null
+	return st.commit()
+
+
+## Decorative stones that jut out of the face here and there, only on plain squares (no hold, no gap, no loose
+## stones), varied in kind, size and lean. They make the mountain look rocky and are not part of the climb.
+func decor_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var count := 0
+	var kinds := ["rock_single_A", "rock_single_C", "rock_single_E"]
+	for r in map.height:
+		for c in map.width:
+			if map.has_hold(c, r) or map.gap_at(c, r) >= 0 or map.hazard_at(c, r) == WallMap.LOOSE:
+				continue
+			if _hash(c * 29 + 3, r * 31 + 7) > DECOR_SHARE:
+				continue
+			var h1 := _hash(c * 7 + 1, r * 5 + 2)
+			var h2 := _hash(c * 11 + 5, r * 3 + 9)
+			var h3 := _hash(c * 17 + 2, r * 13 + 4)
+			var centre := square_centre(map, c, r)
+			var x := centre.x + (h1 - 0.5) * 0.7
+			var y := centre.y + (h2 - 0.5) * 0.7
+			var mesh: ArrayMesh = NaturalRock.mesh(kinds[int(h3 * 3.0) % 3])
+			if mesh == null:
+				continue
+			var factor := 0.9 + 1.3 * h1
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h2 - 0.5) * 70.0)) * Basis(Vector3.UP, h3 * TAU)
+			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.03)))
+			count += 1
 	if count == 0:
 		return null
 	return st.commit()

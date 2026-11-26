@@ -4,7 +4,7 @@ extends RefCounted
 ## it points at. A ladder is climbed only by a click on it, never by walking into it.
 
 ## How near (metres) a click's ray has to pass to the middle line of a ladder to hit it.
-const RADIUS := 0.5
+const RADIUS := 1.0
 ## The hover glow over a ladder's rungs.
 const GLOW := Color(1.0, 0.82, 0.4)
 

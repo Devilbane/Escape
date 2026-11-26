@@ -1,0 +1,2 @@
+- The mage tower can be entered again by clicking its door, and the stairs up to the sleeping room are walkable again.
+- Stairs and ladders are easier to click: a click near them now takes you onto them.

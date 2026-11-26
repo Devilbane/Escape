@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Never publish a Windows build of an older commit over a newer one | Shipped this week: Double the DB logo apple trees and add yellow apples; Open the test panel with F6 too and the wall workshop by chat command (+48 more)
+Escape! dev status | Shipped this week: Never publish a Windows build of an older commit over a newer one; Double the DB logo apple trees and add yellow apples (+48 more)

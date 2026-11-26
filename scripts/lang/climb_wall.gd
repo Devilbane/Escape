@@ -71,6 +71,8 @@ const EN := {
 	"Der Blitz hat dich verletzt: Klettern und Kraft sinken stark, bis du dich ausruhst.": "The lightning hurt you: climbing and strength drop badly until you rest.",
 	"Verletzt": "Injured",
 	"Zufall: %d %%": "Chaos: %d %%",
+	"Zufall": "Chaos",
+	"Wie sehr der Zufall die Kletterprobe regiert: wechselndes Wetter, fallende Steine und Blitze. 0 % ist ruhig, 100 % wild.": "How much chance rules the climbing test: changing weather, falling stones and lightning. 0 % is calm, 100 % wild.",
 	"Nebel: du siehst die nächsten Griffe schlecht.": "Fog: you can hardly see the next holds.",
 	"Ein Stein trifft dich und wirft dich von der Wand! ": "A stone hits you and knocks you off the wall! ",
 	"Vorlage": "Template",

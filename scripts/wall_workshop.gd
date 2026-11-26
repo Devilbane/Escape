@@ -58,6 +58,8 @@ var _recheck := Timer.new()
 var _hover_cell := Vector2i(-1, -1)
 var _loading := false
 var _weather := WallWeather.CLEAR
+## How much chance rules the climbing test: random weather, falling stones and lightning (0..1, see WallStage.chaos).
+var _chaos := 0.5
 
 
 func _ready() -> void:
@@ -313,6 +315,27 @@ func _right_column() -> Control:
 			stage.set_weather(_weather)
 		_after_change(false))
 	form.add_child(sky)
+	form.add_child(_label("Zufall", 13, Color(0.9, 0.85, 0.75), false))
+	var chaos_row := HBoxContainer.new()
+	chaos_row.add_theme_constant_override("separation", 8)
+	var chaos_slider := HSlider.new()
+	chaos_slider.min_value = 0.0
+	chaos_slider.max_value = 1.0
+	chaos_slider.step = 0.1
+	chaos_slider.value = _chaos
+	chaos_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chaos_slider.custom_minimum_size = Vector2(0, 28)
+	chaos_slider.tooltip_text = Lang.t("Wie sehr der Zufall die Kletterprobe regiert: wechselndes Wetter, fallende Steine und Blitze. 0 % ist ruhig, 100 % wild.")
+	var chaos_value := _label("%d %%" % int(round(_chaos * 100.0)), 13, UiKit.GOLD, false)
+	chaos_value.custom_minimum_size = Vector2(48, 0)
+	chaos_slider.value_changed.connect(func(v: float) -> void:
+		_chaos = v
+		chaos_value.text = "%d %%" % int(round(v * 100.0))
+		if stage.map != null:
+			stage.chaos = v)
+	chaos_row.add_child(chaos_slider)
+	chaos_row.add_child(chaos_value)
+	form.add_child(chaos_row)
 	col.add_child(form)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -360,6 +383,7 @@ func _show_page(i: int) -> void:
 	if i != 0:
 		if _stage_stale or stage.map == null:
 			stage.setup(map, int(_skill_spin.value), i == 2, _weather, int(_con_spin.value))
+			stage.chaos = _chaos
 			stage.climb.dexterity = int(_attr_spins[0].value)
 			stage.climb.intuition = int(_attr_spins[1].value)
 			stage.climb.wisdom = int(_attr_spins[2].value)

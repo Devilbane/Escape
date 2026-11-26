@@ -1,3 +1,4 @@
 - Winter snow is matte now: the bright shiny specks on the snow and its glossy sheen are gone.
 - Pale things (snow, stones, barrel rims) no longer glare: the bloom only catches lamps, fire and other really bright lights.
 - Snow is a little less bright, so caps on stones and posts no longer blow out to pure white in daylight.
+- Sunlit snow and pale rock keep their shading instead of clipping to flat white.

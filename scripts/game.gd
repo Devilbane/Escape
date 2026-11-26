@@ -800,6 +800,8 @@ func _setup_world() -> void:
 	# their detail. Torch pools in the dungeon still stand out against the
 	# dark, as stealth only cares about the light geometry, not the exposure.
 	env.tonemap_exposure = 0.95
+	# A wider shoulder: sunlit snow and pale stone keep their shading instead of clipping to flat white.
+	env.tonemap_white = 2.5
 	# Only truly bright things (lamps, fire, windows) bloom: a low threshold made pale snow, stones and
 	# barrel rims glare, by day too.
 	env.glow_enabled = true

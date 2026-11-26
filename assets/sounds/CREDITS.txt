@@ -165,7 +165,7 @@ Frog croaks and ribbits (frog_0 to frog_6): "Frog Croaks" and "Ribbit Frog Sound
 https://opengameart.org/content/frog-croaks and https://opengameart.org/content/ribbit-frog-sounds
 License: CC0 (public domain). Converted to mono Ogg Vorbis, levelled, the ends faded. The splash of a frog
 hopping into the water reuses splash_soft_0 to splash_soft_2.
-The sounds of the water's small life (water_plop_*, water_dive_* and water_ring) are made
+The sounds of the water's small life (water_splash_* and water_ripple_*: soft splashes) are made
 from scratch by tools/make_water_sounds.py.
 
 The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from scratch by tools/make_goose_sounds.py

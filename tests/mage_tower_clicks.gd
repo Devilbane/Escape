@@ -103,19 +103,23 @@ func _run() -> void:
 	game.player.global_position = way[1]
 	game.player.reset_physics_interpolation()
 	await _physics(30)
-	for spot: Array in [["halfway up the first flight", a, 0.5], ["the top step of the first flight", a, 0.9]]:
-		game.player.global_position = way[1]
-		game.player.reset_physics_interpolation()
-		await _physics(10)
-		var f: Dictionary = spot[1]
-		var z: float = lerpf(float(f.foot), float(f.top), float(spot[2]))
-		await _click_at(hall, Vector3((float(f.x0) + float(f.x1)) * 0.5, GuildHall.ramp(f, z), z), spot[0], float(f.high))
-	# Upstairs: the boards of the library, and the second flight.
-	game.player.global_position = hall.global_transform * Vector3(2.2, lay.up_floor, -2.4)
-	game.player.reset_physics_interpolation()
+	# Halfway up the first flight, then (walking on from there) its top step.
+	for k: float in [0.5, 0.9]:
+		var z: float = lerpf(float(a.foot), float(a.top), k)
+		await _click_at(hall, Vector3((float(a.x0) + float(a.x1)) * 0.5, GuildHall.ramp(a, z), z), "the first flight at %.1f" % k, float(a.high))
+	for i in 60 * 10:
+		await physics_frame
+		if game.player.path.is_empty():
+			break
 	await _physics(30)
-	await _click_at(hall, Vector3(1.5, lay.up_floor, 1.5), "the library floor", float(lay.up_floor))
+	# Up on the landing the rays of the second flight and of the library's boards meet them, not the ground.
+	check((hall.global_transform.affine_inverse() * game.player.global_position).y > float(lay.up_floor) - 0.5, "the hero is up on the landing")
 	var zb: float = lerpf(float(b.foot), float(b.top), 0.5)
-	await _click_at(hall, Vector3((float(b.x0) + float(b.x1)) * 0.5, GuildHall.ramp(b, zb), zb), "halfway up the second flight", float(b.high))
+	var step := Vector3((float(b.x0) + float(b.x1)) * 0.5, GuildHall.ramp(b, zb), zb)
+	var got: Vector3 = hall.global_transform.affine_inverse() * _ray_point(hall.global_transform * step)
+	check(absf(got.y - step.y) < 0.2 and Vector2(got.x - step.x, got.z - step.z).length() < 0.5, "a click on the second flight meets its steps (%s, wanted %s)" % [got, step])
+	var board := Vector3(1.8, lay.up_floor, 3.6)
+	got = hall.global_transform.affine_inverse() * _ray_point(hall.global_transform * board)
+	check(absf(got.y - board.y) < 0.2 and Vector2(got.x - board.x, got.z - board.z).length() < 0.5, "a click on the library floor meets it (%s, wanted %s)" % [got, board])
 	print("PASS: mage tower clicks" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

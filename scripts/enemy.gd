@@ -83,6 +83,9 @@ const KINDS := {
 		"ghost": Color(0.95, 1.0, 0.97), "aura": Color(0.3, 1.0, 0.45), "fade": true, "curse": 0.3, "scare": 14, "gear_chance": 0.0, "voice": ["voice_totengeist", 1.0, "huuu"]},
 	"banshee": {"model": "Skeleton_Mage", "hp": 2, "speed": 3.8, "damage": 1, "reach": 18.0, "size": 1.0, "cooldown": 3.0, "ranged": true, "magic": true,
 		"ghost": Color(0.95, 1.0, 0.97), "aura": Color(0.45, 1.0, 0.3), "shriek": 16.0, "scare": 18, "hide": ["_Hat"], "gear_chance": 0.0, "voice": ["voice_banshee", 1.0, "uuuh"]},
+	# Death, called up by ringing the Deathringer far from Owlav's grave (see OwlClock): its life and
+	# its blows are set by the moon when it rises.
+	"tod": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Staff", "hp": 10, "speed": 4.3, "damage": 2, "reach": 2.6, "size": 1.7, "cooldown": 1.5, "tint": Color(0.09, 0.09, 0.13), "purse": [0, 0]},
 	"waechter": {"model": "Skeleton_Warrior", "weapon": "Skeleton_Axe", "shield": "Skeleton_Shield_Large_A", "hp": 20, "speed": 3.0, "damage": 2, "reach": 2.3, "size": 1.25, "cooldown": 1.6, "tint": Color(0.46, 0.5, 0.58), "armored": true},
 	# The bandits of the open wild: "human" kinds use the adventurer models
 	# ("dir"), keep only the body parts in "parts", wear clothes in "colors"
@@ -446,6 +449,9 @@ const SLIME_AGGRO_RANGE := 14.0
 ## Whether the blow that felled it came from another monster rather than
 ## the hero: such a kill counts for no task.
 var slain_by_rival := false
+## Called up by the Deathringer after it stopped paying (see OwlClock): felling it gives no loot,
+## no experience and no training.
+var no_reward := false
 ## Whether the hero has struck it already (see Events.enemy_engaged).
 var _engaged := false
 ## The hero level this one is a fair fight for (see HeroLevel), set when it

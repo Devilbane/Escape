@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Loading screen: key art picture with patch notes below | Shipped this week: Climbing wall: glossy wet mountain tar; Fix settings window test failing after a German test in the same shard (+48 more)
+Escape! dev status | Working on: Climbing wall: sounds for tar, edelweiss and the mine door; Loading screen: key art picture with patch notes below | Shipped this week: Climbing wall: glossy wet mountain tar; Fix settings window test failing after a German test in the same shard (+48 more)

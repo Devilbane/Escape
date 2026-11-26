@@ -3,6 +3,6 @@ extends RefCounted
 ## (see Lang.PARTS).
 
 const EN := {
-	"Gottmodus an: unverwundbar und dreifaches Tempo.": "Godmode on: invulnerable and triple speed.",
+	"Gottmodus an: unverwundbar und fünffaches Tempo.": "Godmode on: invulnerable and five times the speed.",
 	"Gottmodus aus.": "Godmode off.",
 }

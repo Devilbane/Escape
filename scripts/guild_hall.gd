@@ -34,6 +34,10 @@ const CELLAR_STOREY := -1
 const GROUND_STOREY := 0
 const UPPER_STOREY := 1
 const ROOF_STOREY := 2
+## Where the mage tower's library is crossed from the landing to the stairs up to the sleeping room: the aisle
+## between its left sofa chair and the reading table (see MageTower._library).
+const LIBRARY_AISLE := -1.8
+
 ## How wide a flight of stairs is, and how steep (metres up for each metre along).
 const STAIR_WIDE := 1.4
 const SLOPE := 0.62
@@ -97,6 +101,12 @@ static func layout(shape: Dictionary) -> Dictionary:
 	c["low_via"] = [Vector3(float(c.x1) + ONTO + 0.1, CELLAR, float(c.foot) - ONTO)]
 	var mage := bool(shape.get("mage", false))
 	if mage:
+		# The library's seats stand right by the stairwell's railing, so the way from the landing to the
+		# flight to the sleeping room runs round the back of the reading corner and down its left aisle.
+		# (Several points down the aisle, which has little to spare: the hero must not cut a corner into the table.)
+		b["low_via"] = [Vector3(float(b.x1) + ONTO + 0.1, up_floor, b_foot + ONTO), Vector3(-2.4, up_floor, 1.4),
+				Vector3(-2.2, up_floor, 0.5), Vector3(LIBRARY_AISLE, up_floor, -0.6), Vector3(LIBRARY_AISLE, up_floor, -1.6),
+				Vector3(LIBRARY_AISLE, up_floor, float(a.top) - ONTO)]
 		# Off the stairs to the sleeping room and clear of the hatch's corner before heading for a bed.
 		b["high_via"] = [Vector3(float(b.x1) + ONTO + 0.1, deck, float(b.top) - ONTO), Vector3(float(b.x1) + ONTO + 0.1, deck, float(b.top) + 0.7)]
 	return {"room": room, "up_room": up_room, "floor": floor, "top": top, "up_floor": up_floor, "eaves": eaves,

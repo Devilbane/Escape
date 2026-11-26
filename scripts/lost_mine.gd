@@ -707,6 +707,13 @@ static func holds(pos: Vector3) -> bool:
 	return pos.y < -1.0 and cells().has(cell_at(pos))
 
 
+## The ground in front of the hut's door (north of it, on the path by the pond), `ground_y` high:
+## where the testing panel's silver mine button puts the hero.
+static func door_spot(ground_y: float) -> Vector3:
+	var at := sketch().cell_world(HUT.position.x + HUT.size.x / 2, HUT.position.y - 2)
+	return Vector3(at.x, ground_y, at.z)
+
+
 ## The middle of a cell's floor, down in the mine.
 static func floor_at(c: Vector2i) -> Vector3:
 	return sketch().cell_world(c.x, c.y) + Vector3(0, -HouseSketch.DEPTH, 0)

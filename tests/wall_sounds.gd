@@ -13,6 +13,12 @@ func _initialize() -> void:
 				fails += 1
 				print("FAIL cues out of order in ", key)
 			last = float(c.at)
+	for spot in WallSpots.GATHER.keys() + ["door"]:
+		if not WallSounds.SPOTS.has(spot):
+			fails += 1
+			print("FAIL no spot sounds for ", spot)
+		for c in WallSounds.SPOTS.get(spot, []):
+			kinds[c.kind] = true
 	for family in ["pull_l", "pull_r", "side_l", "desc_l", "leap", "slip", "arrest", "hammer", "bed", "wake"]:
 		if WallSounds.cues(family).is_empty():
 			fails += 1

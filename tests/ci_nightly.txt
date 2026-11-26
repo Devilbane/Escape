@@ -228,6 +228,8 @@ river_flow.gd | 120 | free | passfail | Leaves and sticks drift down the whole r
 house_wall_light_shots.gd | 600 | free | passfail | Candles inside the village's houses light neither the outside walls nor the ground (SHOTS=<folder> renders it)
 pond_frogs.gd | 120 | fixed | pass | Pond frogs: a few on the banks and in the water, hop and swim, croak more at night, hibernate in winter
 foot_lobes.gd | 300 | fixed | passfail | The mountains' feet spread out in lobes and mounds the hero walks up onto, and the climbing spots' approaches stay clean
+bees.gd | 200 | fixed | pass | Bees fly by day in spring and summer when it is dry, sit on flowers, stay in at night and in winter; a vexed hive stings once
+bees_shots.gd | 1200 | fixed | passfail | The apiary in spring, summer and winter: skep, box hive, bees, beekeeper with veil, a vexed hive (screenshots)
 barber_chair_shots.gd | 240 | fixed | passfail | Benno's barber's chair: the hero sits and gets the cape, his window opens only from the chair, a haircut takes its time with a storm of hair and the new look comes at the end
 sowing.gd | 180 | fixed | pass | Spring sowing (fields start bare, a handful sows a tile, sprouts grow over days, auto-sow, the farmer throws seed with a bag)
 map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)

@@ -46,7 +46,7 @@ const INGREDIENT_ICONS := {
 	"gluehpilz_stern": "glow_mushroom_star",
 	"barsch": "perch", "goldkarpfen": "carp", "silberhecht": "pike", "mondforelle": "trout",
 	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal", "schleimkristall": "crystal",
-	"holzkohle": "coal", "kalkstein": "lime",
+	"holzkohle": "coal", "kalkstein": "lime", "honig": "honey",
 	"wildfleisch": "meat", "spinnenei": "spider_egg", "silberseide": "spider_silk", "schleimgelee": "slime_jelly", "ektoplasma": "ectoplasm",
 	"grabstaub": "grave_dust", "wolfsfell": "pelt", "yetifell": "snow_pelt", "giftdruese": "venom_gland",
 	"fledermausfluegel": "bat_wing", "schleimkern": "slime_core", "geisterschleier": "ghost_veil",
@@ -388,6 +388,16 @@ func _draw() -> void:
 				draw_circle(Vector2.ZERO, u * 0.12, Color(0.86, 0.7, 0.36))
 				draw_circle(Vector2(-u * 0.03, -u * 0.03), u * 0.04, Color(0.98, 0.88, 0.6))
 			draw_set_transform(Vector2.ZERO)
+		"honey":
+			# A squat jar of golden honey: a glass body with a light on it, a cloth lid tied with twine, a drip on the rim.
+			var amber := Color(0.96, 0.66, 0.1)
+			draw_rect(Rect2(p.call(0.26, 0.82), Vector2(u * 0.48, -u * 0.5)), Color(amber.r * 0.8, amber.g * 0.75, 0.05))
+			draw_rect(Rect2(p.call(0.3, 0.78), Vector2(u * 0.4, -u * 0.42)), amber)
+			draw_rect(Rect2(p.call(0.33, 0.74), Vector2(u * 0.06, -u * 0.3)), Color(1.0, 0.9, 0.55, 0.8))
+			draw_rect(Rect2(p.call(0.28, 0.32), Vector2(u * 0.44, -u * 0.07)), Color(0.9, 0.85, 0.7))
+			draw_colored_polygon(PackedVector2Array([p.call(0.24, 0.3), p.call(0.76, 0.3), p.call(0.7, 0.16), p.call(0.3, 0.16)]), Color(0.86, 0.34, 0.3))
+			draw_line(p.call(0.27, 0.3), p.call(0.73, 0.3), WOOD, u * 0.045)
+			draw_circle(p.call(0.66, 0.38), u * 0.035, amber)
 		"paw":
 			# "kind:paw:fuchs": in the colour of that kind of companion.
 			var parts := what.split(":")

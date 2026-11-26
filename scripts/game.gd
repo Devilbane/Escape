@@ -800,10 +800,12 @@ func _setup_world() -> void:
 	# their detail. Torch pools in the dungeon still stand out against the
 	# dark, as stealth only cares about the light geometry, not the exposure.
 	env.tonemap_exposure = 0.95
+	# Only truly bright things (lamps, fire, windows) bloom: a low threshold made pale snow, stones and
+	# barrel rims glare, by day too.
 	env.glow_enabled = true
-	env.glow_intensity = 0.7
+	env.glow_intensity = 0.5
 	env.glow_bloom = 0.05
-	env.glow_hdr_threshold = 0.9
+	env.glow_hdr_threshold = 1.2
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.0
@@ -3144,8 +3146,6 @@ func _tick_clock(delta: float) -> void:
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
 		Weather.apply(_env, _moon, _seen_look(), flicker)
 		_moon.light_energy = Graphics.sun(_moon.light_energy, DayNight.moon_at(day_hour))
-		# The moon's glint is soft: pale things (snow, stones, barrel rims, Fritz) must not glare at night.
-		_moon.light_specular = lerpf(1.0, 0.25, clampf(DayNight.moon_at(day_hour), 0.0, 1.0))
 		_check_season()
 		if level is Outdoor:
 			level.day = day

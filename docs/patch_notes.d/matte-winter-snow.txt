@@ -1,1 +1,2 @@
 - Winter snow is matte now: the bright shiny specks on the snow and its glossy sheen are gone.
+- Pale things (snow, stones, barrel rims) no longer glare: the bloom only catches lamps, fire and other really bright lights.

@@ -11,6 +11,9 @@ var game: Node
 var frames := 0
 var started := false
 var told: Array[String] = []
+## Set once the hero stands in the valley: from then on every frame clears the field (see _keep_safe).
+var _safe := false
+var _tick := 0
 
 
 func check(ok: bool, what: String) -> void:
@@ -36,6 +39,26 @@ func _process(_delta: float) -> bool:
 func _wait(n: int) -> void:
 	for i in n:
 		await process_frame
+		_keep_safe()
+
+
+## Whatever roams the valley while the test waits (monsters that come with the night or wander in, bees) must not
+## kill the hero in the middle of a climb: every frame the hero is healed and twice a second the field is cleared again. The
+## slip checks look at the life points after a fall, which this does not touch (a fall never takes more than the
+## full life).
+func _keep_safe() -> void:
+	if not _safe or game == null or game.level == null or game.player == null:
+		return
+	if not game.player.dead:
+		game.player.hp = maxi(game.player.hp, 2)
+	# Clearing every frame costs far more than it saves (the valley keeps spawning), twice a second is enough.
+	_tick += 1
+	if _tick % 30 != 0:
+		return
+	for e in game.level.enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	game.level.enemies.clear()
 
 
 func _rules() -> void:
@@ -136,6 +159,7 @@ func _run() -> void:
 		if is_instance_valid(e):
 			e.queue_free()
 	lvl.enemies.clear()
+	_safe = true
 	hero.global_position = Vector3(0, 0, 0)
 	var spot: Dictionary = ClimbSpots.SPOTS["Apfeltal"][0]
 	var other := Vector2i(119, 23)

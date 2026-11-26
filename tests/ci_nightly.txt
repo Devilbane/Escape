@@ -241,3 +241,4 @@ crows.gd | 120 | free | crows:_OK | Crows on the farm fields (autumn and winter,
 owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)
 owl_clock_shots.gd | 600 | fixed | pass | Owl clock riddle pictures (graveyard by night, the stairwell, the crypt)
 test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)
+secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out

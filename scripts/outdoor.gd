@@ -1352,9 +1352,14 @@ func _model_path(name: String) -> String:
 
 
 func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self) -> Node3D:
-	if not _scenes.has(name):
-		_scenes[name] = load(_model_path(name))
-	var node: Node3D = _scenes[name].instantiate()
+	var node: Node3D
+	if NaturalRock.replaces(name):
+		# Boulders are real, uneven rocks, not the kit's flat facets (see NaturalRock).
+		node = NaturalRock.node(name)
+	else:
+		if not _scenes.has(name):
+			_scenes[name] = load(_model_path(name))
+		node = _scenes[name].instantiate()
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
@@ -2933,7 +2938,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	_lair_mountain_at = front
 	_forecourts.append({"block": block, "front": front})
 	for side in [-1.0, 1.0]:
-		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		var big_boulder := _put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
+		_age_ruin(big_boulder, LAIR_BOULDER)
+		_add_turned_solid(big_boulder, 1.6)
 		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)

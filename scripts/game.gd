@@ -653,6 +653,9 @@ func _ready() -> void:
 		# A headless test runs as a script of its own: its saves stay apart.
 		save_dir = TEST_SAVE_DIR
 		old_save_file = "user://test_spielstand.json"
+	else:
+		# Saves from before the seals are sealed once; after that an unsealed or edited one is refused.
+		SaveSeal.migrate([SAVE_DIR, Training.FILE])
 	_move_old_saves()
 	for f in DirAccess.get_files_at(LEVEL_DIR):
 		if f.ends_with(".txt"):
@@ -4569,7 +4572,7 @@ static func save_time_text(time: float) -> String:
 
 
 func _read_save(path := "") -> Dictionary:
-	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path()))
+	var data = JSON.parse_string(SaveSeal.read(path if path != "" else save_path()))
 	return SaveFormat.upgrade(data) if data is Dictionary else {}
 
 
@@ -4903,7 +4906,7 @@ func _move_old_saves() -> void:
 			old.append(save_dir + f)
 	var moving := []
 	for path in old:
-		var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var data = JSON.parse_string(SaveSeal.read(path))
 		if not (data is Dictionary):
 			continue
 		if not data.has("saved_at"):
@@ -4914,11 +4917,8 @@ func _move_old_saves() -> void:
 	for entry in moving:
 		while has_slot_save(slot):
 			slot += 1
-		var file := FileAccess.open(save_path(slot), FileAccess.WRITE)
-		if file == null:
+		if not SaveSeal.write(save_path(slot), JSON.stringify(entry[1])):
 			return
-		file.store_string(JSON.stringify(entry[1]))
-		file.close()
 		if has_slot_save(slot):
 			DirAccess.remove_absolute(entry[0])
 
@@ -5014,11 +5014,8 @@ func save_game(going_away := false) -> bool:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var path := save_path()
 	DirAccess.make_dir_recursive_absolute(save_dir)
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
+	if not SaveSeal.write(path, JSON.stringify(data)):
 		return false
-	file.store_string(JSON.stringify(data))
-	file.close()
 	var saved := FileAccess.file_exists(path)
 	if saved and save_notice != null:
 		save_notice.flash()

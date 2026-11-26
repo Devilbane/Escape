@@ -1,0 +1,1 @@
+- Press F2 to show or hide the hero's map coordinates under the life bar, handy for screenshots and bug reports.

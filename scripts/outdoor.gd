@@ -310,6 +310,8 @@ var _tree_stage := IvySeasons.SUMMER
 var woods: WoodsLife
 ## The glowworm swarms that roam the night (see GlowwormSwarms).
 var glowworms: GlowwormSwarms
+## The owls on the branches of the woods (see Owls).
+var owls: Owls
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -2181,6 +2183,8 @@ func _build_woods_life() -> void:
 	add_child(woods)
 	glowworms = GlowwormSwarms.new(self, level_name)
 	add_child(glowworms)
+	owls = Owls.new(trees, cell_to_world, TILE, level_name)
+	add_child(owls)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -5142,6 +5146,8 @@ func _process(delta: float) -> void:
 		walk_in.tick(player, delta)
 	hero_indoors = inside or is_sheltered(player.global_position)
 	_inside_view.tick(self, delta)
+	if owls and hour >= 0.0:
+		owls.tick(delta, player.global_position, hour, hero_under_cover())
 	if glowworms and hour >= 0.0:
 		glowworms.tick(delta, player.global_position, hour, hero_under_cover())
 	_mind_the_wild(delta)

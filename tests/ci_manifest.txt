@@ -149,3 +149,4 @@ riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scr
 nohpaan.gd | 60 | free | pass | Nohpaan: the hidden valley, its three monks and their lessons
 wall_map.gd | 60 | free | passfail | Climbing wall: text format, sample wall, chances with malus, surfaces and weather, gap jumps, falls and nails, breath meter, placements
 settings_window.gd | 60 | fixed | pass | Settings window (tabs keep one size, graphics options apply and are saved and read back)
+wall_holds.gd | 60 | free | passfail | Climbing wall: a foot stone under every hold, so the feet never stand on air

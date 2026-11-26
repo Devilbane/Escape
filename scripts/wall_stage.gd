@@ -289,7 +289,7 @@ func feet_of(cell: Vector2i) -> Vector3:
 	if cell == WallClimb.NOWHERE:
 		return Vector3(_start_column(), 0.0, 1.0)
 	var xy := WallBuild.square_centre(wall, cell.x, cell.y)
-	return Vector3(xy.x, maxf(0.0, xy.y - 1.7), _builder.depth_at(xy.x, xy.y) + 0.55)
+	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP), _builder.depth_at(xy.x, xy.y) + 0.4)
 
 
 func _start_column() -> float:

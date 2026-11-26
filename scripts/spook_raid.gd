@@ -96,6 +96,9 @@ var hid := 0
 var _cover_clock := 0.0
 var _cover_wait := 0.0
 var _guard_clock := 0.0
+## The guard running after him (see GuardChase), null when none, and the time he may be chased again.
+var chase: GuardChase = null
+var _chase_ok := 0.0
 
 
 func setup(lvl: Outdoor) -> void:
@@ -152,7 +155,12 @@ func step(delta: float) -> void:
 		_guard_clock = 0.0
 		var guard := _guard_near(figure.global_position, DODGE, true)
 		if guard != null:
+			if chase == null and _clock >= _chase_ok:
+				chase = GuardChase.start(guard, level)
 			_take_cover(guard)
+	if chase != null and not chase.step(delta, figure.global_position):
+		chase = null
+		_chase_ok = _clock + GuardChase.COOLDOWN
 	match state:
 		WALK, FLEE, HIDE:
 			_walk(delta)
@@ -592,6 +600,9 @@ func _home() -> void:
 
 func _stop() -> void:
 	state = IDLE
+	if chase != null:
+		chase.give_up()
+		chase = null
 	if figure != null and is_instance_valid(figure):
 		figure.queue_free()
 	figure = null

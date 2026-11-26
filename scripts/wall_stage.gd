@@ -849,9 +849,11 @@ func _tick_animation(delta: float) -> void:
 		Sfx.play(self, String(st.sound), -6.0)
 	if _step_t == 0.0:
 		climber.hammer(bool(st.get("hammer", false)))
+	var u_before := clampf(_step_t / float(st.secs), 0.0, 1.0) if _step_t > 0.0 else -1.0
 	_step_t += delta
 	var u := clampf(_step_t / float(st.secs), 0.0, 1.0)
 	var key := String(st.key)
+	_play_cues(key, u_before, u)
 	var from: Vector3 = st.from
 	var to: Vector3 = st.to
 	var at := to
@@ -937,6 +939,30 @@ func _tick_animation(delta: float) -> void:
 
 
 ## The hanging rest: two pitons hammered in, the hammock hung between them, the climber climbs in, sleeps and climbs out.
+## The sounds that belong to a move (`WallSounds.cues`), played as the move passes their point, from where the climber is
+## (so they pan with the camera and fade with its distance). Takes vary, and the breath grows with the fatigue.
+func _play_cues(key: String, from_u: float, to_u: float) -> void:
+	if DisplayServer.get_name() == "headless" or not is_inside_tree():
+		return
+	for c in WallSounds.cues(key):
+		var at_u := float(c.at)
+		if (from_u < at_u and at_u <= to_u) or (from_u < 0.0 and at_u <= to_u and at_u < 0.05):
+			var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0) if bool(c.get("tired", false)) else 0.0
+			_sound(String(c.kind), float(c.db) + tired * 6.0, 1.0 - tired * 0.18)
+
+
+## One varied take of a wall sound at the climber, panned and faded by the camera.
+func _sound(kind: String, db: float, pitch := 1.0) -> void:
+	if DisplayServer.get_name() == "headless" or climber == null or wall_root == null or not wall_root.is_inside_tree():
+		return
+	var at := wall_root.to_global(feet) + Vector3(0, 1.0, 0)
+	if camera != null:
+		db -= maxf(0.0, camera.global_position.distance_to(at) - 33.0) * 0.9
+	if db < -40.0:
+		return
+	Sfx.play_3d(wall_root, "", db + rng.randf_range(-1.5, 1.5), at, pitch * rng.randf_range(0.93, 1.07), WallSounds.stream(kind, rng.randi()))
+
+
 func _queue_camp(here: Vector3) -> void:
 	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 0})
 	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 1})
@@ -1133,6 +1159,7 @@ func start_rockfall(column := -1.0) -> void:
 	wall_root.add_child(dust)
 	stones.append({"node": node, "dust": dust, "x": x, "y": float(wall.height) + 1.0, "vy": 0.0, "wait": WARN_SECONDS, "hit": false})
 	Sfx.play(self, "rumble", -10.0)
+	_sound("pebbles", -4.0)
 	Sfx.play(self, "step_scree_3", -4.0)
 	_tell("Es rieselt von oben! Ein Stein löst sich: ausweichen oder an den Fels pressen (Leertaste halten).")
 

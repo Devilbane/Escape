@@ -177,11 +177,11 @@ static func play(tree_node: Node, sound: String, volume_db := 0.0, at = null, pi
 ## side (left or right of the screen). It does not fade with the distance on
 ## its own: the caller picks the volume. Lives under `parent`, so it falls
 ## silent when that (say, the level) goes away.
-static func play_3d(parent: Node, sound: String, volume_db: float, at: Vector3, pitch := 1.0) -> AudioStreamPlayer3D:
+static func play_3d(parent: Node, sound: String, volume_db: float, at: Vector3, pitch := 1.0, stream: AudioStream = null) -> AudioStreamPlayer3D:
 	if parent == null or not parent.is_inside_tree():
 		return null
 	var p := AudioStreamPlayer3D.new()
-	p.stream = _stream(sound)
+	p.stream = stream if stream != null else _stream(sound)
 	p.bus = BUS
 	p.volume_db = volume_db
 	p.pitch_scale = pitch

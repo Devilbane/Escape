@@ -1,48 +1,3 @@
-			var st := SurfaceTool.new()
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			# The squares along the open ground, whose corners are see-through, go in a mesh of their own.
-			var soft := SurfaceTool.new()
-			soft.begin(Mesh.PRIMITIVE_TRIANGLES)
-			var faces := 0
-			var soft_faces := 0
-			for iz in range(cz, mini(cz + per, nz)):
-				for ix in range(cx, mini(cx + per, nx)):
-					var corner := func(dx: int, dz: int) -> Array:
-						return [points[iz + dz][ix + dx], normals[iz + dz][ix + dx], paint[iz + dz][ix + dx]]
-					var a: Array = corner.call(0, 0)
-					var b: Array = corner.call(1, 0)
-					var c: Array = corner.call(0, 1)
-					var d: Array = corner.call(1, 1)
-					var edge := false
-					for q: Array in [a, b, c, d]:
-						if (q[2] as Color).a < 0.999:
-							edge = true
-					var into := soft if edge else st
-					var n := 0
-					# Alternate the diagonal so the facets do not line up.
-					if (ix + iz) % 2 == 0:
-						n = _smooth_face(into, a, b, d) + _smooth_face(into, a, d, c)
-					else:
-						n = _smooth_face(into, a, b, c) + _smooth_face(into, b, d, c)
-					if edge:
-						soft_faces += n
-					else:
-						faces += n
-			if faces > 0:
-				var node := MeshInstance3D.new()
-				node.name = "Mountains"
-				node.mesh = st.commit()
-				node.material_override = mat
-				level.add_child(node, true)
-				built.append(node)
-			if soft_faces > 0:
-				var node := MeshInstance3D.new()
-				node.name = "MountainsEdge"
-				node.mesh = soft.commit()
-				node.material_override = MountainFoot.foot_material()
-				node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				level.add_child(node, true)
-				built.append(node)
 class_name Mountains
 ## The high mountains far east of the wolf hollow: every "=" tile of the
 ## open-air map is solid rock, and this builds the rock as low-poly,
@@ -280,7 +235,11 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 		for cx in range(0, nx, per):
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			# The squares along the open ground, whose corners are see-through, go in a mesh of their own.
+			var soft := SurfaceTool.new()
+			soft.begin(Mesh.PRIMITIVE_TRIANGLES)
 			var faces := 0
+			var soft_faces := 0
 			for iz in range(cz, mini(cz + per, nz)):
 				for ix in range(cx, mini(cx + per, nx)):
 					var corner := func(dx: int, dz: int) -> Array:
@@ -289,19 +248,36 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 					var b: Array = corner.call(1, 0)
 					var c: Array = corner.call(0, 1)
 					var d: Array = corner.call(1, 1)
+					var edge := false
+					for q: Array in [a, b, c, d]:
+						if (q[2] as Color).a < 0.999:
+							edge = true
+					var into := soft if edge else st
+					var n := 0
 					# Alternate the diagonal so the facets do not line up.
 					if (ix + iz) % 2 == 0:
-						faces += _smooth_face(st, a, b, d) + _smooth_face(st, a, d, c)
+						n = _smooth_face(into, a, b, d) + _smooth_face(into, a, d, c)
 					else:
-						faces += _smooth_face(st, a, b, c) + _smooth_face(st, b, d, c)
-			if faces == 0:
-				continue
-			var node := MeshInstance3D.new()
-			node.name = "Mountains"
-			node.mesh = st.commit()
-			node.material_override = mat
-			level.add_child(node, true)
-			built.append(node)
+						n = _smooth_face(into, a, b, c) + _smooth_face(into, b, d, c)
+					if edge:
+						soft_faces += n
+					else:
+						faces += n
+			if faces > 0:
+				var node := MeshInstance3D.new()
+				node.name = "Mountains"
+				node.mesh = st.commit()
+				node.material_override = mat
+				level.add_child(node, true)
+				built.append(node)
+			if soft_faces > 0:
+				var node := MeshInstance3D.new()
+				node.name = "MountainsEdge"
+				node.mesh = soft.commit()
+				node.material_override = MountainFoot.foot_material()
+				node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				level.add_child(node, true)
+				built.append(node)
 	return built
 
 

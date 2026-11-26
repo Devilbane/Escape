@@ -118,6 +118,29 @@ static func square_centre(wall: WallMap, c: int, r: int) -> Vector2:
 	return Vector2((c + 0.5) * WallMap.SQUARE, (wall.height - r - 0.5) * WallMap.SQUARE)
 
 
+## The places where a separate stone (foot stone, decorative stone) is set into the face: x, y and the radius of its
+## footprint. The face swells into a mound around each, so the stone grows out of the rock and has no seam.
+var _spots: Array = []
+var _spots_made := false
+
+
+func _stone_spots() -> Array:
+	if _spots_made:
+		return _spots
+	_spots_made = true
+	for r in map.height:
+		for c in map.width:
+			if map.has_hold(c, r):
+				var spot := foot_spot(map, c, r)
+				if spot.x >= 0.0:
+					_spots.append(Vector3(spot.x, spot.y - 0.08, 0.95))
+			elif map.gap_at(c, r) < 0 and map.hazard_at(c, r) != WallMap.LOOSE and _hash(c * 29 + 3, r * 31 + 7) <= DECOR_SHARE:
+				var centre := square_centre(map, c, r)
+				var f := 0.9 + 1.3 * _hash(c * 7 + 1, r * 5 + 2)
+				_spots.append(Vector3(centre.x + (_hash(c * 7 + 1, r * 5 + 2) - 0.5) * 0.7, centre.y + (_hash(c * 11 + 5, r * 3 + 9) - 0.5) * 0.7, 0.3 + 0.2 * f))
+	return _spots
+
+
 ## How far the face stands out (positive) or is sunk (negative) at a point of the wall's plane.
 func depth_at(x: float, y: float) -> float:
 	return _field(x, y).depth
@@ -175,6 +198,14 @@ func _field(x: float, y: float) -> Dictionary:
 					wet = maxf(wet, 1.0 - smoothstep(0.0, 0.7, _edge_distance(x, y, c, r)))
 				WallMap.LOOSE:
 					loose = maxf(loose, 1.0 - smoothstep(0.0, 0.5, _edge_distance(x, y, c, r)))
+	# The mound around each set-in stone: the face swells towards it, darker at the foot (grime) with a dusting above.
+	var mound := 0.0
+	for sp in _stone_spots():
+		var md := Vector2(x - sp.x, (y - sp.y) * 1.2).length()
+		if md < sp.z * 1.7:
+			mound = maxf(mound, 0.5 + 0.5 * cos(PI * md / (sp.z * 1.7)))
+	d += mound * 0.12
+	col = col.lerp(ROCK_DARK * 0.7, mound * 0.45)
 	var trench := 0.0
 	for g in map.gaps:
 		var x0 := float(g.position.x)
@@ -410,7 +441,7 @@ func foot_mesh() -> ArrayMesh:
 			if mesh == null:
 				continue
 			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0)) * Basis(Vector3.UP, (h - 0.5) * 0.8)
-			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3(2.0, 1.7, 1.6)), Vector3(spot.x, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.02)))
+			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3(2.0, 1.7, 1.6)), Vector3(spot.x, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.07)))
 			count += 1
 	if count == 0:
 		return null
@@ -440,7 +471,7 @@ func decor_mesh() -> ArrayMesh:
 				continue
 			var factor := 0.9 + 1.3 * h1
 			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h2 - 0.5) * 70.0)) * Basis(Vector3.UP, h3 * TAU)
-			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.03)))
+			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.08)))
 			count += 1
 	if count == 0:
 		return null

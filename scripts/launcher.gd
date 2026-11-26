@@ -573,7 +573,8 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	header.add_child(title)
 	var sub := Kit.label(Kit.TEXT_FONT, 18, GREY)
-	sub.text = "Entkomme aus dem Verlies"
+	sub.text = "A Tale of Valor and Mysteries!"
+	sub.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 

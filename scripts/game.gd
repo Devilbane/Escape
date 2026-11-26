@@ -748,7 +748,7 @@ func _ready() -> void:
 		_rest_hero()
 	else:
 		load_level(_start_level())
-	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
+	_show_start_title("Escape!", LoadingScreen.TAGLINE)
 	# The village gets ready behind the title, so the crypt door is quick later.
 	WorldPreload.start(self)
 	LoadingScreen.start(_hud, self)
@@ -4426,7 +4426,7 @@ func quit_game() -> void:
 	player.frozen = true
 	var tween := create_tween()
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
-	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
+	tween.tween_callback(func(): _show_start_title("Escape!", LoadingScreen.TAGLINE))
 
 
 ## Name, hero level, map level, gold, slot and time of a saved game (by

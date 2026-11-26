@@ -33,6 +33,8 @@ static func replaces(model: String) -> bool:
 static func node(model: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = model
+	# Marks it as a loose boulder (the kit model it stands in for is no longer its scene file).
+	root.set_meta("boulder", true)
 	var mi := MeshInstance3D.new()
 	mi.name = "Rock"
 	mi.mesh = mesh(model)

@@ -37,6 +37,10 @@ const AREAS := {
 	"dungeon": {"dungeon": true},
 }
 
+## The quest of the graveyard's tales, "Tales of the Crypt" (see GraveyardRiddles): it starts with the first gravestone read
+## and counts every tale told. A "tally" task has no giver and nothing to hand in.
+const TALES := "gruftgeschichten"
+
 const ALL := {
 	"raeuberplage": {"giver": "4", "kind": "kill", "targets": BANDITS, "count": 5, "gold": 25,
 		"area": "pass", "brief": "Räuber am Pass besiegen",
@@ -177,6 +181,14 @@ const ALL := {
 		"offer": "Ich bin wund. Ein Heiltrank, und ich verrate Euch ein Geheimnis dieser Zelle.",
 		"remind": "Bruder Orlan wartet im Archiv auf einen Heiltrank.",
 		"done": "Bruder Orlan trinkt den Trank und erzählt dir von zwei verborgenen Orten."},
+	# The tales of the graveyard (see GraveyardRiddles): a tally of four.
+	"gruftgeschichten": {"giver": "", "found": true, "kind": "tally", "count": 4, "gold": 0, "note": "Die Geheimnisse des Friedhofs",
+		"source": "Der Friedhof von Apfeltal",
+		"title": "Geschichten der Gruft",
+		"goal": "Auf dem Friedhof von Apfeltal ruhen mehr Geschichten, als die Steine verraten. Finde sie alle.",
+		"offer": "Der Friedhof birgt Geschichten, die niemand mehr erzählt.",
+		"remind": "Noch sind nicht alle Geschichten der Gruft erzählt.",
+		"done": "Alle Geschichten der Gruft sind erzählt."},
 }
 
 ## Explained once in the compendium, the first time a villager hands out a task.
@@ -248,7 +260,22 @@ func progress(id: String) -> String:
 			return "%d / %d" % [mini(int(state.get(id, {}).get("count", 0)), q.count), q.count]
 		"fetch":
 			return "%d / %d" % [mini(_carried(q.item), q.count), q.count]
+		"tally":
+			return "%d / %d" % [mini(tales(), q.count), q.count]
 	return ""
+
+
+## The tales of the crypt told so far.
+func tales() -> int:
+	return game.graveyard_riddles.count() if game != null else 0
+
+
+## The tales may have grown: the quest is done when all are told.
+func update_tales() -> void:
+	if not is_active(TALES) or tales() < int(ALL[TALES].count):
+		return
+	state[TALES] = {"state": "done", "count": tales()}
+	Events.bus().quest_done.emit(TALES)
 
 
 ## What still has to be done, in words: what the reminders say.
@@ -259,6 +286,8 @@ func missing(id: String) -> int:
 			return maxi(0, q.count - int(state.get(id, {}).get("count", 0)))
 		"fetch":
 			return maxi(0, q.count - _carried(q.item))
+		"tally":
+			return maxi(0, q.count - tales())
 	if q.kind == "potion":
 		return 0 if potion_in_bag() != "" else 1
 	return 0 if not game.player.bag.has(q.item) else 1

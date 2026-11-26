@@ -13,8 +13,12 @@ const KIND := "raetselstein"
 ## The official riddles: their ids. TOTAL follows from the list.
 const OWL_CLOCK := "eulenuhr"
 const SUNFLOWER := "sonnenblume"
-const IDS := [SUNFLOWER, OWL_CLOCK]
-const TOTAL := 2
+## The riddles of the graveyard, too (see GraveyardRiddles): they count here as well as in "Tales of the Crypt".
+const SPIRIT := GraveyardRiddles.SPIRIT
+const BELL := GraveyardRiddles.BELL
+const SKULLS := GraveyardRiddles.SKULLS
+const IDS := [SUNFLOWER, OWL_CLOCK, SPIRIT, BELL, SKULLS]
+const TOTAL := 5
 ## The town's graveyard stone: the map's name -> the tile of the grave in its map.
 const GRAVES := {"Apfeltal": Vector2i(7, 4)}
 ## How the stone is named; %s is the town (German here, English in scripts/lang/riddle_count.gd).

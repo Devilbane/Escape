@@ -691,6 +691,10 @@ var spook_raid: SpookRaid
 var valley_events: ValleyEvents
 ## The sunflower riddle in the field with the scarecrow (see SunflowerRiddle).
 var sunflower_riddle: SunflowerRiddle
+## The spirit that rises at midnight from the unknown grave (see GraveSpirit), null without those graves.
+var grave_spirit: GraveSpirit
+## The safety coffin with its bell (see BellGrave), null without it.
+var bell_grave: BellGrave
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
@@ -972,6 +976,15 @@ func build() -> void:
 		sunflower_riddle = SunflowerRiddle.new()
 		add_child(sunflower_riddle)
 		sunflower_riddle.setup(self)
+	var spirit_graves := GraveSpirit.graves_of(level_name)
+	if not spirit_graves.is_empty():
+		grave_spirit = GraveSpirit.new()
+		add_child(grave_spirit)
+		grave_spirit.setup(self, cell_to_world(spirit_graves.unknown))
+	if not BellGrave.graves_of(level_name).is_empty():
+		bell_grave = BellGrave.new()
+		add_child(bell_grave)
+		bell_grave.setup(self, level_name)
 	spook_raid = SpookRaid.new()
 	add_child(spook_raid)
 	spook_raid.setup(self)
@@ -1655,6 +1668,14 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var grave_rng := RandomNumberGenerator.new()
 			grave_rng.seed = hash("%s|grab|%s" % [level_name, c])
 			var style := GraveStyles.pick(level_name, c)
+			var pair := GraveSpirit.graves_of(level_name)
+			if not pair.is_empty() and c == pair.unknown:
+				style = "sunken"
+			elif not pair.is_empty() and c == pair.archy:
+				style = "cross"
+			var coffin := BellGrave.graves_of(level_name)
+			if not coffin.is_empty() and c == coffin.grave:
+				style = "ledger"
 			if c == OwlClock.grave_cell() or c == RiddleCount.grave_of(level_name):
 				style = "classic"
 			var jitter := Vector3(grave_rng.randf_range(-0.3, 0.3), 0, grave_rng.randf_range(-0.3, 0.3))
@@ -5260,6 +5281,10 @@ func _process(delta: float) -> void:
 		walk_in.tick(player, delta)
 	hero_indoors = inside or is_sheltered(player.global_position)
 	_inside_view.tick(self, delta)
+	if grave_spirit != null and hour >= 0.0:
+		grave_spirit.tick(delta, player.global_position, hour)
+	if bell_grave != null and hour >= 0.0:
+		bell_grave.tick(delta, player.global_position, hour)
 	if owls and hour >= 0.0:
 		owls.tick(delta, player.global_position, hour, hero_under_cover())
 	if crows and hour >= 0.0:

@@ -117,6 +117,8 @@ const CRAFTS := {
 	"alchemie": {"name": "Alchemie", "attributes": ["intelligenz"]},
 	# From the grimoire in the Ashen Spire (see AshSpire): the arcane bolt.
 	"magie": {"name": "Arkane Energie", "attributes": ["intelligenz"]},
+	# Taught by the riddles of the graveyards (see GraveyardRiddles): level 0 to begin with.
+	"nekromantie": {"name": "Nekromantie", "attributes": ["intelligenz"]},
 	# The rare lessons of the monks of Nohpaan (see Monastery): learned in three steps, not trained by use.
 	"bergatem": {"name": "Bergatem", "attributes": ["staerke", "konstitution"]},
 	"stille_mitte": {"name": "Stille Mitte", "attributes": ["weisheit"]},

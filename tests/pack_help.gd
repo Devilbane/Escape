@@ -55,9 +55,10 @@ func _run() -> void:
 	await physics_frame
 	check(PackHelp.can_answer(b, a), "a wolf answers a wolf")
 	check(not PackHelp.can_answer(slime, a), "a slime does not answer")
-	check(not PackHelp.can_answer(a, slime), "nobody answers for a slime")
 	check(PackHelp.CALLERS.has("wolf") and not PackHelp.CALLERS.has("schleim"), "wolves call, slimes do not")
 	b._awake = false
+	PackHelp.on_struck(slime, hero.global_position)
+	check(not b._awake and not a._awake, "a struck slime brings nobody")
 	PackHelp.on_struck(a, hero.global_position)
 	check(b._awake, "the wolf nearby joins the defence")
 	check(not slime._awake, "the slime stays out of it")

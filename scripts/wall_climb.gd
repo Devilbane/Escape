@@ -45,9 +45,14 @@ const BREATH_POOR := 0.15
 const BIVOUAC_DAY_HOURS := 3.0
 const BIVOUAC_DAY := 0.7
 const GOOD_MALUS := 2
-const REST_GOOD := 4.0
-const REST_POOR := 0.25
+## Hanging still gives nothing back: only resting does (catching breath, a rest place, the hammock).
+const REST_GOOD := 0.0
+const REST_POOR := 0.0
 const TIRED_BELOW := 0.3
+## Injuries (a stone, a lightning strike): each level takes a level off skill, Geschick, Intuition and Weisheit and
+## INJURY_METER of the meter. A rest place heals them: a day's rest one level, a night's two.
+const MAX_INJURY := 3
+const INJURY_METER := 0.15
 const TIRED_FLOOR := 0.4
 
 ## Jumps (a gap's far side) lean on the body, not only on Klettern: each point of Geschick above 10 adds a level to
@@ -70,6 +75,8 @@ var gear := true
 ## The meter (seconds of running) and what it holds at most and gets back per second at rest.
 var stamina_max := 20.0
 var stamina := 20.0
+## How hurt the climber is, 0..MAX_INJURY (see injure).
+var injury := 0
 var recovery := 1.0
 ## The hero's Geschick, Intuition and Weisheit (all 10 at the start).
 var dexterity := ATTRIBUTE_START
@@ -104,17 +111,17 @@ func set_constitution(con: int) -> void:
 
 ## The levels Geschick and Intuition add to the skill for a jump.
 func jump_bonus() -> int:
-	return (dexterity - ATTRIBUTE_START) + (intuition - ATTRIBUTE_START) / 2
+	return (dexterity - ATTRIBUTE_START) + (intuition - ATTRIBUTE_START) / 2 - injury
 
 
 ## Weisheit plus Intuition above the start plus the Klettern skill, the level of the climber's eye for a gap.
 func judge_level() -> int:
-	return (wisdom - ATTRIBUTE_START) + (intuition - ATTRIBUTE_START) + skill
+	return (wisdom - ATTRIBUTE_START) + (intuition - ATTRIBUTE_START) + skill - injury
 
 
 ## The chance of a move for this climber now: the rules' chance (a jump with the body's bonus), made worse by tiredness.
 func chance_of(mv: Dictionary) -> float:
-	var level := skill - dark_penalty() + (jump_bonus() if mv.kind == "jump" else 0)
+	var level := skill - dark_penalty() - injury + (jump_bonus() if mv.kind == "jump" else 0)
 	return WallRules.move_chance(map, mv, level, weather) * tired_factor()
 
 
@@ -168,6 +175,17 @@ func dark_penalty() -> int:
 	return int(DARK_LEVELS[darkness()])
 
 
+## What the meter holds at most now: injuries lower it.
+func stamina_cap() -> float:
+	return stamina_max * (1.0 - INJURY_METER * injury)
+
+
+## The climber is hurt by `levels` (a stone, a lightning strike): the meter falls to what it holds now.
+func injure(levels: int) -> void:
+	injury = clampi(injury + levels, 0, MAX_INJURY)
+	stamina = minf(stamina, stamina_cap())
+
+
 ## The clock as "HH:MM".
 func time_text() -> String:
 	var h := hour()
@@ -182,7 +200,7 @@ func at_camp() -> bool:
 ## Catches breath on the wall: a part of the meter comes back (more on a good hold) and time passes.
 func catch_breath() -> void:
 	clock += BREATH_HOURS
-	stamina = minf(stamina_max, stamina + stamina_max * (BREATH_GOOD if good_hold() else BREATH_POOR))
+	stamina = minf(stamina_cap(), stamina + stamina_max * (BREATH_GOOD if good_hold() else BREATH_POOR))
 
 
 ## Rests at a rest place: by evening or night until dawn with a full meter, by day for a few hours.
@@ -192,10 +210,12 @@ func bivouac() -> int:
 		return Outcome.BLOCKED
 	if darkness() > 0 or hour() < DAWN_HOUR:
 		clock += fposmod(DAWN_HOUR - hour(), 24.0)
-		stamina = stamina_max
+		injury = maxi(0, injury - 2)
+		stamina = stamina_cap()
 	else:
 		clock += BIVOUAC_DAY_HOURS
-		stamina = minf(stamina_max, stamina + stamina_max * BIVOUAC_DAY)
+		injury = maxi(0, injury - 1)
+		stamina = minf(stamina_cap(), stamina + stamina_max * BIVOUAC_DAY)
 	streak = 0
 	return Outcome.CAMPED
 
@@ -215,7 +235,7 @@ func good_hold() -> bool:
 	return map.malus_at(cell.x, cell.y) <= GOOD_MALUS and map.hazard_at(cell.x, cell.y) == WallMap.NONE
 
 
-## Hanging still for `delta` seconds: the meter comes back.
+## Hanging still for `delta` seconds: the meter does not come back (REST_GOOD and REST_POOR are 0), the climber has to rest.
 func recover(delta: float) -> void:
 	stamina = minf(stamina_max, stamina + recovery * delta * (REST_GOOD if good_hold() else REST_POOR))
 
@@ -270,7 +290,7 @@ func go(dir: int, roll: float, fall_roll := 1.0) -> int:
 		return Outcome.MOVED
 	tries += 1
 	var surface: bool = WallRules.square_risk(map, to.x, to.y, weather) > 0.0
-	var skill_chance: float = WallRules.skill_chance(map, to.x, to.y, skill - dark_penalty(), weather) * tired_factor() if mv.kind == "step" else 1.0
+	var skill_chance: float = WallRules.skill_chance(map, to.x, to.y, skill - dark_penalty() - injury, weather) * tired_factor() if mv.kind == "step" else 1.0
 	# A move the hands would have managed that the surface took, or a missed jump, is a fall.
 	var surface_fail: bool = mv.kind == "jump" or (surface and roll < skill_chance)
 	if surface_fail or fall_roll < minf(RockClimb.FALL_MAX, RockClimb.FALL_PER_TRY * tries):

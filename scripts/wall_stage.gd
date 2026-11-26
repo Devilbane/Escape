@@ -36,6 +36,13 @@ const GRAZE_DAMAGE := 3
 ## Meter spent per second of bracing against the rock.
 const BRACE_COST := 1.5
 const WORSEN_EVERY := 70.0
+## The climber stands this much (m) above the middle of the foot stone: on its top, not in it.
+const FOOT_RAISE := 0.12
+## With chaos the sky changes after this many seconds on average (at chaos 0 and at chaos 1).
+const CHAOS_WEATHER_CALM := 160.0
+const CHAOS_WEATHER_WILD := 45.0
+## In clear weather a stone falls every this many seconds at chaos 1 (more rarely below).
+const CHAOS_CLEAR_FALL := 60.0
 ## The climber's height (metres) where the cloud sea begins to fill the foot of the view, and is full.
 const CLOUD_FROM := 7.0
 const CLOUD_FULL := 12.0
@@ -49,6 +56,9 @@ const THREAD_SECONDS := 1.4
 const TOP_SECONDS := 2.0
 const FALL_SECONDS := 0.8
 const REST_SECONDS := 2.4
+## A lightning strike in a storm: only on a climber higher than this (m) and at this chance per flash.
+const LIGHTNING_MIN_HEIGHT := 5.0
+const LIGHTNING_CHANCE := 0.3
 ## A leap: crouch, spring and reach (poses on top of RopeClimbPose's).
 const LEAP_POSES := {
 	"crouch": {"hips_y": -0.14, "spine": 18.0, "head": -20.0, "arm": 150.0, "elbow": 30.0, "hip_l": 70.0, "hip_r": 70.0, "knee_l": 100.0, "knee_r": 100.0},
@@ -59,6 +69,7 @@ const LEAP_POSES := {
 }
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],
+	WallWeather.FOG: [Color(0.64, 0.67, 0.7), 0.55, 0.85],
 	WallWeather.WIND: [Color(0.5, 0.6, 0.7), 1.0, 0.65],
 	WallWeather.RAIN: [Color(0.27, 0.3, 0.34), 0.5, 0.45],
 	WallWeather.SNOW: [Color(0.72, 0.75, 0.8), 0.8, 0.8],
@@ -70,6 +81,9 @@ var wall: WallMap
 var climb: WallClimb
 var interactive := true
 var drift := false
+## How wild the climb is, 0..1 (0: nothing happens on its own): how often the weather changes at random, stones fall
+## and lightning strikes in a storm. The default is a sensible middle.
+var chaos := 0.5
 ## Set by a test: the climber braces without a key held.
 var force_brace := false
 var weather := WallWeather.CLEAR
@@ -289,7 +303,7 @@ func feet_of(cell: Vector2i) -> Vector3:
 	if cell == WallClimb.NOWHERE:
 		return Vector3(_start_column(), 0.0, 1.0)
 	var xy := WallBuild.square_centre(wall, cell.x, cell.y)
-	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP), _builder.depth_at(xy.x, xy.y) + 0.4)
+	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP + FOOT_RAISE), _builder.depth_at(xy.x, xy.y) + 0.3)
 
 
 func _start_column() -> float:
@@ -357,6 +371,8 @@ static func _warning(sky: String) -> String:
 			return "Eis legt sich auf den Fels."
 		WallWeather.WIND:
 			return "Sprünge über Spalten werden gefährlicher."
+		WallWeather.FOG:
+			return "Nebel: du siehst die nächsten Griffe schlecht."
 		WallWeather.STORM:
 			return "Alles ist schwerer, und Steine fallen. Such Deckung oder gib auf."
 	return "Es klart auf."
@@ -385,6 +401,10 @@ func _apply_sky(instant: bool) -> void:
 	_sun.light_energy = float(s[1])
 	_env.ambient_light_energy = float(s[2])
 	_env.ambient_light_color = (s[0] as Color).lerp(Color(0.7, 0.72, 0.78), 0.5)
+	_env.fog_enabled = weather == WallWeather.FOG
+	if weather == WallWeather.FOG:
+		_env.fog_light_color = s[0]
+		_env.fog_density = 0.09
 	var wet := weather == WallWeather.RAIN or weather == WallWeather.STORM
 	var snowing := weather == WallWeather.SNOW
 	_rain.emitting = wet or snowing
@@ -441,7 +461,10 @@ func _update_status() -> void:
 	if climb == null:
 		return
 	var up := 0 if climb.on_ground() else wall.height - climb.cell.y
-	_status.text = Lang.t("Klettern %d · Höhe %d m · Stürze %d · %s · %s") % [climb.skill, up, climb.falls, Lang.t(String(WallWeather.DATA[weather].name)), climb.time_text()]
+	_status.text = Lang.t("Klettern %d · Höhe %d m · Stürze %d · %s · %s") % [climb.skill - climb.injury, up, climb.falls, Lang.t(String(WallWeather.DATA[weather].name)), climb.time_text()]
+	if climb.injury > 0:
+		_status.text += " · ✚ " + Lang.t("Verletzt") + " %d" % climb.injury
+	_status.modulate = Color(1.0, 0.6, 0.55) if climb.injury > 0 else Color.WHITE
 	_apply_light()
 	changed.emit()
 
@@ -589,19 +612,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			_zoom = clampf(_zoom * 0.9, 0.3, 2.5)
+			_zoom = clampf(_zoom * 0.9, 0.25, 3.0)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			_zoom = clampf(_zoom * 1.1, 0.3, 2.5)
+			_zoom = clampf(_zoom * 1.1, 0.25, 3.0)
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			_drag = mb.pressed and get_global_rect().has_point(mb.global_position)
 	elif event is InputEventMouseMotion and _drag:
 		var mm := event as InputEventMouseMotion
-		_yaw = clampf(_yaw - mm.relative.x * 0.006, -1.2, 1.2)
-		_pitch = clampf(_pitch + mm.relative.y * 0.006, -0.3, 0.9)
+		_yaw = clampf(_yaw - mm.relative.x * 0.006, -1.6, 1.6)
+		_pitch = clampf(_pitch + mm.relative.y * 0.006, -0.3, 1.3)
 	elif event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
 		var key := (event as InputEventKey).keycode
 		if key == KEY_ESCAPE:
 			finished.emit("left")
+			get_viewport().set_input_as_handled()
+			return
+		if _camera_key(key):
 			get_viewport().set_input_as_handled()
 			return
 		if not interactive:
@@ -623,6 +649,39 @@ func _unhandled_input(event: InputEvent) -> void:
 		if dir != 0:
 			step(dir)
 			get_viewport().set_input_as_handled()
+
+
+## The camera keys, in every mode (the mouse does the same: right-drag orbits and tilts, the wheel zooms), and
+## [ and ] for the chaos level:
+## Q/E orbit, PageUp/PageDown tilt, +/- zoom, V a half-side view from above, Home back to the view behind.
+func _camera_key(key: int) -> bool:
+	match key:
+		KEY_Q:
+			_yaw = clampf(_yaw + 0.15, -1.6, 1.6)
+		KEY_E:
+			_yaw = clampf(_yaw - 0.15, -1.6, 1.6)
+		KEY_PAGEUP:
+			_pitch = clampf(_pitch + 0.1, -0.3, 1.3)
+		KEY_PAGEDOWN:
+			_pitch = clampf(_pitch - 0.1, -0.3, 1.3)
+		KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+			_zoom = clampf(_zoom * 0.9, 0.25, 3.0)
+		KEY_MINUS, KEY_KP_SUBTRACT:
+			_zoom = clampf(_zoom * 1.1, 0.25, 3.0)
+		KEY_BRACKETLEFT, KEY_BRACKETRIGHT:
+			# The chaos level of the climb (random weather, stones, lightning): [ less, ] more.
+			chaos = clampf(snappedf(chaos + (0.1 if key == KEY_BRACKETRIGHT else -0.1), 0.1), 0.0, 1.0)
+			_tell(Lang.t("Zufall: %d %%") % int(round(chaos * 100.0)), true)
+		KEY_V:
+			_yaw = 0.8
+			_pitch = 0.75
+		KEY_HOME:
+			_yaw = 0.28
+			_pitch = 0.12
+			_zoom = 1.0
+		_:
+			return false
+	return true
 
 
 ## Whether the climber braces against the rock (Space held).
@@ -955,6 +1014,10 @@ func _rope_update() -> void:
 
 func _next_fall() -> float:
 	var every := WallWeather.fall_every(weather)
+	if every <= 0.0 and chaos > 0.0:
+		every = CHAOS_CLEAR_FALL / chaos
+	elif every > 0.0:
+		every /= clampf(chaos * 2.0, 0.25, 2.0)
 	return every * rng.randf_range(0.6, 1.3) if every > 0.0 else 0.0
 
 
@@ -971,13 +1034,22 @@ func _tick_clouds(delta: float) -> void:
 func _tick_weather(delta: float) -> void:
 	if not interactive:
 		return
-	if drift:
+	if drift and chaos <= 0.0:
 		_worsen_timer += delta
 		if _worsen_timer >= WORSEN_EVERY:
 			_worsen_timer = 0.0
 			var i := SEQUENCE.find(weather)
 			set_weather(String(SEQUENCE[mini(SEQUENCE.size() - 1, i + 1)]) if i >= 0 else WallWeather.STORM)
-	if WallWeather.fall_every(weather) > 0.0 and not climb.on_ground():
+	elif drift:
+		# Random weather: now and then the sky moves one step along clear, fog, wind, rain, storm, worse or better.
+		_worsen_timer += delta
+		if _worsen_timer >= lerpf(CHAOS_WEATHER_CALM, CHAOS_WEATHER_WILD, chaos) * rng.randf_range(0.6, 1.4):
+			_worsen_timer = 0.0
+			var order := ["clear", "fog", "wind", "rain", "storm"]
+			var i := order.find(weather)
+			var next := clampi((i if i >= 0 else 0) + (1 if rng.randf() < 0.55 else -1), 0, order.size() - 1)
+			set_weather(String(order[next]))
+	if (WallWeather.fall_every(weather) > 0.0 or chaos > 0.0) and not climb.on_ground():
 		_fall_timer -= delta
 		if _fall_timer <= 0.0:
 			_fall_timer = _next_fall()
@@ -988,6 +1060,8 @@ func _tick_weather(delta: float) -> void:
 			_flash_timer = rng.randf_range(7.0, 14.0)
 			_flash = 0.35
 			Sfx.play(self, "thunder", -8.0)
+			if not climb.on_ground() and feet.y > LIGHTNING_MIN_HEIGHT and rng.randf() < LIGHTNING_CHANCE * clampf(chaos * 2.0, 0.0, 2.0):
+				_lightning_strike()
 		_flash = maxf(0.0, _flash - delta)
 		_env.ambient_light_energy = float(SKY[weather][2]) + _flash * 4.0
 
@@ -1071,12 +1145,14 @@ func _stone_hits() -> void:
 			Sfx.play(self, "word_klack", -4.0)
 		WallClimb.Outcome.GRAZED:
 			_tell("Ein Stein streift dich!")
+			_injure(1, "Dein Arm ist verletzt: Klettern und Kraft sinken, bis du dich ausruhst.")
 			Sfx.play(self, "hurt", -4.0)
 			hurt.emit(GRAZE_DAMAGE)
 			_queue.append({"key": "slip", "secs": 0.55, "from": feet, "to": feet})
 		_:
 			Sfx.play(self, "hurt", -2.0)
 			hurt.emit(GRAZE_DAMAGE * 2)
+			climb.injure(1)
 			_tell(Lang.t("Ein Stein trifft dich und wirft dich von der Wand! ") + Lang.t("Du stürzt %d m tief.") % int(round(climb.last_fall)), true)
 			_queue.clear()
 			_queue_fall(feet, feet_of(climb.cell), climb.nail != WallClimb.NOWHERE)
@@ -1086,6 +1162,25 @@ func _stone_hits() -> void:
 	_step_t = 0.0
 	if from == WallClimb.NOWHERE:
 		return
+
+
+## Lightning hits the climber high on the wall in a storm: a flash, a crack, an injury of two levels.
+func _lightning_strike() -> void:
+	_flash = 1.0
+	Sfx.play(self, "thunder", 0.0)
+	hurt.emit(GRAZE_DAMAGE * 2)
+	_tell("Ein Blitz schlägt in den Fels neben dir ein!")
+	_injure(2, "Der Blitz hat dich verletzt: Klettern und Kraft sinken stark, bis du dich ausruhst.")
+	_queue.clear()
+	_queue.append({"key": "slip", "secs": 0.8, "from": feet, "to": feet})
+	_step_t = 0.0
+
+
+## The climber is hurt by `levels`: the meter and skill drop and a red message says so (an injury heals at a rest place).
+func _injure(levels: int, text: String) -> void:
+	climb.injure(levels)
+	_tell(text)
+	_update_status()
 
 
 func _tell(text: String, already := false) -> void:

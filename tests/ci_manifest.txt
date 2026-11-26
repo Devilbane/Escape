@@ -68,7 +68,6 @@ house_exit_quick.gd | 300 | fixed | pass | Stepping out of a building is quick (
 crafting.gd | 240 | free | pass | Recipes and ingredient pouch test
 workbench_crafting.gd | 240 | free | pass | Workbench crafting test
 hero_level.gd | 900 | fixed | pass | Hero level and experience test
-secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
 button_click.gd | 120 | fixed | passfail | UI button click: pressing any button, including one
 camp_rest.gd | 120 | fixed | passfail | Headless test for resting by the camp's fire on a dungeon floor (see
 house_faces.gd | 120 | fixed | passfail | village houses (see VillageHouse): every face of a

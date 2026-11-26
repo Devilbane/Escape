@@ -48,3 +48,6 @@ foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spot
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
 monitor.gd | scripts/monitor.gd scripts/launcher.gd scripts/lang/display.gd
 riddle_vault.gd | scripts/riddle_vault.gd tools/riddle_hash.gd
+
+# The smith's forge and the crafting it shares its recipes and ores with.
+forge.gd | scripts/forge.gd scripts/smith_cottage.gd scripts/crafting.gd scripts/crafting_square.gd scripts/dragon_hoard.gd scripts/ore.gd

@@ -1,9 +1,10 @@
 shader_type spatial;
 render_mode cull_disabled;
+#include "res://shaders/gl_colour.gdshaderinc"
 // A butterfly: a body and two wings painted on an atlas of four kinds (see InsectLife.wing_atlas). The
 // instance's custom data holds the kind (x), the flap's phase (y), its speed in radians a second (z) and
 // how far the wings open (w, 1 is a full beat). The wings are flapped here, so a hundred cost no more than one.
-uniform sampler2D wings : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D wings : filter_linear_mipmap, repeat_disable;
 
 varying flat float kind;
 
@@ -33,4 +34,6 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = 0.85;
 	EMISSION = col * 0.18;
+	ALBEDO = gl_colour(ALBEDO);
+	EMISSION = gl_colour(EMISSION);
 }

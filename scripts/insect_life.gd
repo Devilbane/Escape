@@ -320,6 +320,7 @@ func _blob_instances(count: int, size: float, bright: bool) -> MultiMeshInstance
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if bright else BaseMaterial3D.BLEND_MODE_MIX
 	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.albedo_texture = glow_texture()
 	mat.no_depth_test = false
 	mat.disable_receive_shadows = true

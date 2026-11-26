@@ -243,3 +243,5 @@ sunflower_riddle.gd | 120 | fixed | pass | The sunflower riddle (the planted flo
 sunflower_riddle_shots.gd | 90 | free | pass | The sunflower riddle's field and fireworks (screenshots with SHOTS)
 test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
+wall_workshop.gd | 120 | free | passfail | Climbing wall workshop (painting holds, arrows, gaps, surfaces and goals, saving and loading, 3D wall view, climbing test)
+wall_climb.gd | 400 | fixed | passfail | The mountaineer climbs the sample wall (traverse, jumps, nails, rope), ice, weather, falling stones, braced against the rock, the cloud band

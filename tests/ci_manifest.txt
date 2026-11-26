@@ -17,6 +17,7 @@ lang_keys.gd | 60 | free | pass | English texts (no German text translated twice
 shader_colours.gd | 60 | free | pass | Shader colours (every shader of ours looks the same on both renderers)
 jump_windup.gd | 120 | fixed | passfail | Jump wind-up (half a step first, called off by a hit)
 melee_path.gd | 60 | free | passfail | Melee pathfinding (monsters walk round what blocks their blow)
+save_seal.gd | 60 | free | pass | Save seals (an edited save is refused, old saves are sealed once)
 smooth_motion.gd | 240 | fixed | pass | Smooth running (bodies drawn between physics ticks)
 inventory_fixed_size.gd | 240 | free | pass | Inventory keeps its size (picking, tabs, equipping; both languages)
 storage_fixed_size.gd | 240 | free | pass | Storage chest keeps its size (pointing at torches and other items; both languages)

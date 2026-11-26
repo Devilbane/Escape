@@ -69,19 +69,21 @@ static func _mat(id: String) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	match id:
 		"tar":
-			# Mountain tar: nearly black with a deep amber-brown glow where light passes through, and a wet gloss.
-			m.albedo_color = Color(0.1, 0.06, 0.03)
-			m.roughness = 0.12
-			m.metallic = 0.2
+			# Mountain tar: near black, wet and glossy (it mirrors the sky), a dull amber showing where it is thin at the
+			# edges and glowing a little where light passes through it.
+			m.albedo_color = Color(0.035, 0.025, 0.018)
+			m.roughness = 0.07
+			m.metallic = 0.0
+			m.metallic_specular = 0.9
 			m.clearcoat_enabled = true
 			m.clearcoat = 1.0
-			m.clearcoat_roughness = 0.05
+			m.clearcoat_roughness = 0.03
 			m.rim_enabled = true
-			m.rim = 0.8
-			m.rim_tint = 0.6
+			m.rim = 1.0
+			m.rim_tint = 0.2
 			m.emission_enabled = true
-			m.emission = Color(0.5, 0.24, 0.05)
-			m.emission_energy_multiplier = 0.3
+			m.emission = Color(0.45, 0.2, 0.04)
+			m.emission_energy_multiplier = 0.12
 		"crack":
 			m.albedo_color = Color(0.02, 0.018, 0.018)
 			m.roughness = 1.0

@@ -291,6 +291,21 @@ func _stir(delta: float) -> void:
 			_sound(SPLASHES, -10.0, p)
 
 
+## A small splash where a fish bolts: a ring on the water, a few droplets thrown up and the splash sound.
+func _bolt_splash(at: Vector3) -> void:
+	_ring_at(at)
+	_sound(SPLASHES, -6.0, at)
+	var drops := Effects.make_sparkles(Color(0.82, 0.93, 1.0), true)
+	drops.amount = 12
+	drops.lifetime = 0.7
+	drops.emission_sphere_radius = 0.08
+	drops.spread = 40.0
+	drops.initial_velocity_min = 0.8
+	drops.initial_velocity_max = 1.6
+	drops.position = Vector3(at.x, 0.06, at.z)
+	add_child(drops)
+
+
 ## Plays a sound from `at`, softer the farther the hero is (none beyond SOUND_RANGE).
 func _sound(names: Array, db: float, at: Vector3) -> void:
 	var hero := level.player as Node3D
@@ -375,6 +390,7 @@ func _startled(f: Dictionary, delta: float) -> bool:
 			holder.rotation.y = f.heading + HEAD_TURN + sin(f.timer * 45.0) * 0.18 * k
 			if f.timer >= SHAKE_TIME:
 				mat.set_shader_parameter("shake", 0.0)
+				_bolt_splash(holder.position)
 				f.state = "dart"
 				f.timer = 0.0
 		"dart":

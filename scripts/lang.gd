@@ -73,6 +73,7 @@ const PARTS := [
 	preload("res://scripts/lang/tavern_brewer.gd"),
 	preload("res://scripts/lang/elementals.gd"),
 	preload("res://scripts/lang/teleport.gd"),
+	preload("res://scripts/lang/goto_command.gd"),
 	preload("res://scripts/lang/sky_command.gd"),
 	preload("res://scripts/lang/chat_commands.gd"),
 	preload("res://scripts/lang/patch_history.gd"),

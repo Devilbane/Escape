@@ -1,0 +1,1 @@
+- Chat command `goto <place> <x> <y> <season> <time>` takes testers to an exact tile, season and time of day; `goto` alone copies the line for the current spot.

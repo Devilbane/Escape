@@ -39,6 +39,9 @@ const FILLER_REACH := 1.9
 ## Colour of the set-in stones: darkened by this and greyed towards the dark rock by STONE_WEATHER.
 const STONE_SHADE := 0.86
 const STONE_WEATHER := 0.2
+## How much chalk dust the set-in stones wear on top, and the colour of their ice where the face is wet.
+const STONE_CHALK := 0.55
+const ICE_TINT := Color(0.72, 0.86, 0.98)
 const KNOB_MIN_RADIUS := 0.22
 const KNOB_HEIGHT_HARD := 0.11
 ## Share of chalk on the easiest and on the hardest hold (an easy jug is well chalked, a crimp hardly).
@@ -617,15 +620,27 @@ func decor_mesh() -> ArrayMesh:
 
 
 ## The set-in stones take the face's weather: a shade darker and greyer than the plain mountain stone, so they sit in the
-## rock instead of looking pale and stuck on.
-static func _weathered(mesh: ArrayMesh) -> ArrayMesh:
+## rock instead of looking pale and stuck on. Like the wall they wear chalk dust on what faces up, and ice and frost
+## where the face around them is wet.
+func _weathered(mesh: ArrayMesh) -> ArrayMesh:
 	var arrays := mesh.surface_get_arrays(0)
 	var colours = arrays[Mesh.ARRAY_COLOR]
 	if colours == null:
 		return mesh
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var out := PackedColorArray()
-	for c in colours:
-		out.append(c.lerp(ROCK_DARK, STONE_WEATHER) * STONE_SHADE)
+	for i in colours.size():
+		var col: Color = colours[i].lerp(ROCK_DARK, STONE_WEATHER) * STONE_SHADE
+		var up := clampf(normals[i].y, 0.0, 1.0) if i < normals.size() else 0.0
+		var out_facing := clampf(normals[i].z, 0.0, 1.0) if i < normals.size() else 0.0
+		var c := int(floor(verts[i].x / WallMap.SQUARE))
+		var r := map.height - 1 - int(floor(verts[i].y / WallMap.SQUARE))
+		# Chalk dust where hands and feet have been: on the tops, and a little on the face of the stone.
+		col = col.lerp(CHALK, STONE_CHALK * (up * 0.9 + out_facing * 0.25) * (0.7 + 0.6 * _hash(c * 3 + 1, r * 7 + 2)))
+		if map.inside(c, r) and map.hazard_at(c, r) == WallMap.WET:
+			col = col.lerp(ICE_TINT, (0.35 + 0.5 * maxf(up, out_facing)) * 0.85)
+		out.append(col)
 	arrays[Mesh.ARRAY_COLOR] = out
 	var made := ArrayMesh.new()
 	made.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

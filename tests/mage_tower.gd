@@ -88,6 +88,14 @@ func _run() -> void:
 		_end()
 		return
 	check(is_equal_approx(hall.rotation.y, 0.0), "its door faces south, onto the path")
+	var sign_board := hall.get_node_or_null("HallSign") as Node3D
+	check(sign_board != null and sign_board.has_meta("name_text"), "the tower hangs its own sign by the door")
+	if sign_board:
+		var low := 99.0
+		for part: Node in sign_board.find_children("*", "MeshInstance3D", true, false):
+			var box: AABB = (part as MeshInstance3D).get_aabb()
+			low = minf(low, ((part as MeshInstance3D).global_transform * box).position.y)
+		check(low > hall.global_position.y + 1.9, "the hero walks under the sign (its lowest point %.2f m up)" % (low - hall.global_position.y))
 	var open_lights := 0
 	for l: Node in hall.find_children("*", "Light3D", true, false):
 		if not l.has_meta(LightShadows.INDOOR):

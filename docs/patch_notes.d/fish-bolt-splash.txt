@@ -1,0 +1,1 @@
+- A fish that bolts away now makes a small splash with a sound.

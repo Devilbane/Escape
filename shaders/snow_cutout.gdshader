@@ -8,7 +8,7 @@ render_mode cull_disabled;
 
 #include "res://shaders/snow.gdshaderinc"
 
-uniform sampler2D cutout : filter_linear_mipmap;
+uniform sampler2D cutout : filter_linear_mipmap_anisotropic;
 uniform vec3 uv_scale = vec3(1.0);
 uniform vec3 uv_offset = vec3(0.0);
 uniform float alpha_scissor = 0.5;

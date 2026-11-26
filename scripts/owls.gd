@@ -71,6 +71,12 @@ var owls: Array[Dictionary] = []
 ## Where the owls may sit: each is {"pos": the perch, "trunk": where the branch leaves the trunk, "taken": bool}.
 var perches: Array[Dictionary] = []
 var _rng := RandomNumberGenerator.new()
+## The graveyard's clock owl (an index into `owls`, -1 for none) and whether tonight it strikes the hours
+## (a full-moon night, see OwlClock). While it strikes, the other owls keep quiet so its hoots can be counted.
+var clock_owl := -1
+var clock_on := false
+var _clock_step := 0
+var _clock_t := 0.0
 static var _texture: ImageTexture
 static var _bark: ImageTexture
 
@@ -104,6 +110,26 @@ func _init(trees: Array, cell_to_world: Callable, tile: float, seed_text := "") 
 		count = maxi(count, 3)
 	for i in count:
 		_add_owl(i)
+
+
+## Adds the owl of the graveyard's dead tree: it perches at `trunk` on a branch towards `toward`, never
+## glides away and hoots only the pattern of the owl clock (see OwlClock).
+func add_clock_owl(trunk: Vector3, toward: Vector3) -> void:
+	var out := Vector3(toward.x - trunk.x, 0.0, toward.z - trunk.z).normalized()
+	if out == Vector3.ZERO:
+		out = Vector3(0, 0, 1)
+	perches.append({"pos": trunk + out * BRANCH_OUT, "trunk": trunk, "taken": false})
+	_add_owl(perches.size() - 1)
+	clock_owl = owls.size() - 1
+	var o := owls[clock_owl]
+	o.glide_t = INF
+	o.hoot_t = INF
+	(o.node as Node3D).rotation.y = atan2(out.x, out.z)
+
+
+## Whether the other owls keep quiet: the clock is striking.
+func clock_quiet(hour: float) -> bool:
+	return clock_owl >= 0 and clock_on and OwlClock.striking(hour)
 
 
 ## Whether the owls are awake at an hour.
@@ -194,6 +220,7 @@ func tick(delta: float, hero: Vector3, hour: float, covered := false) -> void:
 			_glide(o, delta)
 			continue
 		_perched(i, o, delta, hero, d, hour, covered)
+	_clock_tick(delta, hero, hour, covered)
 
 
 func _perched(i: int, o: Dictionary, delta: float, hero: Vector3, d: float, hour: float, covered: bool) -> void:
@@ -219,6 +246,8 @@ func _perched(i: int, o: Dictionary, delta: float, hero: Vector3, d: float, hour
 	o.blink = maxf(0.0, o.blink - delta)
 	# Hooting.
 	o.hoot_t -= delta
+	if o.hoot_t <= 0.0 and clock_quiet(hour):
+		o.hoot_t = _rng.randf_range(3.0, 6.0)
 	if o.hoot_t <= 0.0:
 		var deep := hour >= 21.0 or hour < 4.0
 		var gap := HOOT_NIGHT if deep else HOOT_EVERY
@@ -255,7 +284,7 @@ func _hoot(i: int, o: Dictionary, d: float, covered: bool) -> void:
 	var best := -1
 	var best_d := ANSWER_RANGE
 	for k in owls.size():
-		if k == i or owls[k].state != "perch" or owls[k].asleep:
+		if k == i or k == clock_owl or owls[k].state != "perch" or owls[k].asleep:
 			continue
 		var dd: float = (owls[k].node as Node3D).global_position.distance_to((o.node as Node3D).global_position)
 		if dd < best_d:
@@ -264,6 +293,31 @@ func _hoot(i: int, o: Dictionary, d: float, covered: bool) -> void:
 	if best >= 0:
 		owls[best].hoot_t = _rng.randf_range(ANSWER_AFTER.x, ANSWER_AFTER.y) + best_d / 340.0
 		owls[best].answer = true
+
+
+## The clock owl's hoots: one note at a time, following the pattern of OwlClock, while the hero is near on a
+## full-moon night.
+func _clock_tick(delta: float, hero: Vector3, hour: float, covered: bool) -> void:
+	if clock_owl < 0:
+		return
+	var o := owls[clock_owl]
+	var d := Vector2((o.node as Node3D).global_position.x - hero.x, (o.node as Node3D).global_position.z - hero.z).length()
+	if not (clock_on and OwlClock.striking(hour)) or d > OwlClock.HEAR_RANGE:
+		_clock_step = 0
+		_clock_t = OwlClock.START_DELAY
+		return
+	_clock_t -= delta
+	if _clock_t > 0.0:
+		return
+	_clock_t = OwlClock.gap_after(_clock_step)
+	_clock_step = (_clock_step + 1) % OwlClock.hoots()
+	o.asleep = false
+	o.puff_len = OwlClock.PUFF
+	o.puff = o.puff_len
+	hooted.emit(clock_owl, OwlClock.SOUND)
+	if is_inside_tree():
+		var db := OwlClock.HOOT_DB - FADE_RATE * maxf(0.0, d - FADE_FROM) + (INDOORS_DB if covered else 0.0)
+		Sfx.play_3d(self, OwlClock.SOUND, db, (o.node as Node3D).global_position + Vector3(0, 0.3, 0))
 
 
 func _start_glide(o: Dictionary) -> void:
@@ -428,7 +482,7 @@ static func _material() -> StandardMaterial3D:
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = 0.95
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return m
 

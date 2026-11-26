@@ -581,6 +581,9 @@ func set_water(level: float, rain := 0.0, sky := 1.0) -> void:
 
 ## The puddle a spot on the ground stands in, or {} for dry ground.
 func puddle_at(p: Vector3) -> Dictionary:
+	# No rain falls inside a house, so no puddle lies there (the shader leaves it out too).
+	if IndoorMask.covers(p):
+		return {}
 	var tile := Vector2i(floori(p.x / Level.TILE), floori(p.z / Level.TILE))
 	for s: Dictionary in _by_tile.get(tile, []):
 		if float(s.fill) < SPLASH_FILL:

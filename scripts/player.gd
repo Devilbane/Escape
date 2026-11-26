@@ -1565,9 +1565,10 @@ func melee() -> void:
 		hits += 1
 		mark_fight()
 		# Every blow that lands trains the hand and the arm; a kill a little more.
-		train(weapon, 1.0)
-		train("staerke", 3.0 if e.dead else 1.0)
-		if e.dead and e.kind == "magier":
+		if not e.no_reward:
+			train(weapon, 1.0)
+			train("staerke", 3.0 if e.dead else 1.0)
+		if e.dead and e.kind == "magier" and not e.no_reward:
 			train("intelligenz", 4.0)
 	if blow != "":
 		Sfx.play_weapon(self, arms, blow, blow_at)
@@ -1950,7 +1951,8 @@ func throw_power() -> int:
 
 ## The chance to dodge a blow or a shot, 0..DODGE_MAX.
 func dodge_chance() -> float:
-	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
+	var lessons := Monastery.dodge_bonus(self)
+	return clampf(DODGE_PER_DEXTERITY * dexterity_points() + lessons, 0.0, DODGE_MAX + lessons)
 
 
 ## The hero's odds against a foe's blows and hide, as the fight rolls them,
@@ -2133,7 +2135,7 @@ func skill(id: String) -> int:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	level_now += int(companion_perks.get("skills", {}).get(id, 0))
 	if id == "klettern":
-		level_now += Climbing.set_bonus(equipped)
+		level_now += Climbing.set_bonus(equipped) + Monastery.climb_bonus(self)
 	return maxi(0, level_now - Injury.skill_drop(self))
 
 
@@ -2556,7 +2558,7 @@ var bonus_regen := 0.0
 
 ## Life per second, averaged over the interval (shown in the HUD and character page).
 func life_regen() -> float:
-	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL + bonus_regen
+	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL + bonus_regen + Monastery.regen_bonus(self)
 
 
 ## Whether a fresh hit is holding the healing back for now.
@@ -2575,7 +2577,7 @@ func _regenerate(delta: float) -> void:
 	if _regen_pause > 0.0:
 		_regen_pause = maxf(0.0, _regen_pause - delta)
 		return
-	_regen += bonus_regen * delta
+	_regen += (bonus_regen + Monastery.regen_bonus(self)) * delta
 	_regen_clock += delta
 	if _regen_clock >= REGEN_INTERVAL:
 		_regen_clock -= REGEN_INTERVAL
@@ -3307,13 +3309,13 @@ const NAIL := "kletterhaken"
 const HAMMER := "kletterhammer"
 const ROPE := "kletterseil"
 ## Seconds of one pull-up at the first Klettern level; each level above takes a little off.
-const ROCK_PULL_SECONDS := 1.3
+const ROCK_PULL_SECONDS := 2.0
 const ROCK_SLIP_SECONDS := 0.6
 const ROCK_HAMMER_SECONDS := 2.4
 const ROCK_THREAD_SECONDS := 1.6
 const ROCK_ARREST_SECONDS := 1.6
 ## Seconds of one hold going down, and the tests' roll for a fall (see RockClimb.fall_chance).
-const ROCK_DESCEND_SECONDS := 1.0
+const ROCK_DESCEND_SECONDS := 1.6
 const ROCK_TOP_SECONDS := 1.4
 const ROCK_FALL_SPEED := 7.0
 var _rock: RockClimb = null
@@ -3383,6 +3385,11 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 	if _rock_push < ClimbSpots.HOLD:
 		return false
 	_rock_push = -ClimbSpots.HOLD
+	# A placed climbing wall (see WallPlacements) takes the hero to the wall screen.
+	var placed := WallPlacements.at(level.level_name, cell)
+	if not placed.is_empty():
+		Events.bus().wall_climb_requested.emit(String(placed.wall))
+		return false
 	var spot := ClimbSpots.at(level, cell)
 	if spot.is_empty() or skill("klettern") < maxi(1, int(spot.level)) or not Climbing.can_climb(float(spot.height), skill("klettern")):
 		Events.tell(Lang.t(ClimbSpots.TOO_STEEP), Color(0.8, 0.85, 1.0))
@@ -3444,7 +3451,7 @@ func _rock_begin_pull() -> void:
 	_rock_side = _rock_wanted_side()
 	if _rock_side != 0:
 		_rock_left = _rock_side < 0
-	_rock_seconds = maxf(0.7, ROCK_PULL_SECONDS - 0.03 * (climbing_level() - 1))
+	_rock_seconds = maxf(1.1, ROCK_PULL_SECONDS - 0.04 * (climbing_level() - 1))
 
 
 ## Left (-1) or right (1) when the hero holds a sideways key on the face and there is room along it; else 0

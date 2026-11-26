@@ -4,12 +4,13 @@ shader_type spatial;
 // coordinates, so every texture is projected from three sides in the model's own space.
 
 #include "res://shaders/gl_colour.gdshaderinc"
+global uniform float relief_strength;
 
 uniform vec4 base_color = vec4(1.0);
 // Hair strands (light/dark streaks, seamless) and their bump map, and broad blotches of coat colour.
-uniform sampler2D strands : filter_linear_mipmap, repeat_enable;
-uniform sampler2D strand_bumps : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D blotches : filter_linear_mipmap, repeat_enable;
+uniform sampler2D strands : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D strand_bumps : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D blotches : filter_linear_mipmap_anisotropic, repeat_enable;
 // Strand texture repeats per model unit; the blotches repeat this many times slower.
 uniform float tile = 5.0;
 uniform float blotch_slower = 7.0;
@@ -49,7 +50,7 @@ void fragment() {
 	col += base_color.rgb * slant * fuzz;
 	ALBEDO = col;
 	NORMAL_MAP = sides(w, local_pos, strand_bumps, tile);
-	NORMAL_MAP_DEPTH = bump_strength;
+	NORMAL_MAP_DEPTH = bump_strength * relief_strength;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.05;
 	METALLIC = 0.0;

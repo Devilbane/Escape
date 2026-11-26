@@ -4,7 +4,7 @@ render_mode cull_disabled;
 // A butterfly: a body and two wings painted on an atlas of four kinds (see InsectLife.wing_atlas). The
 // instance's custom data holds the kind (x), the flap's phase (y), its speed in radians a second (z) and
 // how far the wings open (w, 1 is a full beat). The wings are flapped here, so a hundred cost no more than one.
-uniform sampler2D wings : filter_linear_mipmap, repeat_disable;
+uniform sampler2D wings : filter_linear_mipmap_anisotropic, repeat_disable;
 
 varying flat float kind;
 

@@ -81,7 +81,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND, Beekeeper.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Monastery.KIND, Mill.KIND, Beekeeper.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -246,6 +246,7 @@ const WINDOW_SIZES := {
 	"karte": Vector2(980, 616),
 	"auftraege": Vector2(760, 532),
 	CoopWindow.KIND: Vector2(720, 540),
+	SettingsWindow.KIND: SettingsWindow.SIZE,
 	PlotOffice.KIND: Vector2(640, 430),
 	Spooknortz.KIND: Spooknortz.WINDOW,
 }
@@ -351,6 +352,8 @@ func _rebuild() -> void:
 			_build_temple()
 		RuinedShrine.KIND:
 			_build_ruined_shrine()
+		Monastery.KIND:
+			_build_monastery()
 		"steinmetz":
 			_build_stonemason()
 		"holzfaeller":
@@ -403,6 +406,8 @@ func _rebuild() -> void:
 			_build_skill_trees()
 		CoopWindow.KIND:
 			CoopWindow.build(self)
+		SettingsWindow.KIND:
+			SettingsWindow.build(self)
 		PlotOffice.KIND:
 			PlotOffice.build(self)
 		ClimberNpc.KIND:
@@ -845,6 +850,10 @@ func _crafts_text() -> String:
 	for id in Training.CRAFTS:
 		if id == AshSpire.SPELL and not AshSpire.knows_spell(game.player):
 			continue
+		if id == GraveyardRiddles.SKILL and not GraveyardRiddles.knows(game.player):
+			continue
+		if Monastery.SKILLS.has(id) and Monastery.lessons(game.player, id) == 0:
+			continue
 		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
 	var lines := []
 	for i in range(0, parts.size(), 2):
@@ -1180,18 +1189,18 @@ func _build_inventory() -> void:
 		label.custom_minimum_size.x = WORN_CELL.x
 		place.add_child(label)
 		row.add_child(place)
-	# Two tabs share the space below: the bag and the ingredient pouch.
+	# Tabs share the space below: the bag, the ingredient pouch, the purse and
+	# the bonuses and penalties of gear and weight.
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 8)
 	_box.add_child(tabs)
 	var bag_tab := Lang.t("Tasche (%d / %d)    Gewicht %s") % [p.bag_used(), p.bag_size(), Items.weight_text(p.carried_weight())]
 	var pouch_tab := Lang.t("Zutatenbeutel (%d)") % _pouch_ids().size()
-	# The bag is three cells wide, the pouch two, the purse (coins and gems)
-	# one: together as wide as the bag's grid.
-	for tab in [["tasche", bag_tab, 3], ["beutel", pouch_tab, 2], ["muenzen", Lang.t("Geldbeutel"), 1]]:
+	# Four tabs as wide as the window (their widths in px, with the gaps).
+	for tab in [["tasche", bag_tab, 372], ["beutel", pouch_tab, 214], ["muenzen", Lang.t("Geldbeutel"), 150], ["effekte", Lang.t("Boni / Mali"), 156]]:
 		var b := _item_button(tab[1], _show_inventory_tab.bind(tab[0]))
-		b.custom_minimum_size = Vector2(tab[2] * ACTION_WIDTH + (tab[2] - 1) * 8, 44)
+		b.custom_minimum_size = Vector2(tab[2], 44)
 		b.clip_text = true
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.modulate = Color(1.0, 0.9, 0.6) if inventory_tab == tab[0] else Color(0.75, 0.75, 0.8)
@@ -1209,8 +1218,90 @@ func _build_inventory() -> void:
 		var room := page.get_combined_minimum_size()
 		_box.remove_child(page)
 		page.queue_free()
-		_box.add_child(_pouch_page(room, 6) if inventory_tab == "beutel" else _purse_page(room))
+		match inventory_tab:
+			"beutel": _box.add_child(_pouch_page(room, 6))
+			"effekte": _box.add_child(_gear_page(p, room))
+			_: _box.add_child(_purse_page(room))
 	_box.add_child(_inventory_details())
+
+
+## Height of one row of the bonuses box, and the box's rows: the equipment's
+## seven in two columns, the weight's four. Fixed, so the box never resizes.
+const GEAR_ROW := 21
+const GEAR_GOOD := Color(0.4, 0.92, 0.4)
+const GEAR_BAD := Color(1.0, 0.38, 0.32)
+const GEAR_NONE := Color(0.6, 0.6, 0.66)
+
+
+## The bonuses tab: the box as wide as the window, in a region as high as the
+## bag's page, so switching to it moves nothing.
+func _gear_page(p: Player, room: Vector2) -> Control:
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(INVENTORY_WIDTH, room.y)
+	var box := _gear_box(p)
+	box.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	holder.add_child(box)
+	return holder
+
+
+## "Bonuses and penalties" (a tab of the inventory): what the whole worn gear
+## adds or takes (left) and what the carried weight does (right), each row
+## green for a bonus, red for a penalty and grey for nothing. The rows are
+## always the same, so putting something on or off moves nothing.
+func _gear_box(p: Player) -> Control:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UiKit.frame_style(Color(0.05, 0.035, 0.03, 0.6), Color(0.45, 0.3, 0.15, 0.8), 2))
+	panel.custom_minimum_size.x = INVENTORY_WIDTH
+	var margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	for side in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 4)
+	panel.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 22)
+	margin.add_child(row)
+	var left := GearEffects.equipment_lines(p)
+	row.add_child(_gear_column(Lang.t("Von der Ausrüstung"), [left.slice(0, 3), left.slice(3, 5), left.slice(5)], 3.0))
+	var right := GearEffects.weight_lines(p)
+	row.add_child(_gear_column(Lang.t("Vom Gewicht (bremst höchstens %d %%)") % roundi(Items.MAX_WEIGHT_SLOW * 100.0),
+			[right.slice(0, 2), right.slice(2)], 2.4))
+	return panel
+
+
+## One column of the box: a gold heading and its rows ([name, text, sign]), in
+## one or two sub-columns; `stretch` is its share of the box's width.
+func _gear_column(title: String, groups: Array, stretch: float) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.size_flags_stretch_ratio = stretch
+	var heading: Label = game._make_label(game.TEXT_FONT, INVENTORY_TEXT, game.GOLD)
+	heading.text = title
+	col.add_child(heading)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 16)
+	col.add_child(cols)
+	for group in groups:
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_theme_constant_override("h_separation", 10)
+		grid.add_theme_constant_override("v_separation", 0)
+		cols.add_child(grid)
+		for line in group:
+			var name: Label = game._make_label(game.TEXT_FONT, INVENTORY_TEXT - 1, Color(0.8, 0.78, 0.7))
+			name.text = line[0]
+			name.custom_minimum_size.y = GEAR_ROW
+			name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			name.clip_text = true
+			name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			grid.add_child(name)
+			var value: Label = game._make_label(game.TEXT_FONT, INVENTORY_TEXT - 1, [GEAR_BAD, GEAR_NONE, GEAR_GOOD][int(line[2]) + 1])
+			value.text = line[1]
+			value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			grid.add_child(value)
+	return col
 
 
 ## A line of the hero's values at the top of the inventory: wrapped at the
@@ -1689,7 +1780,7 @@ func _build_storage() -> void:
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6, null, true)
-	var size := HomeUpgrades.storage_size(game.home_upgrades)
+	var size := HomeUpgrades.storage_size(game.home_upgrades, game.hero_name)
 	var used := HomeUpgrades.storage_used(game.storage)
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
 	# Eight across, so the window keeps its width when the chest grows.
@@ -1755,7 +1846,7 @@ func _pack_pick_up() -> void:
 
 
 func _store(index: int) -> void:
-	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index]):
+	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index], game.hero_name):
 		_note = Lang.t("Die Truhe ist voll.")
 	else:
 		game.storage.append(game.player.bag[index])
@@ -3971,6 +4062,47 @@ func _build_ruined_shrine() -> void:
 		{"key": "pray", "title": Lang.t("Gebet"), "icon": "kind:heart", "entries": [pray]},
 		{"key": "mend", "title": Lang.t("Den Schrein herrichten"), "icon": "kind:hammer_anvil", "entries": steps},
 	], null, Lang.t("Hier kannst du beten. Mit kleinen Gaben stellst du den verfallenen Schrein Stück für Stück wieder her."))
+
+
+## The window of a monk of Nohpaan (see Monastery): the three lessons of their skill in their order. A lesson
+## learned stays in its row, dimmed; the next one says what it still asks for.
+func _build_monastery() -> void:
+	var id: String = game.monastery_teacher
+	var skill: Dictionary = Monastery.SKILLS[id]
+	var hero: Player = game.player
+	_add_label(Lang.t(skill.monk), 38, game.GOLD, game.TITLE_FONT)
+	var known := Monastery.lessons(hero, id)
+	var icon := {"bergatem": "kind:boots", "stille_mitte": "kind:heart", "windschritt": "kind:flower"}.get(id, "kind:scroll") as String
+	var entries := []
+	for lesson in range(1, Monastery.MAX_LESSONS + 1):
+		var cost := Monastery.price(lesson)
+		var need := Monastery.missing(hero, id, lesson)
+		var entry := {"key": "lesson:%d" % lesson, "icon": icon, "name": Lang.t("%s, Lehre %d") % [Lang.t(skill.name), lesson],
+				"price": Lang.t("%d Gold") % (cost / 250 if cost % 250 == 0 else cost / 250 + 1), "price_ok": Payment.can_pay(game, cost),
+				"detail": {"subtitle": Lang.t(skill.name), "lines": [[Lang.t(skill.text), TradeWindow.BLUE]]}}
+		if need != "":
+			entry.detail.lines.append([Lang.t("Dafür brauchst du %s.") % need, TradeWindow.ORANGE])
+		if lesson <= known:
+			entry.gone = Lang.t("Gelernt")
+		else:
+			var next := lesson == known + 1
+			entry.button = Lang.t("Lehre lernen")
+			entry.action = _learn_lesson.bind(id)
+			entry.enabled = next and need == "" and Payment.can_pay(game, cost)
+			if not next:
+				entry.detail.lines.append([Lang.t("Zuerst die Lehre davor."), TradeWindow.ORANGE])
+		entries.append(entry)
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
+		{"key": "lessons", "title": Lang.t("Lehren"), "icon": icon, "entries": entries},
+	], null, Lang.t("Jede Lehre kostet Gold und ein Können, das du schon beherrschst."))
+
+
+func _learn_lesson(id: String) -> void:
+	var why := Monastery.learn(game, id)
+	_note = why
+	if why == "":
+		game.save_game()
+	_rebuild()
 
 
 func _pray_at_shrine() -> void:

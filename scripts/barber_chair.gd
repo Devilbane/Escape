@@ -17,7 +17,9 @@ const BESIDE := Vector3(-1.3, 0.0, -0.15)
 ## Seconds the tent takes to fade away and come back.
 const FADE := 0.5
 ## How often a villager with nothing to do takes the chair rather than a bench or an errand.
-const CHANCE := 0.14
+const CHANCE := 0.1
+## The same for the women, who go for a haircut more often.
+const CHANCE_WOMEN := 0.3
 ## How long a villager sits in it (seconds, at random between the two).
 const STAY := Vector2(12.0, 24.0)
 ## A seated body this close to the seat (metres) is in the chair.
@@ -26,6 +28,9 @@ const HERO_IN := 0.9
 const OPEN_AFTER := 0.9
 ## The chair's touch distance: the hero runs into it from the front or the sides.
 const TOUCH := 1.5
+## How far outside the tent's roof edge (metres) the hero's presence makes it fade away, and where it comes back.
+const NEAR := 1.0
+const NEAR_OUT := 1.8
 
 var station := {}
 ## The seat for villagers (see BenchRest): {"station", "sit", "front", "stand", "walk_to", "rest", "taker", "until"}.
@@ -115,7 +120,7 @@ func taken(s: Dictionary) -> bool:
 ## Now and then the chair for a villager with nothing to do: {} most of the time, and when anyone
 ## sits in it, or Benno is not at his post.
 func offer(level: Outdoor, v: Villager) -> Dictionary:
-	if seat.is_empty() or not BenchRest.rests_here(v) or v == barber or _rng.randf() >= CHANCE:
+	if seat.is_empty() or not BenchRest.rests_here(v) or v == barber or _rng.randf() >= (CHANCE_WOMEN if v.info_sex() == "female" else CHANCE):
 		return {}
 	if not barber_here() or seat.taker != null or cut.active() or level.village_alarm.raised:
 		return {}
@@ -162,10 +167,20 @@ func tick(level: Outdoor, delta: float) -> void:
 		barber.customer_at = chair_pos if (in_chair or guest) else Vector3.INF
 		barber.snip_spot = chair_pos + BESIDE
 		barber.snips = cut.active() or seated
-		_show_tent(not (in_chair or seated))
+		_show_tent(not (in_chair or seated or _hero_near_tent(level)))
 
 
-## The tent over the chair fades away while someone sits (and comes back when they get up).
+## Whether the hero stands under the tent or right beside it. Once the tent has faded it stays away a little
+## further out, so it does not flicker at the edge.
+func _hero_near_tent(level: Outdoor) -> bool:
+	if tent == null or not is_instance_valid(tent) or level.player == null:
+		return false
+	var d := level.player.global_position - tent.global_position
+	var reach := BarberTent.REACH + (NEAR_OUT if _tent_gone else NEAR)
+	return absf(d.x) < reach and absf(d.z) < reach
+
+
+## The tent over the chair fades away while someone sits or the hero stands under or beside it, and comes back after.
 func _show_tent(shown: bool) -> void:
 	if tent == null or not is_instance_valid(tent) or _tent_gone == (not shown):
 		return

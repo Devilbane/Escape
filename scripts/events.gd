@@ -40,6 +40,10 @@ signal bounty_paid(id: String)
 ## room), "writing" (a wall writing) or "rune" (a dwarves' rune tablet), at a
 ## place of this level (see HeroLevel.RIDDLES). It earns experience.
 signal riddle_solved(kind: String, place_level: int)
+## An official riddle is solved (its id, see RiddleCount): the counter gravestones count it.
+signal riddle_done(id: String)
+## A riddle of the graveyards is solved (its id, see GraveyardRiddles): two of them teach Necromancy.
+signal graveyard_riddle(id: String)
 ## The hero fished up a bottle with a treasure map in it (see Fishing and
 ## TreasureMaps): the map's id. Its spot shows in the world from now on.
 signal treasure_map_found(id: String)
@@ -116,6 +120,11 @@ signal village_alarmed(reason: String)
 signal mercy_prayed(restored: int)
 
 
+## A hero learned a lesson of the monks of Nohpaan (see Monastery): the skill's id and how many lessons of it
+## the hero has now (1 to 3).
+signal lesson_learned(skill: String, lessons: int)
+
+
 ## A hero registered a building plot at the Crown Office (see PlotOffice): the
 ## tiles it covers. The open map clears the trees, boulders and mountain slopes
 ## reaching into it (see Outdoor.clear_plot).
@@ -125,6 +134,9 @@ signal plot_registered(rect: Rect2i)
 ## The hero looks on while the rock climber climbs (see ClimberNpc): the hours of game time
 ## that passed. Enough of them make the Klettern skill ripe (see Game._on_climber_watched).
 signal climber_watched(hours: float)
+## The hero pushed against the rock of a placed climbing wall (see WallPlacements, Player._try_climb_rock): the
+## wall's file. The game opens the wall screen (see WallScreens).
+signal wall_climb_requested(file: String)
 
 
 static var _bus: Events = null

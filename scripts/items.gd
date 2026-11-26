@@ -187,6 +187,10 @@ static var ALL := {
 	# never worn, worth next to nothing to the merchant.
 	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},
 	"mehlsack": {"name": "Mehlsack", "slot": "auftrag", "weight": 1.0, "price": 1, "no_loot": true, "effect": "Für Fritz im Wirtshaus"},
+	# The bell of the owl clock riddle (see OwlClock): crafted at the fine metalwork bench, rung with key 3.
+	"totenlaeuter": {"name": "Totenläuter", "slot": "auftrag", "weight": 1.5, "price": 1, "no_loot": true, "crafted": true, "unique": true, "effect": "Einzigartig: Taste 3 läutet die Glocke. Die Toten hören zu, wenn man sie nicht zu oft ruft"},
+	# What Owlav's crypt holds (see OwlClock): never found anywhere else.
+	"eulenamulett": {"name": "Owlavs Lauschamulett", "slot": "amulett", "weight": 0.2, "hp": 3, "power": 1, "speed": 0.05, "magic": true, "price": 150, "no_loot": true, "unique": true, "effect": "Einzigartig: aus der Gruft des Mannes, der der Nacht lauschte"},
 	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},
 	"kuerbis": {"name": "Kürbis", "slot": "auftrag", "weight": 3, "price": 1, "no_loot": true, "effect": "Für Fritz im Wirtshaus"},
 	"alriks_siegelring": {"name": "Alriks Siegelring", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für den Gelehrten im Dorf"},
@@ -245,6 +249,9 @@ static var ALL := {
 	"kartenstueck_1": {"name": "Kartenstück: Rand", "slot": "auftrag", "weight": 0.1, "price": 30, "no_loot": true, "wanderer": true, "effect": "Ein eingerissenes Stück einer alten Karte. Mit den anderen beiden Stücken ergibt es eine ganze Karte"},
 	"kartenstueck_2": {"name": "Kartenstück: Wald", "slot": "auftrag", "weight": 0.1, "price": 30, "no_loot": true, "wanderer": true, "effect": "Ein eingerissenes Stück einer alten Karte. Mit den anderen beiden Stücken ergibt es eine ganze Karte"},
 	"kartenstueck_3": {"name": "Kartenstück: Kreuz", "slot": "auftrag", "weight": 0.1, "price": 30, "no_loot": true, "wanderer": true, "effect": "Ein eingerissenes Stück einer alten Karte. Mit den anderen beiden Stücken ergibt es eine ganze Karte"},
+	"schaedel_medusa": {"name": "Schädel von Madame Medusa", "slot": "auftrag", "weight": 0.8, "price": 1, "no_loot": true, "unique": true, "effect": "Aus dem Beinhaus unter dem Friedhof. Fahrender Händler Zarek will ihn haben"},
+	"schaedel_snoops": {"name": "Schädel von Herrn Snoops", "slot": "auftrag", "weight": 0.8, "price": 1, "no_loot": true, "unique": true, "effect": "Aus dem Beinhaus unter dem Friedhof. Fahrender Händler Zarek will ihn haben"},
+	"geladener_diamant": {"name": "Geladener Diamant", "slot": "auftrag", "weight": 0.1, "price": 300, "no_loot": true, "unique": true, "effect": "Einzigartig: Tief im Stein knistert es, als sei ein Blitz darin gefangen"},
 	"schatzkarte": {"name": "Alte Schatzkarte", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Aus drei Stücken zusammengesetzt. Der Gelehrte im Dorf kann sie lesen"},
 	"staubumhang": {"name": "Staubiger Reiseumhang", "slot": "umhang", "weight": 1, "hp": 1, "speed": 0.08, "magic": true, "price": 40, "tint": Color(0.62, 0.5, 0.36), "material": "cloth", "no_loot": true, "wanderer": true},
 }
@@ -601,8 +608,10 @@ const RARITY := {
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "mehlsack": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"kartenstueck_1": "ungewoehnlich", "kartenstueck_2": "ungewoehnlich", "kartenstueck_3": "ungewoehnlich", "schatzkarte": "selten",
+	"schaedel_medusa": "ungewoehnlich", "schaedel_snoops": "ungewoehnlich", "geladener_diamant": "episch",
 	"karawanenring": "selten", "sternenstaubamulett": "selten", "kompassarmreif": "selten", "staubumhang": "selten",
 	"alriks_siegelring": "normal", "diebesgut": "normal", "foliant_der_kraft": "episch",
+	"totenlaeuter": "episch", "eulenamulett": "episch",
 	"donnererz": "selten",
 }
 

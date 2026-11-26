@@ -58,6 +58,7 @@ const ALL := {
 	"scharfschuetze": {"name": "Scharfschütze", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "intuition"], "needs": {"bogenschiessen": 12}, "attribute_needs": {"intuition": 16},},
 	"schattenklinge": {"name": "Schattenklinge", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "intuition"], "needs": {"meucheln": 12, "gifte": 5},},
 	"klingentaenzer": {"name": "Klingentänzer", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "tempo"], "needs": {"ausweichen": 12, "klingen": 15},},
+	"windschritt": {"name": "Windschritt", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "tempo"], "needs": {"akrobatik": 6}, "attribute_needs": {"geschick": 13}, "in_game": true,},
 	"meisterdieb": {"name": "Meisterdieb", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "intuition"], "needs": {"schloesser_fallen": 12, "feinmechanik": 5},},
 	# --- Körper
 	"zaehigkeit": {"name": "Zähigkeit", "tree": "koerper", "row": "basic", "levels": 20, "attributes": ["konstitution"],},
@@ -67,6 +68,9 @@ const ALL := {
 	"eisenhaut": {"name": "Eisenhaut", "tree": "koerper", "row": "advanced", "levels": 15, "attributes": ["konstitution"], "needs": {"zaehigkeit": 10},},
 	"langlaeufer": {"name": "Langläufer", "tree": "koerper", "row": "advanced", "levels": 15, "attributes": ["konstitution", "tempo"], "needs": {"ausdauer": 10},},
 	"lagerleben": {"name": "Lagerleben", "tree": "koerper", "row": "advanced", "levels": 15, "attributes": ["konstitution", "weisheit"], "needs": {"erholung": 8, "kochen": 5},},
+	# The monks of Nohpaan teach these in three lessons each (see Monastery).
+	"bergatem": {"name": "Bergatem", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["staerke", "konstitution"], "needs": {"klettern": 6}, "in_game": true,},
+	"stille_mitte": {"name": "Stille Mitte", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["weisheit"], "needs": {"erholung": 6}, "attribute_needs": {"weisheit": 12}, "in_game": true,},
 	"unbeugsam": {"name": "Unbeugsam", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["konstitution", "weisheit"], "needs": {"eisenhaut": 12}, "attribute_needs": {"weisheit": 16},},
 	"zweiter_atem": {"name": "Zweiter Atem", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["konstitution"], "needs": {"langlaeufer": 10, "erholung": 12},},
 	# --- Wissen
@@ -104,6 +108,7 @@ const ALL := {
 	"transmutation": {"name": "Transmutation", "tree": "alchemie_kueche", "row": "master", "levels": 10, "attributes": ["intelligenz"], "needs": {"saeuren_salze": 12, "magie": 12},},
 	# --- Arkanum
 	"magie": {"name": "Arkane Energie", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
+	"nekromantie": {"name": "Nekromantie", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
 	"meditation": {"name": "Meditation", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["weisheit", "intelligenz"],},
 	"elementarmagie": {"name": "Elementarmagie", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"magie": 10},},
 	"schutzzauber": {"name": "Schutzzauber", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["weisheit"], "needs": {"magie": 8, "meditation": 5},},
@@ -154,6 +159,8 @@ static func name_of(id: String) -> String:
 
 ## The most levels the game lets the hero train in a skill today.
 static func level_cap(id: String) -> int:
+	if Monastery.SKILLS.has(id):
+		return Monastery.MAX_LESSONS
 	return Training.skill_max(id) if in_game(id) else 0
 
 

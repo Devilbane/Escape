@@ -51,6 +51,7 @@ const INGREDIENT_ICONS := {
 	"grabstaub": "grave_dust", "wolfsfell": "pelt", "yetifell": "snow_pelt", "giftdruese": "venom_gland",
 	"fledermausfluegel": "bat_wing", "schleimkern": "slime_core", "geisterschleier": "ghost_veil",
 	"bansheehaar": "banshee_hair", "ghulkralle": "ghoul_claw",
+	"schaedel_medusa": "skull", "schaedel_snoops": "skull", "geladener_diamant": "gem",
 	"drachenschuppe": "dragon_scale", "drachenblut": "dragon_blood", "glutherz": "ember_heart",
 }
 
@@ -311,6 +312,16 @@ func _draw() -> void:
 			var lump := Color(0.16, 0.15, 0.15) if kind_of(what) == "coal" else Color(0.86, 0.84, 0.76)
 			draw_colored_polygon(PackedVector2Array([p.call(0.18, 0.75), p.call(0.25, 0.4), p.call(0.5, 0.22), p.call(0.8, 0.38), p.call(0.84, 0.72), p.call(0.55, 0.85)]), lump)
 			draw_line(p.call(0.35, 0.42), p.call(0.55, 0.36), lump.lightened(0.35), u * 0.04)
+		"skull":
+			# A skull from the ossuary (see Ossuary): cranium, jaw, eye sockets and nose.
+			var bone := Color(0.9, 0.86, 0.74)
+			draw_circle(p.call(0.5, 0.42), u * 0.32, bone)
+			draw_rect(Rect2(p.call(0.34, 0.6), Vector2(u * 0.32, u * 0.24)), bone)
+			draw_circle(p.call(0.37, 0.45), u * 0.085, Color(0.1, 0.08, 0.07))
+			draw_circle(p.call(0.63, 0.45), u * 0.085, Color(0.1, 0.08, 0.07))
+			draw_colored_polygon(PackedVector2Array([p.call(0.5, 0.52), p.call(0.45, 0.64), p.call(0.55, 0.64)]), Color(0.1, 0.08, 0.07))
+			for tooth in [0.4, 0.47, 0.54, 0.61]:
+				draw_line(p.call(tooth, 0.74), p.call(tooth, 0.84), Color(0.3, 0.26, 0.2), u * 0.025)
 		"ore":
 			draw_colored_polygon(PackedVector2Array([p.call(0.2, 0.7), p.call(0.3, 0.3), p.call(0.6, 0.15), p.call(0.85, 0.45), p.call(0.7, 0.85)]), c)
 			draw_line(p.call(0.4, 0.35), p.call(0.55, 0.6), Color.WHITE, u * 0.04)

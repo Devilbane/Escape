@@ -10,7 +10,7 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 #include "res://shaders/indoors.gdshaderinc"
 
 uniform vec4 albedo = vec4(1.0);
-uniform sampler2D texture_albedo : filter_linear_mipmap, hint_default_white;
+uniform sampler2D texture_albedo : filter_linear_mipmap_anisotropic, hint_default_white;
 // 0 as placed, 1 facing the camera (particles: with their own size and spin), 2 upright facing it.
 uniform int billboard = 0;
 uniform bool use_vertex_color = false;

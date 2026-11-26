@@ -9,10 +9,6 @@ extends Node3D
 ## darker and clearer in open water and veiled by the ice when it is frozen (see set_ice). They are built the
 ## first time the level runs (see Outdoor.set_ice), and only those near the hero are animated (see ACTIVE_RANGE).
 
-const MODELS := [
-	preload("res://assets/animals/fish/Fish1.fbx"),
-	preload("res://assets/animals/fish/Fish2.fbx"),
-]
 const SHADER := preload("res://shaders/under_ice_fish.gdshader")
 const MAX_FISH := 26
 ## The share of the water tiles that start a fish, and how many a pond or river gets at least (a body of
@@ -36,6 +32,8 @@ const RING_SCARE := 1.4
 const DART_SPEED := 1.9
 const DART_TIME := 1.1
 const DIVE_DEPTH := 0.7
+## A startled fish first shakes its whole body for SHAKE_TIME seconds, then bolts.
+const SHAKE_TIME := 0.7
 const GONE_TIME := Vector2(8.0, 16.0)
 ## Deep in the open water a fish is a little dimmer (see _base_fade). Now and then one comes up to the
 ## surface (SURFACE_PAUSE seconds apart), breaks it with a ring, flicks its fin (a rolling wiggle) and dives
@@ -54,9 +52,6 @@ const SOUND_RANGE := 38.0
 ## Fish length (metres) and how fast it swims; a lazy pace under the ice.
 const LENGTH_MIN := 0.7
 const LENGTH_MAX := 1.0
-## The models are very slim seen from above; they are widened across by this much so the body reads from the
-## game camera's distance (a trout is about a fifth as wide as it is long).
-const WIDEN := 1.5
 const SPEED := 0.3
 ## How far from the bank a fish keeps (see Outdoor.pond_shore_at), and the ice it shows from.
 const SHORE_MIN := 1.5
@@ -145,67 +140,31 @@ static func build(lvl: Outdoor, ponds: Array) -> IceFish:
 
 
 func _add_fish(home: Vector3, rng: RandomNumberGenerator, lane := {}) -> void:
-	var kind := rng.randi() % MODELS.size()
-	var model: Node3D = (MODELS[kind] as PackedScene).instantiate()
 	var length := rng.randf_range(LENGTH_MIN, LENGTH_MAX)
 	var holder := Node3D.new()
+	# A flat strip lying along z with its head at +z (the shader cuts the fish out of it, see under_ice_fish.gdshader).
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(length * 0.56, length)
+	plane.subdivide_width = 2
+	plane.subdivide_depth = 20
+	var model := MeshInstance3D.new()
+	model.mesh = plane
+	model.set_meta("head", Vector3(0, 0, 1))
+	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	holder.add_child(model)
 	add_child(holder)
-	# The models are modelled lying with their length along y and their back along z: turn the back up.
-	model.rotation = Vector3(-PI * 0.5, 0, 0)
-	# Whatever unit the model was made in, scale it to a river fish of `length` metres.
-	var natural := 0.0
-	var to_model := model.global_transform.affine_inverse()
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		# The length is the extent along the fish's own long axis (y), not the span of its fins.
-		var box := to_model * (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
-		natural = maxf(natural, box.size.y)
-	model.scale = Vector3(WIDEN, 1.0, 1.0) * (length / maxf(natural, 0.0001))
 	var palette: Array = COLOURS[rng.randi() % COLOURS.size()]
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
 	mat.set_shader_parameter("back_color", Vector3((palette[0] as Color).r, (palette[0] as Color).g, (palette[0] as Color).b))
 	mat.set_shader_parameter("flank_color", Vector3((palette[1] as Color).r, (palette[1] as Color).g, (palette[1] as Color).b))
 	mat.set_shader_parameter("seed", rng.randf())
-	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		(mi as MeshInstance3D).mesh = smoothed(mi.mesh)
-		(mi as MeshInstance3D).material_override = mat
-		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var player := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if player != null and not player.get_animation_list().is_empty():
-		var anim := player.get_animation_list()[0]
-		player.get_animation(anim).loop_mode = Animation.LOOP_LINEAR
-		player.speed_scale = rng.randf_range(0.7, 1.1)
-		player.play(anim)
-		player.seek(rng.randf() * 1.2)
+	mat.set_shader_parameter("len", length)
+	mat.set_shader_parameter("sway", rng.randf() * TAU)
+	model.material_override = mat
 	holder.position = home + Vector3(0, 0.03, 0)
 	_fish.append({"node": holder, "mat": mat, "home": home, "awake": true, "state": "swim", "timer": 0.0, "fade_from": 1.0, "zig": false, "heading": rng.randf() * TAU, "t": rng.randf() * 20.0,
 			"lane": lane, "turn": rng.randf_range(0.25, 0.55), "speed": SPEED * rng.randf_range(0.7, 1.2)})
-
-
-## The same mesh with its normals averaged over the vertices that share a spot, so the faceted low-poly
-## body shades as one round fish (the skin weights and everything else stay as they are).
-static func smoothed(mesh: Mesh) -> ArrayMesh:
-	var out := ArrayMesh.new()
-	for surf in mesh.get_surface_count():
-		var arrays := mesh.surface_get_arrays(surf)
-		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL] if arrays[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
-		if normals.size() != verts.size():
-			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-			continue
-		var sums := {}
-		for i in verts.size():
-			var key := Vector3i((verts[i] * 20000.0).round())
-			sums[key] = sums.get(key, Vector3.ZERO) + normals[i]
-		var smooth := PackedVector3Array()
-		smooth.resize(verts.size())
-		for i in verts.size():
-			smooth[i] = (sums[Vector3i((verts[i] * 20000.0).round())] as Vector3).normalized()
-		arrays[Mesh.ARRAY_NORMAL] = smooth
-		arrays[Mesh.ARRAY_TANGENT] = null
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return out
 
 
 ## How much of the water is frozen, 0 to 1 (see Outdoor.set_ice): in open water the fish are dark and clear,
@@ -325,11 +284,26 @@ func _stir(delta: float) -> void:
 		if Vector2(p.x - at.x, p.z - at.z).length() < RING_SCARE:
 			var away := Vector2(p.x - at.x, p.z - at.z)
 			f.heading = atan2(away.x, away.y) if away.length() > 0.05 else f.heading
-			f.state = "dart"
+			f.state = "shake"
 			f.timer = 0.0
 			f.zig = false
 			f.fade_from = _base_fade()
 			_sound(SPLASHES, -10.0, p)
+
+
+## A small splash where a fish bolts: a ring on the water, a few droplets thrown up and the splash sound.
+func _bolt_splash(at: Vector3) -> void:
+	_ring_at(at)
+	_sound(SPLASHES, -6.0, at)
+	var drops := Effects.make_sparkles(Color(0.82, 0.93, 1.0), true)
+	drops.amount = 12
+	drops.lifetime = 0.7
+	drops.emission_sphere_radius = 0.08
+	drops.spread = 40.0
+	drops.initial_velocity_min = 0.8
+	drops.initial_velocity_max = 1.6
+	drops.position = Vector3(at.x, 0.06, at.z)
+	add_child(drops)
 
 
 ## Plays a sound from `at`, softer the farther the hero is (none beyond SOUND_RANGE).
@@ -408,6 +382,17 @@ func _startled(f: Dictionary, delta: float) -> bool:
 					f.zig = true
 					f.fade_from = 1.0
 					f.heading += _ring_rng.randf_range(-1.0, 1.0)
+		"shake":
+			# Rooted to the spot, the body shivers hard and the nose jitters, then it bolts.
+			f.timer += delta
+			var k: float = clampf(f.timer / SHAKE_TIME, 0.0, 1.0)
+			mat.set_shader_parameter("shake", sin(PI * minf(k * 1.4, 1.0)) * 0.5 + 0.5 * k)
+			holder.rotation.y = f.heading + HEAD_TURN + sin(f.timer * 45.0) * 0.18 * k
+			if f.timer >= SHAKE_TIME:
+				mat.set_shader_parameter("shake", 0.0)
+				_bolt_splash(holder.position)
+				f.state = "dart"
+				f.timer = 0.0
 		"dart":
 			f.timer += delta
 			if f.zig:

@@ -139,7 +139,7 @@ const WORN_SETS := ["props", "chests", "wallprops"]
 ## and lamps (see LightShadows).
 const WALL_PIECES := ["wall", "wall_cracked", "wall_shelves", "wall_doorway", "wall_doorway_door"]
 const TINTED_PIECES := ["floor_tile_big_grate", "floor_tile_big_spikes", "wall_doorway", "wall_doorway_door", "stairs"]
-const SOLID := "(#bxotkCDHBLmhVF?f=U|N%T^&aI*!;{-:[\\')/`\"°"
+const SOLID := "(#bxotkCDHBLmhVF?f=U|N%T^&aI*!;{-:[\\')/`\"°πψωΞζΛΓ"
 ## Reach for searching: anything on a neighbouring tile.
 const SEARCH_RANGE := 4.3
 const SPIKE_PERIOD := 3.0
@@ -669,8 +669,12 @@ func build() -> void:
 		add_child(stern)
 	if lair and theme == "":
 		_decorate_lair()
+	if building == OwlClock.ID:
+		Ossuary.dress(self)
 	if theme == Wasteland.THEME:
 		Wasteland.dress(self)
+	if theme == Nohpaan.THEME:
+		Nohpaan.dress(self)
 	if not outdoor and (building == "" or lair):
 		life = DungeonLife.new(self)
 		add_child(life)
@@ -930,8 +934,9 @@ func _place(piece: String, pos: Vector3, rot_y := 0.0, parent: Node = self) -> N
 					# The tile under the spikes is the map's own floor, not the kit's grey.
 					mi.material_override = _kit_material("floor")
 				elif WallThemes.known(wall_style) and piece == "stairs":
-					# The steps out are hewn from the map's own stone, not the kit's grey.
-					mi.material_override = _kit_material("floor")
+					# The steps out are hewn from the map's own stone, not the kit's grey (in the meadow of
+					# Nohpaan from its trodden earth, not from the grass).
+					mi.material_override = _kit_material("floor_rough" if wall_style == Nohpaan.WALLS else "floor")
 				else:
 					mi.material_override = _rough_stone(mi.get_active_material(0), piece in ["floor_tile_big_spikes", "floor_tile_big_grate"])
 	return node
@@ -1136,10 +1141,10 @@ func _build_floor(c: Vector2i, ch: String) -> void:
 		# A grate only on plain floor: nothing (an NPC, a chest, the start)
 		# stands over the hole. The roll still happens, so the other tiles
 		# keep their look.
-		if ch == ".":
+		if ch == "." and theme != Nohpaan.THEME:
 			piece = "floor_tile_big_grate"
 			grates[c] = true
-	elif roll < 0.14:
+	elif roll < 0.14 and theme != Nohpaan.THEME:
 		piece = "floor_dirt_large"
 	_place(piece, pos, _random_quarter_turn())
 
@@ -1181,6 +1186,8 @@ func _build_walls(c: Vector2i) -> void:
 				piece = "wall_cracked"
 		elif not low and roll < 0.2:
 			piece = "wall_cracked"
+		if theme == Nohpaan.THEME and piece == "wall_shelves":
+			piece = "wall" # No bookcases in a cliff.
 		# A bookcase right beside another one is left out: a plain wall
 		# instead. The piece stays as rolled, so the rolls after it, and the
 		# rest of the map, stay as they were.
@@ -1209,6 +1216,8 @@ func _build_walls(c: Vector2i) -> void:
 		if low:
 			_near_walls.add(wall)
 			continue
+		if theme == Nohpaan.THEME:
+			continue # The cliffs of the valley carry no torches, banners or swords.
 		# No torch behind a barrel, crate or table: the hero must reach it.
 		var torch: Node3D = null
 		# A guardian's hall has no wall torches: only its fire bowl lights
@@ -1501,6 +1510,8 @@ func _build_content(c: Vector2i, ch: String) -> void:
 			RuinedShrine.build(self, c)
 		"°":
 			Wasteland.build_tree(self, c)
+		"π", "ψ", "ω", "Ξ", "ζ", "Θ", "Λ", "Π", "Γ":
+			Nohpaan.build_cell(self, c, ch)
 
 
 func _has_cell(ch: String) -> bool:
@@ -1671,6 +1682,8 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 		var epic_rng := RandomNumberGenerator.new()
 		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
 		obj.loot = {"gold": ElderLair.EPIC_GOLD, "item": ElderLair.epic_item(self, epic_rng)}
+		if building == OwlClock.ID:
+			obj.loot = {"gold": OwlClock.REWARD_GOLD, "item": OwlClock.REWARD}
 		var glow := OmniLight3D.new()
 		glow.light_color = Rarity.EPIC
 		glow.light_energy = 2.0
@@ -2027,7 +2040,8 @@ func _steps_from_secret(s: Dictionary) -> Dictionary:
 ## Candelabra of the map's cave style against some of the bare walls, a few
 ## tiles apart. A random generator of their own keeps the other rolls as they were.
 func _place_candelabra() -> void:
-	if not WallThemes.known(wall_style):
+	# The open valley of Nohpaan has its lanterns and braziers of its own.
+	if not WallThemes.known(wall_style) or theme == Nohpaan.THEME:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(level_name) + 17

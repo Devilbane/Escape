@@ -1,4 +1,4 @@
-// The four cave styles for walls and floors (see WallThemes): bone, rock, obsidian
+// The five styles for walls and floors (see WallThemes): bone, rock, obsidian
 // and crystal. Like stone.gdshader it keeps the kit's block layout and normal map
 // (so the joints, the edges and the resolution match the stone dungeon), and
 // replaces the colour with a material of its own, built in world space so the
@@ -6,15 +6,17 @@
 // - bone: ivory with yellow stains, grain along the bones and small pits,
 // - rock: grey-brown rock in layers with cracks, pits and sand,
 // - obsidian: glossy black glass in facets with sharp highlights,
-// - crystal: blue facets with glowing veins that breathe faintly.
+// - crystal: blue facets with glowing veins that breathe faintly,
+// - alpine: pale granite with moss and lichen for walls, a flowering mountain meadow for floors, and
+//   trodden earth with pebbles for the rough floor (Nohpaan).
 #include "res://shaders/gl_colour.gdshaderinc"
 
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/reveal.gdshaderinc"
 
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
-uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
-// 0 bone, 1 rock, 2 obsidian, 3 crystal.
+uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+// 0 bone, 1 rock, 2 obsidian, 3 crystal, 4 alpine.
 uniform int style = 0;
 // 0 for a wall, 1 for a floor (a little lighter and calmer, so the two stay
 // apart), 2 for rough floor.
@@ -124,7 +126,7 @@ void fragment() {
 		spec = 0.35;
 		// A violet sheen along the edges seen at a slant, so a black wall keeps its outline.
 		glow = vec3(0.32, 0.18, 0.55) * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0) * 0.25;
-	} else {
+	} else if (style == 3) {
 		// Crystal: bluish facets, pale flecks, glowing veins.
 		vec3 cell = floor(p * 2.4 * kf);
 		vec3 f = fract(p * 2.4 * kf);
@@ -139,12 +141,61 @@ void fragment() {
 		glow = glow_color * (0.04 + 0.5 * vein + 0.25 * fleck) * pulse * (1.0 - 0.6 * floor_k);
 		rough = 0.28 + 0.2 * grit;
 		spec = 0.7;
+	} else {
+		// Alpine.
+		if (surface == 0) {
+			// Granite: pale grain, dark veins, moss low down and patches of orange lichen.
+			float layer = sin((p.y + 0.4 * stains) * 3.0 * kf + 1.1 * fbm(p * 1.1)) * 0.5 + 0.5;
+			float crack = smoothstep(0.03, 0.0, abs(vnoise(p * 2.6) - 0.5)) * band(2.6, px);
+			float speck = (vnoise(p * 30.0) - 0.5) * band(30.0, px);
+			col = mix(basec, darkc, 0.35 * layer + 0.35 * (1.0 - stains));
+			col *= 1.0 + 0.22 * (grit - 0.5) - 0.4 * crack + 0.16 * speck;
+			float moss = smoothstep(0.5, 0.7, fbm(p * 1.7 + 4.0) + (0.9 - p.y) * 0.22);
+			col = mix(col, vec3(0.2, 0.34, 0.12) * (0.8 + 0.5 * grit), moss * 0.85);
+			float lichen = smoothstep(0.66, 0.72, vnoise(p * 7.0 + 2.0)) * band(7.0, px);
+			col = mix(col, vec3(0.78, 0.58, 0.2), lichen * 0.55 * (1.0 - moss));
+			col *= blocks;
+			h += speck * 0.0012 - crack * 0.01 + moss * grit * 0.004;
+			rough = 0.92;
+			spec = 0.12;
+		} else if (surface == 1) {
+			// Meadow: tufts of grass in two greens, clover and little flowers, bare earth between.
+			float tuft = fbm(p * 2.2);
+			float blade = vnoise(vec3(p.x * 34.0, 0.0, p.z * 34.0)) * band(34.0, px) + 0.5 * (1.0 - band(34.0, px));
+			col = mix(darkc, basec, clamp(0.3 + 0.9 * tuft, 0.0, 1.0));
+			col *= 0.82 + 0.4 * blade;
+			vec3 warm = vec3(0.52, 0.5, 0.2);
+			col = mix(col, warm, smoothstep(0.62, 0.8, fbm(p * 0.45 + 9.0)) * 0.4);
+			float earth = smoothstep(0.7, 0.82, fbm(p * 1.3 + 13.0));
+			col = mix(col, vec3(0.26, 0.2, 0.13) * (0.8 + 0.4 * grit), earth * 0.8);
+			// Flowers: a few specks in white, yellow, violet and pink.
+			vec3 fp = floor(p * 5.5);
+			float fh = hash3(fp);
+			vec3 fc = fract(p * 5.5) - 0.5;
+			float dot_ = smoothstep(0.17, 0.1, length(fc.xz + vec2(hash3(fp + 3.1) - 0.5, hash3(fp + 7.7) - 0.5) * 0.45)) * step(0.82, fh) * (1.0 - earth);
+			vec3 petal = fh < 0.88 ? vec3(0.96, 0.95, 0.9) : (fh < 0.93 ? vec3(0.98, 0.82, 0.2) : (fh < 0.97 ? vec3(0.62, 0.46, 0.86) : vec3(0.94, 0.5, 0.62)));
+			col = mix(col, petal, dot_ * band(5.5, px));
+			h += tuft * 0.01 * band(2.2, px) + (blade - 0.5) * 0.004 * band(34.0, px);
+			rough = 0.9;
+			spec = 0.08;
+		} else {
+			// Trodden path: packed earth, pebbles, a little grass at the edge.
+			float pebble = smoothstep(0.64, 0.74, vnoise(p * 9.0)) * band(9.0, px);
+			col = mix(basec, darkc, 0.5 * stains + 0.25 * grit);
+			col *= 1.0 + 0.2 * (grit - 0.5);
+			col = mix(col, vec3(0.62, 0.58, 0.52) * (0.8 + 0.4 * vnoise(p * 21.0)), pebble * 0.7);
+			float tuft2 = smoothstep(0.62, 0.78, fbm(p * 2.8 + 21.0));
+			col = mix(col, vec3(0.3, 0.45, 0.16), tuft2 * 0.7);
+			h += pebble * 0.01 + grit * 0.004 * band(5.0, px);
+			rough = 0.95;
+			spec = 0.1;
+		}
 	}
 
 	ALBEDO = col * tone;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
-	NORMAL_MAP_DEPTH = style >= 2 ? 0.4 : 1.0;
+	NORMAL_MAP_DEPTH = (style >= 2 ? 0.4 : 1.0) * relief_strength;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 	METALLIC = metal;

@@ -138,6 +138,17 @@ func _process(_delta: float) -> bool:
 		var bus := AudioServer.get_bus_index(Soundscape.WEATHER_BUS)
 		check(bus >= 0 and AudioServer.get_bus_volume_db(bus) < -6.0, "the rain is heard muffled inside")
 		check(not game._env.fog_enabled, "no haze inside the house")
+		# No rain puddle lies inside the house, though one was laid on that ground outside it.
+		var pu: Puddles = (game.level as Outdoor).puddles
+		var spot := {"node": null, "at": game.player.global_position, "radius": 2.0, "needs": 0.0, "fill": 1.0, "span": 2.0, "long": false, "id": 9999}
+		pu._register(spot)
+		check(pu.puddle_at(game.player.global_position).is_empty(), "no puddle inside the house")
+		var out_at: Vector3 = plan.node_world(0, 0) - Vector3(3, 0, 3)
+		var out_spot := {"node": null, "at": out_at, "radius": 2.0, "needs": 0.0, "fill": 1.0, "span": 2.0, "long": false, "id": 9998}
+		pu._register(out_spot)
+		check(not pu.puddle_at(out_at).is_empty(), "but puddles outside it stay")
+		pu._unregister(spot)
+		pu._unregister(out_spot)
 		check(float(game._seen_look().sat) > 0.95 and float(game._seen_look().sun) > 0.95, "no storm grey or dark inside the house")
 		_snow_checks()
 		game.set_weather(Weather.FOG, 5.0)

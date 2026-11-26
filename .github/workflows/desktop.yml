@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - id: gate
         env:
           EVENT: ${{ github.event_name }}
@@ -84,6 +84,8 @@ jobs:
           if [ "$go" = true ] && [ "$EVENT" != pull_request ] && [ "$FORCE" != true ]; then
             last=$(git ls-remote origin refs/tags/windows | cut -f1)
             if [ "$last" = "$sha" ]; then go=false; echo "main is still the last published build ($sha): no build."; fi
+            # A nightly run that started before newer merges finishes later: never publish an older commit over a newer build.
+            if [ "$go" = true ] && [ "$EVENT" = workflow_run ] && [ -n "$last" ] && git merge-base --is-ancestor "$sha" "$last" 2>/dev/null; then go=false; echo "$sha is older than the last published build ($last): no build."; fi
           fi
           echo "go=$go" >> "$GITHUB_OUTPUT"; echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
@@ -96,6 +98,17 @@ jobs:
         with:
           ref: ${{ needs.gate.outputs.sha }}
           fetch-depth: 0 # the patch notes list the fragments added since the last published build (tag "windows")
+
+      - name: Save-seal key (kept out of the repository)
+        env:
+          SEAL_KEY: ${{ secrets.SEAL_KEY }}
+        run: |
+          # scripts/sim/save_seal.gd seals saved games with this key. Without the secret the build seals nothing.
+          if [ -n "$SEAL_KEY" ]; then
+            printf 'extends RefCounted\n\nconst KEY := "%s"\n' "$SEAL_KEY" > scripts/seal_secret.gd
+          else
+            echo "::warning::No SEAL_KEY secret: this build does not seal saved games."
+          fi
 
       - name: Restore Godot from the cache
         id: cache
@@ -119,6 +132,27 @@ jobs:
           unzip -qj Godot_v*_export_templates.tpz templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe templates/linux_release.x86_64 templates/version.txt -d $templates
           rm Godot_v*_export_templates.tpz
 
+      - name: Restore the engine built with the data key
+        id: encrypted
+        env:
+          PCK_KEY: ${{ secrets.PCK_KEY }}
+        run: |
+          # The game data is encrypted with a key built into a custom Windows engine (godot_templates.yml
+          # compiles it once and caches it). Only the name of the cache is worked out here.
+          if [ -n "$PCK_KEY" ]; then
+            echo "id=$(printf %s "$PCK_KEY" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No PCK_KEY secret: the game data is not encrypted."
+          fi
+
+      - name: Custom Windows engine from the cache
+        id: templates
+        if: steps.encrypted.outputs.id != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/escape_templates
+          key: escape-templates-${{ env.GODOT_VERSION }}-${{ steps.encrypted.outputs.id }}
+
       - name: Import the project
         run: ~/godot/godot --headless --import
 
@@ -128,6 +162,8 @@ jobs:
           grep -q PASS launcher.log
 
       - name: Build number and launcher fingerprint
+        env:
+          PCK_KEY: ${{ secrets.PCK_KEY }}
         run: |
           # One number that only ever counts up, whoever started the build: the highest build number
           # known plus one. (The run numbers of this workflow and of "Tests" are two different counters, so a
@@ -166,7 +202,7 @@ jobs:
           version=$(sed -n 's/^const VERSION := "\(.*\)"/\1/p' scripts/game.gd)
           # The launcher fetches a new Escape.exe only when this changes: its own files
           # and the engine, not every change to the game.
-          rev=$( (echo "$GODOT_VERSION"; cat scripts/launcher.gd scripts/ui_kit.gd scripts/bronze_style.gd scenes/launcher.tscn scripts/lang/launcher.gd export_presets.cfg) | sha256sum | cut -c1-16)
+          rev=$( (echo "$GODOT_VERSION${PCK_KEY:+ encrypted}"; cat scripts/launcher.gd scripts/ui_kit.gd scripts/bronze_style.gd scenes/launcher.tscn scripts/lang/launcher.gd export_presets.cfg) | sha256sum | cut -c1-16)
           echo "BUILD=$build" >> $GITHUB_ENV
           echo "VERSION=$version" >> $GITHUB_ENV
           echo "REV=$rev" >> $GITHUB_ENV
@@ -189,7 +225,26 @@ jobs:
           cp docs/patch_history.json build_patch_history.json
           python3 -c "import json; a = json.load(open('docs/patch_history.json')); print(len(a['builds']), 'builds in the patch notes archive')"
 
+      - name: Turn on data encryption
+        id: encrypt
+        env:
+          PCK_KEY: ${{ secrets.PCK_KEY }}
+        run: |
+          if [ "${{ steps.templates.outputs.cache-hit }}" = true ] && [ -f ~/escape_templates/windows_release_x86_64.exe ]; then
+            sed -i -e 's|^encryption_include_filters=""|encryption_include_filters="*"|' \
+                   -e 's|^encrypt_pck=false|encrypt_pck=true|' \
+                   -e 's|^encrypt_directory=false|encrypt_directory=true|' export_presets.cfg
+            # Only the two Windows presets use the custom engine (the web preset is exported elsewhere).
+            sed -i "s|^custom_template/release=\"\"|custom_template/release=\"$HOME/escape_templates/windows_release_x86_64.exe\"|" export_presets.cfg
+            echo "on=true" >> "$GITHUB_OUTPUT"
+            echo "The game data will be encrypted."
+          else
+            echo "::warning::No custom engine in the cache (run 'Godot templates' once): the game data is NOT encrypted."
+          fi
+
       - name: Export the launcher and the game
+        env:
+          GODOT_SCRIPT_ENCRYPTION_KEY: ${{ secrets.PCK_KEY }}
         run: |
           mkdir -p build/Escape/game build/release
           ~/godot/godot --headless --export-release "Windows" build/Escape/Escape.exe
@@ -198,6 +253,12 @@ jobs:
           test -s build/Escape/Escape.exe && test -s build/Escape/game/Escape.exe && test -s build/Escape/game/Escape.pck
           # The game data must start with Godot's pack header.
           head -c 4 build/Escape/game/Escape.pck | grep -q GDPC
+          if [ "${{ steps.encrypt.outputs.on }}" = true ]; then
+            # Encrypted: the names and the content must not be readable in the file.
+            ! grep -qa "res://scripts/game" build/Escape/game/Escape.pck
+            ! grep -qa "func hero_record" build/Escape/game/Escape.pck
+            ! grep -qa "SaveSeal" build/Escape/game/Escape.pck
+          fi
 
       - name: Both exe files carry the application icon
         run: |
@@ -213,6 +274,8 @@ jobs:
           PY
 
       - name: Start the exported launcher (with the Linux engine of the same build)
+        # The official Linux engine cannot read data encrypted with our key.
+        if: steps.encrypt.outputs.on != 'true'
         run: |
           # The pack inside Escape.exe ends with its size and "GDPC". Run it with the Linux
           # release engine, which behaves like the Windows one, against a server that is not

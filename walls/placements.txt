@@ -1,0 +1,3 @@
+# Climbing wall placements (see scripts/wall_placements.gd): wall file | map name | rock tile column row
+# Your own placements go into user://waende/placements.txt.
+sample_three_paths.txt | Apfeltal | 49 47

@@ -17,6 +17,9 @@ const DEPTH := -0.05
 static func cap_tone(style: String) -> Color:
 	if not WallThemes.known(style):
 		return Color(0.33, 0.31, 0.29)
+	if style == "alpine":
+		# The tops of the cliffs are alpine turf and scree, not grey concrete (see Nohpaan.dress, which sets peaks on them).
+		return Color(0.34, 0.4, 0.27)
 	var cols: Array = WallThemes.STYLES[style]["wall"]
 	var c: Color = (cols[0] as Color).lerp(cols[1], 0.3)
 	# Evened out: a little greyer than the wall, so glowing styles stay calm.

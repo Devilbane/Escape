@@ -13,12 +13,19 @@ const WHEAT := "≡"
 const MAIZE := "‡"
 const SUNFLOWER := "☼"
 const LETTERS := "≡‡☼"
+## The riddle field (see SunflowerRiddle) is the big sunflower field with a code in it: it looks like any sunflower field, one
+## continuous lattice of plants 1 m apart. It is no map letter (its tiles are ☼ on the map): RIDDLE is the plants of the
+## unmarked flowers, MARKED the flowers whose seed disc is light brown in the middle.
+const RIDDLE := "☀"
+const MARKED := "☀m"
+## How far the light centre of a marked flower reaches (a share of the disc's radius).
+const MARK_RADIUS := 0.8
 ## Soil under the crops (the ground draws the same dark earth as the pumpkin field).
-const NAMES := {"≡": "wheat", "‡": "maize", "☼": "sunflower"}
+const NAMES := {"≡": "wheat", "‡": "maize", "☼": "sunflower", "☀": "riddle sunflower", "☀m": "marked sunflower"}
 ## Plants in a row and between rows (metres): a tile is 4 m, so 7 x 7 tufts of wheat, 4 x 4 maize and sunflowers.
-const SPACING := {"≡": 0.57, "‡": 1.0, "☼": 1.0}
+const SPACING := {"≡": 0.57, "‡": 1.0, "☼": 1.0, "☀": 1.0, "☀m": 1.0}
 ## Full height of a plant (metres, before the season scales it).
-const HEIGHT := {"≡": 1.0, "‡": 1.9, "☼": 1.75}
+const HEIGHT := {"≡": 1.0, "‡": 1.9, "☼": 1.75, "☀": 1.75, "☀m": 1.75}
 
 ## What each season does to a kind: [height scale, colour].
 const LOOK := {
@@ -28,6 +35,11 @@ const LOOK := {
 			"autumn": [0.95, Color(1.3, 0.95, 0.5)], "winter": [0.18, Color(0.8, 0.74, 0.62)]},
 	"☼": {"spring": [0.2, Color(0.7, 1.2, 0.7)], "summer": [1.0, Color(1, 1, 1)],
 			"autumn": [0.9, Color(0.62, 0.5, 0.36)], "winter": [0.16, Color(0.72, 0.68, 0.6)]},
+	# The riddle field is tended until the first frost: the heads stay up and readable in summer and autumn.
+	"☀": {"spring": [0.2, Color(0.7, 1.2, 0.7)], "summer": [1.0, Color(1, 1, 1)],
+			"autumn": [0.97, Color(0.96, 0.88, 0.72)], "winter": [0.16, Color(0.72, 0.68, 0.6)]},
+	"☀m": {"spring": [0.2, Color(0.7, 1.2, 0.7)], "summer": [1.0, Color(1, 1, 1)],
+			"autumn": [0.97, Color(0.96, 0.88, 0.72)], "winter": [0.16, Color(0.72, 0.68, 0.6)]},
 }
 
 ## The days after sowing it takes a sprout to reach its spring height, and the spring day (0 is the first) on which
@@ -48,13 +60,15 @@ static var _meshes := {}
 
 
 ## Plants the fields: `cells` maps a letter to the middles of its tiles (world positions, tile size `tile`).
-static func grow(parent: Node3D, cells: Dictionary, tile: float, seed_value: int) -> CropFields:
+static func grow(parent: Node3D, cells: Dictionary, tile: float, seed_value: int, clear: Array = []) -> CropFields:
 	var out := CropFields.new()
 	out.name = "CropFields"
 	parent.add_child(out)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	for letter: String in cells:
+		if letter == RIDDLE:
+			continue
 		var spots: Array = []
 		var step: float = SPACING[letter]
 		var tiles: Array = []
@@ -67,19 +81,64 @@ static func grow(parent: Node3D, cells: Dictionary, tile: float, seed_value: int
 					at += Vector3(rng.randf_range(-0.12, 0.12) * step, 0, rng.randf_range(-0.12, 0.12) * step)
 					spots.append([at, rng.randf() * TAU, rng.randf_range(0.85, 1.15), rng.randf()])
 			tiles[-1].count = spots.size() - tiles[-1].first
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.mesh = _mesh(letter)
-		mm.instance_count = spots.size()
-		var inst := MultiMeshInstance3D.new()
-		inst.multimesh = mm
-		inst.name = String(NAMES[letter]).capitalize()
-		inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		out.add_child(inst)
-		out._fields[letter] = {"mm": mm, "spots": spots}
-		out._tiles[letter] = tiles
+		out._add_plants(letter, spots, tiles, _mesh(letter))
+	if cells.has(RIDDLE):
+		out._plant_riddle(cells[RIDDLE], tile, rng, clear)
 	return out
+
+
+func _add_plants(letter: String, spots: Array, tiles: Array, mesh: Mesh) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = mesh
+	mm.instance_count = spots.size()
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	inst.name = String(NAMES[letter]).capitalize()
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(inst)
+	_fields[letter] = {"mm": mm, "spots": spots}
+	_tiles[letter] = tiles
+
+
+## The riddle field: every tile in `mids` holds 4 x 4 flowers of one lattice for the whole field. The flowers that
+## SunflowerRiddle.is_marked() names get the light centre; flowers within SunflowerRiddle.CLEAR_RADIUS of a point in
+## `clear` (the scarecrow's post) are left out.
+func _plant_riddle(mids: Array, tile: float, rng: RandomNumberGenerator, clear: Array) -> void:
+	var step: float = SPACING[RIDDLE]
+	var corner := Vector2(INF, INF)
+	for mid: Vector3 in mids:
+		corner = Vector2(minf(corner.x, mid.x - tile * 0.5), minf(corner.y, mid.z - tile * 0.5))
+	var plain: Array = []
+	var marked: Array = []
+	var plain_tiles: Array = []
+	var marked_tiles: Array = []
+	var n := int(round(tile / step))
+	for mid: Vector3 in mids:
+		plain_tiles.append({"mid": mid, "first": plain.size(), "count": 0, "sown": -1})
+		marked_tiles.append({"mid": mid, "first": marked.size(), "count": 0, "sown": -1})
+		for ix in n:
+			for iz in n:
+				var at := mid + Vector3((ix + 0.5) * step - tile * 0.5, 0, (iz + 0.5) * step - tile * 0.5)
+				var col := int(floor((at.x - corner.x) / step))
+				var row := int(floor((at.z - corner.y) / step))
+				var cleared := false
+				for point: Vector3 in clear:
+					if Vector2(at.x - point.x, at.z - point.z).length() < SunflowerRiddle.CLEAR_RADIUS:
+						cleared = true
+				var jitter := Vector3(rng.randf_range(-0.12, 0.12) * step, 0, rng.randf_range(-0.12, 0.12) * step)
+				var spot := [at + jitter, rng.randf() * TAU, rng.randf_range(0.85, 1.15), rng.randf()]
+				if cleared:
+					continue
+				if SunflowerRiddle.is_marked(col, row):
+					marked.append(spot)
+				else:
+					plain.append(spot)
+		plain_tiles[-1].count = plain.size() - plain_tiles[-1].first
+		marked_tiles[-1].count = marked.size() - marked_tiles[-1].first
+	_add_plants(RIDDLE, plain, plain_tiles, _sunflower_mesh("bloom"))
+	_add_plants(MARKED, marked, marked_tiles, _sunflower_mesh("bloom", true))
 
 
 ## Dresses every field for season day `day` (see Weather.season). A new day in spring grows the sprouts on.
@@ -97,6 +156,8 @@ func set_season(day: int) -> void:
 	for letter: String in _fields:
 		if letter == SUNFLOWER:
 			(_fields[letter].mm as MultiMesh).mesh = _sunflower_mesh(sunflower_look(season))
+		elif letter == RIDDLE or letter == MARKED:
+			(_fields[letter].mm as MultiMesh).mesh = _sunflower_mesh(riddle_look(season), letter == MARKED)
 		for i in (_tiles[letter] as Array).size():
 			_dress_tile(letter, i)
 
@@ -133,7 +194,9 @@ func _dress_tile(letter: String, tile: int) -> void:
 		# Seedlings are narrow as well as short; bare soil shows no leaf at all.
 		var width := minf(1.0, growth * 4.0)
 		# Sunflower heads follow the sun: the plants only turn a little away from south.
-		var yaw: float = (float(s[1]) / TAU - 0.5) * 1.4 if letter == SUNFLOWER else s[1]
+		var yaw: float = s[1]
+		if letter == SUNFLOWER or letter == RIDDLE or letter == MARKED:
+			yaw = (float(s[1]) / TAU - 0.5) * 1.4
 		var basis := Basis(Vector3.UP, yaw).scaled(Vector3(width, grown, width))
 		mm.set_instance_transform(i, Transform3D(basis, s[0]))
 		var tint: Color = look[1]
@@ -161,7 +224,7 @@ func bare_tiles(letter: String) -> Array:
 ## Whether any tile of any kind still lies bare, waiting for the seed.
 func any_bare() -> bool:
 	for letter: String in _tiles:
-		if not bare_tiles(letter).is_empty():
+		if LETTERS.contains(letter) and not bare_tiles(letter).is_empty():
 			return true
 	return false
 
@@ -290,8 +353,14 @@ static func sunflower_look(season: String) -> String:
 	return "young"
 
 
-static func _sunflower_mesh(look: String) -> ArrayMesh:
-	var key := "☼" + look
+## The riddle field's look: heads up in summer and autumn (the code can be read), none in spring and winter.
+static func riddle_look(season: String) -> String:
+	return "bloom" if season == "summer" or season == "autumn" else "young"
+
+
+## `marked`: the seed disc is light in the middle (the riddle field's marked flowers).
+static func _sunflower_mesh(look: String, marked := false) -> ArrayMesh:
+	var key := "☼" + look + ("*" if marked else "")
 	if _meshes.has(key):
 		return _meshes[key]
 	var stalk := _Soup.new()
@@ -304,7 +373,7 @@ static func _sunflower_mesh(look: String) -> ArrayMesh:
 	leaf.commit(mesh, _sunflower_material(_sunflower_leaf_texture_cached(), true, 0.8))
 	if look != "young":
 		petal.commit(mesh, _sunflower_material(_petal_texture_cached(), false, 0.7))
-		disc.commit(mesh, _sunflower_material(_disc_texture_cached(), false, 0.95))
+		disc.commit(mesh, _sunflower_material(_marked_disc_texture_cached() if marked else _disc_texture_cached(), false, 0.95))
 	_meshes[key] = mesh
 	return mesh
 
@@ -465,6 +534,7 @@ static var _stalk_tex: ImageTexture
 static var _sunflower_leaf_tex: ImageTexture
 static var _petal_tex: ImageTexture
 static var _disc_tex: ImageTexture
+static var _marked_disc_tex: ImageTexture
 
 
 static func _stalk_texture_cached() -> ImageTexture:
@@ -586,7 +656,14 @@ static func _petal_texture() -> ImageTexture:
 
 
 ## The seed disc seen from the front: florets in a Fibonacci spiral, an olive middle fading to orange-brown rim.
-static func _disc_texture() -> ImageTexture:
+static func _marked_disc_texture_cached() -> ImageTexture:
+	if _marked_disc_tex == null:
+		_marked_disc_tex = _disc_texture(true)
+	return _marked_disc_tex
+
+
+## The seed disc. `marked` makes the middle light brown (see SunflowerRiddle) instead of the usual dark brown.
+static func _disc_texture(marked := false) -> ImageTexture:
 	var size := 256
 	var img := Image.create(size, size, true, Image.FORMAT_RGBA8)
 	img.fill(Color(0.1, 0.06, 0.02, 1.0))
@@ -596,6 +673,12 @@ static func _disc_texture() -> ImageTexture:
 	var reach := size * 0.5 - 3.0
 	var scale_r := reach / sqrt(float(count))
 	var golden := PI * (3.0 - sqrt(5.0))
+	if marked:
+		# The gaps between the seeds are light too, or the middle would average out to a dull grey in the distance.
+		for py in size:
+			for px in size:
+				if Vector2(px + 0.5 - size * 0.5, py + 0.5 - size * 0.5).length() < reach * MARK_RADIUS:
+					img.set_pixel(px, py, Color(0.74, 0.53, 0.3))
 	for n in count:
 		var r := scale_r * sqrt(n + 0.5)
 		var a := n * golden
@@ -603,7 +686,9 @@ static func _disc_texture() -> ImageTexture:
 		var cy := size * 0.5 + sin(a) * r
 		var rr := r / reach
 		var col: Color
-		if rr < 0.4:
+		if marked and rr < MARK_RADIUS:
+			col = Color(0.95, 0.76, 0.48).lerp(Color(0.85, 0.62, 0.36), rr / MARK_RADIUS)
+		elif rr < 0.4:
 			col = Color(0.26, 0.27, 0.07).lerp(Color(0.42, 0.36, 0.08), rr / 0.4)
 		elif rr < 0.52:
 			col = Color(0.42, 0.36, 0.08).lerp(Color(0.8, 0.42, 0.07), (rr - 0.4) / 0.12)

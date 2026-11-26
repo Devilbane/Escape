@@ -17,8 +17,10 @@ lang_keys.gd | 60 | free | pass | English texts (no German text translated twice
 shader_colours.gd | 60 | free | pass | Shader colours (every shader of ours looks the same on both renderers)
 jump_windup.gd | 120 | fixed | passfail | Jump wind-up (half a step first, called off by a hit)
 melee_path.gd | 60 | free | passfail | Melee pathfinding (monsters walk round what blocks their blow)
+save_seal.gd | 60 | free | pass | Save seals (an edited save is refused, old saves are sealed once)
 smooth_motion.gd | 240 | fixed | pass | Smooth running (bodies drawn between physics ticks)
 inventory_fixed_size.gd | 240 | free | pass | Inventory keeps its size (picking, tabs, equipping; both languages)
+gear_effects.gd | 120 | free | pass | Inventory bonus and malus tab: gear and weight rows match the hero's own stats, window keeps its size
 storage_fixed_size.gd | 240 | free | pass | Storage chest keeps its size (pointing at torches and other items; both languages)
 windows_fixed_size.gd | 300 | free | pass | Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
 events.gd | 240 | free | pass | Event bus test
@@ -68,7 +70,6 @@ house_exit_quick.gd | 300 | fixed | pass | Stepping out of a building is quick (
 crafting.gd | 240 | free | pass | Recipes and ingredient pouch test
 workbench_crafting.gd | 240 | free | pass | Workbench crafting test
 hero_level.gd | 900 | fixed | pass | Hero level and experience test
-secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
 button_click.gd | 120 | fixed | passfail | UI button click: pressing any button, including one
 camp_rest.gd | 120 | fixed | passfail | Headless test for resting by the camp's fire on a dungeon floor (see
 house_faces.gd | 120 | fixed | passfail | village houses (see VillageHouse): every face of a
@@ -143,3 +144,8 @@ enemy_alert_once.gd | 240 | fixed | pass | A monster's red alert shows once per 
 pack_help.gd | 120 | fixed | pass | Monsters help a struck mate and call for help; slimes keep out
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)
+home_storage_extra.gd | 30 | free | passfail | Extra home storage pieces add room to the storage chest (capped), with English
+riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scrambled codes
+nohpaan.gd | 60 | free | pass | Nohpaan: the hidden valley, its three monks and their lessons
+wall_map.gd | 60 | free | passfail | Climbing wall: text format, sample wall, chances with malus, surfaces and weather, gap jumps, falls and nails, breath meter, placements
+settings_window.gd | 60 | fixed | pass | Settings window (tabs keep one size, graphics options apply and are saved and read back)

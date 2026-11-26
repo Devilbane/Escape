@@ -317,6 +317,11 @@ var apiary: Apiary
 var _hive_cells: Array[Vector2i] = []
 ## The owls on the branches of the woods (see Owls).
 var owls: Owls
+## Owlav's grave (INF when the map has none) and what stands in front of it once its crypt is open, and
+## the dead tree whose owl strikes the hours (see OwlClock).
+var owlav_pos := Vector3.INF
+var owlav_parts: Node3D
+var owl_tree_at := Vector3.INF
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -527,6 +532,8 @@ var _undergrowth := {"xforms": [], "colours": []}
 ## UNDERGROWTH_AUTUMN_KEEP and SHRUB_AUTUMN_KEEP); the rest of the year they grow as the others do.
 var undergrowth_shed: Node3D
 var _undergrowth_shed := {"xforms": [], "colours": []}
+## The kinds of the last bushes planted, so neighbours differ (see BushKinds.pick).
+var _bush_recent: Array = []
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -568,7 +575,6 @@ const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
 ## How much taller than wide Benno's tent is drawn, and how far round it no shrub grows (metres).
-const BARBER_TENT_TALL := 1.35
 const BARBER_CLEAR := 7.0
 ## The share of these shrubs that keep their leaves in autumn (the rest shed them, see
 ## undergrowth_shed), and fewer still within SHRUB_TEMPLE_REACH tiles of the temple.
@@ -683,6 +689,12 @@ var crows: Crows
 var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).
 var valley_events: ValleyEvents
+## The sunflower riddle in the field with the scarecrow (see SunflowerRiddle).
+var sunflower_riddle: SunflowerRiddle
+## The spirit that rises at midnight from the unknown grave (see GraveSpirit), null without those graves.
+var grave_spirit: GraveSpirit
+## The safety coffin with its bell (see BellGrave), null without it.
+var bell_grave: BellGrave
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
@@ -829,7 +841,7 @@ func build() -> void:
 	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
-	if not _ivy.xforms.is_empty():
+	if BushKinds.has_any(_ivy):
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		if walk_in != null:
@@ -875,18 +887,19 @@ func build() -> void:
 	_build_wall_collision()
 	_grow_ferns()
 	RiverFlow.build(self)
-	if not _undergrowth.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth):
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"
 		add_child(undergrowth)
 		IvySeasons.apply(undergrowth, day)
-	if not _undergrowth_shed.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth_shed):
 		undergrowth_shed = AgedStone.ivy_node(_undergrowth_shed)
 		undergrowth_shed.name = "UndergrowthShed"
 		add_child(undergrowth_shed)
 		IvySeasons.apply(undergrowth_shed, day)
 	_build_rock_collision()
 	SummitGarden.build(self)
+	Nohpaan.place_door(self)
 	_setup_astar()
 	meals.garland.block(self)
 	GlowMushrooms.build(self)
@@ -959,6 +972,19 @@ func build() -> void:
 	valley_events = ValleyEvents.new()
 	add_child(valley_events)
 	valley_events.setup(self)
+	if _crop_cells.has(CropFields.RIDDLE):
+		sunflower_riddle = SunflowerRiddle.new()
+		add_child(sunflower_riddle)
+		sunflower_riddle.setup(self)
+	var spirit_graves := GraveSpirit.graves_of(level_name)
+	if not spirit_graves.is_empty():
+		grave_spirit = GraveSpirit.new()
+		add_child(grave_spirit)
+		grave_spirit.setup(self, cell_to_world(spirit_graves.unknown))
+	if not BellGrave.graves_of(level_name).is_empty():
+		bell_grave = BellGrave.new()
+		add_child(bell_grave)
+		bell_grave.setup(self, level_name)
 	spook_raid = SpookRaid.new()
 	add_child(spook_raid)
 	spook_raid.setup(self)
@@ -1347,9 +1373,14 @@ func _model_path(name: String) -> String:
 
 
 func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self) -> Node3D:
-	if not _scenes.has(name):
-		_scenes[name] = load(_model_path(name))
-	var node: Node3D = _scenes[name].instantiate()
+	var node: Node3D
+	if NaturalRock.replaces(name):
+		# Boulders are real, uneven rocks, not the kit's flat facets (see NaturalRock).
+		node = NaturalRock.node(name)
+	else:
+		if not _scenes.has(name):
+			_scenes[name] = load(_model_path(name))
+		node = _scenes[name].instantiate()
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
@@ -1605,7 +1636,7 @@ func _jitter(amount: float) -> Vector3:
 func _plant_crops() -> void:
 	if _crop_cells.is_empty():
 		return
-	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"))
+	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"), [SunflowerRiddle.centre()])
 	crop_fields.set_season(season_day)
 	# The crows feed on the low fields (the stubble of the wheat); where there is none, on any.
 	var low: Array[Vector3] = []
@@ -1632,11 +1663,34 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"\\":
 			village_wall.add(self, c, true)
 		"g":
-			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
-			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
-			_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			# Each stone is its own: its kind, model and lean follow from its tile, so the rest of the map's
+			# random numbers do not move when graves are added.
+			var grave_rng := RandomNumberGenerator.new()
+			grave_rng.seed = hash("%s|grab|%s" % [level_name, c])
+			var style := GraveStyles.pick(level_name, c)
+			var pair := GraveSpirit.graves_of(level_name)
+			if not pair.is_empty() and c == pair.unknown:
+				style = "sunken"
+			elif not pair.is_empty() and c == pair.archy:
+				style = "cross"
+			var coffin := BellGrave.graves_of(level_name)
+			if not coffin.is_empty() and c == coffin.grave:
+				style = "ledger"
+			if c == OwlClock.grave_cell() or c == RiddleCount.grave_of(level_name):
+				style = "classic"
+			var jitter := Vector3(grave_rng.randf_range(-0.3, 0.3), 0, grave_rng.randf_range(-0.3, 0.3))
+			var lean := grave_rng.randf_range(-0.15, 0.15)
+			if style == "classic":
+				var stone := _put(GRAVES[grave_rng.randi() % GRAVES.size()], pos + Vector3(0, 0, -0.6) + jitter, lean)
+				_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			else:
+				var memorial := GraveStyles.build(style, grave_rng.randi())
+				memorial.position = pos + Vector3(0, 0, -0.6) + jitter * 0.5
+				memorial.rotation.y = lean
+				add_child(memorial)
+			OwlClock.place_grave(self, c, pos, _graves.size())
 			_graves.append(c)
-			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
+			_add_solid(pos + Vector3(0, 0, -0.6), GraveStyles.footprint(style))
 			_grave_light(c, pos)
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]
@@ -1644,6 +1698,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var rot := _rng.randf() * TAU
 			var size := _rng.randf_range(1.1, 1.4)
 			var reach := _reach_of(tree, size)
+			if c == OwlClock.OWL_TREE_CELL:
+				owl_tree_at = at
 			if not on_plot(at, reach) and not Mountains.near_rock(self, at.x, at.z, Mountains.TREE_CLEARANCE):
 				_clearable.append({"at": at, "reach": reach, "nodes": [_put(tree, at, rot, size),
 						_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.4, 4, 1.4))]})
@@ -1717,9 +1773,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_pond_waters.append(pond_water)
 		"≡", "‡", "☼":
 			# Wheat, maize and sunflowers (see CropFields): the plants are planted for all tiles at once.
-			if not _crop_cells.has(ch):
-				_crop_cells[ch] = []
-			_crop_cells[ch].append(pos)
+			# The riddle field's tiles (see SunflowerRiddle) are planted as blocks of 5 x 5.
+			var crop_key := CropFields.RIDDLE if ch == CropFields.SUNFLOWER and SunflowerRiddle.FIELD.has_point(c) else ch
+			if not _crop_cells.has(crop_key):
+				_crop_cells[crop_key] = []
+			_crop_cells[crop_key].append(pos)
 			# No solid: the fields are walkable, the hero and the villagers wade through the crops.
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
@@ -2240,6 +2298,9 @@ func _build_woods_life() -> void:
 		add_child(apiary)
 	owls = Owls.new(trees, cell_to_world, TILE, level_name)
 	add_child(owls)
+	if owl_tree_at != Vector3.INF and owlav_pos != Vector3.INF:
+		owls.add_clock_owl(owl_tree_at + Vector3(0, OwlClock.OWL_HEIGHT, 0), owlav_pos)
+	owls.clock_on = moon_night >= 0 and Moon.is_full(moon_night)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -2480,7 +2541,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 ## One bush of the undergrowth at `at` (see _grow_undergrowth); returns its radius.
 func _undergrowth_bush(at: Vector3, rng: RandomNumberGenerator) -> float:
 	# Most of them shed their leaves in autumn (see _keeps_leaves).
-	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
+	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed, _undergrowth, _bush_recent)
 	undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
 	return radius
 
@@ -2902,7 +2963,7 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_texture = StairsDown.doorway_texture()
-	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	hole.material_override = black
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)
@@ -2922,7 +2983,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	_lair_mountain_at = front
 	_forecourts.append({"block": block, "front": front})
 	for side in [-1.0, 1.0]:
-		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		var big_boulder := _put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
+		_age_ruin(big_boulder, LAIR_BOULDER)
+		_add_turned_solid(big_boulder, 1.6)
 		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
@@ -3924,7 +3987,7 @@ func _plant_bushes() -> void:
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
-				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed)
+				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed, _ivy, _bush_recent)
 
 
 ## Whether `at` lies near Benno's tent: no shrub grows there, so the chair stands clear (see BARBER_CLEAR).
@@ -4334,14 +4397,11 @@ func _spawn_street_sweeper() -> void:
 ## fresh woven linen, not the stained canvas of the bandits' tents.
 func _build_barber_shop(cell: Vector2i) -> Node3D:
 	var pos := cell_to_world(cell)
-	var box := _aabb_of("tent")
-	# A quarter bigger than it was and taller still. One can walk in under it: the chair stands there
-	# (see BarberChair), and the tent fades away while someone sits.
-	var width := 4.5 / maxf(box.size.x, box.size.z)
-	var tent := _put("tent", pos, 0.0, width)
-	tent.scale = Vector3(width, width * BARBER_TENT_TALL, width)
-	tent.name = "BarberTent"
-	WeatheredProps.clean_linen(tent)
+	# Built by hand (see BarberTent): round timber poles and a saggy linen roof. One can walk in under it:
+	# the chair stands there (see BarberChair), and the tent fades away while someone sits.
+	var tent := BarberTent.build()
+	tent.position = pos
+	add_child(tent)
 	var pole := Effects.barber_pole()
 	pole.position = pos + Vector3(-2.6, 0, 2.4)
 	add_child(pole)
@@ -5221,6 +5281,10 @@ func _process(delta: float) -> void:
 		walk_in.tick(player, delta)
 	hero_indoors = inside or is_sheltered(player.global_position)
 	_inside_view.tick(self, delta)
+	if grave_spirit != null and hour >= 0.0:
+		grave_spirit.tick(delta, player.global_position, hour)
+	if bell_grave != null and hour >= 0.0:
+		bell_grave.tick(delta, player.global_position, hour)
 	if owls and hour >= 0.0:
 		owls.tick(delta, player.global_position, hour, hero_under_cover())
 	if crows and hour >= 0.0:
@@ -5548,6 +5612,8 @@ func set_moon(night_of: int) -> void:
 	if night_of == moon_night:
 		return
 	moon_night = night_of
+	if owls:
+		owls.clock_on = night_of >= 0 and Moon.is_full(night_of)
 	for s in _pack:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
 			s.enemy.sink_at_dawn()

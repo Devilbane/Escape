@@ -24,9 +24,11 @@ const BOTTOM := 96.0
 const BUTTON := Vector2(116, 34)
 const GAP := 6
 const FONT_SIZE := 14
-## The fixed area under the group tabs: two columns, three rows (the biggest group, travel).
-const AREA := Vector2(BUTTON.x * 2 + GAP, BUTTON.y * 3 + GAP * 2)
+## The fixed area under the group tabs: two columns, four rows (the biggest group, travel).
+const AREA := Vector2(BUTTON.x * 2 + GAP, BUTTON.y * 4 + GAP * 3)
 const OPEN_KEY := KEY_F3
+## A second key for keyboards where F3 is a media key (laptops with the Fn key locked the other way).
+const OPEN_KEY_ALT := KEY_F6
 
 ## Time of day: label, hour (see SkyCommand.TIMES).
 const TIMES := [["Morgen", 6.0], ["Mittag", 12.0], ["Abend", 19.5], ["Nacht", 23.0]]
@@ -40,6 +42,7 @@ const PLACES := [
 	["Lager des Alten", "26_das_lager_des_grossen_alten.txt", ""],
 	["Minen", "18_die_bergschenke.txt", ""],
 	["Silbergrube", "11_die_freiheit.txt", "silver"],
+	["Nohpaan", Nohpaan.FILE, ""],
 ]
 ## Group tab names (the hero tab reuses the title screen's "Held").
 const GROUPS := ["Zeit", "Jahreszeit", "Reisen", "Held"]
@@ -52,14 +55,17 @@ var _pages: Array[Control] = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	grow_vertical = Control.GROW_DIRECTION_BEGIN
-	offset_left = LEFT
-	offset_bottom = -BOTTOM
+	# This node fills the screen; the column is what sits in the bottom left corner and grows upwards from
+	# there. (A zero-sized bottom-left anchored root left the column above the screen, out of sight.)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", GAP)
+	column.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	column.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	column.offset_left = LEFT
+	column.offset_top = -BOTTOM
+	column.offset_bottom = -BOTTOM
 	add_child(column)
 
 	_box = PanelContainer.new()
@@ -102,10 +108,11 @@ func _ready() -> void:
 	god_button.toggle_mode = true
 	god_button.tooltip_text = Lang.t("Unverwundbar und fünffaches Tempo.")
 	_pages[3].add_child(god_button)
+	_pages[3].add_child(_button(Lang.t("Kletterwand"), func() -> void: picked.emit("wall", null)))
 
 	var tab_button := _button(Lang.t("Test"), toggle)
 	tab_button.custom_minimum_size = Vector2(66, 28)
-	tab_button.tooltip_text = Lang.t("Testfeld ein- und ausblenden (F3)")
+	tab_button.tooltip_text = Lang.t("Testfeld ein- und ausblenden (F3 oder F6)")
 	column.add_child(tab_button)
 
 
@@ -120,7 +127,7 @@ func set_god(on: bool) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if ENABLED and visible and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == OPEN_KEY:
+	if ENABLED and visible and event is InputEventKey and event.pressed and not event.echo and (event.physical_keycode == OPEN_KEY or event.keycode == OPEN_KEY or event.physical_keycode == OPEN_KEY_ALT):
 		toggle()
 		get_viewport().set_input_as_handled()
 

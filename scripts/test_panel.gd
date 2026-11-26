@@ -24,8 +24,8 @@ const BOTTOM := 96.0
 const BUTTON := Vector2(116, 34)
 const GAP := 6
 const FONT_SIZE := 14
-## The fixed area under the group tabs: two columns, three rows (the biggest group, travel).
-const AREA := Vector2(BUTTON.x * 2 + GAP, BUTTON.y * 3 + GAP * 2)
+## The fixed area under the group tabs: two columns, four rows (the biggest group, travel).
+const AREA := Vector2(BUTTON.x * 2 + GAP, BUTTON.y * 4 + GAP * 3)
 const OPEN_KEY := KEY_F3
 
 ## Time of day: label, hour (see SkyCommand.TIMES).
@@ -40,6 +40,7 @@ const PLACES := [
 	["Lager des Alten", "26_das_lager_des_grossen_alten.txt", ""],
 	["Minen", "18_die_bergschenke.txt", ""],
 	["Silbergrube", "11_die_freiheit.txt", "silver"],
+	["Nohpaan", Nohpaan.FILE, ""],
 ]
 ## Group tab names (the hero tab reuses the title screen's "Held").
 const GROUPS := ["Zeit", "Jahreszeit", "Reisen", "Held"]

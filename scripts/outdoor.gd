@@ -649,6 +649,8 @@ var day := 0
 var season_day := 0
 ## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
 var crop_fields: CropFields
+## The crows that peck on the fields in autumn and winter (see Crows).
+var crows: Crows
 ## Spooknortz's nights in the village (see SpookRaid).
 var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).
@@ -1574,6 +1576,17 @@ func _plant_crops() -> void:
 		return
 	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"))
 	crop_fields.set_season(season_day)
+	# The crows feed on the low fields (the stubble of the wheat); where there is none, on any.
+	var low: Array[Vector3] = []
+	var all: Array[Vector3] = []
+	for letter: String in _crop_cells:
+		for spot: Vector3 in _crop_cells[letter]:
+			all.append(spot)
+			if letter == CropFields.WHEAT:
+				low.append(spot)
+	crows = Crows.new(self, low if not low.is_empty() else all, TILE, level_name)
+	add_child(crows)
+	crows.set_season(season_day)
 
 
 func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
@@ -5102,6 +5115,8 @@ func set_season(day_of_season: int) -> void:
 			flow.set_season(day_of_season)
 	if crop_fields != null:
 		crop_fields.set_season(day_of_season)
+	if crows != null:
+		crows.set_season(day_of_season)
 	# The leafy trees turn with the vines (see tree.gdshader).
 	var at := IvySeasons.stage(day_of_season)
 	if at == _tree_stage:
@@ -5157,6 +5172,8 @@ func _process(delta: float) -> void:
 	_inside_view.tick(self, delta)
 	if owls and hour >= 0.0:
 		owls.tick(delta, player.global_position, hour, hero_under_cover())
+	if crows and hour >= 0.0:
+		crows.tick(delta, player.global_position, hour, hero_under_cover())
 	if glowworms and hour >= 0.0:
 		glowworms.tick(delta, player.global_position, hour, hero_under_cover())
 	if apiary and hour >= 0.0:

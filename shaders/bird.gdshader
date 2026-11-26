@@ -17,25 +17,26 @@ shader_type spatial;
 // the vertex shader a COLOR of zero.)
 render_mode cull_disabled;
 
-const int KINDS = 7;
+const int KINDS = 8;
 const vec3 HEAD = vec3(0.0, 0.092, 0.152);
 // Where the beak starts, and the mesh's beak (length, depth, width) that the
 // kinds' beaks are shaped from.
 const vec3 BEAK_BASE = vec3(0.0, 0.086, 0.19);
 const vec3 MESH_BEAK = vec3(0.044, 0.018, 0.016);
 // Per kind: the beak's length, depth and width, and how its tip droops.
-const vec4 BEAKS[7] = vec4[](
+const vec4 BEAKS[8] = vec4[](
 	vec4(0.038, 0.014, 0.014, 0.0),     // robin: thin
 	vec4(0.026, 0.014, 0.014, 0.0),     // blue tit: tiny
 	vec4(0.044, 0.02, 0.018, 0.0),      // goldfinch: a pointed cone
 	vec4(0.095, 0.017, 0.015, -0.004),  // kingfisher: a long dagger
 	vec4(0.026, 0.024, 0.024, 0.004),   // bullfinch: stubby and round
 	vec4(0.05, 0.017, 0.015, 0.002),    // oriole
-	vec4(0.036, 0.024, 0.022, 0.0)      // greenfinch: a thick cone
+	vec4(0.036, 0.024, 0.022, 0.0),     // greenfinch: a thick cone
+	vec4(0.082, 0.034, 0.03, -0.006)    // crow: a heavy, slightly hooked beak
 );
 // Per kind: the tail's length (times the mesh's) and how deep its notch is.
-const vec2 TAILS[7] = vec2[](vec2(1.0, 0.0), vec2(1.0, 0.3), vec2(0.9, 1.0), vec2(0.45, 0.0),
-		vec2(1.0, 0.2), vec2(1.0, 0.0), vec2(0.9, 1.0));
+const vec2 TAILS[8] = vec2[](vec2(1.0, 0.0), vec2(1.0, 0.3), vec2(0.9, 1.0), vec2(0.45, 0.0),
+		vec2(1.0, 0.2), vec2(1.0, 0.0), vec2(0.9, 1.0), vec2(1.15, 0.0));
 const float TAIL = 0.13;
 const float WING_Y = 0.055;
 // Sitting, a bird leans back (radians, nose up); and the whole bird is
@@ -244,6 +245,23 @@ vec3 paint(int kind, int part, vec3 p) {
 		if (part == 1) return mix(yellow, black, ss(0.008, 0.002, abs(q.y - 0.006)) * ss(0.02, 0.035, q.z));
 		return yellow;
 	}
+	if (kind == 7) {
+		// Carrion crow: black all over, the feathers shining blue and violet where the light slides
+		// over them (see fragment): scale-like barbs on the body, the long primaries of the hand
+		// split into fingers, grey-black legs and a heavy dark beak with a pale bristle at its root.
+		vec3 jet = vec3(0.045, 0.045, 0.055);
+		if (part == 2) return mix(vec3(0.07, 0.07, 0.08), vec3(0.16, 0.15, 0.15), ss(0.01, 0.0, p.z - 0.19));
+		if (part == 6) return vec3(0.1, 0.09, 0.09);
+		if (part == 3) {
+			float fan = sin(atan(p.z + 0.07, max(d, 0.001)) * 46.0);
+			float fingers = hand * (0.5 + 0.5 * fan);
+			return mix(jet, vec3(0.025, 0.025, 0.03), fingers * 0.6 + trailing * 0.3) * (0.9 + 0.1 * fan);
+		}
+		if (part == 4) return mix(jet, vec3(0.03, 0.03, 0.035), 0.5 + 0.5 * sin(p.z * 150.0 + ax * 90.0));
+		float scales = 0.5 + 0.5 * sin(p.z * 210.0 + sin(p.x * 170.0) * 1.8);
+		float throat_bristle = part == 1 ? ss(-0.025, -0.045, q.y) * 0.3 : 0.0;
+		return jet * (0.78 + 0.22 * scales) + vec3(throat_bristle * 0.05);
+	}
 	// Greenfinch: olive green, yellow flashes on wing and tail, a pale stout beak.
 	vec3 green = vec3(0.47, 0.57, 0.25);
 	vec3 pale = vec3(0.66, 0.74, 0.32);
@@ -267,5 +285,14 @@ void fragment() {
 	// The colours are picked in sRGB; light works in linear.
 	ALBEDO = pow(c, vec3(2.2));
 	ROUGHNESS = 0.85;
+	if (int(v_kind + 0.5) == 7 && part != 5) {
+		// A crow's plumage is glossy: sharp highlights, a blue-violet sheen at grazing angles.
+		float graze = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.0);
+		float shift = 0.5 + 0.5 * sin(rest.z * 40.0 + rest.x * 30.0);
+		vec3 sheen = mix(vec3(0.05, 0.12, 0.3), vec3(0.22, 0.08, 0.3), shift);
+		ALBEDO += pow(sheen * graze * (part == 2 || part == 6 ? 0.0 : 1.0), vec3(2.2)) * 3.0;
+		ROUGHNESS = part == 3 ? 0.5 : (part == 2 ? 0.45 : 0.38);
+		SPECULAR = part == 3 ? 0.4 : 0.6;
+	}
 	ALBEDO = gl_colour(ALBEDO);
 }

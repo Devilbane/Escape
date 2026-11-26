@@ -28,6 +28,7 @@ const PARTS := [
 	preload("res://scripts/lang/staff_spell.gd"),
 	preload("res://scripts/lang/bless_round.gd"),
 	preload("res://scripts/lang/graphics.gd"),
+	preload("res://scripts/lang/display.gd"),
 	preload("res://scripts/lang/post_office.gd"),
 	preload("res://scripts/lang/locked_halls.gd"),
 	preload("res://scripts/lang/perf_overlay.gd"),

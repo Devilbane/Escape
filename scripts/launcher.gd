@@ -89,7 +89,7 @@ var _notes_scroll: ScrollContainer
 
 
 func _ready() -> void:
-	Screens.apply(get_window())
+	Screens.apply(get_window(), true)
 	Texts.setup()
 	_read_switches()
 	_remove_old_exe()

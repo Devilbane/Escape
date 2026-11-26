@@ -19,8 +19,8 @@ shader_type spatial;
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/flutter.gdshaderinc"
 
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
-uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool use_normal_map = false;
 uniform vec3 albedo_color = vec3(1.0);
 // 0 keeps the clean look, 1 is a long-forgotten dungeon prop.
@@ -99,6 +99,7 @@ void fragment() {
 		NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(grit * 0.004), dFdy(grit * 0.004));
 		if (use_normal_map) {
 			NORMAL_MAP = texture(normal_tex, UV).rgb;
+			NORMAL_MAP_DEPTH = relief_strength;
 		}
 		ROUGHNESS = 1.0;
 		SPECULAR = 0.1;
@@ -141,6 +142,7 @@ void fragment() {
 		NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 		if (use_normal_map) {
 			NORMAL_MAP = texture(normal_tex, UV).rgb;
+			NORMAL_MAP_DEPTH = relief_strength;
 		}
 		// Bare metal keeps a little shine; rust, dust and old wood are matt.
 		float metal = max(iron, brass) * (1.0 - rust) * (1.0 - dust);

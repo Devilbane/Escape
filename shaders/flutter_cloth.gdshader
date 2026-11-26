@@ -6,7 +6,7 @@ shader_type spatial;
 
 #include "res://shaders/flutter.gdshaderinc"
 
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable, hint_default_white;
+uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable, hint_default_white;
 uniform vec4 albedo_color = vec4(1.0);
 uniform float roughness = 1.0;
 uniform float metallic = 0.0;

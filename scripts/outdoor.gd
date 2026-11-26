@@ -2941,7 +2941,7 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_texture = StairsDown.doorway_texture()
-	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	hole.material_override = black
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)

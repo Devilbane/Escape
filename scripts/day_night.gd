@@ -140,7 +140,7 @@ static func apply(env: Environment, sun: DirectionalLight3D, hour: float) -> voi
 	env.background_color = sky.bg
 	env.ambient_light_color = sky.amb
 	env.ambient_light_energy = sky.amb_e
-	env.adjustment_saturation = sky.sat
+	env.adjustment_saturation = sky.sat * Graphics.tone.saturation
 	sun.light_color = sky.sun
 	sun.light_energy = sun_strength(hour)
 	var angles := sun_angles_at(hour)

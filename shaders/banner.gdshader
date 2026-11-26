@@ -6,7 +6,7 @@ render_mode cull_disabled;
 
 #include "res://shaders/flutter.gdshaderinc"
 
-uniform sampler2D banner_tex : filter_linear_mipmap, hint_default_white;
+uniform sampler2D banner_tex : filter_linear_mipmap_anisotropic, hint_default_white;
 
 void vertex() {
 	flutter_vertex(VERTEX, NORMAL, TANGENT, dot(NODE_POSITION_WORLD, vec3(0.37, 0.0, 0.61)));

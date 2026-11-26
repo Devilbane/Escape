@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add a testing panel with time, season, travel and godmode buttons | Shipped this week: Make winter snow matte (no shiny specks); Add fireflies, gnats, butterflies, crickets, cicadas and night sounds (+48 more)
+Escape! dev status | Working on: Aggro needs line of sight; Add a testing panel with time, season, travel and godmode buttons | Shipped this week: Make winter snow matte (no shiny specks); Add fireflies, gnats, butterflies, crickets, cicadas and night sounds (+48 more)

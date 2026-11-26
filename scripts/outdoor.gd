@@ -1309,9 +1309,14 @@ func _model_path(name: String) -> String:
 
 
 func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self) -> Node3D:
-	if not _scenes.has(name):
-		_scenes[name] = load(_model_path(name))
-	var node: Node3D = _scenes[name].instantiate()
+	var node: Node3D
+	if NaturalRock.replaces(name):
+		# Boulders are real, uneven rocks, not the kit's flat facets (see NaturalRock).
+		node = NaturalRock.node(name)
+	else:
+		if not _scenes.has(name):
+			_scenes[name] = load(_model_path(name))
+		node = _scenes[name].instantiate()
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s

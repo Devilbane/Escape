@@ -58,7 +58,11 @@ const float SKIRT_HEIGHT = 3.0;
 const float SKIRT_SLOPE_FROM = 0.05;
 const float SKIRT_SLOPE_TO = 0.3;
 
+// How much of the skirt a single object wears: 1 for the ground and the mountains, 0 for a loose boulder (see
+// NaturalRock), whose flanks stay bare rock and only its top takes snow.
+instance uniform float skirt_scale = 1.0;
 varying vec3 world_pos;
+varying float skirt_k;
 varying vec3 world_normal;
 
 void vertex() {
@@ -67,10 +71,11 @@ void vertex() {
 	// The snow lies a little above the surface it covers, so it wins the depth test, and
 	// thicker as it deepens.
 	// (and on the skirt of snow up the foot of a steep slope, see fragment)
-	float lift = max(smoothstep(0.3, 0.8, wn.y), (1.0 - smoothstep(0.0, SKIRT_HEIGHT, wp.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, wn.y));
+	float lift = max(smoothstep(0.3, 0.8, wn.y), (1.0 - smoothstep(0.0, SKIRT_HEIGHT, wp.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, wn.y) * skirt_scale);
 	wp += wn * (0.03 + 0.03 * amount) * lift;
 	world_pos = wp;
 	world_normal = wn;
+	skirt_k = skirt_scale;
 	POSITION = PROJECTION_MATRIX * VIEW_MATRIX * vec4(wp, 1.0);
 }
 
@@ -80,7 +85,7 @@ void fragment() {
 	// The foot of a mountain face: where the snow of the plain meets steep rock it must not stop at a
 	// hard line. Close to the ground the slope counts as lying snow, fading out with height along a
 	// ragged edge (the noise moves it up and down), and its snow is lit like the flat snow below it.
-	float skirt = (1.0 - smoothstep(0.0, SKIRT_HEIGHT * (0.7 + 0.6 * n), world_pos.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, world_normal.y);
+	float skirt = (1.0 - smoothstep(0.0, SKIRT_HEIGHT * (0.7 + 0.6 * n), world_pos.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, world_normal.y) * skirt_k;
 	float up_plain = smoothstep(0.5, 0.82, world_normal.y);
 	float up = max(up_plain, skirt);
 	vec3 look_normal = normalize(mix(world_normal, vec3(0.0, 1.0, 0.0), skirt));

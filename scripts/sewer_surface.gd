@@ -32,6 +32,8 @@ const STONE := Color(0.62, 0.6, 0.56)
 const DARK_STONE := Color(0.5, 0.49, 0.46)
 const IRON := Color(0.26, 0.26, 0.28)
 const RUST := Color(0.42, 0.24, 0.12)
+## Dark forged iron of the hatch hinges, with rust over it.
+const HINGE_IRON := Color(0.17, 0.15, 0.14)
 ## The stream: from where it leaves the river (tile rows) to the grating (south to north).
 const STREAM_FROM_ROW := 67
 const STREAM_TO_ROW := 46
@@ -445,11 +447,19 @@ static func _hatch(lvl: Outdoor, c: Vector2i) -> void:
 		var p0 := back + top + Vector3(cos(a) * 0.17, 0.04, sin(a) * 0.17)
 		var p1 := back + top + Vector3(cos(a + TAU / 8.0) * 0.17, 0.04, sin(a + TAU / 8.0) * 0.17)
 		lid.bar(p0, p1, 0.018, W.vary(IRON, rng, 0.05), W.IRON, 5)
-	# Two hinge plates and their pins at the edge it turns on.
+	# Two hinge straps at the edge it turns on: a long forged leaf along the lid, a knuckle of rolled iron
+	# at the pin, a row of rivets and flakes of rust, all of dark, uneven metal (no bright bars).
+	var along: Vector3 = Vector3(-away.x, 0, -away.y)
+	var across: Vector3 = Vector3(away.y, 0, away.x)
 	for side in [-1.0, 1.0]:
-		var at := Vector3(away.y * side * span * 0.28, 0.1, away.x * side * span * 0.28)
-		lid.box(at + Vector3(-away.x, 0, -away.y) * 0.2, Vector3(0.3 if away.x != 0 else 0.14, 0.03, 0.3 if away.y != 0 else 0.14) + Vector3(0, 0, 0), W.vary(IRON, rng, 0.05), W.IRON)
-		lid.cylinder(at + Vector3(0, 0.02, 0), 0.05, 0.05, 0.1, W.vary(IRON, rng, 0.05), W.IRON, 8, Basis.from_euler(Vector3(PI * 0.5 if away.x == 0 else 0.0, 0, PI * 0.5 if away.x != 0 else 0.0)))
+		var at: Vector3 = across * side * span * 0.28 + Vector3(0, 0.1, 0)
+		var leaf: Vector3 = at + along * 0.22
+		lid.frustum(leaf, Vector2(0.4 if away.x != 0 else 0.15, 0.4 if away.y != 0 else 0.15), Vector2(0.37 if away.x != 0 else 0.1, 0.37 if away.y != 0 else 0.1), 0.035, W.vary(HINGE_IRON, rng, 0.12), W.IRON)
+		lid.frustum(leaf + along * 0.13 + Vector3(0, 0.02, 0), Vector2(0.12 if away.x != 0 else 0.2, 0.12 if away.y != 0 else 0.2), Vector2(0.1 if away.x != 0 else 0.16, 0.1 if away.y != 0 else 0.16), 0.03, W.vary(RUST, rng, 0.15), W.IRON)
+		for k in 3:
+			lid.cylinder(leaf + along * (0.12 * (k - 1)) + Vector3(0, 0.035, 0), 0.025, 0.02, 0.018, W.vary(RUST, rng, 0.2), W.IRON, 6)
+		lid.cylinder(at + Vector3(0, 0.02, 0), 0.055, 0.05, 0.16, W.vary(HINGE_IRON, rng, 0.1), W.IRON, 8, Basis.from_euler(Vector3(PI * 0.5 if away.x == 0 else 0.0, 0, PI * 0.5 if away.x != 0 else 0.0)))
+		lid.cylinder(at + across * side * 0.09 + Vector3(0, 0.02, 0), 0.065, 0.065, 0.03, W.vary(RUST, rng, 0.12), W.IRON, 8, Basis.from_euler(Vector3(PI * 0.5 if away.x == 0 else 0.0, 0, PI * 0.5 if away.x != 0 else 0.0)))
 	lid.finish(hinge)
 	var shape: CollisionShape3D = lvl._add_box(lvl._walls_body, Vector3(shaft.x, 0.5, shaft.z), Vector3(span + 0.6, 1.0, span + 0.6))
 	if is_open:

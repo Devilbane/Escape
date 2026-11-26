@@ -26,6 +26,7 @@ extends Control
 ## no dependency.
 const Kit := preload("res://scripts/ui_kit.gd")
 const Texts := preload("res://scripts/lang.gd")
+const Screens := preload("res://scripts/monitor.gd")
 const EMBLEM := preload("res://assets/logo/app_icon_1024.png")
 const EMBLEM_SIZE := 72
 
@@ -88,6 +89,7 @@ var _notes_scroll: ScrollContainer
 
 
 func _ready() -> void:
+	Screens.apply(get_window())
 	Texts.setup()
 	_read_switches()
 	_remove_old_exe()

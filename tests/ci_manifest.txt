@@ -76,6 +76,7 @@ ignition.gd | 120 | fixed | passfail | Headless test for fireballs (see Ignition
 jewellery_stacks.gd | 120 | fixed | passfail | small things stack and the biggest backpack holds 20
 godborn_backpack.gd | 30 | fixed | passfail | the god-born Traveller backpack gives +1 hardening and +5 % speed
 epic_backpack.gd | 120 | fixed | passfail | the epic 24-slot satchel: scroll loot, recipe, 24 slots
+monitor.gd | 30 | fixed | passfail | which screen the window opens on (Windows monitor 1 by default, scripts/monitor.gd)
 launcher.gd | 120 | fixed | passfail | Windows launcher (scripts/launcher.gd): what it does with the
 loot.gd | 240 | fixed | passfail | loot of fallen monsters (see Loot and
 npc_keywords.gd | 240 | free | passfail | Elsbeth keeps clear of the temple door; a bump only brings a remark, a keyword opens the window

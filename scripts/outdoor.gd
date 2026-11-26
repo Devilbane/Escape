@@ -660,6 +660,8 @@ var crows: Crows
 var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).
 var valley_events: ValleyEvents
+## The sunflower riddle in the field with the scarecrow (see SunflowerRiddle).
+var sunflower_riddle: SunflowerRiddle
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
@@ -936,6 +938,10 @@ func build() -> void:
 	valley_events = ValleyEvents.new()
 	add_child(valley_events)
 	valley_events.setup(self)
+	if _crop_cells.has(CropFields.RIDDLE):
+		sunflower_riddle = SunflowerRiddle.new()
+		add_child(sunflower_riddle)
+		sunflower_riddle.setup(self)
 	spook_raid = SpookRaid.new()
 	add_child(spook_raid)
 	spook_raid.setup(self)
@@ -1582,7 +1588,7 @@ func _jitter(amount: float) -> Vector3:
 func _plant_crops() -> void:
 	if _crop_cells.is_empty():
 		return
-	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"))
+	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"), [SunflowerRiddle.centre()])
 	crop_fields.set_season(season_day)
 	# The crows feed on the low fields (the stubble of the wheat); where there is none, on any.
 	var low: Array[Vector3] = []
@@ -1694,9 +1700,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_pond_waters.append(pond_water)
 		"≡", "‡", "☼":
 			# Wheat, maize and sunflowers (see CropFields): the plants are planted for all tiles at once.
-			if not _crop_cells.has(ch):
-				_crop_cells[ch] = []
-			_crop_cells[ch].append(pos)
+			# The riddle field's tiles (see SunflowerRiddle) are planted as blocks of 5 x 5.
+			var crop_key := CropFields.RIDDLE if ch == CropFields.SUNFLOWER and SunflowerRiddle.FIELD.has_point(c) else ch
+			if not _crop_cells.has(crop_key):
+				_crop_cells[crop_key] = []
+			_crop_cells[crop_key].append(pos)
 			# No solid: the fields are walkable, the hero and the villagers wade through the crops.
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.

@@ -16,7 +16,8 @@ const LADDER := "leiter"
 const SCARECROW := "vogelscheuche"
 ## Where they stand: tiles of the valley map "Apfeltal".
 const LADDER_CELL := Vector2i(42, 90)
-const SCARECROW_CELL := Vector2i(53, 88)
+## The scarecrow stands in the middle of the sunflower field (see SunflowerRiddle), between this tile and the one below it.
+const SCARECROW_CELL := Vector2i(61, 88)
 ## The hours the events happen in.
 const LADDER_HOURS := Vector2(9.5, 11.5)
 const SCARECROW_HOURS := Vector2(14.0, 16.5)
@@ -68,14 +69,14 @@ func setup(lvl: Outdoor) -> void:
 		_ladder.position = level.cell_to_world(LADDER_CELL)
 		add_child(_ladder)
 	if _free(SCARECROW_CELL):
-		_scare = _build_scarecrow()
-		_scare.position = level.cell_to_world(SCARECROW_CELL)
+		_scare = ScarecrowModel.build()
+		_scare.position = SunflowerRiddle.centre()
 		add_child(_scare)
 		level._add_solid(_scare.position, Vector3(0.9, 2.0, 0.9))
 
 
 func _free(c: Vector2i) -> bool:
-	return level.cell_char(c) == "." and level.is_open(c)
+	return level.cell_char(c) in [".", CropFields.SUNFLOWER] and level.is_open(c)
 
 
 ## Whether the event of this kind happens on `day` (a fixed roll per day, so it is the same however often one asks).
@@ -179,7 +180,7 @@ func _tick_scarecrow(dt: float) -> void:
 ## The crow flies in, sits on the hat, caws, and the scarecrow goes over.
 func _land_crow() -> void:
 	_crow = _build_crow()
-	var top := _scare.position + Vector3(0, 2.45, 0)
+	var top := _scare.position + Vector3(0, ScarecrowModel.PERCH, 0)
 	add_child(_crow)
 	_crow.position = top + Vector3(14, 6, -10)
 	var fly := create_tween()
@@ -200,7 +201,7 @@ func _fallen() -> void:
 		var away := create_tween()
 		away.tween_property(_crow, "position", _crow.position + Vector3(-18, 9, 12), 1.8).set_trans(Tween.TRANS_SINE)
 		away.tween_callback(_crow.queue_free)
-	_scare_station = {"kind": KIND, "what": SCARECROW, "cell": SCARECROW_CELL, "pos": _scare.position + Vector3(-1.0, 0, 0), "used": false}
+	_scare_station = {"kind": KIND, "what": SCARECROW, "cell": SCARECROW_CELL, "pos": _scare.position + Vector3(-1.6, 0, 1.0), "used": false}
 	level.stations.append(_scare_station)
 
 
@@ -281,36 +282,6 @@ func _build_ladder() -> Node3D:
 		var x := -0.6 + lean * t
 		b.bar(Vector3(x, t * top, -0.34), Vector3(x, t * top, 0.34), 0.026, WeatheredProps.vary(wood[0], rng, 0.08), WeatheredProps.WOOD, 6)
 	b.finish(root, Vector3(1.2, 0, 0))
-	return root
-
-
-func _build_scarecrow() -> Node3D:
-	var root := Node3D.new()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 43
-	var b := WeatheredProps.Builder.new()
-	var wood := WeatheredProps.TIMBER
-	var cloth := Color(0.46, 0.34, 0.5)
-	var straw := Color(0.86, 0.72, 0.36)
-	b.bar(Vector3(0, 0, 0), Vector3(0, 2.1, 0), 0.07, WeatheredProps.vary(wood[1], rng, 0.06), WeatheredProps.WOOD, 7)
-	b.bar(Vector3(-0.95, 1.7, 0), Vector3(0.95, 1.7, 0), 0.05, WeatheredProps.vary(wood[2], rng, 0.06), WeatheredProps.WOOD, 7)
-	# A ragged shirt on the crossbar and a patched coat down the post.
-	b.frustum(Vector3(0, 0.95, 0), Vector2(0.6, 0.32), Vector2(0.9, 0.36), 0.95, cloth, WeatheredProps.FRESH)
-	for sleeve in [-1.0, 1.0]:
-		b.frustum(Vector3(sleeve * 0.55, 1.5, 0), Vector2(0.5, 0.26), Vector2(0.5, 0.26), 0.3, cloth.darkened(0.1), WeatheredProps.FRESH)
-		for k in 4:
-			b.bar(Vector3(sleeve * (0.82 + k * 0.05), 1.62, (k - 1.5) * 0.06), Vector3(sleeve * (0.95 + k * 0.05), 1.34 - k * 0.04, (k - 1.5) * 0.08), 0.012, WeatheredProps.vary(straw, rng, 0.1), WeatheredProps.FRESH, 4)
-	# The head: a stuffed sack with a stitched grin, under a battered hat.
-	b.cylinder(Vector3(0, 2.0, 0), 0.19, 0.17, 0.34, Color(0.74, 0.63, 0.43), WeatheredProps.FRESH, 12)
-	b.box(Vector3(-0.07, 2.12, 0.17), Vector3(0.06, 0.06, 0.02), Color(0.1, 0.07, 0.05), WeatheredProps.FRESH)
-	b.box(Vector3(0.07, 2.12, 0.17), Vector3(0.06, 0.06, 0.02), Color(0.1, 0.07, 0.05), WeatheredProps.FRESH)
-	b.box(Vector3(0, 2.04, 0.18), Vector3(0.18, 0.03, 0.02), Color(0.1, 0.07, 0.05), WeatheredProps.FRESH)
-	b.cylinder(Vector3(0, 2.32, 0), 0.34, 0.34, 0.04, Color(0.6, 0.45, 0.26), WeatheredProps.FRESH, 14)
-	b.cylinder(Vector3(0, 2.34, 0), 0.19, 0.14, 0.26, Color(0.6, 0.45, 0.26), WeatheredProps.FRESH, 12)
-	for k in 7:
-		var a := TAU * k / 7.0
-		b.bar(Vector3(cos(a) * 0.17, 2.0, sin(a) * 0.17), Vector3(cos(a) * 0.3, 1.82, sin(a) * 0.3), 0.012, WeatheredProps.vary(straw, rng, 0.1), WeatheredProps.FRESH, 4)
-	b.finish(root, Vector3.ZERO, true, true)
 	return root
 
 

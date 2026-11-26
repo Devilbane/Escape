@@ -1689,7 +1689,7 @@ func _build_storage() -> void:
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6, null, true)
-	var size := HomeUpgrades.storage_size(game.home_upgrades)
+	var size := HomeUpgrades.storage_size(game.home_upgrades, game.hero_name)
 	var used := HomeUpgrades.storage_used(game.storage)
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
 	# Eight across, so the window keeps its width when the chest grows.
@@ -1755,7 +1755,7 @@ func _pack_pick_up() -> void:
 
 
 func _store(index: int) -> void:
-	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index]):
+	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index], game.hero_name):
 		_note = Lang.t("Die Truhe ist voll.")
 	else:
 		game.storage.append(game.player.bag[index])

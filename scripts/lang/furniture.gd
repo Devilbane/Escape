@@ -3,6 +3,15 @@ extends RefCounted
 ## tool and the pieces (see HouseFurniture and HouseFurnisher).
 
 const EN := {
+	"Vorratskisten": "Storage crates",
+	"Vorratsfass": "Storage barrel",
+	"Große Eichentruhe": "Large oak chest",
+	"Ein Stapel fester Holzkisten. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge.": "A stack of sturdy wooden crates. Opens your storage chest and makes room for 16 more things.",
+	"Ein großes Fass mit Eisenreifen. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge.": "A big barrel with iron hoops. Opens your storage chest and makes room for 16 more things.",
+	"Eine eisenbeschlagene Eichentruhe. Öffnet deine Lagertruhe und schafft Platz für 32 weitere Dinge.": "An iron-bound oak chest. Opens your storage chest and makes room for 32 more things.",
+	"Kisten": "Crates",
+	"Fass": "Barrel",
+	"Eichentruhe": "Oak chest",
 	"Raumausstatterin Ilse": "Ilse the furnisher",
 	"Du zündest die Kerzen an.": "You light the candles.",
 	"Du löschst die Kerzen.": "You put the candles out.",
@@ -49,7 +58,7 @@ const EN := {
 	"Ein gerahmtes Gemälde der Berge im Abendrot, für eine Wand.": "A framed painting of the mountains at dusk, for a wall.",
 	"Ein gerahmtes Gemälde eines stillen Sees unter dem Mond, für eine Wand.": "A framed painting of a still lake under the moon, for a wall.",
 	"Ein gerahmtes Gemälde eines Drachen über dem Dorf, für eine Wand.": "A framed painting of a dragon over the village, for a wall.",
-	"Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach).": "Ilse the furnisher on the village square sells furniture for your self-built house: bed, storage chest, bookshelf, fireplace, trophy stand, weapon rack, workbenches, a hoard, candle stands, wall torches and paintings. Set them up in the blueprint with \"Furnish\": pick a piece, turn it with R or a right click, put it down with a left click. They stand only indoors, on a built floor under a roof, and do the same as the furniture of your old house. Torches and paintings hang on a built wall. Flowers, garden torches, lamps and the grill belong in the garden: on the ground of your plot, where there is no roof. Garden torches and lamps also stand on a flat roof (level: upper floor or roof).",
+	"Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Vorratskisten, Fässer und Eichentruhen (mehr Platz im Lager), Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach).": "Ilse the furnisher on the village square sells furniture for your self-built house: bed, storage chest, storage crates, barrels and oak chests (more room in your storage), bookshelf, fireplace, trophy stand, weapon rack, workbenches, a hoard, candle stands, wall torches and paintings. Set them up in the blueprint with \"Furnish\": pick a piece, turn it with R or a right click, put it down with a left click. They stand only indoors, on a built floor under a roof, and do the same as the furniture of your old house. Torches and paintings hang on a built wall. Flowers, garden torches, lamps and the grill belong in the garden: on the ground of your plot, where there is no roof. Garden torches and lamps also stand on a flat roof (level: upper floor or roof).",
 	# The furnishing tool.
 	"Einrichten": "Furnish",
 	"Möbel aufstellen (Bauplan-Knopf, „Einrichten“)": "Set up furniture (blueprint button, “Furnish”)",

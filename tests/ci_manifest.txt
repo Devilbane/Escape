@@ -143,3 +143,4 @@ aggro_line_of_sight.gd | 120 | fixed | pass | Aggro needs line of sight: hearing
 pack_help.gd | 120 | fixed | pass | Monsters help a struck mate and call for help; slimes keep out
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)
+home_storage_extra.gd | 30 | free | passfail | Extra home storage pieces add room to the storage chest (capped), with English

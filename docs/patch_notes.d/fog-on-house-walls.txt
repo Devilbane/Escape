@@ -1,0 +1,1 @@
+- Fog now drifts over the outside walls of houses, not just the ground around them.

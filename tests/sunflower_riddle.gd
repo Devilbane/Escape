@@ -75,18 +75,19 @@ func _test() -> void:
 	check(ev._scare != null and ev._scare.position.is_equal_approx(centre), "the scarecrow stands in the field's middle")
 	# Saying it: the test brings words of its own. Case, spaces and marks do not matter, but it must be said by the scarecrow.
 	var text := "open sesame"
-	SunflowerRiddle.test_hash = "opensesame".sha256_text()
+	var _entry := RiddleVault.make_entry("opensesame", "testsalt", 50)
+	SunflowerRiddle.test_entry = _entry
 	check(SunflowerRiddle.is_answer(text.to_upper()) and SunflowerRiddle.is_answer("opensesame") and SunflowerRiddle.is_answer("  " + text + "!"), "case, spaces and marks do not matter")
 	check(not SunflowerRiddle.is_answer("") and not SunflowerRiddle.is_answer("open") and not SunflowerRiddle.is_answer("hallo"), "other words are no answer")
-	SunflowerRiddle.test_hash = ""
+	SunflowerRiddle.test_entry = {}
 	check(not SunflowerRiddle.is_answer(text), "the test's words are no answer in the game")
-	SunflowerRiddle.test_hash = "opensesame".sha256_text()
+	SunflowerRiddle.test_entry = _entry
 	game._message.text = ""
 	Events.hero_says(text, centre + Vector3(30, 0, 0))
 	check(game._message.text != SunflowerRiddle.CONGRATS, "far from the scarecrow nothing happens")
 	Events.hero_says(text, centre + Vector3(-3, 0, 4))
 	check(game._message.text == SunflowerRiddle.CONGRATS, "by the scarecrow the words are rewarded: %s" % game._message.text)
-	SunflowerRiddle.test_hash = ""
+	SunflowerRiddle.test_entry = {}
 	check(level.sunflower_riddle._busy > 0.0, "the fireworks are on")
 	# The code only shows with heads: summer and autumn.
 	var seasons := {"spring": 3, "summer": Weather.SPRING_DAYS + 2, "autumn": Weather.AUTUMN_FROM + 1, "winter": Weather.YEAR_DAYS - 1}

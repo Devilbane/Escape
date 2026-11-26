@@ -1,0 +1,1 @@
+- Roof tiles and ridge caps no longer flicker with speckles in daylight.

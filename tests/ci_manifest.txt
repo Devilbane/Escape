@@ -20,6 +20,7 @@ melee_path.gd | 60 | free | passfail | Melee pathfinding (monsters walk round wh
 save_seal.gd | 60 | free | pass | Save seals (an edited save is refused, old saves are sealed once)
 smooth_motion.gd | 240 | fixed | pass | Smooth running (bodies drawn between physics ticks)
 inventory_fixed_size.gd | 240 | free | pass | Inventory keeps its size (picking, tabs, equipping; both languages)
+gear_effects.gd | 120 | free | pass | Inventory bonus and malus tab: gear and weight rows match the hero's own stats, window keeps its size
 storage_fixed_size.gd | 240 | free | pass | Storage chest keeps its size (pointing at torches and other items; both languages)
 windows_fixed_size.gd | 300 | free | pass | Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
 events.gd | 240 | free | pass | Event bus test
@@ -143,4 +144,5 @@ enemy_alert_once.gd | 240 | fixed | pass | A monster's red alert shows once per 
 pack_help.gd | 120 | fixed | pass | Monsters help a struck mate and call for help; slimes keep out
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)
+home_storage_extra.gd | 30 | free | passfail | Extra home storage pieces add room to the storage chest (capped), with English
 riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scrambled codes

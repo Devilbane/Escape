@@ -411,5 +411,5 @@ func load_from(data) -> void:
 	state.clear()
 	if data is Dictionary:
 		for id in data:
-			if (MAPS.has(str(id)) or str(id) == SpringCave.ID) and str(data[id]) in [READ, DUG, OPEN, DONE]:
+			if (MAPS.has(str(id)) or str(id) in [SpringCave.ID, OwlClock.ID]) and str(data[id]) in [READ, DUG, OPEN, DONE]:
 				state[str(id)] = str(data[id])

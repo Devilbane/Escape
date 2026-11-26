@@ -574,9 +574,15 @@ func _make_sack() -> Node3D:
 	var n := Node3D.new()
 	n.name = "Sack"
 	var b := Sewers.W.Builder.new()
-	b.frustum(Vector3(0, 0.55, -0.32), Vector2(0.3, 0.26), Vector2(0.1, 0.1), 0.6, Color(0.5, 0.42, 0.28), Sewers.W.WOOD)
-	b.cylinder(Vector3(0, 1.12, -0.32), 0.1, 0.1, 0.06, Color(0.3, 0.22, 0.14), Sewers.W.WOOD, 8)
-	b.finish(n)
+	# Pale burlap (FRESH keeps the colour bright in the dark), a plump belly, a gathered neck and a twine tie.
+	var burlap := Color(0.72, 0.6, 0.4)
+	var f := Sewers.W.FRESH
+	b.cylinder(Vector3(0, 0.5, -0.32), 0.22, 0.26, 0.4, burlap, f, 12)
+	b.cylinder(Vector3(0, 0.82, -0.32), 0.26, 0.14, 0.22, burlap * 0.95, f, 12)
+	b.cylinder(Vector3(0, 1.02, -0.32), 0.14, 0.07, 0.14, burlap, f, 10)
+	b.cylinder(Vector3(0, 1.06, -0.32), 0.085, 0.085, 0.03, Color(0.45, 0.33, 0.2), f, 8)
+	b.box(Vector3(0, 0.55, -0.58), Vector3(0.03, 0.4, 0.02), burlap * 0.75, f)
+	b.finish(n, Vector3.ZERO, true, true)
 	return n
 
 

@@ -294,7 +294,7 @@ void fragment() {
 	ROUGHNESS = mix(0.95, 0.82, moss);
 	// Relief: the joints between the blocks sink in.
 	float bump = mix(0.6, 0.3, soft_joints);
-	float height = weave_h * 0.4 * sail + (relief * wall + tiles * 0.15 * roof * (1.0 - woody)) * band(2.0, px) + woody * wl * 0.6 * band(30.0, px);
+	float height = weave_h * 0.4 * sail + (relief * wall + tiles * 0.015 * roof * (1.0 - woody)) * band(2.0, px) + woody * wl * 0.6 * band(30.0, px);
 	// The rounded outer edges of the building (see StoneLook.edge_data).
 	vec2 bevel = edge_bevel(edge_d * obj_scale, edge_round);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * bump + bevel.x, dFdy(height) * bump + bevel.y), 0.0)).xyz);

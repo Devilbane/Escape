@@ -100,6 +100,14 @@ func _rules() -> void:
 ## Walks the hero up to the rock at `cell` (from the south) and pushes north for `seconds`.
 func _push(hero: Player, lvl: Level, cell: Vector2i, seconds: float) -> void:
 	var mid := lvl.cell_to_world(cell)
+	# Whatever roams the valley while the test waits (monsters that come with the night, stinging bees) must not
+	# kill the hero between two climbs: clear the field and heal before every push.
+	for e in lvl.enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	lvl.enemies.clear()
+	if not hero.dead:
+		hero.hp = Player.MAX_HP
 	hero.global_position = Vector3(mid.x, 0.0, mid.z + Level.TILE * 0.5 + 2.0)
 	hero.reset_physics_interpolation()
 	await _wait(10)
@@ -183,9 +191,9 @@ func _run() -> void:
 	# A slip with no safe spot yet: back on the ground with a few life points less.
 	hero.rock_roll_forced = 0.999
 	hero.rock_fall_forced = 0.0
-	var hp_before := hero.hp
 	told.clear()
 	await _push(hero, lvl, spot.cell, 3.2)
+	var hp_before := hero.hp
 	guard = 0
 	while hero.is_climbing() and guard < 3000:
 		await _wait(1)

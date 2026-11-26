@@ -44,6 +44,8 @@ var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
 var _graphics_button: Button
+var _display_button: Button
+var _monitor_button: Button
 var _effects_slider: HSlider
 var _log_width_slider: HSlider
 ## The width of the labels in front of the pull-out menu's sliders, room for
@@ -688,6 +690,7 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Monitor.load_settings()
 	Monitor.apply(get_window())
 	Graphics.load_settings()
 	Graphics.apply(get_viewport())
@@ -1023,6 +1026,7 @@ func _setup_drawer() -> void:
 	column.add_child(_make_effects_slider())
 	column.add_child(_make_log_width_slider())
 	column.add_child(_make_graphics_row())
+	column.add_child(_make_display_row())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -4305,6 +4309,53 @@ func _make_graphics_row() -> Control:
 	row.add_child(_graphics_button)
 	_update_graphics_button()
 	return row
+
+
+## The display row: one button steps through the window modes and sizes (see Monitor), a small
+## square one on its right steps through the monitors. Both keep their size whatever they say.
+func _make_display_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var label := Label.new()
+	label.text = Lang.t("Anzeige")
+	label.add_theme_font_override("font", TEXT_FONT)
+	label.add_theme_font_size_override("font_size", UiKit.sized(18))
+	label.add_theme_color_override("font_color", GOLD)
+	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
+	row.add_child(label)
+	_display_button = _make_button("", _next_display_mode, true)
+	_display_button.custom_minimum_size = Vector2(0, 44)
+	_display_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_display_button.clip_text = true
+	row.add_child(_display_button)
+	_monitor_button = _make_button("", _next_monitor, true)
+	_monitor_button.custom_minimum_size = Vector2(44, 44)
+	row.add_child(_monitor_button)
+	_update_display_buttons()
+	return row
+
+
+func _next_display_mode() -> void:
+	Monitor.choose_mode(Monitor.next_mode(Monitor.mode), get_window())
+	_update_display_buttons()
+
+
+func _next_monitor() -> void:
+	Monitor.choose_monitor(Monitor.next_monitor(Monitor.monitor, DisplayServer.get_screen_count()), get_window())
+	_update_display_buttons()
+
+
+func _update_display_buttons() -> void:
+	_display_button.text = Lang.t(Monitor.NAMES[Monitor.mode])
+	var lines: Array[String] = [Lang.t(Monitor.HINTS[Monitor.mode])]
+	for which: String in Monitor.MODES:
+		if which != Monitor.mode:
+			lines.append(Lang.t(Monitor.HINTS[which]))
+	_display_button.tooltip_text = "\n".join(lines)
+	var screens := DisplayServer.get_screen_count()
+	_monitor_button.text = str(Monitor.pick(Monitor.monitor, screens) + 1)
+	_monitor_button.disabled = screens < 2
+	_monitor_button.tooltip_text = Lang.t("Monitor %d von %d. Klick: der nächste Monitor.") % [int(_monitor_button.text), screens]
 
 
 func _next_graphics() -> void:

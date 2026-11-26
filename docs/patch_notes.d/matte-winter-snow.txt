@@ -5,3 +5,4 @@
 - The snow on the foot of cliffs no longer glows white at night and is less bright by day.
 - Snow no longer glows by itself at night, on the ground, props, roofs and rock.
 - Snow on mountains and trees now matches the colour of the snow on the ground.
+- The snow at the foot of cliffs has no glow of its own at all.

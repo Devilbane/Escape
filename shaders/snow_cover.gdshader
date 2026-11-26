@@ -144,10 +144,6 @@ void fragment() {
 		discard;
 	}
 	snow_look(world_pos, look_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
-	// The skirt is shaded by the steep face under it, which turned it grey-blue next to the plain's snow:
-	// it glows a little to be as bright as that, by day only: at night (and in shadow's dusk) the glow
-	// made the cliff foot shine white next to the dark blue ground.
-	EMISSION += ALBEDO * 0.3 * smoothstep(0.5, 1.0, daylight) * skirt * (1.0 - smoothstep(0.5, 0.82, world_normal.y));
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.08 * mix(0.4, 1.0, daylight);
 	ALBEDO = gl_colour(ALBEDO);

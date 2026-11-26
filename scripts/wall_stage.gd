@@ -104,6 +104,17 @@ var _weather_audio: AudioStreamPlayer
 var _flash := 0.0
 var _seen := {}
 var _judged := {}
+## What the climber made of each crack he looked at (key as in `_judged`), for Wolfram's own decisions.
+var _reads := {}
+## Wolfram climbing by himself (see WallAuto), the pause before his next move, and his bubble and voice.
+var auto: WallAuto
+var _auto_wait := 0.0
+var _bubble: Label3D
+var _bubble_time := 0.0
+## How often the climber has shouted (the tests count them).
+var shouts := 0
+var _voice: AudioStreamPlayer
+signal auto_finished(how: String)
 var _flash_timer := 6.0
 
 
@@ -188,6 +199,9 @@ func setup(base: WallMap, level: int, play := true, sky := WallWeather.CLEAR, co
 	_queue.clear()
 	_seen.clear()
 	_judged.clear()
+	_reads.clear()
+	_bubble = null
+	auto = null
 	if is_inside_tree():
 		_build()
 
@@ -456,9 +470,92 @@ func rest_here() -> int:
 	return WallClimb.Outcome.RESTED
 
 
+## Starts Wolfram's own climb: he plans a route and goes up it, move by move.
+func start_auto() -> void:
+	if climb == null:
+		return
+	auto = WallAuto.new()
+	auto.plan(map, climb.skill, weather, Vector2i(int(_start_column() - 0.5), wall.height - 1))
+	_auto_wait = 1.0
+	interactive = true
+
+
+func stop_auto() -> void:
+	auto = null
+
+
+## The climber shouts: a speech bubble over his head for a moment, and the sound that goes with it.
+func shout(kind: String) -> void:
+	if climber == null:
+		return
+	var text := WallVoice.line(kind, rng)
+	if text == "":
+		return
+	if _bubble == null:
+		_bubble = Label3D.new()
+		_bubble.font_size = 64
+		_bubble.pixel_size = 0.006
+		_bubble.outline_size = 18
+		_bubble.shaded = false
+		_bubble.no_depth_test = true
+		_bubble.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_bubble.modulate = Color(1.0, 0.95, 0.7)
+		_bubble.outline_modulate = Color(0.1, 0.05, 0.02)
+		wall_root.add_child(_bubble)
+	shouts += 1
+	_bubble.text = Lang.t(text)
+	_bubble.visible = true
+	_bubble_time = 2.4
+	told.emit(_bubble.text)
+	if is_inside_tree() and DisplayServer.get_name() != "headless":
+		if _voice == null:
+			_voice = AudioStreamPlayer.new()
+			add_child(_voice)
+		_voice.stream = WallVoice.sound(kind)
+		_voice.volume_db = -6.0
+		_voice.play()
+
+
+func _tick_auto(delta: float) -> void:
+	if _bubble != null and _bubble.visible:
+		_bubble_time -= delta
+		_bubble.position = climber.model.position + Vector3(0, 2.6, 0.5)
+		if _bubble_time <= 0.0:
+			_bubble.visible = false
+	if auto == null or climb == null or busy():
+		return
+	_auto_wait -= delta
+	if _auto_wait > 0.0:
+		return
+	_auto_wait = 0.8
+	var read := {}
+	if not climb.on_ground():
+		for gi in wall.gaps.size():
+			read = _reads.get(Vector3i(climb.cell.x, climb.cell.y, gi), read)
+	var act := auto.decide(climb, read)
+	match act.do:
+		WallAuto.Do.STOP:
+			var how := auto.ended
+			if how == "turned":
+				shout("turn")
+			auto = null
+			auto_finished.emit(how)
+		WallAuto.Do.REST, WallAuto.Do.CAMP:
+			rest_here()
+		WallAuto.Do.LOOK, WallAuto.Do.MOVE:
+			var out := step(int(act.dir))
+			if out == WallClimb.Outcome.TOP:
+				auto = null
+				auto_finished.emit("top")
+			elif out == WallClimb.Outcome.GAVE_UP:
+				auto = null
+				auto_finished.emit("gave_up")
+
+
 func _process(delta: float) -> void:
 	if wall == null or camera == null or climber == null:
 		return
+	_tick_auto(delta)
 	_tick_animation(delta)
 	_tick_stones(delta)
 	_tick_weather(delta)
@@ -543,6 +640,7 @@ func step(dir: int) -> int:
 		if not _judged.has(key):
 			_judged[key] = true
 			var read := climb.judge(mv, rng.randf(), rng.randf())
+			_reads[key] = read
 			_tell(Lang.t(String(read.text)) + " " + Lang.t("Noch einmal drücken, um zu springen."), true)
 			return WallClimb.Outcome.BLOCKED
 	return try_move(dir, rng.randf(), rng.randf())
@@ -563,12 +661,15 @@ func try_move(dir: int, roll: float, fall_roll: float) -> int:
 			_tell("Du schlägst einen Nagel in den Fels: ein Sicherungspunkt.")
 		WallClimb.Outcome.SLIPPED:
 			_tell("Abgerutscht! Noch ein Versuch.")
+			shout("jump_miss" if mv.kind == "jump" else "slip")
 		WallClimb.Outcome.RESTED:
 			_tell("Du verschnaufst am Fels.")
 		WallClimb.Outcome.FELL:
+			shout("jump_miss" if mv.kind == "jump" else "fall")
 			var why := Lang.t("Der Sprung misslingt! ") if mv.kind == "jump" else ""
 			_tell(why + Lang.t("Du stürzt %d m tief.") % int(round(climb.last_fall)), true)
 		WallClimb.Outcome.EXHAUSTED:
+			shout("fall")
 			_tell(Lang.t("Deine Arme geben nach! ") + Lang.t("Du stürzt %d m tief.") % int(round(climb.last_fall)), true)
 		WallClimb.Outcome.GAVE_UP:
 			_tell("Du gibst auf und seilst dich ab.")
@@ -577,6 +678,7 @@ func try_move(dir: int, roll: float, fall_roll: float) -> int:
 		WallClimb.Outcome.MOVED:
 			if mv.kind == "jump":
 				_tell("Du springst über die Spalte und bekommst den Griff zu fassen.")
+				shout("cheer")
 	if out == WallClimb.Outcome.FELL or out == WallClimb.Outcome.GAVE_UP or out == WallClimb.Outcome.EXHAUSTED:
 		hurt.emit(RockClimb.fall_damage(climb.last_fall))
 	_animate(out, mv, from, to, dir)

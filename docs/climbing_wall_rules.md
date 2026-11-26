@@ -53,6 +53,16 @@ The climbing meter **is** the run meter (`Player.max_stamina`: Konstitution x 2 
   A poor eye is off by up to 35 points either way, so it can mislead. A very poor roll shows nothing at all.
 - The second push jumps. Nothing forces the climber to; a missed jump always falls.
 
+## 3d. Time, night and rest places
+
+- Every move takes 15 minutes (a jump 18), catching breath on the wall (R) 24 minutes. The climb starts at 08:00.
+- Moves cost more breath now (step 1.5, +0.4 per malus point, surface +1.5, jump +4 and 1 per metre; rain and snow +0.75, storm +1.5).
+- From 18:00 the light fails: one level worse and 15% more breath per move. From 20:00 to 06:00 it is night: three levels worse and 40% more breath.
+- A **rest place** (goal "Rastplatz", press R on it) lets the climber spend the night: they sleep until 06:00 and wake with a full meter.
+  By day they rest three hours and get 70% of the meter back. The sample wall has rest places on the long, smooth route and one on the middle route; the short, hard route has none.
+- Wolfram can climb a wall by himself ("Wolfram climbs (watch)" in the workshop): he plans the likeliest route, rests, spends the night at rest places, looks at each crack and turns back when it looks deadly.
+- On the wall the hero and Wolfram shout: a grunt and a curse when a hold slips, a scream and an oath when a jump is missed or in a fall, a whoop at a landing (speech bubble and a sound made in code).
+
 ## 4. Example table (wall base level 3, clear weather, no surface)
 
 | Hold malus | level 3 | 6 | 9 | 12 | 15 | 20 |

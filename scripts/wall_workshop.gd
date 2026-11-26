@@ -107,6 +107,13 @@ func _label(text: String, size := 14, colour := Color(0.9, 0.85, 0.75), wrap := 
 	return l
 
 
+## Wolfram climbs the wall by himself on the test page (his skill and attributes are the ones in the form).
+func _watch_wolfram() -> void:
+	_stage_stale = true
+	_show_page(2)
+	stage.start_auto()
+
+
 func _button(text: String, action: Callable, toggle := false) -> Button:
 	var b := UiKit.button(Lang.t(text), action)
 	b.custom_minimum_size = Vector2(0, 34)
@@ -241,6 +248,9 @@ func _right_column() -> Control:
 	file_row.add_child(_button("Text einfügen", _paste_text))
 	file_row.add_child(_button("Zurück zum Spiel", _close))
 	col.add_child(file_row)
+	var watch := _button("Wolfram klettert (zuschauen)", _watch_wolfram)
+	watch.tooltip_text = Lang.t("Wolfram steigt die Wand allein hinauf, mit den Werten rechts: er schaut sich jede Spalte an, rastet und flucht.")
+	col.add_child(watch)
 	col.add_child(_label("Wand", 13, UiKit.BRONZE))
 	var form := GridContainer.new()
 	form.columns = 2

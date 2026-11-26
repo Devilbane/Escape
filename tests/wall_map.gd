@@ -163,7 +163,24 @@ func _climb() -> void:
 	d.go(WallMap.UP, 0.0)
 	d.go(WallMap.UP, 0.0)
 	check(d.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.FELL and d.on_ground(), "without a nail a fall reaches the ground")
-	# Three falls to a nail end the climb.
+	# Four falls to a nail end the climb; three do when the meter is under half; resting resets the count.
+	var e3 := WallClimb.new(m, 30)
+	for i in 3:
+		e3.go(WallMap.UP, 0.0)
+	e3.falls = 2
+	e3.stamina = 0.4 * e3.stamina_cap()
+	check(e3.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.GAVE_UP, "the third fall with less than half the meter ends the climb")
+	var e4 := WallClimb.new(m, 30)
+	for i in 3:
+		e4.go(WallMap.UP, 0.0)
+	e4.falls = 2
+	e4.stamina = e4.stamina_cap()
+	check(e4.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.FELL, "the third fall with a full meter does not end it")
+	e4.catch_breath()
+	check(e4.falls == 0, "resting resets the falls")
+	e4.stamina = 0.0
+	e4.catch_breath()
+	check(is_equal_approx(e4.stamina, WallClimb.REST_BOOST * e4.stamina_max), "resting gives back 85% of the meter")
 	var e := WallClimb.new(m, 30)
 	for i in 3:
 		e.go(WallMap.UP, 0.0)
@@ -171,7 +188,7 @@ func _climb() -> void:
 	for i in WallClimb.new(m, 1).options().size() + 3:
 		ended = e.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.GAVE_UP or ended
 		e.cell = e.nail
-	check(ended, "three falls to a nail end the climb")
+	check(ended, "four falls to a nail end the climb")
 	# A surface takes a hold the hands had, and that is always a fall.
 	var f := WallMap.blank()
 	f.level = 1

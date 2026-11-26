@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - id: gate
         env:
           EVENT: ${{ github.event_name }}
@@ -84,6 +84,8 @@ jobs:
           if [ "$go" = true ] && [ "$EVENT" != pull_request ] && [ "$FORCE" != true ]; then
             last=$(git ls-remote origin refs/tags/windows | cut -f1)
             if [ "$last" = "$sha" ]; then go=false; echo "main is still the last published build ($sha): no build."; fi
+            # A nightly run that started before newer merges finishes later: never publish an older commit over a newer build.
+            if [ "$go" = true ] && [ "$EVENT" = workflow_run ] && [ -n "$last" ] && git merge-base --is-ancestor "$sha" "$last" 2>/dev/null; then go=false; echo "$sha is older than the last published build ($last): no build."; fi
           fi
           echo "go=$go" >> "$GITHUB_OUTPUT"; echo "sha=$sha" >> "$GITHUB_OUTPUT"
 

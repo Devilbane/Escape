@@ -46,7 +46,7 @@ const INGREDIENT_ICONS := {
 	"gluehpilz_stern": "glow_mushroom_star",
 	"barsch": "perch", "goldkarpfen": "carp", "silberhecht": "pike", "mondforelle": "trout",
 	"mondsilbererz": "ore", "mondstein": "gem", "grottenkristall": "crystal", "schleimkristall": "crystal",
-	"holzkohle": "coal", "kalkstein": "lime", "honig": "honey",
+	"holzkohle": "coal", "bergteer": "coal", "kalkstein": "lime", "honig": "honey",
 	"wildfleisch": "meat", "spinnenei": "spider_egg", "silberseide": "spider_silk", "schleimgelee": "slime_jelly", "ektoplasma": "ectoplasm",
 	"grabstaub": "grave_dust", "wolfsfell": "pelt", "yetifell": "snow_pelt", "giftdruese": "venom_gland",
 	"fledermausfluegel": "bat_wing", "schleimkern": "slime_core", "geisterschleier": "ghost_veil",

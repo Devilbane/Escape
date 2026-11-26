@@ -1,0 +1,1 @@
+- The climber's grip, boots, breath, rope, falling pebbles and the hammock now have their own sounds, timed to each move.

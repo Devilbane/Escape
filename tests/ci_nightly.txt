@@ -257,3 +257,4 @@ ossuary_shots.gd | 600 | fixed | pass | Pictures of the ossuary shelves with the
 fog_house_walls_shots.gd | 240 | fixed | pass | Fog banks over the outside of house walls (pictures with SHOTS)
 wall_contacts.gd | 200 | fixed | passfail | Climbing wall: every square Wolfram's test run touches has a hand hold and a foot stone
 goto.gd | 120 | fixed | pass | The goto chat command: place, tile, season and time
+wall_sounds.gd | 60 | fixed | pass | Climbing wall sounds: every cue sound is made, audible and varied, and the cues are in order

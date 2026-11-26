@@ -70,3 +70,4 @@ home_storage_extra.gd | scripts/house_furniture.gd scripts/home_upgrades.gd scri
 settings_window.gd | scripts/settings_window.gd scripts/settings_profiles.gd scripts/graphics.gd
 farm_house_windows.gd | scripts/village_house.gd scripts/window_lights.gd scripts/walk_in.gd scripts/lang/valley.gd
 wall_holds.gd | scripts/wall_*.gd walls/*
+wall_spots.gd | scripts/wall_*.gd walls/* scripts/crafting.gd

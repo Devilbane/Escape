@@ -1,0 +1,1 @@
+- Climbing wall ice and chalk follow physics: ice lies on the hold stones, thick on top and thin on the front, none underneath; chalk sits on the stones that hands and feet use.

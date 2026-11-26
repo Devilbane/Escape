@@ -102,6 +102,9 @@ const INGREDIENTS := {
 	# from where it lives.
 	"edelweiss": {"name": "Edelweiß", "tier": "ungewoehnlich", "region": "Gebirge", "when": "", "source": "Beute der Bergtiere",
 		"where": "Hängt im Fell der Eiswölfe und Yetis, die hoch oben streifen."},
+	# Seeps from the cracks of the climbing walls (marker "tar", see WallSpots).
+	"bergteer": {"name": "Bergteer", "tier": "ungewoehnlich", "region": "Felswand", "when": "", "source": "Harz aus Felsspalten",
+		"where": "Dunkles, zähes Harz, das in den Spalten steiler Felswände aus dem Stein quillt. Man muss die Wand erklettern, um es abzukratzen."},
 	# Grows only in the garden on the ledge high above the high valley (see SummitGarden).
 	"silberedelweiss": {"name": "Silberedelweiß", "rare": true, "region": "Gipfelgarten", "when": "", "source": "Blüte im Garten auf dem Berg",
 		"where": "Blüht nur im verborgenen Garten hoch oben in der Felswand über dem Hochtal. Wer ihn findet, kann alle paar Tage eine Blüte pflücken."},

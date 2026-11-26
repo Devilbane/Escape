@@ -82,6 +82,11 @@ func _run() -> void:
 	hero.reset_physics_interpolation()
 	game.treasure_maps.state[OwlClock.ID] = ""
 	await _wait(10)
+	if OS.get_environment("ONLY_CRYPT") != "":
+		game.treasure_maps.state[OwlClock.ID] = TreasureMaps.OPEN
+		OwlClock.build_stairs(lvl, grave, false)
+		await _inside()
+		return
 	_view(grave, Vector3(6, 9, 16), Vector3(0, 0.5, -2))
 	await _wait(25)
 	await _shot("graveyard_night")
@@ -109,23 +114,36 @@ func _run() -> void:
 	await _wait(5)
 	var tell: String = game.riddles.card(lvl.level_name)
 	check(tell.contains("Apple Valley") and tell.contains("00/02"), "the counter reads in English: %s" % tell)
-	# Inside.
+	await _inside()
+
+
+func _inside() -> void:
 	game.go_inside(OwlClock.ID)
 	await _wait(120)
 	_hide_hud()
 	check(game.level.building == OwlClock.ID, "the way leads into the crypt")
 	var inner: Level = game.level
 	var mid := inner.cell_to_world(Vector2i(13, 9))
-	_view(mid, Vector3(0, 22, 12), Vector3(0, 0, 0))
+	game.player.global_position = mid + Vector3(0, 0, 4.0)
+	game.player.reset_physics_interpolation()
+	await _wait(20)
+	_view(mid, Vector3(0, 14, 10), Vector3(0, 0, 0))
 	await _wait(10)
-	await _shot("crypt_overview")
-	_view(mid, Vector3(0, 9, 11), Vector3(0, 0.5, 0))
-	await _wait(5)
 	await _shot("crypt_hub")
 	var vault := inner.cell_to_world(Vector2i(13, 17))
-	_view(vault, Vector3(0, 8, 9), Vector3(0, 0.5, 1))
-	await _wait(5)
+	game.player.global_position = vault + Vector3(0, 0, -4.0)
+	game.player.reset_physics_interpolation()
+	await _wait(20)
+	_view(vault, Vector3(0, 10, 9), Vector3(0, 0.5, 0))
+	await _wait(10)
 	await _shot("crypt_vault")
+	var west := inner.cell_to_world(Vector2i(3, 10))
+	game.player.global_position = west + Vector3(8, 0, 0)
+	game.player.reset_physics_interpolation()
+	await _wait(20)
+	_view(west, Vector3(0, 10, 9), Vector3(0, 0.5, 0))
+	await _wait(10)
+	await _shot("crypt_west_chamber")
 	if Homes.house_of(game.hero_name) > 0:
 		Homes.release(Homes.house_of(game.hero_name))
 	game.delete_save(game.save_path())

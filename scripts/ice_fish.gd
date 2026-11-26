@@ -44,19 +44,19 @@ const DEEP_FADE := 0.9
 const SURFACE_PAUSE := Vector2(14.0, 30.0)
 const RISE_TIME := 1.6
 const FLICK_TIME := 1.1
-## Sounds (see tools/make_water_sounds.py): the plop of a fish at the surface, the splash of its dive, the
-## blip of a ring, played from where they happen. Quieter the farther from the hero.
-const PLOPS := ["water_plop_0", "water_plop_1", "water_plop_2"]
-const DIVES := ["water_dive_0", "water_dive_1"]
+## Sounds (see tools/make_water_sounds.py): the soft splash of a fish at the surface and of its dive, the
+## smaller splash of a ring, played from where they happen. Quieter the farther from the hero.
+const SPLASHES := ["water_splash_0", "water_splash_1", "water_splash_2", "water_splash_3"]
+const RIPPLES := ["water_ripple_0", "water_ripple_1", "water_ripple_2", "water_ripple_3"]
 ## Sounds fade by this many dB a metre from the hero and are not played from beyond SOUND_RANGE.
 const SOUND_FALL := 0.45
 const SOUND_RANGE := 38.0
 ## Fish length (metres) and how fast it swims; a lazy pace under the ice.
-const LENGTH_MIN := 0.55
-const LENGTH_MAX := 0.8
+const LENGTH_MIN := 0.7
+const LENGTH_MAX := 1.0
 ## The models are very slim seen from above; they are widened across by this much so the body reads from the
 ## game camera's distance (a trout is about a fifth as wide as it is long).
-const WIDEN := 2.2
+const WIDEN := 1.5
 const SPEED := 0.3
 ## How far from the bank a fish keeps (see Outdoor.pond_shore_at), and the ice it shows from.
 const SHORE_MIN := 1.5
@@ -155,9 +155,11 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator, lane := {}) -> void:
 	model.rotation = Vector3(-PI * 0.5, 0, 0)
 	# Whatever unit the model was made in, scale it to a river fish of `length` metres.
 	var natural := 0.0
+	var to_model := model.global_transform.affine_inverse()
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		var box := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
-		natural = maxf(natural, maxf(box.size.x, maxf(box.size.y, box.size.z)))
+		# The length is the extent along the fish's own long axis (y), not the span of its fins.
+		var box := to_model * (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		natural = maxf(natural, box.size.y)
 	model.scale = Vector3(WIDEN, 1.0, 1.0) * (length / maxf(natural, 0.0001))
 	var palette: Array = COLOURS[rng.randi() % COLOURS.size()]
 	var mat := ShaderMaterial.new()
@@ -327,7 +329,7 @@ func _stir(delta: float) -> void:
 			f.timer = 0.0
 			f.zig = false
 			f.fade_from = _base_fade()
-			_sound(DIVES, -11.0, p)
+			_sound(SPLASHES, -10.0, p)
 
 
 ## Plays a sound from `at`, softer the farther the hero is (none beyond SOUND_RANGE).
@@ -346,7 +348,7 @@ func _ring_at(at: Vector3) -> void:
 	var i := _ring_next
 	_ring_next = (_ring_next + 1) % RINGS
 	_ring_age[i] = 0.0
-	_sound(["water_ring"], -16.0, at)
+	_sound(RIPPLES, -14.0, at)
 	_rings.set_instance_transform(i, Transform3D(Basis.IDENTITY, Vector3(at.x, 0.05, at.z)))
 	_rings.set_instance_custom_data(i, Color(0, 0, 0, 0))
 
@@ -392,7 +394,7 @@ func _startled(f: Dictionary, delta: float) -> bool:
 			mat.set_shader_parameter("fade", lerpf(_base_fade(), 1.0, smoothstep(0.0, 1.0, up)))
 			if up >= 1.0 and not f.rung:
 				f.rung = true
-				_sound(PLOPS, -10.0, holder.position)
+				_sound(SPLASHES, -13.0, holder.position)
 				_ring_at(holder.position)
 			if f.timer > RISE_TIME:
 				var flick: float = f.timer - RISE_TIME
@@ -400,7 +402,7 @@ func _startled(f: Dictionary, delta: float) -> bool:
 				if flick >= FLICK_TIME:
 					holder.rotation.z = 0.0
 					_ring_at(holder.position)
-					_sound(DIVES, -9.0, holder.position)
+					_sound(SPLASHES, -9.0, holder.position)
 					f.state = "dart"
 					f.timer = 0.0
 					f.zig = true

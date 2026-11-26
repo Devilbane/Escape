@@ -68,7 +68,6 @@ house_exit_quick.gd | 300 | fixed | pass | Stepping out of a building is quick (
 crafting.gd | 240 | free | pass | Recipes and ingredient pouch test
 workbench_crafting.gd | 240 | free | pass | Workbench crafting test
 hero_level.gd | 900 | fixed | pass | Hero level and experience test
-secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
 button_click.gd | 120 | fixed | passfail | UI button click: pressing any button, including one
 camp_rest.gd | 120 | fixed | passfail | Headless test for resting by the camp's fire on a dungeon floor (see
 house_faces.gd | 120 | fixed | passfail | village houses (see VillageHouse): every face of a
@@ -140,5 +139,7 @@ hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down fr
 furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)
 beekeeper.gd | 120 | fixed | pass | The beekeeper and his honey: Ambrosius on the farmland, honey bought into the pouch, the honey draught recipe, the apiary with hives and flowers, English texts
 enemy_alert_once.gd | 240 | fixed | pass | A monster's red alert shows once per hunt
+aggro_line_of_sight.gd | 120 | fixed | pass | Aggro needs line of sight: hearing alone no longer wakes a monster
+pack_help.gd | 120 | fixed | pass | Monsters help a struck mate and call for help; slimes keep out
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)

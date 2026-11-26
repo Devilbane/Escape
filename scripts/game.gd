@@ -44,6 +44,8 @@ var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
 var _graphics_button: Button
+var _display_button: Button
+var _monitor_button: Button
 var _effects_slider: HSlider
 var _log_width_slider: HSlider
 ## The width of the labels in front of the pull-out menu's sliders, room for
@@ -421,6 +423,8 @@ var _prompt: Label
 var _message: Label
 ## The list of keys at the bottom left (see _setup_hud).
 var _help: Label
+## The testing panel in the bottom left corner (see TestPanel).
+var _test_panel: TestPanel
 ## Messages that came before the newest one, oldest first, kept above it
 ## while they are still being read (see show_message), so a new message
 ## never covers an unread one.
@@ -688,6 +692,7 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Monitor.load_settings()
 	Monitor.apply(get_window())
 	Graphics.load_settings()
 	Graphics.apply(get_viewport())
@@ -1023,6 +1028,7 @@ func _setup_drawer() -> void:
 	column.add_child(_make_effects_slider())
 	column.add_child(_make_log_width_slider())
 	column.add_child(_make_graphics_row())
+	column.add_child(_make_display_row())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -1775,6 +1781,11 @@ func _setup_hud() -> void:
 
 	_hud.add_child(event_log)
 	_setup_chat_line()
+
+	# The testing panel at the bottom left (see TestPanel): closed until its tab or F3 opens it.
+	_test_panel = TestPanel.new()
+	_test_panel.picked.connect(_on_test_panel)
+	_hud.add_child(_test_panel)
 
 	# The words of Fritz's drinking songs over his head, under the rest of
 	# the HUD (see SongSheet).
@@ -4307,6 +4318,53 @@ func _make_graphics_row() -> Control:
 	return row
 
 
+## The display row: one button steps through the window modes and sizes (see Monitor), a small
+## square one on its right steps through the monitors. Both keep their size whatever they say.
+func _make_display_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var label := Label.new()
+	label.text = Lang.t("Anzeige")
+	label.add_theme_font_override("font", TEXT_FONT)
+	label.add_theme_font_size_override("font_size", UiKit.sized(18))
+	label.add_theme_color_override("font_color", GOLD)
+	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
+	row.add_child(label)
+	_display_button = _make_button("", _next_display_mode, true)
+	_display_button.custom_minimum_size = Vector2(0, 44)
+	_display_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_display_button.clip_text = true
+	row.add_child(_display_button)
+	_monitor_button = _make_button("", _next_monitor, true)
+	_monitor_button.custom_minimum_size = Vector2(44, 44)
+	row.add_child(_monitor_button)
+	_update_display_buttons()
+	return row
+
+
+func _next_display_mode() -> void:
+	Monitor.choose_mode(Monitor.next_mode(Monitor.mode), get_window())
+	_update_display_buttons()
+
+
+func _next_monitor() -> void:
+	Monitor.choose_monitor(Monitor.next_monitor(Monitor.monitor, DisplayServer.get_screen_count()), get_window())
+	_update_display_buttons()
+
+
+func _update_display_buttons() -> void:
+	_display_button.text = Lang.t(Monitor.NAMES[Monitor.mode])
+	var lines: Array[String] = [Lang.t(Monitor.HINTS[Monitor.mode])]
+	for which: String in Monitor.MODES:
+		if which != Monitor.mode:
+			lines.append(Lang.t(Monitor.HINTS[which]))
+	_display_button.tooltip_text = "\n".join(lines)
+	var screens := DisplayServer.get_screen_count()
+	_monitor_button.text = str(Monitor.pick(Monitor.monitor, screens) + 1)
+	_monitor_button.disabled = screens < 2
+	_monitor_button.tooltip_text = Lang.t("Monitor %d von %d. Klick: der nächste Monitor.") % [int(_monitor_button.text), screens]
+
+
 func _next_graphics() -> void:
 	var at := Graphics.PRESETS.find(Graphics.preset)
 	Graphics.choose(Graphics.PRESETS[(at + 1) % Graphics.PRESETS.size()], get_viewport())
@@ -6124,14 +6182,34 @@ const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
 const TELEPORT_COLOR := Color(0.75, 0.85, 1.0)
 
 
-## The chat line's "godmode": the hero cannot be harmed and runs three times
+## The chat line's "godmode": the hero cannot be harmed and runs five times
 ## as fast (see Godmode). Typing it again turns it off.
 func _toggle_godmode() -> void:
 	player.godmode = not player.godmode
+	if _test_panel != null:
+		_test_panel.set_god(player.godmode)
 	player.refresh_stats()
 	if player.godmode:
 		player.hp = player.max_hp
 	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
+
+
+## A button of the testing panel was pressed (see TestPanel): it does what the matching chat
+## command does (the hour and season commands, teleport, godmode).
+func _on_test_panel(kind: String, arg: Variant) -> void:
+	if state != State.PLAYING or player == null or player.dead:
+		return
+	match kind:
+		"time":
+			_tour_time = -1.0
+			_sky_force({"weather": "", "hour": float(arg), "winter": -1, "tour": "", "autumn": false})
+		"season":
+			_season_command({"season": String(arg)})
+		"travel":
+			var place: Array = TestPanel.PLACES[int(arg)]
+			teleport_to(level_files.find(LEVEL_DIR + String(place[1])), false, String(place[2]))
+		"god":
+			_toggle_godmode()
 
 
 ## The chat line's weather and time commands (see SkyCommand): force the
@@ -6292,12 +6370,25 @@ func _teleport_code(code: String, all: Array) -> void:
 ## transition, a shrine or a window): then nothing else is half done. The
 ## hero's camp is packed up, as it belongs to the place they leave.
 func _to_village_square(wanted: bool) -> void:
-	if wanted and level.get("spots") != null and not level.spots.square.is_empty():
-		player.global_position = level.spots.square[0]
-		player.reset_physics_interpolation()
+	_to_spot("square" if wanted else "")
 
 
-func teleport_to(index: int, to_square := false) -> bool:
+## Moves the hero to a named spot of the open-air map after a teleport: "square" (the village
+## square), "farm" (the middle of the farming valley's fields) or "silver" (in front of the
+## forgotten silver mine's hut); anything else (or a map without it) leaves the hero at the entrance.
+func _to_spot(spot: String) -> void:
+	if spot == "" or level.get("spots") == null or level.spots.square.is_empty():
+		return
+	var at: Vector3 = level.spots.square[0]
+	if spot == "farm" and level.has_method("farm_spot"):
+		at = level.farm_spot(at)
+	elif spot == "silver":
+		at = LostMine.door_spot(at.y)
+	player.global_position = at
+	player.reset_physics_interpolation()
+
+
+func teleport_to(index: int, to_square := false, spot := "") -> bool:
 	if index < 0 or index >= level_files.size() or not chat_allowed():
 		return false
 	var name := Lang.t(level_hint(index).name)
@@ -6313,6 +6404,7 @@ func teleport_to(index: int, to_square := false) -> bool:
 			player.velocity = Vector3.ZERO
 			player.face(Vector3.BACK)
 			_to_village_square(to_square)
+			_to_spot(spot)
 		else:
 			if DragonLair.is_floor(level):
 				level.note_left()
@@ -6320,6 +6412,7 @@ func teleport_to(index: int, to_square := false) -> bool:
 			pack_camp(false)
 			load_level(index, false)
 			_to_village_square(to_square)
+			_to_spot(spot)
 		_snap_camera()
 		if is_instance_valid(pet):
 			pet.arrive()
@@ -8338,6 +8431,8 @@ func _process(delta: float) -> void:
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
 	_place_hp_bar()
+	if _test_panel != null:
+		_test_panel.visible = TestPanel.ENABLED and state == State.PLAYING and not menus.is_open() and player != null and not player.dead
 	_place_dust(drawn)
 	_steer_by_mouse(delta)
 	home_run.tick()
@@ -8951,6 +9046,10 @@ func _mouse_to_floor(screen_pos: Vector2):
 		var on_surface = walk_in.surface_under_ray(origin, dir)
 		if on_surface != null:
 			return on_surface
+		# A click on a building's door walks in through it (see WalkIn.door_under_ray).
+		var on_door = walk_in.door_under_ray(origin, dir)
+		if on_door != null:
+			return on_door
 	return origin + dir * (-origin.y / dir.y)
 
 
@@ -8975,6 +9074,14 @@ func _click(point: Vector3) -> void:
 			else:
 				player.charge(e)
 			return
+	# A click on the steps of a tower's stairs just walks up them: nothing behind them is picked.
+	var walk_in_now = level.get("walk_in")
+	if walk_in_now != null and walk_in_now.on_steps(point):
+		_pending_search = {}
+		_pending_station = {}
+		_pending_crate = null
+		player.walk_to(point)
+		return
 	# Clicking a ladder climbs it (walking into one never does, see LadderClick).
 	var ladder := LadderClick.under_ray(get_tree(), player, camera.global_position, (point - camera.global_position).normalized())
 	if ladder != null and player.use_ladder(ladder):
@@ -9016,6 +9123,8 @@ func _click(point: Vector3) -> void:
 		player.walk_to(station.get("stand", station.pos), WALK_UP_TO)
 		return
 	var obj := level.nearest_interactable(point, 2.2)
+	if not obj.is_empty() and walk_in != null and walk_in.hidden_above_hero(obj.pos):
+		obj = {} # Out of the hero's sight, in another building or on a storey above.
 	if not obj.is_empty():
 		_pending_search = obj
 		_pending_station = {}
@@ -9023,6 +9132,10 @@ func _click(point: Vector3) -> void:
 		return
 	_pending_search = {}
 	_pending_station = {}
+	# A click near stairs (of a home, a dungeon or a mine) goes onto them.
+	var on_stairs = level.stairs_click_snap(point)
+	if on_stairs != null:
+		point = on_stairs
 	player.walk_to(point)
 	_explain_refused_click(point)
 

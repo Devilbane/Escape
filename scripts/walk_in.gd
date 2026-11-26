@@ -1258,9 +1258,40 @@ func route(from: Vector3, to: Vector3) -> Array[Vector3]:
 	return out
 
 
-## Whether `pos` (world) is on a storey of the hall of several storeys the hero stands in that lies above
-## theirs, so it is hidden from them (see _show_up): a click through the roof must not pick a bed there.
+## Where a click's ray (world) meets the door of a building the hero is not in: the spot just inside it, so
+## a click on the door itself (which the ground plane would put in the wall, or past it) walks the hero in.
+## Null when the ray misses every door (see Game._mouse_to_floor).
+func door_under_ray(origin: Vector3, dir: Vector3) -> Variant:
+	if not hero_in.is_empty():
+		return null
+	for rec in buildings:
+		if not rec.get("opened", false) or not rec.has("door") or not rec.has("wall_out"):
+			continue
+		var node: Node3D = rec.node
+		var inv := node.global_transform.affine_inverse()
+		var o: Vector3 = inv * origin
+		var d: Vector3 = inv.basis * dir
+		if absf(d.z) < 0.001:
+			continue
+		var door: Vector3 = rec.door
+		# The door's face: the outer plane of the front wall.
+		var t := (float(rec.wall_out) - o.z) / d.z
+		if t < 0.0:
+			continue
+		var p: Vector3 = o + d * t
+		if absf(p.x - door.x) <= HouseDoor.WIDTH * 0.5 + 0.1 and p.y >= -0.2 and p.y <= HouseDoor.HEIGHT + 0.2:
+			return door_points(rec)[1]
+	return null
+
+
+## Whether `pos` (world) is out of the hero's sight: in a building they are not in, or on a storey of the
+## hall of several storeys they stand in that lies above theirs (see _show_up). A click through a roof must
+## not pick a bed or a seat there.
 func hidden_above_hero(pos: Vector3) -> bool:
+	# Inside another building than the hero's (or one the hero is outside of): its rooms are out of sight.
+	var there := building_at(pos, 0.0)
+	if not there.is_empty() and there.get("node") != hero_in.get("node"):
+		return true
 	if hero_in.is_empty() or not hero_in.has("layout"):
 		return false
 	var node: Node3D = hero_in.node
@@ -1269,6 +1300,18 @@ func hidden_above_hero(pos: Vector3) -> bool:
 	if not Rect2(lay.up_room).grow(0.5).has_point(Vector2(p.x, p.z)):
 		return false
 	return GuildHall.storey_of(lay, p.y) > int(hero_in.storey)
+
+
+## How far (metres) beside a flight of stairs a click still counts as a click on its steps.
+const STEPS_CLICK_MARGIN := 0.6
+
+
+## Whether `point` (world) is on the steps of a flight of the hall of several storeys the hero stands in.
+func on_steps(point: Vector3) -> bool:
+	if hero_in.is_empty() or not hero_in.has("layout"):
+		return false
+	var local: Vector3 = (hero_in.node as Node3D).global_transform.affine_inverse() * point
+	return not GuildHall.flight_at(hero_in.layout, local).is_empty()
 
 
 ## Where a click's ray (world) meets what the hero can see inside the hall of several storeys they stand in
@@ -1292,12 +1335,17 @@ func surface_under_ray(origin: Vector3, dir: Vector3) -> Variant:
 		var f: Dictionary = entry[0]
 		if storey != int(entry[1]) and storey != int(entry[2]):
 			continue
+		var wide := f.duplicate()
+		wide["x0"] = float(f.x0) - STEPS_CLICK_MARGIN
+		wide["x1"] = float(f.x1) + STEPS_CLICK_MARGIN
 		var t0 := (float(f.high) + 0.1 - o.y) / d.y
 		var t1 := (float(f.low) - 0.1 - o.y) / d.y
 		var steps := 120
 		for i in steps + 1:
 			var p: Vector3 = o + d * lerpf(t0, t1, float(i) / float(steps))
-			if GuildHall.on_flight(f, p) and p.y <= GuildHall.ramp(f, p.z):
+			# A little beside the flight counts as on it (a bigger spot to click), aimed at its steps.
+			if GuildHall.on_flight(wide, p) and p.y <= GuildHall.ramp(f, p.z) + 0.3:
+				p.x = clampf(p.x, float(f.x0) + 0.25, float(f.x1) - 0.25)
 				p.y = GuildHall.ramp(f, p.z)
 				return node.global_transform * p
 	# Then the boards: the hero's storey, and those below it.

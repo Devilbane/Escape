@@ -36,40 +36,36 @@ func _test() -> void:
 	game.load_level(game._outdoor_index(), false)
 	var level: Outdoor = game.level
 	check(level.sunflower_riddle != null, "the riddle is set up in the valley")
-	# The marks are numbers 1 to 25 and no block is marked twice.
+	# The marks are numbers 1 to 25 and one per patch.
 	var marks := SunflowerRiddle.marks()
-	check(marks.size() == SunflowerRiddle.block_count(), "one mark per block (%d)" % marks.size())
+	check(marks.size() == SunflowerRiddle.block_count(), "one mark per patch (%d)" % marks.size())
 	for m in marks:
-		check(m >= 0 and m <= CropFields.BLOCK * CropFields.BLOCK, "a mark is a flower of the block: %d" % m)
-	# The field on the map: exactly the riddle's tiles are sunflowers there, and no other sunflower tile touches it.
+		check(m >= 0 and m <= SunflowerRiddle.PATCH * SunflowerRiddle.PATCH, "a mark is a flower of the patch: %d" % m)
+	# The field on the map is the whole old field, all sunflowers.
 	for c in SunflowerRiddle.cells():
 		check(level.cell_char(c) == CropFields.SUNFLOWER, "tile %s of the field is sunflowers" % str(c))
 	var fields: CropFields = level.crop_fields
 	var plain: Dictionary = fields._fields[CropFields.RIDDLE]
 	var marked: Dictionary = fields._fields[CropFields.MARKED]
 	var centre := SunflowerRiddle.centre()
-	var left := 0
+	var total: int = plain.spots.size() + marked.spots.size()
+	check(total >= SunflowerRiddle.FIELD.size.x * SunflowerRiddle.FIELD.size.y * 16 - 4, "the field is full of flowers (%d)" % total)
 	for s: Array in plain.spots:
 		check(Vector2(s[0].x - centre.x, s[0].z - centre.z).length() >= SunflowerRiddle.CLEAR_RADIUS, "no flower stands at the post")
-	# Decode: for each block in reading order, the light flower's place in the block.
-	var tiles: Array = fields._tiles[CropFields.MARKED]
-	check(tiles.size() == SunflowerRiddle.block_count(), "ten blocks are planted (%d)" % tiles.size())
+	# Decode from where the light flowers stand: the number of the light flower in each patch, in reading order.
 	var found: Array[int] = []
-	var step: float = CropFields.SPACING[CropFields.RIDDLE]
-	for t: Dictionary in tiles:
-		check(t.count <= 1, "at most one light flower in a block")
-		if t.count == 0:
-			found.append(0)
-			continue
-		var at: Vector3 = (marked.spots[t.first] as Array)[0]
-		var ix := int(round((at.x - t.mid.x) / step)) + 2
-		var iz := int(round((at.z - t.mid.z) / step)) + 2
-		check(ix >= 0 and ix < 5 and iz >= 0 and iz < 5, "the light flower lies in its block")
-		found.append(iz * CropFields.BLOCK + ix + 1)
-	for t: Dictionary in fields._tiles[CropFields.RIDDLE]:
-		left += t.count
-	check(left + marked.spots.size() >= 250 - 4, "the blocks are full of flowers (%d)" % (left + marked.spots.size()))
+	for i in SunflowerRiddle.block_count():
+		found.append(0)
+	var corner := SunflowerRiddle.corner()
+	for s: Array in marked.spots:
+		var f := SunflowerRiddle.patch_flower(int(floor(s[0].x - corner.x)), int(floor(s[0].z - corner.y)))
+		check(not f.is_empty(), "a light flower lies in a patch")
+		if not f.is_empty():
+			check(found[f.patch] == 0, "at most one light flower in a patch")
+			found[f.patch] = f.number
 	check(found == marks, "the light flowers stand where the code says")
+	# The patches touch each other: the lattice has no gaps (every flower of the field but the ones at the post).
+	check(total == SunflowerRiddle.FIELD.size.x * SunflowerRiddle.FIELD.size.y * 16 - 1, "no gaps: only the flower at the post is missing (%d)" % total)
 	# The scarecrow stands in the middle of the field.
 	var ev: ValleyEvents = level.valley_events
 	check(ev._scare != null and ev._scare.position.is_equal_approx(centre), "the scarecrow stands in the field's middle")

@@ -12,7 +12,7 @@ func _initialize() -> void:
 	root.add_child(world)
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(60, 40)
+	plane.size = Vector2(100, 60)
 	ground.mesh = plane
 	var soil := StandardMaterial3D.new()
 	soil.albedo_color = Color(0.28, 0.2, 0.13)
@@ -29,7 +29,7 @@ func _initialize() -> void:
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color = Color(0.62, 0.64, 0.7)
 	world.add_child(env)
-	# The field lies around the origin, as on the map: tiles are 4 m.
+	# The field lies around the scarecrow, as on the map: tiles are 4 m.
 	var mids: Array = []
 	var origin := SunflowerRiddle.centre()
 	for c in SunflowerRiddle.cells():
@@ -42,8 +42,8 @@ func _initialize() -> void:
 	world.add_child(cam)
 	cam.make_current()
 	var views := {
-		"top": [Vector3(0, 30, 0.01), Vector3(0, 0, 0)],
-		"game": [Vector3(0, 19, 15), Vector3(0, 0, 0)],
+		"top": [Vector3(0, 48, 0.01), Vector3(0, 0, 0)],
+		"game": [Vector3(0, 30, 22), Vector3(0, 0, 0)],
 		"close": [Vector3(0, 4.5, 10), Vector3(0, 1.8, 0)],
 	}
 	var days := {"summer": Weather.SPRING_DAYS + 2, "autumn": Weather.AUTUMN_FROM + 1}

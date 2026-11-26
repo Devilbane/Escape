@@ -53,8 +53,10 @@ static func board() -> Node3D:
 		var label := Label3D.new()
 		label.text = NAME
 		label.font = FONT
-		label.font_size = 48
-		label.pixel_size = 0.0026
+		# A little soft, like paint on wood: drawn at lower resolution and filtered, not razor sharp.
+		label.font_size = 30
+		label.pixel_size = 0.0042
+		label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 		label.modulate = GILT
 		label.outline_size = 0
 		label.position = Vector3(0.0, -TALL + 0.1, z + side * 0.004)
@@ -63,6 +65,8 @@ static func board() -> Node3D:
 	wood.finish(root, Vector3.ZERO, true)
 	var lit := gilt.finish(root, Vector3.ZERO, false, true)
 	lit.name = "Gilding"
+	# Lit by itself, as bright as the lettering: the moon and star would otherwise go dull and rusty in shade.
+	lit.material_override = _gilt_material()
 	# Two iron rings on the top edge for the chains.
 	for x: float in [-WIDE * 0.28, WIDE * 0.28]:
 		var ring := TorusMesh.new()
@@ -107,3 +111,15 @@ static func on_wall(out := 1.15, across := true) -> Node3D:
 static func _bar(b: WeatheredProps.Builder, mid: Vector3, size: Vector2, angle: float) -> void:
 	var turn := Basis(Vector3.BACK, angle)
 	b.box(mid - turn * Vector3(0, size.y * 0.5, 0), Vector3(size.x, size.y, 0.012), GILT, WeatheredProps.FRESH, turn)
+
+
+static var _gilt: StandardMaterial3D
+
+
+## The gilding's material: unshaded, in the colour of the lettering (a Label3D is unshaded too).
+static func _gilt_material() -> StandardMaterial3D:
+	if _gilt == null:
+		_gilt = StandardMaterial3D.new()
+		_gilt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_gilt.albedo_color = GILT
+	return _gilt

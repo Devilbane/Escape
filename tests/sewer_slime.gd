@@ -70,6 +70,15 @@ func _run() -> void:
 	check(wet >= patches.size() - 2, "the middle of a patch is slime (%d of %d)" % [wet, patches.size()])
 	check(not SewerSlime.at(Vector3(pos_x(patches), 3.0, pos_z(patches))), "no slime up on the street")
 	# The outline is ragged: the share of a patch's square that is slime is far from a square's and a disc's.
+	# Sizes: every class is there, patches stay in their class's range, and every class is drawn at
+	# about the same pixels per metre, so a big puddle is as sharp as a small one.
+	var per_class := [0, 0, 0]
+	for p: Dictionary in patches:
+		var cls: Dictionary = SewerSlime.CLASSES[p.kind]
+		per_class[p.kind] += 1
+		check(p.size >= cls.size.x and p.size <= cls.size.y, "a patch keeps to its size class (%.1f m)" % p.size)
+		check(float(cls.tile) / p.size >= SewerSlime.PIXELS_PER_METRE_MIN, "a patch of %.1f m is drawn sharply (%d px)" % [p.size, cls.tile])
+	check(per_class[0] > 0 and per_class[1] > 0 and per_class[2] >= Sewers.ROOMS.size(), "small, medium and large patches all lie about (%s)" % str(per_class))
 	var p0: Dictionary = patches[0]
 	var inside := 0
 	var total := 0
@@ -95,7 +104,11 @@ func _run() -> void:
 	game._snap_camera()
 	await _wait(20)
 	var mesh: MeshInstance3D = level.find_child("SlimePatches", true, false)
-	check(mesh != null and mesh.mesh.surface_get_array_len(0) == patches.size() * 6, "the patches are one mesh")
+	var verts := 0
+	if mesh != null:
+		for k in mesh.mesh.get_surface_count():
+			verts += mesh.mesh.surface_get_array_len(k)
+	check(mesh != null and verts == patches.size() * 6, "the patches are one mesh, a surface per size class (%d vertices)" % verts)
 	check(game.player.speed > 0.0, "the hero is down there")
 	if shots != "":
 		var near := Sewers.cell_at(patches[0].pos)

@@ -337,6 +337,9 @@ var _pumpkin_clock := -1.0
 var at_home := false
 ## Where a customer sits in the barber's chair (see BarberChair): Benno turns to it and snips. INF when none.
 var customer_at := Vector3.INF
+## Where he stands beside the chair while there is a customer, and whether he snips (not while the customer picks).
+var snip_spot := Vector3.INF
+var snips := false
 ## The way to bed and out again in a house one can walk into, while it lasts (see VillageBeds).
 var bed_trip := {}
 ## The way to (or out of) her place behind a hall's counter, and that place (see VillagePosts).
@@ -2098,7 +2101,9 @@ func _next_task() -> void:
 			# With nothing to sweep he helps the farmers and looks for a girlfriend (see MatthesLife).
 			if role == MatthesLife.ROLE and MatthesLife.next(self):
 				return
-			if level.world_to_cell(global_position) != home:
+			if customer_at != Vector3.INF:
+				_start("work", 6.0) # A customer in the chair: he stays beside it.
+			elif level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
 				# In through the door to her place behind the counter (see VillagePosts).
@@ -2803,9 +2808,21 @@ func _do(task: String, delta: float) -> void:
 		_sow(delta)
 		return
 	var work: String = _job.get("anim", _info.work)
-	var snipping := customer_at != Vector3.INF and task == "work"
-	if snipping:
+	var serving := customer_at != Vector3.INF and task == "work"
+	if serving and Vector2(global_position.x - snip_spot.x, global_position.z - snip_spot.z).length() > 0.1:
+		# Round to his place beside the chair (see BarberChair).
+		var to := snip_spot - global_position
+		to.y = 0.0
+		var step := minf(_stride("Walking_A", WALK_SPEED) * delta, to.length())
+		global_position += to.normalized() * step
+		_turn_to(to, delta)
+		return
+	var snipping := serving and snips
+	if serving:
 		_turn_to(customer_at - global_position, delta)
+		if not snips:
+			play("Idle")
+			return
 	elif _job.has("face") and task == "work":
 		_turn_to((_job.face as Vector3) - global_position, delta)
 	if _anim.get_animation(work).loop_mode != Animation.LOOP_NONE:

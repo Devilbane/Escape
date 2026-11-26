@@ -43,7 +43,7 @@ func _run() -> void:
 	game.load_level(game._outdoor_index(), false)
 	await _wait(30)
 	var lvl: Outdoor = game.level
-	for sound in IceFish.PLOPS + IceFish.DIVES + ["water_ring"]:
+	for sound in IceFish.SPLASHES + IceFish.RIPPLES:
 		check(ResourceLoader.exists("res://assets/sounds/" + sound + ".wav"), "the sound %s exists" % sound)
 	game.ice_cover = 0.0
 	lvl.set_ice(0.0)

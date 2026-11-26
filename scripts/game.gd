@@ -6107,6 +6107,9 @@ func _hero_says(text: String) -> void:
 	if goto != null:
 		_goto_command(goto)
 		return
+	if LoadingScreen.is_command(text):
+		LoadingScreen.show_again(_hud)
+		return
 	if Godmode.is_command(text):
 		_toggle_godmode()
 		return

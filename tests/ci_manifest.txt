@@ -20,6 +20,7 @@ melee_path.gd | 60 | free | passfail | Melee pathfinding (monsters walk round wh
 save_seal.gd | 60 | free | pass | Save seals (an edited save is refused, old saves are sealed once)
 smooth_motion.gd | 240 | fixed | pass | Smooth running (bodies drawn between physics ticks)
 inventory_fixed_size.gd | 240 | free | pass | Inventory keeps its size (picking, tabs, equipping; both languages)
+gear_effects.gd | 120 | free | pass | Inventory bonus and malus tab: gear and weight rows match the hero's own stats, window keeps its size
 storage_fixed_size.gd | 240 | free | pass | Storage chest keeps its size (pointing at torches and other items; both languages)
 windows_fixed_size.gd | 300 | free | pass | Every window keeps one fixed size (trading, equipment, chests, workbenches; empty and full; both languages)
 events.gd | 240 | free | pass | Event bus test

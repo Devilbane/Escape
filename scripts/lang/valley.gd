@@ -41,7 +41,6 @@ const EN := {
 	"Hirte Moritz": "Moritz the Shepherd",
 	"Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.": "Counting sheep? I do that while awake. It doesn't help against tiredness.",
 	"Meine Schafe kennen jedes Gras im Tal beim Namen.": "My sheep know every blade of grass in the valley by name.",
-	"Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf.": "Stay on the path, or my dog will take you for a sheep.",
 	"Ich bin Bauer im Tal. Ich pflüge, säe und ernte Weizen, Mais und Sonnenblumen, und im Dorf kaufen sie es mir ab.": "I am a farmer in the valley. I plough, sow and harvest wheat, maize and sunflowers, and the village buys it from me.",
 	"Ich bin Bäuerin im Tal. Ich säe, jäte, hole Wasser und bringe die Ernte ein, und nebenbei koche ich.": "I am a farmer in the valley. I sow, weed, fetch water and bring in the harvest, and I cook on the side.",
 	"Ich bin Knecht auf dem Hof. Ich schleppe Säcke und Wasser, hacke Holz und flicke, was kaputt ist.": "I am the farmhand. I haul sacks and water, chop wood and mend whatever is broken.",

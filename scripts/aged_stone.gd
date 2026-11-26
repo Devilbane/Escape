@@ -1335,30 +1335,17 @@ static func _leaf(at: Vector3, n: Vector3, across: Vector3, rng: RandomNumberGen
 	leaves.colours.append(c * rng.randf_range(0.85, 1.15))
 
 
-## A round shrub of ivy-like leaves standing on the ground at `at`, now
-## and then in flower. Its leaves join the ivy's (one MultiMesh for both). Returns its radius.
-static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionary) -> float:
-	var radius := rng.randf_range(0.8, 1.5)
-	var tall := radius * rng.randf_range(0.7, 1.05)
-	var count := int(50 + radius * 80)
-	var flowers: Color = [Color(0.9, 0.5, 0.6), Color(0.95, 0.9, 0.85), Color(0.95, 0.8, 0.3), Color(0.7, 0.55, 0.9)][rng.randi() % 4]
-	var in_flower := rng.randf() < 0.35
-	for i in count:
-		# A spot on the dome, the leaf looking out from its middle.
-		var a := rng.randf() * TAU
-		var up := sqrt(rng.randf())
-		var out := Vector3(cos(a) * sqrt(1.0 - up * up), up, sin(a) * sqrt(1.0 - up * up)).normalized()
-		var p := at + Vector3(out.x * radius, out.y * tall + 0.05, out.z * radius) * rng.randf_range(0.55, 1.0)
-		var across := Vector3.UP.cross(out)
-		across = across.normalized() if across.length() > 0.01 else Vector3.RIGHT
-		var s := rng.randf_range(LEAF_SIZE.x, LEAF_SIZE.y) * 1.5
-		var b := Basis(across, out.cross(across), out).rotated(out, rng.randf_range(-PI, PI))
-		leaves.xforms.append(Transform3D(b.scaled(Vector3(s, s, s)), p))
-		var c: Color = LEAF_COLOURS[rng.randi() % (LEAF_COLOURS.size() - 1)] * rng.randf_range(0.8, 1.1)
-		if in_flower and out.y > 0.3 and rng.randf() < 0.18:
-			c = flowers * rng.randf_range(0.85, 1.05)
-		leaves.colours.append(c)
-	return radius
+## A shrub standing on the ground at `at`, of one of the many kinds (see BushKinds), now and then in
+## flower or berry. Its leaves join `leaves` (one MultiMesh per leaf shape and map tile); an evergreen's go
+## to `evergreen_into` instead, which never sheds. `recent` holds the last bushes' kinds, so neighbours
+## differ. Returns its radius.
+static func grow_bush(at: Vector3, rng: RandomNumberGenerator, leaves: Dictionary, evergreen_into := {}, recent := []) -> float:
+	return BushKinds.grow(at, rng, leaves, evergreen_into if not evergreen_into.is_empty() else leaves, recent)
+
+
+## A shrub of kind number `index` (see BushKinds.KINDS), for the tests and pictures.
+static func grow_bush_kind(index: int, at: Vector3, rng: RandomNumberGenerator, leaves: Dictionary) -> float:
+	return BushKinds.grow_kind(index, at, rng, leaves)
 
 
 ## A little ivy on a round basin (the village fountain) standing on the ground
@@ -1433,6 +1420,7 @@ static func ivy_node(leaves: Dictionary) -> Node3D:
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visibility_range_end = LEAF_RANGE
 		root.add_child(node)
+	BushKinds.nodes_into(root, leaves)
 	_stems_into(root, leaves)
 	_grapes_into(root, leaves)
 	return root

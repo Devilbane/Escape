@@ -300,7 +300,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND, Beekeeper.KIND]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -690,6 +690,7 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Monitor.apply(get_window())
 	Graphics.load_settings()
 	Graphics.apply(get_viewport())
 	Sfx.load_settings()
@@ -8463,6 +8464,7 @@ func _process(delta: float) -> void:
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			Mill.KIND: Lang.t("Dagegenlaufen, um bei %s Körner zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			Beekeeper.KIND: Lang.t("Dagegenlaufen, um bei %s Honig zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"raumausstatter": Lang.t("Dagegenlaufen, um bei %s Möbel zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"schmied": Lang.t("Dagegenlaufen, um mit %s an der Esse zu arbeiten") % station.npc.display_name if station.has("npc") else "",

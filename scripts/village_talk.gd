@@ -91,6 +91,7 @@ const GOALS := {
 	"χ": "Will Säcke tragen, ohne je auf eine Leiter zu müssen.",
 	"ω": "Will überall im Tal hinlaufen, nur nicht nach Hause.",
 	"λ": "Will, dass seine Schafe heil durch den Tag kommen und nie wieder eines verloren geht.",
+	"β": "Will, dass sein Honig im ganzen Land bekannt wird, und dass kein Besucher mehr Angst vor seinen Bienen hat.",
 	"ö": "Will das beste Bier im Tal brauen und Fritz dazu bringen, seine Zeche zu zahlen.",
 }
 

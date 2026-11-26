@@ -209,6 +209,8 @@ const OUTDOOR := {
 	"χ": "farmhand Veit of the valley",
 	"ω": "Lotte, the farmer's daughter",
 	"λ": "shepherd Moritz, who minds the valley's sheep",
+	"β": "Imker Ambrosius, the beekeeper of the valley: he works among the hives and sells honey (see Beekeeper)",
+	"ħ": "bee hives: a straw skep and a painted box hive side by side, solid, with the bees of the apiary and the flower meadow round them (see Apiary)",
 	"κ": "Kletterer Wolfram, the rock climber on the mountainside east of the stream: he stands at the foot of the face and climbs it all day (see ClimberNpc)",
 	"K": "herald of the crown",
 	"¢": "clerk of the land registry (Amtmann Gero, see PlotOffice)",

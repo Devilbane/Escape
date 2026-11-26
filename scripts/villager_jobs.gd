@@ -41,6 +41,7 @@ const JOBS := {
 	"χ": "Ich bin Knecht auf dem Hof. Ich schleppe Säcke und Wasser, hacke Holz und flicke, was kaputt ist.",
 	"ω": "Meine Arbeit? Ich helfe Mama! Und ich jage die Krähen!",
 	"κ": "Ich bin Kletterer. Ich steige die Wand dort hinauf, ruhe oben aus und steige wieder ab. Jeden Tag, bei jedem Wetter.",
+	"β": "Ich bin Imker. Ich pflege die Stöcke, sehe nach dem Schwärmen und verkaufe den besten Honig im Tal.",
 	"λ": "Ich bin Hirte. Ich hüte die Schafe im Tal und achte darauf, dass keins im Mais landet.",
 	"%": "Ich bin Wanderhändler. Ich komme jede dritte Nacht mit seltenen Waren ins Dorf.",
 }

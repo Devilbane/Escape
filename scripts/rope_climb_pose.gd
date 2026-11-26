@@ -7,8 +7,8 @@ extends RefCounted
 
 const POSES := {
 	"hang": {"hips_y": -0.05, "spine": 6.0, "head": -22.0, "arm": 168.0, "elbow": 8.0, "hip_l": 22.0, "hip_r": 8.0, "knee_l": 42.0, "knee_r": 58.0, "abd_l": 16.0, "abd_r": 16.0},
-	"reach_l": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_l": 0.0, "out_l": 75.0, "lift_l": 75.0, "elbow_l": 0.0, "arm_r": 128.0, "elbow_r": 62.0, "hip_l": 6.0, "hip_r": 10.0, "knee_l": 8.0, "knee_r": 12.0, "abd_l": 14.0, "abd_r": 24.0},
-	"reach_r": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_r": 0.0, "out_r": 75.0, "lift_r": 75.0, "elbow_r": 0.0, "arm_l": 128.0, "elbow_l": 62.0, "hip_l": 10.0, "hip_r": 6.0, "knee_l": 12.0, "knee_r": 8.0, "abd_l": 24.0, "abd_r": 14.0},
+	"reach_l": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 45.0, "elbow_l": 0.0, "arm_r": 128.0, "elbow_r": 62.0, "hip_l": 6.0, "hip_r": 10.0, "knee_l": 8.0, "knee_r": 12.0, "abd_l": 14.0, "abd_r": 24.0},
+	"reach_r": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 45.0, "elbow_r": 0.0, "arm_l": 128.0, "elbow_l": 62.0, "hip_l": 10.0, "hip_r": 6.0, "knee_l": 12.0, "knee_r": 8.0, "abd_l": 24.0, "abd_r": 14.0},
 	# Looking up for the next hold (a real climber pauses here, still, with the weight on the feet).
 	# The wind-up before a push or a reach: sink down, bend both knees deep, arms straight.
 	"sink": {"hips_y": -0.16, "spine": 10.0, "head": -30.0, "arm": 170.0, "elbow": 6.0, "hip_l": 62.0, "hip_r": 58.0, "knee_l": 96.0, "knee_r": 92.0, "abd_l": 26.0, "abd_r": 26.0},
@@ -16,10 +16,10 @@ const POSES := {
 	"hop": {"hips_y": 0.06, "spine": 2.0, "head": -26.0, "arm": 178.0, "elbow": 0.0, "hip_l": 6.0, "hip_r": 4.0, "knee_l": 6.0, "knee_r": 4.0, "abd_l": 14.0, "abd_r": 14.0},
 	# The rock-over (see the sketch in docs/climbing_animation_sheet.md): a foot stepped high with the knee out
 	# wide (the frog stance), then the hips pushed in over that foot and the body stood up on it.
-	"frog_l": {"hips_y": -0.1, "spine": 8.0, "head": -26.0, "arm_l": 0.0, "out_l": 75.0, "lift_l": 75.0, "elbow_l": 0.0, "arm_r": 130.0, "elbow_r": 50.0, "hip_l": 100.0, "knee_l": 112.0, "abd_l": 85.0, "hip_r": 6.0, "knee_r": 6.0, "abd_r": 24.0},
-	"frog_r": {"hips_y": -0.1, "spine": 8.0, "head": -26.0, "arm_r": 0.0, "out_r": 75.0, "lift_r": 75.0, "elbow_r": 0.0, "arm_l": 130.0, "elbow_l": 50.0, "hip_r": 100.0, "knee_r": 112.0, "abd_r": 85.0, "hip_l": 6.0, "knee_l": 6.0, "abd_l": 24.0},
-	"rock_l": {"hips_y": 0.04, "spine": 16.0, "head": -20.0, "arm_l": 0.0, "out_l": 75.0, "lift_l": 75.0, "elbow_l": 0.0, "arm_r": 120.0, "elbow_r": 70.0, "hip_l": 62.0, "knee_l": 72.0, "abd_l": 44.0, "hip_r": -4.0, "knee_r": 4.0, "abd_r": 14.0},
-	"rock_r": {"hips_y": 0.04, "spine": 16.0, "head": -20.0, "arm_r": 0.0, "out_r": 75.0, "lift_r": 75.0, "elbow_r": 0.0, "arm_l": 120.0, "elbow_l": 70.0, "hip_r": 62.0, "knee_r": 72.0, "abd_r": 44.0, "hip_l": -4.0, "knee_l": 4.0, "abd_l": 14.0},
+	"frog_l": {"hips_y": -0.1, "spine": 8.0, "head": -26.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 45.0, "elbow_l": 0.0, "arm_r": 130.0, "elbow_r": 50.0, "hip_l": 100.0, "knee_l": 112.0, "abd_l": 85.0, "hip_r": 6.0, "knee_r": 6.0, "abd_r": 24.0},
+	"frog_r": {"hips_y": -0.1, "spine": 8.0, "head": -26.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 45.0, "elbow_r": 0.0, "arm_l": 130.0, "elbow_l": 50.0, "hip_r": 100.0, "knee_r": 112.0, "abd_r": 85.0, "hip_l": 6.0, "knee_l": 6.0, "abd_l": 24.0},
+	"rock_l": {"hips_y": 0.04, "spine": 16.0, "head": -20.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 45.0, "elbow_l": 0.0, "arm_r": 120.0, "elbow_r": 70.0, "hip_l": 62.0, "knee_l": 72.0, "abd_l": 44.0, "hip_r": -4.0, "knee_r": 4.0, "abd_r": 14.0},
+	"rock_r": {"hips_y": 0.04, "spine": 16.0, "head": -20.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 45.0, "elbow_r": 0.0, "arm_l": 120.0, "elbow_l": 70.0, "hip_r": 62.0, "knee_r": 72.0, "abd_r": 44.0, "hip_l": -4.0, "knee_l": 4.0, "abd_l": 14.0},
 	"look": {"hips_y": -0.05, "spine": 8.0, "head": -40.0, "arm": 168.0, "elbow": 8.0, "hip_l": 22.0, "hip_r": 8.0, "knee_l": 42.0, "knee_r": 58.0, "abd_l": 16.0, "abd_r": 16.0},
 	"pull": {"hips_y": 0.04, "spine": 20.0, "chest": 6.0, "head": -14.0, "arm": 112.0, "elbow": 100.0, "hip_l": 62.0, "hip_r": 20.0, "knee_l": 96.0, "knee_r": 52.0, "abd_l": 26.0, "abd_r": 20.0},
 	"push": {"hips_y": 0.08, "spine": 10.0, "head": -18.0, "arm": 150.0, "elbow": 25.0, "hip_l": 30.0, "hip_r": 14.0, "knee_l": 60.0, "knee_r": 30.0, "abd_l": 18.0, "abd_r": 18.0},

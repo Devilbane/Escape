@@ -5,7 +5,7 @@ config_version=5
 [application]
 
 config/name="Escape!"
-config/description="Entkomme aus dem Verlies."
+config/description="A Tale of Valor and Mysteries!"
 config/icon="res://assets/logo/app_icon.png"
 run/main_scene="res://scenes/main.tscn"
 run/main_scene.launcher="res://scenes/launcher.tscn"

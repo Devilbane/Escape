@@ -2,7 +2,6 @@ extends RefCounted
 ## English texts: Title, name, ranking. Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
-	"Entkomme aus dem Verlies": "Escape from the dungeon",
 	"Sprache wählen": "Choose your language",
 	"Spielstand laden": "Load saved game",
 	"Laden": "Load",

@@ -9,6 +9,7 @@ var shots := OS.get_environment("SHOTS")
 
 
 func _initialize() -> void:
+	Storage.use(Storage.Memory.new())
 	Lang.language = "en"
 	game = load("res://scenes/main.tscn").instantiate()
 	root.add_child(game)

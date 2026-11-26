@@ -2,6 +2,7 @@ extends RefCounted
 ## English for the farming valley south of the village (see RiverBridge and the map "Apfeltal").
 
 const EN := {
+	"Die Tür ist verriegelt. Drinnen schläft jemand.": "The door is bolted. Someone is asleep inside.",
 	"Brücke": "Bridge",
 	"Quellwasserfall des Flusses": "The river's spring waterfall",
 	"Lotte, die Tochter der Bauern": "Lotte, the farmers' daughter",

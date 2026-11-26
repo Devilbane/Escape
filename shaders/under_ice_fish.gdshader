@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
+render_mode blend_mix, depth_draw_never, cull_disabled;
 #include "res://shaders/gl_colour.gdshaderinc"
 // A fish seen from above (see IceFish), drawn on a flat strip: a tapered body, a forked tail, two pectoral fins,
 // an eye and a gill line, a dark back with a pale flank, bars and fine scales. The strip lies along z with the
@@ -86,9 +86,13 @@ void fragment() {
 	col = mix(col, fin_col, is_fin);
 	// Seen through a little water: lit up and lightly tinted.
 	float open_water = 1.0 - cover;
-	col = mix(col, col * 1.3 + vec3(0.03, 0.04, 0.03), open_water);
+	col = mix(col, col * 0.9, open_water);
 	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.3, 0.32, cover));
 	ALPHA = mix(open_veil, veil, cover) * fade * (1.0 - is_fin * 0.22);
 	ALBEDO = col;
+	// Lit like the water round it: dim at dusk and dark at night, no glow of its own.
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.0;
+	METALLIC = 0.0;
 	ALBEDO = gl_colour(ALBEDO);
 }

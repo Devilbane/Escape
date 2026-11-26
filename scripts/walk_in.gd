@@ -35,6 +35,8 @@ const COVER_HEAD := 1.7
 const COVER_LINGER := 0.4
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
+## How far over or under a door's foot (metres) a hero still counts as at it: well under a storey.
+const DOOR_LEVEL := 1.5
 ## The doorway as wide as the walls stop the hero (wider than the leaf, so the hero, 1.1 m across,
 ## walks straight through with 0.2 m to spare on each side and is never nudged by the frame).
 const DOOR_GAP := 1.5
@@ -1418,21 +1420,37 @@ func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
 	rec.push = float(rec.push) - delta
 	rec["lock_wait"] = float(rec.get("lock_wait", 0.0)) - delta
 	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
-	var near: bool = Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH
+	# On the door's own level only: the spot a floor above it (the tower's stairs) opens nothing.
+	var near: bool = Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH and absf(hero_at.y - door.y) < DOOR_LEVEL
 	# A hall without its keeper inside and awake is locked, unless the hero is inside it already
 	# (they are never shut in).
-	var locked: bool = lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec)
+	# A farm's door is bolted too while its farmer sleeps (see farmer_asleep).
+	var asleep: bool = lock_halls and hero_in.get("node") != rec.node and farmer_asleep(rec)
+	var locked: bool = asleep or (lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec))
 	rec["locked"] = locked
 	if near and locked:
 		if float(rec.lock_wait) <= 0.0:
 			rec.lock_wait = LOCKED_EVERY
-			Events.tell(Lang.t("Die Tür ist verschlossen. Ihr Besitzer ist nicht da."), Color(1.0, 0.8, 0.5), 2.5)
+			Events.tell(Lang.t("Die Tür ist verriegelt. Drinnen schläft jemand.") if asleep \
+					else Lang.t("Die Tür ist verschlossen. Ihr Besitzer ist nicht da."), Color(1.0, 0.8, 0.5), 2.5)
 	elif near and rec.push <= 0.0:
 		rec.push = PUSH_EVERY
 		(leaf as HouseDoor).swing()
 	var shape: CollisionShape3D = rec.get("door_shape")
 	if shape:
 		shape.disabled = (leaf as HouseDoor).openness() > 0.25 and not locked
+
+
+## Whether `rec` is a house of the farming valley (see Outdoor.VALLEY_FROM) with a farmer asleep in it:
+## its door stays locked from the moment they lie down until they get up.
+func farmer_asleep(rec: Dictionary) -> bool:
+	if rec.kind != "house" or (rec.block as Rect2i).position.y < Outdoor.VALLEY_FROM:
+		return false
+	for bed: Dictionary in rec.get("beds", []):
+		var by = bed.get("by")
+		if by is Villager and is_instance_valid(by) and (by as Villager).is_asleep():
+			return true
+	return false
 
 
 ## The roof of a house or hall that hides the hero behind it from the camera, head to foot, is

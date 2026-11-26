@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Climbing wall: sounds for tar, edelweiss and the mine door | Shipped this week: Loading screen: key art picture with patch notes below; Climbing wall: glossy wet mountain tar (+48 more)
+Escape! dev status | Working on: Climbing wall: fix the climber's facing and hammock pose, spot sounds | Shipped this week: Loading screen: key art picture with patch notes below; Climbing wall: glossy wet mountain tar (+48 more)

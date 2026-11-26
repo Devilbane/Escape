@@ -171,4 +171,8 @@ from scratch by tools/make_water_sounds.py.
 The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from scratch by tools/make_goose_sounds.py
 (a buzzing pulse train through nasal formants, no recordings), so they have no licence to credit.
 
+The crows' caws and the clatter of their wings taking off (crow_caw_0 to crow_caw_4, crow_flutter): synthesised from scratch by
+tools/make_crow_sounds.py (a rough pulse train through throaty formants; bursts of filtered noise for the wing beats), no
+recordings, so they have no licence to credit (public domain, CC0).
+
 Scissor snips (snip_0 to snip_2): synthesised from scratch by tools/make_snip_sounds.py (no recordings).

@@ -326,6 +326,9 @@ var save_notice: SaveNotice
 ## Frames per second, CPU and GPU time and ping under it, shown with F1 (see PerfOverlay).
 var perf_overlay: PerfOverlay
 var _level_label: Label
+## The hero's tile coordinates under the life bar, shown with F2 (see HeroCoords).
+var _coords_label: Label
+var show_coords := false
 var _moon_icon: MoonIcon
 var _season_icon: SeasonIcon
 var _season_shown := ""
@@ -1600,6 +1603,10 @@ func _setup_hud() -> void:
 	_status_row.add_theme_constant_override("separation", 4)
 	_status_row.theme = tips
 	_hud.add_child(_status_row)
+	_coords_label = _make_label(TEXT_FONT, 16, Color(0.85, 0.85, 0.78))
+	_coords_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_coords_label.visible = false
+	_hud.add_child(_coords_label)
 	_ammo_row = HBoxContainer.new()
 	_ammo_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ammo_row.add_theme_constant_override("separation", 0)
@@ -6536,6 +6543,7 @@ func _place_hp_bar() -> void:
 	_hp_bar.visible = on_screen
 	_status_row.visible = on_screen
 	_ammo_row.visible = on_screen
+	_coords_label.visible = on_screen and show_coords
 	if not on_screen:
 		return
 	var screen := _hud.get_viewport().get_visible_rect().size
@@ -6543,6 +6551,11 @@ func _place_hp_bar() -> void:
 	# Under the bar from its left edge: the ammunition, then the troubles.
 	_ammo_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 	_status_row.position = _ammo_row.position + Vector2(AMMO_SLOT.x * AMMO.size() + AMMO_GAP, 0)
+	# F2: one line under the ammunition, from the bar's left edge. It grows to the right and
+	# has its own spot, so it moves nothing else.
+	if show_coords:
+		_coords_label.text = HeroCoords.line(level, player.global_position)
+		_coords_label.position = _ammo_row.position + Vector2(0, AMMO_SLOT.y + 4)
 
 
 ## Writes the ammunition counts under the life bar; an empty kind is dimmed.
@@ -8566,6 +8579,11 @@ func _input(event: InputEvent) -> void:
 	# window, while typing in the chat line.
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F1 and perf_overlay != null:
 		perf_overlay.toggle()
+		get_viewport().set_input_as_handled()
+		return
+	# F2 shows or hides the hero's coordinates under the life bar.
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F2 and _coords_label != null:
+		show_coords = not show_coords
 		get_viewport().set_input_as_handled()
 		return
 	# Letting go of the mouse ends a drag in the blueprint tool (a wall, a

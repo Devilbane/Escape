@@ -71,3 +71,11 @@ static func summit_of(wall: WallMap) -> Array:
 		return []
 	var parts := wall.summit.split(":", true, 1)
 	return [parts[0].strip_edges(), parts[1].strip_edges() if parts.size() > 1 else ""]
+
+
+## `door` ("level file:place") as [level file, place]; an empty Array without one.
+static func door_of(wall: WallMap) -> Array:
+	if wall.door == "":
+		return []
+	var parts := wall.door.split(":", true, 1)
+	return [parts[0].strip_edges(), parts[1].strip_edges() if parts.size() > 1 else ""]

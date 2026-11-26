@@ -350,6 +350,11 @@ func decor_at(c: int, r: int) -> Vector3:
 		return Vector3(-1, -1, 0)
 	if _hash(c * 29 + 3, r * 31 + 7) > DECOR_SHARE:
 		return Vector3(-1, -1, 0)
+	# Keep clear of the special spots (tar, edelweiss, door) so they are seen.
+	for dr in range(-1, 2):
+		for dc in range(-1, 2):
+			if map.marker_at(c + dc, r + dr) in ["tar", "edelweiss", "door"]:
+				return Vector3(-1, -1, 0)
 	var h1 := _hash(c * 7 + 1, r * 5 + 2)
 	var h2 := _hash(c * 11 + 5, r * 3 + 9)
 	var centre := square_centre(map, c, r)

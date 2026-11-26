@@ -188,7 +188,7 @@ static var ALL := {
 	"banditendolch": {"name": "Banditendolch", "slot": "auftrag", "weight": 0.5, "price": 2, "no_loot": true, "model": "res://assets/weapons/dagger.gltf", "material": "mixed", "effect": "Für Krämerin Miras Auftrag"},
 	"mehlsack": {"name": "Mehlsack", "slot": "auftrag", "weight": 1.0, "price": 1, "no_loot": true, "effect": "Für Fritz im Wirtshaus"},
 	# The bell of the owl clock riddle (see OwlClock): crafted at the fine metalwork bench, rung with key 3.
-	"totenlaeuter": {"name": "Totenläuter", "slot": "auftrag", "weight": 1.5, "price": 1, "no_loot": true, "unique": true, "effect": "Einzigartig: Taste 3 läutet die Glocke. Die Toten hören zu, wenn man sie nicht zu oft ruft"},
+	"totenlaeuter": {"name": "Totenläuter", "slot": "auftrag", "weight": 1.5, "price": 1, "no_loot": true, "crafted": true, "unique": true, "effect": "Einzigartig: Taste 3 läutet die Glocke. Die Toten hören zu, wenn man sie nicht zu oft ruft"},
 	# What Owlav's crypt holds (see OwlClock): never found anywhere else.
 	"eulenamulett": {"name": "Owlavs Lauschamulett", "slot": "amulett", "weight": 0.2, "hp": 3, "power": 1, "speed": 0.05, "magic": true, "price": 150, "no_loot": true, "unique": true, "effect": "Einzigartig: aus der Gruft des Mannes, der der Nacht lauschte"},
 	"brief": {"name": "Brief aus der Hauptstadt", "slot": "auftrag", "weight": 0.1, "price": 1, "no_loot": true, "effect": "Für Dorfvorsteher Aldo"},

@@ -54,33 +54,39 @@ func _test() -> void:
 	# Decode: for each block in reading order, the light flower's place in the block.
 	var tiles: Array = fields._tiles[CropFields.MARKED]
 	check(tiles.size() == SunflowerRiddle.block_count(), "ten blocks are planted (%d)" % tiles.size())
-	var text := ""
+	var found: Array[int] = []
 	var step: float = CropFields.SPACING[CropFields.RIDDLE]
 	for t: Dictionary in tiles:
 		check(t.count <= 1, "at most one light flower in a block")
 		if t.count == 0:
-			text += " "
+			found.append(0)
 			continue
 		var at: Vector3 = (marked.spots[t.first] as Array)[0]
 		var ix := int(round((at.x - t.mid.x) / step)) + 2
 		var iz := int(round((at.z - t.mid.z) / step)) + 2
 		check(ix >= 0 and ix < 5 and iz >= 0 and iz < 5, "the light flower lies in its block")
-		text += char(96 + iz * CropFields.BLOCK + ix + 1)
+		found.append(iz * CropFields.BLOCK + ix + 1)
 	for t: Dictionary in fields._tiles[CropFields.RIDDLE]:
 		left += t.count
 	check(left + marked.spots.size() >= 250 - 4, "the blocks are full of flowers (%d)" % (left + marked.spots.size()))
-	check(SunflowerRiddle.is_answer(text), "the planted flowers decode to the riddle's words")
+	check(found == marks, "the light flowers stand where the code says")
 	# The scarecrow stands in the middle of the field.
 	var ev: ValleyEvents = level.valley_events
 	check(ev._scare != null and ev._scare.position.is_equal_approx(centre), "the scarecrow stands in the field's middle")
-	# Saying it: case and spaces do not matter, but it must be said by the scarecrow.
-	check(SunflowerRiddle.is_answer(text.to_upper()) and SunflowerRiddle.is_answer(text.replace(" ", "")) and SunflowerRiddle.is_answer("  " + text + "!"), "case, spaces and marks do not matter")
-	check(not SunflowerRiddle.is_answer("") and not SunflowerRiddle.is_answer(text.substr(0, 5)) and not SunflowerRiddle.is_answer("hallo"), "other words are no answer")
+	# Saying it: the test brings words of its own. Case, spaces and marks do not matter, but it must be said by the scarecrow.
+	var text := "open sesame"
+	SunflowerRiddle.test_hash = "opensesame".sha256_text()
+	check(SunflowerRiddle.is_answer(text.to_upper()) and SunflowerRiddle.is_answer("opensesame") and SunflowerRiddle.is_answer("  " + text + "!"), "case, spaces and marks do not matter")
+	check(not SunflowerRiddle.is_answer("") and not SunflowerRiddle.is_answer("open") and not SunflowerRiddle.is_answer("hallo"), "other words are no answer")
+	SunflowerRiddle.test_hash = ""
+	check(not SunflowerRiddle.is_answer(text), "the test's words are no answer in the game")
+	SunflowerRiddle.test_hash = "opensesame".sha256_text()
 	game._message.text = ""
 	Events.hero_says(text, centre + Vector3(30, 0, 0))
 	check(game._message.text != SunflowerRiddle.CONGRATS, "far from the scarecrow nothing happens")
 	Events.hero_says(text, centre + Vector3(-3, 0, 4))
 	check(game._message.text == SunflowerRiddle.CONGRATS, "by the scarecrow the words are rewarded: %s" % game._message.text)
+	SunflowerRiddle.test_hash = ""
 	check(level.sunflower_riddle._busy > 0.0, "the fireworks are on")
 	# The code only shows with heads: summer and autumn.
 	var seasons := {"spring": 3, "summer": Weather.SPRING_DAYS + 2, "autumn": Weather.AUTUMN_FROM + 1, "winter": Weather.YEAR_DAYS - 1}

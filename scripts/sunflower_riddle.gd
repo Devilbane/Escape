@@ -1,18 +1,16 @@
 class_name SunflowerRiddle
 extends Node3D
 ## The sunflower riddle of the farming valley: ten tiles of sunflowers (a block of 5 x 5 plants each, see
-## CropFields.RIDDLE) form a code, with the scarecrow standing in the middle of the field. Read the blocks like a
-## book, left to right and top to bottom; each block has at most one flower whose seed disc is light brown, and
-## the number of that flower (also counted like a book, 1 to 25) is the place of a letter in the alphabet. A block
-## without a light flower is a gap between two words.
+## CropFields.RIDDLE) form a code, with the scarecrow standing in the middle of the field.
 ##
-## Standing by the scarecrow and saying the words in the chat line (see ChatLine) sets off fireworks over the field
-## and a message. Any number of times.
+## Standing by the scarecrow and saying the right words in the chat line (see ChatLine) sets off fireworks over the
+## field and a message. Any number of times.
 ##
 ## Seasons: the heads stand up and show the code in summer and autumn; spring is the young plants and winter the cut
 ## stalks, with no heads to read. The words work in every season.
 ##
-## Nothing in the game's texts, the compendium or the patch notes gives the words away.
+## The answer is kept out of the game's texts, the compendium, the patch notes, the tests and this repository: the
+## code is stored scrambled and the answer only as a hash.
 
 ## The tiles of the riddle field on the valley map "Apfeltal": columns and rows of blocks.
 const FIELD := Rect2i(59, 88, 5, 2)
@@ -31,16 +29,20 @@ var _busy := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
-## The words of the riddle: the code spells them, the chat line must say them.
-static func _words() -> String:
-	return "".join(PackedStringArray(["rid", "dle", " ", "one"]))
+## The code, one number per block in reading order, scrambled (see marks()), and the hash of the answer. The answer
+## itself is nowhere in the game or the repository, only what a said line must hash to (see is_answer()).
+const CODE := "SFNeXlZfWlVUXw=="
+const MASK := 0x5a
+## Lets a test stand in for the answer with some words of its own (the hash of their plain form); "" is the real one.
+static var test_hash := ""
+const ANSWER_HASH := "6e4b5a01eba4f9aca74d6f92fa8cef1ea1e4959b579a68ff5181b1001f195fd6"
 
 
 ## The code: for each block in reading order, the number (1 to 25) of its light flower, 0 for a block without one.
 static func marks() -> Array[int]:
 	var out: Array[int] = []
-	for ch in _words():
-		out.append(0 if ch == " " else ch.unicode_at(0) - 96)
+	for v in Marshalls.base64_to_raw(CODE):
+		out.append(v ^ MASK)
 	return out
 
 
@@ -60,7 +62,7 @@ static func is_answer(text: String) -> bool:
 	for ch in text.to_lower():
 		if ch >= "a" and ch <= "z":
 			plain += ch
-	return plain == _words().replace(" ", "")
+	return plain.sha256_text() == (test_hash if test_hash != "" else ANSWER_HASH)
 
 
 ## The cells of the field's tiles, for the map.

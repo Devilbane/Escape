@@ -238,5 +238,5 @@ flower_beds.gd | 120 | free | passfail | Flower beds in the valley lane (at the 
 slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring rain, storm or fog and retreat to the pond when it clears or the season turns
 crows.gd | 120 | free | crows:_OK | Crows on the farm fields (autumn and winter, by day; peck, take off with caws when the hero comes close, circle, land on another field, land at once when he leaves)
 owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)
-sunflower_riddle.gd | 120 | fixed | pass | The sunflower riddle (the planted flowers decode to the words, scarecrow in the middle, words by the scarecrow set off the fireworks)
+sunflower_riddle.gd | 120 | fixed | pass | The sunflower riddle (the planted flowers match the code, scarecrow in the middle, the right words by the scarecrow set off the fireworks)
 sunflower_riddle_shots.gd | 90 | free | pass | The sunflower riddle's field and fireworks (screenshots with SHOTS)

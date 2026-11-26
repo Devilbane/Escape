@@ -1,0 +1,1 @@
+- The title screen has a Climbing wall workshop button next to the Map workshop.

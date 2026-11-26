@@ -797,6 +797,12 @@ func back_to_editor() -> void:
 	get_tree().change_scene_to_file(EDITOR_SCENE)
 
 
+## Leaves the title screen for the climbing wall workshop (its editor and the climbing simulation).
+func open_wall_workshop() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/wall_workshop.tscn")
+
+
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
 func _start_level() -> int:
 	if OS.has_feature("web"):
@@ -1875,7 +1881,7 @@ func _setup_hud() -> void:
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game], [Lang.t("Karten-Werkstatt"), back_to_editor]]:
+	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game], [Lang.t("Karten-Werkstatt"), back_to_editor], [Lang.t("Kletterwand-Werkstatt"), open_wall_workshop]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)

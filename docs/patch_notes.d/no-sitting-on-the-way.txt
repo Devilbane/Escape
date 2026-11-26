@@ -1,0 +1,1 @@
+- A chair brushed while walking a clicked route no longer makes the hero sit down (the mage tower's library on the way down).

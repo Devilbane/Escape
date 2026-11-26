@@ -18,7 +18,7 @@ func _initialize() -> void:
 		var spot := WallSpots.build(kind, 7)
 		check(spot != null and spot.get_child_count() > (1 if kind == "secret" else 3), "%s builds a scene with parts" % kind)
 		if kind == "secret" and spot != null:
-			var slab := spot.get_node_or_null("Pivot/Slab") as MeshInstance3D
+			var slab := spot.get_node_or_null("Pivot/Slab") as Node3D
 			check(slab != null, "the hidden door is a slab of rock on a pivot")
 			check(bool(WallMap.MARKERS.secret.get("hidden", false)), "the hidden door has no sign")
 			spot.free()

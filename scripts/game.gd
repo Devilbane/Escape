@@ -326,6 +326,10 @@ var save_notice: SaveNotice
 ## Frames per second, CPU and GPU time and ping under it, shown with F1 (see PerfOverlay).
 var perf_overlay: PerfOverlay
 var _level_label: Label
+var _moon_icon: MoonIcon
+var _season_icon: SeasonIcon
+var _season_shown := ""
+var _moon_shown := -2
 ## The copper coins (the money) on the HUD; the silver and gold coins of the
 ## purse are counted after it (see _update_purse).
 var _coin_label: Label
@@ -1547,8 +1551,20 @@ func _setup_hud() -> void:
 	var left := VBoxContainer.new()
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(left)
+	var level_row := HBoxContainer.new()
+	level_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	level_row.add_theme_constant_override("separation", 10)
+	left.add_child(level_row)
+	# The season as a picture, then tonight's moon (see _update_season_icon, _update_moon_icon).
+	_season_icon = SeasonIcon.make(Weather.SUMMER)
+	_season_icon.visible = false
+	level_row.add_child(_season_icon)
+	# Tonight's moon as a picture in front of the location name (see _update_moon_icon).
+	_moon_icon = MoonIcon.make(Moon.FULL)
+	_moon_icon.visible = false
+	level_row.add_child(_moon_icon)
 	_level_label = _make_label(TEXT_FONT, 26, GOLD)
-	left.add_child(_level_label)
+	level_row.add_child(_level_label)
 	# Life as a bar under the hero's feet, its fill the share of life left,
 	# MMO-style: a glossy red in a bronze rim, a heart at its left end. It
 	# has one fixed size, so nothing moves as life changes.
@@ -1789,6 +1805,7 @@ func _setup_hud() -> void:
 	add_child(save_notice)
 	perf_overlay = PerfOverlay.new()
 	perf_overlay.ping_source = func() -> int: return coop.client.ping_ms() if coop != null and coop.client != null else -1
+	perf_overlay.session_version = VERSION + ("." + BUILD if BUILD != "" else "")
 	add_child(perf_overlay)
 
 	_setup_shrine_panel()
@@ -2003,15 +2020,18 @@ func _use_station(s: Dictionary) -> void:
 	elif s.kind == HouseFurniture.CANDLE_STATION:
 		player.face(s.pos - player.global_position)
 		house_furnisher.toggle_candles(s)
-	elif s.kind == Seats.KIND and level is Outdoor and level.bench_rest.taken(s):
-		# Someone from the village rests there already (see BenchRest).
+	elif s.kind == Seats.KIND and level is Outdoor and (level.bench_rest.taken(s) or level.barber_chair.taken(s)):
+		# Someone from the village rests there already (see BenchRest, BarberChair).
 		player.face(s.pos - player.global_position)
-		var taken_text := Lang.t("Auf dieser Bank sitzt schon jemand.")
+		var taken_text := Lang.t("Im Barbierstuhl sitzt schon jemand.") if s.get("barber", false) else Lang.t("Auf dieser Bank sitzt schon jemand.")
 		# Once per push against it, not every bump of a held key.
 		if _message.text != taken_text or _message.modulate.a < 0.05:
 			show_message(taken_text, read_time(taken_text))
 	elif s.kind == Seats.KIND:
 		player.sit_down(Seats.sit_spot(s), Seats.front(s), Seats.stand_spot(s, level, player.radius))
+		if s.get("barber", false) and level is Outdoor:
+			# Benno's chair: the cape goes on and his window opens (see BarberChair).
+			level.barber_chair.hero_sits(self, level)
 	else:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
@@ -2937,6 +2957,8 @@ func _update_hud() -> void:
 	_clock_shown = _clock_text()
 	if _clock_shown != "":
 		_level_label.text += "    " + _clock_shown
+	_update_season_icon()
+	_update_moon_icon()
 	_hp_bar.max_value = maxi(1, player.max_hp)
 	_hp_bar.value = clampi(player.hp, 0, player.max_hp)
 	_hp_hover.tooltip_text = hp_tip()
@@ -3035,7 +3057,7 @@ func hp_tip() -> String:
 	return tip
 
 
-## The time of day for the HUD, e.g. "21:30, night, full moon". Down in
+## The time of day for the HUD, e.g. "21:30, night, winter". Down in
 ## the dungeon only the hour and the part of the day.
 func _clock_text() -> String:
 	if level == null:
@@ -3044,14 +3066,47 @@ func _clock_text() -> String:
 	# Down in the dungeon the time goes on, but sky and moon are out of sight.
 	if not (level.outdoor or level.building != ""):
 		return text
-	# The season, always (see Seasons): it follows the real calendar, a week each.
-	text += ", " + Lang.t(Seasons.WORDS[Weather.season(season_day())])
 	if weather != Weather.CLEAR:
 		text += ", " + Lang.t(Weather.word(weather))
-	# At night the clock names tonight's moon (see Moon).
-	if DayNight.is_night(day_hour):
-		text += ", " + Lang.t(Moon.word(day))
 	return text
+
+
+## The season for the HUD's icon (see Seasons): it follows the real calendar, a week each; "" down
+## in the dungeon.
+func _season_shown_now() -> String:
+	if level == null or not (level.outdoor or level.building != ""):
+		return ""
+	return Weather.season(season_day())
+
+
+func _update_season_icon() -> void:
+	_season_shown = _season_shown_now()
+	if _season_icon == null:
+		return
+	_season_icon.visible = _season_shown != ""
+	if _season_shown != "":
+		_season_icon.set_season(_season_shown, Lang.t(Seasons.WORDS[_season_shown]))
+
+
+## Tonight's moon phase for the HUD's icon, or -1 by day and out of the open air.
+func _moon_phase_shown() -> int:
+	if level == null or not (level.outdoor or level.building != ""):
+		return -1
+	return Moon.phase(day) if DayNight.is_night(day_hour) else -1
+
+
+## The moon icon at the end of the top line: at night, in the open air, drawn for tonight's phase,
+## with the phase's name on hover (no words in the line itself).
+func _update_moon_icon() -> void:
+	_moon_shown = _moon_phase_shown()
+	if _moon_icon == null:
+		return
+	# The slot stays while the hero is outdoors (clear by day), so the location name never shifts.
+	var outdoors := _season_shown_now() != ""
+	_moon_icon.visible = outdoors
+	_moon_icon.modulate.a = 1.0 if _moon_shown >= 0 else 0.0
+	if outdoors:
+		_moon_icon.set_phase(maxi(_moon_shown, 0), Lang.t(Moon.word(day)) if _moon_shown >= 0 else "")
 
 
 ## The world's clock runs wherever the hero is, down in the dungeon too,
@@ -3108,7 +3163,7 @@ func _tick_clock(delta: float) -> void:
 			level.set_ice(ice_cover)
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
-	if _clock_text() != _clock_shown:
+	if _clock_text() != _clock_shown or _moon_phase_shown() != _moon_shown or _season_shown_now() != _season_shown:
 		_update_hud()
 
 
@@ -4048,6 +4103,7 @@ func begin_new_game() -> void:
 	fishing.stop()
 	reputation.clear()
 	village_talk.clear()
+	MatthesLife.clear()
 	village_worries.clear()
 	village_rumours.clear()
 	drinking_songs.clear()
@@ -4552,6 +4608,7 @@ func _apply_save(data: Dictionary) -> void:
 	wishes.load_from(data.get("wishes", {}))
 	reputation.load_from(data.get("reputation", {}))
 	village_talk.load_from(data.get("ties", []))
+	MatthesLife.load_from(data.get("matthes_love", {}))
 	village_rumours.load_from(data.get("rumours", {}))
 	Factions.load_from(data.get("factions", {}))
 	MonsterLore.load_from(data.get("monster_lore", {}))
@@ -4833,6 +4890,7 @@ func hero_record() -> Dictionary:
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
 		"ties": village_talk.for_save(),
+		"matthes_love": MatthesLife.for_save(),
 		"rumours": village_rumours.for_save(),
 		"factions": Factions.for_save(),
 		"monster_lore": MonsterLore.for_save(),
@@ -6016,10 +6074,17 @@ func _hero_says(text: String) -> void:
 	Events.hero_says(text, pos)
 
 
+## Where the hero may always stand: the village square on the open map, else the level's start.
+func _safe_home() -> Vector3:
+	if level.get("spots") != null and not level.spots.square.is_empty():
+		return level.spots.square[0]
+	return level.cell_to_world(level.start_cell)
+
+
 ## The chat line's unstuck command (dev builds only, see HeroUnstick).
 func _unstick_command() -> void:
-	var freed := HeroUnstick.release(player, player.free_spot)
-	Events.tell(Lang.t(HeroUnstick.DONE_TEXT if freed else HeroUnstick.NONE_TEXT), TELEPORT_COLOR)
+	var how := HeroUnstick.release(player, player.free_spot, _safe_home())
+	Events.tell(Lang.t(HeroUnstick.DONE_TEXT if how != "" else HeroUnstick.NONE_TEXT), TELEPORT_COLOR)
 
 
 ## The chat line's free camera (see CameraCommand).
@@ -8365,7 +8430,7 @@ func _process(delta: float) -> void:
 			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
 			SilverSilk.KIND: Lang.t("Dagegenlaufen, um die Silberseide zu ernten"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
-			Seats.KIND: Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
+			Seats.KIND: Lang.t("Dagegenlaufen, um dich in den Barbierstuhl zu setzen") if station.get("barber", false) else Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),
 			WarHorn.KIND: Lang.t("Dagegenlaufen, um ins Horn zu stoßen und das Dorf zu versammeln"),
 		}.get(station.kind, AshSpire.prompt(station.kind) + LostMine.prompt(station.kind) + Sewers.prompt(station.kind, station)))
 	elif _prompt.text == "" and at_camp():
@@ -8853,6 +8918,12 @@ func _mouse_to_floor(screen_pos: Vector2):
 	var dir := camera.project_ray_normal(screen_pos)
 	if dir.y > -0.01:
 		return null
+	# Inside a hall of several storeys the click meets its steps and its upper floors (see WalkIn.surface_under_ray).
+	var walk_in = level.get("walk_in")
+	if walk_in != null:
+		var on_surface = walk_in.surface_under_ray(origin, dir)
+		if on_surface != null:
+			return on_surface
 	return origin + dir * (-origin.y / dir.y)
 
 
@@ -8905,6 +8976,9 @@ func _click(point: Vector3) -> void:
 		return
 	# A bed or a workbench only on its pillow or the middle of its top (see Level.station_clicked).
 	var station := level.station_clicked(point, camera.global_position, (point - camera.global_position).normalized(), 2.2)
+	var walk_in = level.get("walk_in")
+	if not station.is_empty() and walk_in != null and walk_in.hidden_above_hero(station.get("spot", station.get("pos", Vector3.ZERO))):
+		station = {} # A bed on a storey above the hero's, hidden from them.
 	if not station.is_empty():
 		if station.kind == Seats.KIND and station.get("indoor", false):
 			# A seat of a hall: walk to where one gets up from it (free by its front or side), then sit

@@ -155,11 +155,11 @@ const ROLES := {
 		"lines": ["Ein Brief für dich? Noch nicht, aber bald bestimmt.", "Ich bringe die Post zu jedem Haus im Dorf.", "Die Postkutsche kommt jeden dritten Tag."]},
 	"Z": {"name": "Barbier Benno", "model": "Rogue", "show": [], "hair": {"style": "mohawk", "color": "fire"}, "skin": SKIN_LIGHT,
 		"colors": [Color(0.95, 0.95, 0.95), Color(0.25, 0.25, 0.3), Color(1, 1, 1)], "plan": "shop", "work": "Interact",
-		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
+		"lines": ["Haare schneiden, färben, tätowieren: Bei mir wirst du ein neuer Mensch!", "Setz dich in meinen Stuhl, dann kümmere ich mich um deine Haare.", "Ein Irokese steht dir bestimmt. Oder gleich in Flammen?", "Halt still, sonst wird die Tätowierung schief."]},
 	"Y": {"name": "Bankier Goldwin", "model": "Mage", "show": ["Mage_Hat"],
 		"colors": [Color(0.25, 0.45, 0.3), Color(0.25, 0.25, 0.28), Color(0.2, 0.35, 0.25)], "plan": "stay", "work": "Interact",
 		"lines": ["Kupfer ist bei uns sicherer als in jeder Truhe.", "Die Bank der Krone öffnet bald ihre Schalter für Abenteurer.", "Zinsen? Nur für treue Kunden."]},
-	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [],
+	"ü": {"name": "Müller Korbinian", "model": "Barbarian", "show": [], "locks": "quiff",
 		"colors": [Color(0.92, 0.9, 0.84), Color(0.55, 0.5, 0.42), Color(0.9, 0.88, 0.82)], "plan": "shop", "work": "Interact",
 		"lines": ["Mehl für das Wirtshaus, Körner für die Küken: Die Mühle mahlt für alle.", "Hörst du die Flügel? Solange der Wind weht, steht mein Stein nicht still.", "Die Küken in den Nestern auf den Dächern piepsen nach Körnern. Ich habe welche."]},
 	"ö": {"name": "Brauer Eberhard", "model": "Barbarian", "show": ["Mug"],
@@ -330,6 +330,8 @@ var night := false
 ## Seconds until a child puts its pumpkin on or takes it off (see _mind_pumpkin); -1 before the first look.
 var _pumpkin_clock := -1.0
 var at_home := false
+## Where a customer sits in the barber's chair (see BarberChair): Benno turns to it and snips. INF when none.
+var customer_at := Vector3.INF
 ## The way to bed and out again in a house one can walk into, while it lasts (see VillageBeds).
 var bed_trip := {}
 ## The way to (or out of) her place behind a hall's counter, and that place (see VillagePosts).
@@ -486,6 +488,9 @@ func _ready() -> void:
 		Dreadlocks.grow(_model)
 	# Weave, leather grain and scratched metal on the clothes (see GearLook).
 	GearLook.dress_body(_model, "outfit")
+	# After the clothes' look, which would otherwise take over the hair's own material.
+	if _info.get("locks", "") == "quiff":
+		MillerQuiff.grow(_model)
 	# Their own skin tone, hat colour and glasses (see TownsfolkLook).
 	TownsfolkLook.apply(_model, _info, _look)
 	if role == ClimberNpc.ROLE:
@@ -870,6 +875,8 @@ func _start(task: String, time: float) -> void:
 		return
 	if task != "post":
 		_leave_post()
+	if _seed_bag != null and _seed_bag.visible and not (task in ["walk", "work"] and _job.has("sow")):
+		_seed_bag.visible = false
 	if task != "climb" and _climb != null:
 		_climb.leave(self)
 	if task != "service":
@@ -889,10 +896,13 @@ func _start(task: String, time: float) -> void:
 		_begin_sweep()
 	else:
 		_end_sweep()
+	# Matthes puts the hoe, the sack and the flower down when anything but his field work or his courting begins.
+	if role == MatthesLife.ROLE and task != MatthesLife.TASK:
+		MatthesLife.stop(self)
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless"] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless", MatthesLife.TASK] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -1742,8 +1752,8 @@ func drawn() -> bool:
 func _draw_blade(on: bool) -> void:
 	_sheathe_in = -1.0
 	# The priestess keeps her staff and strikes no blow; the smith fights
-	# with the hammer already in his hand.
-	if heals() or VillageArms.weapon(role) == VillageArms.HAMMER:
+	# with the hammer already in his hand, Fritz with his mug.
+	if heals() or VillageArms.weapon(role) in [VillageArms.HAMMER, VillageArms.MUG]:
 		return
 	var hand := _model.find_child("handslot_r", true, false) if _model != null else null
 	if hand == null:
@@ -2078,6 +2088,9 @@ func _next_task() -> void:
 		"stay", "shop":
 			if _sweep_out():
 				return
+			# With nothing to sweep he helps the farmers and looks for a girlfriend (see MatthesLife).
+			if role == MatthesLife.ROLE and MatthesLife.next(self):
+				return
 			if level.world_to_cell(global_position) != home:
 				_walk_to(level.cell_to_world(home), WALK_SPEED, "work")
 			elif VillagePosts.wants(self):
@@ -2187,6 +2200,51 @@ func is_posed() -> bool:
 	return _body_posed or _blow_posed
 
 
+## The seed bag at the hip and the spray of one handful (see Sowing).
+var _seed_bag: Node3D
+var _sow_spray: CPUParticles3D
+
+
+## One physics tick of sowing: turn to the field and throw handful after handful in a wide sweep of the arm; each
+## lets go of the seed (in the middle of the throw) over the soil, and the nearest bare tile is sown. With no bare
+## tile left in reach the work ends, and the next job takes him on (see ValleyFolk.pick).
+func _sow(delta: float) -> void:
+	_show_seed_bag(true)
+	var face: Vector3 = _job.face
+	_turn_to(face - global_position, delta)
+	_toss_clock += delta
+	if _current_anim == "Throw":
+		if not _tossed and _toss_clock >= SEED_RELEASE:
+			_tossed = true
+			if level.crop_fields != null and level.crop_fields.sow_near(String(_job.sow), face, Sowing.REACH):
+				_task_time = maxf(_task_time, 2.5)
+			else:
+				_task_time = minf(_task_time, 0.3)
+			_sow_spray = Sowing.spray(self, _sow_spray, hand_at(), face)
+		if _toss_clock >= SEED_RELEASE and not _anim.is_playing():
+			play("Idle", 0.2)
+			_toss_clock = -_rng.randf_range(Sowing.PAUSE.x, Sowing.PAUSE.y)
+		return
+	if _toss_clock >= 0.0:
+		_current_anim = "Throw"
+		_anim.play("Throw", 0.15)
+		_toss_clock = 0.0
+		_tossed = false
+	elif _current_anim != "Idle":
+		play("Idle", 0.2)
+
+
+## The linen seed bag on his left hip while he is on his way to sow or sowing, put away otherwise.
+func _show_seed_bag(on: bool) -> void:
+	if _seed_bag == null:
+		if not on or _model == null:
+			return
+		_seed_bag = Sowing.build_bag()
+		_seed_bag.position = Sowing.BAG_AT
+		_model.add_child(_seed_bag)
+	_seed_bag.visible = on
+
+
 ## The farming valley's day plan (see ValleyFolk): the next job of the season, walked to and worked at.
 func _farm_day() -> void:
 	var job := ValleyFolk.pick(self, String(_job.get("id", "")))
@@ -2195,6 +2253,9 @@ func _farm_day() -> void:
 		_start("work", _rng.randf_range(6.0, 10.0))
 		return
 	_job = job
+	_show_seed_bag(job.has("sow"))
+	_toss_clock = -0.3
+	_tossed = false
 	if _rng.randf() < ValleyFolk.SAY_CHANCE and level.player != null \
 			and level.player.global_position.distance_to(global_position) < ValleyFolk.SAY_RANGE:
 		Effects.head_text(level, self, 2.6 * float(_info.get("scale", 1.0)), Lang.t(job.say), Color(0.96, 0.9, 0.7))
@@ -2206,7 +2267,9 @@ func _farm_day() -> void:
 func _rest_on_bench() -> bool:
 	if not can_go_to_meal():
 		return false
-	var seat := level.bench_rest.offer(level, self)
+	var seat := level.barber_chair.offer(level, self)
+	if seat.is_empty():
+		seat = level.bench_rest.offer(level, self)
 	if seat.is_empty():
 		return false
 	go_to_meal(seat)
@@ -2402,6 +2465,8 @@ func _walk_to(target: Vector3, speed: float, then: String) -> void:
 	# from inside it would lead straight through its wall (Mira left her shop through the south
 	# wall at nightfall).
 	_leave_post()
+	if role == MatthesLife.ROLE and then != MatthesLife.TASK:
+		MatthesLife.stop(self)
 	_path.clear()
 	_retry = {}
 	_stuck_watch.reset()
@@ -2529,6 +2594,8 @@ func _physics_process(delta: float) -> void:
 			_mend(delta)
 		"sweep":
 			_sweep_snow(delta)
+		"tend":
+			MatthesLife.step(self, delta)
 		"bless":
 			_bless_step(delta)
 		"defend":
@@ -2725,8 +2792,14 @@ func _do(task: String, delta: float) -> void:
 	if task == "sit":
 		play(_info.work)
 		return
+	if task == "work" and _job.has("sow"):
+		_sow(delta)
+		return
 	var work: String = _job.get("anim", _info.work)
-	if _job.has("face") and task == "work":
+	var snipping := customer_at != Vector3.INF and task == "work"
+	if snipping:
+		_turn_to(customer_at - global_position, delta)
+	elif _job.has("face") and task == "work":
 		_turn_to((_job.face as Vector3) - global_position, delta)
 	if _anim.get_animation(work).loop_mode != Animation.LOOP_NONE:
 		play(work)
@@ -2743,6 +2816,8 @@ func _do(task: String, delta: float) -> void:
 	if _current_anim == work:
 		play("Idle", 0.2)
 		_work_pause = _rng.randf_range(0.3, 1.2) if role in ["1", "3"] else _rng.randf_range(1.5, 3.5)
+		if snipping:
+			_work_pause = _rng.randf_range(0.05, 0.3) # Snip, snip, snip.
 		return
 	if _work_pause > 0.0:
 		return
@@ -3011,8 +3086,12 @@ func slump(lean: float, down: float, forward: float) -> void:
 		_sleep_arms.active = lean > 0.0
 
 
-## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over).
+## Shows or hides the mug in the hand (the brewer carries one only to hand a beer over). Fritz keeps
+## his in his hand all the time: the tavern code that puts the brewer's mug away (leaving at once, night)
+## must never take it from him.
 func hold_mug(on: bool) -> void:
+	if role == TavernBrewer.GUEST:
+		on = true
 	var mug := _model.find_child("Mug", true, false) as Node3D
 	if mug != null:
 		mug.visible = on
@@ -3360,6 +3439,8 @@ func end_service() -> void:
 ## The hero ran into us: say the next line.
 func talk(hero: Node3D) -> void:
 	var lines: Array = FrozenFritz.MUFFLED if _task == "frozen" else _info.lines
+	if role == MatthesLife.ROLE:
+		lines = MatthesLife.talk_lines(lines)
 	meet()
 	say(Lang.t(lines[_line % lines.size()]), hero.global_position)
 	_line += 1

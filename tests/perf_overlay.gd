@@ -77,6 +77,13 @@ func _run() -> void:
 	check(overlay.fps > 0.0, "it measures frames per second (%s)" % overlay.fps)
 	check(overlay.cpu_ms > 0.0, "it measures the CPU time per frame (%s)" % overlay.cpu_ms)
 	check(overlay.cpu_graph.values.size() >= 3, "the CPU graph fills in")
+	check(overlay.cpu_avg_ms > 0.0, "it averages the CPU time over the whole session (%s)" % overlay.cpu_avg_ms)
+	var frames_before: int = overlay._total_frames
+	_press_f1()
+	await _wait(5)
+	_press_f1()
+	await _wait(2)
+	check(overlay._total_frames > frames_before, "hiding the plate does not restart the session average")
 	check(overlay.gpu_graph.values.size() == overlay.cpu_graph.values.size(), "the GPU graph fills in alongside")
 	check(overlay.fps_label.text.ends_with("FPS"), "the frame rate is labelled (%s)" % overlay.fps_label.text)
 	check(overlay.cpu_label.text.begins_with("CPU") and overlay.gpu_label.text.begins_with("GPU"), "the graphs say which is which")

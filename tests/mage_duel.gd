@@ -108,7 +108,7 @@ func _test() -> void:
 				bench_x = maxf(bench_x, st.pos.x)
 		var tree_x := INF
 		for tr in game.level.square_trees:
-			if not tr.has("garden"):
+			if not tr.has("garden") and not tr.has("pocket"):
 				tree_x = minf(tree_x, (tr.node as Node3D).global_position.x)
 		for spot in ground:
 			check(spot.x > bench_x + 3.0 and spot.x < tree_x - 3.0, "a duellist's place lies between the benches and the trees (x %.1f, benches %.1f, trees %.1f)" % [spot.x, bench_x, tree_x])

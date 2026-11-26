@@ -80,15 +80,16 @@ func _run() -> void:
 		check(sign != null, "the %s has a hanging sign" % name)
 		if sign != null and _wanted(name):
 			# Face to face with the shield, to see its painting.
-			var shield := sign.get_node("Shield") as Node3D
-			var mid := shield.global_position + shield.global_basis.y * -HangingShield.TALL * 0.5
+			var shield := _board_of(sign)
+			var tall := PubSign.TALL if sign.has_meta("name_text") else HangingShield.TALL
+			var mid := shield.global_position + shield.global_basis.y * -tall * 0.5
 			var face := shield.global_basis.z.normalized()
 			if face.dot(Vector3(0, 0, 1)) < 0.0 and absf(face.z) > 0.5:
 				face = -face
 			await _shot(name + "_sign", mid + face * 2.3 + Vector3(0, 0.4, 0), mid)
 		if sign != null:
 			var low := INF
-			var hanging := sign.get_node("Shield").find_children("*", "MeshInstance3D", true, false)
+			var hanging := _board_of(sign).find_children("*", "MeshInstance3D", true, false)
 			if sign.has_node("NameBoard"):
 				hanging.append(sign.get_node("NameBoard"))
 			for mi: MeshInstance3D in hanging:
@@ -107,12 +108,19 @@ func _sign_near(lvl: Outdoor, front: Vector3) -> Node3D:
 		if n.name in ["HallSign", "ShopSign", "BankSign"]:
 			var shield := n.get_node_or_null("Shield") as Node3D
 			if shield == null:
+				shield = n.get_node_or_null("Board") as Node3D # the tavern's pub sign (see PubSign)
+			if shield == null:
 				continue
 			var d := Vector2(shield.global_position.x - front.x, shield.global_position.z - front.z).length()
 			if d < near:
 				near = d
 				best = n
 	return best
+
+
+## The shield of a hanging sign, or the board of the tavern's pub sign.
+func _board_of(sign: Node3D) -> Node3D:
+	return (sign.get_node_or_null("Shield") if sign.has_node("Shield") else sign.get_node("Board")) as Node3D
 
 
 ## The way out of the door nearest `front`.

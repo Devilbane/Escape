@@ -98,6 +98,12 @@ static var _drop_mesh: SphereMesh
 ## The shared shapes, of radius 1: round ones, then long ones.
 static var _round: Array[ArrayMesh] = []
 static var _long: Array[ArrayMesh] = []
+## What _join_ok found for a pair (see there), by where the two lie and how big they are.
+var _join_known := {}
+## How often the puddles were changed by a join, and when each puddle last found nothing to join at a
+## gap (by its id and the gap): asking again before anything changed gives the same answer.
+var _joins := 0
+var _nothing_at := {}
 
 
 ## Finds the dips on `level`'s open ground and lays a puddle in each, dry to
@@ -184,7 +190,7 @@ func _init(level: Level, seed_value: int) -> void:
 		add_child(mi)
 		# Big puddles fill first and dry last; small ones need more rain.
 		var needs := remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0) + rng.randf_range(0.0, 0.02)
-		var s := {"node": mi, "at": at, "radius": radius, "needs": needs, "fill": 0.0, "span": span, "long": long}
+		var s := {"node": mi, "at": at, "radius": radius, "needs": needs, "fill": 0.0, "span": span, "long": long, "id": spots.size()}
 		spots.append(s)
 		_register(s)
 	laid_count = spots.size()
@@ -346,19 +352,50 @@ func _clear_overlaps() -> void:
 ## Merges `s` with the closest puddle lying within `gap` (of their reaches
 ## added up), if the result is allowed.
 func _merge_one(level: Level, s: Dictionary, gap: float) -> bool:
+	var asked := Vector2(float(s.id), gap)
+	if _nothing_at.get(asked, -1) == _joins:
+		return false
+	var merged := _merge_closest(level, s, gap)
+	if not merged:
+		_nothing_at[asked] = _joins
+	return merged
+
+
+func _merge_closest(level: Level, s: Dictionary, gap: float) -> bool:
 	var best: Dictionary = {}
 	var best_d := INF
-	for t in _tiles_under(s.at, (float(s.span) + RADIUS.y * LONG_REACH) * gap):
-		for o: Dictionary in _by_tile.get(t, []):
-			if o == s or o.has("keep") or o.has("gone"):
-				continue
-			var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
-			var room := (float(s.span) + float(o.span)) * gap
-			if d.length_squared() >= room * room or d.length() >= best_d:
-				continue
-			if _join_ok(level, s, o):
+	# The closest one that may join: found by looking at all the puddles (the tiles within reach of a
+	# wide gap are far more than the puddles).
+	var ties := 0
+	for o: Dictionary in spots:
+		if o == s or o.has("keep") or o.has("gone"):
+			continue
+		var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
+		var room := (float(s.span) + float(o.span)) * gap
+		if d.length_squared() >= room * room or d.length() > best_d:
+			continue
+		if _join_ok(level, s, o):
+			if d.length() == best_d:
+				ties += 1
+			else:
 				best = o
 				best_d = d.length()
+				ties = 1
+	if ties > 1:
+		# Two the same distance away: the one met first on the tiles is taken.
+		best = {}
+		best_d = INF
+		for t in _tiles_under(s.at, (float(s.span) + RADIUS.y * LONG_REACH) * gap):
+			for o: Dictionary in _by_tile.get(t, []):
+				if o == s or o.has("keep") or o.has("gone"):
+					continue
+				var d := Vector2(o.at.x - s.at.x, o.at.z - s.at.z)
+				var room := (float(s.span) + float(o.span)) * gap
+				if d.length_squared() >= room * room or d.length() >= best_d:
+					continue
+				if _join_ok(level, s, o):
+					best = o
+					best_d = d.length()
 	if best.is_empty():
 		return false
 	return _join(level, s, best, best_d)
@@ -367,6 +404,17 @@ func _merge_one(level: Level, s: Dictionary, gap: float) -> bool:
 ## Whether `s` and `o` may run into one puddle: it is not too big, it stays on
 ## open ground, and beside a house it is not too wide.
 func _join_ok(level: Level, s: Dictionary, o: Dictionary) -> bool:
+	# The answer depends only on where the two lie and how big they are, and the passes of
+	# _consolidate ask about the same pairs again and again: what was found is kept.
+	var key := [s.at, float(s.span), s.long, o.at, float(o.span), o.long]
+	if _join_known.has(key):
+		return _join_known[key]
+	var ok := _join_ok_now(level, s, o)
+	_join_known[key] = ok
+	return ok
+
+
+func _join_ok_now(level: Level, s: Dictionary, o: Dictionary) -> bool:
 	# Long ones only join into a long one; anything else makes a round one.
 	var long: bool = s.long and o.long
 	var reach := LONG_REACH if long else 1.0
@@ -423,6 +471,7 @@ func _join(level: Level, s: Dictionary, o: Dictionary, _gap: float) -> bool:
 	# Big puddles fill first and dry last, as ever.
 	s.needs = remap(radius, RADIUS.x, RADIUS.y, 0.45, 0.0)
 	_register(s)
+	_joins += 1
 	return true
 
 

@@ -1,0 +1,1 @@
+- Village hedgehogs look like hedgehogs now (brown spines, pointed snout, black bead nose and eyes), patter along, twitch their noses and breathe, and one that spawned walled in no longer sits stuck.

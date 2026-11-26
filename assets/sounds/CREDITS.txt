@@ -169,3 +169,6 @@ The geese's honks and startled cackle (goose_honk_*, goose_alarm_*): made from s
 (a buzzing pulse train through nasal formants, no recordings), so they have no licence to credit.
 
 Scissor snips (snip_0 to snip_2): synthesised from scratch by tools/make_snip_sounds.py (no recordings).
+
+Cricket chorus, cricket chirps, cicada drone and owl hoots (crickets_loop, cicadas_loop, cricket_0 to cricket_2,
+owl_0, owl_1): synthesised from tones and envelopes by tools/make_insect_sounds.py, no outside material.

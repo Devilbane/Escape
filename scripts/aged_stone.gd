@@ -332,6 +332,27 @@ static func grave_material(palette: Texture2D, hewn: bool, shade := 0, glowing: 
 	return _mats[key]
 
 
+## Stone for the graveyard's carved memorials (see GraveStyles), which have no palette of their own: one
+## tint all over, hewn from one piece, spotted with lichen and moss by how much `moss` says (0 to 1.5),
+## its colour varying from patch to patch (`mottle`). One material per look, cached.
+static func memorial_material(tint: Color, moss := 1.0, mottle := 0.35) -> ShaderMaterial:
+	var key := "memorial_%s_%.2f_%.2f" % [tint.to_html(false), moss, mottle]
+	if not _mats.has(key):
+		var mat := ShaderMaterial.new()
+		mat.shader = SHADER
+		mat.set_shader_parameter("use_palette", false)
+		mat.set_shader_parameter("tint", tint)
+		mat.set_shader_parameter("trim", load(TRIM))
+		mat.set_shader_parameter("age", GRAVE_AGE)
+		mat.set_shader_parameter("fade", GRAVE_FADE)
+		mat.set_shader_parameter("blocks", 0.0)
+		mat.set_shader_parameter("lichen", moss)
+		mat.set_shader_parameter("mottle", mottle)
+		StoneLook.apply(mat)
+		_mats[key] = mat
+	return _mats[key]
+
+
 ## The weathered rock of the mountains (Mountains, LairMountain): their own
 ## painted faces with grain, strata, grime, rain streaks, moss and lichen laid
 ## over them (shaders/mountain_rock.gdshader), so the rock looks as old as

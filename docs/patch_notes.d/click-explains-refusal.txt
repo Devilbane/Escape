@@ -1,0 +1,1 @@
+- Clicking ground the hero cannot reach now tells you why (water, too steep, blocked) with a small red cross, instead of doing nothing.

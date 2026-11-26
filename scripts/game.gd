@@ -8743,6 +8743,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif event is InputEventMouseButton:
 				var point = _mouse_to_floor(event.position)
 				if point == null:
+					# A click into the sky: say so rather than do nothing.
+					if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+						show_message(Lang.t(ClickRefusal.TEXT_SKY), 1.6, Color(1.0, 0.75, 0.7))
 					return
 				if house_sketcher != null and house_sketcher.active:
 					house_sketcher.mouse(point, event.pressed, event.button_index)
@@ -8997,6 +9000,17 @@ func _click(point: Vector3) -> void:
 	_pending_search = {}
 	_pending_station = {}
 	player.walk_to(point)
+	_explain_refused_click(point)
+
+
+## A click on open ground walks the hero there. Where they cannot get there (or only part of the
+## way) they say why and a small cross shows the refused spot (see ClickRefusal).
+func _explain_refused_click(point: Vector3) -> void:
+	var why := ClickRefusal.verdict(level, player.global_position, point, player.path)
+	if why == "":
+		return
+	show_message(Lang.t(why), 1.6, Color(1.0, 0.75, 0.7))
+	ClickRefusal.mark(level, point)
 
 
 ## Seconds until the next far-off howl or scream somewhere in the dungeon.

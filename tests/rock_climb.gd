@@ -222,6 +222,9 @@ func _run() -> void:
 	hero.bag.append_array(["kletterhaken", "kletterhaken"])
 	await _push(hero, lvl, spot.cell, 3.2)
 	check(hero.is_climbing(), "the third climb begins")
+	if not hero.is_climbing():
+		# Say why (the check fails on some runners only): what holds the hero back from the rock.
+		print("DIAG third climb: dead=%s controllable=%s frozen=%s busy=%.2f down=%.2f falling=%.2f floor=%s y=%.2f pos=%s push=%.2f hp=%s" % [hero.dead, hero.controllable, hero.frozen, hero._busy, hero._down, hero._falling, hero.is_on_floor(), hero.global_position.y, hero.global_position, hero._rock_push, hero.hp])
 	guard = 0
 	while hero.is_climbing() and hero._rock_y < 1.7 and guard < 3000:
 		await _wait(1)

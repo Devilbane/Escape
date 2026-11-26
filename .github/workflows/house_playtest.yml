@@ -10,7 +10,6 @@ on:
     paths:
       - "scripts/house_*.gd"
       - "scripts/plot*.gd"
-      - "scripts/game.gd"
       - "tests/house_playtest.gd"
       - ".github/workflows/house_playtest.yml"
   workflow_dispatch:

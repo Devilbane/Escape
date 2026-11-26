@@ -1565,9 +1565,10 @@ func melee() -> void:
 		hits += 1
 		mark_fight()
 		# Every blow that lands trains the hand and the arm; a kill a little more.
-		train(weapon, 1.0)
-		train("staerke", 3.0 if e.dead else 1.0)
-		if e.dead and e.kind == "magier":
+		if not e.no_reward:
+			train(weapon, 1.0)
+			train("staerke", 3.0 if e.dead else 1.0)
+		if e.dead and e.kind == "magier" and not e.no_reward:
 			train("intelligenz", 4.0)
 	if blow != "":
 		Sfx.play_weapon(self, arms, blow, blow_at)

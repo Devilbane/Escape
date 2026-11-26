@@ -10,7 +10,7 @@ extends Node3D
 ## stalks, with no heads to read. The words work in every season.
 ##
 ## The answer is kept out of the game's texts, the compendium, the patch notes, the tests and this repository: the
-## code is stored scrambled and the answer only as a hash.
+## code is stored scrambled and the answer only as a salted hash (see RiddleVault).
 
 ## The tiles of the riddle field on the valley map "Apfeltal": columns and rows of blocks.
 const FIELD := Rect2i(59, 88, 5, 2)
@@ -29,20 +29,18 @@ var _busy := 0.0
 var _rng := RandomNumberGenerator.new()
 
 
-## The code, one number per block in reading order, scrambled (see marks()), and the hash of the answer. The answer
-## itself is nowhere in the game or the repository, only what a said line must hash to (see is_answer()).
-const CODE := "SFNeXlZfWlVUXw=="
-const MASK := 0x5a
-## Lets a test stand in for the answer with some words of its own (the hash of their plain form); "" is the real one.
-static var test_hash := ""
-const ANSWER_HASH := "6e4b5a01eba4f9aca74d6f92fa8cef1ea1e4959b579a68ff5181b1001f195fd6"
+## The entry of the answer and the scrambled code (see RiddleVault): no answer is stored anywhere.
+const ENTRY := {"salt": "a82e8a09d1db086fdfc668c5", "rounds": 60000, "hash": "514bb3989f86c07497f86f66a004a1360da2a1e14a4ac41a8ffa88511a1110a9"}
+const CODE := "QRetkiuylOTDcA=="
+## Lets a test stand in for the answer with an entry of its own; empty is the real one.
+static var test_entry := {}
 
 
 ## The code: for each block in reading order, the number (1 to 25) of its light flower, 0 for a block without one.
 static func marks() -> Array[int]:
 	var out: Array[int] = []
-	for v in Marshalls.base64_to_raw(CODE):
-		out.append(v ^ MASK)
+	for v in RiddleVault.unscramble(CODE, ENTRY):
+		out.append(int(v))
 	return out
 
 
@@ -58,11 +56,7 @@ static func centre() -> Vector3:
 
 ## Whether a line the hero said is the answer: case does not matter, nor spaces or marks between the words.
 static func is_answer(text: String) -> bool:
-	var plain := ""
-	for ch in text.to_lower():
-		if ch >= "a" and ch <= "z":
-			plain += ch
-	return plain.sha256_text() == (test_hash if test_hash != "" else ANSWER_HASH)
+	return RiddleVault.check(text, test_entry if not test_entry.is_empty() else ENTRY)
 
 
 ## The cells of the field's tiles, for the map.
@@ -87,11 +81,12 @@ func _process(delta: float) -> void:
 
 ## The hero said `text` at `pos` (see Events.hero_spoke).
 func on_hero_spoke(text: String, pos: Vector3) -> void:
-	if level == null or _busy > 0.0 or not is_answer(text):
+	if level == null or _busy > 0.0 or Vector2(pos.x - position.x, pos.z - position.z).length() > NEAR:
 		return
-	if Vector2(pos.x - position.x, pos.z - position.z).length() > NEAR:
+	if not is_answer(text):
 		return
 	_busy = SHOW_TIME
+	Events.bus().riddle_done.emit(RiddleCount.SUNFLOWER)
 	Events.tell(CONGRATS, Color(1.0, 0.9, 0.5))
 	Effects.float_text(level, position + Vector3(0, 4.2, 0), CONGRATS, Color(1.0, 0.92, 0.55))
 	fireworks()

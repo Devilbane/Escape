@@ -35,6 +35,8 @@ const KINDS := {
 	# The dead: skeletons of every size.
 	"krieger": "undead", "schuetze": "undead", "magier": "undead", "wicht": "undead",
 	"koloss": "undead", "waechter": "undead",
+	# Death itself, called up by the Deathringer (see OwlClock).
+	"tod": "undead",
 	# The dead who keep their flesh: ghouls, eaters of corpses.
 	"ghul": "undead",
 	# What is left of the dead when no bones are left: wraiths in the fog,

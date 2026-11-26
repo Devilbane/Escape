@@ -317,6 +317,11 @@ var apiary: Apiary
 var _hive_cells: Array[Vector2i] = []
 ## The owls on the branches of the woods (see Owls).
 var owls: Owls
+## Owlav's grave (INF when the map has none) and what stands in front of it once its crypt is open, and
+## the dead tree whose owl strikes the hours (see OwlClock).
+var owlav_pos := Vector3.INF
+var owlav_parts: Node3D
+var owl_tree_at := Vector3.INF
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -570,7 +575,6 @@ const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
 ## How much taller than wide Benno's tent is drawn, and how far round it no shrub grows (metres).
-const BARBER_TENT_TALL := 1.35
 const BARBER_CLEAR := 7.0
 ## The share of these shrubs that keep their leaves in autumn (the rest shed them, see
 ## undergrowth_shed), and fewer still within SHRUB_TEMPLE_REACH tiles of the temple.
@@ -1649,6 +1653,7 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
 			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
 			_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			OwlClock.place_grave(self, c, pos, _graves.size())
 			_graves.append(c)
 			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
 			_grave_light(c, pos)
@@ -1658,6 +1663,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var rot := _rng.randf() * TAU
 			var size := _rng.randf_range(1.1, 1.4)
 			var reach := _reach_of(tree, size)
+			if c == OwlClock.OWL_TREE_CELL:
+				owl_tree_at = at
 			if not on_plot(at, reach) and not Mountains.near_rock(self, at.x, at.z, Mountains.TREE_CLEARANCE):
 				_clearable.append({"at": at, "reach": reach, "nodes": [_put(tree, at, rot, size),
 						_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.4, 4, 1.4))]})
@@ -2256,6 +2263,9 @@ func _build_woods_life() -> void:
 		add_child(apiary)
 	owls = Owls.new(trees, cell_to_world, TILE, level_name)
 	add_child(owls)
+	if owl_tree_at != Vector3.INF and owlav_pos != Vector3.INF:
+		owls.add_clock_owl(owl_tree_at + Vector3(0, OwlClock.OWL_HEIGHT, 0), owlav_pos)
+	owls.clock_on = moon_night >= 0 and Moon.is_full(moon_night)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -4352,14 +4362,11 @@ func _spawn_street_sweeper() -> void:
 ## fresh woven linen, not the stained canvas of the bandits' tents.
 func _build_barber_shop(cell: Vector2i) -> Node3D:
 	var pos := cell_to_world(cell)
-	var box := _aabb_of("tent")
-	# A quarter bigger than it was and taller still. One can walk in under it: the chair stands there
-	# (see BarberChair), and the tent fades away while someone sits.
-	var width := 4.5 / maxf(box.size.x, box.size.z)
-	var tent := _put("tent", pos, 0.0, width)
-	tent.scale = Vector3(width, width * BARBER_TENT_TALL, width)
-	tent.name = "BarberTent"
-	WeatheredProps.clean_linen(tent)
+	# Built by hand (see BarberTent): round timber poles and a saggy linen roof. One can walk in under it:
+	# the chair stands there (see BarberChair), and the tent fades away while someone sits.
+	var tent := BarberTent.build()
+	tent.position = pos
+	add_child(tent)
 	var pole := Effects.barber_pole()
 	pole.position = pos + Vector3(-2.6, 0, 2.4)
 	add_child(pole)
@@ -5566,6 +5573,8 @@ func set_moon(night_of: int) -> void:
 	if night_of == moon_night:
 		return
 	moon_night = night_of
+	if owls:
+		owls.clock_on = night_of >= 0 and Moon.is_full(night_of)
 	for s in _pack:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
 			s.enemy.sink_at_dawn()

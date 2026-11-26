@@ -13,6 +13,7 @@ const SETTINGS_FILE := "user://einstellungen.json"
 
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
+	preload("res://scripts/lang/gear_effects.gd"),
 	preload("res://scripts/lang/pack_help.gd"),
 	preload("res://scripts/lang/climb_spots.gd"),
 	preload("res://scripts/lang/barber_chair.gd"),
@@ -24,6 +25,8 @@ const PARTS := [
 	preload("res://scripts/lang/valley.gd"),
 	preload("res://scripts/lang/bees.gd"),
 	preload("res://scripts/lang/spring_cave.gd"),
+	preload("res://scripts/lang/owl_clock.gd"),
+	preload("res://scripts/lang/riddle_count.gd"),
 	preload("res://scripts/lang/sewers.gd"),
 	preload("res://scripts/lang/spooknortz.gd"),
 	preload("res://scripts/lang/staff_spell.gd"),

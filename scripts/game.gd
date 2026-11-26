@@ -208,6 +208,10 @@ var wishes := Wishes.new(self)
 var fishing := Fishing.new(self)
 ## Treasure maps from messages in a bottle and where they lead (see TreasureMaps).
 var treasure_maps := TreasureMaps.new(self)
+## The owl clock riddle: the Deathringer's calls and rest (see OwlClock).
+var owl_clock := OwlClock.new(self)
+## The riddle counter: which of the official riddles are solved (see RiddleCount).
+var riddles := RiddleCount.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -585,6 +589,7 @@ func _bus_links() -> Array:
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
+		[bus.riddle_done, riddles.solve],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
@@ -1956,6 +1961,12 @@ func _use_station(s: Dictionary) -> void:
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))
 	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
 		treasure_maps.use(s)
+	elif s.kind == GraveLore.KIND:
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		show_message(riddles.card(level.level_name) if s.get("counter", false) else GraveLore.card(s), 7.0)
+		if s.get("owlav", false):
+			learn(GraveLore.OWLAV_LORE)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
 		SpringCave.use(self, s)
 	elif s.kind == "schacht":
@@ -4118,6 +4129,8 @@ func begin_new_game() -> void:
 	secrets_found = 0
 	fishing.ring_found = false
 	treasure_maps.clear()
+	owl_clock.clear()
+	riddles.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -4603,6 +4616,8 @@ func _apply_save(data: Dictionary) -> void:
 	secrets_found = int(data.get("secrets", 0))
 	fishing.ring_found = bool(data.get("fished_ring", false))
 	treasure_maps.load_from(data.get("treasure_maps", {}))
+	owl_clock.load_from(data.get("owl_clock", {}))
+	riddles.load_from(data.get("riddles", []))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -4956,7 +4971,7 @@ func _home_given_now() -> bool:
 func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -5952,7 +5967,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE):
+		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE, hero_name):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
@@ -8554,6 +8569,7 @@ func _process(delta: float) -> void:
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 			VillageWall.GATE_STATION: Lang.t("Dagegenlaufen, um das Tor zu öffnen"),
+			GraveLore.KIND: Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
@@ -8829,6 +8845,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						potion_action()
 					KEY_2:
 						spell_action()
+					KEY_3:
+						owl_clock.ring()
 					KEY_U:
 						camp_action()
 					KEY_G:

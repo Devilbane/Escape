@@ -23,7 +23,7 @@ extends RefCounted
 ## Which faction each kind of Enemy belongs to.
 const KINDS := {
 	"krieger": "undead", "schuetze": "undead", "magier": "undead", "wicht": "undead",
-	"koloss": "undead", "waechter": "undead", "fog_wraith": "undead",
+	"koloss": "undead", "waechter": "undead", "fog_wraith": "undead", "tod": "undead",
 	"totengeist": "undead", "banshee": "undead", "ghul": "undead",
 	"halsabschneider": "bandits", "wilderer": "bandits", "schlaeger": "bandits", "hauptmann": "bandits",
 	"wolf": "wolves", "ork": "orcs", "spinne": "spiders", "yeti": "yeti",

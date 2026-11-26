@@ -26,6 +26,10 @@ const ICE_LIFT := 0.035
 const STONES_PER_SQUARE := 5
 ## Share of the plain squares that carry a decorative stone jutting out of the face (they are no holds).
 const DECOR_SHARE := 0.2
+## A climber hangs with the feet this far below the hand hold; the foot stone he stands on is made there.
+const FOOT_DROP := 1.7
+## A foot stone is made only where the feet are clear of the ground (on the ground he simply stands).
+const FOOT_MIN_Y := 0.2
 
 const ROCK := Color(0.47, 0.45, 0.43)
 const ROCK_DARK := Color(0.3, 0.29, 0.29)
@@ -69,6 +73,13 @@ static func node(wall: WallMap) -> Node3D:
 		st.mesh = stones
 		st.material_override = AgedStone.rock_material()
 		root.add_child(st)
+	var feet := b.foot_mesh()
+	if feet != null:
+		var fm := MeshInstance3D.new()
+		fm.name = "FootStones"
+		fm.mesh = feet
+		fm.material_override = AgedStone.rock_material()
+		root.add_child(fm)
 	var decor := b.decor_mesh()
 	if decor != null:
 		var dm := MeshInstance3D.new()
@@ -308,6 +319,38 @@ func stones_mesh() -> ArrayMesh:
 				var xf := Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.02))
 				st.append_from(mesh, 0, xf)
 				count += 1
+	if count == 0:
+		return null
+	return st.commit()
+
+
+## Where the feet of a climber on the hold of square (c, r) stand on the wall (x, y), or (-1, -1) when they stand on
+## the ground. Every such place has a foot stone (see foot_mesh), so he never stands on air.
+static func foot_spot(wall: WallMap, c: int, r: int) -> Vector2:
+	var centre := square_centre(wall, c, r)
+	if centre.y - FOOT_DROP < FOOT_MIN_Y:
+		return Vector2(-1, -1)
+	return Vector2(centre.x, centre.y - FOOT_DROP)
+
+
+## The stones the feet stand on: a broad ledge jutting out of the face under every hold the climber can hang from.
+func foot_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var count := 0
+	for r in map.height:
+		for c in map.width:
+			if not map.has_hold(c, r):
+				continue
+			var spot := foot_spot(map, c, r)
+			if spot.x < 0.0:
+				continue
+			var h := _hash(c * 23 + 1, r * 19 + 6)
+			var mesh: ArrayMesh = NaturalRock.mesh("rock_single_E")
+			if mesh == null:
+				continue
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0)) * Basis(Vector3.UP, (h - 0.5) * 0.8)
+			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3(2.0, 1.7, 1.6)), Vector3(spot.x, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.02)))
+			count += 1
 	if count == 0:
 		return null
 	return st.commit()

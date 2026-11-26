@@ -24,6 +24,14 @@ static func _close(game: Node, layer: CanvasLayer) -> void:
 
 
 ## The wall workshop over the game.
+## The chat command that opens the workshop (dev builds, like the testing panel it is also in).
+const COMMAND := "climbwall"
+
+
+static func is_command(line: String) -> bool:
+	return TestPanel.ENABLED and line.strip_edges().to_lower() == COMMAND
+
+
 static func open_workshop(game: Node) -> void:
 	var layer := _layer(game)
 	var shop := WallWorkshop.new()

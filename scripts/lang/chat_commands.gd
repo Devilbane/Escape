@@ -22,4 +22,5 @@ const EN := {
 	"Freie Kamera aus.": "Free camera off.",
 	"Kamera: free, low, top, off oder ein Neigungswinkel von 3 bis 89.": "Camera: free, low, top, off or a tilt angle from 3 to 89.",
 	"Keine Befehle eingeschaltet.": "No commands are switched on.",
+	"Öffnet die Werkstatt für Kletterwände (auch im Testfeld unter Held): Wände malen, probeklettern, Wolfram zuschauen.": "Opens the climbing wall workshop (also in the test panel under Hero): paint walls, test-climb them, watch Wolfram.",
 }

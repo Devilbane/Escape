@@ -6099,6 +6099,9 @@ func _hero_says(text: String) -> void:
 	if HeroUnstick.is_command(text):
 		_unstick_command()
 		return
+	if WallScreens.is_command(text):
+		WallScreens.open_workshop(self)
+		return
 	var cam: Variant = CameraCommand.parse(text)
 	if cam != null:
 		_camera_command(cam)

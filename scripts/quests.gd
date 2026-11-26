@@ -40,6 +40,8 @@ const AREAS := {
 ## The quest of the graveyard's tales, "Tales of the Crypt" (see GraveyardRiddles): it starts with the first gravestone read
 ## and counts every tale told. A "tally" task has no giver and nothing to hand in.
 const TALES := "gruftgeschichten"
+## The task of the two skulls (see Ossuary).
+const SKULLS := "zarek_schaedel"
 
 const ALL := {
 	"raeuberplage": {"giver": "4", "kind": "kill", "targets": BANDITS, "count": 5, "gold": 25,
@@ -181,6 +183,13 @@ const ALL := {
 		"offer": "Ich bin wund. Ein Heiltrank, und ich verrate Euch ein Geheimnis dieser Zelle.",
 		"remind": "Bruder Orlan wartet im Archiv auf einen Heiltrank.",
 		"done": "Bruder Orlan trinkt den Trank und erzählt dir von zwei verborgenen Orten."},
+	# The fourth tale of the crypt (see Ossuary): the wandering trader wants two named skulls from the ossuary.
+	"zarek_schaedel": {"giver": "%", "kind": "bring", "items": ["schaedel_medusa", "schaedel_snoops"], "crypt": true, "gold": 40,
+		"reward": "geladener_diamant", "brief": "", "title": "Zwei Schädel für Zarek",
+		"goal": "Hole die Schädel von Madame Medusa und Herrn Snoops aus der Gruft unter dem Friedhof und bring sie dem fahrenden Händler Zarek.",
+		"offer": "Die Gruft unter dem Friedhof ist ein Beinhaus geworden. Zwei Schädel will ich haben: Madame Medusa und Herrn Snoops. Frag nicht, wofür. Du findest sie in den Regalen.",
+		"remind": "Ich warte auf die Schädel von Madame Medusa und Herrn Snoops aus der Gruft.",
+		"done": "Madame Medusa und Herr Snoops! Wunderbar. Hier, ein geladener Diamant: Er knistert noch. Und 40 Kupfer obendrauf."},
 	# The tales of the graveyard (see GraveyardRiddles): a tally of four.
 	"gruftgeschichten": {"giver": "", "found": true, "kind": "tally", "count": 4, "gold": 0, "note": "Die Geheimnisse des Friedhofs",
 		"source": "Der Friedhof von Apfeltal",
@@ -223,6 +232,9 @@ func is_available(id: String) -> bool:
 	var after: String = ALL[id].get("after", "")
 	if after != "" and not is_done(after):
 		return false
+	# A task of the crypt waits until its way is open (see GraveyardRiddles.OWL_CLOCK).
+	if ALL[id].get("crypt", false) and not (game != null and game.graveyard_riddles.solved.has(GraveyardRiddles.OWL_CLOCK)):
+		return false
 	var standing := int(ALL[id].get("standing", 0))
 	return standing <= 0 or (game != null and game.reputation.level(ALL[id].giver) >= standing)
 
@@ -262,7 +274,18 @@ func progress(id: String) -> String:
 			return "%d / %d" % [mini(_carried(q.item), q.count), q.count]
 		"tally":
 			return "%d / %d" % [mini(tales(), q.count), q.count]
+		"bring":
+			return "%d / %d" % [mini(brought(id), q.items.size()), q.items.size()]
 	return ""
+
+
+## How many of a bring task's items the hero carries.
+func brought(id: String) -> int:
+	var n := 0
+	for item: String in ALL[id].items:
+		if game.player.bag.has(item):
+			n += 1
+	return n
 
 
 ## The tales of the crypt told so far.
@@ -288,6 +311,8 @@ func missing(id: String) -> int:
 			return maxi(0, q.count - _carried(q.item))
 		"tally":
 			return maxi(0, q.count - tales())
+		"bring":
+			return q.items.size() - brought(id)
 	if q.kind == "potion":
 		return 0 if potion_in_bag() != "" else 1
 	return 0 if not game.player.bag.has(q.item) else 1
@@ -428,6 +453,21 @@ func talk(v: Villager, trader := false) -> bool:
 				v.meet()
 				var remind := Lang.t(q.remind)
 				v.say(remind % missing(id) if remind.contains("%d") else remind, game.player.global_position)
+				return true
+			"bring":
+				if missing(id) == 0:
+					if not _room_for_reward(id, q.items.size()):
+						v.meet()
+						v.say(Lang.t("Gut gemacht! Mach Platz in deiner Tasche, dann bekommst du deine Belohnung."), game.player.global_position)
+						return true
+					for item: String in q.items:
+						game.player.bag.erase(item)
+					_finish(id, v)
+					return true
+				if trader:
+					continue
+				v.meet()
+				v.say(Lang.t(q.remind), game.player.global_position)
 				return true
 			"deliver":
 				if not game.player.bag.has(q.item) and _bag_free() > 0:

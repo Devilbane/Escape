@@ -669,6 +669,8 @@ func build() -> void:
 		add_child(stern)
 	if lair and theme == "":
 		_decorate_lair()
+	if building == OwlClock.ID:
+		Ossuary.dress(self)
 	if theme == Wasteland.THEME:
 		Wasteland.dress(self)
 	if theme == Nohpaan.THEME:

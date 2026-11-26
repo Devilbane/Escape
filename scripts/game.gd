@@ -575,6 +575,7 @@ func _bus_links() -> Array:
 		[bus.enemy_slain, Callable(MonsterLore, "on_hero_kill")],
 		[bus.quest_done, quest_reward],
 		[bus.quest_found, quests.start_found],
+		[bus.quest_done, _on_skulls_task_done],
 		[bus.quest_done, reputation.on_quest_done],
 		[bus.quest_item_given, update_after_quest],
 		[bus.reputation_rose, reputation_rose],
@@ -1968,6 +1969,10 @@ func _use_station(s: Dictionary) -> void:
 		quests.start_found(Quests.TALES)
 		if s.get("owlav", false):
 			learn(GraveLore.OWLAV_LORE)
+	elif s.kind == Ossuary.KIND:
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		Ossuary.use(self, s)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
 		SpringCave.use(self, s)
 	elif s.kind == "schacht":
@@ -6070,6 +6075,12 @@ func _on_graveyard_riddle(id: String) -> void:
 		Events.tell(Lang.t(GraveyardRiddles.OPENED), Color(0.7, 1.0, 0.85), 7.0)
 
 
+## The trader's task of the two skulls is done: the fourth tale of the crypt (see Ossuary).
+func _on_skulls_task_done(id: String) -> void:
+	if id == Quests.SKULLS:
+		Events.bus().graveyard_riddle.emit(GraveyardRiddles.SKULLS)
+
+
 func _on_riddle_spoken(text: String, pos: Vector3) -> void:
 	if level is Outdoor and level.sunflower_riddle != null:
 		level.sunflower_riddle.on_hero_spoke(text, pos)
@@ -7994,6 +8005,8 @@ func go_inside(building: String, house := 0, leaf: HouseDoor = null) -> void:
 	tween.tween_callback(func():
 		_park_next = true
 		load_level(interiors[building], false)
+		if building == OwlClock.ID:
+			Ossuary.hide_taken(level, player.bag)
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)

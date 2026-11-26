@@ -343,3 +343,14 @@ func _placements() -> void:
 	var wall := WallMap.parse("name: A\nsummit: 11_die_freiheit.txt:square\nsize: 24 24\n")
 	check(WallPlacements.summit_of(wall) == ["11_die_freiheit.txt", "square"], "the summit names a map and a place")
 	check(WallPlacements.summit_of(WallMap.blank()).is_empty(), "no summit, no destination")
+	# The sample wall stands in the valley of Apfeltal, on a rock tile beside the path.
+	var shipped := WallPlacements.at("Apfeltal", Vector2i(49, 47))
+	check(not shipped.is_empty() and shipped.wall == "sample_three_paths.txt", "the sample wall is placed in the world")
+	var level_text := FileAccess.get_file_as_string("res://levels/11_die_freiheit.txt")
+	var rows := level_text.split("\n")
+	var first := 0
+	while rows[first].strip_edges() != "":
+		first += 1
+	check(rows[first + 1 + 47][49] == "=" and rows[first + 1 + 47][48] == ".", "the placed rock tile is rock with a path beside it")
+	var exported := FileAccess.get_file_as_string("res://export_presets.cfg")
+	check(exported.count("walls/*.txt") >= 2, "the export includes the wall files")

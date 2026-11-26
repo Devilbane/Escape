@@ -13,5 +13,5 @@ const EN := {
 	"Lager des Alten": "Old One's lair",
 	"Minen": "Mines",
 	"Unverwundbar und fünffaches Tempo.": "Invulnerable and five times the speed.",
-	"Testfeld ein- und ausblenden (F3)": "Show or hide the test panel (F3)",
+	"Testfeld ein- und ausblenden (F3 oder F6)": "Show or hide the test panel (F3 or F6)",
 }

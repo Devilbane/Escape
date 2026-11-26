@@ -11,9 +11,9 @@ extends RefCounted
 const KIND := "grabstein"
 ## The stone of the one who listened to the night (see OwlClock).
 const OWLAV := {"name": "Owlav Hearing",
-	"text": "Er hörte, was die Nacht verschwieg. Wenn der Mond sich rundet, lausche den Eulen und läute es ihm zurück."}
+	"text": "Er hörte, was die Nacht verschwieg."}
 ## How it reads in the compendium.
-const OWLAV_LORE := "Owlav Hearings Grabstein: „Er hörte, was die Nacht verschwieg. Wenn der Mond sich rundet, lausche den Eulen und läute es ihm zurück.“"
+const OWLAV_LORE := "Owlav Hearings Grabstein: „Er hörte, was die Nacht verschwieg.“"
 ## Everybody else, funny, fancy and macabre, in no particular order.
 const OTHERS := [
 	{"name": "Brannwin Quast", "text": "Er sagte, die Suppe sei nicht vergiftet. Er hatte recht: Es war der Pilz."},
@@ -73,4 +73,6 @@ static func other(index: int) -> Dictionary:
 
 ## What a stone says, as the message shows it.
 static func card(entry: Dictionary) -> String:
+	if str(entry.name) == "":
+		return "„" + Lang.t(entry.text) + "“"
 	return Lang.t(entry.name) + "\n„" + Lang.t(entry.text) + "“"

@@ -42,6 +42,8 @@ signal bounty_paid(id: String)
 signal riddle_solved(kind: String, place_level: int)
 ## An official riddle is solved (its id, see RiddleCount): the counter gravestones count it.
 signal riddle_done(id: String)
+## A riddle of the graveyards is solved (its id, see GraveyardRiddles): two of them teach Necromancy.
+signal graveyard_riddle(id: String)
 ## The hero fished up a bottle with a treasure map in it (see Fishing and
 ## TreasureMaps): the map's id. Its spot shows in the world from now on.
 signal treasure_map_found(id: String)
@@ -116,6 +118,11 @@ signal village_alarmed(reason: String)
 ## 3). The prayer itself heals and lifts ailments; whatever else Mirenna's
 ## hand mends (the cure for grave injuries) connects here, in Game._bus_links().
 signal mercy_prayed(restored: int)
+
+
+## A hero learned a lesson of the monks of Nohpaan (see Monastery): the skill's id and how many lessons of it
+## the hero has now (1 to 3).
+signal lesson_learned(skill: String, lessons: int)
 
 
 ## A hero registered a building plot at the Crown Office (see PlotOffice): the

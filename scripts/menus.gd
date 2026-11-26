@@ -81,7 +81,7 @@ const LOAD_ROWS_SHOWN := 5
 var _info: RichTextLabel
 const INFO_HINT := "Zeig auf einen Gegenstand, um seine Werte zu sehen."
 ## The windows built as a TradeWindow.
-const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Mill.KIND, Beekeeper.KIND]
+const TRADE_WINDOWS := ["haendler", "wanderhaendler", ClimberNpc.KIND, "schmied", "steinmetz", "holzfaeller", "raumausstatter", "barbier", "tempel", RuinedShrine.KIND, Monastery.KIND, Mill.KIND, Beekeeper.KIND]
 ## The compact trading window of every merchant (see TradeWindow).
 var trade := TradeWindow.new()
 ## Every control, for the compendium: action and keys.
@@ -352,6 +352,8 @@ func _rebuild() -> void:
 			_build_temple()
 		RuinedShrine.KIND:
 			_build_ruined_shrine()
+		Monastery.KIND:
+			_build_monastery()
 		"steinmetz":
 			_build_stonemason()
 		"holzfaeller":
@@ -847,6 +849,10 @@ func _crafts_text() -> String:
 	var parts := []
 	for id in Training.CRAFTS:
 		if id == AshSpire.SPELL and not AshSpire.knows_spell(game.player):
+			continue
+		if id == GraveyardRiddles.SKILL and not GraveyardRiddles.knows(game.player):
+			continue
+		if Monastery.SKILLS.has(id) and Monastery.lessons(game.player, id) == 0:
 			continue
 		parts.append("%s %d" % [Lang.t(Training.CRAFTS[id].name), Training.skill_level(game.player.xp.get(id, 0.0), id)])
 	var lines := []
@@ -4056,6 +4062,47 @@ func _build_ruined_shrine() -> void:
 		{"key": "pray", "title": Lang.t("Gebet"), "icon": "kind:heart", "entries": [pray]},
 		{"key": "mend", "title": Lang.t("Den Schrein herrichten"), "icon": "kind:hammer_anvil", "entries": steps},
 	], null, Lang.t("Hier kannst du beten. Mit kleinen Gaben stellst du den verfallenen Schrein Stück für Stück wieder her."))
+
+
+## The window of a monk of Nohpaan (see Monastery): the three lessons of their skill in their order. A lesson
+## learned stays in its row, dimmed; the next one says what it still asks for.
+func _build_monastery() -> void:
+	var id: String = game.monastery_teacher
+	var skill: Dictionary = Monastery.SKILLS[id]
+	var hero: Player = game.player
+	_add_label(Lang.t(skill.monk), 38, game.GOLD, game.TITLE_FONT)
+	var known := Monastery.lessons(hero, id)
+	var icon := {"bergatem": "kind:boots", "stille_mitte": "kind:heart", "windschritt": "kind:flower"}.get(id, "kind:scroll") as String
+	var entries := []
+	for lesson in range(1, Monastery.MAX_LESSONS + 1):
+		var cost := Monastery.price(lesson)
+		var need := Monastery.missing(hero, id, lesson)
+		var entry := {"key": "lesson:%d" % lesson, "icon": icon, "name": Lang.t("%s, Lehre %d") % [Lang.t(skill.name), lesson],
+				"price": Lang.t("%d Gold") % (cost / 250 if cost % 250 == 0 else cost / 250 + 1), "price_ok": Payment.can_pay(game, cost),
+				"detail": {"subtitle": Lang.t(skill.name), "lines": [[Lang.t(skill.text), TradeWindow.BLUE]]}}
+		if need != "":
+			entry.detail.lines.append([Lang.t("Dafür brauchst du %s.") % need, TradeWindow.ORANGE])
+		if lesson <= known:
+			entry.gone = Lang.t("Gelernt")
+		else:
+			var next := lesson == known + 1
+			entry.button = Lang.t("Lehre lernen")
+			entry.action = _learn_lesson.bind(id)
+			entry.enabled = next and need == "" and Payment.can_pay(game, cost)
+			if not next:
+				entry.detail.lines.append([Lang.t("Zuerst die Lehre davor."), TradeWindow.ORANGE])
+		entries.append(entry)
+	_trade(Lang.t("Dein Kupfer: %d") % game.coins, [
+		{"key": "lessons", "title": Lang.t("Lehren"), "icon": icon, "entries": entries},
+	], null, Lang.t("Jede Lehre kostet Gold und ein Können, das du schon beherrschst."))
+
+
+func _learn_lesson(id: String) -> void:
+	var why := Monastery.learn(game, id)
+	_note = why
+	if why == "":
+		game.save_game()
+	_rebuild()
 
 
 func _pray_at_shrine() -> void:

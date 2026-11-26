@@ -28,6 +28,13 @@ static func entries() -> Array:
 			"text": "Setzt den Helden auf den nächsten freien Platz, wenn er irgendwo festhängt. Nie durch eine Wand oder eine verschlossene Tür.",
 			"examples": [HeroUnstick.COMMAND],
 		})
+	if TestPanel.ENABLED:
+		out.append({
+			"name": "Kletterwand",
+			"syntax": WallScreens.COMMAND,
+			"text": "Öffnet die Werkstatt für Kletterwände (auch im Testfeld unter Held): Wände malen, probeklettern, Wolfram zuschauen.",
+			"examples": [WallScreens.COMMAND],
+		})
 	if Teleport.ENABLED:
 		out.append({
 			"name": "Teleport",

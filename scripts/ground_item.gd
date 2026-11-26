@@ -383,6 +383,13 @@ static func _errand(id: String) -> Node3D:
 			_box(n, Vector3(0.2, 0.01, 0.15), Vector3(0, 0.005, 0), PARCHMENT.darkened(0.08), Vector3(0, 30, 0))
 			var mark := Color(0.2, 0.45, 0.2) if id.ends_with("2") else (Color(0.65, 0.12, 0.1) if id.ends_with("3") else Color(0.35, 0.25, 0.15))
 			_box(n, Vector3(0.09, 0.012, 0.015), Vector3(0, 0.008, 0), mark, Vector3(0, 30, 0))
+		"schaedel_medusa", "schaedel_snoops":
+			_ball(n, 0.11, Vector3(0, 0.13, 0), Color(0.9, 0.86, 0.74), Vector3(1.0, 0.95, 1.1))
+			_box(n, Vector3(0.12, 0.07, 0.1), Vector3(0, 0.05, 0.03), Color(0.86, 0.82, 0.7))
+			_ball(n, 0.03, Vector3(-0.045, 0.14, 0.09), Color(0.05, 0.04, 0.04))
+			_ball(n, 0.03, Vector3(0.045, 0.14, 0.09), Color(0.05, 0.04, 0.04))
+		"geladener_diamant":
+			_box(n, Vector3(0.14, 0.14, 0.14), Vector3(0, 0.12, 0), Color(0.75, 0.9, 1.0), Vector3(45, 30, 45), 0.6, 0.1, 0.5)
 		"schatzkarte":
 			_box(n, Vector3(0.34, 0.012, 0.26), Vector3(0, 0.006, 0), PARCHMENT, Vector3(0, 15, 0))
 			_box(n, Vector3(0.14, 0.014, 0.02), Vector3(0.02, 0.01, 0), Color(0.65, 0.12, 0.1), Vector3(0, 60, 0))

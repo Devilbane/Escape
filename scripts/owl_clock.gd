@@ -134,6 +134,12 @@ static func is_open(lvl: Level) -> bool:
 
 ## What the stone number `index` among the graveyard's graves (in map order) says.
 static func inscription(index: int, c: Vector2i, town := "") -> Dictionary:
+	var pair := GraveSpirit.inscription(c, town)
+	if not pair.is_empty():
+		return pair
+	var coffin := BellGrave.inscription(c, town)
+	if not coffin.is_empty():
+		return coffin
 	if c == RiddleCount.grave_of(town):
 		return {"name": RiddleCount.NAME, "text": "", "counter": true}
 	return GraveLore.OWLAV if c == grave_cell() else GraveLore.other(index)
@@ -324,6 +330,7 @@ func open_crypt() -> void:
 	var lvl: Outdoor = game.level
 	game.treasure_maps.state[ID] = TreasureMaps.OPEN
 	Events.bus().riddle_done.emit(RiddleCount.OWL_CLOCK)
+	Events.bus().graveyard_riddle.emit(GraveyardRiddles.OWL_CLOCK)
 	Sfx.play(game, "rumble")
 	Events.tell(Lang.t(OPENED), game.GOLD)
 	build_stairs(lvl, lvl.owlav_pos, true)

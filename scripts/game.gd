@@ -209,6 +209,8 @@ var treasure_maps := TreasureMaps.new(self)
 var owl_clock := OwlClock.new(self)
 ## The riddle counter: which of the official riddles are solved (see RiddleCount).
 var riddles := RiddleCount.new()
+## The graveyards' riddles solved, and the Necromancy they teach (see GraveyardRiddles).
+var graveyard_riddles := GraveyardRiddles.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -573,6 +575,7 @@ func _bus_links() -> Array:
 		[bus.enemy_slain, Callable(MonsterLore, "on_hero_kill")],
 		[bus.quest_done, quest_reward],
 		[bus.quest_found, quests.start_found],
+		[bus.quest_done, _on_skulls_task_done],
 		[bus.quest_done, reputation.on_quest_done],
 		[bus.quest_item_given, update_after_quest],
 		[bus.reputation_rose, reputation_rose],
@@ -588,6 +591,7 @@ func _bus_links() -> Array:
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
 		[bus.riddle_done, riddles.solve],
+		[bus.graveyard_riddle, _on_graveyard_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
@@ -1936,6 +1940,10 @@ func set_world_paused(paused: bool) -> void:
 
 
 ## Running into a shrine, the bed, the storage chest or the merchant.
+## The skill whose monk of Nohpaan the hero is talking to (see Monastery, Menus._build_monastery).
+var monastery_teacher := ""
+
+
 func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
 	# Still saying the last line: a new bump does not start a new one yet, or
@@ -1958,8 +1966,13 @@ func _use_station(s: Dictionary) -> void:
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
 		show_message(riddles.card(level.level_name) if s.get("counter", false) else GraveLore.card(s), 7.0)
+		quests.start_found(Quests.TALES)
 		if s.get("owlav", false):
 			learn(GraveLore.OWLAV_LORE)
+	elif s.kind == Ossuary.KIND:
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		Ossuary.use(self, s)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
 		SpringCave.use(self, s)
 	elif s.kind == "schacht":
@@ -1982,6 +1995,13 @@ func _use_station(s: Dictionary) -> void:
 		player.play("Idle")
 		bumped_person = true
 		s.figure.talk(player)
+		# A monk of Nohpaan who teaches opens the window of the lessons (see Monastery).
+		var teaches := str(s.figure.spec.get("teaches", ""))
+		if Monastery.SKILLS.has(teaches):
+			monastery_teacher = teaches
+			menus.open(Monastery.KIND)
+	elif s.kind == Nohpaan.SEALED_KIND:
+		Nohpaan.use_sealed(self, s)
 	elif s.kind == "hort":
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
@@ -4117,6 +4137,7 @@ func begin_new_game() -> void:
 	treasure_maps.clear()
 	owl_clock.clear()
 	riddles.clear()
+	graveyard_riddles.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -4521,6 +4542,7 @@ func _apply_save(data: Dictionary) -> void:
 	treasure_maps.load_from(data.get("treasure_maps", {}))
 	owl_clock.load_from(data.get("owl_clock", {}))
 	riddles.load_from(data.get("riddles", []))
+	graveyard_riddles.load_from(data.get("graveyard_riddles", []))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -4874,7 +4896,7 @@ func _home_given_now() -> bool:
 func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "graveyard_riddles": graveyard_riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -6041,9 +6063,29 @@ func chat_allowed() -> bool:
 ## and goes into the event log (as every spoken line does), and whoever is
 ## near may answer (see HeroChat).
 ## The hero spoke: by the scarecrow in the sunflower field the right words set off the fireworks (see SunflowerRiddle).
+## A riddle of the graveyards is solved: the second one teaches Necromancy (see GraveyardRiddles).
+func _on_graveyard_riddle(id: String) -> void:
+	if not graveyard_riddles.solve(id):
+		return
+	riddles.solve(id)
+	quests.start_found(Quests.TALES)
+	quests.update_tales()
+	if graveyard_riddles.riddles_solved() >= GraveyardRiddles.NEEDED and GraveyardRiddles.teach(player):
+		Training.save_hero(hero_name, player.xp, player.level_data())
+		Events.tell(Lang.t(GraveyardRiddles.OPENED), Color(0.7, 1.0, 0.85), 7.0)
+
+
+## The trader's task of the two skulls is done: the fourth tale of the crypt (see Ossuary).
+func _on_skulls_task_done(id: String) -> void:
+	if id == Quests.SKULLS:
+		Events.bus().graveyard_riddle.emit(GraveyardRiddles.SKULLS)
+
+
 func _on_riddle_spoken(text: String, pos: Vector3) -> void:
 	if level is Outdoor and level.sunflower_riddle != null:
 		level.sunflower_riddle.on_hero_spoke(text, pos)
+	if level is Outdoor and level.grave_spirit != null:
+		level.grave_spirit.on_hero_spoke(text, pos)
 
 
 func _hero_says(text: String) -> void:
@@ -6056,6 +6098,9 @@ func _hero_says(text: String) -> void:
 		return
 	if HeroUnstick.is_command(text):
 		_unstick_command()
+		return
+	if WallScreens.is_command(text):
+		WallScreens.open_workshop(self)
 		return
 	var cam: Variant = CameraCommand.parse(text)
 	if cam != null:
@@ -7963,6 +8008,8 @@ func go_inside(building: String, house := 0, leaf: HouseDoor = null) -> void:
 	tween.tween_callback(func():
 		_park_next = true
 		load_level(interiors[building], false)
+		if building == OwlClock.ID:
+			Ossuary.hide_taken(level, player.bag)
 		player.frozen = false
 		state = State.PLAYING
 		create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
@@ -8442,6 +8489,7 @@ func _process(delta: float) -> void:
 		_prompt.text = _hint(station.kind, {
 			"schrein": Lang.t("Dagegenlaufen, um den Schrein zu berühren"),
 			RuinedShrine.KIND: Lang.t("Dagegenlaufen, um am Schrein der Gnädigen Herrin zu beten"),
+			Nohpaan.SEALED_KIND: Lang.t("Dagegenlaufen, um das versiegelte Tor zu untersuchen"),
 			"bett": Lang.t("Dagegenlaufen, um dich ins Bett zu legen"),
 			"lager": Lang.t("Dagegenlaufen, um die Lagertruhe zu öffnen"),
 			"metalltruhe": Lang.t("Dagegenlaufen, um die stahlbeschlagene Truhe für Metall und Edelsteine zu öffnen"),

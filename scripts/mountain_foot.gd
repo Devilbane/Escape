@@ -15,6 +15,9 @@ extends RefCounted
 
 ## How far the plain apron reaches out from the rock tiles' edge (metres).
 const REACH := 3.0
+## The same, in front of a climbing spot's lane (see clear_fade): the lane has no lobes to hide the rock's straight foot, so the
+## apron fades out over more than a tile there, and the earth of the foot melts into the ground.
+const LANE_REACH := 5.0
 ## Field pixels per tile.
 const PX := 4
 ## The lobes: the farthest one can reach (metres from the rock's edge), how high at the wall, the grid of their mesh.
@@ -310,8 +313,12 @@ static func field(level: Outdoor) -> Image:
 				var sz := (y + (py + 0.5) / PX - 0.5) * tile
 				var d := 0.0 if rock else _dist(rects, sx, sz)
 				var v := 0.0
-				if d < REACH:
-					v = 1.0 - d / REACH
+				var lane := 1.0 - clear_fade(level, sx, sz) if not rock else 0.0
+				var reach := lerpf(REACH, LANE_REACH, lane)
+				if d < reach:
+					v = 1.0 - d / reach
+				# The lobes and mounds are kept off the lane; the plain apron is not, so the rock's foot has no hard line.
+				var plain := v
 				if not rock and d < LOBE_MAX and has("lobes") and _plain(level, sx, sz):
 					var outer := d - lobe_reach(sx, sz)
 					v = maxf(v, (1.0 - smoothstep(-0.2, 1.6, outer)) * 0.95 * plot_fade(level, sx, sz))
@@ -321,6 +328,7 @@ static func field(level: Outdoor) -> Image:
 					v = maxf(v, (1.0 - smoothstep(-0.4, 2.0, edge)) * 0.9)
 				if v > 0.0 and not rock:
 					v *= clear_fade(level, sx, sz)
+				v = maxf(v, plain)
 				if v > 0.0:
 					img.set_pixel(x * PX + px, y * PX + py, Color(v, 0, 0, 1))
 	return img

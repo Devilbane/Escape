@@ -1,0 +1,1 @@
+- Climbing animations are slower with a wide, fully stretched hand-and-foot reach sideways, and the rope stays unbroken; the dead climber is frozen with icicles.

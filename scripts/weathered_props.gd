@@ -30,7 +30,7 @@ const MODELS := {
 	"barrel": IRON, "crate_A_big": IRON, "crate_long_A": IRON, "crate_open": IRON,
 	"sack": IRON, "wheelbarrow": IRON, "bucket_water": IRON, "resource_lumber": IRON,
 	"tree_single_A_cut": IRON, "weaponrack": IRON, "flag_red": IRON, "flag_blue": IRON,
-	"tent": IRON, "bench": STONE,
+	"tent": IRON, "bench": STONE, "building_well_yellow": STONE,
 	"resource_stone": STONE, "rock_single_A": STONE, "rock_single_C": STONE, "rock_single_E": STONE,
 	"pumpkin_orange": FRESH, "pumpkin_orange_jackolantern": FRESH, "pumpkin_yellow_small": FRESH,
 }

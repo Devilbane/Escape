@@ -29,6 +29,16 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+func _find(node: Node, type_name: String) -> Node:
+	if node.get_script() != null and String(node.get_script().get_global_name()) == type_name:
+		return node
+	for c in node.get_children():
+		var f := _find(c, type_name)
+		if f != null:
+			return f
+	return null
+
+
 func _run() -> void:
 	if game.state == game.State.TITLE:
 		game._start_playing()
@@ -37,9 +47,13 @@ func _run() -> void:
 	var panel: TestPanel = game._test_panel
 	check(panel.visible, "the panel's tab shows while playing")
 	check(not panel.open, "the box is closed at first")
+	var view: Rect2 = game._hud.get_viewport().get_visible_rect()
+	var tab: Control = panel.get_child(0).get_child(1)
+	check(view.encloses(tab.get_global_rect()), "the Test button lies on the screen, not above or beside it")
 	panel.toggle()
 	await process_frame
 	check(panel.open, "the tab opens the box")
+	check(view.encloses(panel._box.get_global_rect()), "the opened box lies on the screen")
 	var size_before := panel.get_combined_minimum_size()
 	for page in panel._pages:
 		for p in panel._pages:
@@ -60,6 +74,17 @@ func _run() -> void:
 	check(Godmode.SPEED_FACTOR == 5.0, "godmode runs five times as fast")
 	panel.picked.emit("god", null)
 	check(not game.player.godmode and not panel.god_button.button_pressed, "godmode off again")
+	# The climbing wall workshop opens from the hero page and its wall is there to edit.
+	panel.picked.emit("wall", null)
+	for i in 10:
+		await process_frame
+	var shop := _find(game, "WallWorkshop")
+	check(shop != null and shop.map != null and shop.map.width >= 24, "the Kletterwand button opens the wall workshop")
+	check(FileAccess.file_exists("res://walls/sample_three_paths.txt"), "the sample wall is shipped")
+	if shop != null:
+		shop.closed.emit()
+		for i in 5:
+			await process_frame
 	# Every place exists.
 	for place in TestPanel.PLACES:
 		check(game.level_files.has(game.LEVEL_DIR + String(place[1])), "the level file %s exists" % place[1])

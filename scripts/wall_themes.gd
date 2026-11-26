@@ -1,7 +1,7 @@
 class_name WallThemes
 extends RefCounted
 ## The cave styles a map can give its walls and floors (header "walls:"):
-## bone, rock, obsidian and crystal. Each style dresses the walls, the floor
+## bone, rock, obsidian, crystal and alpine. Each style dresses the walls, the floor
 ## tiles and the rough floor of a map in one material family (see
 ## shaders/wall_theme.gdshader), built on the kit's block layout so the joints,
 ## edges and detail match the stone dungeon. Walls are darker than the floor in
@@ -34,6 +34,10 @@ const STYLES := {
 			"floor": [Color(0.4, 0.55, 0.7), Color(0.14, 0.2, 0.32)],
 			"rough": [Color(0.32, 0.44, 0.6), Color(0.11, 0.16, 0.28)],
 			"glow": Color(0.35, 0.8, 1.0)},
+	# Nohpaan: pale granite walls, a meadow floor, trodden earth for the rough floor.
+	"alpine": {"id": 4, "wall": [Color(0.66, 0.66, 0.64), Color(0.3, 0.31, 0.32)],
+			"floor": [Color(0.34, 0.5, 0.19), Color(0.12, 0.24, 0.09)],
+			"rough": [Color(0.6, 0.54, 0.42), Color(0.3, 0.26, 0.2)]},
 }
 
 

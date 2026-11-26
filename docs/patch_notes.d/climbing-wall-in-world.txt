@@ -1,0 +1,1 @@
+- Fixed the climbing wall files missing from the Windows build, and the sample wall now stands in Apfeltal: walk the path south of the village and push against the rock face to start the climb.

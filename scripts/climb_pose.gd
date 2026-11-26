@@ -105,18 +105,27 @@ static func apply(sk: Skeleton3D, base: Dictionary, pose: Dictionary) -> void:
 		sk.set_bone_pose_rotation(i, (base[bone].q as Quaternion) * Quaternion(axis, rad))
 	turn.call("hips", Vector3.RIGHT, 0.0)
 	var hips := sk.find_bone("hips")
-	sk.set_bone_pose_position(hips, (base.hips.p as Vector3) + Vector3(0, float(pose.get("hips_y", 0.0)), 0))
-	turn.call("spine", Vector3.RIGHT, angle.call("spine"))
+	# hips_x shifts the body sideways and "lean" tips the spine to a side (a traverse, see RopeClimbPose).
+	sk.set_bone_pose_position(hips, (base.hips.p as Vector3) + Vector3(float(pose.get("hips_x", 0.0)), float(pose.get("hips_y", 0.0)), 0))
+	var spine_i := sk.find_bone(BONES["spine"])
+	sk.set_bone_pose_rotation(spine_i, (base["spine"].q as Quaternion) * Quaternion(Vector3.RIGHT, angle.call("spine")) * Quaternion(Vector3.BACK, angle.call("lean")))
 	turn.call("chest", Vector3.RIGHT, angle.call("chest"))
 	turn.call("head", Vector3.RIGHT, angle.call("head"))
 	# Each arm may have its own angle (arm_l, elbow_l, ...: a ladder climb, see LadderPose).
 	var side := func(k: String, s: String) -> float: return deg_to_rad(float(pose.get(k + s, pose.get(k, 0.0))))
-	turn.call("ua_l", Vector3.BACK, -side.call("arm", "_l"))
-	turn.call("ua_r", Vector3.BACK, side.call("arm", "_r"))
+	# An arm may also reach out to its side (out_l, out_r: swung out; lift_l, lift_r: raised): the hand that
+	# reaches along the face for the next hold, seen from behind.
+	var ua_l := sk.find_bone(BONES["ua_l"])
+	var ua_r := sk.find_bone(BONES["ua_r"])
+	sk.set_bone_pose_rotation(ua_l, (base["ua_l"].q as Quaternion) * Quaternion(Vector3.RIGHT, angle.call("lift_l")) * Quaternion(Vector3.UP, -angle.call("out_l")) * Quaternion(Vector3.BACK, -side.call("arm", "_l")))
+	sk.set_bone_pose_rotation(ua_r, (base["ua_r"].q as Quaternion) * Quaternion(Vector3.RIGHT, angle.call("lift_r")) * Quaternion(Vector3.UP, angle.call("out_r")) * Quaternion(Vector3.BACK, side.call("arm", "_r")))
 	turn.call("la_l", Vector3.BACK, -side.call("elbow", "_l"))
 	turn.call("la_r", Vector3.BACK, side.call("elbow", "_r"))
-	turn.call("ul_l", Vector3.RIGHT, -angle.call("hip_l"))
-	turn.call("ul_r", Vector3.RIGHT, -angle.call("hip_r"))
+	# A leg may also swing out to its side (abd_l, abd_r): a foot reaching for a hold along the face.
+	var ul_l := sk.find_bone(BONES["ul_l"])
+	var ul_r := sk.find_bone(BONES["ul_r"])
+	sk.set_bone_pose_rotation(ul_l, (base["ul_l"].q as Quaternion) * Quaternion(Vector3.RIGHT, -angle.call("hip_l")) * Quaternion(Vector3.BACK, -angle.call("abd_l")))
+	sk.set_bone_pose_rotation(ul_r, (base["ul_r"].q as Quaternion) * Quaternion(Vector3.RIGHT, -angle.call("hip_r")) * Quaternion(Vector3.BACK, angle.call("abd_r")))
 	turn.call("ll_l", Vector3.RIGHT, angle.call("knee_l"))
 	turn.call("ll_r", Vector3.RIGHT, angle.call("knee_r"))
 

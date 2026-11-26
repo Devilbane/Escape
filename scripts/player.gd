@@ -3309,13 +3309,13 @@ const NAIL := "kletterhaken"
 const HAMMER := "kletterhammer"
 const ROPE := "kletterseil"
 ## Seconds of one pull-up at the first Klettern level; each level above takes a little off.
-const ROCK_PULL_SECONDS := 1.3
+const ROCK_PULL_SECONDS := 2.0
 const ROCK_SLIP_SECONDS := 0.6
 const ROCK_HAMMER_SECONDS := 2.4
 const ROCK_THREAD_SECONDS := 1.6
 const ROCK_ARREST_SECONDS := 1.6
 ## Seconds of one hold going down, and the tests' roll for a fall (see RockClimb.fall_chance).
-const ROCK_DESCEND_SECONDS := 1.0
+const ROCK_DESCEND_SECONDS := 1.6
 const ROCK_TOP_SECONDS := 1.4
 const ROCK_FALL_SPEED := 7.0
 var _rock: RockClimb = null
@@ -3451,7 +3451,7 @@ func _rock_begin_pull() -> void:
 	_rock_side = _rock_wanted_side()
 	if _rock_side != 0:
 		_rock_left = _rock_side < 0
-	_rock_seconds = maxf(0.7, ROCK_PULL_SECONDS - 0.03 * (climbing_level() - 1))
+	_rock_seconds = maxf(1.1, ROCK_PULL_SECONDS - 0.04 * (climbing_level() - 1))
 
 
 ## Left (-1) or right (1) when the hero holds a sideways key on the face and there is room along it; else 0

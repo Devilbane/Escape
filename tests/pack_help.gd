@@ -62,6 +62,18 @@ func _run() -> void:
 	PackHelp.on_struck(a, hero.global_position)
 	check(b._awake, "the wolf nearby joins the defence")
 	check(not slime._awake, "the slime stays out of it")
+	# A monster that would leave the hero be (cowed) is provoked when it joins a struck mate's defence.
+	var c := Enemy.new()
+	c.kind = "wolf"
+	c.level = lvl
+	lvl.add_child(c)
+	c.global_position = spot + Vector3(8, 0, 1)
+	lvl.enemies.append(c)
+	c.rated_level = 1
+	c._provoked = false
+	check(PackHelp.can_answer(c, a), "a mate answers whatever the level difference (it is not skipped as cowed)")
+	c.join_defence(hero.global_position, a.global_position)
+	check(c._provoked and c._awake, "a joining monster is no longer cowed and hunts the hero")
 	print("PASS: pack help" if failures == 0 else "FAILED: %d" % failures)
 	game.delete_save(game.save_path())
 	quit(1 if failures > 0 else 0)

@@ -69,3 +69,4 @@ wall_map.gd | scripts/wall_*.gd scripts/lang/climb_wall.gd walls/* docs/climbing
 home_storage_extra.gd | scripts/house_furniture.gd scripts/home_upgrades.gd scripts/lang/furniture.gd
 settings_window.gd | scripts/settings_window.gd scripts/graphics.gd
 farm_house_windows.gd | scripts/village_house.gd scripts/window_lights.gd scripts/walk_in.gd scripts/lang/valley.gd
+wall_holds.gd | scripts/wall_*.gd walls/*

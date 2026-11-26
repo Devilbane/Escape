@@ -68,3 +68,4 @@ nohpaan.gd | scripts/nohpaan.gd scripts/nohpaan_parts.gd scripts/nohpaan_life.gd
 wall_map.gd | scripts/wall_*.gd scripts/lang/climb_wall.gd walls/* docs/climbing_wall_rules.md
 home_storage_extra.gd | scripts/house_furniture.gd scripts/home_upgrades.gd scripts/lang/furniture.gd
 settings_window.gd | scripts/settings_window.gd scripts/graphics.gd
+wall_holds.gd | scripts/wall_*.gd walls/*

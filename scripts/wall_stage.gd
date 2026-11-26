@@ -43,16 +43,19 @@ const CLOUD_FULL := 12.0
 const CLOUD_BAND := 0.42
 const SEQUENCE := [WallWeather.CLEAR, WallWeather.WIND, WallWeather.RAIN, WallWeather.STORM]
 ## Seconds of each move's animation.
-const SECONDS := {"up": 1.0, "side": 0.9, "down": 0.8, "leap": 0.9}
-const HAMMER_SECONDS := 1.5
-const THREAD_SECONDS := 1.0
-const TOP_SECONDS := 1.4
+const SECONDS := {"up": 2.2, "side": 2.4, "down": 1.8, "leap": 1.1}
+const HAMMER_SECONDS := 2.2
+const THREAD_SECONDS := 1.4
+const TOP_SECONDS := 2.0
 const FALL_SECONDS := 0.8
 const REST_SECONDS := 2.4
 ## A leap: crouch, spring and reach (poses on top of RopeClimbPose's).
 const LEAP_POSES := {
 	"crouch": {"hips_y": -0.14, "spine": 18.0, "head": -20.0, "arm": 150.0, "elbow": 30.0, "hip_l": 70.0, "hip_r": 70.0, "knee_l": 100.0, "knee_r": 100.0},
-	"spring": {"hips_y": 0.1, "spine": -8.0, "head": -26.0, "arm": 176.0, "elbow": 4.0, "hip_l": 20.0, "hip_r": 40.0, "knee_l": 20.0, "knee_r": 60.0},
+	# Both arms stretched out ahead to the target while the legs push off (flight), then the catch: the arms bend and
+	# the knees come up for the new stand.
+	"spring": {"hips_y": 0.1, "spine": -8.0, "head": -26.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 70.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 70.0, "elbow_r": 0.0, "hip_l": 8.0, "hip_r": 12.0, "knee_l": 8.0, "knee_r": 14.0, "abd_l": 20.0, "abd_r": 20.0},
+	"catch": {"hips_y": -0.06, "spine": 12.0, "head": -24.0, "arm": 150.0, "elbow": 75.0, "hip_l": 72.0, "hip_r": 66.0, "knee_l": 92.0, "knee_r": 88.0, "abd_l": 30.0, "abd_r": 30.0},
 }
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],
@@ -87,7 +90,8 @@ var _rope_root: Node3D
 var _queue: Array[Dictionary] = []
 var _step_t := 0.0
 var _left := true
-var _yaw := 0.0
+## The camera looks a little from the side so that both arms and legs read from behind.
+var _yaw := 0.28
 var _pitch := 0.12
 var _zoom := 1.0
 var _drag := false
@@ -258,6 +262,7 @@ func _build_markers() -> void:
 			dead.model.rotation.y = PI
 			dead.pose(ClimbPose.mix(RopeClimbPose.POSES["fall"], RopeClimbPose.POSES["rest"], 0.4))
 			wall_root.add_child(dead.model)
+			WallFrost.freeze(dead.model, int(cell.x * 31 + cell.y))
 
 
 ## The ground at the foot: the same weathered rock, drawn flat.
@@ -284,7 +289,7 @@ func feet_of(cell: Vector2i) -> Vector3:
 	if cell == WallClimb.NOWHERE:
 		return Vector3(_start_column(), 0.0, 1.0)
 	var xy := WallBuild.square_centre(wall, cell.x, cell.y)
-	return Vector3(xy.x, maxf(0.0, xy.y - 1.7), _builder.depth_at(xy.x, xy.y) + 0.55)
+	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP), _builder.depth_at(xy.x, xy.y) + 0.4)
 
 
 func _start_column() -> float:
@@ -461,6 +466,7 @@ func rest_here() -> int:
 	if climb.at_camp():
 		var night := climb.darkness() > 0
 		climb.bivouac()
+		_queue_camp(feet)
 		_tell("Du rastest bis zum Morgen und bist ausgeruht." if night else "Du rastest ein paar Stunden und kommst wieder zu Atem.")
 		_update_status()
 		return WallClimb.Outcome.CAMPED
@@ -791,6 +797,12 @@ func _tick_animation(delta: float) -> void:
 			climber.pose(_leap_pose(u))
 			var t := smoothstep(0.35, 0.8, u)
 			at = from.lerp(to, t) + Vector3(0, sin(t * PI) * 0.7, 0)
+		"bed":
+			# Lying in the hammock on his side, breathing slowly.
+			climber.pose(ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6))
+			var into := smoothstep(0.0, 0.2, u) * (1.0 - smoothstep(0.85, 1.0, u))
+			climber.model.rotation.z = -into * PI * 0.5
+			at = from + Vector3(WallHammock.SPAN * 0.4 * into, 0.62 * into, (0.05 - from.z + 0.9) * into * 0.0 + 0.1 * into)
 		"fall":
 			climber.pose(RopeClimbPose.at("fall", u))
 			at = from.lerp(to, u * u)
@@ -800,9 +812,32 @@ func _tick_animation(delta: float) -> void:
 		_:
 			climber.pose(RopeClimbPose.at(key, u))
 			var lift := smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, u) if (key.begins_with("pull") or key.begins_with("side") or key.begins_with("desc")) else 1.0
+			if key.begins_with("side"):
+				# The body goes across once the hand and the foot have reached and gripped (no jump).
+				lift = smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, u)
 			at = from.lerp(to, lift)
+			if key.begins_with("pull") or key.begins_with("side"):
+				# The small hop before the reach: the feet leave the rock for a moment.
+				at.y += 0.14 * sin(clampf((u - 0.2) / 0.14, 0.0, 1.0) * PI)
 	feet = at
 	climber.model.position = feet
+	_slack = 0.9 * (1.0 - u * u) * sin(minf(1.0, u * 3.0) * PI * 0.5) if key == "fall" else 0.0
+	if key != "bed":
+		climber.model.rotation.z = 0.0
+	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
+		st["placed"] = true
+		var spike := WallHammock.piton(int(st.piton))
+		spike.position = _piton_spot(from, int(st.piton))
+		_camp_root().add_child(spike)
+		Sfx.play(self, "gear_metal_0", -4.0)
+	if bool(st.get("hang", false)) and u >= 0.5 and not bool(st.get("placed", false)):
+		st["placed"] = true
+		var sheet := WallHammock.cloth()
+		sheet.position = (_piton_spot(from, 0) + _piton_spot(from, 1)) * 0.5 + Vector3(0, 0, 0.22)
+		_camp_root().add_child(sheet)
+	if bool(st.get("unhang", false)) and u >= 0.5:
+		for c in _camp_root().get_children():
+			c.queue_free()
 	if bool(st.get("nail", false)) and u >= 0.8 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		_add_nail(climb.nails.back() if not climb.nails.is_empty() else Vector2i.ZERO)
@@ -816,15 +851,44 @@ func _tick_animation(delta: float) -> void:
 	_rope_update()
 
 
+## The hanging rest: two pitons hammered in, the hammock hung between them, the climber climbs in, sleeps and climbs out.
+func _queue_camp(here: Vector3) -> void:
+	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 0})
+	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 1})
+	_queue.append({"key": "thread", "secs": THREAD_SECONDS, "from": here, "to": here, "hang": true})
+	_queue.append({"key": "bed", "secs": 3.0, "from": here, "to": here})
+	_queue.append({"key": "stand", "secs": 0.8, "from": here, "to": here, "unhang": true})
+
+
+## Where the pitons of the hanging rest sit, for the climber at `at`.
+func _piton_spot(at: Vector3, side: int) -> Vector3:
+	var x := at.x + (side * 2 - 1) * WallHammock.SPAN * 0.5
+	var y := at.y + 1.0
+	return Vector3(x, y, maxf(_builder.depth_at(x, y) + 0.32, at.z - 0.2))
+
+
 func _leap_pose(u: float) -> Dictionary:
 	if u < 0.35:
 		return ClimbPose.mix(RopeClimbPose.POSES["hang"], LEAP_POSES["crouch"], smoothstep(0.0, 1.0, u / 0.35))
-	if u < 0.65:
-		return ClimbPose.mix(LEAP_POSES["crouch"], LEAP_POSES["spring"], smoothstep(0.0, 1.0, (u - 0.35) / 0.3))
-	return ClimbPose.mix(LEAP_POSES["spring"], RopeClimbPose.POSES["hang"], smoothstep(0.0, 1.0, (u - 0.65) / 0.35))
+	if u < 0.6:
+		return ClimbPose.mix(LEAP_POSES["crouch"], LEAP_POSES["spring"], smoothstep(0.0, 1.0, (u - 0.35) / 0.25))
+	if u < 0.78:
+		return ClimbPose.mix(LEAP_POSES["spring"], LEAP_POSES["catch"], smoothstep(0.0, 1.0, (u - 0.6) / 0.18))
+	return ClimbPose.mix(LEAP_POSES["catch"], RopeClimbPose.POSES["hang"], smoothstep(0.0, 1.0, (u - 0.78) / 0.22))
 
 
 # --- nails and rope --------------------------------------------------------------------------------------
+
+var _camp: Node3D
+var _slack := 0.0   ## how much the rope hangs loose in a fall (it is taut again when the fall is caught)
+
+
+func _camp_root() -> Node3D:
+	if _camp == null or not is_instance_valid(_camp):
+		_camp = Node3D.new()
+		wall_root.add_child(_camp)
+	return _camp
+
 
 func _add_nail(cell: Vector2i) -> void:
 	var xy := WallBuild.square_centre(wall, cell.x, cell.y)
@@ -854,6 +918,10 @@ func _rope_update() -> void:
 	for nail in climb.nails:
 		var xy := WallBuild.square_centre(wall, nail.x, nail.y)
 		points.append(Vector3(xy.x, xy.y + 0.35, _builder.depth_at(xy.x, xy.y) + 0.2))
+	if _slack > 0.02:
+		var last := points[points.size() - 1]
+		var belt := feet + Vector3(0, 0.95, 0.25)
+		points.append((last + belt) * 0.5 + Vector3(_slack * 0.5, -_slack * 0.3, _slack))
 	points.append(feet + Vector3(0, 0.95, 0.25))
 	while _rope_root.get_child_count() < points.size() - 1:
 		var seg := MeshInstance3D.new()
@@ -880,7 +948,7 @@ func _rope_update() -> void:
 		var up := (b - a) / length
 		var axis := Vector3.UP.cross(up)
 		var basis := Basis(axis.normalized(), Vector3.UP.angle_to(up)) if axis.length() > 0.001 else Basis()
-		seg.basis = basis.scaled(Vector3(1, length, 1))
+		seg.basis = basis.scaled_local(Vector3(1, length, 1))
 
 
 # --- weather in play: falling stones, drifting weather, the cloud sea ------------------------------------

@@ -43,5 +43,19 @@ func _initialize() -> void:
 	if forward.y < 0.9:
 		failures += 1
 		print("FAIL: the sleeping climber does not face the sky (forward ", forward, ")")
+	# The body (and the rope) stay outside the rock on a pocket: only a hand or a foot goes into the hole.
+	var pockets := 0
+	for r in map.height:
+		for c in map.width:
+			if map.has_hold(c, r) and stage._builder.pocket_at(c, r):
+				pockets += 1
+				var xy := WallBuild.square_centre(map, c, r)
+				var rim := stage._builder.face_depth_at(xy.x, xy.y)
+				if stage.feet_of(Vector2i(c, r)).z < rim + 0.29 or stage._builder.depth_at(xy.x, xy.y) > rim - 0.1:
+					failures += 1
+					print("FAIL: the body sinks into the pocket at ", Vector2i(c, r))
+	if pockets == 0:
+		failures += 1
+		print("FAIL: the sample wall has no pockets to check")
 	print("PASS" if failures == 0 else "FAILED")
 	quit(failures)

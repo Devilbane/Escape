@@ -3,8 +3,8 @@ extends RefCounted
 ## Closed eyes for sleeping: a skin-coloured lid over each eye with a dark, gently curved lash line, put on the head
 ## of a Rogue-based body (the hero, the climber on the wall). Built once per body, hidden until it sleeps.
 
-## A lid is a squashed ball, a little taller than the eye and deep enough to cover the pupil.
-const LID_SCALE := Vector3(1.0, 1.15, 0.75)
+## A lid is a squashed ball that covers the whole of the (large) eye of the Rogue head: about 0.22 wide and 0.39 tall.
+const LID_SCALE := Vector3(1.75, 2.75, 1.55)
 
 
 ## The lids on `model`'s head (null if it has no such head). Hidden; show them with `visible`.
@@ -25,6 +25,11 @@ static func build(model: Node3D) -> Node3D:
 	slot.add_child(lids)
 	var skin := StandardMaterial3D.new()
 	skin.albedo_color = Color8(246, 192, 156)
+	# The lid has the colour of this body's own skin (the head shader tints its texture with `skin_tint`).
+	var head_material := head.get_active_material(0)
+	if head_material is ShaderMaterial and head_material.get_shader_parameter("skin_tint") is Color:
+		var tint: Color = head_material.get_shader_parameter("skin_tint")
+		skin.albedo_color = Color(tint.r * 0.92, tint.g * 0.8, tint.b * 0.72)
 	skin.roughness = 0.95
 	var lash := StandardMaterial3D.new()
 	lash.albedo_color = Color(0.16, 0.08, 0.06)
@@ -33,7 +38,7 @@ static func build(model: Node3D) -> Node3D:
 	lid_mesh.radius = 0.08
 	lid_mesh.height = 0.16
 	for side in [-1.0, 1.0]:
-		var centre := Vector3(side * 0.207, 1.607, 0.41)
+		var centre := Vector3(side * 0.196, 1.61, 0.37)
 		var lid := MeshInstance3D.new()
 		lid.mesh = lid_mesh
 		lid.material_override = skin
@@ -46,7 +51,7 @@ static func build(model: Node3D) -> Node3D:
 		var points := []
 		for k in 9:
 			var a := lerpf(PI * 1.12, PI * 1.88, k / 8.0)
-			var p := Vector2(cos(a) * 0.062, sin(a) * 0.024 + 0.012)
+			var p := Vector2(cos(a) * 0.1, sin(a) * 0.04 + 0.02)
 			var r := clampf(Vector2(p.x / LID_SCALE.x, p.y / LID_SCALE.y).length() / lid_mesh.radius, 0.0, 1.0)
 			points.append(centre + Vector3(p.x, p.y, lid_mesh.radius * LID_SCALE.z * sqrt(1.0 - r * r) + 0.004))
 		var segments := []

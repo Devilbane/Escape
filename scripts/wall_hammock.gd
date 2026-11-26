@@ -5,8 +5,8 @@ extends RefCounted
 ## the climber lie in it.
 
 const SPAN := 2.0      ## distance between the two pitons
-const SAG := 0.45      ## how far the cloth hangs below the pitons
-const WIDTH := 0.7
+const SAG := 1.15      ## how far the cloth hangs below the pitons
+const WIDTH := 1.4
 
 
 ## One iron piton: a tapered, rusty spike with an eye ring at its end, pointing out of the rock.
@@ -43,23 +43,25 @@ static func cloth() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Hammock"
 	var steps := 18
+	var across := 4
 	var verts := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var idx := PackedInt32Array()
 	var half := SPAN * 0.5 - 0.22
+	# A horizontal cradle: it sags between the pitons along x and its two edges (in front and behind the sleeper) rise.
 	for i in steps + 1:
 		var t := float(i) / steps
 		var x := lerpf(-half, half, t)
 		var y := -SAG * (1.0 - pow(2.0 * t - 1.0, 2.0))
-		# The cloth bulges forward a little at the sides, like a real hammock cradle.
-		var belly := 0.12 * sin(t * PI)
-		verts.append(Vector3(x, y - WIDTH * 0.5, 0.0))
-		verts.append(Vector3(x, y + WIDTH * 0.5, belly))
-		uvs.append(Vector2(t * 6.0, 0.0))
-		uvs.append(Vector2(t * 6.0, 1.0))
+		for k in across + 1:
+			var sd := lerpf(-1.0, 1.0, float(k) / across)
+			verts.append(Vector3(x, y + 0.38 * sd * sd * sin(t * PI), sd * WIDTH * 0.5 * sin(t * PI * 0.5 + PI * 0.25)))
+			uvs.append(Vector2(t * 6.0, float(k) / across))
 		if i < steps:
-			var a := i * 2
-			idx.append_array([a, a + 1, a + 2, a + 1, a + 3, a + 2])
+			for k in across:
+				var a := i * (across + 1) + k
+				var b := a + across + 1
+				idx.append_array([a, b, a + 1, a + 1, b, b + 1])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -71,6 +73,7 @@ static func cloth() -> Node3D:
 	sheet.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _weave()
+	mat.albedo_color = Color(1.0, 0.62, 0.48)   # a red-dyed weave, so the hammock reads against the grey rock
 	mat.roughness = 0.95
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	sheet.material_override = mat
@@ -97,25 +100,129 @@ static func cloth() -> Node3D:
 	return root
 
 
-## The blanket side of the hammock folded over the sleeper: a woven sheet from the feet up to the chin that leaves
-## only the head with the helmet out. It hangs in front of the body at the hammock's middle.
+## The sleeping bag the climber lies in, zipped up to the chin: a quilted, tapered (mummy) bag lying along x from the
+## feet (x = -1.0) to the shoulders (x = +0.5), where a fur-lined collar leaves only the head with the helmet out.
+## Its origin is the middle of the sleeper's spine, so put it at the climber's `from` + (0, 0.67, 0.1).
 static func wrap() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Wrap"
-	var sheet := MeshInstance3D.new()
-	var quad := QuadMesh.new()
-	quad.size = Vector2(1.5, WIDTH + 0.12)
-	sheet.mesh = quad
 	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = _weave()
-	mat.uv1_scale = Vector3(3.0, 1.0, 1.0)
-	mat.roughness = 0.95
+	mat.albedo_texture = _quilt()
+	mat.uv1_scale = Vector3(4.0, 3.0, 1.0)
+	mat.roughness = 0.9
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	sheet.material_override = mat
-	# Covers the body from the feet (right) up to the shoulders; the head end (left) stays free.
-	sheet.position = Vector3(0.3, -SAG * 0.45, 0.0)
-	root.add_child(sheet)
+	var bag := MeshInstance3D.new()
+	bag.name = "Bag"
+	bag.mesh = _bag_mesh()
+	bag.material_override = mat
+	root.add_child(bag)
+	# The zip along the top of the bag, with its pull at the neck.
+	var zip_mat := StandardMaterial3D.new()
+	zip_mat.albedo_color = Color(0.78, 0.78, 0.8)
+	zip_mat.metallic = 0.6
+	zip_mat.roughness = 0.4
+	var zip := MeshInstance3D.new()
+	zip.name = "Zip"
+	var zip_box := BoxMesh.new()
+	zip_box.size = Vector3(1.35, 0.018, 0.022)
+	zip.mesh = zip_box
+	zip.material_override = zip_mat
+	zip.position = Vector3(-0.27, _bag_radius(-0.27).x * 1.02, 0.0)
+	root.add_child(zip)
+	var pull := MeshInstance3D.new()
+	pull.name = "Pull"
+	var pull_box := BoxMesh.new()
+	pull_box.size = Vector3(0.05, 0.03, 0.04)
+	pull.mesh = pull_box
+	pull.material_override = zip_mat
+	pull.position = Vector3(0.38, _bag_radius(0.38).x * 1.02 + 0.012, 0.0)
+	root.add_child(pull)
+	# The collar: a soft roll of fur round the neck.
+	var fur := StandardMaterial3D.new()
+	fur.albedo_color = Color(0.86, 0.82, 0.72)
+	fur.roughness = 1.0
+	var collar := MeshInstance3D.new()
+	collar.name = "Collar"
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.12
+	ring.outer_radius = 0.2
+	collar.mesh = ring
+	collar.material_override = fur
+	var neck := _bag_radius(BAG_END)
+	collar.position = Vector3(BAG_END, 0.0, 0.0)
+	collar.rotation = Vector3(0.0, 0.0, PI * 0.5)
+	collar.scale = Vector3(neck.x / 0.2, 1.0, neck.y / 0.2) * 1.1
+	root.add_child(collar)
 	return root
+
+
+const BAG_START := -1.0
+const BAG_END := 0.5
+
+
+## The bag's half height (y) and half width (z) at `x`: narrow at the feet, full at the hips and chest, drawn in
+## at the neck.
+static func _bag_radius(x: float) -> Vector2:
+	var t := clampf((x - BAG_START) / (BAG_END - BAG_START), 0.0, 1.0)
+	var feet := smoothstep(0.0, 0.25, t)
+	var neck := 1.0 - 0.35 * smoothstep(0.85, 1.0, t)
+	var full := 0.4 + 0.05 * sin(clampf(t, 0.0, 1.0) * PI)
+	return Vector2(full * lerpf(0.55, 1.0, feet) * neck, (full + 0.26) * lerpf(0.55, 1.0, feet) * neck)
+
+
+static func _bag_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings := 24
+	var sides := 16
+	var grid: Array = []
+	for i in rings + 1:
+		var t := float(i) / rings
+		var x := lerpf(BAG_START, BAG_END, t)
+		var r := _bag_radius(x)
+		# The foot end closes in a rounded cap.
+		var cap := 1.0 if i > 0 else 0.15
+		var row: Array = []
+		for j in sides:
+			var a := TAU * j / sides
+			# Quilted puffs: the surface swells between the seams.
+			var puff := 1.0 + 0.05 * sin(t * TAU * 6.0) * absf(sin(a * 2.0))
+			row.append(Vector3(x, sin(a) * r.x * cap * puff, cos(a) * r.y * cap * puff))
+		grid.append(row)
+	for i in rings:
+		for j in sides:
+			var j2 := (j + 1) % sides
+			var a: Vector3 = grid[i][j]
+			var b: Vector3 = grid[i + 1][j]
+			var c: Vector3 = grid[i + 1][j2]
+			var d: Vector3 = grid[i][j2]
+			var u0 := float(i) / rings
+			var u1 := float(i + 1) / rings
+			var v0 := float(j) / sides
+			var v1 := float(j + 1) / sides
+			st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
+			st.set_uv(Vector2(u1, v0)); st.add_vertex(b)
+			st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
+			st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
+			st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
+			st.set_uv(Vector2(u0, v1)); st.add_vertex(d)
+	st.generate_normals()
+	return st.commit()
+
+
+## A quilted cover: a deep blue with a diamond of paler seams.
+static func _quilt() -> ImageTexture:
+	var size := 64
+	var img := Image.create_empty(size, size, false, Image.FORMAT_RGB8)
+	var base := Color(0.14, 0.22, 0.46)
+	var seam := Color(0.36, 0.44, 0.7)
+	for y in size:
+		for x in size:
+			var u := float(x) / size
+			var v := float(y) / size
+			var dd := minf(absf(fposmod(u + v, 0.5) - 0.25), absf(fposmod(u - v, 0.5) - 0.25))
+			img.set_pixel(x, y, seam if dd < 0.02 else base)
+	return ImageTexture.create_from_image(img)
 
 
 static func _iron() -> StandardMaterial3D:

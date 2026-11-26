@@ -318,7 +318,7 @@ func feet_of(cell: Vector2i) -> Vector3:
 	if cell == WallClimb.NOWHERE:
 		return Vector3(_start_column(), 0.0, 1.0)
 	var xy := WallBuild.square_centre(wall, cell.x, cell.y)
-	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP + FOOT_RAISE), _builder.depth_at(xy.x, xy.y) + 0.3)
+	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP + FOOT_RAISE), _builder.face_depth_at(xy.x, xy.y) + 0.3)
 
 
 func _start_column() -> float:
@@ -896,7 +896,7 @@ func _tick_animation(delta: float) -> void:
 				if _snore_t <= 0.0:
 					_snore_t = SNORE_EVERY
 					Sfx.play(self, "snore", -4.0)
-			at = from + Vector3(WallHammock.SPAN * 0.4 * into, 0.62 * into, 0.1 * into)
+			at = from + Vector3(-0.9 * into, 0.74 * into, 0.1 * into)
 		"fall":
 			climber.pose(RopeClimbPose.at("fall", u))
 			at = from.lerp(to, u * u)
@@ -922,7 +922,7 @@ func _tick_animation(delta: float) -> void:
 		_yawned = false
 	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):
 		var wrap := WallHammock.wrap()
-		wrap.position = (_piton_spot(from, 0) + _piton_spot(from, 1)) * 0.5 + Vector3(0.0, 0.0, 0.62)
+		wrap.position = from + Vector3(0.0, 0.76, 0.17)
 		_camp_root().add_child(wrap)
 	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
 		st["placed"] = true
@@ -933,7 +933,7 @@ func _tick_animation(delta: float) -> void:
 	if bool(st.get("hang", false)) and u >= 0.5 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		var sheet := WallHammock.cloth()
-		sheet.position = (_piton_spot(from, 0) + _piton_spot(from, 1)) * 0.5 + Vector3(0, 0, 0.22)
+		sheet.position = Vector3(from.x, from.y + 1.0, from.z + 0.1)
 		_camp_root().add_child(sheet)
 	if bool(st.get("unhang", false)) and u >= 0.5:
 		for c in _camp_root().get_children():
@@ -997,7 +997,7 @@ func _queue_camp(here: Vector3) -> void:
 func _piton_spot(at: Vector3, side: int) -> Vector3:
 	var x := at.x + (side * 2 - 1) * WallHammock.SPAN * 0.5
 	var y := at.y + 1.0
-	return Vector3(x, y, maxf(_builder.depth_at(x, y) + 0.32, at.z - 0.2))
+	return Vector3(x, y, maxf(_builder.face_depth_at(x, y) + 0.32, at.z - 0.2))
 
 
 func _leap_pose(u: float) -> Dictionary:
@@ -1039,7 +1039,7 @@ func _add_nail(cell: Vector2i) -> void:
 	m.metallic = 0.7
 	m.roughness = 0.45
 	iron.material_override = m
-	iron.position = Vector3(xy.x, xy.y + 0.35, _builder.depth_at(xy.x, xy.y) + 0.14)
+	iron.position = Vector3(xy.x, xy.y + 0.35, _builder.face_depth_at(xy.x, xy.y + 0.35) + 0.14)
 	_nails_root.add_child(iron)
 
 
@@ -1049,10 +1049,10 @@ func _rope_update() -> void:
 		for seg in _rope_root.get_children() if _rope_root != null else []:
 			seg.visible = false
 		return
-	var points: Array[Vector3] = [Vector3(_start_column(), 0.05, _builder.depth_at(_start_column(), 0.0) + 0.3)]
+	var points: Array[Vector3] = [Vector3(_start_column(), 0.05, _builder.face_depth_at(_start_column(), 0.0) + 0.3)]
 	for nail in climb.nails:
 		var xy := WallBuild.square_centre(wall, nail.x, nail.y)
-		points.append(Vector3(xy.x, xy.y + 0.35, _builder.depth_at(xy.x, xy.y) + 0.2))
+		points.append(Vector3(xy.x, xy.y + 0.35, _builder.face_depth_at(xy.x, xy.y + 0.35) + 0.2))
 	if _slack > 0.02:
 		var last := points[points.size() - 1]
 		var belt := feet + Vector3(0, 0.95, 0.25)

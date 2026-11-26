@@ -566,6 +566,7 @@ func _bus_links() -> Array:
 		[bus.news_told, quest_news],
 		[bus.lore_learned, learn],
 		[bus.climber_watched, _on_climber_watched],
+		[bus.wall_climb_requested, _on_wall_climb_requested],
 		[bus.gain_shown, show_gain],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
@@ -6126,6 +6127,12 @@ func _toggle_godmode() -> void:
 	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
 
 
+## The hero pushed against the rock of a placed climbing wall (see WallPlacements).
+func _on_wall_climb_requested(file: String) -> void:
+	if state == State.PLAYING and player != null and not player.dead:
+		WallScreens.open_climb(self, file)
+
+
 ## A button of the testing panel was pressed (see TestPanel): it does what the matching chat
 ## command does (the hour and season commands, teleport, godmode).
 func _on_test_panel(kind: String, arg: Variant) -> void:
@@ -6142,6 +6149,8 @@ func _on_test_panel(kind: String, arg: Variant) -> void:
 			teleport_to(level_files.find(LEVEL_DIR + String(place[1])), false, String(place[2]))
 		"god":
 			_toggle_godmode()
+		"wall":
+			WallScreens.open_workshop(self)
 
 
 ## The chat line's weather and time commands (see SkyCommand): force the

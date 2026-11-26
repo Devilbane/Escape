@@ -3384,6 +3384,11 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 	if _rock_push < ClimbSpots.HOLD:
 		return false
 	_rock_push = -ClimbSpots.HOLD
+	# A placed climbing wall (see WallPlacements) takes the hero to the wall screen.
+	var placed := WallPlacements.at(level.level_name, cell)
+	if not placed.is_empty():
+		Events.bus().wall_climb_requested.emit(String(placed.wall))
+		return false
 	var spot := ClimbSpots.at(level, cell)
 	if spot.is_empty() or skill("klettern") < maxi(1, int(spot.level)) or not Climbing.can_climb(float(spot.height), skill("klettern")):
 		Events.tell(Lang.t(ClimbSpots.TOO_STEEP), Color(0.8, 0.85, 1.0))

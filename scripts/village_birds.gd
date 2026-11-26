@@ -77,6 +77,9 @@ const SETTLE := 4.0
 const PECK := Vector2(3.0, 8.0)
 ## How many kinds of bird there are (their colours are in bird.gdshader).
 const KINDS := 7
+## The kinds bird.gdshader knows: those above and the crow (see Crows), which does not nest in the village.
+const SHADER_KINDS := 8
+const CROW_KIND := 7
 ## How often an outing goes to the market square, how far from the nest it
 ## may be, how long they linger there, how often one that is done flutters
 ## over to another spot on the square instead of flying home, and how often
@@ -1086,7 +1089,7 @@ func _beat(b: Dictionary, delta: float) -> void:
 func _show(i: int) -> void:
 	var b: Dictionary = birds[i]
 	var flying: bool = b.state == "fly"
-	var kind := (float(b.kind) + 0.5) / KINDS
+	var kind := (float(b.kind) + 0.5) / SHADER_KINDS
 	# Small on a feeder, growing back on the way off.
 	var goal := PERCH_SIZE if b.state == "perch" or (flying and b.next == "perch") else 1.0
 	b.size = lerpf(b.size_from, goal, smoothstep(0.0, 1.0, b.t)) if flying else goal

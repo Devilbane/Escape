@@ -32,7 +32,7 @@ void fragment() {
 	snow_look(world_pos, world_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
 	// The underside of an overhang is in its own shadow.
 	ALBEDO *= mix(0.78, 1.0, smoothstep(-0.6, 0.2, world_normal.y));
-	ROUGHNESS = 0.85;
-	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
+	ROUGHNESS = 0.95;
+	SPECULAR = 0.08 * mix(0.4, 1.0, daylight);
 	ALBEDO = gl_colour(ALBEDO);
 }

@@ -2767,7 +2767,8 @@ func _notices(player: Player, to_player: Vector3, dist: float, sees: bool) -> bo
 	# Right up close it notices, unless the hero sneaks up from behind.
 	if dist < TOUCH and not walled and (in_view or not player.sneaking or _awake):
 		return true
-	if dist < (MUFFLED_HEARING if walled else HEARING) and player.is_noisy():
+	# Aggro needs line of sight: a footstep behind a wall or around a corner wakes nobody.
+	if sees and dist < (MUFFLED_HEARING if walled else HEARING) and player.is_noisy():
 		return true
 	if not sees or not player.is_lit():
 		return false

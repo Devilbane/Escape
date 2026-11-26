@@ -2,13 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://ccyoqyrlqouw5"
-path="res://.godot/imported/water_ring.wav-43da43f11b31cb13df234b5131144f6b.sample"
+uid="uid://b2fniay714m5i"
+path="res://.godot/imported/crow_caw_1.wav-3551ba4f7359417f8947a50476ed2bc9.sample"
 
 [deps]
 
-source_file="res://assets/sounds/water_ring.wav"
-dest_files=["res://.godot/imported/water_ring.wav-43da43f11b31cb13df234b5131144f6b.sample"]
+source_file="res://assets/sounds/crow_caw_1.wav"
+dest_files=["res://.godot/imported/crow_caw_1.wav-3551ba4f7359417f8947a50476ed2bc9.sample"]
 
 [params]
 

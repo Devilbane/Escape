@@ -22,6 +22,14 @@ const GAP_DEPTH := 1.35
 const KNOB_HEIGHT := 0.3
 const KNOB_RADIUS := 0.5
 const KNOB_SHRINK := 0.035
+## The smallest hold (malus 9) is this wide and this high; the biggest (malus 0) is KNOB_RADIUS wide and KNOB_HEIGHT high.
+## Share of the holds that break the stone/hole alternation.
+const POCKET_SHARE := 0.2
+const KNOB_MIN_RADIUS := 0.22
+const KNOB_HEIGHT_HARD := 0.11
+## Share of chalk on the easiest and on the hardest hold (an easy jug is well chalked, a crimp hardly).
+const CHALK_EASY := 0.85
+const CHALK_HARD := 0.3
 const ICE_LIFT := 0.035
 const STONES_PER_SQUARE := 5
 ## Share of the plain squares that carry a decorative stone jutting out of the face (they are no holds).
@@ -119,6 +127,9 @@ func _field(x: float, y: float) -> Dictionary:
 	var c0 := int(floor(x))
 	var r0 := map.height - 1 - int(floor(y))
 	var knob := 0.0
+	var chalk_share := 0.7
+	var pocket := 0.0
+	var rim := 0.0
 	var wet := 0.0
 	var loose := 0.0
 	for dr in range(-1, 2):
@@ -129,12 +140,32 @@ func _field(x: float, y: float) -> Dictionary:
 				continue
 			if map.has_hold(c, r):
 				var centre := square_centre(map, c, r) + _jitter(c, r) * 0.1
-				var radius := maxf(0.2, KNOB_RADIUS - KNOB_SHRINK * map.malus_at(c, r))
-				var dist := Vector2(x, y).distance_to(centre)
+				var ease := hold_ease(map.malus_at(c, r))
+				if is_pocket(c, r):
+					# A pocket: a hole in the face the hand reaches into (a big one is easy, a small finger hole hard),
+					# dark inside with a chalked rim.
+					var pr := lerpf(KNOB_MIN_RADIUS * 0.9, KNOB_RADIUS * 1.0, ease)
+					var pd := Vector2(x, y).distance_to(centre)
+					if pd < pr * 1.35:
+						var inner := 0.5 + 0.5 * cos(PI * minf(1.0, pd / pr))
+						d -= lerpf(0.18, 0.34, ease) * inner * (0.85 + 0.3 * _hash(c, r))
+						pocket = maxf(pocket, inner)
+						if pd >= pr * 0.8:
+							rim = maxf(rim, 1.0 - absf(pd - pr * 1.05) / (pr * 0.3))
+					continue
+				var radius := lerpf(KNOB_MIN_RADIUS, KNOB_RADIUS, ease)
+				# A hard hold is a thin, wide crimp (flatter than it is wide); an easy one a round, chunky jug.
+				var squash := lerpf(0.62, 1.0, ease)
+				var off := Vector2(x, y) - centre
+				var dist := Vector2(off.x, off.y / squash).length()
 				if dist < radius:
 					var k := 0.5 + 0.5 * cos(PI * dist / radius)
-					knob = maxf(knob, k)
-					d += KNOB_HEIGHT * k * (0.85 + 0.3 * _hash(c, r))
+					if k * lerpf(0.35, 1.0, ease) >= knob:
+						chalk_share = lerpf(CHALK_HARD, CHALK_EASY, ease)
+					knob = maxf(knob, k * lerpf(0.35, 1.0, ease))
+					# Sloping: the upper edge of a hard hold falls away, the lower lip stays.
+					var slope := 1.0 - (1.0 - ease) * 0.5 * clampf(off.y / radius, 0.0, 1.0)
+					d += lerpf(KNOB_HEIGHT_HARD, KNOB_HEIGHT, ease) * k * slope * (0.85 + 0.3 * _hash(c, r))
 			match map.hazard_at(c, r):
 				WallMap.WET:
 					wet = maxf(wet, 1.0 - smoothstep(0.0, 0.7, _edge_distance(x, y, c, r)))
@@ -151,7 +182,9 @@ func _field(x: float, y: float) -> Dictionary:
 		var inside := -(sd + jag)
 		trench = maxf(trench, smoothstep(0.0, 0.3, inside))
 	d -= trench * GAP_DEPTH
-	col = col.lerp(CHALK, knob * 0.7 * (0.6 + 0.8 * _hash(c0, r0)))
+	col = col.lerp(ROCK_DARK * 0.15, smoothstep(0.1, 0.6, pocket) * 0.95)
+	col = col.lerp(CHALK, clampf(rim, 0.0, 1.0) * 0.7)
+	col = col.lerp(CHALK, knob * chalk_share * (0.6 + 0.8 * _hash(c0, r0)))
 	col = col.lerp(MOSS.lerp(ROCK_DARK, 0.3), wet * (0.5 + 0.4 * _fine.get_noise_2d(x * 5.0, y * 5.0)))
 	col = col.lerp(Color(0.6, 0.54, 0.47), loose * 0.35)
 	col = col.lerp(Color(0.03, 0.03, 0.035), trench * 0.92)
@@ -172,6 +205,17 @@ func _edge_distance(x: float, y: float, c: int, r: int) -> float:
 	var centre := square_centre(map, c, r)
 	var q := Vector2(absf(x - centre.x), absf(y - centre.y))
 	return maxf(0.0, 0.5 * WallMap.SQUARE - maxf(q.x, q.y))
+
+
+## How easy a hold of this malus looks: 1 for malus 0 (a big jug), 0 for malus 9 (a thin crimp).
+static func hold_ease(malus: int) -> float:
+	return 1.0 - clampf(float(malus) / 9.0, 0.0, 1.0)
+
+
+## Whether the hold of square (c, r) is a pocket (a hole in the face) rather than a stone that stands out of it.
+static func is_pocket(c: int, r: int) -> bool:
+	# Mostly a checkerboard, so neighbouring holds alternate between stone and hole, with a few exceptions.
+	return ((c + r) % 2 == 0) != (_hash(c * 3 + 1, r * 5 + 2) < POCKET_SHARE)
 
 
 static func _hash(c: int, r: int) -> float:

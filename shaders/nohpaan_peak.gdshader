@@ -3,9 +3,11 @@ render_mode cull_disabled;
 // The mountains round Nohpaan (see Nohpaan.dress): jagged peaks of grey rock with strata and cracks, alpine turf on
 // the low slopes and snow above the snow line, all drawn from noise in world space, so every peak differs and
 // none repeats.
-uniform vec3 rock_light : source_color = vec3(0.62, 0.6, 0.57);
-uniform vec3 rock_dark : source_color = vec3(0.26, 0.25, 0.27);
-uniform vec3 turf : source_color = vec3(0.3, 0.44, 0.2);
+#include "res://shaders/gl_colour.gdshaderinc"
+
+uniform vec3 rock_light = vec3(0.62, 0.6, 0.57);
+uniform vec3 rock_dark = vec3(0.26, 0.25, 0.27);
+uniform vec3 turf = vec3(0.3, 0.44, 0.2);
 uniform float snow_line = 13.0;
 uniform float turf_line = 7.5;
 
@@ -53,7 +55,8 @@ void fragment() {
 	// Snow above the snow line, thicker on the flat faces.
 	float snow_k = smoothstep(snow_line - 1.0, snow_line + 3.0, p.y + 6.0 * (fbm3(p * 0.6) - 0.5)) * smoothstep(0.62, 0.3, steep + 0.25 * (grain - 0.5));
 	col = mix(col, vec3(0.94, 0.96, 1.0), snow_k);
-	ALBEDO = col;
 	ROUGHNESS = mix(0.95, 0.55, snow_k);
 	SPECULAR = 0.2 + 0.3 * snow_k;
+	ALBEDO = col;
+	ALBEDO = gl_colour(ALBEDO);
 }

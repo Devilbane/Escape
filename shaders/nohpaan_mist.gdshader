@@ -3,7 +3,9 @@ shader_type spatial;
 // slowly with the wind and thins out round the hero, so the hero and the ground nearby stay clear.
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled, shadows_disabled;
 
-uniform vec3 tint : source_color = vec3(0.93, 0.97, 1.0);
+#include "res://shaders/gl_colour.gdshaderinc"
+
+uniform vec3 tint = vec3(0.93, 0.97, 1.0);
 uniform float density = 0.4;
 uniform float scale = 0.03;
 uniform vec2 drift = vec2(0.9, 0.35);
@@ -35,6 +37,8 @@ void fragment() {
 	vec2 p = world_pos.xz * scale + drift * TIME * 0.03;
 	float cover = smoothstep(0.38, 0.78, fbm2(p) + 0.25 * fbm2(p * 2.3 - drift * TIME * 0.02));
 	float near = smoothstep(clear_radius * 0.35, clear_radius, distance(world_pos.xz, hero.xz));
+	float alpha = clamp(cover * density * near, 0.0, 0.9);
+	ALPHA = gl_alpha(gl_colour(tint), alpha);
 	ALBEDO = tint;
-	ALPHA = clamp(cover * density * near, 0.0, 0.9);
+	ALBEDO = gl_colour(ALBEDO);
 }

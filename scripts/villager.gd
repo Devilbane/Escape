@@ -1630,6 +1630,11 @@ func call_to_arms(text: String) -> void:
 	_anim.play("Cheer", 0.2)
 
 
+## "female" for a woman, else "" (see the "sex" key of the roles).
+func info_sex() -> String:
+	return _info.get("sex", "")
+
+
 ## The women and the children, who run indoors from a slime while the
 ## men, the mages and the priestess (see brave) take up arms.
 func shelters() -> bool:

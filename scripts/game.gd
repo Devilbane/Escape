@@ -3144,6 +3144,8 @@ func _tick_clock(delta: float) -> void:
 		var flicker := _flash * (0.45 if _flash > 0.55 and _flash < 0.75 else 1.0) * (1.0 - _shelter)
 		Weather.apply(_env, _moon, _seen_look(), flicker)
 		_moon.light_energy = Graphics.sun(_moon.light_energy, DayNight.moon_at(day_hour))
+		# The moon's glint is soft: pale things (snow, stones, barrel rims, Fritz) must not glare at night.
+		_moon.light_specular = lerpf(1.0, 0.25, clampf(DayNight.moon_at(day_hour), 0.0, 1.0))
 		_check_season()
 		if level is Outdoor:
 			level.day = day

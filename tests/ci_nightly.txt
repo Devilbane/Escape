@@ -240,3 +240,4 @@ slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring r
 crows.gd | 120 | free | crows:_OK | Crows on the farm fields (autumn and winter, by day; peck, take off with caws when the hero comes close, circle, land on another field, land at once when he leaves)
 owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)
 test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)
+secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out

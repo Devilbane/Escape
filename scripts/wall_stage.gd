@@ -896,7 +896,7 @@ func _tick_animation(delta: float) -> void:
 				if _snore_t <= 0.0:
 					_snore_t = SNORE_EVERY
 					Sfx.play(self, "snore", -4.0)
-			at = from + Vector3(-0.9 * into, 0.62 * into, 0.1 * into)
+			at = from + Vector3(-0.9 * into, 0.74 * into, 0.1 * into)
 		"fall":
 			climber.pose(RopeClimbPose.at("fall", u))
 			at = from.lerp(to, u * u)
@@ -922,7 +922,7 @@ func _tick_animation(delta: float) -> void:
 		_yawned = false
 	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):
 		var wrap := WallHammock.wrap()
-		wrap.position = from + Vector3(0.0, 0.64, 0.12)
+		wrap.position = from + Vector3(0.0, 0.76, 0.17)
 		_camp_root().add_child(wrap)
 	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
 		st["placed"] = true

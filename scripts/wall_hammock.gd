@@ -5,7 +5,7 @@ extends RefCounted
 ## the climber lie in it.
 
 const SPAN := 2.0      ## distance between the two pitons
-const SAG := 1.0      ## how far the cloth hangs below the pitons
+const SAG := 1.15      ## how far the cloth hangs below the pitons
 const WIDTH := 1.4
 
 
@@ -73,6 +73,7 @@ static func cloth() -> Node3D:
 	sheet.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _weave()
+	mat.albedo_color = Color(1.0, 0.62, 0.48)   # a red-dyed weave, so the hammock reads against the grey rock
 	mat.roughness = 0.95
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	sheet.material_override = mat
@@ -166,7 +167,7 @@ static func _bag_radius(x: float) -> Vector2:
 	var feet := smoothstep(0.0, 0.25, t)
 	var neck := 1.0 - 0.35 * smoothstep(0.85, 1.0, t)
 	var full := 0.4 + 0.05 * sin(clampf(t, 0.0, 1.0) * PI)
-	return Vector2(full * lerpf(0.55, 1.0, feet) * neck, (full + 0.17) * lerpf(0.55, 1.0, feet) * neck)
+	return Vector2(full * lerpf(0.55, 1.0, feet) * neck, (full + 0.26) * lerpf(0.55, 1.0, feet) * neck)
 
 
 static func _bag_mesh() -> ArrayMesh:

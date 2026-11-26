@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Climbing: 85% rest, give-up rule, hammock sleep | Shipped this week: Add settings profiles: save, load, overwrite and delete named sets; Let fog and weather reach the ground right outside house walls (+48 more)
+Escape! dev status | Working on: Loading screen: key art picture with patch notes below; Climbing: 85% rest, give-up rule, hammock sleep | Shipped this week: Add settings profiles: save, load, overwrite and delete named sets; Let fog and weather reach the ground right outside house walls (+48 more)

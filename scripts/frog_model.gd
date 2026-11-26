@@ -48,7 +48,7 @@ static func skin_material(variant: int) -> StandardMaterial3D:
 		m.normal_scale = 0.9
 		m.uv1_triplanar = true
 		m.uv1_scale = Vector3(2.2, 2.2, 2.2)
-		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		# Wet skin: a glossy sheen over the matt mottling.
 		m.roughness = 0.38
 		m.metallic_specular = 0.7

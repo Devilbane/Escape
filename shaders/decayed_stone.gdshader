@@ -126,7 +126,7 @@ void fragment() {
 		- cracks * 0.006 - chips * 0.01 + moss * fuzz * 0.004;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(bump), dFdy(bump));
 	// Matt stone and moss; wet stone and slime have a dull sheen.
-	ROUGHNESS = mix(0.92 + 0.08 * grit, 0.55, max(under, moss * (1.0 - up)) * s * 0.6);
-	SPECULAR = mix(0.2, 0.4, under * s);
+	ROUGHNESS = mix(0.92 + 0.08 * grit, 0.7, max(under, moss * (1.0 - up)) * s * 0.6);
+	SPECULAR = mix(0.2, 0.3, under * s);
 	ALBEDO = gl_colour(ALBEDO);
 }

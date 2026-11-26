@@ -12,8 +12,8 @@
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/reveal.gdshaderinc"
 
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
-uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 // 0 bone, 1 rock, 2 obsidian, 3 crystal.
 uniform int style = 0;
 // 0 for a wall, 1 for a floor (a little lighter and calmer, so the two stay
@@ -144,7 +144,7 @@ void fragment() {
 	ALBEDO = col * tone;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
-	NORMAL_MAP_DEPTH = style >= 2 ? 0.4 : 1.0;
+	NORMAL_MAP_DEPTH = (style >= 2 ? 0.4 : 1.0) * relief_strength;
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 	METALLIC = metal;

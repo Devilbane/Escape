@@ -146,3 +146,4 @@ lazy_start.gd | 120 | free | pass | The first level is built only when a game st
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)
 home_storage_extra.gd | 30 | free | passfail | Extra home storage pieces add room to the storage chest (capped), with English
 riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scrambled codes
+settings_window.gd | 60 | fixed | pass | Settings window (tabs keep one size, graphics options apply and are saved and read back)

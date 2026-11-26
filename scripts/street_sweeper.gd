@@ -228,7 +228,7 @@ static func hat_mesh() -> ArrayMesh:
 	mat.vertex_color_use_as_albedo = true
 	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.albedo_texture = straw_texture()
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mat.roughness = 0.9
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	st.set_material(mat)
@@ -340,7 +340,7 @@ static func apron_mesh() -> ArrayMesh:
 	mat.vertex_color_use_as_albedo = true
 	mat.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	mat.albedo_texture = leather_texture()
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mat.roughness = 0.75
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	st.set_material(mat)

@@ -1,5 +1,12 @@
 // Noise and bump helpers shared by the gear and stone shaders.
 
+// How strongly every bump-mapped surface shows its relief: 1 as designed, 0 flat. The player sets it in the
+// graphics settings (Graphics.RELIEF_PARAM); a lower value calms the glints of sunlight on rough stone.
+#ifndef RELIEF_STRENGTH_DECLARED
+#define RELIEF_STRENGTH_DECLARED
+global uniform float relief_strength;
+#endif
+
 float hash3(vec3 p) {
 	vec3 q = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3)) * 17.0;
 	return fract(q.x * q.y * q.z * (q.x + q.y + q.z));
@@ -35,7 +42,7 @@ vec3 bumped(vec3 n, vec3 dpdx, vec3 dpdy, float dhdx, float dhdy) {
 	vec3 r1 = cross(dpdy, n);
 	vec3 r2 = cross(n, dpdx);
 	float det = dot(dpdx, r1);
-	vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2);
+	vec3 grad = sign(det) * (dhdx * r1 + dhdy * r2) * relief_strength;
 	vec3 result = abs(det) * n - grad;
 	return dot(result, result) > 0.0 ? normalize(result) : n;
 }

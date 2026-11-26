@@ -1,0 +1,1 @@
+- The pull-out menu has a new Display row to pick the window mode (maximized, three window sizes, borderless, fullscreen) and the monitor; both are remembered.

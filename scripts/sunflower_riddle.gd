@@ -86,6 +86,7 @@ func on_hero_spoke(text: String, pos: Vector3) -> void:
 	if not is_answer(text):
 		return
 	_busy = SHOW_TIME
+	Events.bus().riddle_done.emit(RiddleCount.SUNFLOWER)
 	Events.tell(CONGRATS, Color(1.0, 0.9, 0.5))
 	Effects.float_text(level, position + Vector3(0, 4.2, 0), CONGRATS, Color(1.0, 0.92, 0.55))
 	fireworks()

@@ -25,6 +25,8 @@ const PARTS := [
 	preload("res://scripts/lang/valley.gd"),
 	preload("res://scripts/lang/bees.gd"),
 	preload("res://scripts/lang/spring_cave.gd"),
+	preload("res://scripts/lang/owl_clock.gd"),
+	preload("res://scripts/lang/riddle_count.gd"),
 	preload("res://scripts/lang/sewers.gd"),
 	preload("res://scripts/lang/spooknortz.gd"),
 	preload("res://scripts/lang/staff_spell.gd"),

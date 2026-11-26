@@ -9046,6 +9046,10 @@ func _mouse_to_floor(screen_pos: Vector2):
 		var on_surface = walk_in.surface_under_ray(origin, dir)
 		if on_surface != null:
 			return on_surface
+		# A click on a building's door walks in through it (see WalkIn.door_under_ray).
+		var on_door = walk_in.door_under_ray(origin, dir)
+		if on_door != null:
+			return on_door
 	return origin + dir * (-origin.y / dir.y)
 
 
@@ -9070,6 +9074,14 @@ func _click(point: Vector3) -> void:
 			else:
 				player.charge(e)
 			return
+	# A click on the steps of a tower's stairs just walks up them: nothing behind them is picked.
+	var walk_in_now = level.get("walk_in")
+	if walk_in_now != null and walk_in_now.on_steps(point):
+		_pending_search = {}
+		_pending_station = {}
+		_pending_crate = null
+		player.walk_to(point)
+		return
 	# Clicking a ladder climbs it (walking into one never does, see LadderClick).
 	var ladder := LadderClick.under_ray(get_tree(), player, camera.global_position, (point - camera.global_position).normalized())
 	if ladder != null and player.use_ladder(ladder):
@@ -9111,6 +9123,8 @@ func _click(point: Vector3) -> void:
 		player.walk_to(station.get("stand", station.pos), WALK_UP_TO)
 		return
 	var obj := level.nearest_interactable(point, 2.2)
+	if not obj.is_empty() and walk_in != null and walk_in.hidden_above_hero(obj.pos):
+		obj = {} # Out of the hero's sight, in another building or on a storey above.
 	if not obj.is_empty():
 		_pending_search = obj
 		_pending_station = {}
@@ -9118,6 +9132,10 @@ func _click(point: Vector3) -> void:
 		return
 	_pending_search = {}
 	_pending_station = {}
+	# A click near stairs (of a home, a dungeon or a mine) goes onto them.
+	var on_stairs = level.stairs_click_snap(point)
+	if on_stairs != null:
+		point = on_stairs
 	player.walk_to(point)
 	_explain_refused_click(point)
 

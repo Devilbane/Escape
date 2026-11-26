@@ -218,7 +218,8 @@ bless_round.gd | 300 | fixed | passfail | Elsbeth's daily blessing round (temple
 water_yoke.gd | 120 | fixed | passfail | Hanna's water yoke: buckets, hands on the beam, swing, and her round from the fountain to the shops and the tavern
 slime_underground.gd | 120 | fixed | pass | Slimes in the sewers or mine are out of the villagers' world (no alarm, no fight, no bite)
 mage_tower_stairs.gd | 240 | fixed | passfail | The mage tower's stairs: pushing straight up a flight, and a click on the steps themselves, takes the hero up
-mage_tower_clicks.gd | 240 | fixed | passfail | A real mouse click on the mage tower's steps or upper floor walks the hero there, not to the ground outside
+mage_tower_clicks.gd | 240 | fixed | passfail | A real mouse click on the mage tower's steps and upper floors meets them, not the ground outside
+village_door_clicks.gd | 240 | fixed | passfail | A real mouse click on the mage tower's door walks the hero in, not into the wall
 mountain_snow_edge_shots.gd | 600 | fixed | passfail | Winter snow at the mountain's foot: as bright as the plain's and no hard line between them (screenshots)
 ice_fish.gd | 120 | free | passfail | Fish under the river's ice: built at the first frost, shown while frozen, hidden in a thaw, keep to the water
 stream_flow.gd | 60 | free | passfail | Leaves on the stream: real leaves in the season's colours, none in winter, a few sticks

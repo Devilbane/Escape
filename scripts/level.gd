@@ -5739,6 +5739,30 @@ func _open_side(c: Vector2i) -> Vector2i:
 	return c
 
 
+## How far (metres) from the edge of a stairs tile a click still counts as a click on the stairs.
+const STAIRS_CLICK_MARGIN := 1.8
+
+
+## The middle of the stairs tile ("<", ">" or the way down "^") a click at `point` is on or close to, so
+## clicking near the stairs reliably walks onto them; null when no stairs are near.
+func stairs_click_snap(point: Vector3) -> Variant:
+	var at := world_to_cell(point)
+	var best: Variant = null
+	var best_d := STAIRS_CLICK_MARGIN
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var c := at + Vector2i(dx, dy)
+			if not astar.is_in_boundsv(c) or not "<>^".contains(cell_char(c)):
+				continue
+			var mid := cell_to_world(c)
+			var off := Vector2(absf(point.x - mid.x), absf(point.z - mid.z)) - Vector2.ONE * (TILE * 0.5)
+			var d := Vector2(maxf(off.x, 0.0), maxf(off.y, 0.0)).length()
+			if d <= best_d:
+				best = mid
+				best_d = d
+	return best
+
+
 ## Walking onto the stairs of a home takes the hero to the next storey.
 func _check_stairs() -> void:
 	var cell := world_to_cell(player.global_position)

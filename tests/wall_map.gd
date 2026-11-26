@@ -22,6 +22,7 @@ func _initialize() -> void:
 	_climb()
 	_stamina()
 	_jumps()
+	_time()
 	_placements()
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)
@@ -189,6 +190,47 @@ func _climb() -> void:
 	check(h.struck(true, 0.0) == WallClimb.Outcome.BRACED, "braced against the rock a stone does nothing")
 	check(h.struck(false, 0.9) == WallClimb.Outcome.GRAZED, "an unlucky stone only grazes")
 	check(h.struck(false, 0.1) == WallClimb.Outcome.FELL and h.on_ground(), "a stone can knock the climber off")
+
+
+func _time() -> void:
+	var m := WallMap.blank()
+	m.level = 1
+	for r in range(23, -1, -1):
+		m.set_hold(5, r, 0, WallMap.UP | WallMap.DOWN)
+	m.set_marker(5, 12, "camp")
+	var c := WallClimb.new(m, 30)
+	c.set_constitution(10)
+	c.skill = 2
+	check(c.hour() == WallClimb.START_HOUR and c.darkness() == 0, "the climb starts by day")
+	var mv := {"to": Vector2i(5, 20), "kind": "step", "span": 0.0, "gap": -1, "dir": WallMap.UP}
+	var day := c.chance_of(mv)
+	var day_cost := c.cost(mv)
+	c.go(WallMap.UP, 0.0)
+	check(is_equal_approx(c.clock, WallClimb.START_HOUR + WallClimb.MOVE_HOURS), "a move takes a quarter of an hour")
+	c.clock = 19.0
+	check(c.darkness() == 1 and c.chance_of(mv) < day, "dusk makes holds harder")
+	c.clock = 22.0
+	check(c.darkness() == 2 and c.chance_of(mv) < day and c.cost(mv) > day_cost, "night is harder and colder")
+	c.clock = 3.0
+	check(c.darkness() == 2, "the small hours are night too")
+	c.clock = 12.0
+	check(c.bivouac() == WallClimb.Outcome.BLOCKED, "no rest place on a bare wall")
+	c.cell = Vector2i(5, 12)
+	check(c.at_camp(), "a camp marker is a rest place")
+	c.clock = 21.0
+	c.stamina = 1.0
+	check(c.bivouac() == WallClimb.Outcome.CAMPED and c.stamina == c.stamina_max, "a night at the camp fills the meter")
+	check(is_equal_approx(c.hour(), WallClimb.DAWN_HOUR), "and lasts until dawn: %.1f" % c.hour())
+	c.clock = 10.0
+	c.stamina = 0.0
+	c.bivouac()
+	check(c.stamina > 0.0 and c.stamina < c.stamina_max and is_equal_approx(c.clock, 13.0), "by day a few hours bring part of the meter back")
+	var tired := WallClimb.new(m, 30)
+	tired.set_constitution(10)
+	tired.cell = Vector2i(5, 20)
+	tired.stamina = 0.0
+	tired.catch_breath()
+	check(tired.stamina > 0.0 and tired.clock > WallClimb.START_HOUR, "catching breath takes time and gives some back")
 
 
 func _jumps() -> void:

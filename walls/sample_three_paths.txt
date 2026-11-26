@@ -1,6 +1,6 @@
 # Kletterwand: ein Feld ist ein Meter. [holds]: Malus 0-9 und Richtungen udlr, - ist glatter Fels.
 name: Die drei Pfade
-level: 3
+level: 2
 summit: 11_die_freiheit.txt:square
 size: 24 24
 [holds]
@@ -61,3 +61,6 @@ size: 24 24
 5 14 body
 9 4 cave
 11 0 garden
+5 13 camp
+9 6 camp
+11 16 camp

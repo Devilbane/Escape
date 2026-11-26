@@ -43,7 +43,7 @@ const EN := {
 	"Sprünge über Spalten werden gefährlicher.": "Jumps across gaps get more dangerous.",
 	"Alles ist schwerer, und Steine fallen. Such Deckung oder gib auf.": "Everything is harder and stones fall. Brace yourself or give up.",
 	"Es klart auf.": "The sky clears.",
-	"Klettern %d · Höhe %d m · Stürze %d · %s": "Climbing %d · Height %d m · Falls %d · %s",
+	"Klettern %d · Höhe %d m · Stürze %d · %s · %s": "Climbing %d · Height %d m · Falls %d · %s · %s",
 	"Dort ist kein Halt.": "There is no hold there.",
 	"Du schlägst einen Nagel in den Fels: ein Sicherungspunkt.": "You hammer a nail into the rock: a safe spot.",
 	"Abgerutscht! Noch ein Versuch.": "You slip! One more try.",
@@ -124,4 +124,9 @@ const EN := {
 	"Noch einmal drücken, um zu springen.": "Press again to jump.",
 	"Geschick, Intuition, Weisheit": "Dexterity, Intuition, Wisdom",
 	"Geschick und Intuition verbessern Sprünge, Weisheit und Intuition das Abschätzen einer Spalte (Start 10, höchstens 30).": "Dexterity and Intuition improve jumps, Wisdom and Intuition the judging of a gap (start 10, at most 30).",
+	"Rastplatz": "Rest place",
+	"Ein Felsband, breit genug zum Rasten: hier kann man die Nacht verbringen (R).": "A ledge wide enough to rest: you can spend the night here (R).",
+	"Du rastest bis zum Morgen und bist ausgeruht.": "You rest until morning and wake refreshed.",
+	"Du rastest ein paar Stunden und kommst wieder zu Atem.": "You rest for a few hours and get your breath back.",
+	"Du hängst dich in den Fels und holst Luft.": "You hang in the rock and catch your breath.",
 }

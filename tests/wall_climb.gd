@@ -61,6 +61,7 @@ func _go(dir: int, times := 1) -> void:
 		await _wait_idle()
 		# The breath is tested in tests/wall_map.gd: here the climber is always fresh.
 		stage.climb.stamina = stage.climb.stamina_max
+		stage.climb.clock = 10.0
 		var mv := stage.climb.move_in(dir)
 		var out := stage.try_move(dir, 0.0, 1.0)
 		check(out != WallClimb.Outcome.BLOCKED, "move %d from %s is open" % [dir, stage.climb.cell])
@@ -117,6 +118,15 @@ func _run() -> void:
 	check(stage.climb.cell.y == 0, "on the top row: %s" % stage.climb.cell)
 	check(stage._cloud_density > 0.5, "cloud band fills the foot of the view up here: %.2f" % stage._cloud_density)
 	await _shot("06_summit")
+	# Night on the wall: darker, and a rest place lets the climber sleep until dawn.
+	stage.climb.clock = 22.0
+	stage._update_status()
+	await _frames(3)
+	await _shot("09_night")
+	check(stage.climb.darkness() == 2 and stage._sun.light_energy < 0.5, "night dims the light")
+	stage.climb.cell = Vector2i(5, 13)
+	stage.climb.stamina = 1.0
+	check(stage.rest_here() == WallClimb.Outcome.CAMPED and stage.climb.stamina == stage.climb.stamina_max and stage.climb.darkness() == 0, "the rest place lets the climber sleep until morning")
 
 	# A new climb: the ice makes a good hand fail, and a failure on a surface is a fall.
 	stage.setup(map, 20, true)

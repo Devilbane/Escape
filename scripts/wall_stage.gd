@@ -422,8 +422,38 @@ func _update_status() -> void:
 	if climb == null:
 		return
 	var up := 0 if climb.on_ground() else wall.height - climb.cell.y
-	_status.text = Lang.t("Klettern %d · Höhe %d m · Stürze %d · %s") % [climb.skill, up, climb.falls, Lang.t(String(WallWeather.DATA[weather].name))]
+	_status.text = Lang.t("Klettern %d · Höhe %d m · Stürze %d · %s · %s") % [climb.skill, up, climb.falls, Lang.t(String(WallWeather.DATA[weather].name)), climb.time_text()]
+	_apply_light()
 	changed.emit()
+
+
+## The light of the hour: dusk dims the sky, night is dark.
+func _apply_light() -> void:
+	if climb == null or _sun == null or _env == null:
+		return
+	var f: float = [1.0, 0.65, 0.28][climb.darkness()]
+	var s: Array = SKY[weather]
+	_sun.light_energy = float(s[1]) * f
+	_env.ambient_light_energy = float(s[2]) * (0.45 + 0.55 * f)
+	_env.background_color = (s[0] as Color) * f
+	if _clouds != null:
+		_clouds.modulate = Color(f, f, minf(1.0, f + 0.15), 1.0)
+
+
+## R: catches breath on the wall, or spends the time at a rest place (the night, by evening).
+func rest_here() -> int:
+	if climb == null or busy() or climb.on_ground():
+		return WallClimb.Outcome.BLOCKED
+	if climb.at_camp():
+		var night := climb.darkness() > 0
+		climb.bivouac()
+		_tell("Du rastest bis zum Morgen und bist ausgeruht." if night else "Du rastest ein paar Stunden und kommst wieder zu Atem.")
+		_update_status()
+		return WallClimb.Outcome.CAMPED
+	climb.catch_breath()
+	_tell(Lang.t("Du hängst dich in den Fels und holst Luft."))
+	_update_status()
+	return WallClimb.Outcome.RESTED
 
 
 func _process(delta: float) -> void:
@@ -472,6 +502,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 		if not interactive:
+			return
+		if key == KEY_R:
+			rest_here()
+			get_viewport().set_input_as_handled()
 			return
 		var dir := 0
 		match key:

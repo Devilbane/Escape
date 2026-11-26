@@ -61,6 +61,7 @@ const MARKERS := {
 	"cave": {"name": "Höhle", "text": "Hier öffnet sich eine Höhle im Fels.", "colour": Color(0.6, 0.5, 0.8)},
 	"nest": {"name": "Drachennest", "text": "Ein Drachennest! Verbrannte Knochen und warme Asche.", "colour": Color(0.9, 0.4, 0.2)},
 	"tomb": {"name": "Grabkammer", "text": "Eine Grabkammer der Priester, still seit Jahrhunderten.", "colour": Color(0.85, 0.75, 0.45)},
+	"camp": {"name": "Rastplatz", "text": "Ein Felsband, breit genug zum Rasten: hier kann man die Nacht verbringen (R).", "colour": Color(1.0, 0.8, 0.4)},
 	"body": {"name": "Toter Kletterer", "text": "Ein toter Kletterer hängt im Seil. Seine Ausrüstung ist noch brauchbar.", "colour": Color(0.75, 0.75, 0.8)},
 }
 

@@ -6,7 +6,7 @@ hold = {}   # (c, r) -> malus
 dirs = {}   # (c, r) -> set of letters
 haz = {}
 gaps = []
-markers = [(5, 14, "body"), (9, 4, "cave"), (11, 0, "garden")]
+markers = [(5, 14, "body"), (9, 4, "cave"), (11, 0, "garden"), (5, 13, "camp"), (9, 6, "camp"), (11, 16, "camp")]
 OPP = {"u": "d", "d": "u", "l": "r", "r": "l"}
 STEP = {"u": (0, -1), "d": (0, 1), "l": (-1, 0), "r": (1, 0)}
 
@@ -78,7 +78,7 @@ jump_gap((14, 3, 4, 2), 3, (13, 3), (18, 3))
 
 def lines():
     out = ["# Kletterwand: ein Feld ist ein Meter. [holds]: Malus 0-9 und Richtungen udlr, - ist glatter Fels.",
-           "name: Die drei Pfade", "level: 3", "summit: 11_die_freiheit.txt:square", "size: %d %d" % (W, H), "[holds]"]
+           "name: Die drei Pfade", "level: 2", "summit: 11_die_freiheit.txt:square", "size: %d %d" % (W, H), "[holds]"]
     for r in range(H):
         row = []
         for c in range(W):

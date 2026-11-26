@@ -10,6 +10,9 @@ global uniform vec4 indoor_area;
 const float INDOOR_SCALE = 16.0;
 const float INDOOR_MARGIN = 0.12;
 const float INDOOR_PIT_DEPTH = -0.2;
+// B of indoor_mask is 1 in the margin outside a floor plan: there only what is above this height is kept out of
+// the weather, so the ground right outside a wall stays in it (see IndoorMask.RING_FLOOR).
+const float INDOOR_RING_FLOOR = 0.3;
 
 bool indoors(vec3 p) {
 	if (indoor_area.w < 0.5) {
@@ -21,10 +24,13 @@ bool indoors(vec3 p) {
 		return false;
 	}
 	// 0 is the open air (the ground there may lie a little below 0 m).
-	vec2 m = texelFetch(indoor_mask, px, 0).rg;
+	vec3 m = texelFetch(indoor_mask, px, 0).rgb;
 	// G is 1 over a house's cellar and its stairs (also beyond the roof): below the ground, no weather.
 	if (m.g > 0.5 && p.y < INDOOR_PIT_DEPTH) {
 		return true;
+	}
+	if (m.b > 0.5 && p.y < INDOOR_RING_FLOOR) {
+		return false;
 	}
 	float top = m.r * INDOOR_SCALE;
 	// A little over the top: the mask's heights come in steps of INDOOR_SCALE/255 (6 cm), and the top of a

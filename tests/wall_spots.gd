@@ -13,10 +13,16 @@ func check(ok: bool, what: String) -> void:
 
 
 func _initialize() -> void:
-	for kind in ["tar", "edelweiss", "door"]:
+	for kind in ["tar", "edelweiss", "door", "secret"]:
 		check(WallMap.MARKERS.has(kind), "%s is a marker" % kind)
 		var spot := WallSpots.build(kind, 7)
-		check(spot != null and spot.get_child_count() > 3, "%s builds a scene with parts" % kind)
+		check(spot != null and spot.get_child_count() > (1 if kind == "secret" else 3), "%s builds a scene with parts" % kind)
+		if kind == "secret" and spot != null:
+			var slab := spot.get_node_or_null("Pivot/Slab") as MeshInstance3D
+			check(slab != null, "the hidden door is a slab of rock on a pivot")
+			check(bool(WallMap.MARKERS.secret.get("hidden", false)), "the hidden door has no sign")
+			spot.free()
+			continue
 		if spot != null:
 			var textured := 0
 			for c in spot.get_children():

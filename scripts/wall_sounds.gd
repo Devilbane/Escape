@@ -49,6 +49,7 @@ const CUES := {
 const SPOTS := {
 	"tar": [{"after": 0.1, "kind": "scrape", "db": -12.0}, {"after": 0.5, "kind": "grip", "db": -10.0}, {"after": 0.9, "kind": "scrape", "db": -14.0}],
 	"edelweiss": [{"after": 0.1, "kind": "rustle", "db": -10.0}, {"after": 0.45, "kind": "rustle", "db": -12.0}, {"after": 0.8, "kind": "tap", "db": -16.0}],
+	"secret": [{"after": 0.1, "kind": "tap", "db": -8.0}, {"after": 0.4, "kind": "tap", "db": -7.0}, {"after": 0.8, "kind": "pebbles", "db": -10.0}, {"after": 1.0, "kind": "creak", "db": -5.0}, {"after": 1.7, "kind": "creak", "db": -8.0}],
 	"door": [{"after": 0.1, "kind": "tap", "db": -8.0}, {"after": 0.5, "kind": "tap", "db": -8.0}, {"after": 1.0, "kind": "creak", "db": -6.0}, {"after": 1.6, "kind": "creak", "db": -8.0}, {"after": 2.0, "kind": "boot", "db": -10.0}],
 }
 

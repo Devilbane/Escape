@@ -363,7 +363,7 @@ func decor_at(c: int, r: int) -> Vector3:
 	# Keep clear of the special spots (tar, edelweiss, door) so they are seen.
 	for dr in range(-1, 2):
 		for dc in range(-1, 2):
-			if map.marker_at(c + dc, r + dr) in ["tar", "edelweiss", "door"]:
+			if map.marker_at(c + dc, r + dr) in ["tar", "edelweiss", "door", "secret"]:
 				return Vector3(-1, -1, 0)
 	var h1 := _hash(c * 7 + 1, r * 5 + 2)
 	var h2 := _hash(c * 11 + 5, r * 3 + 9)

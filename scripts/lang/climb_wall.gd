@@ -12,6 +12,8 @@ const EN := {
 	"Auf einem schmalen Absatz blüht ein Büschel Edelweiß. Du pflückst es.": "A tuft of edelweiss blooms on a narrow ledge. You pick it.",
 	"Stollentür": "Mine door",
 	"Eine alte Tür im Fels. Dahinter beginnt ein Stollen.": "An old door in the rock. A tunnel begins behind it.",
+	"Geheimtür": "Secret door",
+	"Der Fels klingt hohl. Ein Stein schwingt auf: eine verborgene Tür!": "The rock sounds hollow. A stone swings open: a hidden door!",
 	"Höhle": "Cave",
 	"Hier öffnet sich eine Höhle im Fels.": "A cave opens in the rock here.",
 	"Drachennest": "Dragon's nest",

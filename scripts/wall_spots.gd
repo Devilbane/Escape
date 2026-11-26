@@ -9,6 +9,7 @@ extends RefCounted
 ##   leaves (ingredient "edelweiss").
 ## - "door": an old timber door with iron bands in a rough stone arch, with rubble at its foot; it leads into a dungeon or
 ##   a mine (the wall's `door`, see WallPlacements.door_of).
+## - "secret": a door that looks like plain rock until the climber reaches it (the same destination as "door").
 ## Textures and materials are made in code once and shared.
 
 ## What the climber takes from a gathering spot: the ingredient (see Crafting.INGREDIENTS) and how many.
@@ -32,6 +33,8 @@ static func build(kind: String, seed_value: int) -> Node3D:
 			node.scale = Vector3.ONE * 1.8
 		"door":
 			node = _door(seed_value)
+		"secret":
+			node = _secret(seed_value)
 	return node
 
 
@@ -96,6 +99,11 @@ static func _mat(id: String) -> StandardMaterial3D:
 			m.roughness = 0.55
 		"stone":
 			m.albedo_texture = ImageTexture.create_from_image(_noise_image(128, Vector2(0.09, 0.09), 31, Color(0.3, 0.29, 0.28), Color(0.55, 0.53, 0.5)))
+			m.roughness = 1.0
+		"slab":
+			# The face of the wall: a broad, soft mottle in the wall's own grey, so the slab melts into it.
+			m.albedo_texture = ImageTexture.create_from_image(_noise_image(128, Vector2(0.08, 0.08), 53, Color(0.27, 0.26, 0.25), Color(0.46, 0.44, 0.42)))
+			m.uv1_scale = Vector3(1.0, 1.7, 1.0)
 			m.roughness = 1.0
 		"leaf":
 			m.albedo_texture = ImageTexture.create_from_image(_noise_image(64, Vector2(0.2, 0.2), 5, Color(0.36, 0.42, 0.33), Color(0.7, 0.76, 0.66)))
@@ -264,6 +272,36 @@ static func _drip_mesh(length: float, width: float) -> ArrayMesh:
 				st.add_vertex(v)
 	st.generate_normals()
 	return st.commit()
+
+
+## A door disguised as rock: an irregular slab of grey stone like the wall around it, nothing else (no sign, no frame). The slab
+## hangs on a pivot ("Pivot", at its left edge) that WallStage swings open when the climber reaches it; behind it is the
+## dark recess ("Recess").
+static func _secret(seed_value: int) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Secret"
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var w := 1.1
+	var h := 1.9
+	var recess := _part(root, _box(Vector3(w, h, 0.05)), _mat("crack"), Vector3(0, h * 0.5 - 0.2, -0.01))
+	recess.name = "Recess"
+	var pivot := Node3D.new()
+	pivot.name = "Pivot"
+	pivot.position = Vector3(-w * 0.5, 0, 0)
+	root.add_child(pivot)
+	# An irregular flat stone, not a rectangle, in the face's own grey; it sits only slightly proud of the rock.
+	var stone := NaturalRock.mesh("rock_single_E")
+	var slab := Node3D.new()
+	slab.name = "Slab"
+	pivot.add_child(slab)
+	if stone != null:
+		for i in 2:
+			_part(slab, stone, _mat("slab"), Vector3(w * 0.5 + rng.randf_range(-0.05, 0.05), 0.5 + i * 0.85, 0.0), Vector3(deg_to_rad(90.0), rng.randf_range(-0.4, 0.4), 0.0), Vector3(3.1, 0.9, 3.4))
+	else:
+		_part(slab, _box(Vector3(w - 0.02, h - 0.02, 0.08)), _mat("slab"), Vector3(w * 0.5, h * 0.5 - 0.2, 0.03))
+	recess.visible = false   # only seen once the slab swings open
+	return root
 
 
 ## An old timber door with iron bands, in a rough stone arch, rubble at its foot.

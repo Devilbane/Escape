@@ -1,6 +1,7 @@
 class_name PackHelp
 extends RefCounted
-## Monsters stand up for each other. When the hero strikes a monster that had not noticed them,
+## Monsters stand up for each other. When the hero strikes a monster that was not after them yet
+## (it had not noticed them, or left them be because they are far above its level),
 ##  - every unaware monster of its own kind of folk with a clear line of sight to it (within
 ##    SEE_RANGE) turns to defend it, showing the red "!", and
 ##  - a few kinds also call for help (wolves howl, orcs roar, robbers shout): that call carries

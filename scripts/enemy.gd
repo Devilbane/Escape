@@ -1517,6 +1517,8 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		# where the monsters come back (see Level.note_sneak_kill).
 		level.note_sneak_kill(self)
 	hp -= damage
+	# Whether it was already after the hero: only a blow on one that was not rouses its mates (see PackHelp).
+	var was_hunting := _awake
 	if wakes:
 		Elementals.reflect(self, damage, kind)
 		_calmed = 0.0
@@ -1524,7 +1526,7 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		if SlimeCoat.is_slime(self):
 			_hero_aggro = SLIME_AGGRO
 		_wake(from)
-		if hp > 0:
+		if hp > 0 and not was_hunting:
 			PackHelp.on_struck(self, level.player.global_position)
 	var away := global_position - from
 	away.y = 0.0
@@ -2784,8 +2786,7 @@ func _notices(player: Player, to_player: Vector3, dist: float, sees: bool) -> bo
 	# Right up close it notices, unless the hero sneaks up from behind.
 	if dist < TOUCH and not walled and (in_view or not player.sneaking or _awake):
 		return true
-	# Aggro needs line of sight: a footstep behind a wall or around a corner wakes nobody.
-	if sees and dist < (MUFFLED_HEARING if walled else HEARING) and player.is_noisy():
+	if dist < (MUFFLED_HEARING if walled else HEARING) and player.is_noisy():
 		return true
 	if not sees or not player.is_lit():
 		return false

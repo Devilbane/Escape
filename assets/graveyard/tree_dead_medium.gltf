@@ -1,136 +1,138 @@
 {
-    "asset" : {
-        "generator" : "Khronos glTF Blender I/O v3.4.50",
-        "version" : "2.0"
+ "asset": {
+  "generator": "tools/make_dead_trees.py",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "tree_dead_medium"
+  }
+ ],
+ "materials": [
+  {
+   "name": "DeadBark",
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 0
     },
-    "scene" : 0,
-    "scenes" : [
-        {
-            "name" : "Scene",
-            "nodes" : [
-                0
-            ]
-        }
-    ],
-    "nodes" : [
-        {
-            "mesh" : 0,
-            "name" : "tree_dead_medium"
-        }
-    ],
-    "materials" : [
-        {
-            "name" : "HalloweenBits",
-            "pbrMetallicRoughness" : {
-                "baseColorTexture" : {
-                    "index" : 0
-                },
-                "metallicFactor" : 0,
-                "roughnessFactor" : 0.6000000238418579
-            }
-        }
-    ],
-    "meshes" : [
-        {
-            "name" : "Cylinder.849",
-            "primitives" : [
-                {
-                    "attributes" : {
-                        "POSITION" : 0,
-                        "TEXCOORD_0" : 1,
-                        "NORMAL" : 2
-                    },
-                    "indices" : 3,
-                    "material" : 0
-                }
-            ]
-        }
-    ],
-    "textures" : [
-        {
-            "sampler" : 0,
-            "source" : 0
-        }
-    ],
-    "images" : [
-        {
-            "mimeType" : "image/png",
-            "name" : "halloweenbits_texture",
-            "uri" : "halloweenbits_texture.png"
-        }
-    ],
-    "accessors" : [
-        {
-            "bufferView" : 0,
-            "componentType" : 5126,
-            "count" : 134,
-            "max" : [
-                1.3231620788574219,
-                3.888742208480835,
-                0.23334255814552307
-            ],
-            "min" : [
-                -0.48544174432754517,
-                -0.3002431392669678,
-                -0.23334255814552307
-            ],
-            "type" : "VEC3"
-        },
-        {
-            "bufferView" : 1,
-            "componentType" : 5126,
-            "count" : 134,
-            "type" : "VEC2"
-        },
-        {
-            "bufferView" : 2,
-            "componentType" : 5126,
-            "count" : 134,
-            "type" : "VEC3"
-        },
-        {
-            "bufferView" : 3,
-            "componentType" : 5123,
-            "count" : 648,
-            "type" : "SCALAR"
-        }
-    ],
-    "bufferViews" : [
-        {
-            "buffer" : 0,
-            "byteLength" : 1608,
-            "byteOffset" : 0,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 1072,
-            "byteOffset" : 1608,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 1608,
-            "byteOffset" : 2680,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 1296,
-            "byteOffset" : 4288,
-            "target" : 34963
-        }
-    ],
-    "samplers" : [
-        {
-            "magFilter" : 9729,
-            "minFilter" : 9987
-        }
-    ],
-    "buffers" : [
-        {
-            "byteLength" : 5584,
-            "uri" : "tree_dead_medium.bin"
-        }
-    ]
+    "metallicFactor": 0,
+    "roughnessFactor": 0.9
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "tree_dead_medium_mesh",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "TEXCOORD_0": 1,
+      "NORMAL": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "textures": [
+  {
+   "sampler": 0,
+   "source": 0
+  }
+ ],
+ "images": [
+  {
+   "mimeType": "image/png",
+   "name": "dead_bark",
+   "uri": "dead_bark.png"
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 5478,
+   "type": "VEC3",
+   "min": [
+    -1.1905361413955688,
+    -0.3293345272541046,
+    -1.0878337621688843
+   ],
+   "max": [
+    1.3305844068527222,
+    3.457798957824707,
+    0.890113115310669
+   ]
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 5478,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 5478,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 22779,
+   "type": "SCALAR"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteOffset": 0,
+   "byteLength": 65736,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 65736,
+   "byteLength": 43824,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 109560,
+   "byteLength": 65736,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteOffset": 175296,
+   "byteLength": 45558,
+   "target": 34963
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987,
+   "wrapS": 10497,
+   "wrapT": 10497
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 220856,
+   "uri": "tree_dead_medium.bin"
+  }
+ ]
 }

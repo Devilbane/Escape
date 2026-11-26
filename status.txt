@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give the guild and other kit buildings clear glass windows with curtains | Shipped this week: Title screen: climbing wall workshop button; Title: new catchphrase replaces "Escape from the dungeon" (+48 more)
+Escape! dev status | Shipped this week: Give the guild and other kit buildings clear glass windows with curtains; Title screen: climbing wall workshop button (+48 more)

@@ -20,6 +20,8 @@ const BACK := -1.6
 const GAP_DEPTH := 1.35
 ## How far (metres) the crack of a gap runs on below it.
 const GAP_RUN := 5.5
+## How much narrower (share of the half width) the bottom of a gap is than its top.
+const GAP_WEDGE := 0.4
 ## Knob height and radius of a hold of malus 0 (the radius shrinks with every malus point).
 const KNOB_HEIGHT := 0.3
 const KNOB_RADIUS := 0.5
@@ -179,7 +181,11 @@ func _field(x: float, y: float) -> Dictionary:
 		var x1 := float(g.end.x)
 		var y0 := float(map.height - g.end.y)
 		var y1 := float(map.height - g.position.y)
-		var sd := _box_distance(x, y, x0, x1, y0, y1)
+		# Widest at the top: the lower edge of the gap is a bit narrower (a wedge), and the crack below goes on to a needle.
+		var half := (x1 - x0) * 0.5
+		var up := clampf((y - y0) / maxf(0.01, y1 - y0), 0.0, 1.0)
+		var shrink := half * GAP_WEDGE * (1.0 - up)
+		var sd := _box_distance(x, y, x0 + shrink, x1 - shrink, y0, y1)
 		var jag := _noise.get_noise_2d(x * 2.1 + 9.0, y * 2.1) * 0.34 + _fine.get_noise_2d(x * 6.0, y * 6.0 + 5.0) * 0.12
 		var inside := -(sd + jag)
 		trench = maxf(trench, smoothstep(0.0, 0.3, inside))
@@ -187,7 +193,7 @@ func _field(x: float, y: float) -> Dictionary:
 		# (not a cave); it keeps clear of the holds.
 		if y < y0:
 			var t := clampf((y0 - y) / GAP_RUN, 0.0, 1.0)
-			var narrow := maxf(0.04, (x1 - x0) * 0.5 * (1.0 - t))
+			var narrow := maxf(0.04, half * (1.0 - GAP_WEDGE) * (1.0 - t))
 			var cx := (x0 + x1) * 0.5 + _noise.get_noise_2d(y * 1.3, 4.0) * 0.25
 			var side := narrow - absf(x - cx) + jag * 0.5
 			var run := smoothstep(0.0, minf(0.25, narrow), side) * (1.0 - 0.3 * t) * (1.0 - knob)

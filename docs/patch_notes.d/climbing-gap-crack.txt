@@ -1,1 +1,1 @@
-- A gap in the climbing wall now reads as a crack that runs several steps down and tapers to a needle point, not a cave.
+- A gap in the climbing wall now reads as a crack that is widest at the top and runs several steps down, tapering to a needle point, not a cave.

@@ -1,0 +1,1 @@
+- Sitting down now always plays out before the hero can move on, and walking over a seat's spot no longer hurries the hero along.

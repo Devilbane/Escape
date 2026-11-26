@@ -5,9 +5,9 @@ extends SceneTree
 
 ## Rows: [title, phase, [[label, time 0..1], ...], sideways step in metres (0: straight up)].
 const ROWS := [
-	["Up: look, reach, grip, foot on the rock, push with the legs", "pull_l", [["1 look", 0.15], ["2 quick reach", 0.3], ["3 grip", 0.4], ["4 foot placed", 0.52], ["5 push up", 0.8], ["6 hang", 1.0]], 0.0],
-	["Sideways to the right: wide reach with one hand and one foot", "side_r", [["1 look", 0.15], ["2 hand reaches out", 0.3], ["3 grip", 0.42], ["4 foot out, planted", 0.56], ["5 weight over", 0.8], ["6 follow, hang", 1.0]], 1.0],
-	["Sideways to the left (the mirror)", "side_l", [["1 look", 0.15], ["2 hand reaches out", 0.3], ["3 grip", 0.42], ["4 foot out, planted", 0.56], ["5 weight over", 0.8], ["6 follow, hang", 1.0]], -1.0],
+	["Up (rock-over): sink, hop and stretch, grip, high step with the knee out, hips over the foot", "pull_l", [["1 sink", 0.18], ["2 hop, stretched", 0.27], ["3 grip", 0.4], ["4 high step", 0.56], ["5 rock over", 0.74], ["6 stand up", 0.88]], 0.0],
+	["Sideways to the right: wide reach with one hand and one foot", "side_r", [["1 sink", 0.18], ["2 hop, reach", 0.3], ["3 grip", 0.42], ["4 foot out, planted", 0.56], ["5 weight over", 0.8], ["6 follow, hang", 1.0]], 1.0],
+	["Sideways to the left (the mirror)", "side_l", [["1 sink", 0.18], ["2 hop, reach", 0.3], ["3 grip", 0.42], ["4 foot out, planted", 0.56], ["5 weight over", 0.8], ["6 follow, hang", 1.0]], -1.0],
 ]
 var frames := 0
 

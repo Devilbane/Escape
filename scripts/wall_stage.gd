@@ -813,6 +813,9 @@ func _tick_animation(delta: float) -> void:
 				# The body goes across once the hand and the foot have reached and gripped (no jump).
 				lift = smoothstep(RopeClimbPose.PULL_ROLL, RopeClimbPose.PULL_LIFTED, u)
 			at = from.lerp(to, lift)
+			if key.begins_with("pull") or key.begins_with("side"):
+				# The small hop before the reach: the feet leave the rock for a moment.
+				at.y += 0.14 * sin(clampf((u - 0.2) / 0.14, 0.0, 1.0) * PI)
 	feet = at
 	climber.model.position = feet
 	if key != "bed":

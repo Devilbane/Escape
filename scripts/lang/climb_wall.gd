@@ -4,7 +4,7 @@ extends RefCounted
 const EN := {
 	"Geheimer Garten": "Secret garden",
 	"Über der Kante liegt ein verborgener Garten.": "A hidden garden lies beyond the edge.",
-	"Bergteer": "Mountain tar",
+	"Bergteer": "Mountain Tar",
 	"Felswand": "The rock face",
 	"Harz aus Felsspalten": "resin from rock cracks",
 	"Dunkles, zähes Harz, das in den Spalten steiler Felswände aus dem Stein quillt. Man muss die Wand erklettern, um es abzukratzen.": "Dark, tough resin that seeps out of the stone in the cracks of steep rock faces. You have to climb the wall to scrape it off.",

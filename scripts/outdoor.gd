@@ -527,6 +527,8 @@ var _undergrowth := {"xforms": [], "colours": []}
 ## UNDERGROWTH_AUTUMN_KEEP and SHRUB_AUTUMN_KEEP); the rest of the year they grow as the others do.
 var undergrowth_shed: Node3D
 var _undergrowth_shed := {"xforms": [], "colours": []}
+## The kinds of the last bushes planted, so neighbours differ (see BushKinds.pick).
+var _bush_recent: Array = []
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -831,7 +833,7 @@ func build() -> void:
 	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
-	if not _ivy.xforms.is_empty():
+	if BushKinds.has_any(_ivy):
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		if walk_in != null:
@@ -877,12 +879,12 @@ func build() -> void:
 	_build_wall_collision()
 	_grow_ferns()
 	RiverFlow.build(self)
-	if not _undergrowth.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth):
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"
 		add_child(undergrowth)
 		IvySeasons.apply(undergrowth, day)
-	if not _undergrowth_shed.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth_shed):
 		undergrowth_shed = AgedStone.ivy_node(_undergrowth_shed)
 		undergrowth_shed.name = "UndergrowthShed"
 		add_child(undergrowth_shed)
@@ -2493,7 +2495,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 ## One bush of the undergrowth at `at` (see _grow_undergrowth); returns its radius.
 func _undergrowth_bush(at: Vector3, rng: RandomNumberGenerator) -> float:
 	# Most of them shed their leaves in autumn (see _keeps_leaves).
-	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
+	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed, _undergrowth, _bush_recent)
 	undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
 	return radius
 
@@ -3939,7 +3941,7 @@ func _plant_bushes() -> void:
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
-				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed)
+				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed, _ivy, _bush_recent)
 
 
 ## Whether `at` lies near Benno's tent: no shrub grows there, so the chair stands clear (see BARBER_CLEAR).

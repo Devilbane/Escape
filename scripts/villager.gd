@@ -102,7 +102,7 @@ const ROLES := {
 		"lines": ["Die Wand ist mein Garten. Nur ohne Gemüse.", "Wer klettern will, braucht Geduld, Hände und einen guten Nagel.", "Sprich mich auf das Klettern an. Oder sieh mir eine Stunde zu.", "Von oben sieht man das Dorf klein wie ein Spielzeug."]},
 	"λ": {"name": "Hirte Moritz", "model": "Rogue", "show": ["Rogue_Cape"], "hair": {"style": "natural", "color": "black"},
 		"colors": [Color(0.5, 0.58, 0.4), Color(0.4, 0.36, 0.3), Color(0.62, 0.5, 0.34)], "plan": "farm", "work": "Idle",
-		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
+		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen."]},
 	# The beekeeper of the farming valley (see Beekeeper): day plan "farm" with his own jobs among the hives (see ValleyFolk),
 	# a straw hat with a net veil (see BeeVeil) and a window for honey.
 	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "spiky", "color": "silver"},
@@ -122,7 +122,7 @@ const ROLES := {
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis.", "Wurst für die Füchse? Die leben auf der Wiese am Waldteich, westlich vom Dorf."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72, "hair": {"style": "spiky", "color": "blond"}, "skin": SKIN_ROSY,
 		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "pippi",
-		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Der Hund bleibt bei den Ziegen, wo ich bin.", "Das ist meine Freundin Pippi! Sie hütet die Gänse und die Ziegen mit mir."]},
+		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Das ist meine Freundin Pippi! Sie hütet die Gänse und die Ziegen mit mir."]},
 	# Pip's friend: a red-haired girl with long pigtails and freckles who minds
 	# the geese and the goats with him. She is not on the map: Outdoor puts her
 	# beside Pip (see VillageFarm.pippi_home), so she needs no map letter.

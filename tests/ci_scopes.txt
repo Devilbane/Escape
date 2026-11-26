@@ -51,6 +51,10 @@ house_exit_quick.gd | scripts/homes.gd scripts/house_*.gd scripts/plot*.gd scrip
 ladder_exit.gd | scripts/ladder_click.gd scripts/ladder_pose.gd scripts/house_*.gd scripts/homes.gd
 quarry_door.gd | scripts/quarry_hill.gd scripts/quarry_rocks.gd scripts/village_house.gd scripts/mountains.gd
 house_faces.gd | scripts/village_house.gd scripts/house_*.gd
+
+# Recipes, the ingredient pouch and the crafts (Odo's recipe, the compendium page, the saved game). The scripts that
+# define or teach a recipe select it; a change to shared code (items, menus, game, saving) runs it anyway.
+crafting.gd | scripts/crafting.gd scripts/crafting_square.gd scripts/silver_silk.gd scripts/beekeeper.gd scripts/healing_potions.gd scripts/armour_sets.gd scripts/forge.gd scripts/smith_cottage.gd scripts/dragon_hoard.gd scripts/ore.gd
 riddle_vault.gd | scripts/riddle_vault.gd tools/riddle_hash.gd
 
 # The smith's forge and the crafting it shares its recipes and ores with.

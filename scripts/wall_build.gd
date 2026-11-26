@@ -480,6 +480,12 @@ func _ice_cover(x: float, y: float) -> float:
 	var r := map.height - 1 - int(floor(y))
 	var wobble := _noise.get_noise_2d(x * 3.3 + 70.0, y * 3.3) * 0.22 + _fine.get_noise_2d(x * 8.0, y * 8.0) * 0.08
 	var best := 0.0
+	# Ice matters only where a hand or a foot goes: it lies on the hold stones and the foot stones, not on bare rock.
+	var near := 0.0
+	for sp in _ice_spots():
+		near = maxf(near, 1.0 - smoothstep(sp.z * 0.55, sp.z, Vector2((x - sp.x) * 0.8, y - sp.y).length()))
+	if near <= 0.0:
+		return 0.0
 	for dr in range(-1, 2):
 		for dc in range(-1, 2):
 			if not map.inside(c + dc, r + dr) or map.hazard_at(c + dc, r + dr) != WallMap.ICE:
@@ -488,7 +494,27 @@ func _ice_cover(x: float, y: float) -> float:
 			var q := Vector2(absf(x - centre.x), absf(y - centre.y))
 			var inside := 0.5 - maxf(q.x, q.y) + wobble
 			best = maxf(best, smoothstep(-0.05, 0.28, inside))
-	return best
+	return best * near
+
+
+var _ice_list: Array = []
+var _ice_made := false
+
+
+## The places on ice squares where the ice lies: every hold and the foot stone under it, as x, y and a radius.
+func _ice_spots() -> Array:
+	if _ice_made:
+		return _ice_list
+	_ice_made = true
+	for r in map.height:
+		for c in map.width:
+			if map.hazard_at(c, r) == WallMap.ICE and map.has_hold(c, r):
+				var centre := square_centre(map, c, r)
+				_ice_list.append(Vector3(centre.x, centre.y, 0.8))
+				var foot := foot_spot(map, c, r)
+				if foot.x >= 0.0:
+					_ice_list.append(Vector3(foot.x, foot.y, 1.0))
+	return _ice_list
 
 
 ## Loose boulders stuck to the face on the loose-stone squares (one mesh), or null.
@@ -554,7 +580,7 @@ func foot_mesh() -> ArrayMesh:
 			count += 1
 	if count == 0:
 		return null
-	return _weathered(st.commit())
+	return _weathered(st.commit(), true)
 
 
 ## Small connecting stones that fill the spaces between the foot stones (along each ledge and between neighbours on
@@ -622,7 +648,7 @@ func decor_mesh() -> ArrayMesh:
 ## The set-in stones take the face's weather: a shade darker and greyer than the plain mountain stone, so they sit in the
 ## rock instead of looking pale and stuck on. Like the wall they wear chalk dust on what faces up, and ice and frost
 ## where the face around them is wet.
-func _weathered(mesh: ArrayMesh) -> ArrayMesh:
+func _weathered(mesh: ArrayMesh, used := false) -> ArrayMesh:
 	var arrays := mesh.surface_get_arrays(0)
 	var colours = arrays[Mesh.ARRAY_COLOR]
 	if colours == null:
@@ -632,19 +658,32 @@ func _weathered(mesh: ArrayMesh) -> ArrayMesh:
 	var out := PackedColorArray()
 	for i in colours.size():
 		var col: Color = colours[i].lerp(ROCK_DARK, STONE_WEATHER) * STONE_SHADE
-		var up := clampf(normals[i].y, 0.0, 1.0) if i < normals.size() else 0.0
-		var out_facing := clampf(normals[i].z, 0.0, 1.0) if i < normals.size() else 0.0
+		var n := normals[i] if i < normals.size() else Vector3.ZERO
+		var up := clampf(n.y, 0.0, 1.0)
+		var front := clampf(n.z, 0.0, 1.0)
 		var c := int(floor(verts[i].x / WallMap.SQUARE))
 		var r := map.height - 1 - int(floor(verts[i].y / WallMap.SQUARE))
-		# Chalk dust where hands and feet have been: on the tops, and a little on the face of the stone.
-		col = col.lerp(CHALK, STONE_CHALK * (up * 0.9 + out_facing * 0.25) * (0.7 + 0.6 * _hash(c * 3 + 1, r * 7 + 2)))
-		if map.inside(c, r) and map.hazard_at(c, r) == WallMap.WET:
-			col = col.lerp(ICE_TINT, (0.35 + 0.5 * maxf(up, out_facing)) * 0.85)
+		# Chalk comes off the hands and shoes: it lies on the tops of the stones that are used (a trace on the fronts),
+		# hardly at all on stones nobody touches, and never on the underside.
+		var chalk := (up * 0.9 + front * 0.2) * (STONE_CHALK if used else STONE_CHALK * 0.2)
+		col = col.lerp(CHALK, chalk * (0.7 + 0.6 * _hash(c * 3 + 1, r * 7 + 2)))
+		# Ice follows the water: it builds up thick on the tops where meltwater stands, as a thin frost on the fronts, and
+		# not at all on the underside, which is sheltered; a patch breaks up at its edge.
+		if _ice_at(c, r) or _ice_at(c, r - 1) or _ice_at(c, r - 2):
+			var thick := maxf(up, front * 0.4)
+			if n.y < -0.15:
+				thick = 0.0
+			thick *= 0.75 + 0.5 * _fine.get_noise_2d(verts[i].x * 6.0, verts[i].y * 6.0)
+			col = col.lerp(ICE_TINT, clampf(thick, 0.0, 1.0) * 0.95)
 		out.append(col)
 	arrays[Mesh.ARRAY_COLOR] = out
 	var made := ArrayMesh.new()
 	made.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return made
+
+
+func _ice_at(c: int, r: int) -> bool:
+	return map.inside(c, r) and map.hazard_at(c, r) == WallMap.ICE and map.has_hold(c, r)
 
 
 ## The gap's label: its area in square metres, written in the crack.

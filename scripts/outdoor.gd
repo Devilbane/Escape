@@ -304,6 +304,8 @@ var _last_spruce_size := 1.0
 var undergrowth_bushes: Array[Vector4] = []
 ## Where the village's shrubs stand (see _plant_bushes).
 var shrubs: Array[Vector3] = []
+## Where Benno's tent stands (ZERO: not looked up yet, INF: none), see _near_barber.
+var _barber_tent := Vector3.ZERO
 ## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
 var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
@@ -315,6 +317,11 @@ var apiary: Apiary
 var _hive_cells: Array[Vector2i] = []
 ## The owls on the branches of the woods (see Owls).
 var owls: Owls
+## Owlav's grave (INF when the map has none) and what stands in front of it once its crypt is open, and
+## the dead tree whose owl strikes the hours (see OwlClock).
+var owlav_pos := Vector3.INF
+var owlav_parts: Node3D
+var owl_tree_at := Vector3.INF
 ## The peaceful animals of the woods (see Animal).
 var animals: Array[Animal] = []
 ## The village's geese, goats and dogs (see VillageFarm and FarmAnimal).
@@ -525,6 +532,8 @@ var _undergrowth := {"xforms": [], "colours": []}
 ## UNDERGROWTH_AUTUMN_KEEP and SHRUB_AUTUMN_KEEP); the rest of the year they grow as the others do.
 var undergrowth_shed: Node3D
 var _undergrowth_shed := {"xforms": [], "colours": []}
+## The kinds of the last bushes planted, so neighbours differ (see BushKinds.pick).
+var _bush_recent: Array = []
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -565,6 +574,8 @@ const MASON_YARD_SHIFT := 0.4
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
+## How much taller than wide Benno's tent is drawn, and how far round it no shrub grows (metres).
+const BARBER_CLEAR := 7.0
 ## The share of these shrubs that keep their leaves in autumn (the rest shed them, see
 ## undergrowth_shed), and fewer still within SHRUB_TEMPLE_REACH tiles of the temple.
 const SHRUB_AUTUMN_KEEP := 0.5
@@ -649,12 +660,37 @@ var day := 0
 var season_day := 0
 ## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
 var crop_fields: CropFields
+## The middle of the farming valley's fields: the field tile nearest to their common centre, or
+## `fallback` when the map has no fields (see CropFields). Where the testing panel's farms button goes.
+func farm_spot(fallback: Vector3) -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for letter: String in _crop_cells:
+		for mid: Vector3 in _crop_cells[letter]:
+			sum += mid
+			n += 1
+	if n == 0:
+		return fallback
+	var centre := sum / n
+	var best := fallback
+	var best_d := INF
+	for letter: String in _crop_cells:
+		for mid: Vector3 in _crop_cells[letter]:
+			var d := mid.distance_squared_to(centre)
+			if d < best_d:
+				best_d = d
+				best = mid
+	return best
+
+
 ## The crows that peck on the fields in autumn and winter (see Crows).
 var crows: Crows
 ## Spooknortz's nights in the village (see SpookRaid).
 var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).
 var valley_events: ValleyEvents
+## The sunflower riddle in the field with the scarecrow (see SunflowerRiddle).
+var sunflower_riddle: SunflowerRiddle
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
@@ -801,7 +837,7 @@ func build() -> void:
 	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
-	if not _ivy.xforms.is_empty():
+	if BushKinds.has_any(_ivy):
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		if walk_in != null:
@@ -847,12 +883,12 @@ func build() -> void:
 	_build_wall_collision()
 	_grow_ferns()
 	RiverFlow.build(self)
-	if not _undergrowth.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth):
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"
 		add_child(undergrowth)
 		IvySeasons.apply(undergrowth, day)
-	if not _undergrowth_shed.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth_shed):
 		undergrowth_shed = AgedStone.ivy_node(_undergrowth_shed)
 		undergrowth_shed.name = "UndergrowthShed"
 		add_child(undergrowth_shed)
@@ -931,6 +967,10 @@ func build() -> void:
 	valley_events = ValleyEvents.new()
 	add_child(valley_events)
 	valley_events.setup(self)
+	if _crop_cells.has(CropFields.RIDDLE):
+		sunflower_riddle = SunflowerRiddle.new()
+		add_child(sunflower_riddle)
+		sunflower_riddle.setup(self)
 	spook_raid = SpookRaid.new()
 	add_child(spook_raid)
 	spook_raid.setup(self)
@@ -1319,9 +1359,14 @@ func _model_path(name: String) -> String:
 
 
 func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self) -> Node3D:
-	if not _scenes.has(name):
-		_scenes[name] = load(_model_path(name))
-	var node: Node3D = _scenes[name].instantiate()
+	var node: Node3D
+	if NaturalRock.replaces(name):
+		# Boulders are real, uneven rocks, not the kit's flat facets (see NaturalRock).
+		node = NaturalRock.node(name)
+	else:
+		if not _scenes.has(name):
+			_scenes[name] = load(_model_path(name))
+		node = _scenes[name].instantiate()
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
@@ -1577,7 +1622,7 @@ func _jitter(amount: float) -> Vector3:
 func _plant_crops() -> void:
 	if _crop_cells.is_empty():
 		return
-	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"))
+	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"), [SunflowerRiddle.centre()])
 	crop_fields.set_season(season_day)
 	# The crows feed on the low fields (the stubble of the wheat); where there is none, on any.
 	var low: Array[Vector3] = []
@@ -1604,11 +1649,26 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 		"\\":
 			village_wall.add(self, c, true)
 		"g":
-			var grave: String = GRAVES[_rng.randi() % GRAVES.size()]
-			var stone := _put(grave, pos + Vector3(0, 0, -0.6) + _jitter(0.3), _rng.randf_range(-0.15, 0.15))
-			_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			# Each stone is its own: its kind, model and lean follow from its tile, so the rest of the map's
+			# random numbers do not move when graves are added.
+			var grave_rng := RandomNumberGenerator.new()
+			grave_rng.seed = hash("%s|grab|%s" % [level_name, c])
+			var style := GraveStyles.pick(level_name, c)
+			if c == OwlClock.grave_cell() or c == RiddleCount.grave_of(level_name):
+				style = "classic"
+			var jitter := Vector3(grave_rng.randf_range(-0.3, 0.3), 0, grave_rng.randf_range(-0.3, 0.3))
+			var lean := grave_rng.randf_range(-0.15, 0.15)
+			if style == "classic":
+				var stone := _put(GRAVES[grave_rng.randi() % GRAVES.size()], pos + Vector3(0, 0, -0.6) + jitter, lean)
+				_age_graveyard(stone, true, absi(hash(c)) % AgedStone.GRAVE_TINTS.size())
+			else:
+				var memorial := GraveStyles.build(style, grave_rng.randi())
+				memorial.position = pos + Vector3(0, 0, -0.6) + jitter * 0.5
+				memorial.rotation.y = lean
+				add_child(memorial)
+			OwlClock.place_grave(self, c, pos, _graves.size())
 			_graves.append(c)
-			_add_solid(pos + Vector3(0, 0, -0.6), Vector3(2.0, 1.6, 1.0))
+			_add_solid(pos + Vector3(0, 0, -0.6), GraveStyles.footprint(style))
 			_grave_light(c, pos)
 		"d":
 			var tree: String = ["tree_dead_large", "tree_dead_medium", "tree_dead_small"][_rng.randi() % 3]
@@ -1616,6 +1676,8 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			var rot := _rng.randf() * TAU
 			var size := _rng.randf_range(1.1, 1.4)
 			var reach := _reach_of(tree, size)
+			if c == OwlClock.OWL_TREE_CELL:
+				owl_tree_at = at
 			if not on_plot(at, reach) and not Mountains.near_rock(self, at.x, at.z, Mountains.TREE_CLEARANCE):
 				_clearable.append({"at": at, "reach": reach, "nodes": [_put(tree, at, rot, size),
 						_add_box(_walls_body, pos + Vector3(0, 2, 0), Vector3(1.4, 4, 1.4))]})
@@ -1689,9 +1751,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_pond_waters.append(pond_water)
 		"≡", "‡", "☼":
 			# Wheat, maize and sunflowers (see CropFields): the plants are planted for all tiles at once.
-			if not _crop_cells.has(ch):
-				_crop_cells[ch] = []
-			_crop_cells[ch].append(pos)
+			# The riddle field's tiles (see SunflowerRiddle) are planted as blocks of 5 x 5.
+			var crop_key := CropFields.RIDDLE if ch == CropFields.SUNFLOWER and SunflowerRiddle.FIELD.has_point(c) else ch
+			if not _crop_cells.has(crop_key):
+				_crop_cells[crop_key] = []
+			_crop_cells[crop_key].append(pos)
 			# No solid: the fields are walkable, the hero and the villagers wade through the crops.
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
@@ -2021,6 +2085,8 @@ func _walkway_dir(cell: Vector2i) -> Vector3:
 	return best
 
 
+
+
 ## The glass of the lanterns, shared by all of them: lit at nightfall with the
 ## windows of the village (see set_hour).
 func _lantern_panes() -> StandardMaterial3D:
@@ -2210,6 +2276,9 @@ func _build_woods_life() -> void:
 		add_child(apiary)
 	owls = Owls.new(trees, cell_to_world, TILE, level_name)
 	add_child(owls)
+	if owl_tree_at != Vector3.INF and owlav_pos != Vector3.INF:
+		owls.add_clock_owl(owl_tree_at + Vector3(0, OwlClock.OWL_HEIGHT, 0), owlav_pos)
+	owls.clock_on = moon_night >= 0 and Moon.is_full(moon_night)
 
 
 ## Trees on every forest tile close to the open ground. Further in there
@@ -2419,7 +2488,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 		for ix in steps.x + 1:
 			var at := Vector3(inner.position.x + inner.size.x * ix / steps.x, 0.0, inner.position.y + inner.size.y * iy / steps.y)
 			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
-					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) \
+					or _near_barber(at) or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) \
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
@@ -2433,7 +2502,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 		for ix in ceili(block.size.x / UNDERGROWTH_CHECK):
 			var at := Vector3(block.position.x + (ix + 0.5) * UNDERGROWTH_CHECK, 0.0, block.position.y + (iy + 0.5) * UNDERGROWTH_CHECK)
 			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
-					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE):
+					or _near_barber(at) or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE):
 				continue
 			var covered := false
 			for i in placed.size():
@@ -2450,7 +2519,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 ## One bush of the undergrowth at `at` (see _grow_undergrowth); returns its radius.
 func _undergrowth_bush(at: Vector3, rng: RandomNumberGenerator) -> float:
 	# Most of them shed their leaves in autumn (see _keeps_leaves).
-	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
+	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed, _undergrowth, _bush_recent)
 	undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
 	return radius
 
@@ -2872,7 +2941,7 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	var black := StandardMaterial3D.new()
 	black.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	black.albedo_texture = StairsDown.doorway_texture()
-	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	black.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	hole.material_override = black
 	hole.position = front + Vector3(0, 1.65, -0.35)
 	add_child(hole)
@@ -2892,7 +2961,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	_lair_mountain_at = front
 	_forecourts.append({"block": block, "front": front})
 	for side in [-1.0, 1.0]:
-		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		var big_boulder := _put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
+		_age_ruin(big_boulder, LAIR_BOULDER)
+		_add_turned_solid(big_boulder, 1.6)
 		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
@@ -3890,11 +3961,22 @@ func _plant_bushes() -> void:
 				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
 				# Never over the temple glass's light on the grass (bare_ground), a full bush's
 				# width (AgedStone.grow_bush) away.
-				if Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) or _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+				if _near_barber(at) or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) or _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
-				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed)
+				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed, _ivy, _bush_recent)
+
+
+## Whether `at` lies near Benno's tent: no shrub grows there, so the chair stands clear (see BARBER_CLEAR).
+func _near_barber(at: Vector3) -> bool:
+	if _barber_tent == Vector3.ZERO:
+		_barber_tent = Vector3.INF
+		for y in height:
+			for x in width:
+				if cell_char(Vector2i(x, y)) == "Z":
+					_barber_tent = cell_to_world(Vector2i(x, y - 1))
+	return _barber_tent != Vector3.INF and Vector2(_barber_tent.x - at.x, _barber_tent.z - at.z).length() < BARBER_CLEAR
 
 
 ## Whether a spot on the ground lies on or within `radius` of ground kept bare (bare_ground).
@@ -4033,6 +4115,8 @@ func _block_facing(block: Rect2i) -> Vector2i:
 			best_score = score
 			best = d
 	return best
+
+
 
 
 # --- The hero's house ---------------------------------------------------------
@@ -4236,8 +4320,8 @@ func _spawn_villagers() -> void:
 			elif ch == "K":
 				_herald = v
 			elif ch == "Z":
-				_build_barber_shop(c + Vector2i(0, -1))
-				barber_chair.build(self, v)
+				var tent_cell := c + Vector2i(0, -1)
+				barber_chair.build(self, v, _build_barber_shop(tent_cell), cell_to_world(tent_cell))
 			elif ch == "S":
 				_build_stone_yard(c + MASON_YARD)
 				_build_quarry(v, c)
@@ -4289,23 +4373,23 @@ func _spawn_street_sweeper() -> void:
 ## barber's pole and a hanging sign with scissors at its front, so the shop
 ## is easy to spot on the square. A barber keeps things clean: the tent is of
 ## fresh woven linen, not the stained canvas of the bandits' tents.
-func _build_barber_shop(cell: Vector2i) -> void:
+func _build_barber_shop(cell: Vector2i) -> Node3D:
 	var pos := cell_to_world(cell)
-	var box := _aabb_of("tent")
-	var tent := _put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
-	tent.name = "BarberTent"
-	WeatheredProps.clean_linen(tent)
-	_add_solid(pos, Vector3(3.4, 2.6, 3.4))
-	astar.set_point_solid(cell, true)
+	# Built by hand (see BarberTent): round timber poles and a saggy linen roof. One can walk in under it:
+	# the chair stands there (see BarberChair), and the tent fades away while someone sits.
+	var tent := BarberTent.build()
+	tent.position = pos
+	add_child(tent)
 	var pole := Effects.barber_pole()
-	pole.position = pos + Vector3(-2.0, 0, 1.9)
+	pole.position = pos + Vector3(-2.6, 0, 2.4)
 	add_child(pole)
 	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "scissors")
 	WeatheredProps.weather_plain(board)
-	board.position = pos + Vector3(1.4, 0, 1.9)
+	board.position = pos + Vector3(2.2, 0, 2.4)
 	add_child(board)
-	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
-	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + Vector3(-2.6, 0, 2.4), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + Vector3(2.2, 0, 2.4), Vector3(0.5, 2.6, 0.5))
+	return tent
 
 
 ## The stonemason's yard beside his house, to its right as you face the door
@@ -4959,6 +5043,8 @@ func _npc_station_near(point: Vector3, reach: float) -> Dictionary:
 	return best
 
 
+
+
 ## A click near a villager walks up to the trader among them first, like a
 ## bump (see _npc_station_near); anything else as anywhere.
 func nearest_station(from: Vector3, max_distance := SEARCH_RANGE, skip_spots := false) -> Dictionary:
@@ -5500,6 +5586,8 @@ func set_moon(night_of: int) -> void:
 	if night_of == moon_night:
 		return
 	moon_night = night_of
+	if owls:
+		owls.clock_on = night_of >= 0 and Moon.is_full(night_of)
 	for s in _pack:
 		if s.enemy != null and is_instance_valid(s.enemy) and not s.enemy.dead:
 			s.enemy.sink_at_dawn()

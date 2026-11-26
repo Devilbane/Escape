@@ -63,7 +63,7 @@ void fragment() {
 	colour *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 1.2, away));
 	ALBEDO = colour;
 	ROUGHNESS = mix(0.95, 0.7, rock);
-	vec3 bent = normalize(vec3(0.0, 1.0, 0.0) + vec3(tilt.x, 0.0, tilt.y) * bump * (1.0 - rock * 0.5));
+	vec3 bent = normalize(vec3(0.0, 1.0, 0.0) + vec3(tilt.x, 0.0, tilt.y) * bump * relief_strength * (1.0 - rock * 0.5));
 	NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
 	ALBEDO = gl_colour(ALBEDO);
 }

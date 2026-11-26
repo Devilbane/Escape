@@ -72,6 +72,8 @@ const DAYLIGHT := Color(0.78, 0.9, 1.0)
 ## How high the kerb beside the channel is (the water lies below it).
 const KERB_HIGH := 0.55
 const WATER_RISE := 0.3
+## The least roughness of the wet brick and muck (see _grime): lower reads as a mirror.
+const MIN_ROUGH := 0.32
 const W := preload("res://scripts/weathered_props.gd")
 
 const KIND_LID := SewerSurface.LID
@@ -558,6 +560,9 @@ static func _grime(img: Image, height: PackedFloat32Array, size: int, variant: i
 			data[at] = int(clampf(col.r, 0.0, 1.0) * 255.0)
 			data[at + 1] = int(clampf(col.g, 0.0, 1.0) * 255.0)
 			data[at + 2] = int(clampf(col.b, 0.0, 1.0) * 255.0)
+			# Wet spots shine, but never like a mirror: the lamps would show as strange streaks and
+			# patches of light across the floor tiles.
+			rough = maxf(rough, MIN_ROUGH)
 			var r8 := int(clampf(rough, 0.0, 1.0) * 255.0)
 			roughs[at] = r8
 			roughs[at + 1] = r8

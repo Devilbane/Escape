@@ -1,0 +1,1 @@
+- Monsters now stand up for each other: those that see a mate being struck come to its aid, and wolves, orcs and robbers call for help that carries without line of sight. Kill the caller in one blow to cut the call short. Slimes keep out of it.

@@ -5,7 +5,7 @@ render_mode blend_mix, depth_draw_never, cull_back, specular_disabled;
 // washed out to a pale white, see-through, with a neon aura at its edges. It
 // fades away towards the floor, so it has no feet, and its lower part sways.
 
-uniform sampler2D tex : filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap_anisotropic;
 uniform bool use_tex = false;
 uniform vec4 color = vec4(0.95, 1.0, 0.97, 1.0);
 // The glowing aura at its edges.

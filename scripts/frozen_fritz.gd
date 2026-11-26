@@ -268,7 +268,7 @@ static func _frosted(mat: StandardMaterial3D, scale: float, rime := true) -> voi
 	mat.emission_energy_multiplier = 1.4
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(scale, scale, scale)
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 
 
 ## The sheen over everything on him: a thin frosty shell, not a polished one. Dull and pale, white at

@@ -1,7 +1,7 @@
 class_name BarberChair
 extends RefCounted
-## The barber's chair beside Benno's tent. It stands right in front of him, turned to the street, so
-## he stands behind whoever sits in it. It is a seat like the benches (see Seats): the hero runs into
+## The barber's chair under Benno's tent, turned to the street. Benno walks round to stand beside
+## whoever sits in it, and the tent fades away while someone does, so the chair can be seen. It is a seat like the benches (see Seats): the hero runs into
 ## it or clicks it and sits down, a cape goes round their neck and Benno's window opens (talking to
 ## Benno opens nothing: he points to the chair). Picking a style or a colour starts a haircut (see
 ## BarberCut).
@@ -10,10 +10,16 @@ extends RefCounted
 ## they walk up, sit down, are given a trim and get up again. Whoever is in the chair, Benno turns to
 ## it and snips (see Villager.customer_at); a chair with a villager in it does not seat the hero.
 
-## Metres from Benno to the middle of the chair, to the south: he stands behind its back.
-const BEHIND := 1.25
+## Metres from the tent's middle to the middle of the chair, to the south.
+const UNDER := 0.5
+## Where Benno stands while he serves, from the chair's middle: a little way to its left.
+const BESIDE := Vector3(-1.3, 0.0, -0.15)
+## Seconds the tent takes to fade away and come back.
+const FADE := 0.5
 ## How often a villager with nothing to do takes the chair rather than a bench or an errand.
-const CHANCE := 0.14
+const CHANCE := 0.1
+## The same for the women, who go for a haircut more often.
+const CHANCE_WOMEN := 0.3
 ## How long a villager sits in it (seconds, at random between the two).
 const STAY := Vector2(12.0, 24.0)
 ## A seated body this close to the seat (metres) is in the chair.
@@ -22,6 +28,9 @@ const HERO_IN := 0.9
 const OPEN_AFTER := 0.9
 ## The chair's touch distance: the hero runs into it from the front or the sides.
 const TOUCH := 1.5
+## How far outside the tent's roof edge (metres) the hero's presence makes it fade away, and where it comes back.
+const NEAR := 1.0
+const NEAR_OUT := 1.8
 
 var station := {}
 ## The seat for villagers (see BenchRest): {"station", "sit", "front", "stand", "walk_to", "rest", "taker", "until"}.
@@ -29,6 +38,10 @@ var seat := {}
 var barber: Villager
 var cut := BarberCut.new()
 var chair_pos := Vector3.ZERO
+## Benno's tent over the chair (see Outdoor._build_barber_shop), shown unless someone sits.
+var tent: Node3D
+var _tent_gone := false
+var _fade: Tween
 var _rng := RandomNumberGenerator.new()
 
 
@@ -36,10 +49,11 @@ func _init() -> void:
 	_rng.randomize()
 
 
-## Builds the chair and its table in front of `benno`, who is already at his place.
-func build(level: Outdoor, benno: Villager) -> void:
+## Builds the chair and its table under `tent_node`, which stands at `tent_at`, for `benno`.
+func build(level: Outdoor, benno: Villager, tent_node: Node3D, tent_at: Vector3) -> void:
 	barber = benno
-	chair_pos = benno.global_position + Vector3(0, 0, BEHIND)
+	tent = tent_node
+	chair_pos = tent_at + Vector3(0, 0, UNDER)
 	var model := BarberChairModel.build()
 	model.position = chair_pos
 	level.add_child(model)
@@ -106,7 +120,7 @@ func taken(s: Dictionary) -> bool:
 ## Now and then the chair for a villager with nothing to do: {} most of the time, and when anyone
 ## sits in it, or Benno is not at his post.
 func offer(level: Outdoor, v: Villager) -> Dictionary:
-	if seat.is_empty() or not BenchRest.rests_here(v) or v == barber or _rng.randf() >= CHANCE:
+	if seat.is_empty() or not BenchRest.rests_here(v) or v == barber or _rng.randf() >= (CHANCE_WOMEN if v.info_sex() == "female" else CHANCE):
 		return {}
 	if not barber_here() or seat.taker != null or cut.active() or level.village_alarm.raised:
 		return {}
@@ -148,5 +162,35 @@ func tick(level: Outdoor, delta: float) -> void:
 			if seat.until <= 0.0 or level.village_alarm.raised or not barber_here():
 				v.leave_meal()
 	if barber != null and is_instance_valid(barber):
-		var busy: bool = cut.active() or (v != null and is_instance_valid(v) and v.seated_on_bench())
-		barber.customer_at = chair_pos if busy else Vector3.INF
+		var guest: bool = v != null and is_instance_valid(v) and v.rests() and v.meal_seat == seat
+		var seated: bool = guest and v.seated_on_bench()
+		barber.customer_at = chair_pos if (in_chair or guest) else Vector3.INF
+		barber.snip_spot = chair_pos + BESIDE
+		barber.snips = cut.active() or seated
+		_show_tent(not (in_chair or seated or _hero_near_tent(level)))
+
+
+## Whether the hero stands under the tent or right beside it. Once the tent has faded it stays away a little
+## further out, so it does not flicker at the edge.
+func _hero_near_tent(level: Outdoor) -> bool:
+	if tent == null or not is_instance_valid(tent) or level.player == null:
+		return false
+	var d := level.player.global_position - tent.global_position
+	var reach := BarberTent.REACH + (NEAR_OUT if _tent_gone else NEAR)
+	return absf(d.x) < reach and absf(d.z) < reach
+
+
+## The tent over the chair fades away while someone sits or the hero stands under or beside it, and comes back after.
+func _show_tent(shown: bool) -> void:
+	if tent == null or not is_instance_valid(tent) or _tent_gone == (not shown):
+		return
+	_tent_gone = not shown
+	if _fade != null and _fade.is_valid():
+		_fade.kill()
+	if shown:
+		tent.visible = true
+	_fade = tent.create_tween().set_parallel(true)
+	for mi: MeshInstance3D in tent.find_children("*", "MeshInstance3D", true, false):
+		_fade.tween_property(mi, "transparency", 0.0 if shown else 1.0, FADE)
+	if not shown:
+		_fade.chain().tween_callback(func(): tent.visible = false)

@@ -433,14 +433,19 @@ static func _by_the_sides(walk_in: WalkIn, rec: Dictionary, inside: Node3D) -> v
 ## A hall whose front looks along the camera's view (south) shows the shield flat to its wall; the
 ## others hang it edgewise to the wall, so from the high camera it is seen face on too.
 static func hang_sign(hall: Node3D, kind: String) -> Node3D:
-	if kind == "mage":
-		return null # The tower has no sign: a home, not a shop.
 	var shape: Dictionary = hall.get_meta("shape")
 	var d: float = shape.d
 	var out_dir := Basis(Vector3.UP, hall.rotation.y) * Vector3.BACK
 	var flat := out_dir.z > 0.7
 	# The tavern hangs the pub's painted board, Apples & Ivy! (see PubSign); the other halls a shield.
-	var board := PubSign.on_wall(PUB_SIGN_OUT, not flat) if kind == "tavern" else HangingShield.on_wall(kind, SIGN_OUT, not flat)
+	# The mages' tower hangs the ebony and gilt board of Aldo and Odo (see MageSign).
+	var board: Node3D
+	if kind == "mage":
+		board = MageSign.on_wall(SIGN_OUT, not flat)
+	elif kind == "tavern":
+		board = PubSign.on_wall(PUB_SIGN_OUT, not flat)
+	else:
+		board = HangingShield.on_wall(kind, SIGN_OUT, not flat)
 	board.name = "HallSign"
 	board.position = Vector3(-SIGN_ASIDE if flat else -1.0, VillageHouse.PLINTH + SIGN_HIGH, d * 0.5 + 0.02)
 	hall.add_child(board)

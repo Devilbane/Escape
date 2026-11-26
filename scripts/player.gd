@@ -1565,9 +1565,10 @@ func melee() -> void:
 		hits += 1
 		mark_fight()
 		# Every blow that lands trains the hand and the arm; a kill a little more.
-		train(weapon, 1.0)
-		train("staerke", 3.0 if e.dead else 1.0)
-		if e.dead and e.kind == "magier":
+		if not e.no_reward:
+			train(weapon, 1.0)
+			train("staerke", 3.0 if e.dead else 1.0)
+		if e.dead and e.kind == "magier" and not e.no_reward:
 			train("intelligenz", 4.0)
 	if blow != "":
 		Sfx.play_weapon(self, arms, blow, blow_at)
@@ -3383,6 +3384,11 @@ func _try_climb_rock(dir: Vector3, delta: float) -> bool:
 	if _rock_push < ClimbSpots.HOLD:
 		return false
 	_rock_push = -ClimbSpots.HOLD
+	# A placed climbing wall (see WallPlacements) takes the hero to the wall screen.
+	var placed := WallPlacements.at(level.level_name, cell)
+	if not placed.is_empty():
+		Events.bus().wall_climb_requested.emit(String(placed.wall))
+		return false
 	var spot := ClimbSpots.at(level, cell)
 	if spot.is_empty() or skill("klettern") < maxi(1, int(spot.level)) or not Climbing.can_climb(float(spot.height), skill("klettern")):
 		Events.tell(Lang.t(ClimbSpots.TOO_STEEP), Color(0.8, 0.85, 1.0))

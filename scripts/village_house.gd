@@ -281,6 +281,9 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		# The floors and the rooms' furnishing (inside) do not, or they would shade themselves.
 		if not key in ["inside", "up_inside", "storey_room"]:
 			mi.set_meta(LightShadows.WALL, true)
+			# These meshes are the walls' outside (the inner faces are in "inside" and the like): no
+			# indoor candle lights them, but they still stop its light (see LightShadows.OUTSIDE_WALL).
+			mi.set_meta(LightShadows.OUTSIDE_WALL, true)
 		house.add_child(mi)
 		out[key] = mi
 	house.remove_child(body)
@@ -851,8 +854,11 @@ static func _uv(key: String, m: Vector2, center: Vector3, tile: float) -> Vector
 		"stone":
 			# Within the band of stone blocks on the trim sheet.
 			return Vector2(m.x / 8.0, STONE_V.y - fposmod(m.y, STONE_BAND) / STONE_BAND * (STONE_V.y - STONE_V.x))
-		"door", "glass":
+		"door":
 			return Vector2(m.x / 4.0, 1.0 - m.y / 6.7)
+		"glass":
+			# The pane in metres, for the curtains painted behind it (see WindowLights.GLASS_SHADER).
+			return m
 		"timber":
 			# Grain along the length of the beam; a shift per beam.
 			return Vector2(m.x / 3.0 + center.x * 0.37, m.y / 3.0 + center.y * 0.21)

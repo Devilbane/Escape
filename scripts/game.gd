@@ -43,7 +43,6 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
-var _graphics_button: Button
 var _effects_slider: HSlider
 var _log_width_slider: HSlider
 ## The width of the labels in front of the pull-out menu's sliders, room for
@@ -206,6 +205,10 @@ var wishes := Wishes.new(self)
 var fishing := Fishing.new(self)
 ## Treasure maps from messages in a bottle and where they lead (see TreasureMaps).
 var treasure_maps := TreasureMaps.new(self)
+## The owl clock riddle: the Deathringer's calls and rest (see OwlClock).
+var owl_clock := OwlClock.new(self)
+## The riddle counter: which of the official riddles are solved (see RiddleCount).
+var riddles := RiddleCount.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -421,6 +424,8 @@ var _prompt: Label
 var _message: Label
 ## The list of keys at the bottom left (see _setup_hud).
 var _help: Label
+## The testing panel in the bottom left corner (see TestPanel).
+var _test_panel: TestPanel
 ## Messages that came before the newest one, oldest first, kept above it
 ## while they are still being read (see show_message), so a new message
 ## never covers an unread one.
@@ -561,6 +566,7 @@ func _bus_links() -> Array:
 		[bus.news_told, quest_news],
 		[bus.lore_learned, learn],
 		[bus.climber_watched, _on_climber_watched],
+		[bus.wall_climb_requested, _on_wall_climb_requested],
 		[bus.gain_shown, show_gain],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
@@ -581,12 +587,14 @@ func _bus_links() -> Array:
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
+		[bus.riddle_done, riddles.solve],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
 		[bus.hero_spoke, hero_chat.on_hero_spoke],
+		[bus.hero_spoke, _on_riddle_spoken],
 		[bus.loot_carried_off, _on_loot_carried_off],
 		[bus.scare_happened, village_worries.on_scare],
 		[bus.enemy_slain, village_rumours.on_slain],
@@ -644,6 +652,9 @@ func _ready() -> void:
 		# A headless test runs as a script of its own: its saves stay apart.
 		save_dir = TEST_SAVE_DIR
 		old_save_file = "user://test_spielstand.json"
+	else:
+		# Saves from before the seals are sealed once; after that an unsealed or edited one is refused.
+		SaveSeal.migrate([SAVE_DIR, Training.FILE])
 	_move_old_saves()
 	for f in DirAccess.get_files_at(LEVEL_DIR):
 		if f.ends_with(".txt"):
@@ -688,6 +699,7 @@ func _ready() -> void:
 	add_child(horrors)
 	dungeon_sounds = DungeonSounds.new(self)
 	add_child(dungeon_sounds)
+	Monitor.load_settings()
 	Monitor.apply(get_window())
 	Graphics.load_settings()
 	Graphics.apply(get_viewport())
@@ -816,6 +828,7 @@ func _setup_world() -> void:
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.0
 	_env = env
+	Graphics.watch_environment(env)
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -895,7 +908,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
-		_env.adjustment_saturation = 1.0
+		_env.adjustment_saturation = Graphics.tone.saturation
 		_moon.rotation_degrees = Vector3(-62, 28, 0)
 		_moon.light_color = Color(0.82, 0.84, 0.9)
 		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
@@ -989,7 +1002,7 @@ func _setup_drawer() -> void:
 	# (actions and sound) leave it out so they can be clicked again.
 	# Map, compendium, inventory, character and quests have their own icons
 	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
-	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND]]
+	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND], ["Einstellungen", SettingsWindow.KIND]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).
@@ -1022,7 +1035,6 @@ func _setup_drawer() -> void:
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
 	column.add_child(_make_log_width_slider())
-	column.add_child(_make_graphics_row())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -1776,6 +1788,11 @@ func _setup_hud() -> void:
 	_hud.add_child(event_log)
 	_setup_chat_line()
 
+	# The testing panel at the bottom left (see TestPanel): closed until its tab or F3 opens it.
+	_test_panel = TestPanel.new()
+	_test_panel.picked.connect(_on_test_panel)
+	_hud.add_child(_test_panel)
+
 	# The words of Fritz's drinking songs over his head, under the rest of
 	# the HUD (see SongSheet).
 	var sheet := SongSheet.new()
@@ -1937,6 +1954,12 @@ func _use_station(s: Dictionary) -> void:
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))
 	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
 		treasure_maps.use(s)
+	elif s.kind == GraveLore.KIND:
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		show_message(riddles.card(level.level_name) if s.get("counter", false) else GraveLore.card(s), 7.0)
+		if s.get("owlav", false):
+			learn(GraveLore.OWLAV_LORE)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
 		SpringCave.use(self, s)
 	elif s.kind == "schacht":
@@ -4092,6 +4115,8 @@ func begin_new_game() -> void:
 	secrets_found = 0
 	fishing.ring_found = false
 	treasure_maps.clear()
+	owl_clock.clear()
+	riddles.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -4287,42 +4312,6 @@ func _make_log_width_slider() -> Control:
 	return row
 
 
-## The graphics row: its button names the picked preset (see Graphics) and steps on to the next
-## one, as the sound buttons do. The label lines up with the slider rows' labels.
-func _make_graphics_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var label := Label.new()
-	label.text = Lang.t("Grafik")
-	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", UiKit.sized(18))
-	label.add_theme_color_override("font_color", GOLD)
-	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
-	row.add_child(label)
-	_graphics_button = _make_button("", _next_graphics, true)
-	_graphics_button.custom_minimum_size = Vector2(0, 44)
-	_graphics_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_graphics_button)
-	_update_graphics_button()
-	return row
-
-
-func _next_graphics() -> void:
-	var at := Graphics.PRESETS.find(Graphics.preset)
-	Graphics.choose(Graphics.PRESETS[(at + 1) % Graphics.PRESETS.size()], get_viewport())
-	_update_graphics_button()
-
-
-func _update_graphics_button() -> void:
-	_graphics_button.text = Lang.t(Graphics.NAMES[Graphics.preset])
-	# The tooltip says what every preset is for, the picked one first.
-	var lines: Array[String] = [Lang.t(Graphics.HINTS[Graphics.preset])]
-	for which: String in Graphics.PRESETS:
-		if which != Graphics.preset:
-			lines.append(Lang.t(Graphics.HINTS[which]))
-	_graphics_button.tooltip_text = "\n".join(lines)
-
-
 ## The sound effects volume row.
 func _make_effects_slider() -> Control:
 	var row := _make_volume_row("Effekte", "Lautstärke der Geräusche", Sfx.volume, _on_effects_volume_changed)
@@ -4498,7 +4487,7 @@ static func save_time_text(time: float) -> String:
 
 
 func _read_save(path := "") -> Dictionary:
-	var data = JSON.parse_string(FileAccess.get_file_as_string(path if path != "" else save_path()))
+	var data = JSON.parse_string(SaveSeal.read(path if path != "" else save_path()))
 	return SaveFormat.upgrade(data) if data is Dictionary else {}
 
 
@@ -4530,6 +4519,8 @@ func _apply_save(data: Dictionary) -> void:
 	secrets_found = int(data.get("secrets", 0))
 	fishing.ring_found = bool(data.get("fished_ring", false))
 	treasure_maps.load_from(data.get("treasure_maps", {}))
+	owl_clock.load_from(data.get("owl_clock", {}))
+	riddles.load_from(data.get("riddles", []))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -4830,7 +4821,7 @@ func _move_old_saves() -> void:
 			old.append(save_dir + f)
 	var moving := []
 	for path in old:
-		var data = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var data = JSON.parse_string(SaveSeal.read(path))
 		if not (data is Dictionary):
 			continue
 		if not data.has("saved_at"):
@@ -4841,11 +4832,8 @@ func _move_old_saves() -> void:
 	for entry in moving:
 		while has_slot_save(slot):
 			slot += 1
-		var file := FileAccess.open(save_path(slot), FileAccess.WRITE)
-		if file == null:
+		if not SaveSeal.write(save_path(slot), JSON.stringify(entry[1])):
 			return
-		file.store_string(JSON.stringify(entry[1]))
-		file.close()
 		if has_slot_save(slot):
 			DirAccess.remove_absolute(entry[0])
 
@@ -4886,7 +4874,7 @@ func _home_given_now() -> bool:
 func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -4941,11 +4929,8 @@ func save_game(going_away := false) -> bool:
 		data.away = {"plan": Offline.normalized(away_plan, away_choices()), "since": Time.get_unix_time_from_system()}
 	var path := save_path()
 	DirAccess.make_dir_recursive_absolute(save_dir)
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
+	if not SaveSeal.write(path, JSON.stringify(data)):
 		return false
-	file.store_string(JSON.stringify(data))
-	file.close()
 	var saved := FileAccess.file_exists(path)
 	if saved and save_notice != null:
 		save_notice.flash()
@@ -5885,7 +5870,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE):
+		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE, hero_name):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
@@ -6055,6 +6040,12 @@ func chat_allowed() -> bool:
 ## The hero said `text` through the chat line: it floats over the hero's head
 ## and goes into the event log (as every spoken line does), and whoever is
 ## near may answer (see HeroChat).
+## The hero spoke: by the scarecrow in the sunflower field the right words set off the fireworks (see SunflowerRiddle).
+func _on_riddle_spoken(text: String, pos: Vector3) -> void:
+	if level is Outdoor and level.sunflower_riddle != null:
+		level.sunflower_riddle.on_hero_spoke(text, pos)
+
+
 func _hero_says(text: String) -> void:
 	var typed: Variant = Teleport.parse(text)
 	if typed != null:
@@ -6124,14 +6115,42 @@ const HERO_SAY_COLOR := Color(1.0, 0.95, 0.8)
 const TELEPORT_COLOR := Color(0.75, 0.85, 1.0)
 
 
-## The chat line's "godmode": the hero cannot be harmed and runs three times
+## The chat line's "godmode": the hero cannot be harmed and runs five times
 ## as fast (see Godmode). Typing it again turns it off.
 func _toggle_godmode() -> void:
 	player.godmode = not player.godmode
+	if _test_panel != null:
+		_test_panel.set_god(player.godmode)
 	player.refresh_stats()
 	if player.godmode:
 		player.hp = player.max_hp
 	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
+
+
+## The hero pushed against the rock of a placed climbing wall (see WallPlacements).
+func _on_wall_climb_requested(file: String) -> void:
+	if state == State.PLAYING and player != null and not player.dead:
+		WallScreens.open_climb(self, file)
+
+
+## A button of the testing panel was pressed (see TestPanel): it does what the matching chat
+## command does (the hour and season commands, teleport, godmode).
+func _on_test_panel(kind: String, arg: Variant) -> void:
+	if state != State.PLAYING or player == null or player.dead:
+		return
+	match kind:
+		"time":
+			_tour_time = -1.0
+			_sky_force({"weather": "", "hour": float(arg), "winter": -1, "tour": "", "autumn": false})
+		"season":
+			_season_command({"season": String(arg)})
+		"travel":
+			var place: Array = TestPanel.PLACES[int(arg)]
+			teleport_to(level_files.find(LEVEL_DIR + String(place[1])), false, String(place[2]))
+		"god":
+			_toggle_godmode()
+		"wall":
+			WallScreens.open_workshop(self)
 
 
 ## The chat line's weather and time commands (see SkyCommand): force the
@@ -6292,12 +6311,25 @@ func _teleport_code(code: String, all: Array) -> void:
 ## transition, a shrine or a window): then nothing else is half done. The
 ## hero's camp is packed up, as it belongs to the place they leave.
 func _to_village_square(wanted: bool) -> void:
-	if wanted and level.get("spots") != null and not level.spots.square.is_empty():
-		player.global_position = level.spots.square[0]
-		player.reset_physics_interpolation()
+	_to_spot("square" if wanted else "")
 
 
-func teleport_to(index: int, to_square := false) -> bool:
+## Moves the hero to a named spot of the open-air map after a teleport: "square" (the village
+## square), "farm" (the middle of the farming valley's fields) or "silver" (in front of the
+## forgotten silver mine's hut); anything else (or a map without it) leaves the hero at the entrance.
+func _to_spot(spot: String) -> void:
+	if spot == "" or level.get("spots") == null or level.spots.square.is_empty():
+		return
+	var at: Vector3 = level.spots.square[0]
+	if spot == "farm" and level.has_method("farm_spot"):
+		at = level.farm_spot(at)
+	elif spot == "silver":
+		at = LostMine.door_spot(at.y)
+	player.global_position = at
+	player.reset_physics_interpolation()
+
+
+func teleport_to(index: int, to_square := false, spot := "") -> bool:
 	if index < 0 or index >= level_files.size() or not chat_allowed():
 		return false
 	var name := Lang.t(level_hint(index).name)
@@ -6313,6 +6345,7 @@ func teleport_to(index: int, to_square := false) -> bool:
 			player.velocity = Vector3.ZERO
 			player.face(Vector3.BACK)
 			_to_village_square(to_square)
+			_to_spot(spot)
 		else:
 			if DragonLair.is_floor(level):
 				level.note_left()
@@ -6320,6 +6353,7 @@ func teleport_to(index: int, to_square := false) -> bool:
 			pack_camp(false)
 			load_level(index, false)
 			_to_village_square(to_square)
+			_to_spot(spot)
 		_snap_camera()
 		if is_instance_valid(pet):
 			pet.arrive()
@@ -7450,6 +7484,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		return
 	if station.get("kind", "") == Seats.KIND and not _pending_station.is_empty() and _pending_station != station:
 		return # On the way to a seat that was clicked: another one passed by is not sat on.
+	if station.get("kind", "") == Seats.KIND and not player.path.is_empty() and _pending_station.is_empty():
+		return # Walking a clicked route (down the tower's stairs, say): a chair brushed on the way is not sat on.
 	if station.has("spot") and not _walked_by_keys():
 		# A bed or a workbench is run into by accident on the way somewhere clicked, or running
 		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.
@@ -8338,6 +8374,8 @@ func _process(delta: float) -> void:
 		var strength := 0.25 * minf(1.0, _shake)
 		camera.global_position += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * strength
 	_place_hp_bar()
+	if _test_panel != null:
+		_test_panel.visible = TestPanel.ENABLED and state == State.PLAYING and not menus.is_open() and player != null and not player.dead
 	_place_dust(drawn)
 	_steer_by_mouse(delta)
 	home_run.tick()
@@ -8443,6 +8481,7 @@ func _process(delta: float) -> void:
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 			VillageWall.GATE_STATION: Lang.t("Dagegenlaufen, um das Tor zu öffnen"),
+			GraveLore.KIND: Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
@@ -8718,6 +8757,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						potion_action()
 					KEY_2:
 						spell_action()
+					KEY_3:
+						owl_clock.ring()
 					KEY_U:
 						camp_action()
 					KEY_G:
@@ -8951,6 +8992,10 @@ func _mouse_to_floor(screen_pos: Vector2):
 		var on_surface = walk_in.surface_under_ray(origin, dir)
 		if on_surface != null:
 			return on_surface
+		# A click on a building's door walks in through it (see WalkIn.door_under_ray).
+		var on_door = walk_in.door_under_ray(origin, dir)
+		if on_door != null:
+			return on_door
 	return origin + dir * (-origin.y / dir.y)
 
 
@@ -8975,6 +9020,14 @@ func _click(point: Vector3) -> void:
 			else:
 				player.charge(e)
 			return
+	# A click on the steps of a tower's stairs just walks up them: nothing behind them is picked.
+	var walk_in_now = level.get("walk_in")
+	if walk_in_now != null and walk_in_now.on_steps(point):
+		_pending_search = {}
+		_pending_station = {}
+		_pending_crate = null
+		player.walk_to(point)
+		return
 	# Clicking a ladder climbs it (walking into one never does, see LadderClick).
 	var ladder := LadderClick.under_ray(get_tree(), player, camera.global_position, (point - camera.global_position).normalized())
 	if ladder != null and player.use_ladder(ladder):
@@ -9016,6 +9069,8 @@ func _click(point: Vector3) -> void:
 		player.walk_to(station.get("stand", station.pos), WALK_UP_TO)
 		return
 	var obj := level.nearest_interactable(point, 2.2)
+	if not obj.is_empty() and walk_in != null and walk_in.hidden_above_hero(obj.pos):
+		obj = {} # Out of the hero's sight, in another building or on a storey above.
 	if not obj.is_empty():
 		_pending_search = obj
 		_pending_station = {}
@@ -9023,6 +9078,10 @@ func _click(point: Vector3) -> void:
 		return
 	_pending_search = {}
 	_pending_station = {}
+	# A click near stairs (of a home, a dungeon or a mine) goes onto them.
+	var on_stairs = level.stairs_click_snap(point)
+	if on_stairs != null:
+		point = on_stairs
 	player.walk_to(point)
 	_explain_refused_click(point)
 

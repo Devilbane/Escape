@@ -11,6 +11,7 @@ render_mode blend_mix, depth_draw_never, cull_back;
 // the wet soil, about 0.3 where the water starts, 1 in the middle.
 
 #include "res://shaders/detail.gdshaderinc"
+#include "res://shaders/indoors.gdshaderinc"
 
 uniform vec3 deep_color = vec3(0.02, 0.03, 0.035);
 uniform vec3 shallow_color = vec3(0.08, 0.09, 0.085);
@@ -59,6 +60,10 @@ float drop_rings(vec2 q, float t, float layer) {
 
 void fragment() {
 	vec3 p = world_pos;
+	// No rain falls inside a house: its water and its wet, dark soil stop at the walls (see IndoorMask).
+	if (indoors(p)) {
+		discard;
+	}
 	float t = TIME;
 	float px = length(fwidth(p));
 	float water = smoothstep(0.24, 0.36, inner);

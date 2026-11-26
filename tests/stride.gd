@@ -65,7 +65,6 @@ const FOOT_BONES := {
 	"brute": ["Foot.L", "Foot.R"],
 	"hound": ["FF.L", "FF.R", "FFB.L", "FFB.R"],
 	"husky": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
-	"shiba": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
 	"cow": ["FF_L", "FF_R", "FFB_L", "FFB_R"],
 	"sheep": ["FrontLowLeg_R_end", "FrontLowLeg_L_end", "BackLowLeg_R_end", "BackLowLeg_L_end"],
 	"deer": ["FF.L", "FF.R", "FFB.L", "FFB.R"],
@@ -80,7 +79,7 @@ const MODEL_FILES := {
 	"Mage": "characters/Mage.glb", "Skeleton_Warrior": "enemies/Skeleton_Warrior.glb",
 	"Skeleton_Minion": "enemies/Skeleton_Minion.glb", "Orc": "wild/Orc.glb", "Yeti": "wild/Yeti.glb",
 	"Wolf": "wild/Wolf.glb", "Fox": "animals/Fox.glb", "Deer": "animals/Deer.glb", "Stag": "animals/Stag.glb",
-	"Spider": "wild/Spider.glb", "Husky": "animals/Husky.glb", "ShibaInu": "animals/ShibaInu.glb",
+	"Spider": "wild/Spider.glb", "Husky": "animals/Husky.glb",
 	"Cow": "animals/Cow.glb", "Bull": "animals/Bull.glb", "Sheep": "animals/Sheep.glb",
 }
 

@@ -47,6 +47,10 @@ beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scr
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
 monitor.gd | scripts/monitor.gd scripts/launcher.gd scripts/lang/display.gd
+
+# Recipes, the ingredient pouch and the crafts (Odo's recipe, the compendium page, the saved game). The scripts that
+# define or teach a recipe select it; a change to shared code (items, menus, game, saving) runs it anyway.
+crafting.gd | scripts/crafting.gd scripts/crafting_square.gd scripts/silver_silk.gd scripts/beekeeper.gd scripts/healing_potions.gd scripts/armour_sets.gd scripts/forge.gd scripts/smith_cottage.gd scripts/dragon_hoard.gd scripts/ore.gd
 riddle_vault.gd | scripts/riddle_vault.gd tools/riddle_hash.gd
 
 # The smith's forge and the crafting it shares its recipes and ores with.

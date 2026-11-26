@@ -43,6 +43,10 @@ func _rect() -> Rect2:
 
 
 func _run() -> void:
+	# English for this run only: Lang.choose would save it for later tests, and an earlier test in the same
+	# shard may have saved German (floor_packs.gd), which the game loaded when it started.
+	Lang.language = "en"
+	Lang._apply()
 	var saved := FileAccess.get_file_as_string(Graphics.SETTINGS_FILE) if FileAccess.file_exists(Graphics.SETTINGS_FILE) else ""
 	var menus: Menus = game.menus
 	if shots != "":

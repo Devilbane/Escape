@@ -27,8 +27,13 @@ const KNOB_HEIGHT := 0.3
 const KNOB_RADIUS := 0.5
 const KNOB_SHRINK := 0.035
 ## The smallest hold (malus 9) is this wide and this high; the biggest (malus 0) is KNOB_RADIUS wide and KNOB_HEIGHT high.
-## Share of the holds that break the stone/hole alternation.
-const POCKET_SHARE := 0.2
+## Share of the holds that flip from what their patch of the face would make them.
+const POCKET_FLIP := 0.1
+## A pocket keeps this far from every foot stone (a hold there is a stone), a decorative stone this far from a pocket,
+## and foot stones this close side by side are joined by one rib.
+const FOOT_CLEAR := Vector2(1.1, 0.7)
+const DECOR_CLEAR := 1.0
+const LEDGE_REACH := 1.8
 ## Colour of the set-in stones: darkened by this and greyed towards the dark rock by STONE_WEATHER.
 const STONE_SHADE := 0.86
 const STONE_WEATHER := 0.2
@@ -131,16 +136,13 @@ func _stone_spots() -> Array:
 	if _spots_made:
 		return _spots
 	_spots_made = true
+	for f in _feet():
+		_spots.append(Vector3(f.x, f.y - 0.08, 0.95))
 	for r in map.height:
 		for c in map.width:
-			if map.has_hold(c, r):
-				var spot := foot_spot(map, c, r)
-				if spot.x >= 0.0:
-					_spots.append(Vector3(spot.x, spot.y - 0.08, 0.95))
-			elif map.gap_at(c, r) < 0 and map.hazard_at(c, r) != WallMap.LOOSE and _hash(c * 29 + 3, r * 31 + 7) <= DECOR_SHARE:
-				var centre := square_centre(map, c, r)
-				var f := 0.9 + 1.3 * _hash(c * 7 + 1, r * 5 + 2)
-				_spots.append(Vector3(centre.x + (_hash(c * 7 + 1, r * 5 + 2) - 0.5) * 0.7, centre.y + (_hash(c * 11 + 5, r * 3 + 9) - 0.5) * 0.7, 0.3 + 0.2 * f))
+			var d := decor_at(c, r)
+			if d.x >= 0.0:
+				_spots.append(Vector3(d.x, d.y, 0.3 + 0.2 * d.z))
 	return _spots
 
 
@@ -171,11 +173,17 @@ func _field(x: float, y: float) -> Dictionary:
 			if map.has_hold(c, r):
 				var centre := square_centre(map, c, r) + _jitter(c, r) * 0.1
 				var ease := hold_ease(map.malus_at(c, r))
-				if is_pocket(c, r):
+				if pocket_at(c, r):
 					# A pocket: a hole in the face the hand reaches into (a big one is easy, a small finger hole hard),
 					# dark inside with a chalked rim.
 					var pr := lerpf(KNOB_MIN_RADIUS * 0.9, KNOB_RADIUS * 1.0, ease)
 					var pd := Vector2(x, y).distance_to(centre)
+					# Pockets side by side (across or one above the other) run together into one slot.
+					for nb in [Vector2i(1, 0), Vector2i(0, 1)]:
+						var nc: int = c + nb.x
+						var nr: int = r + nb.y
+						if map.inside(nc, nr) and map.has_hold(nc, nr) and pocket_at(nc, nr):
+							pd = minf(pd, _segment_distance(Vector2(x, y), centre, square_centre(map, nc, nr)))
 					if pd < pr * 1.35:
 						var inner := 0.5 + 0.5 * cos(PI * minf(1.0, pd / pr))
 						d -= lerpf(0.18, 0.34, ease) * inner * (0.85 + 0.3 * _hash(c, r))
@@ -207,7 +215,15 @@ func _field(x: float, y: float) -> Dictionary:
 		var md := Vector2(x - sp.x, (y - sp.y) * 1.2).length()
 		if md < sp.z * 1.7:
 			mound = maxf(mound, 0.5 + 0.5 * cos(PI * md / (sp.z * 1.7)))
-	d += mound * 0.12
+	# Foot stones side by side are joined by a rib along the same ledge.
+	var rib := 0.0
+	_stone_spots()
+	for l in _ledges:
+		var rd := _segment_distance(Vector2(x, y - 0.05), l[0], l[1])
+		if rd < 0.5:
+			rib = maxf(rib, 0.5 + 0.5 * cos(PI * rd / 0.5))
+	d += mound * 0.12 + rib * 0.2
+	mound = maxf(mound, rib)
 	col = col.lerp(ROCK_DARK * 0.7, mound * 0.45)
 	var trench := 0.0
 	for g in map.gaps:
@@ -263,10 +279,75 @@ static func hold_ease(malus: int) -> float:
 	return 1.0 - clampf(float(malus) / 9.0, 0.0, 1.0)
 
 
-## Whether the hold of square (c, r) is a pocket (a hole in the face) rather than a stone that stands out of it.
-static func is_pocket(c: int, r: int) -> bool:
-	# Mostly a checkerboard, so neighbouring holds alternate between stone and hole, with a few exceptions.
-	return ((c + r) % 2 == 0) != (_hash(c * 3 + 1, r * 5 + 2) < POCKET_SHARE)
+## Whether the hold of square (c, r) is a pocket (a hole in the face the hand reaches into) rather than a stone that
+## stands out of it. Every hold is one or the other, never both: the face changes between stone and hole in patches (so
+## neighbours of one kind merge into a rib or a slot), and a hold where a foot stone sits is always a stone.
+func pocket_at(c: int, r: int) -> bool:
+	var key := Vector2i(c, r)
+	if _pockets.has(key):
+		return _pockets[key]
+	var centre := square_centre(map, c, r)
+	var hole := _noise.get_noise_2d(centre.x * 0.5 + 11.0, centre.y * 0.5) > -0.08
+	if _hash(c * 3 + 1, r * 5 + 2) < POCKET_FLIP:
+		hole = not hole
+	if hole:
+		for f in _feet():
+			if absf(f.x - centre.x) < FOOT_CLEAR.x and absf(f.y - centre.y) < FOOT_CLEAR.y:
+				hole = false
+				break
+	_pockets[key] = hole
+	return hole
+
+
+var _pockets := {}
+var _foot_list: Array = []
+var _foot_made := false
+var _ledges: Array = []
+
+
+## Where every foot stone is (x, y), and the ledges that join foot stones side by side on one level.
+func _feet() -> Array:
+	if _foot_made:
+		return _foot_list
+	_foot_made = true
+	for r in map.height:
+		for c in map.width:
+			if map.has_hold(c, r):
+				var spot := foot_spot(map, c, r)
+				if spot.x >= 0.0:
+					_foot_list.append(spot)
+	for i in _foot_list.size():
+		for j in range(i + 1, _foot_list.size()):
+			var a: Vector2 = _foot_list[i]
+			var b: Vector2 = _foot_list[j]
+			if absf(a.y - b.y) < 0.35 and absf(a.x - b.x) < LEDGE_REACH:
+				_ledges.append([a, b])
+	return _foot_list
+
+
+## The decorative stone of plain square (c, r) as (x, y, size), or (-1, -1, 0) when it has none. A decorative stone never
+## sits on a hold, a gap, loose stones, or near a pocket.
+func decor_at(c: int, r: int) -> Vector3:
+	if map.has_hold(c, r) or map.gap_at(c, r) >= 0 or map.hazard_at(c, r) == WallMap.LOOSE:
+		return Vector3(-1, -1, 0)
+	if _hash(c * 29 + 3, r * 31 + 7) > DECOR_SHARE:
+		return Vector3(-1, -1, 0)
+	var h1 := _hash(c * 7 + 1, r * 5 + 2)
+	var h2 := _hash(c * 11 + 5, r * 3 + 9)
+	var centre := square_centre(map, c, r)
+	var at := Vector2(centre.x + (h1 - 0.5) * 0.7, centre.y + (h2 - 0.5) * 0.7)
+	for dr in range(-1, 2):
+		for dc in range(-1, 2):
+			if map.inside(c + dc, r + dr) and map.has_hold(c + dc, r + dr) and pocket_at(c + dc, r + dr):
+				if at.distance_to(square_centre(map, c + dc, r + dr)) < DECOR_CLEAR:
+					return Vector3(-1, -1, 0)
+	return Vector3(at.x, at.y, 0.9 + 1.3 * h1)
+
+
+static func _segment_distance(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab := b - a
+	var t := clampf((p - a).dot(ab) / maxf(0.0001, ab.length_squared()), 0.0, 1.0)
+	return p.distance_to(a + ab * t)
 
 
 static func _hash(c: int, r: int) -> float:
@@ -459,20 +540,18 @@ func decor_mesh() -> ArrayMesh:
 	var kinds := ["rock_single_A", "rock_single_C", "rock_single_E"]
 	for r in map.height:
 		for c in map.width:
-			if map.has_hold(c, r) or map.gap_at(c, r) >= 0 or map.hazard_at(c, r) == WallMap.LOOSE:
-				continue
-			if _hash(c * 29 + 3, r * 31 + 7) > DECOR_SHARE:
+			var spot := decor_at(c, r)
+			if spot.x < 0.0:
 				continue
 			var h1 := _hash(c * 7 + 1, r * 5 + 2)
 			var h2 := _hash(c * 11 + 5, r * 3 + 9)
 			var h3 := _hash(c * 17 + 2, r * 13 + 4)
-			var centre := square_centre(map, c, r)
-			var x := centre.x + (h1 - 0.5) * 0.7
-			var y := centre.y + (h2 - 0.5) * 0.7
+			var x := spot.x
+			var y := spot.y
 			var mesh: ArrayMesh = NaturalRock.mesh(kinds[int(h3 * 3.0) % 3])
 			if mesh == null:
 				continue
-			var factor := 0.9 + 1.3 * h1
+			var factor := spot.z
 			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h2 - 0.5) * 70.0)) * Basis(Vector3.UP, h3 * TAU)
 			st.append_from(mesh, 0, Transform3D(basis.scaled(Vector3.ONE * factor), Vector3(x, y, depth_at(x, y) - 0.08)))
 			count += 1

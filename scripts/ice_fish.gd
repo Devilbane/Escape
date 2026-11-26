@@ -52,11 +52,11 @@ const RIPPLES := ["water_ripple_0", "water_ripple_1", "water_ripple_2", "water_r
 const SOUND_FALL := 0.45
 const SOUND_RANGE := 38.0
 ## Fish length (metres) and how fast it swims; a lazy pace under the ice.
-const LENGTH_MIN := 0.55
-const LENGTH_MAX := 0.8
+const LENGTH_MIN := 0.7
+const LENGTH_MAX := 1.0
 ## The models are very slim seen from above; they are widened across by this much so the body reads from the
 ## game camera's distance (a trout is about a fifth as wide as it is long).
-const WIDEN := 2.2
+const WIDEN := 1.5
 const SPEED := 0.3
 ## How far from the bank a fish keeps (see Outdoor.pond_shore_at), and the ice it shows from.
 const SHORE_MIN := 1.5
@@ -155,9 +155,11 @@ func _add_fish(home: Vector3, rng: RandomNumberGenerator, lane := {}) -> void:
 	model.rotation = Vector3(-PI * 0.5, 0, 0)
 	# Whatever unit the model was made in, scale it to a river fish of `length` metres.
 	var natural := 0.0
+	var to_model := model.global_transform.affine_inverse()
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
-		var box := (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
-		natural = maxf(natural, maxf(box.size.x, maxf(box.size.y, box.size.z)))
+		# The length is the extent along the fish's own long axis (y), not the span of its fins.
+		var box := to_model * (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		natural = maxf(natural, box.size.y)
 	model.scale = Vector3(WIDEN, 1.0, 1.0) * (length / maxf(natural, 0.0001))
 	var palette: Array = COLOURS[rng.randi() % COLOURS.size()]
 	var mat := ShaderMaterial.new()

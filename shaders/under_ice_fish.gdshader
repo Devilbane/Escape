@@ -46,7 +46,7 @@ void fragment() {
 	// the dark water, so it is lit up (back and flank both) and given a pale rim, and only lightly tinted.
 	float open_water = 1.0 - cover;
 	float edge = 1.0 - clamp(abs(NORMAL.z), 0.0, 1.0);
-	col = mix(col, col * 1.7 + vec3(0.07, 0.09, 0.08), open_water);
+	col = mix(col, col * 1.35 + vec3(0.05, 0.07, 0.06), open_water);
 	col += edge * 0.22 * open_water * flank_color;
 	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.12, 0.32, cover));
 	ALPHA = mix(open_veil, veil, cover) * fade;

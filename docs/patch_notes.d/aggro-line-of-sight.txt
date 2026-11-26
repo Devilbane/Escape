@@ -1,0 +1,1 @@
+- Monsters now notice you only with line of sight: footsteps behind a wall or around a corner no longer wake them.

@@ -234,3 +234,4 @@ map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round
 flower_beds.gd | 120 | free | passfail | Flower beds in the valley lane (at the lane corners in the village, paved under, bloom in spring and summer, fade in autumn, bare and frosty in winter)
 slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring rain, storm or fog and retreat to the pond when it clears or the season turns
 owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)
+test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)

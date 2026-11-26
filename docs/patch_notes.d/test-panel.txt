@@ -1,0 +1,1 @@
+- A test panel in the bottom left corner (Test tab or F3): change the time of day and season, travel to the village, farms, start dungeon, Old One's lair, mines and silver mine, and switch godmode (now five times the speed).

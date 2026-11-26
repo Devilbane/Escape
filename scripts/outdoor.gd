@@ -646,6 +646,27 @@ var day := 0
 var season_day := 0
 ## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
 var crop_fields: CropFields
+## The middle of the farming valley's fields: the field tile nearest to their common centre, or
+## `fallback` when the map has no fields (see CropFields). Where the testing panel's farms button goes.
+func farm_spot(fallback: Vector3) -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for letter: String in _crop_cells:
+		for mid: Vector3 in _crop_cells[letter]:
+			sum += mid
+			n += 1
+	if n == 0:
+		return fallback
+	var centre := sum / n
+	var best := fallback
+	var best_d := INF
+	for letter: String in _crop_cells:
+		for mid: Vector3 in _crop_cells[letter]:
+			var d := mid.distance_squared_to(centre)
+			if d < best_d:
+				best_d = d
+				best = mid
+	return best
 ## Spooknortz's nights in the village (see SpookRaid).
 var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).

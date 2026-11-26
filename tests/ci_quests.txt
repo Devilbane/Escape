@@ -29,3 +29,4 @@ owl_clock_game.gd | 240 | fixed | pass | scripts/owl_clock.gd scripts/grave_lore
 grave_spirit.gd | 240 | fixed | pass | scripts/grave_spirit.gd scripts/riddle_vault.gd | Archy Stanton's grave and the spirit of the unknown grave: midnight only, wrong words pay nothing, the answer drops the coins once a night
 bell_grave.gd | 240 | fixed | pass | scripts/bell_grave.gd | The safety coffin's bell: rings once a night near the middle of the graveyard, scream within five seconds, whimper later
 graveyard_riddles.gd | 240 | fixed | pass | scripts/graveyard_riddles.gd | Two graveyard riddles teach Necromancy at level 0
+ossuary.gd | 240 | fixed | pass | scripts/ossuary.gd scripts/quests.gd | The ossuary's shelves and named skulls, Zarek's two-skull task and the charged diamond

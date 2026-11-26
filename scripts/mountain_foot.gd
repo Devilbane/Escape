@@ -39,6 +39,9 @@ const EARTH := Color(0.5, 0.44, 0.37)
 ## The foot's edge where it touches the rock: how opaque it is there, and how far out it is solid again (metres).
 const EDGE_ALPHA := 0.5
 const EDGE_FADE := 2.0
+## The height (metres) over which a flank turns from see-through to solid.
+const RIM_LOW := 0.03
+const RIM_HIGH := 0.2
 const OPEN := ".\'"
 const GREEN := Color(0.3, 0.37, 0.16)
 
@@ -460,9 +463,14 @@ static func _terrain(box: Rect2, step: float, height: Callable, greyer: float, r
 		var x := box.position.x + ix * step
 		var z := box.position.y + iz * step
 		var colour := _rock_colour(x, z, h, n.y, greyer)
-		# Where the foot meets the rock it is half see-through, and solid again EDGE_FADE metres out.
+		# Its flanks fade out as they sink into the ground, so the outline of the mesh (its grid, a polygon) never shows
+		# as a line: the ground's own earth takes over.
+		colour.a = smoothstep(RIM_LOW, RIM_HIGH, h)
+		# Where the foot meets the rock it is half see-through, and solid again EDGE_FADE metres out; the distance
+		# wanders so the fade does not run along the rock's straight tile edge.
 		if not rects.is_empty():
-			colour.a = lerpf(EDGE_ALPHA, 1.0, smoothstep(0.2, EDGE_FADE, _dist(rects, x, z)))
+			var wander := (fbm(x * 0.35 + 3.0, z * 0.35) - 0.5) * 3.2 + (fbm(x * 1.3, z * 1.3 + 8.0) - 0.5) * 0.8
+			colour.a = minf(colour.a, lerpf(EDGE_ALPHA, 1.0, smoothstep(0.2, EDGE_FADE, _dist(rects, x, z) + wander)))
 		return [Vector3(x, h - 0.03, z), n, colour]
 	for iz in nz:
 		for ix in nx:
@@ -601,7 +609,7 @@ static func scatter(level: Outdoor) -> void:
 		var mid := level.cell_to_world(c)
 		var rects := _rects_near(level, mid.x, mid.z, 3)
 		var near: Array = all_mounds.filter(func(m: Dictionary) -> bool: return (m.at as Vector2).distance_to(Vector2(mid.x, mid.z)) < float(m.r) * 1.5 + 4.0 + tile)
-		for i in 26:
+		for i in 40:
 			var at := Vector3(mid.x + rng.randf_range(-0.5, 0.5) * tile, 0.0, mid.z + rng.randf_range(-0.5, 0.5) * tile)
 			var d := _dist(rects, at.x, at.z)
 			var influence := 0.0
@@ -623,15 +631,15 @@ static func scatter(level: Outdoor) -> void:
 				continue
 			at.y = ground
 			var wander := fbm(at.x * 0.3, at.z * 0.3)
-			if stone_part and rng.randf() < 0.9 * influence * (0.4 + 1.2 * wander):
-				var r := rng.randf_range(0.06, 0.22)
+			if stone_part and rng.randf() < 1.0 * influence * (0.5 + 1.2 * wander):
+				var r := rng.randf_range(0.09, 0.3)
 				var tr := Transform3D(Basis.from_euler(Vector3(0, rng.randf() * TAU, 0)).scaled(Vector3(r * rng.randf_range(1.0, 1.7), r * rng.randf_range(0.5, 0.9), r * rng.randf_range(1.0, 1.5))), at + Vector3(0, r * 0.1 - 0.02, 0))
 				(pebbles[rng.randi() % 2] as Array).append(tr)
 			if rock_part and rng.randf() < 0.05 * influence * (0.4 + 1.2 * wander):
 				var r := rng.randf_range(0.25, 0.5)
 				var tr := Transform3D(Basis.from_euler(Vector3(rng.randf_range(-0.2, 0.2), rng.randf() * TAU, rng.randf_range(-0.2, 0.2))).scaled(Vector3(r * rng.randf_range(0.9, 1.5), r * rng.randf_range(0.6, 1.0), r * rng.randf_range(0.9, 1.4))), at + Vector3(0, r * 0.1 - 0.03, 0))
 				(rocks[rng.randi() % 4] as Array).append(tr)
-			if tuft_part and ground < 0.3 and rng.randf() < 0.3 * influence * (0.3 + 1.4 * fbm(at.x * 0.5 + 9.0, at.z * 0.5)):
+			if tuft_part and ground < 0.3 and rng.randf() < 0.5 * influence * (0.4 + 1.4 * fbm(at.x * 0.5 + 9.0, at.z * 0.5)):
 				var s := rng.randf_range(0.6, 1.2)
 				tufts.append(Transform3D(Basis.from_euler(Vector3(0, rng.randf() * TAU, 0)).scaled(Vector3(s, s * rng.randf_range(0.8, 1.3), s)), at))
 	var rock_mat := AgedStone.rock_material()

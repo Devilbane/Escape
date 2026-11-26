@@ -20,7 +20,8 @@ shader_type spatial;
 uniform sampler2D ground_mask : filter_linear, repeat_disable;
 // Scree in the mountains (see Mountains): one pixel per tile, red 1 where
 // the ground is stony. Black (no scree) everywhere else by default.
-uniform sampler2D stone_mask : filter_linear, repeat_disable, hint_default_black;
+uniform sampler2D stone_mask : filter_linear, repeat_disable, hint_default_white;
+uniform float stone_reach = 6.0;
 // The apron of earth at the foot of the mountains (see MountainFoot): 1 inside the rock at its foot, falling to 0 a few
 // metres out on the open ground. foot_apron is how strongly it is drawn, foot_gravel how stony and foot_moss how
 // grassy it is. foot_earth is the colour of the earth on the foot of the rock mesh (MountainFoot.EARTH).
@@ -252,7 +253,14 @@ void fragment() {
 			h += 0.003 * leaf;
 		}
 	}
-	float stony = smoothstep(0.4, 0.62, texture(stone_mask, uv).r + (n - 0.5) * 0.3 + fray * 0.2);
+	// The masks hold one pixel per tile: read straight, a single tile shows as a diamond and a row of them as stairs.
+	// Reading them through a wandering offset (a few metres, in lobes) turns every outline into rounded, irregular
+	// lobes, and the soft threshold blends instead of cutting.
+	vec2 wob = (vec2(fbm2(p * 0.26 + 13.0), fbm2(p * 0.26 + 71.0)) - 0.5) * 3.4 + (vec2(noise(p * 0.85 + 5.0), noise(p * 0.85 + 23.0)) - 0.5) * 1.1;
+	vec2 wuv = uv + wob / (grid_size * tile);
+	// The scree's edge is a distance in metres (like the shore), wandering a little, so it fades in soft curves.
+	float sd = (texture(stone_mask, uv).r - 0.5) * 2.0 * stone_reach + (fbm2(p * 0.35 + 40.0) - 0.5) * 1.6 + (noise(p * 1.4 + 9.0) - 0.5) * 0.5;
+	float stony = 1.0 - smoothstep(-1.0, 0.9, sd);
 	if (stony > 0.001) {
 		float hs;
 		vec3 sc = scree(p, px, hs);
@@ -260,10 +268,10 @@ void fragment() {
 		h = mix(h, hs, stony);
 	}
 	if (foot_apron > 0.0) {
-		float f = texture(foot_mask, uv).r;
+		float f = texture(foot_mask, wuv).r;
 		// The outline wanders in lobes a few metres wide and frays at the very edge: no tile line shows.
 		float edge = f + (fbm2(p * 0.33 + 7.0) - 0.5) * 0.85 + (fbm2(p * 1.6 + 3.0) - 0.5) * 0.24 + (noise(p * 9.0) - 0.5) * 0.08;
-		float apron = smoothstep(0.3, 0.58, edge) * foot_apron;
+		float apron = smoothstep(0.24, 0.62, edge) * foot_apron;
 		if (apron > 0.001) {
 			vec3 fe = foot_earth * (0.86 + 0.28 * fbm2(p * 0.8 + 21.0));
 			fe *= 1.0 + (noise(p * 30.0) - 0.5) * 0.18 * band(30.0, px) + (noise(p * 90.0) - 0.5) * 0.14 * band(90.0, px);

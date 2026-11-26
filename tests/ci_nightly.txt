@@ -233,4 +233,6 @@ bees_shots.gd | 1200 | fixed | passfail | The apiary in spring, summer and winte
 barber_chair_shots.gd | 240 | fixed | passfail | Benno's barber's chair: the hero sits and gets the cape, his window opens only from the chair, a haircut takes its time with a storm of hair and the new look comes at the end
 sowing.gd | 180 | fixed | pass | Spring sowing (fields start bare, a handful sows a tile, sprouts grow over days, auto-sow, the farmer throws seed with a bag)
 map_pockets.gd | 900 | fixed | passfail | No closed pockets of free ground round the cow pen and the village square (the hero's own body, flood-filled)
+flower_beds.gd | 120 | free | passfail | Flower beds in the valley lane (at the lane corners in the village, paved under, bloom in spring and summer, fade in autumn, bare and frosty in winter)
 slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring rain, storm or fog and retreat to the pond when it clears or the season turns
+owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)

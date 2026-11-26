@@ -126,6 +126,7 @@ event_log_frame.gd | 120 | fixed | passfail | the event log shows only its text 
 event_log_width.gd | 120 | fixed | passfail | event log's width slider in the pull-out menu (see
 exploration.gd | 120 | fixed | passfail | Erkunden (exploring) skill: it needs no gear, a
 grates_clear.gd | 120 | fixed | passfail | floor grates: nothing is placed on one. On every
+guard_chase.gd | 120 | fixed | passfail | Guard Ulrich chases Spooknortz on his night round (see GuardChase): shouts, runs after him, never catches up, gives up and returns to his post
 guard_watch.gd | 120 | fixed | passfail | town guard's watch on the west gate (see GuardWatch):
 hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new game shows the
 message_over_head.gd | 120 | fixed | passfail | messages float just over the hero's head and are written
@@ -245,5 +246,9 @@ sunflower_riddle_shots.gd | 90 | free | pass | The sunflower riddle's field and 
 test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)
 house_puddle_shots.gd | 600 | fixed | pass | A rain puddle across a self-built house stops at its walls (screenshots with SHOTS)
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
+wall_workshop.gd | 120 | free | passfail | Climbing wall workshop (painting holds, arrows, gaps, surfaces and goals, saving and loading, 3D wall view, climbing test)
+wall_climb.gd | 400 | fixed | passfail | The mountaineer climbs the sample wall (traverse, jumps, nails, rope), ice, weather, falling stones, braced against the rock, the cloud band
 bush_variety.gd | 120 | free | pass | Bushes come in many kinds (shapes, leaf shapes, colours, branches, berries, blooms), neighbours differ, seasons turn the green ones and keep the evergreens, details drawn only near
 nohpaan_shots.gd | 600 | fixed | pass | Nohpaan valley and monastery (screenshots with SHOTS)
+wall_auto.gd | 300 | fixed | passfail | Wolfram climbs the sample wall by himself (plans a route, looks at cracks, rests, curses and screams, turns back, reaches the top)
+grave_styles.gd | 120 | free | pass | Gravestone styles: every style builds, fits its footprint, and the graveyard mixes them

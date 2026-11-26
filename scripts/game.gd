@@ -43,9 +43,6 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
-var _graphics_button: Button
-var _display_button: Button
-var _monitor_button: Button
 var _effects_slider: HSlider
 var _log_width_slider: HSlider
 ## The width of the labels in front of the pull-out menu's sliders, room for
@@ -569,6 +566,7 @@ func _bus_links() -> Array:
 		[bus.news_told, quest_news],
 		[bus.lore_learned, learn],
 		[bus.climber_watched, _on_climber_watched],
+		[bus.wall_climb_requested, _on_wall_climb_requested],
 		[bus.gain_shown, show_gain],
 		[bus.enemy_slain, Callable(Factions, "on_hero_kill")],
 		[bus.enemy_slain, bounties.on_kill],
@@ -830,6 +828,7 @@ func _setup_world() -> void:
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.0
 	_env = env
+	Graphics.watch_environment(env)
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -909,7 +908,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
-		_env.adjustment_saturation = 1.0
+		_env.adjustment_saturation = Graphics.tone.saturation
 		_moon.rotation_degrees = Vector3(-62, 28, 0)
 		_moon.light_color = Color(0.82, 0.84, 0.9)
 		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
@@ -1003,7 +1002,7 @@ func _setup_drawer() -> void:
 	# (actions and sound) leave it out so they can be clicked again.
 	# Map, compendium, inventory, character and quests have their own icons
 	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
-	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND]]
+	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND], ["Einstellungen", SettingsWindow.KIND]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).
@@ -1036,8 +1035,6 @@ func _setup_drawer() -> void:
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
 	column.add_child(_make_log_width_slider())
-	column.add_child(_make_graphics_row())
-	column.add_child(_make_display_row())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -4326,89 +4323,6 @@ func _make_log_width_slider() -> Control:
 	return row
 
 
-## The graphics row: its button names the picked preset (see Graphics) and steps on to the next
-## one, as the sound buttons do. The label lines up with the slider rows' labels.
-func _make_graphics_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var label := Label.new()
-	label.text = Lang.t("Grafik")
-	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", UiKit.sized(18))
-	label.add_theme_color_override("font_color", GOLD)
-	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
-	row.add_child(label)
-	_graphics_button = _make_button("", _next_graphics, true)
-	_graphics_button.custom_minimum_size = Vector2(0, 44)
-	_graphics_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_graphics_button)
-	_update_graphics_button()
-	return row
-
-
-## The display row: one button steps through the window modes and sizes (see Monitor), a small
-## square one on its right steps through the monitors. Both keep their size whatever they say.
-func _make_display_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var label := Label.new()
-	label.text = Lang.t("Anzeige")
-	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", UiKit.sized(18))
-	label.add_theme_color_override("font_color", GOLD)
-	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
-	row.add_child(label)
-	_display_button = _make_button("", _next_display_mode, true)
-	_display_button.custom_minimum_size = Vector2(0, 44)
-	_display_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_display_button.clip_text = true
-	row.add_child(_display_button)
-	_monitor_button = _make_button("", _next_monitor, true)
-	_monitor_button.custom_minimum_size = Vector2(44, 44)
-	row.add_child(_monitor_button)
-	_update_display_buttons()
-	return row
-
-
-func _next_display_mode() -> void:
-	Monitor.choose_mode(Monitor.next_mode(Monitor.mode), get_window())
-	_update_display_buttons()
-
-
-func _next_monitor() -> void:
-	Monitor.choose_monitor(Monitor.next_monitor(Monitor.monitor, DisplayServer.get_screen_count()), get_window())
-	_update_display_buttons()
-
-
-func _update_display_buttons() -> void:
-	_display_button.text = Lang.t(Monitor.NAMES[Monitor.mode])
-	var lines: Array[String] = [Lang.t(Monitor.HINTS[Monitor.mode])]
-	for which: String in Monitor.MODES:
-		if which != Monitor.mode:
-			lines.append(Lang.t(Monitor.HINTS[which]))
-	_display_button.tooltip_text = "\n".join(lines)
-	var screens := DisplayServer.get_screen_count()
-	_monitor_button.text = str(Monitor.pick(Monitor.monitor, screens) + 1)
-	_monitor_button.disabled = screens < 2
-	_monitor_button.tooltip_text = Lang.t("Monitor %d von %d. Klick: der nächste Monitor.") % [int(_monitor_button.text), screens]
-
-
-func _next_graphics() -> void:
-	var at := Graphics.PRESETS.find(Graphics.preset)
-	Graphics.choose(Graphics.PRESETS[(at + 1) % Graphics.PRESETS.size()], get_viewport())
-	_update_graphics_button()
-
-
-func _update_graphics_button() -> void:
-	_graphics_button.text = Lang.t(Graphics.NAMES[Graphics.preset])
-	# The tooltip says what every preset is for, the picked one first.
-	var lines: Array[String] = [Lang.t(Graphics.HINTS[Graphics.preset])]
-	for which: String in Graphics.PRESETS:
-		if which != Graphics.preset:
-			lines.append(Lang.t(Graphics.HINTS[which]))
-	_graphics_button.tooltip_text = "\n".join(lines)
-
-
 ## The sound effects volume row.
 func _make_effects_slider() -> Control:
 	var row := _make_volume_row("Effekte", "Lautstärke der Geräusche", Sfx.volume, _on_effects_volume_changed)
@@ -6224,6 +6138,12 @@ func _toggle_godmode() -> void:
 	Events.tell(Lang.t(Godmode.ON_TEXT) if player.godmode else Lang.t(Godmode.OFF_TEXT), TELEPORT_COLOR)
 
 
+## The hero pushed against the rock of a placed climbing wall (see WallPlacements).
+func _on_wall_climb_requested(file: String) -> void:
+	if state == State.PLAYING and player != null and not player.dead:
+		WallScreens.open_climb(self, file)
+
+
 ## A button of the testing panel was pressed (see TestPanel): it does what the matching chat
 ## command does (the hour and season commands, teleport, godmode).
 func _on_test_panel(kind: String, arg: Variant) -> void:
@@ -6240,6 +6160,8 @@ func _on_test_panel(kind: String, arg: Variant) -> void:
 			teleport_to(level_files.find(LEVEL_DIR + String(place[1])), false, String(place[2]))
 		"god":
 			_toggle_godmode()
+		"wall":
+			WallScreens.open_workshop(self)
 
 
 ## The chat line's weather and time commands (see SkyCommand): force the
@@ -7573,6 +7495,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		return
 	if station.get("kind", "") == Seats.KIND and not _pending_station.is_empty() and _pending_station != station:
 		return # On the way to a seat that was clicked: another one passed by is not sat on.
+	if station.get("kind", "") == Seats.KIND and not player.path.is_empty() and _pending_station.is_empty():
+		return # Walking a clicked route (down the tower's stairs, say): a chair brushed on the way is not sat on.
 	if station.has("spot") and not _walked_by_keys():
 		# A bed or a workbench is run into by accident on the way somewhere clicked, or running
 		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.

@@ -27,7 +27,7 @@ const STYLE := {"max_w": 9.4, "max_d": 9.4, "door_x": 0.0, "flat": true, "mage":
 const TOP_H := 2.6
 const PEAK := 5.2
 const OVERHANG := 0.55
-const SPIRE := 1.6
+const SPIRE := 0.9
 ## How far up the pyramid roof ivy climbs from the eaves (metres): parts of the roof, not all of it.
 const IVY_ROOF_REACH := 2.8
 ## The tower's ivy density (a house's is AgedStone.IVY_DENSITY).
@@ -207,14 +207,11 @@ static func roof(parts: Dictionary, shape: Dictionary) -> void:
 			face = -face
 		var fall := absf((Vector2(face.x, face.z) / face.y).dot(Vector2(side.x, side.z)))
 		RoofCaps.ridge(st, apex.lerp(corner, 0.03), corner, fall, hash(Vector3(i, uw, ud)), true)
-	# The post at the peak, the gilded ball and a pennant of the tower's violet.
-	VillageHouse._box(parts, "timber", apex + Vector3(0, SPIRE * 0.45, 0), Vector3(0.12, SPIRE, 0.12))
-	VillageHouse._box(parts, "timber", apex + Vector3(0, SPIRE * 0.12, 0), Vector3(0.4, 0.12, 0.4))
-	VillageHouse._box(parts, "stone", apex + Vector3(0, SPIRE + 0.12, 0), Vector3(0.3, 0.3, 0.3), Basis(Vector3(1, 1, 1).normalized(), 0.6))
-	VillageHouse._box(parts, "timber", apex + Vector3(0.5, SPIRE * 0.8, 0), Vector3(0.9, 0.34, 0.03))
-	VillageHouse._box(parts, "timber", apex + Vector3(0.5, SPIRE * 0.55, 0), Vector3(0.7, 0.26, 0.03))
-	# A star over the ball: two crossed diamonds of stone, and a stone pinnacle on each corner of the eaves.
-	var star_at := apex + Vector3(0, SPIRE + 0.5, 0)
+	# The peak's ornament alone, no post or pennant: a low plinth, the gilded ball and a star over it
+	# (two crossed diamonds of stone), and a stone pinnacle on each corner of the eaves.
+	VillageHouse._box(parts, "timber", apex + Vector3(0, 0.06, 0), Vector3(0.4, 0.12, 0.4))
+	VillageHouse._box(parts, "stone", apex + Vector3(0, 0.27, 0), Vector3(0.3, 0.3, 0.3), Basis(Vector3(1, 1, 1).normalized(), 0.6))
+	var star_at := apex + Vector3(0, 0.65, 0)
 	VillageHouse._box(parts, "stone", star_at, Vector3(0.5, 0.06, 0.06), Basis(Vector3.FORWARD, PI * 0.25))
 	VillageHouse._box(parts, "stone", star_at, Vector3(0.5, 0.06, 0.06), Basis(Vector3.FORWARD, -PI * 0.25))
 	VillageHouse._box(parts, "stone", star_at, Vector3(0.5, 0.06, 0.06))
@@ -918,7 +915,7 @@ static func hang_tapestry(parent: Node3D, which: String, at: Vector3) -> Node3D:
 	var cloth := StandardMaterial3D.new()
 	cloth.albedo_texture = picture_of(which)
 	cloth.roughness = 1.0
-	cloth.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	cloth.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	picture.material_override = cloth
 	picture.position = Vector3(0, TAPESTRY.y * 0.5, 0.02)
 	root.add_child(picture)
@@ -1490,7 +1487,7 @@ static func star_chart(size := Vector2(1.3, 1.3)) -> Node3D:
 	var paper := StandardMaterial3D.new()
 	paper.albedo_texture = star_chart_image()
 	paper.roughness = 0.9
-	paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	chart.material_override = paper
 	chart.position = Vector3(0, size.y * 0.5, 0.025)
 	root.add_child(chart)

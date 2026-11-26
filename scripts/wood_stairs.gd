@@ -97,7 +97,7 @@ static func material(colour := Color.WHITE, triplanar := false) -> StandardMater
 	mat.albedo_texture = texture()
 	mat.albedo_color = colour
 	mat.roughness = 0.9
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	if triplanar:
 		mat.uv1_triplanar = true
 		mat.uv1_scale = Vector3(0.7, 0.7, 0.7)

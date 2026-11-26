@@ -246,6 +246,7 @@ const WINDOW_SIZES := {
 	"karte": Vector2(980, 616),
 	"auftraege": Vector2(760, 532),
 	CoopWindow.KIND: Vector2(720, 540),
+	SettingsWindow.KIND: SettingsWindow.SIZE,
 	PlotOffice.KIND: Vector2(640, 430),
 	Spooknortz.KIND: Spooknortz.WINDOW,
 }
@@ -405,6 +406,8 @@ func _rebuild() -> void:
 			_build_skill_trees()
 		CoopWindow.KIND:
 			CoopWindow.build(self)
+		SettingsWindow.KIND:
+			SettingsWindow.build(self)
 		PlotOffice.KIND:
 			PlotOffice.build(self)
 		ClimberNpc.KIND:

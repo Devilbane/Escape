@@ -13,6 +13,8 @@ const SETTINGS_FILE := "user://einstellungen.json"
 
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
+	preload("res://scripts/lang/climb_wall.gd"),
+	preload("res://scripts/lang/settings.gd"),
 	preload("res://scripts/lang/gear_effects.gd"),
 	preload("res://scripts/lang/pack_help.gd"),
 	preload("res://scripts/lang/climb_spots.gd"),
@@ -142,6 +144,7 @@ const PARTS := [
 	preload("res://scripts/lang/village_talk.gd"),
 	preload("res://scripts/lang/village_wall.gd"),
 	preload("res://scripts/lang/guard_watch.gd"),
+	preload("res://scripts/lang/guard_chase.gd"),
 	preload("res://scripts/lang/village_worries.gd"),
 	preload("res://scripts/lang/village_rumours.gd"),
 	preload("res://scripts/lang/drinking_songs.gd"),

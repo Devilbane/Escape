@@ -78,7 +78,7 @@ void fragment() {
 	colour = mix(colour, colour * vec3(0.92, 0.95, 1.0), max(wet, 0.0) * 0.5);
 	ALBEDO = colour;
 	ROUGHNESS = 0.95 - max(wet, 0.0) * 0.12;
-	vec3 bent = normalize(n + tilt * bump);
+	vec3 bent = normalize(n + tilt * bump * relief_strength);
 	NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
 	ALBEDO = gl_colour(ALBEDO);
 }

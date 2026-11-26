@@ -58,7 +58,7 @@ func _test() -> void:
 	check(lvl is Outdoor and lvl.owlav_pos != Vector3.INF, "the graveyard has Owlav's grave")
 	check(lvl.owls.clock_owl >= 0, "the dead tree has its clock owl")
 	var readers := lvl.stations.filter(func(s): return s.kind == GraveLore.KIND)
-	check(readers.size() == 22, "every grave can be read (%d)" % readers.size())
+	check(readers.size() == lvl._graves.size() and readers.size() >= 30, "every grave can be read (%d)" % readers.size())
 	check(readers.filter(func(s): return s.get("counter", false)).size() == 1, "one counter stone")
 	check(lvl.stations.filter(func(s): return s.get("building", "") == OwlClock.ID).is_empty(), "no way down before the riddle")
 	game.player.bag.append(OwlClock.BELL)

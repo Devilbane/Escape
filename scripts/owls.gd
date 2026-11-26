@@ -482,7 +482,7 @@ static func _material() -> StandardMaterial3D:
 	m.vertex_color_use_as_albedo = true
 	m.vertex_color_is_srgb = Graphics.vertex_colours_srgb()
 	m.roughness = 0.95
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return m
 

@@ -103,6 +103,7 @@ func _ready() -> void:
 	god_button.toggle_mode = true
 	god_button.tooltip_text = Lang.t("Unverwundbar und fünffaches Tempo.")
 	_pages[3].add_child(god_button)
+	_pages[3].add_child(_button(Lang.t("Kletterwand"), func() -> void: picked.emit("wall", null)))
 
 	var tab_button := _button(Lang.t("Test"), toggle)
 	tab_button.custom_minimum_size = Vector2(66, 28)

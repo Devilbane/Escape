@@ -8,7 +8,7 @@ render_mode blend_mix, cull_disabled;
 // ivory with dark grooves between ribs. The patches are noise on the rest
 // position of each vertex, so they stay put on the body while it moves.
 
-uniform sampler2D tex : filter_linear_mipmap;
+uniform sampler2D tex : filter_linear_mipmap_anisotropic;
 uniform vec3 skin = vec3(0.74, 0.75, 0.68);
 uniform vec3 rot = vec3(0.42, 0.24, 0.16);
 uniform vec3 bone = vec3(0.86, 0.82, 0.68);

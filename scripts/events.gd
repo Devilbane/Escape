@@ -132,6 +132,9 @@ signal plot_registered(rect: Rect2i)
 ## The hero looks on while the rock climber climbs (see ClimberNpc): the hours of game time
 ## that passed. Enough of them make the Klettern skill ripe (see Game._on_climber_watched).
 signal climber_watched(hours: float)
+## The hero pushed against the rock of a placed climbing wall (see WallPlacements, Player._try_climb_rock): the
+## wall's file. The game opens the wall screen (see WallScreens).
+signal wall_climb_requested(file: String)
 
 
 static var _bus: Events = null

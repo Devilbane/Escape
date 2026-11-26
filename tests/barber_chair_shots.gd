@@ -103,6 +103,15 @@ func _run() -> void:
 	await _wait(3)
 	await _shot("chair_side")
 
+	# Standing beside the tent fades it, walking away brings it back.
+	hero.global_position = tent.global_position + Vector3(BarberTent.REACH + 0.5, 0, 0)
+	await _wait(40)
+	check(not tent.visible, "the tent is gone while the hero stands beside it")
+	hero.global_position = at + Vector3(6.0, 0, 9.0)
+	await _wait(40)
+	check(tent.visible, "the tent returns when the hero walks away")
+	hero.global_position = at + Vector3(0, 0, 3.5)
+	await _wait(5)
 	# The hero sits: running into the chair seats them, the cape goes on, the window opens a moment later.
 	check(not game.menus.is_open(), "the window is shut before the hero sits")
 	game._use_station(chair.station)
@@ -153,6 +162,8 @@ func _run() -> void:
 	await _wait(2)
 	await _shot("done")
 	hero.stand_up()
+	await _wait(60)
+	check(not tent.visible, "the tent stays away while the hero stands beside the chair")
 	hero.global_position = at + Vector3(6.0, 0, 9.0)
 	await _wait(60)
 	check(tent.visible, "the tent comes back when the hero gets up")

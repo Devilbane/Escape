@@ -25,8 +25,12 @@ const TIMBER := Color(0.42, 0.30, 0.22)
 const STONE_V := Vector2(0.6, 0.92)
 const STONE_BAND := 4.0
 ## The red roof tiles on the same sheet (the chapel's roof): u and v from
-## corner to corner, and the patch of roof (metres) one copy of them covers.
-const TILES_UV := Rect2(0.5, 0.06, 0.5, 0.235)
+## corner to corner, and the patch of roof (metres) one copy of them covers. The rectangle is kept
+## TILES_INSET (sheet fractions, 8 texels) inside the tiles' part of the sheet: the roof shader samples
+## up to mip level 3 (8 texels wide), which would otherwise blend in the stone beyond the patch's
+## edge and draw pale lines along the seams between patches that flicker as the camera moves.
+const TILES_INSET := 8.0 / 512.0
+const TILES_UV := Rect2(0.5 + TILES_INSET, 0.06 + TILES_INSET, 0.5 - TILES_INSET * 2.0, 0.235 - TILES_INSET * 2.0)
 const TILES_PATCH := Vector2(2.4, 1.2)
 
 ## Heights (metres): stone plinth, ground floor, upper floor, and how far the

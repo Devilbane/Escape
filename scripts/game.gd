@@ -7562,6 +7562,8 @@ func _on_player_bumped(point: Vector3) -> void:
 		return
 	if station.get("kind", "") == Seats.KIND and not _pending_station.is_empty() and _pending_station != station:
 		return # On the way to a seat that was clicked: another one passed by is not sat on.
+	if station.get("kind", "") == Seats.KIND and not player.path.is_empty() and _pending_station.is_empty():
+		return # Walking a clicked route (down the tower's stairs, say): a chair brushed on the way is not sat on.
 	if station.has("spot") and not _walked_by_keys():
 		# A bed or a workbench is run into by accident on the way somewhere clicked, or running
 		# with the mouse held: the mouse uses it on its spot (see _click), the keys by running into it.

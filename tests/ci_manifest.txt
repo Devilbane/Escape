@@ -50,6 +50,7 @@ save_slots.gd | 120 | free | pass | Several saved games test
 stay_awake.gd | 120 | fixed | pass | Stay awake and save test
 sleep_till_morning.gd | 120 | fixed | pass | Sleep till morning test
 bed_rise.gd | 120 | fixed | pass | Going to bed and getting up (nobody sinks into the floor or mattress, the blanket lies over the sleeper and is thrown back flat)
+bed_placement.gd | 120 | fixed | pass | Lying in a bed: in both bed models, every turn and side, the sleeper lies on the mattress; sleeping goes to the bed that was run into
 camp.gd | 120 | fixed | pass | Camp with bedroll and campfire test
 rescue.gd | 240 | fixed | pass | Rescue test (out of life, carried to the bed; the loot stays where the hero fell)
 item_compare.gd | 120 | free | pass | Item comparison in the inventories' details box

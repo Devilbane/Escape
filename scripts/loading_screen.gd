@@ -13,8 +13,12 @@ const TITLE_FONT := preload("res://assets/fonts/CinzelDecorative-Black.woff2")
 const TEXT_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 const MARGIN := 80
 ## The picture fills the top of the screen down to here; the notes start below it.
-const ART_BOTTOM := 0.6
-const NOTES_TOP := 0.625
+const ART_BOTTOM := 0.57
+## The tagline sits between the picture and the notes.
+const TAGLINE := "A Tale of Valor and Mysteries!"
+const TAGLINE_TOP := 0.58
+const TAGLINE_BOTTOM := 0.63
+const NOTES_TOP := 0.645
 const BACKDROP := Color(0.03, 0.015, 0.04, 1.0)
 const GOLD := Color(0.96, 0.8, 0.38)
 ## Notes shown per side; what does not fit is counted in a line below.
@@ -67,6 +71,18 @@ func _ready() -> void:
 	add_child(back)
 
 	add_child(_art())
+
+	# The tagline is the same in every language (like the pub's name), so it has no Lang entry.
+	var tagline := UiKit.label(TITLE_FONT, UiKit.sized(34), GOLD)
+	tagline.text = TAGLINE
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tagline.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tagline.anchor_right = 1.0
+	tagline.anchor_top = TAGLINE_TOP
+	tagline.anchor_bottom = TAGLINE_BOTTOM
+	tagline.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tagline.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	add_child(tagline)
 
 	# The notes sit in a band below the picture: heading and version on top, the notes in two columns.
 	var row := HBoxContainer.new()

@@ -1,0 +1,1 @@
+- Doors no longer open when you stand on the matching spot a floor above them.

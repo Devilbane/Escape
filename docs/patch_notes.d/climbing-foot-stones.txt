@@ -1,0 +1,1 @@
+- Climbers on the wall now stand on visible foot stones under every hold and hang close to the rock, so they no longer seem to stand on air.

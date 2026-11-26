@@ -42,6 +42,13 @@ static func entries() -> Array:
 			"text": "Ohne Code listet das Ereignisprotokoll alle Orte mit ihrem Fünf-Buchstaben-Code; der Code in der nächsten Zeile bringt den Helden zum Eingang des Ortes.",
 			"examples": [Teleport.COMMAND, "%s %s" % [Teleport.COMMAND, Teleport.VILLAGE_CODE]],
 		})
+	if GotoCommand.ENABLED:
+		out.append({
+			"name": "Gehe zu",
+			"syntax": "%s <Code> <x> <y> <Jahreszeit> <Zeit>" % GotoCommand.COMMAND,
+			"text": "Bringt den Helden auf ein genaues Tile eines Ortes, in einer Jahreszeit und zu einer Uhrzeit (beides kann fehlen). Der Code ist der des Teleports, x und y zeigt F2. Nur \"goto\" schreibt die Zeile für den jetzigen Platz ins Protokoll und kopiert sie.",
+			"examples": ["goto", "goto dorfx 149 127 autumn 14:30"],
+		})
 	if SkyCommand.ENABLED:
 		out.append({
 			"name": "Wetter und Zeit",

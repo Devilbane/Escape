@@ -254,6 +254,7 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 	var upper := hatch.size != Vector2.ZERO
 	_openings = walk_in_windows(shape, upper or bool(shape.get("flat", false)))
 	mats["clear"] = clear_glass()
+	mats["curtain"] = curtain_cloth()
 	if upper:
 		# A floor above one walks into: the roof, the upper front wall and the upper room apart.
 		for key: String in ["roof", "up_front", "up_inside"]:
@@ -322,6 +323,39 @@ static func walk_in_windows(shape: Dictionary, upstairs: bool) -> Array:
 		if bool(shape.get("mage", false)):
 			out.append_array(MageTower.windows(shape))
 	return out
+
+
+## How far behind the glass of such a window its curtains hang (metres): clear of the pane, so the
+## two never fight over the same pixels, and still well inside the thickness of the wall.
+const CURTAIN_GAP := 0.05
+
+
+## The curtains of the windows one looks through: the cloth of the pane's own curtains (see
+## WindowLights.CURTAIN_SHADER), cut out where they are open. The village drives its hour and glow
+## (see Outdoor._house_glass); elsewhere it stays at noon.
+static func curtain_cloth() -> ShaderMaterial:
+	if not _mats.has("curtain_cloth"):
+		var cloth := WindowLights.curtain_material(Color(1.0, 0.7, 0.36))
+		# Named like glass, so the ivy keeps clear of it (see AgedStone.triangles).
+		cloth.resource_name = "window_curtain"
+		_mats["curtain_cloth"] = cloth
+	return _mats["curtain_cloth"]
+
+
+## One quad of curtains, the size of the opening, hanging at `at` and facing along `b`'s z, its UV
+## in metres across the pane and its second UV the pane's key (see WindowLights.key).
+static func _curtains(parts: Dictionary, at: Vector3, b: Basis) -> void:
+	var st := _tool(parts, "curtain")
+	var side := b * Vector3(OPENING.x * 0.5, 0, 0)
+	var up := Vector3(0, OPENING.y * 0.5, 0)
+	var n := b * Vector3(0, 0, 1)
+	var corners := [at - side - up, at + side - up, at + side + up, at - side + up]
+	var uvs := [Vector2(0, 0), Vector2(OPENING.x, 0), Vector2(OPENING.x, OPENING.y), Vector2(0, OPENING.y)]
+	for k in [0, 2, 1, 0, 3, 2]:
+		st.set_uv2(_pane_key)
+		st.set_normal(n)
+		st.set_uv(uvs[k])
+		st.add_vertex(corners[k])
 
 
 ## The glass of a window one looks through (see _openings): clear and faintly blue, a little shiny.
@@ -643,6 +677,7 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 		# A window of a room one walks into: clear glass in the middle of the wall's thickness, the
 		# room's own light shining out through it.
 		_box(parts, "clear", at - out * WALL_THICK * 0.5, Vector3(OPENING.x, OPENING.y, 0.02), b)
+		_curtains(parts, at - out * (WALL_THICK * 0.5 + CURTAIN_GAP), b)
 	else:
 		_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
 	_box(parts, "timber", at + out * 0.07, Vector3(0.08, 0.9, 0.06), b)

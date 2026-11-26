@@ -17,6 +17,8 @@ const CHAIN := 0.2
 const DROP := 0.07
 const EBONY := Color(0.17, 0.12, 0.11)
 const GILT := Color(0.92, 0.72, 0.28)
+## The moon and star: a vivid red, lit as brightly as the lettering.
+const RED := Color(1.0, 0.2, 0.16)
 const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 
@@ -29,6 +31,7 @@ static func board() -> Node3D:
 	var radius := WIDE * 0.5
 	var wood := WeatheredProps.Builder.new()
 	var gilt := WeatheredProps.Builder.new()
+	var red := WeatheredProps.Builder.new()
 	# The gilt rim: the same shape a little larger and thinner behind the ebony, so it shows round the edge.
 	var rim := 0.03
 	gilt.cylinder(Vector3(0, -radius, -THICK * 0.4), radius + rim, radius + rim, THICK * 0.8, GILT, WeatheredProps.FRESH, 24, turn)
@@ -40,21 +43,23 @@ static func board() -> Node3D:
 		var out := Basis(Vector3.RIGHT, side * PI * 0.5) # A disc's axis pointing out of this face.
 		# The crescent: a gilt disc with an ebony disc over it, pushed aside.
 		var moon := Vector3(-0.14, -0.4, z)
-		gilt.cylinder(moon, 0.17, 0.17, 0.012, GILT, WeatheredProps.FRESH, 20, out)
+		red.cylinder(moon, 0.17, 0.17, 0.012, RED, WeatheredProps.FRESH, 20, out)
 		wood.cylinder(moon + Vector3(0.07, 0.03, side * 0.007), 0.145, 0.145, 0.012, EBONY, WeatheredProps.WOOD, 20, out)
 		# The star: two long diamonds crossed and two short ones between them.
 		var star := Vector3(0.2, -0.3, z)
 		for k in 2:
-			_bar(gilt, star, Vector2(0.05, 0.3), k * PI * 0.5)
-			_bar(gilt, star, Vector2(0.035, 0.18), PI * 0.25 + k * PI * 0.5)
+			_bar(red, star, Vector2(0.05, 0.3), k * PI * 0.5)
+			_bar(red, star, Vector2(0.035, 0.18), PI * 0.25 + k * PI * 0.5)
 		# A few small stars scattered over the arch.
 		for dot: Vector2 in [Vector2(0.0, -0.12), Vector2(-0.27, -0.27), Vector2(0.3, -0.52)]:
-			_bar(gilt, Vector3(dot.x, dot.y, z), Vector2(0.04, 0.04), PI * 0.25)
+			_bar(red, Vector3(dot.x, dot.y, z), Vector2(0.04, 0.04), PI * 0.25)
 		var label := Label3D.new()
 		label.text = NAME
 		label.font = FONT
-		label.font_size = 48
-		label.pixel_size = 0.0026
+		# A little soft, like paint on wood: drawn at lower resolution and filtered, not razor sharp.
+		label.font_size = 30
+		label.pixel_size = 0.0042
+		label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 		label.modulate = GILT
 		label.outline_size = 0
 		label.position = Vector3(0.0, -TALL + 0.1, z + side * 0.004)
@@ -63,6 +68,11 @@ static func board() -> Node3D:
 	wood.finish(root, Vector3.ZERO, true)
 	var lit := gilt.finish(root, Vector3.ZERO, false, true)
 	lit.name = "Gilding"
+	# Lit by itself, as bright as the lettering: the gilding would otherwise go dull in shade.
+	lit.material_override = _lit_material(GILT)
+	var marks := red.finish(root, Vector3.ZERO, false, true)
+	marks.name = "Marks"
+	marks.material_override = _lit_material(RED)
 	# Two iron rings on the top edge for the chains.
 	for x: float in [-WIDE * 0.28, WIDE * 0.28]:
 		var ring := TorusMesh.new()
@@ -103,7 +113,20 @@ static func on_wall(out := 1.15, across := true) -> Node3D:
 	return root
 
 
-## A flat gilt strip `size` (x, y) metres with its middle at `mid`, turned `angle` about the board's normal.
+## A flat strip `size` (x, y) metres with its middle at `mid`, turned `angle` about the board's normal.
 static func _bar(b: WeatheredProps.Builder, mid: Vector3, size: Vector2, angle: float) -> void:
 	var turn := Basis(Vector3.BACK, angle)
 	b.box(mid - turn * Vector3(0, size.y * 0.5, 0), Vector3(size.x, size.y, 0.012), GILT, WeatheredProps.FRESH, turn)
+
+
+static var _lit := {}
+
+
+## An unshaded material of `colour`, as the lettering is (a Label3D is unshaded too).
+static func _lit_material(colour: Color) -> StandardMaterial3D:
+	if not _lit.has(colour):
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.albedo_color = colour
+		_lit[colour] = mat
+	return _lit[colour]

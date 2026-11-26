@@ -3439,6 +3439,10 @@ func _house_glass() -> ShaderMaterial:
 		var glass := WindowLights.glass_material(WINDOW_LIGHT)
 		_scenes["mat_house_glass"] = glass
 		_window_mats[glass] = glass
+		# The curtains inside the windows one looks through go with it.
+		var curtains := VillageHouse.curtain_cloth()
+		curtains.set_shader_parameter("colour", Vector3(WINDOW_LIGHT.r, WINDOW_LIGHT.g, WINDOW_LIGHT.b))
+		_window_mats[curtains] = curtains
 	return _scenes["mat_house_glass"]
 
 
@@ -5016,6 +5020,8 @@ func swing_door_near(point: Vector3, reach := 3.5) -> bool:
 		if not is_instance_valid(d):
 			continue
 		var dist := _flat_distance(point, d.global_position)
+		if absf(point.y - d.global_position.y) > WalkIn.DOOR_LEVEL + 0.5:
+			continue # A floor above or below the door.
 		if dist < best_d:
 			best = d
 			best_d = dist

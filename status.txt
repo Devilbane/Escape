@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Give the guild and other kit buildings clear glass windows with curtains; Title screen: climbing wall workshop button (+48 more)
+Escape! dev status | Working on: Settings: option to skip the loading screen at startup | Shipped this week: Give the guild and other kit buildings clear glass windows with curtains; Title screen: climbing wall workshop button (+48 more)

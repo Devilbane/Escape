@@ -224,7 +224,7 @@ func _check_boulders() -> void:
 	query.exclude = [p.get_rid()]
 	var boulders := 0
 	for node in lv.get_children():
-		if not node is Node3D or not String(node.scene_file_path).contains("rock_single") or node.scale.x < 5.0:
+		if not node is Node3D or not node.has_meta("boulder") or node.scale.x < 5.0:
 			continue
 		boulders += 1
 		var own := Level.footprint(node, node)

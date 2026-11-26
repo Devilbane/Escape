@@ -283,7 +283,7 @@ static func is_skill(id: String) -> bool:
 static func _load_all() -> Dictionary:
 	if not FileAccess.file_exists(FILE):
 		return {}
-	var data = JSON.parse_string(FileAccess.get_file_as_string(FILE))
+	var data = JSON.parse_string(SaveSeal.read(FILE))
 	return data if data is Dictionary else {}
 
 
@@ -354,6 +354,7 @@ static func save_hero(hero: String, xp: Dictionary, level = null) -> void:
 	elif old is Dictionary and old.has(LEVEL_KEY):
 		entry[LEVEL_KEY] = old[LEVEL_KEY]
 	all[hero] = entry
-	var file := FileAccess.open(FILE, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(all))
+	if FileAccess.file_exists(FILE) and SaveSeal.read(FILE) == "":
+		# An edited file is not trusted; keep it aside instead of silently writing over it.
+		DirAccess.copy_absolute(FILE, FILE + ".edited")
+	SaveSeal.write(FILE, JSON.stringify(all))

@@ -152,3 +152,4 @@ wall_map.gd | 60 | free | passfail | Climbing wall: text format, sample wall, ch
 settings_window.gd | 60 | fixed | pass | Settings window (tabs keep one size, graphics options apply and are saved and read back)
 farm_house_windows.gd | 60 | fixed | pass | Farm houses: curtains hang clear of the clear panes, the door is locked while a farmer sleeps
 wall_holds.gd | 60 | free | passfail | Climbing wall: a foot stone under every hold, so the feet never stand on air
+wall_spots.gd | 60 | free | passfail | Climbing wall: tar, edelweiss and door spots build, give their ingredients and survive saving

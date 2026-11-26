@@ -27,6 +27,10 @@ signal weather_changed(weather: String)
 signal hurt(amount: int)
 ## The climber reached a square with a goal or event (a key of WallMap.MARKERS) for the first time.
 signal marker_reached(kind: String, cell: Vector2i)
+## The climber took an ingredient from a special spot of the wall (marker "tar", "edelweiss"; see WallSpots.GATHER).
+signal gathered(ingredient: String, count: int)
+## The climber reached a door in the wall (marker "door"); the wall's `door` says where it leads.
+signal door_reached(cell: Vector2i)
 
 const FOLLOW_DISTANCE := 10.0
 const OVERVIEW_MARGIN := 1.25
@@ -277,6 +281,10 @@ func _build_markers() -> void:
 		label.shaded = false
 		label.position = Vector3(xy.x, xy.y + 1.1, z + 0.6)
 		wall_root.add_child(label)
+		var spot := WallSpots.build(kind, int(cell.x * 31 + cell.y))
+		if spot != null:
+			spot.position = Vector3(xy.x, xy.y, z) + WallSpots.offset(kind)
+			wall_root.add_child(spot)
 		if kind == "body":
 			var dead := WallClimber.make()
 			dead.model.position = Vector3(xy.x + 0.6, xy.y - 1.9, z + 0.55)
@@ -759,6 +767,10 @@ func try_move(dir: int, roll: float, fall_roll: float) -> int:
 		var kind := wall.marker_at(to.x, to.y)
 		_tell(String(WallMap.MARKERS[kind].text))
 		marker_reached.emit(kind, to)
+		if WallSpots.GATHER.has(kind):
+			gathered.emit(String(WallSpots.GATHER[kind].id), int(WallSpots.GATHER[kind].count))
+		elif kind == "door":
+			door_reached.emit(to)
 	return out
 
 

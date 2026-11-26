@@ -1,0 +1,1 @@
+- The climbing wall has special spots: mountain tar seeping from a crack and edelweiss on a ledge (both can be picked as ingredients), and a door in the rock that leads into a mine. Place them in the wall editor.

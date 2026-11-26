@@ -74,6 +74,14 @@ static func open_climb(game: Node, file: String) -> void:
 	stage.climb.recovery = game.player.stamina_recovery()
 	stage.climb.stamina = game.player.stamina if game.player.stamina >= 0.0 else stage.climb.stamina_max
 	stage.hurt.connect(func(n: int) -> void: game.player.hp = maxi(1, game.player.hp - n))
+	stage.gathered.connect(func(id: String, count: int) -> void: game._on_ingredient_collected(id, count))
+	stage.door_reached.connect(func(_cell: Vector2i) -> void:
+		var door := WallPlacements.door_of(wall)
+		var index: int = game.level_files.find(game.LEVEL_DIR + String(door[0])) if not door.is_empty() else -1
+		if index < 0:
+			return
+		_close(game, layer)
+		game.teleport_to(index, false, String(door[1])))
 	stage.finished.connect(func(outcome: String) -> void:
 		var best := float(wall.height - (stage.climb.cell.y if not stage.climb.on_ground() else wall.height))
 		game.player.train("klettern", Training.CLIMB_PER_METRE * best * TRAIN_FRACTION)

@@ -47,3 +47,7 @@ beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scr
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
 monitor.gd | scripts/monitor.gd scripts/launcher.gd scripts/lang/display.gd
+
+# The hero's level and experience: the level curve, monster levels, the character page and the starter dungeon
+# (levels 01 to 06). Looks, sounds and shaders never select it (see the neutral list in tests/ci_select.sh).
+hero_level.gd | scripts/hero_level.gd scripts/training.gd scripts/character_page.gd scripts/skill_trees.gd scripts/skill_tree_page.gd scripts/slime_growth.gd scripts/dungeon_life.gd scripts/monster_families.gd levels/0[1-6]_*.txt

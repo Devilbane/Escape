@@ -47,3 +47,4 @@ beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scr
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
 monitor.gd | scripts/monitor.gd scripts/launcher.gd scripts/lang/display.gd
+riddle_vault.gd | scripts/riddle_vault.gd tools/riddle_hash.gd

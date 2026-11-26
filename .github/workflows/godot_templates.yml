@@ -1,0 +1,73 @@
+name: Godot templates
+
+# Compiles the Windows engine (export template) that the Windows build uses to encrypt the game data
+# (.github/workflows/desktop.yml). Godot can only encrypt data with an engine built WITH the key, so the
+# official templates do not do. It takes a while (about half an hour), so it runs by hand once and when the
+# key or the Godot version changes; the result is kept in the Actions cache (never as a download, since the key
+# is inside it), which the nightly Windows build keeps alive. If the cache was lost, the Windows build says so
+# and builds without encryption until this workflow has run again.
+#
+# Secret needed: PCK_KEY, 64 hex digits (for example `openssl rand -hex 32`). Never print it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  templates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Name of the cache
+        id: name
+        env:
+          PCK_KEY: ${{ secrets.PCK_KEY }}
+        run: |
+          if ! printf %s "$PCK_KEY" | grep -Eq '^[0-9a-fA-F]{64}$'; then
+            echo "::error::Set the repository secret PCK_KEY to 64 hex digits first."; exit 1
+          fi
+          echo "id=$(printf %s "$PCK_KEY" | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Already built?
+        id: have
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/escape_templates
+          key: escape-templates-${{ env.GODOT_VERSION }}-${{ steps.name.outputs.id }}
+          lookup-only: true
+
+      - name: Tools
+        if: steps.have.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mingw-w64 scons python3-pip
+          sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+
+      - name: Godot source
+        if: steps.have.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch ${GODOT_VERSION}-stable https://github.com/godotengine/godot.git ~/godot-src
+
+      - name: Compile the Windows engine with the key
+        if: steps.have.outputs.cache-hit != 'true'
+        env:
+          SCRIPT_AES256_ENCRYPTION_KEY: ${{ secrets.PCK_KEY }}
+        run: |
+          cd ~/godot-src
+          scons platform=windows target=template_release arch=x86_64 use_mingw=yes lto=none debug_symbols=no -j"$(nproc)"
+          mkdir -p ~/escape_templates
+          cp bin/godot.windows.template_release.x86_64.exe ~/escape_templates/windows_release_x86_64.exe
+          ls -la ~/escape_templates
+
+      - name: Keep it in the cache
+        if: steps.have.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/escape_templates
+          key: escape-templates-${{ env.GODOT_VERSION }}-${{ steps.name.outputs.id }}

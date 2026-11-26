@@ -2,7 +2,7 @@ class_name OwlClock
 extends RefCounted
 ## The owl clock: a riddle that takes a long while and gives no hand to hold. Its parts are the
 ## Deathringer (a bell, crafted from a recipe, rung with key 3), the graveyard's gravestones (see
-## GraveLore) and the owls (see Owls). What solves it is sealed (see RiddleSeal); no comment, test or
+## GraveLore) and the owls (see Owls). What solves it is hidden in the vault (see RiddleVault); no comment, test or
 ## text of the code says it. Ringing the bell where it should not be rung three times in a row wakes
 ## Death, stronger at a fuller moon, and rests the bell until the next night; the first CALLS_REWARDED
 ## times Death pays like any monster, then it gives no loot, no experience and no training, and the
@@ -13,10 +13,10 @@ extends RefCounted
 
 const ID := "eulengruft"
 const NAME := "Owlavs Gruft"
-## The sealed answers (see RiddleSeal), and the tile of the dead tree whose owl strikes the hours (the
+## The answers, hidden in the vault (see RiddleVault), and the tile of the dead tree whose owl strikes the hours (the
 ## outdoor map "Apfeltal").
-const _PATTERN := "clxXSVg="
-const _GRAVE := "d1xf"
+const _ENTRY := {"salt": "a05a471a5d7361d9ed9e2e9b", "rounds": 60000, "hash": "efe69648a4fd3a98d0eb390cd3327e9d36e29b31098dd1382d82892707c6d75b"}
+const _CODE := "azjuKpY="
 const OWL_TREE_CELL := Vector2i(9, 12)
 ## How high in the dead tree the owl sits (metres).
 const OWL_HEIGHT := 3.4
@@ -91,12 +91,12 @@ func clear() -> void:
 
 ## The hoots of the clock, group by group.
 static func pattern() -> Array[int]:
-	return RiddleSeal.numbers(_PATTERN)
+	return RiddleVault.unscramble(_CODE, _ENTRY).slice(2)
 
 
 ## The tile of the grave the bell is rung at.
 static func grave_cell() -> Vector2i:
-	var n := RiddleSeal.numbers(_GRAVE)
+	var n := RiddleVault.unscramble(_CODE, _ENTRY)
 	return Vector2i(n[0], n[1])
 
 

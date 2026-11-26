@@ -127,6 +127,6 @@ func _run() -> void:
 	check(Enemy.KINDS.has(OwlClock.DEATH_KIND) and MonsterFamilies.KINDS.get(OwlClock.DEATH_KIND, "") != "", "Death is a monster of a family")
 	check(FileAccess.file_exists("res://levels/42_owlavs_gruft.txt"), "the crypt's map exists")
 	# The seal covers the answer.
-	check(RiddleSeal.open("") == "" and RiddleSeal.numbers(OwlClock._PATTERN).size() == pattern.size(), "the seal opens")
+	check(OwlClock.pattern().size() > 0 and OwlClock.grave_cell().x > 0, "the vault opens")
 	print("PASS: owl clock" if failures == 0 else "FAILED: " + str(failures))
 	quit(1 if failures > 0 else 0)

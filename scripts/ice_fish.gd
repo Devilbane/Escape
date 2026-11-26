@@ -32,6 +32,8 @@ const RING_SCARE := 1.4
 const DART_SPEED := 1.9
 const DART_TIME := 1.1
 const DIVE_DEPTH := 0.7
+## A startled fish first shakes its whole body for SHAKE_TIME seconds, then bolts.
+const SHAKE_TIME := 0.7
 const GONE_TIME := Vector2(8.0, 16.0)
 ## Deep in the open water a fish is a little dimmer (see _base_fade). Now and then one comes up to the
 ## surface (SURFACE_PAUSE seconds apart), breaks it with a ring, flicks its fin (a rolling wiggle) and dives
@@ -282,7 +284,7 @@ func _stir(delta: float) -> void:
 		if Vector2(p.x - at.x, p.z - at.z).length() < RING_SCARE:
 			var away := Vector2(p.x - at.x, p.z - at.z)
 			f.heading = atan2(away.x, away.y) if away.length() > 0.05 else f.heading
-			f.state = "dart"
+			f.state = "shake"
 			f.timer = 0.0
 			f.zig = false
 			f.fade_from = _base_fade()
@@ -365,6 +367,16 @@ func _startled(f: Dictionary, delta: float) -> bool:
 					f.zig = true
 					f.fade_from = 1.0
 					f.heading += _ring_rng.randf_range(-1.0, 1.0)
+		"shake":
+			# Rooted to the spot, the body shivers hard and the nose jitters, then it bolts.
+			f.timer += delta
+			var k: float = clampf(f.timer / SHAKE_TIME, 0.0, 1.0)
+			mat.set_shader_parameter("shake", sin(PI * minf(k * 1.4, 1.0)) * 0.5 + 0.5 * k)
+			holder.rotation.y = f.heading + HEAD_TURN + sin(f.timer * 45.0) * 0.18 * k
+			if f.timer >= SHAKE_TIME:
+				mat.set_shader_parameter("shake", 0.0)
+				f.state = "dart"
+				f.timer = 0.0
 		"dart":
 			f.timer += delta
 			if f.zig:

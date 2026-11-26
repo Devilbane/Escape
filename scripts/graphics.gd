@@ -46,17 +46,58 @@ const HINTS := {
 ## lamps: how many lamps cast wall shadows at once (see LightShadows.budget).
 ## sharp: how sharp textures stay at a slant (Viewport.ANISOTROPY_*).
 ## fine_glow: the glow round lights drawn smooth rather than in blocks. deband: no stripes in dark skies.
+## shadows: the level of the shadow maps (see SHADOWS), which sets sun_map, lamp_map and soft.
+## bump: how strong the surfaces' relief is drawn (1 = as designed, see RELIEF_PARAM). glow: bloom round bright lights.
 const LOOKS := {
 	QUALITY: {"msaa": Viewport.MSAA_4X, "smooth": Viewport.SCREEN_SPACE_AA_SMAA, "scale": 1.5, "sun_map": 8192, "lamp_map": 4096,
-		"soft": RenderingServer.SHADOW_QUALITY_SOFT_HIGH, "lamps": 6, "sharp": Viewport.ANISOTROPY_16X, "fine_glow": true, "deband": true},
+		"soft": RenderingServer.SHADOW_QUALITY_SOFT_HIGH, "lamps": 6, "sharp": Viewport.ANISOTROPY_16X, "fine_glow": true, "deband": true,
+		"shadows": "ultra", "bump": 1.0, "glow": true},
 	BALANCED: {"msaa": Viewport.MSAA_2X, "smooth": Viewport.SCREEN_SPACE_AA_SMAA, "scale": 1.0, "sun_map": 4096, "lamp_map": 4096,
-		"soft": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "lamps": 6, "sharp": Viewport.ANISOTROPY_4X, "fine_glow": true, "deband": true},
+		"soft": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "lamps": 6, "sharp": Viewport.ANISOTROPY_4X, "fine_glow": true, "deband": true,
+		"shadows": "medium", "bump": 1.0, "glow": true},
 	PERFORMANCE: {"msaa": Viewport.MSAA_DISABLED, "smooth": Viewport.SCREEN_SPACE_AA_FXAA, "scale": 0.77, "sun_map": 2048, "lamp_map": 2048,
-		"soft": RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, "lamps": 4, "sharp": Viewport.ANISOTROPY_2X, "fine_glow": false, "deband": false},
+		"soft": RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW, "lamps": 4, "sharp": Viewport.ANISOTROPY_2X, "fine_glow": false, "deband": false,
+		"shadows": "low", "bump": 1.0, "glow": true},
 }
 const SETTINGS_FILE := Sfx.SETTINGS_FILE
 
 static var preset := DEFAULT
+
+## The shadow levels the player can pick: the sun's and the lamps' map sizes and how soft the edges are.
+const SHADOW_LEVELS := ["low", "medium", "high", "ultra"]
+const SHADOWS := {
+	"low": {"sun_map": 2048, "lamp_map": 2048, "soft": RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW},
+	"medium": {"sun_map": 4096, "lamp_map": 4096, "soft": RenderingServer.SHADOW_QUALITY_SOFT_LOW},
+	"high": {"sun_map": 8192, "lamp_map": 4096, "soft": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM},
+	"ultra": {"sun_map": 8192, "lamp_map": 4096, "soft": RenderingServer.SHADOW_QUALITY_SOFT_HIGH},
+}
+const SHARP_LEVELS := [Viewport.ANISOTROPY_DISABLED, Viewport.ANISOTROPY_2X, Viewport.ANISOTROPY_4X, Viewport.ANISOTROPY_8X, Viewport.ANISOTROPY_16X]
+## The edge smoothing the player can pick. The modern renderer cannot use MSAA (see LOOKS), OpenGL has
+## no SMAA and no TAA.
+const AA_MODERN := ["off", "fxaa", "smaa", "taa"]
+const AA_GL := ["off", "fxaa", "msaa2", "msaa4", "msaa8"]
+const SCALE_RANGE := Vector2(0.5, 1.5)
+const MAX_LAMPS := 8
+const BUMP_RANGE := Vector2(0.0, 1.5)
+## The global shader parameter (project.godot) that scales the relief of every bump-mapped surface.
+const RELIEF_PARAM := "relief_strength"
+## The options the player can change on top of a preset: option -> value. Picking a preset clears them.
+## aa (a string of AA_MODERN or AA_GL), scale, sharp (a Viewport.ANISOTROPY_*), shadows (a SHADOW_LEVELS name),
+## lamps, bump and glow; a missing option follows the preset.
+const OPTIONS := ["aa", "scale", "sharp", "shadows", "lamps", "bump", "glow"]
+static var custom := {}
+
+## The frame rate caps (0: none) and the vertical sync modes the player can pick. They belong to no preset.
+const FPS_CAPS := [0, 30, 60, 90, 120, 144, 165, 240]
+const VSYNC_MODES := {"off": DisplayServer.VSYNC_DISABLED, "on": DisplayServer.VSYNC_ENABLED, "adaptive": DisplayServer.VSYNC_ADAPTIVE}
+static var vsync := "on"
+static var fps_cap := 0
+## The picture's colour adjustments (Environment.adjustment_*): the same on every preset, remembered in the
+## settings file. The defaults are the game's look.
+const TONES := {"brightness": Vector3(0.7, 1.0, 1.4), "contrast": Vector3(0.7, 1.08, 1.5), "saturation": Vector3(0.0, 1.0, 1.6)}
+static var tone := {"brightness": 1.0, "contrast": 1.08, "saturation": 1.0}
+## The game's Environment, so the bloom can be switched (see watch_environment).
+static var _env: Environment
 
 
 ## Whether the modern renderer draws the game (Forward+ on DirectX 12, Vulkan or Metal), not OpenGL.
@@ -120,45 +161,228 @@ static func lamp() -> float:
 
 static func load_settings() -> void:
 	var cfg := ConfigFile.new()
-	if cfg.load(SETTINGS_FILE) == OK:
-		var saved := str(cfg.get_value("grafik", "stufe", DEFAULT))
-		preset = saved if saved in PRESETS else DEFAULT
+	custom = {}
+	if cfg.load(SETTINGS_FILE) != OK:
+		return
+	var saved := str(cfg.get_value("grafik", "stufe", DEFAULT))
+	preset = saved if saved in PRESETS else DEFAULT
+	for key: String in OPTIONS:
+		if cfg.has_section_key("grafik", "o_" + key):
+			set_custom(key, cfg.get_value("grafik", "o_" + key), false)
+	var sync := str(cfg.get_value("grafik", "vsync", vsync))
+	vsync = sync if sync in VSYNC_MODES else "on"
+	var cap := int(cfg.get_value("grafik", "fps", 0))
+	fps_cap = cap if cap in FPS_CAPS else 0
+	for key: String in TONES:
+		var range: Vector3 = TONES[key]
+		tone[key] = clampf(float(cfg.get_value("grafik", "t_" + key, range.y)), range.x, range.z)
 
 
 static func _save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(SETTINGS_FILE)
 	cfg.set_value("grafik", "stufe", preset)
+	for key: String in OPTIONS:
+		cfg.set_value("grafik", "o_" + key, custom[key] if custom.has(key) else null)
+	cfg.set_value("grafik", "vsync", vsync)
+	cfg.set_value("grafik", "fps", fps_cap)
+	for key: String in TONES:
+		cfg.set_value("grafik", "t_" + key, tone[key])
 	cfg.save(SETTINGS_FILE)
 
 
-## Picks a preset, remembers it and draws `view` (the game's window) with it at once.
+## Picks a preset, remembers it and draws `view` (the game's window) with it at once. Options the
+## player changed on top of the old preset are let go.
 static func choose(which: String, view: Viewport) -> void:
 	if not which in PRESETS:
 		return
 	preset = which
+	custom = {}
 	_save_settings()
 	apply(view)
 
 
-## Draws `view` as the picked preset says.
-static func apply(view: Viewport) -> void:
+## Whether the player changed any option on top of the preset.
+static func is_custom() -> bool:
+	return not custom.is_empty()
+
+
+## The edge smoothing modes this renderer offers.
+static func aa_modes() -> Array:
+	return AA_MODERN if modern() else AA_GL
+
+
+## The edge smoothing a preset (without the player's options) uses, as one of aa_modes().
+static func preset_aa(which: String) -> String:
+	var look: Dictionary = LOOKS[which]
+	if modern():
+		return "smaa" if look.smooth == Viewport.SCREEN_SPACE_AA_SMAA else "fxaa"
+	match look.msaa:
+		Viewport.MSAA_2X:
+			return "msaa2"
+		Viewport.MSAA_4X:
+			return "msaa4"
+		Viewport.MSAA_8X:
+			return "msaa8"
+	return "fxaa"
+
+
+## Whether `value` is a valid setting of the option `key`.
+static func valid(key: String, value: Variant) -> bool:
+	match key:
+		"aa":
+			return value is String and value in aa_modes()
+		"scale":
+			return (value is float or value is int) and float(value) >= SCALE_RANGE.x - 0.001 and float(value) <= SCALE_RANGE.y + 0.001
+		"sharp":
+			return value is int and value in SHARP_LEVELS
+		"shadows":
+			return value is String and value in SHADOW_LEVELS
+		"lamps":
+			return value is int and value >= 0 and value <= MAX_LAMPS
+		"bump":
+			return (value is float or value is int) and float(value) >= BUMP_RANGE.x - 0.001 and float(value) <= BUMP_RANGE.y + 0.001
+		"glow":
+			return value is bool
+	return false
+
+
+## Remembers one option on top of the preset; a value that does not fit is ignored. Returns whether it was taken.
+static func set_custom(key: String, value: Variant, save := true) -> bool:
+	if not valid(key, value):
+		return false
+	custom[key] = value
+	if save:
+		_save_settings()
+	return true
+
+
+## The setting in force for an option: the player's, else the picked preset's.
+static func value(key: String) -> Variant:
+	if custom.has(key):
+		return custom[key]
 	var look: Dictionary = LOOKS[preset]
+	match key:
+		"aa":
+			return preset_aa(preset)
+		"scale":
+			return look.scale
+		"sharp":
+			return look.sharp
+		"shadows":
+			return look.shadows
+		"lamps":
+			return look.lamps
+		"bump":
+			return look.bump
+		"glow":
+			return look.glow
+	return null
+
+
+## Changes one option, remembers it and draws `view` with it at once.
+static func choose_option(key: String, val: Variant, view: Viewport) -> void:
+	if set_custom(key, val):
+		apply(view)
+
+
+## Picks the vertical sync mode, remembers it and uses it at once.
+static func choose_vsync(mode: String) -> void:
+	vsync = mode if mode in VSYNC_MODES else "on"
+	_save_settings()
+	apply_display()
+
+
+## Picks the frame rate cap (0: none), remembers it and uses it at once.
+static func choose_fps(cap: int) -> void:
+	fps_cap = cap if cap in FPS_CAPS else 0
+	_save_settings()
+	apply_display()
+
+
+## Vertical sync and the frame rate cap: the same on every preset.
+static func apply_display() -> void:
+	DisplayServer.window_set_vsync_mode(VSYNC_MODES[vsync])
+	Engine.max_fps = fps_cap
+
+
+## Sets one colour adjustment (brightness, contrast or saturation), remembers it and uses it at once.
+static func choose_tone(key: String, val: float) -> void:
+	if not TONES.has(key):
+		return
+	var range: Vector3 = TONES[key]
+	tone[key] = clampf(val, range.x, range.z)
+	_save_settings()
+	_apply_tone()
+
+
+static func _apply_tone() -> void:
+	if _env:
+		_env.adjustment_enabled = true
+		_env.adjustment_brightness = tone.brightness
+		_env.adjustment_contrast = tone.contrast
+		# The saturation is multiplied in where the sky and the weather set it (DayNight, Game).
+		_env.adjustment_saturation = tone.saturation
+
+
+## Gives the game's Environment, so the bloom follows the setting from now on.
+static func watch_environment(env: Environment) -> void:
+	_env = env
+	if _env:
+		_env.glow_enabled = bool(value("glow"))
+		_apply_tone()
+
+
+## What the picked preset and the player's options together set (see LOOKS).
+static func look() -> Dictionary:
+	var look: Dictionary = LOOKS[preset].duplicate()
+	for key: String in custom:
+		look[key] = custom[key]
+	look.merge(SHADOWS[look.shadows], true)
+	return look
+
+
+## Draws `view` as the picked preset and the player's options say.
+static func apply(view: Viewport) -> void:
+	var look := look()
 	view.anisotropic_filtering_level = look.sharp
 	view.positional_shadow_atlas_size = look.lamp_map
 	if modern():
 		view.msaa_3d = Viewport.MSAA_DISABLED
-		view.screen_space_aa = look.smooth
+		_apply_edges(view, str(value("aa")))
 		var scale: float = look.scale
 		view.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if scale < 1.0 else Viewport.SCALING_3D_MODE_BILINEAR
 		view.scaling_3d_scale = scale
 		view.use_debanding = look.deband
 	else:
-		view.msaa_3d = look.msaa
-		# OpenGL has no SMAA: its cheap pass is FXAA, used only where there is no MSAA.
-		view.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if look.msaa == Viewport.MSAA_DISABLED else Viewport.SCREEN_SPACE_AA_DISABLED
+		_apply_edges(view, str(value("aa")))
 	RenderingServer.directional_shadow_atlas_set_size(look.sun_map, true)
 	RenderingServer.directional_soft_shadow_filter_set_quality(look.soft)
 	RenderingServer.positional_soft_shadow_filter_set_quality(look.soft)
 	RenderingServer.environment_glow_set_use_bicubic_upscale(look.fine_glow)
+	RenderingServer.global_shader_parameter_set(RELIEF_PARAM, float(look.bump))
+	if _env:
+		_env.glow_enabled = look.glow
+		_apply_tone()
 	LightShadows.budget = look.lamps
+	apply_display()
+
+
+## Sets the edge smoothing of `view` to one of aa_modes().
+static func _apply_edges(view: Viewport, aa: String) -> void:
+	view.msaa_3d = Viewport.MSAA_DISABLED
+	view.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	view.use_taa = false
+	match aa:
+		"fxaa":
+			view.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+		"smaa":
+			view.screen_space_aa = Viewport.SCREEN_SPACE_AA_SMAA
+		"taa":
+			view.use_taa = true
+		"msaa2":
+			view.msaa_3d = Viewport.MSAA_2X
+		"msaa4":
+			view.msaa_3d = Viewport.MSAA_4X
+		"msaa8":
+			view.msaa_3d = Viewport.MSAA_8X

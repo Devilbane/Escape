@@ -953,7 +953,7 @@ func _fleece(model: Node3D) -> void:
 		wool.normal_enabled = true
 		wool.normal_texture = _fleece_normals(noise)
 		wool.normal_scale = 2.2
-		wool.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		wool.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 		wool.uv1_triplanar = true
 		wool.uv1_scale = Vector3.ONE * 18.0
 		wool.roughness = 1.0

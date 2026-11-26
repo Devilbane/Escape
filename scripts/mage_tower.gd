@@ -915,7 +915,7 @@ static func hang_tapestry(parent: Node3D, which: String, at: Vector3) -> Node3D:
 	var cloth := StandardMaterial3D.new()
 	cloth.albedo_texture = picture_of(which)
 	cloth.roughness = 1.0
-	cloth.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	cloth.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	picture.material_override = cloth
 	picture.position = Vector3(0, TAPESTRY.y * 0.5, 0.02)
 	root.add_child(picture)
@@ -1487,7 +1487,7 @@ static func star_chart(size := Vector2(1.3, 1.3)) -> Node3D:
 	var paper := StandardMaterial3D.new()
 	paper.albedo_texture = star_chart_image()
 	paper.roughness = 0.9
-	paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	paper.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	chart.material_override = paper
 	chart.position = Vector3(0, size.y * 0.5, 0.025)
 	root.add_child(chart)

@@ -27,7 +27,7 @@ render_mode cull_disabled, shadows_disabled;
 
 #include "res://shaders/snow.gdshaderinc"
 
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
+uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable;
 // How far a branch tip one metre out from the trunk sways (metres).
 uniform float sway = 0.08;
 // The spruce's greens, from fresh to a dark blue-green.

@@ -51,7 +51,8 @@ void fragment() {
 	float h = (fbm(p * 9.0) - 0.5) * 0.012 * band(9.0, px) + (vnoise(p * 30.0) - 0.5) * 0.004 * band(30.0, px) - mica * 0.002;
 	ALBEDO = col;
 	NORMAL = bumped(NORMAL, dFdx(VERTEX), dFdy(VERTEX), dFdx(h), dFdy(h));
-	ROUGHNESS = 0.88 - 0.25 * quartz;
-	SPECULAR = 0.25 + 0.3 * quartz;
+	// Quartz grains stay matt enough not to sparkle in single pixels in the sun.
+	ROUGHNESS = 0.88 - 0.15 * quartz;
+	SPECULAR = 0.25 + 0.15 * quartz;
 	ALBEDO = gl_colour(ALBEDO);
 }

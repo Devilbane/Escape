@@ -1,0 +1,1 @@
+- Fixed the Test button and panel (F3 or F6) sitting above the top of the screen, out of sight.

@@ -47,3 +47,7 @@ beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scr
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
 monitor.gd | scripts/monitor.gd scripts/launcher.gd scripts/lang/display.gd
+house_exit_quick.gd | scripts/homes.gd scripts/house_*.gd scripts/plot*.gd scripts/village_house.gd
+ladder_exit.gd | scripts/ladder_click.gd scripts/ladder_pose.gd scripts/house_*.gd scripts/homes.gd
+quarry_door.gd | scripts/quarry_hill.gd scripts/quarry_rocks.gd scripts/village_house.gd scripts/mountains.gd
+house_faces.gd | scripts/village_house.gd scripts/house_*.gd

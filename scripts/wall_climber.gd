@@ -45,3 +45,15 @@ func pose(p: Dictionary) -> void:
 ## The hammer in his hand (true) or on his belt.
 func hammer(in_hand: bool) -> void:
 	ClimberOutfit.hammer_in_hand(model, in_hand)
+
+
+var _lids: Node3D
+
+
+## Closes the eyes (asleep) or opens them again.
+func sleep_eyes(asleep: bool) -> void:
+	if asleep and _lids == null:
+		_lids = EyeLids.build(model)
+	if _lids != null:
+		_lids.visible = asleep
+	BodyLook.blink(model, asleep)

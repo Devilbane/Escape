@@ -97,6 +97,27 @@ static func cloth() -> Node3D:
 	return root
 
 
+## The blanket side of the hammock folded over the sleeper: a woven sheet from the feet up to the chin that leaves
+## only the head with the helmet out. It hangs in front of the body at the hammock's middle.
+static func wrap() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Wrap"
+	var sheet := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.5, WIDTH + 0.12)
+	sheet.mesh = quad
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = _weave()
+	mat.uv1_scale = Vector3(3.0, 1.0, 1.0)
+	mat.roughness = 0.95
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	sheet.material_override = mat
+	# Covers the body from the feet (right) up to the shoulders; the head end (left) stays free.
+	sheet.position = Vector3(0.3, -SAG * 0.45, 0.0)
+	root.add_child(sheet)
+	return root
+
+
 static func _iron() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	var noise := FastNoiseLite.new()

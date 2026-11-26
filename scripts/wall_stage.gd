@@ -56,6 +56,11 @@ const THREAD_SECONDS := 1.4
 const TOP_SECONDS := 2.0
 const FALL_SECONDS := 0.8
 const REST_SECONDS := 2.4
+## The night in the hammock: wrapped up, snoring, about this many seconds.
+const BED_SECONDS := 20.0
+const SNORE_EVERY := 2.8
+## Waking up: a yawn and an arm stretch before he climbs out.
+const WAKE_SECONDS := 2.6
 ## A lightning strike in a storm: only on a climber higher than this (m) and at this chance per flash.
 const LIGHTNING_MIN_HEIGHT := 5.0
 const LIGHTNING_CHANCE := 0.3
@@ -67,6 +72,8 @@ const LEAP_POSES := {
 	"spring": {"hips_y": 0.1, "spine": -8.0, "head": -26.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 70.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 70.0, "elbow_r": 0.0, "hip_l": 8.0, "hip_r": 12.0, "knee_l": 8.0, "knee_r": 14.0, "abd_l": 20.0, "abd_r": 20.0},
 	"catch": {"hips_y": -0.06, "spine": 12.0, "head": -24.0, "arm": 150.0, "elbow": 75.0, "hip_l": 72.0, "hip_r": 66.0, "knee_l": 92.0, "knee_r": 88.0, "abd_l": 30.0, "abd_r": 30.0},
 }
+## The arm stretch on waking: both arms high and out, the head tipped back.
+const STRETCH_POSE := {"hips_y": 0.0, "spine": -8.0, "head": -14.0, "arm_l": 0.0, "out_l": 35.0, "lift_l": 160.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 35.0, "lift_r": 160.0, "elbow_r": 0.0}
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],
 	WallWeather.FOG: [Color(0.64, 0.67, 0.7), 0.55, 0.85],
@@ -856,12 +863,25 @@ func _tick_animation(delta: float) -> void:
 			climber.pose(_leap_pose(u))
 			var t := smoothstep(0.35, 0.8, u)
 			at = from.lerp(to, t) + Vector3(0, sin(t * PI) * 0.7, 0)
-		"bed":
-			# Lying in the hammock on his side, breathing slowly.
-			climber.pose(ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6))
-			var into := smoothstep(0.0, 0.2, u) * (1.0 - smoothstep(0.85, 1.0, u))
-			climber.model.rotation.z = -into * PI * 0.5
-			at = from + Vector3(WallHammock.SPAN * 0.4 * into, 0.62 * into, (0.05 - from.z + 0.9) * into * 0.0 + 0.1 * into)
+		"bed", "wake":
+			# Lying on his back in the hammock, the face to the sky, wrapped up to the chin so that only the head with
+			# the helmet looks out; eyes closed, breathing slowly and snoring (one snore per breath). At the end a yawn
+			# and an arm stretch.
+			var waking := key == "wake"
+			var rest_pose := ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6)
+			climber.pose(ClimbPose.mix(rest_pose, STRETCH_POSE, sin(clampf(u, 0.0, 1.0) * PI) if waking else 0.0))
+			var into := smoothstep(0.0, 0.05, u) if key == "bed" else 1.0
+			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, into * PI * 0.5)
+			climber.sleep_eyes(not waking or u < 0.5)
+			if waking and u < 0.05 and not _yawned:
+				_yawned = true
+				Sfx.play(self, "yawn", -2.0)
+			if not waking and u > 0.08:
+				_snore_t -= get_process_delta_time()
+				if _snore_t <= 0.0:
+					_snore_t = SNORE_EVERY
+					Sfx.play(self, "snore", -4.0)
+			at = from + Vector3(WallHammock.SPAN * 0.4 * into, 0.62 * into, 0.1 * into)
 		"fall":
 			climber.pose(RopeClimbPose.at("fall", u))
 			at = from.lerp(to, u * u)
@@ -881,8 +901,14 @@ func _tick_animation(delta: float) -> void:
 	feet = at
 	climber.model.position = feet
 	_slack = 0.9 * (1.0 - u * u) * sin(minf(1.0, u * 3.0) * PI * 0.5) if key == "fall" else 0.0
-	if key != "bed":
-		climber.model.rotation.z = 0.0
+	if key != "bed" and key != "wake":
+		climber.model.rotation = Vector3.ZERO
+		climber.sleep_eyes(false)
+		_yawned = false
+	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):
+		var wrap := WallHammock.wrap()
+		wrap.position = (_piton_spot(from, 0) + _piton_spot(from, 1)) * 0.5 + Vector3(0.0, 0.0, 0.62)
+		_camp_root().add_child(wrap)
 	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		var spike := WallHammock.piton(int(st.piton))
@@ -915,7 +941,8 @@ func _queue_camp(here: Vector3) -> void:
 	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 0})
 	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 1})
 	_queue.append({"key": "thread", "secs": THREAD_SECONDS, "from": here, "to": here, "hang": true})
-	_queue.append({"key": "bed", "secs": 3.0, "from": here, "to": here})
+	_queue.append({"key": "bed", "secs": BED_SECONDS, "from": here, "to": here})
+	_queue.append({"key": "wake", "secs": WAKE_SECONDS, "from": here, "to": here})
 	_queue.append({"key": "stand", "secs": 0.8, "from": here, "to": here, "unhang": true})
 
 
@@ -939,6 +966,8 @@ func _leap_pose(u: float) -> Dictionary:
 # --- nails and rope --------------------------------------------------------------------------------------
 
 var _camp: Node3D
+var _snore_t := 0.0
+var _yawned := false
 var _slack := 0.0   ## how much the rope hangs loose in a fall (it is taut again when the fall is caught)
 
 

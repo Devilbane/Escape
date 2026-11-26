@@ -304,6 +304,8 @@ var _last_spruce_size := 1.0
 var undergrowth_bushes: Array[Vector4] = []
 ## Where the village's shrubs stand (see _plant_bushes).
 var shrubs: Array[Vector3] = []
+## Where Benno's tent stands (ZERO: not looked up yet, INF: none), see _near_barber.
+var _barber_tent := Vector3.ZERO
 ## The season's stage the trees' leaves were last dressed for (see set_season, IvySeasons.stage).
 var _tree_stage := IvySeasons.SUMMER
 ## The birds and squirrels of the woods (see WoodsLife).
@@ -565,6 +567,9 @@ const MASON_YARD_SHIFT := 0.4
 const VILLAGE_BLOCKS := "hjnmuskowb^["
 const BUSH_CHANCE := 0.8
 const BUSH_OPEN := 0.3
+## How much taller than wide Benno's tent is drawn, and how far round it no shrub grows (metres).
+const BARBER_TENT_TALL := 1.35
+const BARBER_CLEAR := 7.0
 ## The share of these shrubs that keep their leaves in autumn (the rest shed them, see
 ## undergrowth_shed), and fewer still within SHRUB_TEMPLE_REACH tiles of the temple.
 const SHRUB_AUTUMN_KEEP := 0.5
@@ -2419,7 +2424,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 		for ix in steps.x + 1:
 			var at := Vector3(inner.position.x + inner.size.x * ix / steps.x, 0.0, inner.position.y + inner.size.y * iy / steps.y)
 			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
-					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) \
+					or _near_barber(at) or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) \
 					or placed.any(func(b: Vector3): return b.distance_to(at) < UNDERGROWTH_SPACING):
 				continue
 			placed.append(at)
@@ -2433,7 +2438,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 		for ix in ceili(block.size.x / UNDERGROWTH_CHECK):
 			var at := Vector3(block.position.x + (ix + 0.5) * UNDERGROWTH_CHECK, 0.0, block.position.y + (iy + 0.5) * UNDERGROWTH_CHECK)
 			if not _near_open_face(c, block, at) or under_crown(c, at) or on_plot(at, 0.5) \
-					or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE):
+					or _near_barber(at) or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE):
 				continue
 			var covered := false
 			for i in placed.size():
@@ -3890,11 +3895,22 @@ func _plant_bushes() -> void:
 				var at := cell_to_world(c) + toward * rng.randf_range(0.6, 1.3) + side * rng.randf_range(-1.6, 1.6)
 				# Never over the temple glass's light on the grass (bare_ground), a full bush's
 				# width (AgedStone.grow_bush) away.
-				if Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) or _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
+				if _near_barber(at) or Mountains.near_rock(self, at.x, at.z, Mountains.BUSH_CLEARANCE) or _paved_at(at) or on_bare_ground(at, 1.6) or _entrances.any(func(e): return Vector2((e.door as Vector3).x - at.x, (e.door as Vector3).z - at.z).length() < 3.0):
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
 				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed)
+
+
+## Whether `at` lies near Benno's tent: no shrub grows there, so the chair stands clear (see BARBER_CLEAR).
+func _near_barber(at: Vector3) -> bool:
+	if _barber_tent == Vector3.ZERO:
+		_barber_tent = Vector3.INF
+		for y in height:
+			for x in width:
+				if cell_char(Vector2i(x, y)) == "Z":
+					_barber_tent = cell_to_world(Vector2i(x, y - 1))
+	return _barber_tent != Vector3.INF and Vector2(_barber_tent.x - at.x, _barber_tent.z - at.z).length() < BARBER_CLEAR
 
 
 ## Whether a spot on the ground lies on or within `radius` of ground kept bare (bare_ground).
@@ -4236,8 +4252,8 @@ func _spawn_villagers() -> void:
 			elif ch == "K":
 				_herald = v
 			elif ch == "Z":
-				_build_barber_shop(c + Vector2i(0, -1))
-				barber_chair.build(self, v)
+				var tent_cell := c + Vector2i(0, -1)
+				barber_chair.build(self, v, _build_barber_shop(tent_cell), cell_to_world(tent_cell))
 			elif ch == "S":
 				_build_stone_yard(c + MASON_YARD)
 				_build_quarry(v, c)
@@ -4289,23 +4305,26 @@ func _spawn_street_sweeper() -> void:
 ## barber's pole and a hanging sign with scissors at its front, so the shop
 ## is easy to spot on the square. A barber keeps things clean: the tent is of
 ## fresh woven linen, not the stained canvas of the bandits' tents.
-func _build_barber_shop(cell: Vector2i) -> void:
+func _build_barber_shop(cell: Vector2i) -> Node3D:
 	var pos := cell_to_world(cell)
 	var box := _aabb_of("tent")
-	var tent := _put("tent", pos, 0.0, 3.6 / maxf(box.size.x, box.size.z))
+	# A quarter bigger than it was and taller still. One can walk in under it: the chair stands there
+	# (see BarberChair), and the tent fades away while someone sits.
+	var width := 4.5 / maxf(box.size.x, box.size.z)
+	var tent := _put("tent", pos, 0.0, width)
+	tent.scale = Vector3(width, width * BARBER_TENT_TALL, width)
 	tent.name = "BarberTent"
 	WeatheredProps.clean_linen(tent)
-	_add_solid(pos, Vector3(3.4, 2.6, 3.4))
-	astar.set_point_solid(cell, true)
 	var pole := Effects.barber_pole()
-	pole.position = pos + Vector3(-2.0, 0, 1.9)
+	pole.position = pos + Vector3(-2.6, 0, 2.4)
 	add_child(pole)
 	var board := Effects.shop_sign(Lang.t("Barbier"), preload("res://assets/fonts/Cinzel-Bold.woff2"), "scissors")
 	WeatheredProps.weather_plain(board)
-	board.position = pos + Vector3(1.4, 0, 1.9)
+	board.position = pos + Vector3(2.2, 0, 2.4)
 	add_child(board)
-	_add_solid(pos + Vector3(-2.0, 0, 1.9), Vector3(0.5, 2.6, 0.5))
-	_add_solid(pos + Vector3(1.4, 0, 1.9), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + Vector3(-2.6, 0, 2.4), Vector3(0.5, 2.6, 0.5))
+	_add_solid(pos + Vector3(2.2, 0, 2.4), Vector3(0.5, 2.6, 0.5))
+	return tent
 
 
 ## The stonemason's yard beside his house, to its right as you face the door

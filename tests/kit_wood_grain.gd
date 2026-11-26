@@ -51,11 +51,12 @@ func _run() -> void:
 	var lvl: Node3D = game.level
 	var buildings := 0
 	var panes := 0
+	var glass_panes := 0
 	for node in lvl.get_children():
 		if not String(node.name).begins_with("building_") or String(node.name).begins_with("building_well"):
 			continue
 		for mi: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
-			var mat := mi.material_override as ShaderMaterial
+			var mat := mi.get_surface_override_material(0) as ShaderMaterial
 			if mat == null or mat.shader != AgedStone.SHADER:
 				continue
 			buildings += 1
@@ -82,6 +83,12 @@ func _run() -> void:
 				elif on > 0:
 					half_glass += 1
 			check(half_glass == 0, "%s: no pane is part glass, part wall (%d)" % [node.name, half_glass])
+			# The panes are clear glass with curtains (see window_lights.gd), a surface of their own.
+			for surface: int in AgedStone.pane_surfaces(mi.mesh):
+				var glass := mi.get_surface_override_material(surface) as ShaderMaterial
+				check(glass != null and glass.shader != AgedStone.SHADER, "%s: its panes are the houses' glass" % node.name)
+				glass_panes += (mi.mesh.surface_get_arrays(surface)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
 	# (The bank is a walk-in stone house now, see BankVault, and no kit tower.)
 	check(buildings >= (5 if BankVault.on else 6), "the village's KayKit buildings were found (%d)" % buildings)
-	check(panes > 50, "the village's windows are glass (%d pane triangles)" % panes)
+	check(panes + glass_panes > 50, "the village's windows are glass (%d pane triangles)" % (panes + glass_panes))
+	check(glass_panes > 20, "the KayKit windows hang with curtains behind clear glass (%d triangles)" % glass_panes)

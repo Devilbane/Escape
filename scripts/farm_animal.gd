@@ -48,7 +48,7 @@ const KINDS := {
 ## assets/animals/LICENSE.txt), by kind and coat: file and scale. The model's own
 ## colours are kept.
 const MODELS := {
-	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
+	"dog": {"black": ["Husky", 0.3]},
 	"cow": {"": ["Cow", 0.3]},
 	"bull": {"": ["Bull", 0.32]},
 	# The sheep of the Farm Animals pack, with a Walk, Gallop and Eating made for it (tools/build_sheep.gd).
@@ -923,7 +923,7 @@ func _build_goose() -> void:
 
 
 func _build_model() -> void:
-	var pick: Array = MODELS[kind].get(coat, MODELS[kind][""])
+	var pick: Array = MODELS[kind][coat] if MODELS[kind].has(coat) else MODELS[kind].values()[0]
 	_model_name = pick[0]
 	var model: Node3D = load("res://assets/animals/%s.glb" % _model_name).instantiate()
 	_rig.add_child(model)

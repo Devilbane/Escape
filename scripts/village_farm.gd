@@ -3,8 +3,8 @@ extends RefCounted
 ## Puts the village's animals out on its meadows (see FarmAnimal): a flock of
 ## geese on the south meadow, a few goats on the west meadow with the boy Pip
 ## and his friend Pippi, who look after them together (see Villager, "herds"), sheep on the north-west
-## meadow, two cows and a bull in the fenced pen on the east meadow (see Corral), and two dogs: a Shiba Inu
-## that keeps Pip's goats company and a Husky at the farm in the south-east corner.
+## meadow, two cows and a bull in the fenced pen on the east meadow (see Corral), and a Husky
+## at the farm in the south-east corner.
 ## One red-horned goat among Pip's goats picks fights with the hero (see FarmAnimal).
 ##
 ## The spots are given as tiles of the village map; each one is moved to the
@@ -19,13 +19,11 @@ const HERDS := [
 	{"kind": "goat", "at": Vector2i(40, 30), "count": 4, "coats": ["", "brown", "", "black"]},
 	{"kind": "billy", "at": Vector2i(39, 28), "count": 1, "coats": [""]},
 	{"kind": "sheep", "at": Vector2i(40, 23), "count": 4, "coats": [""]},
-	{"kind": "dog", "at": Vector2i(41, 33), "count": 1, "coats": [""]},
 	{"kind": "dog", "at": Vector2i(57, 40), "count": 1, "coats": ["black"]},
 	{"kind": "cow", "at": Vector2i(59, 26), "count": 2, "coats": [""], "pen": Corral.PEN},
 	{"kind": "bull", "at": Vector2i(58, 26), "count": 1, "coats": [""], "pen": Corral.PEN},
-	# The farming valley (see ValleyFolk): the shepherd's flock and his dog on the east meadow.
+	# The farming valley (see ValleyFolk): the shepherd's flock on the east meadow.
 	{"kind": "sheep", "at": Vector2i(100, 80), "count": 6, "coats": [""]},
-	{"kind": "dog", "at": Vector2i(102, 82), "count": 1, "coats": [""]},
 ]
 ## Where Pip stands to mind the goats, next to the herd's home tile.
 const PIP_AT := Vector2i(42, 31)

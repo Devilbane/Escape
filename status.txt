@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Let fog banks drift over the outside walls of houses; Fade the mountain rock's edge into the ground | Shipped this week: Lie down in the bed that was run into; test the sleeping pose; Fix remaining roof tile shimmer (+48 more)
+Escape! dev status | Working on: Fade the mountain rock's edge into the ground | Shipped this week: Let fog banks drift over the outside walls of houses; Lie down in the bed that was run into; test the sleeping pose; Fix remaining roof tile shimmer (+47 more)

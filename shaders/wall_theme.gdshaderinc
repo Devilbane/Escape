@@ -14,15 +14,9 @@
 #include "res://shaders/detail.gdshaderinc"
 #include "res://shaders/reveal.gdshaderinc"
 
-<<<<<<< HEAD
-uniform sampler2D albedo_tex : filter_linear_mipmap, repeat_enable;
-uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
-// 0 bone, 1 rock, 2 obsidian, 3 crystal, 4 alpine.
-=======
 uniform sampler2D albedo_tex : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
-// 0 bone, 1 rock, 2 obsidian, 3 crystal.
->>>>>>> origin/main
+// 0 bone, 1 rock, 2 obsidian, 3 crystal, 4 alpine.
 uniform int style = 0;
 // 0 for a wall, 1 for a floor (a little lighter and calmer, so the two stay
 // apart), 2 for rough floor.

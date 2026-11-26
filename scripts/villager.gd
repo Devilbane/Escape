@@ -1283,6 +1283,33 @@ func _sweep_en_route(delta: float) -> void:
 var _watch_pause := 0.0
 
 
+## Whether the guard may be taken off what he is doing to chase a thief (see GuardChase).
+func chase_free() -> bool:
+	return _task in GuardChase.FREE_TASKS and not level.village_alarm.raised
+
+
+## Runs towards a thief (see GuardChase): a new path to him, at `speed`.
+func chase_toward(target: Vector3, speed: float) -> void:
+	_walk_to(target, speed, "idle")
+
+
+## Stands, turned to the thief, getting his breath back (he keeps his distance, see GuardChase.GAP).
+func chase_halt(target: Vector3) -> void:
+	_start("idle", 1.0)
+	_look_at = Vector3.INF
+	_turn_to(target - global_position, 1.0)
+	play("Idle")
+
+
+## Back to the post at the west gate after a chase (where it stands), else a short rest.
+func back_to_post() -> void:
+	var post := GuardWatch.post(level)
+	if post.is_finite():
+		_walk_to(post, WALK_SPEED, "watch")
+	else:
+		_start("idle", 2.0)
+
+
 ## The guard stands inside the west gate and looks out. At the first slime he
 ## sees he calls out once; the gate then shuts and he takes his post with the
 ## other fighters (see GuardWatch, VillageWall._muster).

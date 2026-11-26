@@ -126,6 +126,7 @@ event_log_frame.gd | 120 | fixed | passfail | the event log shows only its text 
 event_log_width.gd | 120 | fixed | passfail | event log's width slider in the pull-out menu (see
 exploration.gd | 120 | fixed | passfail | Erkunden (exploring) skill: it needs no gear, a
 grates_clear.gd | 120 | fixed | passfail | floor grates: nothing is placed on one. On every
+guard_chase.gd | 120 | fixed | passfail | Guard Ulrich chases Spooknortz on his night round (see GuardChase): shouts, runs after him, never catches up, gives up and returns to his post
 guard_watch.gd | 120 | fixed | passfail | town guard's watch on the west gate (see GuardWatch):
 hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new game shows the
 message_over_head.gd | 120 | fixed | passfail | messages float just over the hero's head and are written

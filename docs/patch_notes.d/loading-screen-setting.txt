@@ -1,0 +1,1 @@
+- New setting "Loading screen" (Display tab): turn the loading screen at startup on or off.

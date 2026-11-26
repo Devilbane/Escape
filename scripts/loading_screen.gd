@@ -39,10 +39,26 @@ var _game: Node
 var _status: Label
 
 
+## Whether the screen is shown while the game starts (the player's choice in the settings window,
+## remembered in the settings file; on by default).
+static func shown_at_start() -> bool:
+	var cfg := ConfigFile.new()
+	if cfg.load(Sfx.SETTINGS_FILE) != OK:
+		return true
+	return bool(cfg.get_value("start", "loading_screen", true))
+
+
+static func choose_shown_at_start(on: bool) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(Sfx.SETTINGS_FILE)
+	cfg.set_value("start", "loading_screen", on)
+	cfg.save(Sfx.SETTINGS_FILE)
+
+
 ## Puts the screen over everything of `game`'s HUD, unless there is nothing to wait for (the
 ## village is ready already, or no window is drawn) or the language is still to be chosen.
 static func start(parent: Node, game: Node, headless_ok := false) -> LoadingScreen:
-	if WorldPreload.is_ready() or Lang.language == "":
+	if WorldPreload.is_ready() or Lang.language == "" or not shown_at_start():
 		return null
 	if DisplayServer.get_name() == "headless" and not headless_ok:
 		return null

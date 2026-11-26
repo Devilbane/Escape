@@ -114,6 +114,9 @@ func _build_display() -> void:
 		func(): return Graphics.fps_cap, func(v): Graphics.choose_fps(v))
 	_slider("Protokoll", "Breite des Ereignisprotokolls links.", EventLog.MIN_WIDTH, EventLog.MAX_WIDTH, EventLog.WIDTH_STEP,
 		func(): return EventLog.width, func(v): _game.event_log.set_width(v), func(v): return "%d" % v)
+	_choice("Ladebildschirm", "Zeigt beim Start das Titelbild mit den Patchnotes. Im Spiel zeigt der Chatbefehl \"loading\" ihn noch einmal.",
+		[[true, Lang.t("An"), ""], [false, Lang.t("Aus"), ""]], 2,
+		func(): return LoadingScreen.shown_at_start(), func(v): LoadingScreen.choose_shown_at_start(v))
 
 
 func _build_graphics() -> void:

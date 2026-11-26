@@ -193,10 +193,10 @@ func _field(x: float, y: float) -> Dictionary:
 		# (not a cave); it keeps clear of the holds.
 		if y < y0:
 			var t := clampf((y0 - y) / GAP_RUN, 0.0, 1.0)
-			var narrow := maxf(0.04, half * (1.0 - GAP_WEDGE) * (1.0 - t))
-			var cx := (x0 + x1) * 0.5 + _noise.get_noise_2d(y * 1.3, 4.0) * 0.25
-			var side := narrow - absf(x - cx) + jag * 0.5
-			var run := smoothstep(0.0, minf(0.25, narrow), side) * (1.0 - 0.3 * t) * (1.0 - knob)
+			var narrow := maxf(0.27, half * (1.0 - GAP_WEDGE) * (1.0 - t))
+			var cx := (x0 + x1) * 0.5
+			var side := narrow - absf(x - cx) + jag * 0.15
+			var run := smoothstep(0.0, 0.2, side) * (1.0 - 0.2 * t) * (1.0 - knob * 0.5)
 			trench = maxf(trench, run * 0.95)
 	d -= trench * GAP_DEPTH
 	col = col.lerp(ROCK_DARK * 0.15, smoothstep(0.1, 0.6, pocket) * 0.95)

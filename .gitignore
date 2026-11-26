@@ -3,3 +3,5 @@ build/
 tools/.voices/
 .launcher/
 ci_logs/
+# Written by the Windows workflow from a repository secret (scripts/sim/save_seal.gd); never committed.
+scripts/seal_secret.gd

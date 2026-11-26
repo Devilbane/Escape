@@ -29,6 +29,8 @@ const vec2 TILE_PITCH = vec2(29.75, 13.0);
 const float FIRST_ROW = 4.0;
 // How many mip levels softer than the screen needs the tiles are sampled.
 const float SOFT_MIPS = 1.5;
+// How deep the joints between the tiles sink in, in metres.
+const float RELIEF = 0.02;
 const vec2 ROW_SHIFT = vec2(16.0, 29.5);
 
 varying vec3 wpos;
@@ -115,8 +117,13 @@ void fragment() {
 	ALBEDO = col_rgb;
 	ROUGHNESS = mix(0.9, 0.97, moss);
 	// Relief: the joints between the tiles sink in, the odd tile sits a
-	// little proud.
-	float height = (raw + h1 * 0.08) * tile_fade;
-	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height) * 0.3, dFdy(height) * 0.3), 0.0)).xyz);
+	// little proud. `height` is in metres (RELIEF at most): bumped() tilts the normal by the slope
+	// of it, so a height in tile-sheet units (0..1) made the slope grow as the pixels got smaller,
+	// and the sun glinted off every texel in black and bright speckles that crawled as the camera
+	// moved (worst on the ridge caps, whose texels are stretched). The slope is capped as well.
+	float height = (raw + h1 * 0.08) * tile_fade * RELIEF;
+	vec3 bump_n = bumped(n, dFdx(wpos), dFdy(wpos), dFdx(height), dFdy(height));
+	bump_n = normalize(mix(n, bump_n, tile_fade));
+	NORMAL = normalize((VIEW_MATRIX * vec4(bump_n, 0.0)).xyz);
 	ALBEDO = gl_colour(ALBEDO);
 }

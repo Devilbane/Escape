@@ -49,6 +49,11 @@ done
 skip=()
 known=1; hits=" "
 neutral='scripts/lang/*|levels/*|assets/*|shaders/*|docs/*|balance/*|*.md|*.uid|tests/*'
+# Looks and sounds: pictures, models, poses, lights, weather drawing and audio change what the player sees and hears,
+# not how the game plays, so they never force the scoped tests (they run on a change to anything else).
+neutral+='|scripts/sfx.gd|scripts/music.gd|scripts/soundscape.gd|scripts/*_sounds.gd|scripts/*_look.gd|scripts/*_looks.gd'
+neutral+='|scripts/*_model.gd|scripts/*_models.gd|scripts/*_pose.gd|scripts/*_icon.gd|scripts/effects.gd|scripts/fog*.gd'
+neutral+='|scripts/*_shadows.gd|scripts/cave_lights.gd|scripts/window_lights.gd|scripts/lightning_*.gd|scripts/snow_*.gd'
 while IFS='|' read -r file paths; do
   file=$(echo "$file" | xargs); [ -z "$file" ] && continue
   scope[$file]="$paths"

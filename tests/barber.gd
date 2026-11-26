@@ -70,11 +70,10 @@ func _test() -> void:
 		check(barber.npc.find_child("Crest", true, false) != null, "the barber wears a mohawk")
 		check(game.level.find_child("BarberPole", true, false) != null and game.level.find_child("ShopSign", true, false) != null, "the barber has a stall with a pole and a sign")
 		var tent := game.level.find_child("BarberTent", true, false) as Node3D
-		var linen := tent != null
-		if tent:
-			for mi: MeshInstance3D in tent.find_children("*", "MeshInstance3D", true, false):
-				var m := mi.material_override as ShaderMaterial
-				linen = linen and m != null and m.shader == WeatheredProps.SHADER and m.get_shader_parameter("linen") == true
+		var linen := tent != null and tent.find_child("BarberRoof", true, false) is MeshInstance3D
+		if linen:
+			var cloth := (tent.find_child("BarberRoof", true, false) as MeshInstance3D).material_override as StandardMaterial3D
+			linen = cloth != null and cloth.albedo_color.v > 0.8
 		check(linen, "the barber's tent is of clean linen")
 		var plain := WeatheredProps.palette_material(preload("res://assets/village/hexagons_medieval.png"), WeatheredProps.IRON)
 		check(plain.get_shader_parameter("linen") != true, "other tents keep their weathered canvas")

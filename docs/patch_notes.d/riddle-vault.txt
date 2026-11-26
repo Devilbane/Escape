@@ -1,0 +1,1 @@
+- Riddle answers are now stored as salted slow hashes instead of plain ones.

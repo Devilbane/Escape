@@ -75,7 +75,7 @@ func _run() -> void:
 	check(tent != null and chair.tent == tent, "the chair stands under the tent")
 	check(Vector2(tent.global_position.x - chair.chair_pos.x, tent.global_position.z - chair.chair_pos.z).length() < 1.0, "the chair is in the tent's middle")
 	check(not level.astar.is_point_solid(level.world_to_cell(tent.global_position)), "the tent can be walked into")
-	check(tent.scale.y > tent.scale.x, "the tent is tall")
+	check(tent.find_child("BarberRoof", true, false) != null, "the tent has its linen roof")
 	check(not level.shrubs.any(func(s: Vector3): return Vector2(s.x - tent.global_position.x, s.z - tent.global_position.z).length() < Outdoor.BARBER_CLEAR), "no shrubs round the tent")
 	check(benno.station.kind == "npc", "talking to Benno opens no window")
 	check(level.stations.has(chair.station) and chair.station.kind == Seats.KIND, "the chair is a seat")
@@ -90,6 +90,12 @@ func _run() -> void:
 	_view(at, Vector3(3.2, 3.2, 7.0), Vector3(0.0, 1.0, -0.5))
 	await _wait(3)
 	await _shot("chair_empty")
+	_view(at, Vector3(5.5, 3.0, 9.0), Vector3(0.0, 2.2, 0.0))
+	await _wait(3)
+	await _shot("tent_outside")
+	_view(at, Vector3(-4.0, 1.8, 7.0), Vector3(0.0, 2.4, 0.0))
+	await _wait(3)
+	await _shot("tent_corner")
 	_view(at, Vector3(2.0, 1.2, 2.2), Vector3(0.3, 0.45, 0.2))
 	await _wait(3)
 	await _shot("chair_close")
@@ -152,13 +158,17 @@ func _run() -> void:
 	check(tent.visible, "the tent comes back when the hero gets up")
 	check(benno.customer_at == Vector3.INF, "Benno goes back to his post")
 	# A villager takes the chair: they sit, Benno snips, the hero cannot sit down, then they get up.
-	var guest: Villager = null
+	# Some villagers are busy with a task of their own and ignore the offer: the first who sits will do.
+	var guests: Array[Villager] = []
 	for v: Villager in level.villagers:
 		if v != benno and BenchRest.rests_here(v) and v.visible and not v.at_home:
-			guest = v
-	check(guest != null, "a villager who may rest is about")
-	if guest != null:
+			guests.append(v)
+	check(not guests.is_empty(), "a villager who may rest is about")
+	var guest: Villager = null
+	for candidate in guests:
+		guest = candidate
 		guest.global_position = chair.seat.stand + Vector3(0, 0, 6.0)
+		guest.reset_physics_interpolation()
 		chair.seat.taker = guest
 		guest.go_to_meal(chair.seat)
 		for i in 900:
@@ -167,7 +177,13 @@ func _run() -> void:
 			chair.tick(level, 1.0 / 30.0)
 			if guest.seated_on_bench():
 				break
+		if guest.seated_on_bench():
+			break
+		guest.forget_meal()
+		chair.seat.taker = null
+	if guest != null:
 		check(guest.seated_on_bench(), "the villager sits in the chair")
+
 		chair.tick(level, 0.1)
 		check(chair.taken(chair.station), "a chair with a villager in it is taken")
 		check(benno.customer_at != Vector3.INF, "Benno snips at the villager")

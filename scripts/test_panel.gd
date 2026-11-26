@@ -55,14 +55,17 @@ var _pages: Array[Control] = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	grow_vertical = Control.GROW_DIRECTION_BEGIN
-	offset_left = LEFT
-	offset_bottom = -BOTTOM
+	# This node fills the screen; the column is what sits in the bottom left corner and grows upwards from
+	# there. (A zero-sized bottom-left anchored root left the column above the screen, out of sight.)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", GAP)
+	column.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	column.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	column.offset_left = LEFT
+	column.offset_top = -BOTTOM
+	column.offset_bottom = -BOTTOM
 	add_child(column)
 
 	_box = PanelContainer.new()

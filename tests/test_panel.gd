@@ -47,9 +47,13 @@ func _run() -> void:
 	var panel: TestPanel = game._test_panel
 	check(panel.visible, "the panel's tab shows while playing")
 	check(not panel.open, "the box is closed at first")
+	var view: Rect2 = game._hud.get_viewport().get_visible_rect()
+	var tab: Control = panel.get_child(0).get_child(1)
+	check(view.encloses(tab.get_global_rect()), "the Test button lies on the screen, not above or beside it")
 	panel.toggle()
 	await process_frame
 	check(panel.open, "the tab opens the box")
+	check(view.encloses(panel._box.get_global_rect()), "the opened box lies on the screen")
 	var size_before := panel.get_combined_minimum_size()
 	for page in panel._pages:
 		for p in panel._pages:

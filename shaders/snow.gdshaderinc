@@ -85,7 +85,7 @@ bool snow_melted(vec3 p, float n) {
 }
 
 // The look of the snow at world spot `p` with world normal `wn`: its colour (albedo), its bumped
-// normal in view space (normal) and small glints of ice by day (emission).
+// normal in view space (normal) and the moon's soft glow at night (emission).
 void snow_look(vec3 p, vec3 wn, mat4 view, float time, out vec3 albedo, out vec3 normal, out vec3 emission) {
 	vec2 xz = p.xz;
 	float drift = snow_drift(xz * 0.8);
@@ -104,12 +104,9 @@ void snow_look(vec3 p, vec3 wn, mat4 view, float time, out vec3 albedo, out vec3
 	// Snow at night is dim blue-grey, not bright white: the moon on pale snow, and the bloom on it,
 	// read as the snow glowing by itself next to the dark things round it.
 	albedo *= mix(0.85, 1.0, daylight);
-	vec2 cell_id = floor(mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * xz * 30.0);
-	float cell = snow_hash(cell_id + floor(time * 0.7 + snow_hash(cell_id) * 8.0));
-	// Glints are the sun on ice: none at night, where they showed as many very white spots.
-	float glint = step(0.996, cell) * smoothstep(0.6, 0.95, daylight);
+	// No glints: the snow is matte, bright specks on it read as too shiny.
 	// No glow of its own at night: the snow is lit by the light of the hour and the lamps, like all else.
 	// The moon's light on the snow: a soft, even blue-grey, in the hollows a little darker, so the
 	// snow reads as the one pale thing in the dark, strongest at full moon, a hint at new moon.
-	emission = vec3(0.9, 0.95, 1.0) * glint * 0.12 + albedo * vec3(0.62, 0.74, 1.0) * moon_glow * (1.0 - daylight) * 0.10;
+	emission = albedo * vec3(0.62, 0.74, 1.0) * moon_glow * (1.0 - daylight) * 0.10;
 }

@@ -54,7 +54,7 @@ void fragment() {
 	if (!FRONT_FACING) {
 		NORMAL = -NORMAL;
 	}
-	ROUGHNESS = 0.85;
-	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
+	ROUGHNESS = 0.95;
+	SPECULAR = 0.08 * mix(0.4, 1.0, daylight);
 	ALBEDO = gl_colour(ALBEDO);
 }

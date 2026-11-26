@@ -147,8 +147,8 @@ void fragment() {
 	// The skirt is shaded by the steep face under it, which turned it grey-blue next to the plain's snow:
 	// it glows a little to be as bright as that.
 	EMISSION += ALBEDO * 0.9 * skirt * (1.0 - smoothstep(0.5, 0.82, world_normal.y));
-	ROUGHNESS = 0.85;
-	SPECULAR = 0.3 * mix(0.4, 1.0, daylight);
+	ROUGHNESS = 0.95;
+	SPECULAR = 0.08 * mix(0.4, 1.0, daylight);
 	ALBEDO = gl_colour(ALBEDO);
 	EMISSION = gl_colour(EMISSION);
 }

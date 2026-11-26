@@ -130,7 +130,7 @@ void fragment() {
 	// Wall snow is lit as if tilted towards the sky, so it reads as snow and not as grey flanks.
 	vec3 look_normal = is_wall ? normalize(mix(world_normal, vec3(0.0, 1.0, 0.0), 0.55)) : world_normal;
 	snow_look(world_pos, look_normal, VIEW_MATRIX, TIME, ALBEDO, NORMAL, EMISSION);
-	ROUGHNESS = is_wall ? 0.9 : 0.85;
-	SPECULAR = (is_wall ? 0.2 : 0.3) * mix(0.4, 1.0, daylight);
+	ROUGHNESS = is_wall ? 0.95 : 0.95;
+	SPECULAR = (is_wall ? 0.05 : 0.08) * mix(0.4, 1.0, daylight);
 	ALBEDO = gl_colour(ALBEDO);
 }

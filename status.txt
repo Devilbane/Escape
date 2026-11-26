@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add the graveyard's secrets: spirit, bell grave, Necromancy and Tales of the Crypt | Shipped this week: Ship climbing wall files in the build and place the sample wall; Weather the village well and the sewer hatch hinges (+48 more)
+Escape! dev status | Shipped this week: Add the graveyard's secrets: spirit, bell grave, Necromancy and Tales of the Crypt; Ship climbing wall files in the build and place the sample wall (+48 more)

@@ -164,6 +164,13 @@ func depth_at(x: float, y: float) -> float:
 	return _field(x, y).depth
 
 
+## The face's depth where a body or a rope passes: the surface without the pockets cut into it, so that only a hand
+## or a foot goes into a hole and everything else stays outside the rock.
+func face_depth_at(x: float, y: float) -> float:
+	var f := _field(x, y)
+	return float(f.depth) + float(f.dip)
+
+
 ## The face's depth at a point, with the paint of the rock there: {"depth", "colour", "trench", "knob"}.
 func _field(x: float, y: float) -> Dictionary:
 	var d := _noise.get_noise_2d(x * 0.55, y * 0.55) * 0.14 + _fine.get_noise_2d(x * 2.9, y * 2.9) * 0.035
@@ -174,6 +181,7 @@ func _field(x: float, y: float) -> Dictionary:
 	var knob := 0.0
 	var chalk_share := 0.7
 	var pocket := 0.0
+	var dip := 0.0   # how deep the pockets cut the face here (the face without them is depth + dip)
 	var rim := 0.0
 	var wet := 0.0
 	var loose := 0.0
@@ -199,7 +207,9 @@ func _field(x: float, y: float) -> Dictionary:
 							pd = minf(pd, _segment_distance(Vector2(x, y), centre, square_centre(map, nc, nr)))
 					if pd < pr * 1.35:
 						var inner := 0.5 + 0.5 * cos(PI * minf(1.0, pd / pr))
-						d -= lerpf(0.18, 0.34, ease) * inner * (0.85 + 0.3 * _hash(c, r))
+						var cut := lerpf(0.18, 0.34, ease) * inner * (0.85 + 0.3 * _hash(c, r))
+						d -= cut
+						dip = maxf(dip, cut)
 						pocket = maxf(pocket, inner)
 						if pd >= pr * 0.8:
 							rim = maxf(rim, 1.0 - absf(pd - pr * 1.05) / (pr * 0.3))
@@ -273,7 +283,7 @@ func _field(x: float, y: float) -> Dictionary:
 	col = col.lerp(MOSS.lerp(ROCK_DARK, 0.3), wet * (0.5 + 0.4 * _fine.get_noise_2d(x * 5.0, y * 5.0)))
 	col = col.lerp(Color(0.6, 0.54, 0.47), loose * 0.35)
 	col = col.lerp(Color(0.03, 0.03, 0.035), trench * 0.92)
-	return {"depth": d, "colour": col, "trench": trench, "knob": knob}
+	return {"depth": d, "colour": col, "trench": trench, "knob": knob, "dip": dip}
 
 
 ## Signed distance of a point to a box (negative inside).

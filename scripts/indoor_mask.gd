@@ -18,6 +18,9 @@ const SCALE := 16.0
 const WALL_PAD := STEP
 ## How deep a spot over a cellar has to lie (metres, below the ground) to be kept out of the weather.
 const PIT_DEPTH := -0.2
+## How high above the ground a spot in the margin must lie to be kept out of the weather (B of a pixel, see
+## RING_FLOOR in indoors.gdshaderinc): the ground right outside a wall is open air, the wall's face is not.
+const RING_FLOOR := 0.3
 const MASK := "indoor_mask"
 const AREA := "indoor_area"
 
@@ -73,7 +76,7 @@ static func _opened_rooms(level: Outdoor) -> int:
 static func build(level: Outdoor) -> void:
 	var corner := Vector2(-Level.TILE * 0.5, -Level.TILE * 0.5)
 	var size := Vector2i(ceili(level.width * Level.TILE / STEP), ceili(level.height * Level.TILE / STEP))
-	var img := Image.create(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_RG8)
+	var img := Image.create(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_RGB8)
 	var any := false
 	# The roofs of the self-built houses: each 2 m cell of the house lattice, up to its top.
 	var per := int(round(HouseSketch.CELL / STEP))
@@ -102,7 +105,8 @@ static func build(level: Outdoor) -> void:
 				continue
 			# The walls stand just outside the floor plan: the room reaches a whole pixel into them, or the
 			# wall tops and the inner faces of the walls seen from above stayed in the fog.
-			var room: Rect2 = (rec.room as Rect2).grow(WALL_PAD)
+			var core: Rect2 = rec.room
+			var room: Rect2 = core.grow(WALL_PAD)
 			var xf := node.global_transform
 			var top := (xf * Vector3(room.get_center().x, float(rec.top), room.get_center().y)).y
 			var lo := Vector2(INF, INF)
@@ -117,7 +121,7 @@ static func build(level: Outdoor) -> void:
 					var at := corner + (Vector2(px, py) + Vector2(0.5, 0.5)) * STEP
 					var local := inv * Vector3(at.x, 0.0, at.y)
 					if room.has_point(Vector2(local.x, local.z)):
-						any = _raise(img, Vector2i(px, py), top) or any
+						any = _raise(img, Vector2i(px, py), top, not core.has_point(Vector2(local.x, local.z))) or any
 	image = img
 	if not any:
 		RenderingServer.global_shader_parameter_set(AREA, Color(0, 0, 0, 0))
@@ -127,13 +131,18 @@ static func build(level: Outdoor) -> void:
 
 
 ## Raises the top kept dry at one pixel to `top` metres (never lowers it).
-static func _raise(img: Image, px: Vector2i, top: float) -> bool:
+## `ring`: the pixel lies in the margin outside the floor plan (it keeps only what is above RING_FLOOR out of
+## the weather); a pixel that is inside some floor plan stays whole.
+static func _raise(img: Image, px: Vector2i, top: float, ring := false) -> bool:
 	if px.x < 0 or px.y < 0 or px.x >= img.get_width() or px.y >= img.get_height() or top <= 0.0:
 		return false
 	var v := clampf(top / SCALE, 0.0, 1.0)
 	var was := img.get_pixel(px.x, px.y)
-	if v > was.r:
-		img.set_pixel(px.x, px.y, Color(v, was.g, 0, 1))
+	if ring:
+		if was.r <= 0.0:
+			img.set_pixel(px.x, px.y, Color(v, was.g, 1, 1))
+	elif v > was.r or was.b > 0.5:
+		img.set_pixel(px.x, px.y, Color(maxf(v, was.r), was.g, 0, 1))
 	return true
 
 
@@ -145,4 +154,5 @@ static func covers(pos: Vector3) -> bool:
 	if px.x < 0 or px.y < 0 or px.x >= image.get_width() or px.y >= image.get_height():
 		return false
 	var at := image.get_pixel(px.x, px.y)
-	return (at.r * SCALE > 0.0 and pos.y < at.r * SCALE) or (at.g > 0.5 and pos.y < PIT_DEPTH)
+	var low_ring: bool = at.b > 0.5 and pos.y < RING_FLOOR
+	return (at.r * SCALE > 0.0 and pos.y < at.r * SCALE and not low_ring) or (at.g > 0.5 and pos.y < PIT_DEPTH)

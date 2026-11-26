@@ -12,7 +12,7 @@ const GROUPS := [
 	["Wege", "PEDK<>^|/`)"],
 	["Fallen und Rätsel", "S_QTaz]}{-:["],
 	["Schätze", "cCkU&$"],
-	["Einrichtung", "bxotfHFBLmhV(§+NXyp*!I;\\'\"°"],
+	["Einrichtung", "bxotfHFBLmhV(§+NXyp*!I;\\'\"°πψωΞζΘΛΠΓ"],
 	["Monster", "MAZwGWrnlvsuqJOeigRYd@"],
 	["Eigene Geschöpfe", "1234567890"],
 ]
@@ -38,6 +38,8 @@ const NAMES := {
 	"[": "Lauschendes Auge", ")": "Alter Abfluss", "\\": "Lesepult mit Foliant", "'": "Trankregal",
 	"/": "Gittertür", "`": "Fallgitter",
 	"\"": "Verfallener Schrein der Gnädigen Herrin", "°": "Toter Baum",
+	"π": "Bergzeder", "ψ": "Alpenrose", "ω": "Gebetsmühle", "Ξ": "Stupa mit Gebetsfahnen", "ζ": "Klostermauer",
+	"Θ": "Klostertor", "Λ": "Lotusteich", "Π": "Schieferplatten", "Γ": "Versiegeltes Tor",
 }
 
 ## What a few tiles need to work, shown under the palette when picked.
@@ -56,6 +58,8 @@ const NOTES := {
 	"W": "Trägt den Schlüssel, wenn keiner auf der Karte liegt.",
 	"H": "Der Held wählt hier eine Gabe.",
 	"\"": "Gehört vor eine Wand: Der Held betet hier, wird geheilt und kann den Schrein mit kleinen Gaben herrichten.",
+	"ζ": "Schließt sich mit den Nachbarn zu einer Mauer. Das Tor (Θ) gehört in die Mauer.",
+	"Γ": "Gehört vor eine Wand im Norden: ein zugefrorenes Tor zu einem Ort, den es noch nicht gibt.",
 	"<": "Nur in Häusern: führt ins nächste Stockwerk.",
 	">": "Nur in Häusern: führt ins Stockwerk darunter.",
 	"R": "Ein Endgegner: gehört in eine Drachenhöhle.",

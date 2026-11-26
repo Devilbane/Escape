@@ -24,6 +24,8 @@ const LOOKS := {
 	"obsidian": {"flame": [Color(1.0, 0.7, 0.85, 0.75), Color(0.85, 0.2, 0.45, 0.65), Color(0.35, 0.05, 0.3, 0.0)],
 			"light": Color(0.95, 0.35, 0.5), "energy": 1.0},
 	"crystal": {"glow": Color(0.35, 0.8, 1.0), "light": Color(0.5, 0.82, 1.0), "energy": 0.8},
+	"alpine": {"flame": [Color(1.0, 0.86, 0.55, 0.75), Color(1.0, 0.55, 0.2, 0.65), Color(0.6, 0.2, 0.05, 0.0)],
+			"light": Color(1.0, 0.7, 0.4), "energy": 0.9},
 }
 
 static var _cache := {}
@@ -220,7 +222,7 @@ static func brazier(style: String, parent: Node3D, pos: Vector3) -> OmniLight3D:
 				var leg := _bone(holder, stone, Vector3(cos(around) * 0.32, 0.6, sin(around) * 0.32), 1.25, Vector3(sin(around) * 14.0, 0, -cos(around) * 14.0), 0.06)
 				leg.rotation.y = 0.0
 			_put(holder, _cylinder(0.5, 0.24, 0.3), stone, Vector3(0, 1.1, 0))
-		"rock":
+		"rock", "alpine":
 			_put(holder, BoxMesh.new(), stone, Vector3(0, 0.3, 0)).scale = Vector3(1.1, 0.6, 1.1)
 			_put(holder, _cylinder(0.12, 0.2, 0.5), _iron(), Vector3(0, 0.85, 0))
 			_put(holder, _cylinder(0.55, 0.22, 0.34), _iron(), Vector3(0, 1.2, 0))

@@ -83,6 +83,9 @@ func _recompute(origin: Vector3) -> void:
 				reach = level.player.torch.light_reach() if level.player.torch else HandTorch.DARK_REACH
 				if c == center:
 					reach = INF
+			if Nohpaan.is_here(level):
+				# The valley lies in daylight: as far as the eye reaches, it is seen.
+				reach = INF
 			if Vector2(spot.x - origin.x, spot.z - origin.z).length() > reach and not level.is_lit(spot):
 				continue
 			if level.has_line_of_sight(origin, spot):

@@ -91,6 +91,8 @@ static func dungeon_loop(theme: String, walls: String, lair: bool, building: Str
 			return "amb_magic_0"
 		"wueste":
 			return "amb_forest_deep"  # the wind over the empty sand
+		"nohpaan":
+			return "amb_forest_deep"  # wind in the cedars
 		"sternhof":
 			return "amb_cave_%d" % (pick % 3)  # the ruined courtyard sounds like a cave: drips, low drone, echoes, no birds
 	if lair or walls in ["rock", "bone", "crystal", "obsidian"]:

@@ -144,3 +144,4 @@ pack_help.gd | 120 | fixed | pass | Monsters help a struck mate and call for hel
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)
 riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scrambled codes
+nohpaan.gd | 60 | free | pass | Nohpaan: the hidden valley, its three monks and their lessons

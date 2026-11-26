@@ -1,0 +1,64 @@
+name: Nohpaan
+hint: Hoch über dem Tal, wo kein Weg hinführt, liegt eine verborgene Senke voller Wiesen, Zedern und Alpenrosen. Nebel zieht über das Gras, in der Mitte blüht ein Lotusteich, und hinter dem roten Tor im Norden steht das Kloster, in dem seltene Künste gelehrt werden.
+monsters: wildlife, ghosts, fable
+building: nohpaan1
+lair: ja
+respawn: ja
+theme: nohpaan
+walls: alpine
+custom: 1 {"type": "monster", "base": "wolf", "name": "Schneeleopard", "tint": "#e6ecf0"}
+custom: 2 {"type": "monster", "base": "yeti", "name": "Bergschrat", "tint": "#9fb48f"}
+custom: 3 {"type": "monster", "base": "fog_wraith", "name": "Nebelgeist", "tint": "#dfe9f2"}
+custom: 5 {"type": "npc", "name": "Bruder Tashi", "model": "Mage", "sex": "male", "pose": "Idle", "colors": ["#8c2f1d", "#c8892b", "#e8d9b0"], "show": ["Mage_Cape"], "lines": ["Du bist weit gekommen, Wanderer. Wer den Berg bezwingt, verdient es, ihn zu verstehen.", "Die Luft hier oben ist dünn. Wer sie zu atmen lernt, klettert, wo andere umkehren.", "Ich lehre den Bergatem in drei Lehren. Jede verlangt Gold und ein Können, das du dir schon erworben hast."], "teaches": "bergatem"}
+custom: 6 {"type": "npc", "name": "Schwester Dolma", "model": "Rogue", "sex": "female", "pose": "Idle", "colors": ["#9b3a22", "#d9a441", "#efe2c0"], "show": ["Rogue_Cape"], "lines": ["Still. Hörst du? Der Wind ist nie laut, nur wir sind es.", "Wer in sich ruht, heilt schneller als jeder Trank. Das lehre ich: die Stille Mitte.", "Drei Lehren gibt es. Für die erste brauchst du Weisheit, die du nur aus Erfahrung gewinnst."], "teaches": "stille_mitte"}
+custom: 7 {"type": "npc", "name": "Bruder Pema", "model": "Rogue", "sex": "male", "pose": "Idle", "colors": ["#7a2e1c", "#c07a2a", "#e2d2a8"], "show": ["Rogue_Cape"], "lines": ["Sieh das Gras. Der Wind biegt es, und es bricht nicht. So weicht man einem Schlag.", "Der Windschritt ist keine Kunst der Schnellen, sondern der Gelassenen.", "Komm wieder, wenn deine Hände geschickter sind. Dann zeige ich dir mehr."], "teaches": "windschritt"}
+custom: 8 {"type": "npc", "name": "Abt Rinchen", "model": "Mage", "sex": "male", "pose": "Sit_Floor_Idle", "colors": ["#6e1f14", "#d19a30", "#f0e3bf"], "show": ["Mage_Cape"], "lines": ["Willkommen in Nohpaan. Das Tal hat keinen Weg, nur einen Berg, der dich eingelassen hat.", "Unsere Mönche lehren drei Künste. Sprich mit ihnen: Bruder Tashi, Schwester Dolma und Bruder Pema.", "Im Nordwesten und im Nordosten liegen zwei Tore unter dem Eis. Sie öffnen sich erst, wenn ihre Zeit gekommen ist.", "Die Stufen hinter mir führen zurück ins Tal der Äpfel. Aber niemand hier hält dich fest."]}
+
+################################################################
+################################################################
+################################################################
+###################ζζζζζζζζζζζζζEζζζζζζζζζζζζζ##################
+###################ζ####ζΠΠΠΠΠΠΠΠΠΠΠΠΠΠΠζ####ζ##################
+###################ζ####ζΠΠΠΠfΠΠ8ΠΠfΠΠΠΠζ####ζ##################
+###################ζ####ζΠΠ5ΠΠΠΠΠΠΠΠΠ6ΠΠζ####ζ##################
+###################ζ####ζΠΠΠΠΠΠΠΠΠΠΠΠΠΠΠζ####ζ##################
+###################ζ....ζζζζζζζ...ζζζζζζζ....ζ##################
+#######Γ###########ζ...........ΠΠΠ...........ζ###########Γ######
+#####C...C#########ζ.........f.ΠΠΠ.f.........ζ#########.....####
+####...............ζ...........ΠΠΠ...........ζ...............###
+###....................Ξ.......ΠΠΠ.......Ξ....................##
+####....3..........ζ......7....ΠΠΠ...........ζ..........3....###
+#####.....#########ζ.........f.ΠΠΠ.f.........ζ#########.....####
+#######.###########ζ...........ΠΠΠ...........ζ###########.######
+#######...#########ζζζζζζζζζζζζζΘζζζζζζζζζζζζζ#########...######
+#######...#####################...#####################...######
+#######...####################ω...ω####################...######
+#######...####################ω...ω####################...######
+#######...####################ω...ω####################...######
+#######....###############.............###############....######
+######....π....########.....ψ...,.........########.........#####
+#####..π........#####...ψ.......ψ.ψ.....ψ...#####...........####
+####........o....###.......π....,............###.ψ........o..###
+###......π...π.π..#......o.ψ....,.....o.......#........π..ψ...##
+###.......ππ..c......ψ...ψ......,.................c...........##
+###..π...1.ππ................ψ..,...............ψ.ψ..2........##
+##.π.ππ......π.................ΛΛΛ..................π..........#
+###....π.π..π..,,,,,,,,,,,,,,,ΛΛΛΛΛ,,,,,,,,,,,,,,,............##
+###...o.....1.π................ΛΛΛ..................ψ.......π.##
+###....ππ............ψ..........,.......................2.....##
+####C.....π......#.......π......,.......πψ.....#....ψ.ψ...ψ.C###
+#####......π....###....π..o.....π......o.ψψ...###.......ψ...####
+######.........#####............,............#####.........#####
+##########.##########...........,...........##########.#########
+#######################.........ψ.........######################
+##########################......,......#########################
+###############################...##############################
+###############################...##############################
+###############################...##############################
+###############################...##############################
+###############################...##############################
+###############################...##############################
+###############################...##############################
+###############################.P.##############################
+################################################################
+################################################################

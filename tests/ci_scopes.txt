@@ -55,3 +55,6 @@ riddle_vault.gd | scripts/riddle_vault.gd tools/riddle_hash.gd
 
 # The smith's forge and the crafting it shares its recipes and ores with.
 forge.gd | scripts/forge.gd scripts/smith_cottage.gd scripts/crafting.gd scripts/crafting_square.gd scripts/dragon_hoard.gd scripts/ore.gd
+
+# The hidden valley Nohpaan and the monastery lessons.
+nohpaan.gd | scripts/nohpaan.gd scripts/nohpaan_parts.gd scripts/nohpaan_life.gd scripts/nohpaan_surface.gd scripts/monastery.gd levels/42_nohpaan.txt

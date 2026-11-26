@@ -26,6 +26,7 @@ const LOOKS := {
 	"rock": {"stone": Color(0.5, 0.43, 0.35), "bottom": Color(0.02, 0.014, 0.01), "rim": Color(0.36, 0.31, 0.26), "rough": 0.2, "glow": null, "gloss": 0.05},
 	"obsidian": {"stone": Color(0.24, 0.2, 0.32), "bottom": Color(0.01, 0.008, 0.02), "rim": Color(0.16, 0.13, 0.22), "rough": 0.12, "glow": Color(0.55, 0.2, 0.9), "gloss": 0.75},
 	"crystal": {"stone": Color(0.45, 0.6, 0.78), "bottom": Color(0.01, 0.02, 0.05), "rim": Color(0.3, 0.45, 0.68), "rough": 0.15, "glow": Color(0.35, 0.8, 1.0), "gloss": 0.6},
+	"alpine": {"stone": Color(0.62, 0.62, 0.58), "bottom": Color(0.02, 0.03, 0.02), "rim": Color(0.4, 0.5, 0.3), "rough": 0.15, "glow": null, "gloss": 0.1},
 	"zwerge": {"stone": Color(0.55, 0.5, 0.44), "bottom": BOTTOM, "rim": Color(0.4, 0.36, 0.31), "rough": 0.0, "glow": null, "gloss": 0.2},
 	"glut": {"stone": Color(0.36, 0.25, 0.2), "bottom": Color(0.03, 0.01, 0.005), "rim": Color(0.25, 0.17, 0.14), "rough": 0.1, "glow": Color(1.0, 0.4, 0.1), "gloss": 0.2},
 	"uralt": {"stone": Color(0.68, 0.6, 0.45), "bottom": Color(0.03, 0.02, 0.012), "rim": Color(0.55, 0.47, 0.34), "rough": 0.05, "glow": null, "gloss": 0.1},

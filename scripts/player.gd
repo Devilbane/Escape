@@ -1950,7 +1950,8 @@ func throw_power() -> int:
 
 ## The chance to dodge a blow or a shot, 0..DODGE_MAX.
 func dodge_chance() -> float:
-	return clampf(DODGE_PER_DEXTERITY * dexterity_points(), 0.0, DODGE_MAX)
+	var lessons := Monastery.dodge_bonus(self)
+	return clampf(DODGE_PER_DEXTERITY * dexterity_points() + lessons, 0.0, DODGE_MAX + lessons)
 
 
 ## The hero's odds against a foe's blows and hide, as the fight rolls them,
@@ -2133,7 +2134,7 @@ func skill(id: String) -> int:
 		level_now += int(Items.ALL[equipped[slot]].get("skills", {}).get(id, 0))
 	level_now += int(companion_perks.get("skills", {}).get(id, 0))
 	if id == "klettern":
-		level_now += Climbing.set_bonus(equipped)
+		level_now += Climbing.set_bonus(equipped) + Monastery.climb_bonus(self)
 	return maxi(0, level_now - Injury.skill_drop(self))
 
 
@@ -2556,7 +2557,7 @@ var bonus_regen := 0.0
 
 ## Life per second, averaged over the interval (shown in the HUD and character page).
 func life_regen() -> float:
-	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL + bonus_regen
+	return attribute("konstitution") / REGEN_PER_CON_DIVISOR / REGEN_INTERVAL + bonus_regen + Monastery.regen_bonus(self)
 
 
 ## Whether a fresh hit is holding the healing back for now.
@@ -2575,7 +2576,7 @@ func _regenerate(delta: float) -> void:
 	if _regen_pause > 0.0:
 		_regen_pause = maxf(0.0, _regen_pause - delta)
 		return
-	_regen += bonus_regen * delta
+	_regen += (bonus_regen + Monastery.regen_bonus(self)) * delta
 	_regen_clock += delta
 	if _regen_clock >= REGEN_INTERVAL:
 		_regen_clock -= REGEN_INTERVAL

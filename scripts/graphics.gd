@@ -280,6 +280,32 @@ static func value(key: String) -> Variant:
 	return null
 
 
+## Takes a whole set of settings at once (a saved profile, see SettingsProfiles), remembers it and draws
+## `view` with it. Whatever does not fit is left out, so an old or edited profile cannot break anything.
+static func adopt(profile: Dictionary, view: Viewport) -> void:
+	var which := str(profile.get("preset", preset))
+	preset = which if which in PRESETS else DEFAULT
+	custom = {}
+	var options: Variant = profile.get("custom", {})
+	if options is Dictionary:
+		for key: String in OPTIONS:
+			if options.has(key):
+				set_custom(key, options[key], false)
+	var tones: Variant = profile.get("tone", {})
+	for key: String in TONES:
+		var range: Vector3 = TONES[key]
+		if tones is Dictionary and tones.has(key):
+			tone[key] = clampf(float(tones[key]), range.x, range.z)
+		else:
+			tone[key] = range.y
+	var sync := str(profile.get("vsync", vsync))
+	vsync = sync if sync in VSYNC_MODES else "on"
+	var cap := int(profile.get("fps", fps_cap))
+	fps_cap = cap if cap in FPS_CAPS else 0
+	_save_settings()
+	apply(view)
+
+
 ## Changes one option, remembers it and draws `view` with it at once.
 static func choose_option(key: String, val: Variant, view: Viewport) -> void:
 	if set_custom(key, val):

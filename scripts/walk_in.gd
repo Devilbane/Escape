@@ -35,6 +35,8 @@ const COVER_HEAD := 1.7
 const COVER_LINGER := 0.4
 ## The hero this near the middle of a doorway (metres) opens its door.
 const DOOR_REACH := 2.2
+## How far over or under a door's foot (metres) a hero still counts as at it: well under a storey.
+const DOOR_LEVEL := 1.5
 ## The doorway as wide as the walls stop the hero (wider than the leaf, so the hero, 1.1 m across,
 ## walks straight through with 0.2 m to spare on each side and is never nudged by the frame).
 const DOOR_GAP := 1.5
@@ -1418,7 +1420,8 @@ func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
 	rec.push = float(rec.push) - delta
 	rec["lock_wait"] = float(rec.get("lock_wait", 0.0)) - delta
 	var door: Vector3 = (rec.node as Node3D).global_transform * (rec.door as Vector3)
-	var near: bool = Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH
+	# On the door's own level only: the spot a floor above it (the tower's stairs) opens nothing.
+	var near: bool = Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH and absf(hero_at.y - door.y) < DOOR_LEVEL
 	# A hall without its keeper inside and awake is locked, unless the hero is inside it already
 	# (they are never shut in).
 	var locked: bool = lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec)

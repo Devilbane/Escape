@@ -42,7 +42,7 @@ func _wait(n := 3) -> void:
 ## Puts the hero on the spot in front of a seat, standing and calm.
 func _beside(seat: Dictionary) -> void:
 	p.stand_up()
-	await _wait(30) # (getting up glides out first)
+	await _wait(60) # (getting up glides out first)
 	p.path.clear()
 	p.steer = Vector3.ZERO
 	p.global_position = Seats.stand_spot(seat, lv, p.radius)
@@ -56,7 +56,7 @@ func _beside(seat: Dictionary) -> void:
 
 
 func _seated_right(seat: Dictionary, how: String) -> void:
-	await _wait(40) # (the hero is lowered onto the seat over a moment)
+	await _wait(50) # (the hero is lowered onto the seat over a moment, and the sit-down plays out)
 	check(p.is_seated(), "%s: the hero sits" % how)
 	var spot := Seats.sit_spot(seat)
 	check(Vector2(p.global_position.x - spot.x, p.global_position.z - spot.z).length() < 0.05,
@@ -148,6 +148,8 @@ func _test() -> void:
 		await _beside(seat)
 		game._use_station(seat)
 		check(p.is_seated(), "%s: the hero sat down first" % act)
+		if act != "blow":
+			await _wait(50) # (the sit-down plays out first, only a blow cuts it short)
 		match act:
 			"jump":
 				p.jump()
@@ -162,10 +164,46 @@ func _test() -> void:
 		check(not p.is_seated(), "a %s stands the hero up" % act)
 	p.hp = p.max_hp
 
+	# Sitting down always plays out: a step, a jump or a swing in the first moments waits for the end
+	# of the animation (the hero stays on the seat), and a blow still gets the hero up at once.
+	await _beside(seat)
+	game._use_station(seat)
+	var lowered := Seats.sit_spot(seat)
+	p.jump()
+	p.melee()
+	for i in 20:
+		p.steer = Seats.front(seat) # (held down, as a key is)
+		await physics_frame
+	check(p.is_seated() and p.sitting_down(), "a step while sitting down does not stand the hero up")
+	check(p.velocity.length() < 0.1 and Vector2(p.global_position.x - lowered.x, p.global_position.z - lowered.z).length() < 0.6,
+			"the hero is not carried off the seat while sitting down (%s, v %s)" % [p.global_position, p.velocity])
+	for i in 60:
+		p.steer = Seats.front(seat)
+		await physics_frame
+		if not p.is_seated():
+			break
+	check(not p.is_seated(), "once the sit-down has played out, the step stands the hero up (sat %.2f s)" % p._sit_time)
+	p.steer = Vector3.ZERO
+	# Neither lowering onto the seat nor getting up is faster than walking.
+	await _beside(seat)
+	var far := Seats.sit_spot(seat) + Seats.front(seat) * 1.6
+	p.global_position = far
+	p.velocity = Vector3.ZERO
+	p.sit_down(Seats.sit_spot(seat), Seats.front(seat), Seats.stand_spot(seat, lv, p.radius))
+	var span := Vector2(far.x - Seats.sit_spot(seat).x, far.z - Seats.sit_spot(seat).z).length()
+	check(p._glide_len * Player.SPEED * Player.WALK_FACTOR >= span - 0.001,
+			"the hero is lowered onto the seat no faster than they walk (%.2f s over %.2f m)" % [p._glide_len, span])
+	await _wait(50)
+	p.stand_up()
+	var out := Vector2(p.global_position.x - Seats.stand_spot(seat, lv, p.radius).x, p.global_position.z - Seats.stand_spot(seat, lv, p.radius).z).length()
+	check(p._glide_len * Player.SPEED * Player.WALK_FACTOR >= out - 0.001,
+			"the hero steps off the seat no faster than they walk (%.2f s over %.2f m)" % [p._glide_len, out])
+
 	# Getting up by pushing into the bench, and holding on: the hero does not
 	# sit straight down again. Once they let go, the bench seats them again.
 	await _beside(seat)
 	game._use_station(seat)
+	await _wait(50)
 	p.steer = -Seats.front(seat)
 	await _wait(1)
 	check(not p.is_seated(), "a step into the bench stands the hero up")

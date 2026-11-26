@@ -86,7 +86,7 @@ func _run() -> void:
 		check(absf(off.dot(along)) < 0.15 and absf(off.dot(along.cross(Vector3.UP))) < 0.15, "%s: the hips are over the seat at %s (off by %s)" % [kind, seat.pos, off])
 		check(absf(off.y - 0.48) < 0.1, "%s: and at the height of the seat (%.2f over the floor)" % [kind, off.y])
 		p.stand_up()
-		await _wait(30)
+		await _wait(60)
 	# A click on a seat walks the hero to where one gets up from it and sits them down there; a bump
 	# against something beside a seat (a rail, a wall) seats no one.
 	var tried := {}
@@ -101,7 +101,7 @@ func _run() -> void:
 			continue
 		tried[key] = true
 		p.stand_up()
-		await _wait(30)
+		await _wait(60)
 		p.global_position = Seats.stand_spot(other, lvl, p.radius)
 		p.reset_physics_interpolation()
 		await _wait(3)
@@ -112,12 +112,12 @@ func _run() -> void:
 			if p.is_seated():
 				sat = true
 				break
-		await _wait(40)
+		await _wait(80)
 		check(sat and p.is_seated(), "%s: a click on the seat at %s walks the hero there and sits them down (at %s)" % [kind, seat.pos, p.global_position])
 		var spot := Seats.sit_spot(seat)
 		check(Vector2(p.global_position.x - spot.x, p.global_position.z - spot.z).length() < 0.1, "%s: and onto its sitting place (at %s, wanted %s, from %s)" % [kind, p.global_position, spot, other.pos])
 		p.stand_up()
-		await _wait(30)
+		await _wait(60)
 		check(not p.is_seated() and _free(p.global_position, p.radius - 0.05), "%s: getting up steps out clear of the furniture" % kind)
 	check(tried.size() >= 3, "clicks were tried on seats of several halls (%d)" % tried.size())
 	# No little table stands about without a use: the smith's and the guildhall cellar's are gone.

@@ -5016,6 +5016,8 @@ func swing_door_near(point: Vector3, reach := 3.5) -> bool:
 		if not is_instance_valid(d):
 			continue
 		var dist := _flat_distance(point, d.global_position)
+		if absf(point.y - d.global_position.y) > WalkIn.DOOR_LEVEL + 0.5:
+			continue # A floor above or below the door.
 		if dist < best_d:
 			best = d
 			best_d = dist

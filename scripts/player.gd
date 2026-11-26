@@ -966,6 +966,7 @@ const SIT_AGAIN := 0.5
 ## stands again. The hero's feet stay where the animation puts them, so
 ## `spot` is on the ground in front of the seat's middle.
 func sit_down(spot: Vector3, towards: Vector3, stand_spot: Vector3) -> void:
+	var pace := maxf(Vector2(velocity.x, velocity.z).length(), SPEED * WALK_FACTOR)
 	path.clear()
 	_hunt = null
 	_target = null
@@ -978,7 +979,7 @@ func sit_down(spot: Vector3, towards: Vector3, stand_spot: Vector3) -> void:
 	_sit_time = 0.0
 	# Lowered onto the seat as the animation sits them down, not snapped onto it (a bump from afar snaps).
 	if Vector2(spot.x - global_position.x, spot.z - global_position.z).length() <= SIT_GLIDE_MAX and absf(spot.y - global_position.y) < 1.0:
-		_glide(global_position, spot, SIT_GLIDE)
+		_glide(global_position, spot, SIT_GLIDE, pace)
 	else:
 		global_position = spot
 		_glide_left = 0.0
@@ -992,22 +993,32 @@ func is_seated() -> bool:
 	return _seated
 
 
-## Gets up from the seat at once, back on the spot in front of it. Does
-## nothing while standing.
-func stand_up() -> void:
+## Whether the hero is still being lowered onto the seat: that always plays out in full before they
+## can get up again (a blow or a death excepts it, see stand_up).
+func sitting_down() -> bool:
+	return _seated and _sit_time < SIT_DOWN_TIME
+
+
+## Gets up from the seat, back on the spot in front of it. Does nothing while standing. While the
+## sit-down animation still plays the hero stays put (a wish to move waits for its end) unless
+## `force` (a blow, a shove or death). True when the hero stands (or already stood) afterwards.
+func stand_up(force := false) -> bool:
 	if not _seated:
-		return
+		return true
+	if sitting_down() and not force:
+		return false
 	_seated = false
 	_stood_at = _clock
 	# Steps out to where they stand again over a moment, instead of popping there.
 	if Vector2(_stand_spot.x - global_position.x, _stand_spot.z - global_position.z).length() <= SIT_GLIDE_MAX:
-		_glide(global_position, _stand_spot, GET_UP_GLIDE)
+		_glide(global_position, _stand_spot, GET_UP_GLIDE, SPEED * WALK_FACTOR)
 	else:
 		global_position = _stand_spot
 		_glide_left = 0.0
 	velocity = Vector3.ZERO
 	_current_anim = ""
 	play("Idle", 0.15)
+	return true
 
 
 ## True while the hero has just stood up and keeps running into the seat
@@ -1033,7 +1044,10 @@ const GET_UP_GLIDE := 0.25
 const SIT_GLIDE_MAX := 2.0
 
 
-func _glide(from: Vector3, to: Vector3, seconds: float) -> void:
+## It never goes faster than `pace` (m/s): the hero walking over a seat's spot is not hurried along it.
+func _glide(from: Vector3, to: Vector3, seconds: float, pace: float) -> void:
+	var span := Vector2(to.x - from.x, to.z - from.z).length()
+	seconds = maxf(seconds, span / maxf(pace, 0.1))
 	_glide_from = from
 	_glide_to = to
 	_glide_len = seconds
@@ -1063,8 +1077,9 @@ func _stay_seated(delta: float) -> bool:
 		if wish == Vector3.ZERO:
 			wish = steer
 	if dead or wish != Vector3.ZERO or not path.is_empty() or _hunt != null:
-		stand_up()
-		return false
+		if stand_up(dead):
+			return false
+		# Still sitting down: the animation plays out first, then the wish moves the hero.
 	velocity = Vector3.ZERO
 	_model.visible = true
 	_sit_time += delta
@@ -1298,7 +1313,8 @@ func is_running() -> bool:
 ## A jump from a run keeps its momentum and flies further the faster the
 ## hero runs; a standing jump goes straight up.
 func jump() -> void:
-	stand_up()
+	if not stand_up():
+		return # Still sitting down.
 	if Injury.cannot_jump(self) and _can_jump():
 		_say_injury(Lang.t("Dein Bein erlaubt keinen Sprung!"))
 		return
@@ -1477,7 +1493,8 @@ func would_splash() -> bool:
 ## kind of blow is chosen as the swing starts and kept even if the crowd
 ## shifts before the blade lands.
 func melee() -> void:
-	stand_up()
+	if not stand_up():
+		return # Still sitting down.
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	path.clear()
@@ -1727,7 +1744,8 @@ func _settle_knives() -> bool:
 ## Throws a knife at `aim` (a world position), or at the closest enemy in sight.
 ## On the move the hero throws without stopping.
 func throw_knife(aim = null, on_the_move := false) -> void:
-	stand_up()
+	if not stand_up():
+		return # Still sitting down.
 	if not can_act() or _attack_cooldown > 0.0:
 		return
 	if knives <= 0:
@@ -2853,7 +2871,7 @@ func _wear_down(slot: String) -> void:
 func shove(from: Vector3, force := 9.0) -> void:
 	if dead or _down > 0.0 or frozen:
 		return
-	stand_up()
+	stand_up(true)
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * force
@@ -2911,7 +2929,7 @@ func take_damage(amount: int, from: Vector3, attacker: Node = null, blockable :=
 	if dead or _invulnerable > 0.0 or _down > 0.0 or frozen or shielded():
 		return
 	# A blow or a trap never finds the hero sitting idly.
-	stand_up()
+	stand_up(true)
 	if _jump_windup > 0.0:
 		_jump_windup = 0.0
 		_anim_hold = 0.0

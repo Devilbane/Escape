@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Climbing wall: sleeping bag in the hammock, closed eyes, body and rope outside the rock | Shipped this week: Settings: option to skip the loading screen at startup; Give the guild and other kit buildings clear glass windows with curtains (+48 more)
+Escape! dev status | Shipped this week: Climbing wall: sleeping bag in the hammock, closed eyes, body and rope outside the rock; Settings: option to skip the loading screen at startup (+48 more)

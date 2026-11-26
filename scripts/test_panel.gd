@@ -27,6 +27,8 @@ const FONT_SIZE := 14
 ## The fixed area under the group tabs: two columns, four rows (the biggest group, travel).
 const AREA := Vector2(BUTTON.x * 2 + GAP, BUTTON.y * 4 + GAP * 3)
 const OPEN_KEY := KEY_F3
+## A second key for keyboards where F3 is a media key (laptops with the Fn key locked the other way).
+const OPEN_KEY_ALT := KEY_F6
 
 ## Time of day: label, hour (see SkyCommand.TIMES).
 const TIMES := [["Morgen", 6.0], ["Mittag", 12.0], ["Abend", 19.5], ["Nacht", 23.0]]
@@ -107,7 +109,7 @@ func _ready() -> void:
 
 	var tab_button := _button(Lang.t("Test"), toggle)
 	tab_button.custom_minimum_size = Vector2(66, 28)
-	tab_button.tooltip_text = Lang.t("Testfeld ein- und ausblenden (F3)")
+	tab_button.tooltip_text = Lang.t("Testfeld ein- und ausblenden (F3 oder F6)")
 	column.add_child(tab_button)
 
 
@@ -122,7 +124,7 @@ func set_god(on: bool) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if ENABLED and visible and event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == OPEN_KEY:
+	if ENABLED and visible and event is InputEventKey and event.pressed and not event.echo and (event.physical_keycode == OPEN_KEY or event.keycode == OPEN_KEY or event.physical_keycode == OPEN_KEY_ALT):
 		toggle()
 		get_viewport().set_input_as_handled()
 

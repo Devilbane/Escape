@@ -923,7 +923,7 @@ func _build_goose() -> void:
 
 
 func _build_model() -> void:
-	var pick: Array = MODELS[kind].get(coat, MODELS[kind][""])
+	var pick: Array = MODELS[kind][coat] if MODELS[kind].has(coat) else MODELS[kind].values()[0]
 	_model_name = pick[0]
 	var model: Node3D = load("res://assets/animals/%s.glb" % _model_name).instantiate()
 	_rig.add_child(model)

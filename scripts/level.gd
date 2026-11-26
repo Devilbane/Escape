@@ -1671,6 +1671,8 @@ func _build_chest(c: Vector2i, epic := false) -> void:
 		var epic_rng := RandomNumberGenerator.new()
 		epic_rng.seed = hash("%s:epic:%d:%d" % [level_name, c.x, c.y])
 		obj.loot = {"gold": ElderLair.EPIC_GOLD, "item": ElderLair.epic_item(self, epic_rng)}
+		if building == OwlClock.ID:
+			obj.loot = {"gold": OwlClock.REWARD_GOLD, "item": OwlClock.REWARD}
 		var glow := OmniLight3D.new()
 		glow.light_color = Rarity.EPIC
 		glow.light_energy = 2.0

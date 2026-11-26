@@ -23,7 +23,9 @@ put it in one of three lists:
 - **Scoped, `tests/ci_scopes.txt`:** a required test can also be given the paths it covers (`file | paths`). It stays
   in `ci_manifest.txt`, but a pull request skips it unless it touches one of those paths or the test file. It is
   skipped only when every changed file is known (matches some scoped test's paths, or is neutral: `scripts/lang/*`,
-  `levels/*`, `assets/*`, `shaders/*`, docs). One change to shared code (`game.gd`, `player.gd`, items, saving,
+  `levels/*`, `assets/*`, `shaders/*`, docs, and the scripts that only draw or sound: `*_look.gd`, `*_model.gd`,
+  `*_pose.gd`, `*_icon.gd`, `*_sounds.gd`, `sfx.gd`, `music.gd`, `effects.gd`, `fog*.gd`, `snow_*.gd`, the lights and
+  shadows; the full list is `neutral` in `tests/ci_select.sh`). One change to shared code (`game.gd`, `player.gd`, items, saving,
   `project.godot`, scenes, workflows, `tests/ci_*`) runs the whole required list. Nightly and manual runs always run
   everything.
 

@@ -94,8 +94,9 @@ static func has(built: Dictionary, id: String) -> bool:
 
 
 ## How many slots the storage chest has (the upgrades no longer change it).
-static func storage_size(_built: Dictionary = {}) -> int:
-	return STORAGE_SIZE
+## `hero` adds the room of the extra storage pieces in their self-built house (HouseFurniture.store_bonus).
+static func storage_size(_built: Dictionary = {}, hero := "") -> int:
+	return STORAGE_SIZE + (HouseFurniture.of(hero).store_bonus() if hero != "" else 0)
 
 
 ## How many of the storage chest's slots these items take: torches bundle
@@ -107,8 +108,8 @@ static func storage_used(storage: Array) -> int:
 
 ## Whether one more of `id` fits in the storage chest: on a bundle of it
 ## with room, or in a free slot.
-static func storage_fits(built: Dictionary, storage: Array, id: String) -> bool:
-	return Items.fits(storage, storage_size(built), id)
+static func storage_fits(built: Dictionary, storage: Array, id: String, hero := "") -> bool:
+	return Items.fits(storage, storage_size(built, hero), id)
 
 
 ## Stone blocks the hero can pay with: in the bag and in the storage chest.

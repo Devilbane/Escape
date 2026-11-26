@@ -102,7 +102,7 @@ const ROLES := {
 		"lines": ["Die Wand ist mein Garten. Nur ohne Gemüse.", "Wer klettern will, braucht Geduld, Hände und einen guten Nagel.", "Sprich mich auf das Klettern an. Oder sieh mir eine Stunde zu.", "Von oben sieht man das Dorf klein wie ein Spielzeug."]},
 	"λ": {"name": "Hirte Moritz", "model": "Rogue", "show": ["Rogue_Cape"], "hair": {"style": "natural", "color": "black"},
 		"colors": [Color(0.5, 0.58, 0.4), Color(0.4, 0.36, 0.3), Color(0.62, 0.5, 0.34)], "plan": "farm", "work": "Idle",
-		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen.", "Bleib auf dem Weg, sonst hält dich mein Hund für ein Schaf."]},
+		"lines": ["Schäfchen zählen? Das tue ich im Wachen. Es hilft nicht gegen die Müdigkeit.", "Meine Schafe kennen jedes Gras im Tal beim Namen."]},
 	# The beekeeper of the farming valley (see Beekeeper): day plan "farm" with his own jobs among the hives (see ValleyFolk),
 	# a straw hat with a net veil (see BeeVeil) and a window for honey.
 	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "spiky", "color": "silver"},
@@ -122,7 +122,7 @@ const ROLES := {
 		"lines": ["Brot, Käse, Seile, Fackeln: alles für den Alltag!", "Ich kaufe auch, was du aus dem Verlies mitbringst.", "Für einen Helden mache ich einen guten Preis.", "Wurst für die Füchse? Die leben auf der Wiese am Waldteich, westlich vom Dorf."]},
 	"7": {"name": "Pip", "model": "Rogue", "show": [], "scale": 0.72, "hair": {"style": "spiky", "color": "blond"}, "skin": SKIN_ROSY,
 		"colors": [Color(0.45, 0.6, 0.9), Color(0.6, 0.45, 0.3), Color(0.9, 0.8, 0.3)], "plan": "wander", "work": "Cheer", "herds": true, "pal": "pippi",
-		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Der Hund bleibt bei den Ziegen, wo ich bin.", "Das ist meine Freundin Pippi! Sie hütet die Gänse und die Ziegen mit mir."]},
+		"lines": ["Fang mich doch!", "Bist du ein echter Abenteurer?", "Mama sagt, in der Gruft spukt es!", "Das sind meine Ziegen! Ich passe auf sie auf.", "Die Gänse hören auf niemanden. Nicht mal auf mich.", "Das ist meine Freundin Pippi! Sie hütet die Gänse und die Ziegen mit mir."]},
 	# Pip's friend: a red-haired girl with long pigtails and freckles who minds
 	# the geese and the goats with him. She is not on the map: Outdoor puts her
 	# beside Pip (see VillageFarm.pippi_home), so she needs no map letter.
@@ -1283,6 +1283,33 @@ func _sweep_en_route(delta: float) -> void:
 var _watch_pause := 0.0
 
 
+## Whether the guard may be taken off what he is doing to chase a thief (see GuardChase).
+func chase_free() -> bool:
+	return _task in GuardChase.FREE_TASKS and not level.village_alarm.raised
+
+
+## Runs towards a thief (see GuardChase): a new path to him, at `speed`.
+func chase_toward(target: Vector3, speed: float) -> void:
+	_walk_to(target, speed, "idle")
+
+
+## Stands, turned to the thief, getting his breath back (he keeps his distance, see GuardChase.GAP).
+func chase_halt(target: Vector3) -> void:
+	_start("idle", 1.0)
+	_look_at = Vector3.INF
+	_turn_to(target - global_position, 1.0)
+	play("Idle")
+
+
+## Back to the post at the west gate after a chase (where it stands), else a short rest.
+func back_to_post() -> void:
+	var post := GuardWatch.post(level)
+	if post.is_finite():
+		_walk_to(post, WALK_SPEED, "watch")
+	else:
+		_start("idle", 2.0)
+
+
 ## The guard stands inside the west gate and looks out. At the first slime he
 ## sees he calls out once; the gate then shuts and he takes his post with the
 ## other fighters (see GuardWatch, VillageWall._muster).
@@ -1628,6 +1655,11 @@ func call_to_arms(text: String) -> void:
 	say(text, Vector3.INF, 6.0)
 	_current_anim = "Cheer"
 	_anim.play("Cheer", 0.2)
+
+
+## "female" for a woman, else "" (see the "sex" key of the roles).
+func info_sex() -> String:
+	return _info.get("sex", "")
 
 
 ## The women and the children, who run indoors from a slime while the

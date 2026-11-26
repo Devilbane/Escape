@@ -1,0 +1,1 @@
+- River fish are now drawn as real fish from above, with a tapered body, tail, side fins and an eye, and are solid instead of see-through.

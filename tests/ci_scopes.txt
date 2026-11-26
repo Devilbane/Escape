@@ -47,7 +47,20 @@ beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scr
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
 monitor.gd | scripts/monitor.gd scripts/launcher.gd scripts/lang/display.gd
+house_exit_quick.gd | scripts/homes.gd scripts/house_*.gd scripts/plot*.gd scripts/village_house.gd
+ladder_exit.gd | scripts/ladder_click.gd scripts/ladder_pose.gd scripts/house_*.gd scripts/homes.gd
+quarry_door.gd | scripts/quarry_hill.gd scripts/quarry_rocks.gd scripts/village_house.gd scripts/mountains.gd
+house_faces.gd | scripts/village_house.gd scripts/house_*.gd
+
+# The hero's level and experience: the level curve, monster levels, the character page and the starter dungeon
+# (levels 01 to 06). Looks, sounds and shaders never select it (see the neutral list in tests/ci_select.sh).
+hero_level.gd | scripts/hero_level.gd scripts/training.gd scripts/character_page.gd scripts/skill_trees.gd scripts/skill_tree_page.gd scripts/slime_growth.gd scripts/dungeon_life.gd scripts/monster_families.gd levels/0[1-6]_*.txt
+# Recipes, the ingredient pouch and the crafts (Odo's recipe, the compendium page, the saved game). The scripts that
+# define or teach a recipe select it; a change to shared code (items, menus, game, saving) runs it anyway.
+crafting.gd | scripts/crafting.gd scripts/crafting_square.gd scripts/silver_silk.gd scripts/beekeeper.gd scripts/healing_potions.gd scripts/armour_sets.gd scripts/forge.gd scripts/smith_cottage.gd scripts/dragon_hoard.gd scripts/ore.gd
 riddle_vault.gd | scripts/riddle_vault.gd tools/riddle_hash.gd
 
 # The smith's forge and the crafting it shares its recipes and ores with.
 forge.gd | scripts/forge.gd scripts/smith_cottage.gd scripts/crafting.gd scripts/crafting_square.gd scripts/dragon_hoard.gd scripts/ore.gd
+home_storage_extra.gd | scripts/house_furniture.gd scripts/home_upgrades.gd scripts/lang/furniture.gd
+settings_window.gd | scripts/settings_window.gd scripts/graphics.gd

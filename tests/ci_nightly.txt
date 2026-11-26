@@ -126,6 +126,7 @@ event_log_frame.gd | 120 | fixed | passfail | the event log shows only its text 
 event_log_width.gd | 120 | fixed | passfail | event log's width slider in the pull-out menu (see
 exploration.gd | 120 | fixed | passfail | Erkunden (exploring) skill: it needs no gear, a
 grates_clear.gd | 120 | fixed | passfail | floor grates: nothing is placed on one. On every
+guard_chase.gd | 120 | fixed | passfail | Guard Ulrich chases Spooknortz on his night round (see GuardChase): shouts, runs after him, never catches up, gives up and returns to his post
 guard_watch.gd | 120 | fixed | passfail | town guard's watch on the west gate (see GuardWatch):
 hero_name_tag.gd | 120 | fixed | passfail | hero's name over the head: a new game shows the
 message_over_head.gd | 120 | fixed | passfail | messages float just over the hero's head and are written
@@ -239,7 +240,11 @@ flower_beds.gd | 120 | free | passfail | Flower beds in the valley lane (at the 
 slime_spring_weather.gd | 120 | fixed | pass | Slimes only crawl out in spring rain, storm or fog and retreat to the pond when it clears or the season turns
 crows.gd | 120 | free | crows:_OK | Crows on the farm fields (autumn and winter, by day; peck, take off with caws when the hero comes close, circle, land on another field, land at once when he leaves)
 owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)
+owl_clock_shots.gd | 600 | fixed | pass | Owl clock riddle pictures (graveyard by night, the stairwell, the crypt)
 sunflower_riddle.gd | 120 | fixed | pass | The sunflower riddle (the planted flowers match the code, scarecrow in the middle, the right words by the scarecrow set off the fireworks)
 sunflower_riddle_shots.gd | 90 | free | pass | The sunflower riddle's field and fireworks (screenshots with SHOTS)
 test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)
+house_puddle_shots.gd | 600 | fixed | pass | A rain puddle across a self-built house stops at its walls (screenshots with SHOTS)
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
+bush_variety.gd | 120 | free | pass | Bushes come in many kinds (shapes, leaf shapes, colours, branches, berries, blooms), neighbours differ, seasons turn the green ones and keep the evergreens, details drawn only near
+grave_styles.gd | 120 | free | pass | Gravestone styles: every style builds, fits its footprint, and the graveyard mixes them

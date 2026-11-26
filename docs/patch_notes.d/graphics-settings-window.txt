@@ -1,0 +1,2 @@
+- New Settings window (Menu > Settings) with Display, Graphics, Colour and Sound tabs: antialiasing (FXAA, SMAA, TAA), render scale, texture sharpness, shadow quality, lamp shadows, surface relief, bloom, V-Sync, frame limit, brightness, contrast and saturation. Everything is saved.
+- Calmer surfaces: stone, earth and wood no longer glitter and shimmer in the sun, and textures keep their detail at a distance.

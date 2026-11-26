@@ -148,11 +148,9 @@ func _run() -> void:
 		# The head is the end of the body the fish swims towards.
 		var holder: Node3D = f.node
 		var model: Node3D = holder.get_child(0)
-		var sk := model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
-		var a := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Face")).origin
-		var b := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Tail_end")).origin
 		var heading := Vector3(sin(f.heading), 0, cos(f.heading))
-		if (a - b).dot(heading) > 0.0:
+		var nose: Vector3 = holder.global_transform.basis * (model.get_meta("head") as Vector3)
+		if nose.dot(heading) > 0.9:
 			heads += 1
 	check(heads == school._fish.size(), "every fish swims head first (%d of %d)" % [heads, school._fish.size()])
 	for i in school._fish.size():

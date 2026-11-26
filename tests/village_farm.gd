@@ -94,7 +94,7 @@ func _run() -> void:
 	var dogs := _kinds(lvl, "dog")
 	check(geese.size() == 6, "a flock of six geese (%d)" % geese.size())
 	check(goats.size() == 4, "four goats (%d)" % goats.size())
-	check(dogs.size() == 3, "three dogs: the two of the village and the one of the farming valley (%d)" % dogs.size())
+	check(dogs.size() == 1, "one dog: the black Husky at the farm (%d)" % dogs.size())
 	check(_kinds(lvl, "sheep").size() == 10, "ten sheep: four by the village and six in the farming valley (%d)" % _kinds(lvl, "sheep").size())
 	check(_kinds(lvl, "cow").size() == 2, "two cows (%d)" % _kinds(lvl, "cow").size())
 	check(_kinds(lvl, "bull").size() == 1, "a bull (%d)" % _kinds(lvl, "bull").size())

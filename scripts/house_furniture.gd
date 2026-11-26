@@ -36,6 +36,12 @@ const KINDS := {
 		"text": "Ein großes Bett mit Nachttisch. Schlaf bis zum Morgen oder logg dich aus, wie im Bett deines alten Hauses."},
 	"truhe": {"icon": "kind:crate", "name": "Lagertruhe", "price": 50, "size": Vector2i(1, 1), "station": "lager",
 		"text": "Öffnet deine Lagertruhe: dieselben Sachen wie in der Truhe deines alten Hauses und am Handwerkerplatz."},
+	"kiste": {"icon": "kind:crate", "name": "Vorratskisten", "price": 60, "size": Vector2i(1, 1), "station": "lager", "store": 16,
+		"text": "Ein Stapel fester Holzkisten. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge."},
+	"fass": {"icon": "kind:crate", "name": "Vorratsfass", "price": 80, "size": Vector2i(1, 1), "station": "lager", "store": 16,
+		"text": "Ein großes Fass mit Eisenreifen. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge."},
+	"eichentruhe": {"icon": "kind:crate", "name": "Große Eichentruhe", "price": 180, "size": Vector2i(1, 1), "station": "lager", "store": 32,
+		"text": "Eine eisenbeschlagene Eichentruhe. Öffnet deine Lagertruhe und schafft Platz für 32 weitere Dinge."},
 	"regal": {"icon": "kind:book", "name": "Bücherregal", "price": 125, "size": Vector2i(2, 1), "station": Bookshelf.KIND,
 		"text": "Stell deine Bücher hinein oder nimm sie heraus. Auf den Brettern steht ein Buch für jedes, das du aufbewahrst."},
 	"kamin": {"icon": "kind:flame", "name": "Kamin", "price": 150, "size": Vector2i(1, 1), "station": "",
@@ -85,14 +91,14 @@ const KINDS := {
 const GROWTH := ["planted", "picked", CandleStand.OUT]
 ## The furnisher's categories (see Menus._build_furnisher): title, picture, kinds.
 const SECTIONS := [
-	["moebel", "Möbel", "kind:house", ["bett", "truhe", "regal", "kamin", "trophaeen", WeaponRack.KIND, "hort"]],
+	["moebel", "Möbel", "kind:house", ["bett", "truhe", "kiste", "fass", "eichentruhe", "regal", "kamin", "trophaeen", WeaponRack.KIND, "hort"]],
 	["werkbaenke", "Werkbänke", "kind:hammer_anvil", ["werkbank", "feinbank", "schleifrad", "alchemie"]],
 	["wand", "Licht und Wandschmuck", "kind:torch", ["leuchter", "fackel", "bild_berge", "bild_see", "bild_drache"]],
 	["schreine", "Hausschreine", "kind:goddess", ["schrein_maija"]],
 	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill", AppleTree.KIND]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Vorratskisten, Fässer und Eichentruhen (mehr Platz im Lager), Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
 
 ## The flat roof over the upper floor (the top of a slab of HouseSketch.MAX_STOREY): only the
 ## roof lights stand there.
@@ -176,6 +182,18 @@ func waiting() -> int:
 ## How many of a kind stand in the house.
 func standing(kind: String) -> int:
 	return placed.filter(func(p): return p.kind == kind).size()
+
+
+## Slots the hero's extra storage pieces (KINDS with "store") add to the storage chest, capped at
+## STORE_CAP so the chest's window stays a sensible size.
+const STORE_CAP := 128
+
+
+func store_bonus() -> int:
+	var sum := 0
+	for p in placed:
+		sum += int(KINDS.get(p.kind, {}).get("store", 0))
+	return mini(sum, STORE_CAP)
 
 
 ## Copies a garden tree's GROWTH from `from` into `piece` (whole numbers) and returns `piece`.

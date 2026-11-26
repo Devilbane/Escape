@@ -43,9 +43,6 @@ var state := State.TITLE
 var _sound_button: Button
 var _music_button: Button
 var _music_slider: HSlider
-var _graphics_button: Button
-var _display_button: Button
-var _monitor_button: Button
 var _effects_slider: HSlider
 var _log_width_slider: HSlider
 ## The width of the labels in front of the pull-out menu's sliders, room for
@@ -208,6 +205,10 @@ var wishes := Wishes.new(self)
 var fishing := Fishing.new(self)
 ## Treasure maps from messages in a bottle and where they lead (see TreasureMaps).
 var treasure_maps := TreasureMaps.new(self)
+## The owl clock riddle: the Deathringer's calls and rest (see OwlClock).
+var owl_clock := OwlClock.new(self)
+## The riddle counter: which of the official riddles are solved (see RiddleCount).
+var riddles := RiddleCount.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
@@ -585,6 +586,7 @@ func _bus_links() -> Array:
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
+		[bus.riddle_done, riddles.solve],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
@@ -825,6 +827,7 @@ func _setup_world() -> void:
 	env.adjustment_contrast = 1.08
 	env.adjustment_saturation = 1.0
 	_env = env
+	Graphics.watch_environment(env)
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -904,7 +907,7 @@ func _set_atmosphere(outdoor: bool) -> void:
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
-		_env.adjustment_saturation = 1.0
+		_env.adjustment_saturation = Graphics.tone.saturation
 		_moon.rotation_degrees = Vector3(-62, 28, 0)
 		_moon.light_color = Color(0.82, 0.84, 0.9)
 		_moon.light_energy = Graphics.sun(DUNGEON_MOON)
@@ -998,7 +1001,7 @@ func _setup_drawer() -> void:
 	# (actions and sound) leave it out so they can be clicked again.
 	# Map, compendium, inventory, character and quests have their own icons
 	# on the menu's rail (QUICK_WINDOWS), so they are not repeated here.
-	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND]]
+	var windows := [["Laden", "laden"], ["Fertigkeiten", "fertigkeiten"], ["Mitspielen", CoopWindow.KIND], ["Einstellungen", SettingsWindow.KIND]]
 	for w in windows:
 		buttons.add_child(_make_button(Lang.t(w[0]), _open_from_drawer.bind(w[1]), true))
 	# The game actions act the moment the pointer goes down (see _make_button).
@@ -1031,8 +1034,6 @@ func _setup_drawer() -> void:
 	column.add_child(_make_music_slider())
 	column.add_child(_make_effects_slider())
 	column.add_child(_make_log_width_slider())
-	column.add_child(_make_graphics_row())
-	column.add_child(_make_display_row())
 	_update_music_controls()
 	_update_drawer_handle()
 	_place_drawer(0.0)
@@ -1952,6 +1953,12 @@ func _use_station(s: Dictionary) -> void:
 		go_inside(s.building, s.get("house", 0), s.get("leaf"))
 	elif s.kind == TreasureMaps.DIG or s.kind == TreasureMaps.BOULDER:
 		treasure_maps.use(s)
+	elif s.kind == GraveLore.KIND:
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		show_message(riddles.card(level.level_name) if s.get("counter", false) else GraveLore.card(s), 7.0)
+		if s.get("owlav", false):
+			learn(GraveLore.OWLAV_LORE)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
 		SpringCave.use(self, s)
 	elif s.kind == "schacht":
@@ -4107,6 +4114,8 @@ func begin_new_game() -> void:
 	secrets_found = 0
 	fishing.ring_found = false
 	treasure_maps.clear()
+	owl_clock.clear()
+	riddles.clear()
 	dry_levels = 0
 	bumped_person = false
 	hints_shown.clear()
@@ -4300,89 +4309,6 @@ func _make_log_width_slider() -> Control:
 	var row := _make_slider_row("Protokoll", "Breite des Ereignisprotokolls links", EventLog.width, EventLog.MIN_WIDTH, EventLog.MAX_WIDTH, EventLog.WIDTH_STEP, event_log.set_width)
 	_log_width_slider = row.get_child(1)
 	return row
-
-
-## The graphics row: its button names the picked preset (see Graphics) and steps on to the next
-## one, as the sound buttons do. The label lines up with the slider rows' labels.
-func _make_graphics_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var label := Label.new()
-	label.text = Lang.t("Grafik")
-	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", UiKit.sized(18))
-	label.add_theme_color_override("font_color", GOLD)
-	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
-	row.add_child(label)
-	_graphics_button = _make_button("", _next_graphics, true)
-	_graphics_button.custom_minimum_size = Vector2(0, 44)
-	_graphics_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(_graphics_button)
-	_update_graphics_button()
-	return row
-
-
-## The display row: one button steps through the window modes and sizes (see Monitor), a small
-## square one on its right steps through the monitors. Both keep their size whatever they say.
-func _make_display_row() -> Control:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var label := Label.new()
-	label.text = Lang.t("Anzeige")
-	label.add_theme_font_override("font", TEXT_FONT)
-	label.add_theme_font_size_override("font_size", UiKit.sized(18))
-	label.add_theme_color_override("font_color", GOLD)
-	label.custom_minimum_size = Vector2(SLIDER_LABEL_WIDTH, 0)
-	row.add_child(label)
-	_display_button = _make_button("", _next_display_mode, true)
-	_display_button.custom_minimum_size = Vector2(0, 44)
-	_display_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_display_button.clip_text = true
-	row.add_child(_display_button)
-	_monitor_button = _make_button("", _next_monitor, true)
-	_monitor_button.custom_minimum_size = Vector2(44, 44)
-	row.add_child(_monitor_button)
-	_update_display_buttons()
-	return row
-
-
-func _next_display_mode() -> void:
-	Monitor.choose_mode(Monitor.next_mode(Monitor.mode), get_window())
-	_update_display_buttons()
-
-
-func _next_monitor() -> void:
-	Monitor.choose_monitor(Monitor.next_monitor(Monitor.monitor, DisplayServer.get_screen_count()), get_window())
-	_update_display_buttons()
-
-
-func _update_display_buttons() -> void:
-	_display_button.text = Lang.t(Monitor.NAMES[Monitor.mode])
-	var lines: Array[String] = [Lang.t(Monitor.HINTS[Monitor.mode])]
-	for which: String in Monitor.MODES:
-		if which != Monitor.mode:
-			lines.append(Lang.t(Monitor.HINTS[which]))
-	_display_button.tooltip_text = "\n".join(lines)
-	var screens := DisplayServer.get_screen_count()
-	_monitor_button.text = str(Monitor.pick(Monitor.monitor, screens) + 1)
-	_monitor_button.disabled = screens < 2
-	_monitor_button.tooltip_text = Lang.t("Monitor %d von %d. Klick: der nächste Monitor.") % [int(_monitor_button.text), screens]
-
-
-func _next_graphics() -> void:
-	var at := Graphics.PRESETS.find(Graphics.preset)
-	Graphics.choose(Graphics.PRESETS[(at + 1) % Graphics.PRESETS.size()], get_viewport())
-	_update_graphics_button()
-
-
-func _update_graphics_button() -> void:
-	_graphics_button.text = Lang.t(Graphics.NAMES[Graphics.preset])
-	# The tooltip says what every preset is for, the picked one first.
-	var lines: Array[String] = [Lang.t(Graphics.HINTS[Graphics.preset])]
-	for which: String in Graphics.PRESETS:
-		if which != Graphics.preset:
-			lines.append(Lang.t(Graphics.HINTS[which]))
-	_graphics_button.tooltip_text = "\n".join(lines)
 
 
 ## The sound effects volume row.
@@ -4592,6 +4518,8 @@ func _apply_save(data: Dictionary) -> void:
 	secrets_found = int(data.get("secrets", 0))
 	fishing.ring_found = bool(data.get("fished_ring", false))
 	treasure_maps.load_from(data.get("treasure_maps", {}))
+	owl_clock.load_from(data.get("owl_clock", {}))
+	riddles.load_from(data.get("riddles", []))
 	dry_levels = int(data.get("dry", 0))
 	bumped_person = bool(data.get("bumped_person", false))
 	hints_shown.clear()
@@ -4945,7 +4873,7 @@ func _home_given_now() -> bool:
 func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -5941,7 +5869,7 @@ func _apply_away(plan: Dictionary, result: Dictionary) -> Array[String]:
 	# Cut stone blocks go into the storage chest, as many as it still holds.
 	var stones := 0
 	for i in int(result.get("stones", 0)):
-		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE):
+		if not HomeUpgrades.storage_fits(home_upgrades, storage, Menus.STONE, hero_name):
 			break
 		storage.append(Menus.STONE)
 		stones += 1
@@ -8542,6 +8470,7 @@ func _process(delta: float) -> void:
 			"schacht": Lang.t("Dagegenlaufen, um in die Tiefe hinabzusteigen"),
 			"tafel": Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 			VillageWall.GATE_STATION: Lang.t("Dagegenlaufen, um das Tor zu öffnen"),
+			GraveLore.KIND: Lang.t("Dagegenlaufen, um die Inschrift zu lesen"),
 			TreasureMaps.DIG: Lang.t("Dagegenlaufen, um nach dem Schatz zu graben"),
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
@@ -8817,6 +8746,8 @@ func _unhandled_input(event: InputEvent) -> void:
 						potion_action()
 					KEY_2:
 						spell_action()
+					KEY_3:
+						owl_clock.ring()
 					KEY_U:
 						camp_action()
 					KEY_G:

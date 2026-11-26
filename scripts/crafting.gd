@@ -264,6 +264,18 @@ const RECIPES := {
 		]},
 	# Learned with the first part of the fallen dragon (see DragonLair) and
 	# made at the fine metalwork bench on the crafting square.
+	# The bell of the owl clock riddle (see OwlClock): learned with the first hair of a banshee, made at the
+	# fine metalwork bench. Rung with key 3.
+	"totenlaeuter": {"name": "Totenläuter", "giver": "", "found": "bansheehaar",
+		"craft": "feinschmieden", "craft_level": 0, "result": "totenlaeuter",
+		"effect": "Eine Glocke für die Toten",
+		"ingredients": {"silber": 2, "ghulkralle": 1, "bansheehaar": 2, "geisterschleier": 1},
+		"lines": [
+			{"id": "silber", "text": "Zwei Silberbarren für den Leib der Glocke."},
+			{"id": "kralle", "text": "Eine Ghulkralle als Klöppel, denn nur sie schlägt so, dass die Toten es hören."},
+			{"id": "haar", "text": "Zwei Strähnen Bansheehaar, zum Seil geflochten."},
+			{"id": "schleier", "text": "Ein Geisterschleier, damit der Klang nicht verhallt."},
+		]},
 	"schuppenreif": {"name": "Schuppenreif", "giver": "", "found": "drachenschuppe",
 		"craft": "feinschmieden", "craft_level": 0, "result": "schuppenreif",
 		"effect": "+3 Leben, Rüstung tragen +1",

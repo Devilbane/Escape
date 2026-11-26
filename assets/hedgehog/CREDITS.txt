@@ -1,5 +1,6 @@
 Hedgehog.obj and the two textures: "Low Poly Hedgehog" 3D model by trashart,
 https://trashart.itch.io/low-poly-hedgehog (also https://sketchfab.com/3d-models/low-poly-hedgehog-ccfa9628f4304e988cce6cb4b3470775)
 Licensed CC-BY 4.0 (Attribution) as listed on Sketchfab; the author offers it on itch.io as free to use anywhere.
-Changes: only the body and spike textures were kept (scaled to 512 px); the other parts are plain colours set in
-scripts/hedgehog.gd; the mesh is unchanged.
+Changes: only the body and spike textures were kept (scaled to 512 px) and repainted in brown and grey with pale
+spine tips and soft fur; the other parts are plain colours set in scripts/hedgehog.gd, which also adds the pointed
+snout, the bead nose and eyes and animates the feet; the mesh is otherwise unchanged.

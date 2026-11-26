@@ -1,0 +1,1 @@
+- Patches of glossy green slime now smear the sewer floors: step in one and it squelches (and slows you a touch).

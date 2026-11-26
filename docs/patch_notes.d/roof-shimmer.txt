@@ -1,0 +1,1 @@
+- Roofs now look steadier while you move: the finest tile shading and bumps fade out with distance instead of shimmering.

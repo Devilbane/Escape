@@ -1,0 +1,1 @@
+- Clicking the stairs or the upper floors of the mage tower now walks you there, and no longer sends you outside or to a bed in the room above.

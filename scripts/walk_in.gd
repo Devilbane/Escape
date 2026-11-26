@@ -1258,6 +1258,62 @@ func route(from: Vector3, to: Vector3) -> Array[Vector3]:
 	return out
 
 
+## Whether `pos` (world) is on a storey of the hall of several storeys the hero stands in that lies above
+## theirs, so it is hidden from them (see _show_up): a click through the roof must not pick a bed there.
+func hidden_above_hero(pos: Vector3) -> bool:
+	if hero_in.is_empty() or not hero_in.has("layout"):
+		return false
+	var node: Node3D = hero_in.node
+	var p: Vector3 = node.global_transform.affine_inverse() * pos
+	var lay: Dictionary = hero_in.layout
+	if not Rect2(lay.up_room).grow(0.5).has_point(Vector2(p.x, p.z)):
+		return false
+	return GuildHall.storey_of(lay, p.y) > int(hero_in.storey)
+
+
+## Where a click's ray (world) meets what the hero can see inside the hall of several storeys they stand in
+## (the guildhall, the mage tower): the steps of a flight they can see, or the boards of their own storey or
+## one below. The game's own click lands on the ground plane, which for a raised step or upstairs floor is
+## somewhere else entirely. Null when the ray meets none of them (see Game._mouse_to_floor).
+func surface_under_ray(origin: Vector3, dir: Vector3) -> Variant:
+	if hero_in.is_empty() or not hero_in.has("layout") or dir.y > -0.01:
+		return null
+	var node: Node3D = hero_in.node
+	var inv := node.global_transform.affine_inverse()
+	var lay: Dictionary = hero_in.layout
+	var o: Vector3 = inv * origin
+	var d: Vector3 = (inv.basis * dir).normalized()
+	if d.y > -0.01:
+		return null
+	var storey := int(hero_in.storey)
+	# The steps first: a flight with the hero's storey at one end shows from there.
+	for entry: Array in [[lay.b, GuildHall.UPPER_STOREY, GuildHall.ROOF_STOREY], [lay.a, GuildHall.GROUND_STOREY, GuildHall.UPPER_STOREY],
+			[lay.c, GuildHall.CELLAR_STOREY, GuildHall.GROUND_STOREY]]:
+		var f: Dictionary = entry[0]
+		if storey != int(entry[1]) and storey != int(entry[2]):
+			continue
+		var t0 := (float(f.high) + 0.1 - o.y) / d.y
+		var t1 := (float(f.low) - 0.1 - o.y) / d.y
+		var steps := 120
+		for i in steps + 1:
+			var p: Vector3 = o + d * lerpf(t0, t1, float(i) / float(steps))
+			if GuildHall.on_flight(f, p) and p.y <= GuildHall.ramp(f, p.z):
+				p.y = GuildHall.ramp(f, p.z)
+				return node.global_transform * p
+	# Then the boards: the hero's storey, and those below it.
+	var floors := [[GuildHall.ROOF_STOREY, lay.deck, lay.up_room, lay.hatch], [GuildHall.UPPER_STOREY, lay.up_floor, lay.up_room, lay.stairwell],
+			[GuildHall.GROUND_STOREY, lay.floor, lay.room, null]]
+	for entry: Array in floors:
+		if int(entry[0]) > storey:
+			continue
+		var y: float = entry[1]
+		var q: Vector3 = o + d * ((y - o.y) / d.y)
+		var hole: Variant = entry[3]
+		if (entry[2] as Rect2).has_point(Vector2(q.x, q.z)) and not (hole != null and (hole as Rect2).has_point(Vector2(q.x, q.z))):
+			return node.global_transform * q
+	return null
+
+
 ## The way up or down the stairs of a hall of several storeys (the guildhall, see GuildHall.way)
 ## from the storey of `from` to that of `to` (world), or nothing.
 func _between_storeys(rec: Dictionary, from: Vector3, to: Vector3) -> Array[Vector3]:

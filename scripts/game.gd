@@ -1946,6 +1946,8 @@ var monastery_teacher := ""
 
 func _use_station(s: Dictionary) -> void:
 	_pending_station = {}
+	if s.kind == "bett":
+		_bed_in_use = s
 	# Still saying the last line: a new bump does not start a new one yet, or
 	# the text flickers while the hero keeps pushing against the villager.
 	var busy: bool = s.has("npc") and (s.npc.is_busy_talking() or village_rumours.is_telling(s.npc))
@@ -5451,8 +5453,16 @@ func _bed_lie_spot(bed: Dictionary) -> Vector3:
 	return Level.lie_spot(bed.pos, bed.get("rot", 0.0), player.body_scale())
 
 
-## The bed the hero just ran into: the closest one in the level.
+## The bed the hero last ran into (see _use_station): the one they lie down in, even when another
+## bed's middle is closer to where they stand.
+var _bed_in_use := {}
+
+
+## The bed the hero just ran into, or else the closest one in the level.
 func _nearest_bed() -> Dictionary:
+	if not _bed_in_use.is_empty() and level.stations.has(_bed_in_use) \
+			and player.global_position.distance_to(_bed_in_use.pos) < 6.0:
+		return _bed_in_use
 	var best := {}
 	var best_dist := INF
 	for s in level.stations:

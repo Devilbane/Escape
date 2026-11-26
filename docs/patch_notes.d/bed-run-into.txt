@@ -1,0 +1,1 @@
+- Going to bed now always uses the bed you ran into, even when another bed stands closer.

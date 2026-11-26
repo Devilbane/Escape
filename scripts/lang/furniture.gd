@@ -9,8 +9,6 @@ const EN := {
 	"Ein Stapel fester Holzkisten. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge.": "A stack of sturdy wooden crates. Opens your storage chest and makes room for 16 more things.",
 	"Ein großes Fass mit Eisenreifen. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge.": "A big barrel with iron hoops. Opens your storage chest and makes room for 16 more things.",
 	"Eine eisenbeschlagene Eichentruhe. Öffnet deine Lagertruhe und schafft Platz für 32 weitere Dinge.": "An iron-bound oak chest. Opens your storage chest and makes room for 32 more things.",
-	"Kisten": "Crates",
-	"Fass": "Barrel",
 	"Eichentruhe": "Oak chest",
 	"Raumausstatterin Ilse": "Ilse the furnisher",
 	"Du zündest die Kerzen an.": "You light the candles.",

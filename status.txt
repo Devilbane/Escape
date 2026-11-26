@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add bees, beehives and a beekeeper with honey; Add owls in the woods' trees (hoots at dusk and night) | Shipped this week: Say why a click on open ground cannot be walked to; Plant flower beds in the valley lane's bare squares (+48 more)
+Escape! dev status | Working on: Add fireflies, gnats, butterflies, crickets, cicadas and night sounds; Add bees, beehives and a beekeeper with honey (+1 more) | Shipped this week: Say why a click on open ground cannot be walked to; Plant flower beds in the valley lane's bare squares (+48 more)

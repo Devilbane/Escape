@@ -1421,18 +1421,33 @@ func _mind_door(rec: Dictionary, hero_at: Vector3, delta: float) -> void:
 	var near: bool = Vector2(door.x - hero_at.x, door.z - hero_at.z).length() < DOOR_REACH
 	# A hall without its keeper inside and awake is locked, unless the hero is inside it already
 	# (they are never shut in).
-	var locked: bool = lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec)
+	# A farm's door is bolted too while its farmer sleeps (see farmer_asleep).
+	var asleep: bool = lock_halls and hero_in.get("node") != rec.node and farmer_asleep(rec)
+	var locked: bool = asleep or (lock_halls and hero_in.get("node") != rec.node and VillagePosts.locked(level, rec))
 	rec["locked"] = locked
 	if near and locked:
 		if float(rec.lock_wait) <= 0.0:
 			rec.lock_wait = LOCKED_EVERY
-			Events.tell(Lang.t("Die Tür ist verschlossen. Ihr Besitzer ist nicht da."), Color(1.0, 0.8, 0.5), 2.5)
+			Events.tell(Lang.t("Die Tür ist verriegelt. Drinnen schläft jemand.") if asleep \
+					else Lang.t("Die Tür ist verschlossen. Ihr Besitzer ist nicht da."), Color(1.0, 0.8, 0.5), 2.5)
 	elif near and rec.push <= 0.0:
 		rec.push = PUSH_EVERY
 		(leaf as HouseDoor).swing()
 	var shape: CollisionShape3D = rec.get("door_shape")
 	if shape:
 		shape.disabled = (leaf as HouseDoor).openness() > 0.25 and not locked
+
+
+## Whether `rec` is a house of the farming valley (see Outdoor.VALLEY_FROM) with a farmer asleep in it:
+## its door stays locked from the moment they lie down until they get up.
+func farmer_asleep(rec: Dictionary) -> bool:
+	if rec.kind != "house" or (rec.block as Rect2i).position.y < Outdoor.VALLEY_FROM:
+		return false
+	for bed: Dictionary in rec.get("beds", []):
+		var by = bed.get("by")
+		if by is Villager and is_instance_valid(by) and (by as Villager).is_asleep():
+			return true
+	return false
 
 
 ## The roof of a house or hall that hides the hero behind it from the camera, head to foot, is

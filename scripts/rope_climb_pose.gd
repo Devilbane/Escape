@@ -10,6 +10,8 @@ const POSES := {
 	"reach_l": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_l": 178.0, "elbow_l": 4.0, "arm_r": 128.0, "elbow_r": 62.0, "hip_l": 12.0, "hip_r": 36.0, "knee_l": 55.0, "knee_r": 70.0, "abd_l": 14.0, "abd_r": 24.0},
 	"reach_r": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_r": 178.0, "elbow_r": 4.0, "arm_l": 128.0, "elbow_l": 62.0, "hip_l": 36.0, "hip_r": 12.0, "knee_l": 70.0, "knee_r": 55.0, "abd_l": 24.0, "abd_r": 14.0},
 	# Looking up for the next hold (a real climber pauses here, still, with the weight on the feet).
+	# The wind-up before a push or a reach: sink down, bend both knees deep, arms straight.
+	"sink": {"hips_y": -0.16, "spine": 10.0, "head": -30.0, "arm": 170.0, "elbow": 6.0, "hip_l": 62.0, "hip_r": 58.0, "knee_l": 96.0, "knee_r": 92.0, "abd_l": 26.0, "abd_r": 26.0},
 	"look": {"hips_y": -0.05, "spine": 8.0, "head": -40.0, "arm": 168.0, "elbow": 8.0, "hip_l": 22.0, "hip_r": 8.0, "knee_l": 42.0, "knee_r": 58.0, "abd_l": 16.0, "abd_r": 16.0},
 	"pull": {"hips_y": 0.04, "spine": 20.0, "chest": 6.0, "head": -14.0, "arm": 112.0, "elbow": 100.0, "hip_l": 62.0, "hip_r": 20.0, "knee_l": 96.0, "knee_r": 52.0, "abd_l": 26.0, "abd_r": 20.0},
 	"push": {"hips_y": 0.08, "spine": 10.0, "head": -18.0, "arm": 150.0, "elbow": 25.0, "hip_l": 30.0, "hip_r": 14.0, "knee_l": 60.0, "knee_r": 30.0, "abd_l": 18.0, "abd_r": 18.0},
@@ -56,12 +58,12 @@ const KEYS := {
 	# Grab, the foot searches a hold, pull up.
 	# The rhythm of a real climb: look and settle, a quick reach, the grip, the foot placed and weighted, the
 	# push up with the legs, rest in the hang. (See docs/climbing_animation_sheet.md.)
-	"pull_l": [[0.0, "hang"], [0.1, "look"], [0.2, "look"], [0.28, "reach_l"], [0.36, "reach_l"], [0.48, "probe_r"], [0.56, "probe_r"], [0.74, "pull"], [0.88, "pull"], [1.0, "hang"]],
-	"pull_r": [[0.0, "hang"], [0.1, "look"], [0.2, "look"], [0.28, "reach_r"], [0.36, "reach_r"], [0.48, "probe_l"], [0.56, "probe_l"], [0.74, "pull"], [0.88, "pull"], [1.0, "hang"]],
+	"pull_l": [[0.0, "hang"], [0.1, "look"], [0.2, "look"], [0.28, "reach_l"], [0.36, "reach_l"], [0.48, "probe_r"], [0.56, "probe_r"], [0.62, "sink"], [0.68, "sink"], [0.78, "pull"], [0.9, "pull"], [1.0, "hang"]],
+	"pull_r": [[0.0, "hang"], [0.1, "look"], [0.2, "look"], [0.28, "reach_r"], [0.36, "reach_r"], [0.48, "probe_l"], [0.56, "probe_l"], [0.62, "sink"], [0.68, "sink"], [0.78, "pull"], [0.9, "pull"], [1.0, "hang"]],
 	# Along the face (a traverse to the right; the left is its mirror): look, a quick wide reach of the leading
 	# hand, the grip, the leading foot swings out and is planted, a pause to shift the weight, the body goes
 	# over onto the new foot, the trailing hand and foot follow.
-	"side_r": [[0.0, "hang"], [0.1, "look"], [0.2, "look"], [0.27, "t_reach_r"], [0.4, "t_grip_r"], [0.52, "t_foot_r"], [0.6, "t_foot_r"], [0.8, "t_over_r"], [0.9, "t_shift_r"], [1.0, "hang"]],
+	"side_r": [[0.0, "hang"], [0.08, "look"], [0.14, "sink"], [0.24, "sink"], [0.32, "t_reach_r"], [0.42, "t_grip_r"], [0.52, "t_foot_r"], [0.6, "t_foot_r"], [0.8, "t_over_r"], [0.9, "t_shift_r"], [1.0, "hang"]],
 	"side_l": [],
 	# Find the spot, three blows, then clip the rope and test the hold.
 	"hammer": [[0.0, "hang"], [0.1, "find_spot"], [0.22, "find_spot"], [0.32, "hammer_up"], [0.42, "hammer_hit"], [0.52, "hammer_up"], [0.62, "hammer_hit"], [0.72, "hammer_up"], [0.82, "hammer_hit"], [1.0, "hang"]],

@@ -1,0 +1,1 @@
+- A monster that sees a mate being struck now joins the fight even if it would otherwise ignore you because you are far above its level.

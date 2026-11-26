@@ -1,6 +1,7 @@
 """Builds the sounds of the water's small life from noise and tones, like tools/make_sounds.py (whose
-helpers it uses): the plop of a fish breaking the surface, the splash of its dive, and the faint blip of a
-ring of ripples. Played by IceFish (scripts/ice_fish.gd).
+helpers it uses): the soft splash of a fish breaking the surface or diving (water_splash_*) and the
+smaller, quieter splash of a ring of ripples spreading (water_ripple_*). Several of each, all a little
+different. Played by IceFish (scripts/ice_fish.gd). Made from scratch, no recordings.
 Run: python3 tools/make_water_sounds.py"""
 import numpy as np
 from make_sounds import SR, OUT, t, lowpass, highpass, env, save
@@ -12,38 +13,41 @@ def noise(sec):
     return rng.uniform(-1, 1, int(SR * sec))
 
 
-def plop(pitch, sec=0.35):
-    # A little air bubble closing over a fin: a soft "bloop" whose pitch rises, a breath of splash.
-    tt = t(sec)
-    f = pitch * (1 + np.minimum(tt, 0.06) * 9)
-    bloop = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.004, 0.07)
-    wash = highpass(noise(sec), 1800) * env(len(tt), 0.002, 0.03) * 0.18
-    return lowpass(bloop + wash, 3500)
+def add(out, x, at):
+    i = int(SR * at)
+    if i < len(out):
+        out[i:i + len(x)] += x[:len(out) - i]
 
 
-def dive(sec=0.5):
-    # A quick, soft flick of water: noise through a falling band, with a small bloop at the end.
+def splash(sec, low, high, body, droplets, bright):
+    # Water thrown up and falling back: a soft wash of noise (rises fast, dies away), a low "whump" of the
+    # water closing, and a few small droplets pattering down after it, each a tiny falling-pitch plink.
+    n = int(SR * sec)
     tt = t(sec)
-    x = noise(sec)
-    x = lowpass(highpass(x, 700), 2600) * env(len(tt), 0.01, 0.09)
-    tail = plop(330, sec) * 0.5
-    out = np.zeros(len(tt))
-    out += x * 0.8
-    start = int(SR * 0.08)
-    out[start:] += tail[: len(tt) - start]
+    wash = lowpass(highpass(noise(sec), low), high) * env(n, 0.006, 0.07 * bright)
+    # A second, softer splatter a moment later, as the water falls back.
+    splatter = lowpass(highpass(noise(sec), low * 1.4), high * 0.8) * env(n, 0.03, 0.09) * 0.45
+    out = wash + np.concatenate([np.zeros(int(SR * 0.05)), splatter])[:n]
+    whump = lowpass(noise(sec), 420) * env(n, 0.012, 0.09) * body
+    out += whump
+    for _ in range(droplets):
+        at = rng.uniform(0.04, sec * 0.7)
+        pitch = rng.uniform(1700, 3600)
+        d = t(0.05)
+        f = pitch * (1 - 0.4 * d / 0.05)
+        ping = np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(d), 0.001, 0.012) * rng.uniform(0.05, 0.14)
+        add(out, ping, at)
     return out
 
 
-def blip(sec=0.25):
-    # The faintest sound of a ring starting: one tiny, high drop.
-    tt = t(sec)
-    f = 1500 * (1 + np.minimum(tt, 0.03) * 12)
-    return np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.002, 0.03) * 0.6
-
-
 if __name__ == "__main__":
-    for i, p in enumerate((520, 600, 690)):
-        save("water_plop_%d" % i, plop(p), 0.5)
-    for i in range(2):
-        save("water_dive_%d" % i, dive(), 0.5)
-    save("water_ring", blip(), 0.3)
+    # A fish breaking the surface or diving: a soft splash, 0.35 to 0.5 s.
+    for i in range(4):
+        save("water_splash_%d" % i,
+             splash(rng.uniform(0.38, 0.52), rng.uniform(500, 800), rng.uniform(2800, 3800),
+                    rng.uniform(0.5, 0.9), int(rng.integers(3, 7)), rng.uniform(0.8, 1.2)), 0.5)
+    # The ring spreading where a fish stirred: a smaller, shorter splash, softer and without the heavy whump.
+    for i in range(4):
+        save("water_ripple_%d" % i,
+             splash(rng.uniform(0.22, 0.32), rng.uniform(900, 1300), rng.uniform(2400, 3200),
+                    rng.uniform(0.1, 0.3), int(rng.integers(1, 4)), rng.uniform(0.5, 0.8)), 0.3)

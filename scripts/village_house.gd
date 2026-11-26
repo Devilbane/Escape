@@ -281,6 +281,9 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		# The floors and the rooms' furnishing (inside) do not, or they would shade themselves.
 		if not key in ["inside", "up_inside", "storey_room"]:
 			mi.set_meta(LightShadows.WALL, true)
+			# These meshes are the walls' outside (the inner faces are in "inside" and the like): no
+			# indoor candle lights them, but they still stop its light (see LightShadows.OUTSIDE_WALL).
+			mi.set_meta(LightShadows.OUTSIDE_WALL, true)
 		house.add_child(mi)
 		out[key] = mi
 	house.remove_child(body)

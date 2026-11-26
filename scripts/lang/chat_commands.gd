@@ -7,7 +7,7 @@ const EN := {
 	"Befehle für Tests. Schreibe sie in die Chatzeile (Enter) und schicke sie mit Enter ab.": "Commands for testing. Type them into the chat line (Enter) and send with Enter.",
 	"Beispiele": "Examples",
 	"Gottmodus": "God mode",
-	"Unverwundbar und dreifaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.": "Invulnerable and triple speed. Typing it again turns it off.",
+	"Unverwundbar und fünffaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.": "Invulnerable and five times the speed. Typing it again turns it off.",
 	"Teleport": "Teleport",
 	"Ohne Code listet das Ereignisprotokoll alle Orte mit ihrem Fünf-Buchstaben-Code; der Code in der nächsten Zeile bringt den Helden zum Eingang des Ortes.": "Without a code the event log lists every place with its five-letter code; the code on the next line takes the hero to that place's entrance.",
 	"Wetter und Zeit": "Weather and time",

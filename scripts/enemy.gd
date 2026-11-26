@@ -454,6 +454,8 @@ var slain_by_rival := false
 var no_reward := false
 ## Whether the hero has struck it already (see Events.enemy_engaged).
 var _engaged := false
+## Seconds before this monster's next call for help or defence of a mate (see PackHelp).
+var _help_cool := 0.0
 ## The hero level this one is a fair fight for (see HeroLevel), set when it
 ## is ready; what felling it is worth goes by it.
 var rated_level := 1
@@ -1528,6 +1530,8 @@ func take_hit(damage: int, from: Vector3, kind := "hit", wakes := true) -> void:
 		if SlimeCoat.is_slime(self):
 			_hero_aggro = SLIME_AGGRO
 		_wake(from)
+		if hp > 0:
+			PackHelp.on_struck(self, level.player.global_position)
 	var away := global_position - from
 	away.y = 0.0
 	_knockback = away.normalized() * 9.0 / (_stats.size * _stats.size)
@@ -2130,6 +2134,7 @@ func _physics_process(delta: float) -> void:
 	Elementals.tick(self, delta)
 	_spit_cool = maxf(0.0, _spit_cool - delta)
 	_shriek_cool = maxf(0.0, _shriek_cool - delta)
+	_help_cool = maxf(0.0, _help_cool - delta)
 	_scare_cool = maxf(0.0, _scare_cool - delta)
 	_repath -= delta
 	_wall_clock = maxf(0.0, _wall_clock - delta)
@@ -2730,6 +2735,18 @@ func _deep() -> bool:
 func alert(at: Vector3) -> void:
 	if not is_friend():
 		_wake(at)
+
+
+## A mate was struck (see PackHelp): turn to it with the red "!" and go for the hero.
+func join_defence(at: Vector3, mate_at: Vector3) -> void:
+	if _awake or dead:
+		return
+	Effects.float_text(level, global_position + Vector3(0, 3.4 * _stats.size, 0), "!", Color(1.0, 0.3, 0.2))
+	_alert_gap = ALERT_GAP
+	var to := mate_at - global_position
+	if Vector2(to.x, to.z).length() > 0.1:
+		_model.rotation.y = atan2(to.x, to.z)
+	_wake(at)
 
 
 ## Whether the skeleton has spotted the hero and is after them.

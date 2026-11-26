@@ -59,6 +59,12 @@ const GROUND_LAYER := 1 << 14
 ## grass, so it leaves the ground out of its light. The room lamps keep theirs: the light through the
 ## windows is wanted.
 const WALL_CANDLE := &"wall_candle"
+## The meta of a wall mesh that is only the outside of the walls (the inner faces are a mesh of their own):
+## it is drawn on UNSHADOWED_LAYER, which the lamps inside leave out of their light, so no candle glows on
+## its stone, ledges and window frames. It is not what stops the light: a copy of it that is not drawn
+## (WALL_SHADOW) sits on WALL_LAYER and casts the shadows.
+const OUTSIDE_WALL := &"outside_wall"
+const WALL_SHADOW := &"wall_shadow_copy"
 ## The render layer everything is drawn on unless told otherwise.
 const DEFAULT_LAYER := 1
 ## How much sooner an indoor lamp is picked (metres of distance, more than any outdoor lamp's).
@@ -120,6 +126,10 @@ func _on_node_added(node: Node) -> void:
 		if node.has_meta(GROUND):
 			var ground := node as GeometryInstance3D
 			ground.layers = (ground.layers & ~DEFAULT_LAYER) | GROUND_LAYER
+		elif node.has_meta(WALL_SHADOW):
+			(node as GeometryInstance3D).layers = WALL_LAYER
+		elif node.has_meta(OUTSIDE_WALL) and node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			_split_outside_wall(node as MeshInstance3D)
 		elif is_wall(node):
 			(node as GeometryInstance3D).layers |= WALL_LAYER
 		elif takes_no_shadows(node) or is_outside_only(node):
@@ -136,6 +146,19 @@ func _on_node_added(node: Node) -> void:
 		light.shadow_bias = BIAS
 		light.shadow_normal_bias = NORMAL_BIAS
 		light.shadow_caster_mask = WALL_LAYER | LID_LAYER
+
+
+## Draws an outside wall (OUTSIDE_WALL) where the lamps inside do not light it, and lets a copy of it that
+## is not drawn stop their light.
+func _split_outside_wall(wall: MeshInstance3D) -> void:
+	wall.layers = (wall.layers & ~DEFAULT_LAYER & ~WALL_LAYER) | UNSHADOWED_LAYER
+	var copy := MeshInstance3D.new()
+	copy.name = "WallShadow"
+	copy.mesh = wall.mesh
+	copy.set_meta(WALL_SHADOW, true)
+	copy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	copy.layers = WALL_LAYER
+	wall.add_child.call_deferred(copy)
 
 
 func _process(delta: float) -> void:

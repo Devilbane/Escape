@@ -654,6 +654,29 @@ var day := 0
 var season_day := 0
 ## The fields of the farming valley (see CropFields) and the middles of their tiles by letter.
 var crop_fields: CropFields
+## The middle of the farming valley's fields: the field tile nearest to their common centre, or
+## `fallback` when the map has no fields (see CropFields). Where the testing panel's farms button goes.
+func farm_spot(fallback: Vector3) -> Vector3:
+	var sum := Vector3.ZERO
+	var n := 0
+	for letter: String in _crop_cells:
+		for mid: Vector3 in _crop_cells[letter]:
+			sum += mid
+			n += 1
+	if n == 0:
+		return fallback
+	var centre := sum / n
+	var best := fallback
+	var best_d := INF
+	for letter: String in _crop_cells:
+		for mid: Vector3 in _crop_cells[letter]:
+			var d := mid.distance_squared_to(centre)
+			if d < best_d:
+				best_d = d
+				best = mid
+	return best
+
+
 ## The crows that peck on the fields in autumn and winter (see Crows).
 var crows: Crows
 ## Spooknortz's nights in the village (see SpookRaid).
@@ -2024,6 +2047,8 @@ func _walkway_dir(cell: Vector2i) -> Vector3:
 				best_d = d
 				best = Vector3(dx, 0, dy)
 	return best
+
+
 
 
 ## The glass of the lanterns, shared by all of them: lit at nightfall with the
@@ -4051,6 +4076,8 @@ func _block_facing(block: Rect2i) -> Vector2i:
 	return best
 
 
+
+
 # --- The hero's house ---------------------------------------------------------
 
 ## Stone walls from the dungeon kit around a wooden floor, under a tiled
@@ -4976,6 +5003,8 @@ func _npc_station_near(point: Vector3, reach: float) -> Dictionary:
 			best = s
 			best_score = score
 	return best
+
+
 
 
 ## A click near a villager walks up to the trader among them first, like a

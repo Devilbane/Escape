@@ -18,7 +18,7 @@ static func entries() -> Array:
 		out.append({
 			"name": "Gottmodus",
 			"syntax": Godmode.COMMAND,
-			"text": "Unverwundbar und dreifaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.",
+			"text": "Unverwundbar und fünffaches Tempo. Noch einmal schreiben schaltet ihn wieder aus.",
 			"examples": [Godmode.COMMAND],
 		})
 	if HeroUnstick.ENABLED:

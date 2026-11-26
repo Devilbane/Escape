@@ -444,6 +444,8 @@ func _breath() -> void:
 func _season_to(d: int) -> void:
 	game.season_shift += d - game.season_day()
 	game._check_season()
+	# The HUD's season icon follows in the game's next refresh (see Game._update_hud): do it now.
+	game._update_season_icon()
 
 
 func _winter() -> void:

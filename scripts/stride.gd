@@ -25,9 +25,8 @@ const FEET := {
 	# Deer and stag.
 	"deer": {"Walk": 2.64, "Gallop": 11.65},
 	"spider": {"HumanArmature|Spider_Walk": 3.51},
-	# Husky and Shiba Inu (the village dogs).
+	# Husky (the village dog).
 	"husky": {"Walk": 2.38, "Gallop": 5.87},
-	"shiba": {"Walk": 2.38, "Gallop": 5.87},
 	# Cow and bull (the village herd).
 	"cow": {"Walk": 2.63, "Gallop": 9.56},
 	# The village sheep (its animations were made for it, tools/build_sheep.gd).
@@ -39,7 +38,7 @@ const RIGS := {
 	"Rogue": "kaykit", "Knight": "kaykit", "Barbarian": "kaykit", "Mage": "kaykit",
 	"Skeleton_Warrior": "kaykit", "Skeleton_Rogue": "kaykit", "Skeleton_Mage": "kaykit", "Skeleton_Minion": "kaykit",
 	"Orc": "brute", "Yeti": "brute", "Wolf": "hound", "Fox": "hound", "Deer": "deer", "Stag": "deer",
-	"Spider": "spider", "Husky": "husky", "ShibaInu": "shiba", "Cow": "cow", "Bull": "cow", "Sheep": "sheep",
+	"Spider": "spider", "Husky": "husky", "Cow": "cow", "Bull": "cow", "Sheep": "sheep",
 }
 ## The walk, jog and run of each rig, slowest first (see gait).
 const GAITS := {
@@ -49,7 +48,6 @@ const GAITS := {
 	"deer": ["Walk", "Gallop"],
 	"spider": ["HumanArmature|Spider_Walk"],
 	"husky": ["Walk", "Gallop"],
-	"shiba": ["Walk", "Gallop"],
 	"cow": ["Walk", "Gallop"],
 	"sheep": ["Walk", "Gallop"],
 }

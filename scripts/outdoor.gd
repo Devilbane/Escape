@@ -527,6 +527,8 @@ var _undergrowth := {"xforms": [], "colours": []}
 ## UNDERGROWTH_AUTUMN_KEEP and SHRUB_AUTUMN_KEEP); the rest of the year they grow as the others do.
 var undergrowth_shed: Node3D
 var _undergrowth_shed := {"xforms": [], "colours": []}
+## The kinds of the last bushes planted, so neighbours differ (see BushKinds.pick).
+var _bush_recent: Array = []
 var nests: Array[Vector3] = []
 var birds: VillageBirds
 ## The dragon that now and then flies over, seen only as its shadow.
@@ -682,6 +684,8 @@ var crows: Crows
 var spook_raid: SpookRaid
 ## The small funny happenings in the valley (see ValleyEvents).
 var valley_events: ValleyEvents
+## The sunflower riddle in the field with the scarecrow (see SunflowerRiddle).
+var sunflower_riddle: SunflowerRiddle
 var _crop_cells := {}
 ## The village's apple trees: round the fountain and in the gardens (see AppleTree.plant_round_fountains, plant_in_village).
 var square_trees: Array = []
@@ -828,7 +832,7 @@ func build() -> void:
 	_square_pub_sign()
 	# No leaf covers any door, whichever building grew it.
 	AgedStone.clear_doors(_ivy, _entrances)
-	if not _ivy.xforms.is_empty():
+	if BushKinds.has_any(_ivy):
 		ivy = AgedStone.ivy_node(_ivy)
 		add_child(ivy)
 		if walk_in != null:
@@ -874,12 +878,12 @@ func build() -> void:
 	_build_wall_collision()
 	_grow_ferns()
 	RiverFlow.build(self)
-	if not _undergrowth.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth):
 		undergrowth = AgedStone.ivy_node(_undergrowth)
 		undergrowth.name = "Undergrowth"
 		add_child(undergrowth)
 		IvySeasons.apply(undergrowth, day)
-	if not _undergrowth_shed.xforms.is_empty():
+	if BushKinds.has_any(_undergrowth_shed):
 		undergrowth_shed = AgedStone.ivy_node(_undergrowth_shed)
 		undergrowth_shed.name = "UndergrowthShed"
 		add_child(undergrowth_shed)
@@ -958,6 +962,10 @@ func build() -> void:
 	valley_events = ValleyEvents.new()
 	add_child(valley_events)
 	valley_events.setup(self)
+	if _crop_cells.has(CropFields.RIDDLE):
+		sunflower_riddle = SunflowerRiddle.new()
+		add_child(sunflower_riddle)
+		sunflower_riddle.setup(self)
 	spook_raid = SpookRaid.new()
 	add_child(spook_raid)
 	spook_raid.setup(self)
@@ -1346,9 +1354,14 @@ func _model_path(name: String) -> String:
 
 
 func _put(name: String, pos: Vector3, rot := 0.0, s := 1.0, parent: Node = self) -> Node3D:
-	if not _scenes.has(name):
-		_scenes[name] = load(_model_path(name))
-	var node: Node3D = _scenes[name].instantiate()
+	var node: Node3D
+	if NaturalRock.replaces(name):
+		# Boulders are real, uneven rocks, not the kit's flat facets (see NaturalRock).
+		node = NaturalRock.node(name)
+	else:
+		if not _scenes.has(name):
+			_scenes[name] = load(_model_path(name))
+		node = _scenes[name].instantiate()
 	node.position = pos
 	node.rotation.y = rot
 	node.scale = Vector3.ONE * s
@@ -1604,7 +1617,7 @@ func _jitter(amount: float) -> Vector3:
 func _plant_crops() -> void:
 	if _crop_cells.is_empty():
 		return
-	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"))
+	crop_fields = CropFields.grow(self, _crop_cells, TILE, hash(level_name + "felder"), [SunflowerRiddle.centre()])
 	crop_fields.set_season(season_day)
 	# The crows feed on the low fields (the stubble of the wheat); where there is none, on any.
 	var low: Array[Vector3] = []
@@ -1716,9 +1729,11 @@ func _build_outdoor_cell(c: Vector2i, ch: String) -> void:
 			_pond_waters.append(pond_water)
 		"≡", "‡", "☼":
 			# Wheat, maize and sunflowers (see CropFields): the plants are planted for all tiles at once.
-			if not _crop_cells.has(ch):
-				_crop_cells[ch] = []
-			_crop_cells[ch].append(pos)
+			# The riddle field's tiles (see SunflowerRiddle) are planted as blocks of 5 x 5.
+			var crop_key := CropFields.RIDDLE if ch == CropFields.SUNFLOWER and SunflowerRiddle.FIELD.has_point(c) else ch
+			if not _crop_cells.has(crop_key):
+				_crop_cells[crop_key] = []
+			_crop_cells[crop_key].append(pos)
 			# No solid: the fields are walkable, the hero and the villagers wade through the crops.
 		"y":
 			# Rows of pumpkins on dark soil, ready for the harvest.
@@ -2479,7 +2494,7 @@ func _grow_undergrowth(c: Vector2i, block: Rect2, rng: RandomNumberGenerator) ->
 ## One bush of the undergrowth at `at` (see _grow_undergrowth); returns its radius.
 func _undergrowth_bush(at: Vector3, rng: RandomNumberGenerator) -> float:
 	# Most of them shed their leaves in autumn (see _keeps_leaves).
-	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed)
+	var radius := AgedStone.grow_bush(at, rng, _undergrowth if _keeps_leaves(at, UNDERGROWTH_AUTUMN_KEEP) else _undergrowth_shed, _undergrowth, _bush_recent)
 	undergrowth_bushes.append(Vector4(at.x, at.y, at.z, radius))
 	return radius
 
@@ -2921,7 +2936,9 @@ func _build_lair_entrance(block: Rect2i) -> void:
 	_lair_mountain_at = front
 	_forecourts.append({"block": block, "front": front})
 	for side in [-1.0, 1.0]:
-		_age_ruin(_put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0), LAIR_BOULDER)
+		var big_boulder := _put("rock_single_E", front + Vector3(side * 5.6, 0, -4.4), side * 0.9, 9.0)
+		_age_ruin(big_boulder, LAIR_BOULDER)
+		_add_turned_solid(big_boulder, 1.6)
 		_age_ruin(_put("rock_single_C", front + Vector3(side * 3.6, 0, -1.9), side * 2.1, 3.5), LAIR_BOULDER)
 	var glow := OmniLight3D.new()
 	glow.light_color = Color(1.0, 0.35, 0.15)
@@ -3923,7 +3940,7 @@ func _plant_bushes() -> void:
 					continue
 				shrubs.append(at)
 				var keep := SHRUB_TEMPLE_KEEP if _near_letter(c, "s", SHRUB_TEMPLE_REACH) else SHRUB_AUTUMN_KEEP
-				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed)
+				AgedStone.grow_bush(at, rng, _ivy if _keeps_leaves(at, keep) else _undergrowth_shed, _ivy, _bush_recent)
 
 
 ## Whether `at` lies near Benno's tent: no shrub grows there, so the chair stands clear (see BARBER_CLEAR).

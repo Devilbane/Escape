@@ -19,7 +19,9 @@ uniform float veil = 0.8;
 // 0 in open water to 1 under a sheet of ice.
 uniform float cover = 0.0;
 uniform vec3 water_color = vec3(0.08, 0.2, 0.24);
-uniform float open_veil = 0.96;
+uniform float open_veil = 0.62;
+// 0 calm to 1 a startled fish shaking its whole body before it bolts.
+uniform float shake = 0.0;
 
 varying vec2 fp;
 
@@ -27,7 +29,9 @@ void vertex() {
 	// fp: x across and l along the fish from the nose (0) to the tail tip (1), both in body lengths.
 	fp = vec2(VERTEX.x / len, 0.5 - VERTEX.z / len);
 	float bend = sin(TIME * 7.0 + sway - fp.y * 5.0) * 0.06 * len * fp.y * fp.y;
-	VERTEX.x += bend;
+	// A startled fish shivers: a fast, strong wiggle that runs along the whole body.
+	float shiver = sin(TIME * 38.0 + sway - fp.y * 6.0) * 0.1 * len * shake * (0.35 + fp.y);
+	VERTEX.x += bend + shiver;
 }
 
 // Half-width of the body, the tail and the fins at l, 0 outside them.
@@ -83,7 +87,7 @@ void fragment() {
 	// Seen through a little water: lit up and lightly tinted.
 	float open_water = 1.0 - cover;
 	col = mix(col, col * 1.3 + vec3(0.03, 0.04, 0.03), open_water);
-	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.1, 0.32, cover));
+	col = mix(col, mix(water_color, ice_color * 0.8, cover), mix(0.3, 0.32, cover));
 	ALPHA = mix(open_veil, veil, cover) * fade * (1.0 - is_fin * 0.22);
 	ALBEDO = col;
 	ALBEDO = gl_colour(ALBEDO);

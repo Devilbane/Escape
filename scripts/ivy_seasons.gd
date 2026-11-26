@@ -78,9 +78,13 @@ static func tree_turn(at: int) -> Vector2:
 	return Vector2(float(at) / float(TURN_DAYS) * TREE_TURNED, 0.0)
 
 
-## Whether a leaf colour is a green one (and so changes with the seasons).
+## Whether a leaf colour is a green one (and so changes with the seasons). The blue-greens of the
+## evergreen bushes (BushKinds) are not: their blue is over EVERGREEN_BLUE of their green.
+const EVERGREEN_BLUE := 0.65
+
+
 static func is_green(c: Color) -> bool:
-	return c.g > c.r and c.g > c.b
+	return c.g > c.r and c.g > c.b and c.b < c.g * EVERGREEN_BLUE
 
 
 ## Dresses the ivy under `ivy` (AgedStone.ivy_node) for `day`. Does nothing while the stage holds.

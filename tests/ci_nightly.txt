@@ -241,3 +241,4 @@ crows.gd | 120 | free | crows:_OK | Crows on the farm fields (autumn and winter,
 owls.gd | 120 | free | owls:_OK | Owls in the trees (awake from dusk to dawn, hoot and answer, turn heads, glide, doze by day, still when the hero is far)
 test_panel.gd | 180 | fixed | passfail | Testing panel in the bottom left (opens, keeps one size, sets time and season, travels, godmode)
 secret_exit.gd | 300 | free | pass | A hero shut in a secret room by a reset is let out
+bush_variety.gd | 120 | free | pass | Bushes come in many kinds (shapes, leaf shapes, colours, branches, berries, blooms), neighbours differ, seasons turn the green ones and keep the evergreens, details drawn only near

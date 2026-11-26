@@ -26,10 +26,11 @@ void fragment() {
 	// White frost where the layer is thin.
 	col = mix(col, vec3(0.95, 0.98, 1.0), (1.0 - smoothstep(0.25, 0.7, cover)) * 0.6);
 	col = mix(col, vec3(0.97, 0.99, 1.0), crack * 0.5);
-	ALBEDO = gl_colour(col);
+	ALBEDO = col;
 	ALPHA = gl_alpha(gl_colour(col), clamp(cover * 0.92, 0.0, 0.9));
 	ROUGHNESS = 0.12;
 	SPECULAR = 0.9;
 	float h = veins * 0.6 + fine * 0.2;
 	NORMAL = normalize((VIEW_MATRIX * vec4(bumped(normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz), dFdx(wpos), dFdy(wpos), dFdx(h) * 0.25, dFdy(h) * 0.25), 0.0)).xyz);
+	ALBEDO = gl_colour(ALBEDO);
 }

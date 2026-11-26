@@ -317,15 +317,37 @@ func _stamina() -> void:
 	e.go(WallMap.UP, 0.0)
 	e.stamina = 0.0
 	e.recover(1.0)
-	check(is_equal_approx(e.stamina, e.recovery * WallClimb.REST_GOOD), "on an easy hold it comes back four times as fast")
+	check(is_equal_approx(e.stamina, 0.0), "hanging still on an easy hold gives nothing back: only resting does")
 	e.cell = Vector2i(5, 10)
 	e.stamina = 0.0
 	e.recover(1.0)
-	check(is_equal_approx(e.stamina, e.recovery * WallClimb.REST_POOR), "on a hard hold it hardly comes back")
+	check(is_equal_approx(e.stamina, 0.0), "hanging still on a hard hold gives nothing back")
 	e.nail = Vector2i(5, 10)
 	e.stamina = 0.0
 	e.recover(1.0)
-	check(is_equal_approx(e.stamina, e.recovery * WallClimb.REST_GOOD), "at a nail it comes back fast again")
+	check(is_equal_approx(e.stamina, 0.0), "hanging still at a nail gives nothing back")
+	e.stamina = 0.0
+	e.catch_breath()
+	check(e.stamina > 0.0, "resting (catching breath) does give it back")
+	# Injuries (a stone, a lightning strike): they lower the skill and the meter, a rest place heals them.
+	var g := WallClimb.new(WallMap.load_file("res://walls/sample_three_paths.txt"), 30)
+	g.dexterity = 14
+	var jump_before := g.jump_bonus()
+	var cap_before := g.stamina_cap()
+	g.injure(2)
+	check(g.injury == 2 and g.jump_bonus() == jump_before - 2, "an injury takes levels off Geschick for a jump")
+	check(g.stamina_cap() < cap_before and g.stamina <= g.stamina_cap(), "an injury lowers what the meter holds")
+	g.injure(5)
+	check(g.injury == WallClimb.MAX_INJURY, "an injury has a ceiling")
+	g.injury = 3
+	g.cell = Vector2i(5, 13)
+	g.clock = 8.0
+	check(g.at_camp(), "the test square is a rest place")
+	g.bivouac()
+	check(g.injury == 2, "a day's rest at a rest place heals one level")
+	g.clock = 21.0
+	g.bivouac()
+	check(g.injury == 0, "a night's rest heals the rest")
 	# A long climb without rest tires the climber out.
 	var f := WallClimb.new(m, 30)
 	f.set_constitution(5)

@@ -1,0 +1,1 @@
+- Climbing wall: injuries from stones and lightning, random weather including fog, an adjustable chaos level, a free camera (Q/E, PageUp/Down, +/-, V, Home), and the climber now stands on the foot stones.

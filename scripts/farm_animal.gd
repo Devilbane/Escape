@@ -48,7 +48,7 @@ const KINDS := {
 ## assets/animals/LICENSE.txt), by kind and coat: file and scale. The model's own
 ## colours are kept.
 const MODELS := {
-	"dog": {"": ["ShibaInu", 0.26], "black": ["Husky", 0.3]},
+	"dog": {"black": ["Husky", 0.3]},
 	"cow": {"": ["Cow", 0.3]},
 	"bull": {"": ["Bull", 0.32]},
 	# The sheep of the Farm Animals pack, with a Walk, Gallop and Eating made for it (tools/build_sheep.gd).

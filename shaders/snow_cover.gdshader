@@ -55,8 +55,8 @@ uniform float roof_height = 3.6;
 // a face it still climbs, as the y of its normal: none on a vertical wall (0.05), all of it from 0.3, which is
 // leaner than the mountain's foot (about 0.38) and its facets.
 const float SKIRT_HEIGHT = 3.0;
-const float SKIRT_SLOPE_FROM = 0.05;
-const float SKIRT_SLOPE_TO = 0.3;
+const float SKIRT_SLOPE_FROM = 0.16;
+const float SKIRT_SLOPE_TO = 0.5;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -80,16 +80,21 @@ void fragment() {
 	// The foot of a mountain face: where the snow of the plain meets steep rock it must not stop at a
 	// hard line. Close to the ground the slope counts as lying snow, fading out with height along a
 	// ragged edge (the noise moves it up and down), and its snow is lit like the flat snow below it.
-	float skirt = (1.0 - smoothstep(0.0, SKIRT_HEIGHT * (0.7 + 0.6 * n), world_pos.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, world_normal.y);
+	// Noise of the spot in 3D (a slope's x, y and z all move it, so no horizontal bands or cell lines form), at
+	// three scales: big drifts, ledges and fine feathering.
+	vec3 sp = world_pos * vec3(1.0, 1.4, 1.0);
+	float drift = snow_noise(sp.xz * 0.5 + sp.y * 0.9) * 0.6 + snow_noise(sp.xz * 1.7 - sp.y * 1.3 + 4.0) * 0.4;
+	float feather = snow_noise(vec2(sp.x * 3.1 + sp.y * 2.3, sp.z * 3.1 - sp.y * 2.7)) * 0.6 + snow_noise(vec2(sp.x * 8.3 - sp.y * 6.1, sp.z * 8.3 + sp.y * 5.2) + 9.0) * 0.4;
+	float skirt = (1.0 - smoothstep(0.0, SKIRT_HEIGHT * (0.45 + 1.1 * drift), world_pos.y)) * smoothstep(SKIRT_SLOPE_FROM, SKIRT_SLOPE_TO, world_normal.y);
 	float up_plain = smoothstep(0.5, 0.82, world_normal.y);
 	float up = max(up_plain, skirt);
 	vec3 look_normal = normalize(mix(world_normal, vec3(0.0, 1.0, 0.0), skirt));
 	// A drift gathers where the noise is high: the snow arrives in patches and joins up.
 	float lies = up_plain * amount * 1.5 + (n - 0.5) * 0.55;
-	// The skirt gives out in a fine dissolve of small flakes (a hash of the spot, not the big patches),
-	// so it fades into the bare rock instead of ending in a ragged line.
-	float grain = snow_hash(floor(vec2(world_pos.x + world_pos.z, world_pos.y * 1.4) * 28.0));
-	lies = max(lies, skirt * amount * 1.2 + (n - 0.5) * 0.15 + (grain - 0.5) * 0.9);
+	// The skirt gives out in a feathered, noisy fade: the lower the snow lies on the slope (skirt is 1 at the
+	// ground and thins with height and steepness) the more of the noise it takes to hold, so the edge is a soft
+	// cloud of patches that thin out into the bare rock, not a line or a band of stripes.
+	lies = max(lies, skirt * amount * 1.2 + (drift - 0.5) * 0.35 + (feather - 0.5) * 0.7);
 	vec2 uv = (xz / tile + 0.5) / grid_size;
 	float roofed = texture(sky_mask, uv).r * (1.0 - step(roof_height, world_pos.y));
 	if (rooms_on) {

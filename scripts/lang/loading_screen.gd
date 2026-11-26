@@ -3,5 +3,6 @@ extends RefCounted
 
 const EN := {
 	"Die Welt wird vorbereitet …": "Getting the world ready …",
+	"Klicken oder Esc zum Schließen": "Click or press Esc to close",
 	"… und %d weitere in der Enzyklopädie": "… and %d more in the compendium",
 }

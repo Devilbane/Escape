@@ -28,8 +28,13 @@ const MIN_SECONDS := 1.0
 const FADE_IN := 0.4
 const FADE_OUT := 0.5
 
+## The chat line's command that shows this screen again (see Game._hero_says).
+const COMMAND := "loading"
+
 var _age := 0.0
 var _leaving := false
+## Opened by the command: it stays until a click or Esc and has no world to wait for.
+var _on_demand := false
 var _game: Node
 var _status: Label
 
@@ -43,6 +48,22 @@ static func start(parent: Node, game: Node, headless_ok := false) -> LoadingScre
 		return null
 	var screen := LoadingScreen.new()
 	screen._game = game
+	parent.add_child(screen)
+	return screen
+
+
+## Whether a chat line is the command that shows the screen again.
+static func is_command(line: String) -> bool:
+	return line.strip_edges().to_lower() == COMMAND
+
+
+## Shows the screen on demand (the chat command): same picture and patch notes, but it stays until
+## a click or Esc closes it. Does nothing when one is already up.
+static func show_again(parent: Node) -> LoadingScreen:
+	if parent.has_node("LoadingScreen"):
+		return null
+	var screen := LoadingScreen.new()
+	screen._on_demand = true
 	parent.add_child(screen)
 	return screen
 
@@ -104,7 +125,7 @@ func _ready() -> void:
 	row.add_child(_column(version_line, parts.right, _more_line(parts.more), HORIZONTAL_ALIGNMENT_LEFT))
 
 	_status = UiKit.label(TEXT_FONT, UiKit.sized(22), Color(1, 1, 1, 0.75))
-	_status.text = Lang.t("Die Welt wird vorbereitet …")
+	_status.text = Lang.t("Klicken oder Esc zum Schließen") if _on_demand else Lang.t("Die Welt wird vorbereitet …")
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.anchor_right = 1.0
 	_status.anchor_top = 0.9
@@ -174,8 +195,22 @@ func _column(heading: String, lines: Array, footer: String, align: int) -> Contr
 	return col
 
 
+func _gui_input(event: InputEvent) -> void:
+	if _on_demand and event is InputEventMouseButton and event.pressed:
+		accept_event()
+		leave()
+
+
+func _input(event: InputEvent) -> void:
+	if _on_demand and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		get_viewport().set_input_as_handled()
+		leave()
+
+
 func _process(delta: float) -> void:
 	_age += delta
+	if _on_demand:
+		return
 	# A slow pulse on the status line: the game is not frozen.
 	_status.modulate.a = 0.6 + 0.4 * sin(_age * 3.0)
 	if _leaving:

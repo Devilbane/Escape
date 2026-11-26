@@ -49,6 +49,12 @@ static func entries() -> Array:
 			"text": "Bringt den Helden auf ein genaues Tile eines Ortes, in einer Jahreszeit und zu einer Uhrzeit (beides kann fehlen). Der Code ist der des Teleports, x und y zeigt F2. Nur \"goto\" schreibt die Zeile für den jetzigen Platz ins Protokoll und kopiert sie.",
 			"examples": ["goto", "goto dorfx 149 127 autumn 14:30"],
 		})
+	out.append({
+		"name": "Ladebildschirm",
+		"syntax": LoadingScreen.COMMAND,
+		"text": "Zeigt den Ladebildschirm mit dem Titelbild und den Patchnotes des neuesten Builds noch einmal. Ein Klick oder Esc schließt ihn.",
+		"examples": [LoadingScreen.COMMAND],
+	})
 	if SkyCommand.ENABLED:
 		out.append({
 			"name": "Wetter und Zeit",

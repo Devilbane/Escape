@@ -922,7 +922,7 @@ func _tick_animation(delta: float) -> void:
 		_yawned = false
 	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):
 		var wrap := WallHammock.wrap()
-		wrap.position = from + Vector3(0.0, 0.67, 0.1)
+		wrap.position = from + Vector3(0.0, 0.64, 0.12)
 		_camp_root().add_child(wrap)
 	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
 		st["placed"] = true

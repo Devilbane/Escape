@@ -5,8 +5,8 @@ extends RefCounted
 ## the climber lie in it.
 
 const SPAN := 2.0      ## distance between the two pitons
-const SAG := 0.75      ## how far the cloth hangs below the pitons
-const WIDTH := 1.0
+const SAG := 1.0      ## how far the cloth hangs below the pitons
+const WIDTH := 1.4
 
 
 ## One iron piton: a tapered, rusty spike with an eye ring at its end, pointing out of the rock.
@@ -55,7 +55,7 @@ static func cloth() -> Node3D:
 		var y := -SAG * (1.0 - pow(2.0 * t - 1.0, 2.0))
 		for k in across + 1:
 			var sd := lerpf(-1.0, 1.0, float(k) / across)
-			verts.append(Vector3(x, y + 0.22 * sd * sd * sin(t * PI), sd * WIDTH * 0.5 * sin(t * PI * 0.5 + PI * 0.25)))
+			verts.append(Vector3(x, y + 0.38 * sd * sd * sin(t * PI), sd * WIDTH * 0.5 * sin(t * PI * 0.5 + PI * 0.25)))
 			uvs.append(Vector2(t * 6.0, float(k) / across))
 		if i < steps:
 			for k in across:
@@ -165,8 +165,8 @@ static func _bag_radius(x: float) -> Vector2:
 	var t := clampf((x - BAG_START) / (BAG_END - BAG_START), 0.0, 1.0)
 	var feet := smoothstep(0.0, 0.25, t)
 	var neck := 1.0 - 0.35 * smoothstep(0.85, 1.0, t)
-	var full := 0.33 + 0.05 * sin(clampf(t, 0.0, 1.0) * PI)
-	return Vector2(full * lerpf(0.55, 1.0, feet) * neck, (full + 0.12) * lerpf(0.55, 1.0, feet) * neck)
+	var full := 0.4 + 0.05 * sin(clampf(t, 0.0, 1.0) * PI)
+	return Vector2(full * lerpf(0.55, 1.0, feet) * neck, (full + 0.17) * lerpf(0.55, 1.0, feet) * neck)
 
 
 static func _bag_mesh() -> ArrayMesh:

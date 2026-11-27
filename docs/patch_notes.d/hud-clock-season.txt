@@ -1,0 +1,1 @@
+- The F2 info under the life bar now also shows the in-game time and the season below the coordinates.

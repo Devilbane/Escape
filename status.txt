@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Round off the low rock ledges at the mountain foot | Shipped this week: Hinged shutters on the windows of the kit buildings; Windows: no glass layer, daily shutter and curtain cycle with sounds (+48 more)
+Escape! dev status | Working on: Make the hero only when a game starts, not behind the title; Round off the low rock ledges at the mountain foot | Shipped this week: Hinged shutters on the windows of the kit buildings; Windows: no glass layer, daily shutter and curtain cycle with sounds (+48 more)

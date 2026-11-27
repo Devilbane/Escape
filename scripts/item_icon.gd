@@ -62,6 +62,10 @@ static func kind_of(id: String) -> String:
 		return id.split(":")[1]
 	if id == Mines.CRYSTAL_ID:
 		return "crystal"
+	if id == Prospecting.BUCKET:
+		return "bucket"
+	if id == Prospecting.FULL:
+		return "bucket_full"
 	if INGREDIENT_ICONS.has(id):
 		return INGREDIENT_ICONS[id]
 	if id == DragonLair.BLOOD:

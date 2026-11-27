@@ -1,0 +1,1 @@
+- New Crown Prospector beside the Crown Office: buy a probe bucket (key 4 to hold it, key 5 to sample the ground, or run into a mountain), hand in the full bucket and find the ore on your map with its exact spot.

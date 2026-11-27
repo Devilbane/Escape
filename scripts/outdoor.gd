@@ -97,12 +97,12 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκβΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκβρΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
 const TEMPLE_KEEPER := "O"
-const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκβ"
+const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκβρ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -4396,7 +4396,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND, Beekeeper.ROLE: Beekeeper.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND, Beekeeper.ROLE: Beekeeper.KIND, Prospector.ROLE: Prospector.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)

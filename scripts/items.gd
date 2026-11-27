@@ -205,6 +205,9 @@ static var ALL := {
 	# it down into iron bars, and the merchant pays well for it.
 	"donnererz": {"name": "Donnererz", "slot": "erz", "weight": 1, "price": 32, "no_loot": true, "material": "metal", "tint": Color(0.55, 0.75, 1.0), "effect": "Nur bei Gewitter zu finden. Gorm schmiedet daraus Donnerwaffen"},
 	"wassereimer": {"name": "Wassereimer", "slot": "auftrag", "weight": 2, "price": 1, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Für Priesterin Elsbeth am Tempel"},
+	# The probe bucket of the Crown Prospector (see Prospecting): empty, or full with a sample to hand in.
+	"probeneimer": {"name": "Probeneimer", "slot": "auftrag", "weight": 1.5, "price": 30, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Vom Kronprospektor: Nimm ihn in die Hand (Taste 4), dann schöpft Taste 5 eine Bodenprobe, und gegen einen Berg gelaufen fragt er, ob du dort eine Probe nimmst. Den vollen Eimer bringst du zum Prospektor"},
+	"probeneimer_voll": {"name": "Probeneimer (voll)", "slot": "auftrag", "weight": 4, "price": 30, "no_loot": true, "model": "res://assets/village/bucket_water.gltf", "model_scale": 1.6, "effect": "Mit einer Gesteinsprobe gefüllt. Bring ihn zum Kronprospektor: Er untersucht sie und trägt das Ergebnis in deine Karte ein"},
 	# Climbing gear for the mountain rock (see Climbing): the shopkeeper always has some. It only works worn:
 	# the hammer in the weapon hand, the rope in the shield hand. Every piece adds +1 Klettern and the whole
 	# set adds Climbing.SET_BONUS more. Nails stay in the bag; every safe spot takes one.
@@ -604,7 +607,7 @@ const RARITY := {
 	"fechtbuch": "ungewoehnlich", "axtbuch": "ungewoehnlich", "wurfbuch": "ungewoehnlich",
 	"schildbuch": "ungewoehnlich", "ruestbuch": "ungewoehnlich", "schleichbuch": "ungewoehnlich",
 	# Everyday things, tasks and materials.
-	"kiste": "normal", "kletterhammer": "normal", "kletterhelm": "normal", "kletterschuhe": "normal", "kletterhandschuhe": "normal", "kletterhaken": "normal", "kletterseil": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal",
+	"kiste": "normal", "kletterhammer": "normal", "kletterhelm": "normal", "kletterschuhe": "normal", "kletterhandschuhe": "normal", "kletterhaken": "normal", "kletterseil": "normal", "steinblock": "normal", "bauholz": "normal", "fackel": "normal", "wurfmesser": "normal", "schlafrolle": "normal", "probeneimer": "normal", "probeneimer_voll": "normal",
 	"wurst": "normal", "apfel": "normal", "salzleckstein": "normal", "koerner": "normal",
 	"banditendolch": "normal", "brief": "normal", "mehlsack": "normal", "kuerbis": "normal", "wetzstein": "normal", "wassereimer": "normal",
 	"kartenstueck_1": "ungewoehnlich", "kartenstueck_2": "ungewoehnlich", "kartenstueck_3": "ungewoehnlich", "schatzkarte": "selten",

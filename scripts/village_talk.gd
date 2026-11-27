@@ -79,6 +79,7 @@ const GOALS := {
 	"K": "Will jede Neuigkeit als Erster ausrufen, vor allem vor dem Postmeister.",
 	"κ": "Will jede Wand im Tal einmal bezwungen haben und anderen beibringen, wie man dabei heil bleibt.",
 	"µ": "Will in jedem neuen Haus im Tal ein Bett, einen Kamin und ein Regal voller Bücher sehen.",
+	"ρ": "Will, dass jeder Held erst die Erde fragt und dann den Spaten ansetzt, und eines Tages eine Mine aus seiner Karte wachsen sehen.",
 	"¢": "Will jedes Stück Land sauber im Grundbuch eingetragen sehen, bevor der erste Stein gesetzt wird.",
 	"O": "Will, dass die Toten in ihren Gräbern bleiben.",
 	"G": "Will die Gilde groß machen und der Wache die Kopfgelder abjagen.",

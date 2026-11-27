@@ -14,6 +14,9 @@ extends RefCounted
 const UNDER := 0.5
 ## Where Benno stands while he serves, from the chair's middle: behind the chair as the camera sees it
 ## (the camera looks north, the chair faces south), so he and his speech bubbles stay off the customer.
+## How far the hero sits forward of the hips-over-the-middle spot (metres): the backrest leans in over the
+## seat, so the middle would sink the back into it and the feet into the footrest.
+const SIT_SHIFT := 0.2
 const BESIDE := Vector3(0.0, 0.0, -1.15)
 ## Seconds the tent takes to fade away and come back.
 const FADE := 0.5
@@ -66,7 +69,7 @@ func build(level: Outdoor, benno: Villager, tent_node: Node3D, tent_at: Vector3)
 	level._add_box(level._walls_body, table + Vector3(0, 0.45, 0), Vector3(BarberChairModel.TABLE_SIZE.x + 0.06, 0.9, BarberChairModel.TABLE_SIZE.y + 0.06))
 	var size := Vector3(1.02, 1.0, 1.5)
 	station = Seats.station(level.world_to_cell(chair_pos), chair_pos, 0.0, size)
-	station["forward"] = Seats.HIPS_BACK
+	station["forward"] = Seats.HIPS_BACK + SIT_SHIFT
 	station["lift"] = BarberChairModel.SEAT_TOP - Seats.SEAT_TOP
 	station["touch"] = TOUCH
 	station["barber"] = true

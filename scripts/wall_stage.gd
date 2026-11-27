@@ -80,6 +80,9 @@ const LEAP_POSES := {
 	"catch": {"hips_y": -0.06, "spine": 12.0, "head": -24.0, "arm": 150.0, "elbow": 75.0, "hip_l": 72.0, "hip_r": 66.0, "knee_l": 92.0, "knee_r": 88.0, "abd_l": 30.0, "abd_r": 30.0},
 }
 ## The arm stretch on waking: both arms high and out, the head tipped back.
+## Lying in the hammock he curls like a banana: shoulders, head and raised legs up, the hips the lowest point (the
+## bag is bent the same way, see WallHammock.bend).
+const SLEEP_CURL := {"hips_y": -0.1, "spine": 30.0, "chest": 14.0, "head": -8.0, "arm": 150.0, "elbow": 50.0, "hip_l": 40.0, "hip_r": 36.0, "knee_l": 14.0, "knee_r": 18.0, "abd_l": 8.0, "abd_r": 8.0}
 const STRETCH_POSE := {"hips_y": 0.0, "spine": -8.0, "head": -14.0, "arm_l": 0.0, "out_l": 35.0, "lift_l": 160.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 35.0, "lift_r": 160.0, "elbow_r": 0.0}
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],
@@ -902,7 +905,7 @@ func _tick_animation(delta: float) -> void:
 			# the helmet looks out; eyes closed, breathing slowly and snoring (one snore per breath). At the end a yawn
 			# and an arm stretch.
 			var waking := key == "wake"
-			var rest_pose := ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6)
+			var rest_pose := ClimbPose.mix(RopeClimbPose.POSES["rest"], SLEEP_CURL, 1.0)
 			climber.pose(ClimbPose.mix(rest_pose, STRETCH_POSE, sin(clampf(u, 0.0, 1.0) * PI) if waking else 0.0))
 			var into := smoothstep(0.0, 0.05, u) if key == "bed" else 1.0
 			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, -into * PI * 0.5)

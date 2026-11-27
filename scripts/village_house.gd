@@ -13,6 +13,12 @@ class_name VillageHouse
 ## Modular Cathedral Kit (assets/chapel).
 
 const WOOD_TEX := "res://assets/house/wood_floor.jpg"
+## The oak of the half-timber beams (tools/make_timber_texture.py): grain along x, one copy covering
+## TIMBER_LENGTH metres along a beam and TIMBER_WIDTH round it.
+const TIMBER_TEX := "res://assets/house/timber_oak.png"
+const TIMBER_NORMAL := "res://assets/house/timber_oak_n.png"
+const TIMBER_LENGTH := 4.0
+const TIMBER_WIDTH := 1.0
 const STONE_TEX := "res://assets/chapel/trim_sheet.png"
 const DOOR_TEX := "res://assets/chapel/door_diffuse.png"
 const ROOF_SHADER := preload("res://shaders/aged_roof.gdshader")
@@ -41,6 +47,11 @@ const UPPER := 2.6
 const JETTY := 0.3
 const BEAM := 0.22
 const ROOF_OVERHANG := 0.45
+## How round a beam's edges are, how far its line may bend and how much its thickness may swell and
+## thin (metres, metres, a fraction), see _beam.
+const BEAM_ROUND := 0.045
+const BEAM_BEND := 0.022
+const BEAM_SWELL := 0.04
 
 static var _mats := {}
 ## The flat tops of the small timber and stone things on the front of the house being built (door
@@ -172,8 +183,8 @@ static func _shape(shape: Dictionary, low: Dictionary, front: Dictionary, up: Di
 		# The floor beams of the jetty poking out under the upper floor.
 		for i in range(1, int(uw / 1.1)):
 			var x := -uw * 0.5 + i * uw / int(uw / 1.1)
-			_box(up, "timber", Vector3(x, top - 0.12, d * 0.5 + JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
-			_box(up, "timber", Vector3(x, top - 0.12, -d * 0.5 - JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
+			_beam(up, Vector3(x, top - 0.12, d * 0.5 + JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
+			_beam(up, Vector3(x, top - 0.12, -d * 0.5 - JETTY * 0.5), Vector3(0.18, 0.18, JETTY + 0.1))
 	# Door, windows with shutters.
 	_door(front, Vector3(door_x, PLINTH, d * 0.5), step)
 	for x: float in _window_spots(w, door_x):
@@ -526,7 +537,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 		_box(parts, "plaster", Vector3(0, y0 + UPPER * 0.5, z0), Vector3(w - 0.04, UPPER, sd))
 		_beams(parts, w - 0.04, sd, y0, z0)
 		for x: float in [-w * 0.22, w * 0.22]:
-			_box(parts, "timber", Vector3(x, y0 - 0.12, d * 0.5 + JETTY * (k - 0.5) + 0.02), Vector3(0.18, 0.18, JETTY + 0.1))
+			_beam(parts, Vector3(x, y0 - 0.12, d * 0.5 + JETTY * (k - 0.5) + 0.02), Vector3(0.18, 0.18, JETTY + 0.1))
 		for x: float in [-w * 0.25, w * 0.25]:
 			_window(parts, Vector3(x, y0 + 1.3, z0 + sd * 0.5), 0.0)
 		_window(parts, Vector3(-w * 0.25, y0 + 1.3, z0 - sd * 0.5), PI)
@@ -583,7 +594,7 @@ const NARROW_STOREYS := 2
 static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionary:
 	return {
 		"plaster": AgedStone.house_material(AgedStone.HOUSE_TINTS[rng.randi() % AgedStone.HOUSE_TINTS.size()]),
-		"timber": _textured("timber", WOOD_TEX, TIMBER),
+		"timber": _timber_material(),
 		"roof": _roof_material(rng.randi() % ROOFS.size()),
 		"stone": _textured("stone", STONE_TEX, Color(0.9, 0.88, 0.85)),
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
@@ -622,8 +633,8 @@ static func _beams(parts: Dictionary, w: float, d: float, y0: float, z0 := 0.0) 
 		var z := side * (d * 0.5 + 0.02) + z0
 		var x := side * (w * 0.5 + 0.02)
 		for y: float in [y0 + hb, y0 + UPPER - hb]:
-			_box(parts, "timber", Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
-			_box(parts, "timber", Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
+			_beam(parts, Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
+			_beam(parts, Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
 			_note_top(Vector3(0, y, z), Vector3(w + 0.1, BEAM, BEAM))
 			_note_top(Vector3(x, y, z0), Vector3(BEAM, BEAM, d + 0.1))
 
@@ -636,10 +647,10 @@ const DOOR_POST := 0.66
 ## is not part of the house's mesh: it is a HouseDoor that swings open (see
 ## _hang_door).
 static func _door(parts: Dictionary, at: Vector3, step = null) -> void:
-	_box(parts, "timber", at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
+	_beam(parts, at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
 	_note_top(at + Vector3(0, 2.2, 0.08), Vector3(1.5, BEAM, BEAM))
 	for s: float in [-1.0, 1.0]:
-		_box(parts, "timber", at + Vector3(s * DOOR_POST, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
+		_beam(parts, at + Vector3(s * DOOR_POST, 1.1, 0.08), Vector3(BEAM, 2.2, BEAM))
 	var step_parts: Dictionary = parts if step == null else step
 	_box(step_parts, "stone", Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
 	_note_top(Vector3(at.x, 0.1, at.z + 0.4), Vector3(1.5, 0.2, 0.7))
@@ -720,8 +731,8 @@ static func _gables(parts: Dictionary, w: float, d: float, eaves: float, ridge: 
 			st.set_normal(n)
 			st.set_uv(Vector2(p.z, -p.y) * 0.5)
 			st.add_vertex(p)
-		_box(parts, "timber", Vector3(x + side * 0.03, eaves + ridge * 0.45, 0), Vector3(BEAM, ridge * 0.9, BEAM))
-		_box(parts, "timber", Vector3(x + side * 0.03, eaves + BEAM * 0.5, 0), Vector3(BEAM, BEAM, d))
+		_beam(parts, Vector3(x + side * 0.03, eaves + ridge * 0.45, 0), Vector3(BEAM, ridge * 0.9, BEAM))
+		_beam(parts, Vector3(x + side * 0.03, eaves + BEAM * 0.5, 0), Vector3(BEAM, BEAM, d))
 
 
 ## Two tiled slopes meeting at the ridge (the ridge runs along x), and a
@@ -774,6 +785,108 @@ static func _roof(parts: Dictionary, w: float, d: float, eaves: float, ridge: fl
 			RoofCaps.edge(st, top, top + down * len, n, Vector3(end, 0, 0), hash(Vector3(side, end, w)))
 
 
+## Which axis (0 x, 1 y, 2 z) a box is longest along.
+static func _long_axis(size: Vector3) -> int:
+	if size.x >= size.y and size.x >= size.z:
+		return 0
+	return 1 if size.y >= size.z else 2
+
+
+## A hand-hewn oak beam in the place of a box of timber (takes what `_box` takes): its edges rounded
+## off, a little crooked, its thickness swelling and thinning and its line bending a hair along its
+## length. The same beam is always shaped the same, from where it sits. Its grain runs along it and
+## wraps round its sides, and its ends are closed.
+static func _beam(parts: Dictionary, center: Vector3, size: Vector3, basis := Basis()) -> void:
+	var st := _tool(parts, "timber")
+	var la := _long_axis(size)
+	var length := size[la]
+	var ax_a := Vector3.ZERO
+	var ax_b := Vector3.ZERO
+	var along := Vector3.ZERO
+	ax_a[(la + 1) % 3] = 1.0
+	ax_b[(la + 2) % 3] = 1.0
+	along[la] = 1.0
+	var ha := size[(la + 1) % 3] * 0.5
+	var hb := size[(la + 2) % 3] * 0.5
+	var radius := minf(BEAM_ROUND, minf(ha, hb) * 0.7)
+	# The rounded rectangle every ring is made of: three points a corner, and where each one faces.
+	var prof: Array[Vector2] = []
+	var facing: Array[Vector2] = []
+	for corner in 4:
+		var cx := ha - radius if corner == 0 or corner == 3 else radius - ha
+		var cy := hb - radius if corner < 2 else radius - hb
+		for step in 3:
+			var ang := deg_to_rad(corner * 90.0 + step * 45.0)
+			var dir := Vector2(cos(ang), sin(ang))
+			prof.append(Vector2(cx, cy) + dir * radius)
+			facing.append(dir)
+	prof.append(prof[0])
+	facing.append(facing[0])
+	var around: Array[float] = [0.0]
+	for i in range(1, prof.size()):
+		around.append(around[i - 1] + prof[i].distance_to(prof[i - 1]))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(Vector3i((center * 100.0).round()) * 31 + Vector3i((size * 100.0).round()))
+	var shift := Vector2(rng.randf(), rng.randf())
+	var phase := [rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU]
+	var span := rng.randf_range(0.8, 1.6)
+	var crooked := minf(BEAM_BEND, minf(ha, hb) * 0.2)
+	var stations := maxi(2, ceili(length / 0.5))
+	var pos: Array = []
+	var nor: Array = []
+	for si in stations + 1:
+		var t := float(si) / stations
+		var settle := 0.4 + 0.6 * sin(t * PI)
+		var bend_a := crooked * sin(t * TAU * span + phase[0]) * settle
+		var bend_b := crooked * sin(t * TAU * span * 0.7 + phase[1]) * settle
+		var swell := 1.0 + BEAM_SWELL * sin(t * TAU * span * 1.3 + phase[2])
+		var ring := PackedVector3Array()
+		var ring_n := PackedVector3Array()
+		for pi in prof.size():
+			var local := along * ((t - 0.5) * length) + ax_a * (prof[pi].x * swell + bend_a) + ax_b * (prof[pi].y * swell + bend_b)
+			ring.append(center + basis * local)
+			ring_n.append((basis * (ax_a * facing[pi].x + ax_b * facing[pi].y)).normalized())
+		pos.append(ring)
+		nor.append(ring_n)
+	var tangent := Plane((basis * along).normalized(), 1.0)
+	var seg := length / stations
+	for si in stations:
+		for pi in prof.size() - 1:
+			var ids := [Vector2i(si, pi), Vector2i(si + 1, pi), Vector2i(si + 1, pi + 1), Vector2i(si, pi + 1)]
+			for tri in [[0, 1, 2], [0, 2, 3]]:
+				var pts := []
+				var ns := []
+				var uvs := []
+				for k in tri:
+					var id: Vector2i = ids[k]
+					pts.append(pos[id.x][id.y])
+					ns.append(nor[id.x][id.y])
+					uvs.append(Vector2(id.x * seg / TIMBER_LENGTH + shift.x, around[id.y] / TIMBER_WIDTH + shift.y))
+				_beam_triangle(st, pts, ns, uvs, tangent)
+	# The ends, closed by a fan round their middle.
+	for end in 2:
+		var si := 0 if end == 0 else stations
+		var out := (basis * along).normalized() * (-1.0 if end == 0 else 1.0)
+		var mid := center + basis * (along * ((float(si) / stations - 0.5) * length))
+		for pi in prof.size() - 1:
+			var pts := [mid, pos[si][pi], pos[si][pi + 1]]
+			var uvs := [Vector2(0.5, 0.5), prof[pi] / TIMBER_WIDTH + Vector2(0.5, 0.5), prof[pi + 1] / TIMBER_WIDTH + Vector2(0.5, 0.5)]
+			_beam_triangle(st, pts, [out, out, out], uvs, Plane((basis * ax_a).normalized(), 1.0))
+
+
+## One triangle of a beam, wound clockwise seen from outside (see _box), whichever way round it came.
+static func _beam_triangle(st: SurfaceTool, pts: Array, ns: Array, uvs: Array, tangent: Plane) -> void:
+	var order := [0, 1, 2]
+	var face: Vector3 = ((pts[1] as Vector3) - (pts[0] as Vector3)).cross((pts[2] as Vector3) - (pts[0] as Vector3))
+	if face.dot((ns[0] as Vector3) + ns[1] + ns[2]) > 0.0:
+		order = [0, 2, 1]
+	for k in order:
+		st.set_normal(ns[k])
+		st.set_tangent(tangent)
+		st.set_uv(uvs[k])
+		st.add_vertex(pts[k])
+
+
 ## A box into the surface for `key`: centre, size, turn. Its texture is laid
 ## by metres, so a long beam shows a long grain and not a stretched one.
 static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3, basis := Basis(), tile := 2.0, skip: Array = []) -> void:
@@ -804,6 +917,8 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 				_face(parts, key, at, basis * u, basis * v, Vector2(su, sv))
 				continue
 		var uvs := [Vector2(0, 0), Vector2(su, 0), Vector2(su, sv), Vector2(0, sv)]
+		# Timber: the grain runs along the box's longest side, whichever way the face's axes point.
+		var swap := key == "timber" and absf(v[_long_axis(size)]) > 0.5
 		# Clockwise seen from outside, which Godot draws as the front. Wound
 		# the other way the camera saw the far insides of every box, dark and
 		# flickering through each other (tests/house_faces.gd).
@@ -811,7 +926,12 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 			if key == "glass" or key == "glass_in":
 				st.set_uv2(_pane_key)
 			st.set_normal(basis * n)
-			st.set_uv(_uv(key, uvs[k], center, tile))
+			var m: Vector2 = uvs[k]
+			if swap:
+				m = Vector2(m.y, m.x)
+			if key == "timber":
+				st.set_tangent(Plane(basis * (v if swap else u), 1.0))
+			st.set_uv(_uv(key, m, center, tile))
 			st.add_vertex(center + basis * corners[k])
 
 
@@ -893,6 +1013,8 @@ static func _face(parts: Dictionary, key: String, corner: Vector3, u: Vector3, v
 		for k in [0, 2, 1, 0, 3, 2]:
 			var m: Vector2 = uvs[k]
 			st.set_normal(n)
+			if key == "timber":
+				st.set_tangent(Plane(u.normalized(), 1.0))
 			st.set_uv(_uv(key, m, corner, 2.0))
 			st.add_vertex(corner + u * m.x + v * m.y)
 
@@ -909,8 +1031,8 @@ static func _uv(key: String, m: Vector2, center: Vector3, tile: float) -> Vector
 			# The pane in metres, for the curtains painted behind it (see WindowLights.GLASS_SHADER).
 			return m
 		"timber":
-			# Grain along the length of the beam; a shift per beam.
-			return Vector2(m.x / 3.0 + center.x * 0.37, m.y / 3.0 + center.y * 0.21)
+			# Grain along the length of the beam (m.x); a shift per beam.
+			return Vector2(m.x / TIMBER_LENGTH + center.x * 0.37, m.y / TIMBER_WIDTH + center.y * 0.21 + center.z * 0.13)
 	return m / tile
 
 
@@ -943,6 +1065,22 @@ static func _roof_material(shade: int) -> ShaderMaterial:
 		mat.set_shader_parameter("tint", ROOFS[shade])
 		_mats[key] = mat
 	return _mats[key]
+
+
+## The oak of the beams: its grain and weathering in colour, and in a normal map so the light catches
+## the fibres, the cracks and the knots.
+static func _timber_material() -> StandardMaterial3D:
+	if not _mats.has("timber_oak"):
+		var mat := StandardMaterial3D.new()
+		mat.resource_name = "timber"
+		mat.albedo_texture = load(TIMBER_TEX)
+		mat.albedo_color = Color(0.74, 0.68, 0.64)
+		mat.normal_enabled = true
+		mat.normal_texture = load(TIMBER_NORMAL)
+		mat.normal_scale = 1.2
+		mat.roughness = 0.88
+		_mats["timber_oak"] = mat
+	return _mats["timber_oak"]
 
 
 static func _textured(key: String, path: String, tint: Color) -> StandardMaterial3D:

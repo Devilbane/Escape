@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Prospector: one day of analysis, then the mining licence offer | Shipped this week: Fix hard-edged squares in the Nohpaan mist; Window cycle: shutters meet, independent timers, mage tower circle (+48 more)
+Escape! dev status | Shipped this week: Prospector: one day of analysis, then the mining licence offer; Fix hard-edged squares in the Nohpaan mist (+48 more)

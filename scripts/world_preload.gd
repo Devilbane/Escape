@@ -177,7 +177,15 @@ func _build() -> bool:
 ## a pool of blood, a floating number, sparks, a spray and a flame. Only a
 ## copy of each, beside the copy of the village.
 func _add_samples(at: Vector3) -> void:
-	var player: Player = _game.player
+	# The game's own hero is not made yet behind the title: a throwaway one serves for the sample.
+	var player: Player = _game._player
+	var spare: Player = null
+	if player == null:
+		spare = Player.new()
+		spare.process_mode = Node.PROCESS_MODE_DISABLED
+		spare.visible = false
+		_holder.add_child(spare)
+		player = spare
 	if player and player._model:
 		var ghost: Node3D = player._model.duplicate()
 		# Its own materials, so fading it leaves the real hero as they are.
@@ -191,6 +199,8 @@ func _add_samples(at: Vector3) -> void:
 		_level.add_child(ghost)
 		ghost.global_position = at
 		player.look_sneaky(ghost, 0.65)
+	if spare:
+		spare.free()
 	BloodStains.lay(_level, at + Vector3(1, 0.02, 0), 7)
 	# The rain puddles are dry on a fine day, so fill them for their shader.
 	if _level is Outdoor and _level.puddles:

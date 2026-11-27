@@ -174,6 +174,10 @@ var storey := 0
 var _lift := 0.0
 ## The wall piece being built and where its wall runs on (see _hidden_faces).
 var _piece_run := {}
+## How much of its nominal half-thickness reach the house wall piece being built gives up at its
+## low and its high end (see _wall_cuts), so no two wall boxes share a face at a corner or where
+## the wall runs on.
+var _cut := Vector2.ZERO
 ## How far the garden wall piece being built reaches past its first and its last
 ## node (negative: it stops short of it), see _fence_run.
 var _fence_ends := Vector2(FENCE_THICK * 0.5, FENCE_THICK * 0.5)
@@ -2276,14 +2280,53 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 	var step := Vector2i(1, 0) if along_x else Vector2i(0, 1)
 	var axis := Vector3.RIGHT if along_x else Vector3.BACK
 	var lo := (a - axis * THICK * 0.5).dot(axis)
-	_piece_run = {"axis": axis, "lo": lo, "hi": lo + HouseSketch.CELL + THICK,
-		"before": house.has_piece(edge[0] - step.x, edge[1] - step.y, orient, storey),
-		"after": house.has_piece(edge[0] + step.x, edge[1] + step.y, orient, storey),
+	_cut = Vector2.ZERO
+	if not HouseSketch.FENCE_KINDS.has(kind):
+		_cut = _wall_cuts(house, edge, storey)
+	_piece_run = {"axis": axis, "lo": lo + _cut.x, "hi": lo + HouseSketch.CELL + THICK - _cut.y,
+		"before": house.has_piece(edge[0] - step.x, edge[1] - step.y, orient, storey) or _cut.x > 0.0,
+		"after": house.has_piece(edge[0] + step.x, edge[1] + step.y, orient, storey) or _cut.y > 0.0,
 		"above": house.has_piece(edge[0], edge[1], orient, storey + 1)}
 	if HouseSketch.FENCE_KINDS.has(kind):
 		_fence_run(house, edge, storey, axis, a)
 	_solid_piece_parts(mid, flat, along_x, kind, demolish, stone)
 	_piece_run = {}
+	_cut = Vector2.ZERO
+
+
+## Whether a built (or to be taken down) house wall piece (a wall, door or window, no garden wall)
+## stands on the edge (x, y, orient) of `storey`.
+func _wall_on(house: HouseSketch, x: int, y: int, orient: String, storey: int) -> bool:
+	var piece: Dictionary = house.pieces.get(HouseSketch.key_of(x, y, orient, storey), {})
+	return not piece.is_empty() and piece.state != HouseSketch.SKETCH and not HouseSketch.FENCE_KINDS.has(piece.kind)
+
+
+## How much of the half-thickness every house wall piece reaches past each of its nodes it gives
+## up (low end, high end), so two boxes never share a face: two faces in one place flicker through
+## each other (z-fighting). Walls along x own the column at a node: they fill the corner, and where
+## two run on into each other the first one fills the column and the next starts behind it (it
+## gives up a whole thickness). A wall along z stops at the face of any wall along x at its node
+## (it gives up a whole thickness too), and where it only runs on into another along z the later
+## piece starts behind the column.
+func _wall_cuts(house: HouseSketch, edge: Array, storey: int) -> Vector2:
+	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
+	var step := Vector2i(1, 0) if along_x else Vector2i(0, 1)
+	var cuts := Vector2.ZERO
+	for end: int in [0, 1]:
+		var node: Vector2i = Vector2i(edge[0], edge[1]) + step * end
+		var cut := 0.0
+		if along_x:
+			if end == 0 and _wall_on(house, node.x - 1, node.y, HouseSketch.ORIENT_X, storey):
+				cut = THICK
+		elif _wall_on(house, node.x - 1, node.y, HouseSketch.ORIENT_X, storey) or _wall_on(house, node.x, node.y, HouseSketch.ORIENT_X, storey):
+			cut = THICK
+		elif end == 0 and _wall_on(house, node.x, node.y - 1, HouseSketch.ORIENT_Y, storey):
+			cut = THICK
+		if end == 0:
+			cuts.x = cut
+		else:
+			cuts.y = cut
+	return cuts
 
 
 ## Where a garden wall piece on `edge` starts and ends along `axis` (from its node
@@ -2355,7 +2398,9 @@ func _solid_piece_parts(mid: Vector3, flat: Vector3, along_x: bool, kind: String
 		HouseSketch.WINDOW:
 			_solid_window(mid, flat, along_x, stone, demolish)
 		_:
-			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+			var axis_dir := Vector3.RIGHT if along_x else Vector3.BACK
+			_solid_box(mid + axis_dir * ((_cut.x - _cut.y) * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0),
+					flat - axis_dir * (_cut.x + _cut.y) + Vector3(0, WALL_HEIGHT, 0), stone)
 	if kind == HouseSketch.WALL or kind == HouseSketch.DOOR:
 		# Nothing is picked up or used through it (see Level.can_reach); a window is reached through.
 		var b := a + (mid - a) * 2.0
@@ -2381,8 +2426,9 @@ func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool
 	var jamb_long := DOOR_JAMB + THICK * 0.5
 	var jamb_deep := THICK + 0.1
 	for sign_ in [-1.0, 1.0]:
-		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
-		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+		var cut: float = _cut.x if sign_ < 0.0 else _cut.y
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + (jamb_long - cut) * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long - cut, WALL_HEIGHT, jamb_deep), stone)
 	# The lintel: a beam over the opening, its ends resting on the jambs.
 	# It stands a hair over the jambs, so its top never shares their top face (that flickers).
 	var beam := WALL_HEIGHT - DOOR_HEIGHT + FACE_GAP
@@ -2412,8 +2458,9 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	var jamb_deep := THICK + 0.1
 	var high := WINDOW_TOP - SILL
 	for sign_ in [-1.0, 1.0]:
-		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
-		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+		var cut: float = _cut.x if sign_ < 0.0 else _cut.y
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + (jamb_long - cut) * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long - cut, WALL_HEIGHT, jamb_deep), stone)
 	# The wall under the sill and over the lintel, between the jambs.
 	_solid_box(mid + Vector3(0, SILL * 0.5, 0), _along(axis, across, opening, SILL, THICK), stone)
 	var beam := WINDOW_LINTEL

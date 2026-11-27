@@ -16,17 +16,20 @@ extends RefCounted
 ## vertical (`yaw`, degrees, 0 faces the foot of the bed, -90 faces out over the left rail).
 ## `side` (-1 or 1) mirrors a sequence for a bed one gets out of on its right.
 
-## Where the hips are, lying and sitting on the mattress, from the bed's origin.
-## Across: the middle of the mattress. Along: the head (HEAD_TO_HIPS from the hips) comes to rest on the
-## pillows, a little below their middle (see Level.PILLOW), so the head lies on them whichever bed it is.
-const LYING := Vector3((CosyBed.LEFT + CosyBed.RIGHT) * 0.5, 0.93, Level.PILLOW.z + 0.05 + HEAD_TO_HIPS)
+## Where the hips are, lying and sitting on the mattress, from the bed's origin. Lying: across, the middle of
+## the mattress; along, the middle of the head (HEAD_REACH from the hips: it is a big round head) lies
+## HEAD_ON_PILLOW below the middle of the pillows (see Level.PILLOW), so the face rests on them while the
+## back of the head and the hair stay clear of the headboard and the wall behind it.
+const LYING := Vector3((CosyBed.LEFT + CosyBed.RIGHT) * 0.5, 0.93, Level.PILLOW.z + HEAD_ON_PILLOW + HEAD_REACH)
+## How far below the middle of the pillows (towards the foot) the middle of the head lies.
+const HEAD_ON_PILLOW := 0.2
 const SITTING := Vector3(-0.3, 0.97, 0.12)
 ## On the rim: the hips a little in from the rail, the thighs over the mattress and the shins hanging.
 const RIM := Vector3(-0.42, 0.97, 0.12)
 ## Standing on the floor beside the bed: the hips' height above the floor.
 const BESIDE := Vector3(-1.1, HIP_HEIGHT, 0.12)
-## How far the head's bone lies from the hips when lying on the back (rig units, at body scale 1).
-const HEAD_TO_HIPS := 0.83
+## How far the middle of the head's mesh lies from the hips when lying on the back (rig units, body scale 1).
+const HEAD_REACH := 1.276
 ## The hips' height above the model's origin when standing (rig units, at body scale 1).
 const HIP_HEIGHT := 0.392
 
@@ -141,6 +144,8 @@ static func pose(model: Node3D, skeleton: Skeleton3D, base: Dictionary, state: D
 		hips.x = -0.15 - hips.x
 	# Standing on the floor, a body of another size has its hips higher or lower (the mattress is the same for all).
 	hips.y += HIP_HEIGHT * (scale - 1.0) * (1.0 - clampf((hips.y - HIP_HEIGHT) / (LYING.y - HIP_HEIGHT), 0.0, 1.0))
+	# Lying, a bigger body's head is further from its hips: the hips move down the bed so the head stays put.
+	hips.z += HEAD_REACH * (scale - 1.0) * clampf((hips.y - HIP_HEIGHT) / (LYING.y - HIP_HEIGHT), 0.0, 1.0)
 	var world_hips := bed_pos + Basis(Vector3.UP, bed_rot) * hips
 	return world_hips - turn * Vector3(0.0, HIP_HEIGHT * scale, 0.0)
 

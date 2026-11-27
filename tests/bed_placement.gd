@@ -49,7 +49,14 @@ func _lies_on(sk: Skeleton3D, bed_pos: Vector3, rot: float, what: String) -> voi
 	check(absf(hips.x - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5) < 0.03, "%s: the hips are in the middle across the bed (%.2f)" % [what, hips.x])
 	var head: Vector3 = inverse * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("head")).origin - bed_pos)
 	check(absf(head.x - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5) < 0.03, "%s: the head is in the middle across the bed (%.2f)" % [what, head.x])
-	check(absf(head.z - Level.PILLOW.z) < 0.2, "%s: the head lies on the pillows (%.2f, pillows at %.2f)" % [what, head.z, Level.PILLOW.z])
+	# The head (a big round one) rests on the pillows and its back and hair stay inside the bed, clear of the wall.
+	var mesh := sk.get_parent().find_child("Rogue_Head", true, false) as MeshInstance3D
+	var scale := mesh.global_transform.basis.get_scale().x
+	var middle: Vector3 = inverse * (mesh.global_transform * mesh.get_aabb().get_center() - bed_pos)
+	check(middle.z > Level.PILLOW.z - 0.1 and middle.z < Level.PILLOW.z + 0.4, "%s: the head lies on the pillows (%.2f, pillows at %.2f)" % [what, middle.z, Level.PILLOW.z])
+	var back := middle.z - mesh.get_aabb().size.z * scale * 0.5
+	check(back > CosyBed.HEAD + 0.05, "%s: the back of the head is inside the bed (%.2f, head end at %.2f)" % [what, back, CosyBed.HEAD])
+	check(middle.x - mesh.get_aabb().size.x * scale * 0.5 > CosyBed.LEFT - 0.05 and middle.x + mesh.get_aabb().size.x * scale * 0.5 < CosyBed.RIGHT + 0.05, "%s: the head is not over the side rails" % what)
 	# The blanket reaches from the shoulders to past the feet: everything but the head is under it.
 	for bone in ["hips", "spine", "foot.l", "foot.r", "toes.l", "toes.r"]:
 		var at: Vector3 = inverse * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin - bed_pos)

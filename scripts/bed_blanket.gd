@@ -16,9 +16,9 @@ const NEAR := 0.4
 
 ## Where the blanket's foot end lies from the bed's origin: across the middle of the mattress, just
 ## inside the footboard, and on top of the quilt.
-const FOOT := Vector3(CosyBed.LEFT * 0.5 + CosyBed.RIGHT * 0.5, CosyBed.MATTRESS_TOP + 0.1, 1.0)
-## The cloth's top edge lies at the sleeper's shoulders, just below the middle of the pillows.
-const TOP_Z := Level.PILLOW.z + 0.25
+const FOOT := Vector3(CosyBed.LEFT * 0.5 + CosyBed.RIGHT * 0.5, CosyBed.MATTRESS_TOP + 0.1, 1.2)
+## The cloth's top edge lies at the sleeper's chin: a little over the hips' distance from the head.
+const TOP_Z := BedRise.LYING.z - 0.78
 ## The cloth: how wide (across) and how long (along, from the foot end towards the head), and the
 ## cells of its grid.
 const WIDTH := 1.28

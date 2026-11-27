@@ -2016,6 +2016,8 @@ func _use_station(s: Dictionary) -> void:
 		SpringCave.use(self, s)
 	elif s.kind == OwnMine.POST:
 		OwnMine.use_post(self, s)
+	elif s.kind == OwnMine.MILL:
+		OwnMine.use_mill(self, s)
 	elif s.kind == OwnMine.FACE:
 		player.face(s.pos - player.global_position)
 		player.play("Idle")
@@ -8754,6 +8756,7 @@ func _process(delta: float) -> void:
 			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
 			OwnMine.POST: OwnMine.prompt(self, station) if station.kind == OwnMine.POST else "",
 			OwnMine.FACE: Lang.t("Dagegenlaufen, um am Ort zu arbeiten"),
+			OwnMine.MILL: Lang.t("Dagegenlaufen, um Pochwerk und Waschrinne zu benutzen"),
 			SilverSilk.KIND: Lang.t("Dagegenlaufen, um die Silberseide zu ernten"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich in den Barbierstuhl zu setzen") if station.get("barber", false) else Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),

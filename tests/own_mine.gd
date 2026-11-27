@@ -110,12 +110,46 @@ func _run() -> void:
 	OwnMine._haul(game.menus)
 	check(float(MineClaims.on_plot(rect).stock_mass) > 0.0, "a bucket reaches the stockpile")
 
+	# Cart: timber builds it, and it carries more.
+	game.player.bag.append(OwnMine.TIMBER)
+	OwnMine._build_cart(game.menus)
+	check(not bool(MineClaims.on_plot(rect).get("cart", false)), "a cart needs its timber")
+	for i in MineWork.CART_TIMBER:
+		game.player.bag.append(OwnMine.TIMBER)
+	OwnMine._build_cart(game.menus)
+	check(bool(MineClaims.on_plot(rect).get("cart", false)) and game.player.bag.count(OwnMine.TIMBER) == 1, "the cart is built and costs its timber")
+	var before_stock := float(MineClaims.on_plot(rect).stock_mass)
+	OwnMine._work(game.menus, "hammer")
+	OwnMine._haul(game.menus)
+	check(float(MineClaims.on_plot(rect).stock_mass) - before_stock >= MineWork.CART_LOAD - 0.001, "the cart takes a whole advance's rock up")
+
 	# Out again, to the plot.
 	game._leave_building(true)
 	await _wait(120)
 	check(game.level is Outdoor, "back on the open map")
 	var away: float = game.player.global_position.distance_to(game.level.cell_to_world(rect.position + rect.size / 2))
 	check(away < Level.TILE * 3.0, "the hero comes out beside the post (%.1f m away)" % away)
+
+	# The stamp mill and the trough on the plot.
+	var mill := {}
+	for st: Dictionary in game.level.stations:
+		if st.kind == OwnMine.MILL:
+			mill = st
+	check(not mill.is_empty(), "a stamp mill stands on the plot")
+	check(Menus.fixed_size(OwnMine.MILL_KIND) != Vector2.ZERO, "the mill window has a fixed size")
+	var stock_mass := float(MineClaims.on_plot(rect).stock_mass)
+	check(stock_mass > 0.0, "there is rock on the stockpile")
+	OwnMine.use_mill(game, mill)
+	check(game.menus.current == OwnMine.MILL_KIND, "the mill window opens")
+	game.menus.close()
+	OwnMine._stamp(game.menus)
+	check(float(MineClaims.on_plot(rect).stock_mass) == 0.0 and float(MineClaims.on_plot(rect).pulp_mass) == stock_mass, "stamping turns the stockpile into pulp")
+	var wash_before: float = float(MineClaims.on_plot(rect).pulp_mass)
+	OwnMine._wash(game.menus)
+	check(float(MineClaims.on_plot(rect).pulp_mass) == wash_before, "washing needs a bucket of water")
+	game.player.bag.append(OwnMine.WATER)
+	OwnMine._wash(game.menus)
+	check(float(MineClaims.on_plot(rect).pulp_mass) == 0.0, "washing empties the pulp")
 
 	# One mine per plot.
 	check(MineClaims.open(game.hero_name, rect, game.prospecting.marks) == "have", "a second mine on the plot is refused")

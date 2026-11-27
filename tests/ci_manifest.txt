@@ -160,3 +160,4 @@ wall_holds.gd | 60 | free | passfail | Climbing wall: a foot stone under every h
 wall_spots.gd | 60 | free | passfail | Climbing wall: tar, edelweiss and door spots build, give their ingredients and survive saving
 wall_facing.gd | 20 | free | passfail | The climber faces the wall while climbing and lies face up in the hammock
 wall_corners.gd | 60 | free | pass | Built house walls never share a face at corners, Ts or between pieces (no z-fighting)
+mine_claims.gd | 60 | fixed | pass | The deed book of the own mines: one mine per own mining plot, over a prospecting mark, saved, offline catch-up, register line

@@ -86,8 +86,11 @@ static func _land_rows(hero: String, level: Level, kind: String) -> Array:
 		var tag := Lang.t("Freiland")
 		if kind == Plots.LAND and rect == home:
 			tag = Lang.t("Mit Haus")
-		out.append({"title": title, "tag": tag,
-				"detail": Lang.t("%s: %d x %d Felder, %d m²") % [area_name(d.area), rect.size.x, rect.size.y, rect.size.x * rect.size.y * SQM_PER_TILE]})
+		var detail := Lang.t("%s: %d x %d Felder, %d m²") % [area_name(d.area), rect.size.x, rect.size.y, rect.size.x * rect.size.y * SQM_PER_TILE]
+		if kind == Plots.MINING and MineClaims.has_mine(rect):
+			tag = Lang.t("Mit Mine")
+			detail += ". " + MineClaims.summary(MineClaims.on_plot(rect))
+		out.append({"title": title, "tag": tag, "detail": detail})
 	return out
 
 

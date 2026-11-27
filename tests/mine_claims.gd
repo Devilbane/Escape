@@ -54,5 +54,9 @@ func _initialize() -> void:
 	check(PropertyRegister.rows(Plots.MINING, "Ann", level)[0].detail.contains("Stollen"), "register line")
 	MineClaims.release("Ann")
 	check(not MineClaims.has_mine(rect), "mines released")
-	print("mine_claims: ", "ok" if failures == 0 else "%d failures" % failures)
+	level.free()
+	if failures == 0:
+		print("PASS: mine claims")
+	else:
+		print("FAILED: ", failures)
 	quit(1 if failures > 0 else 0)

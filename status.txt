@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add a property register at the Crown clerk | Shipped this week: Give each storage its own inventory; remove the market square chest; Make the hero only when a game starts, not behind the title (+48 more)
+Escape! dev status | Shipped this week: Add a property register at the Crown clerk; Give each storage its own inventory; remove the market square chest (+48 more)

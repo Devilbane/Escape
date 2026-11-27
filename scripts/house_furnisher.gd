@@ -202,7 +202,7 @@ func refresh() -> void:
 			Events.tell(Lang.t("Dein Haus hat sich verändert: %d Möbelstücke stehen wieder zum Aufstellen bereit.") % moved, ON_COLOR)
 		game.reclaim_piece_stores(furniture)
 	var mine := Plots.plot_of(game.hero_name)
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		var is_mine: bool = own != null and deed.rect == mine
 		var house: HouseSketch = own if is_mine else HouseSketch.of(deed.owner, deed.rect)
 		var theirs := furniture if is_mine else HouseFurniture.of(deed.owner)

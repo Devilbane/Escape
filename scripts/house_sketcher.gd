@@ -1368,7 +1368,7 @@ func _redraw() -> void:
 	_fade_state = ""
 	# Every registered plot's house, and the forgotten mine with its empty hut (see LostMine).
 	var houses: Array = []
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		houses.append([plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect), deed.rect == _plot])
 	var mine := LostMine.sketch()
 	houses.append([mine, false])
@@ -2060,7 +2060,7 @@ static func _old_roof() -> ShaderMaterial:
 func _raise_roofs() -> void:
 	var level: Level = game.level
 	var raised := {}
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
 		for key in house.pieces:
 			var piece: Dictionary = house.pieces[key]

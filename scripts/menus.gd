@@ -248,7 +248,8 @@ const WINDOW_SIZES := {
 	"auftraege": Vector2(760, 532),
 	CoopWindow.KIND: Vector2(720, 540),
 	SettingsWindow.KIND: SettingsWindow.SIZE,
-	PlotOffice.KIND: Vector2(640, 430),
+	PlotOffice.KIND: Vector2(640, 500),
+	PropertyWindow.KIND: PropertyWindow.SIZE,
 	Prospector.KIND: Prospector.WINDOW,
 	Prospecting.ASK_KIND: Prospecting.ASK_SIZE,
 	Spooknortz.KIND: Spooknortz.WINDOW,
@@ -415,6 +416,8 @@ func _rebuild() -> void:
 			SettingsWindow.build(self)
 		PlotOffice.KIND:
 			PlotOffice.build(self)
+		PropertyWindow.KIND:
+			PropertyWindow.build(self)
 		Prospector.KIND:
 			Prospector.build(self)
 		Prospecting.ASK_KIND:

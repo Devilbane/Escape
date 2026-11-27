@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Rest place ledge; climbing sounds in time with the animation; Show in-game time and season under the F2 coordinates | Shipped this week: Seat the hero further forward in the barber's chair; Window drapes on both sides with a tieback, bare glass, no self-glow from inside (+48 more)
+Escape! dev status | Working on: Rest place ledge; climbing sounds in time with the animation | Shipped this week: Show in-game time and season under the F2 coordinates; Seat the hero further forward in the barber's chair (+48 more)

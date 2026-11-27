@@ -172,7 +172,8 @@ static func why_not(player: Player, level: Level, indoors: bool) -> String:
 ## the map that is still alive counts too.
 static func monster_near(level: Level, at: Vector3) -> bool:
 	for e in level.enemies:
-		if is_instance_valid(e) and not e.dead and not e.is_friend() and _flat(e.global_position, at) < SAFE_RANGE:
+		if is_instance_valid(e) and not e.dead and not e.is_friend() and SlimeGrowth.same_world(e.global_position, at) \
+				and _flat(e.global_position, at) < SAFE_RANGE:
 			return true
 	for m in level._map_enemies:
 		var e = m.enemy

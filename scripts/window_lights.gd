@@ -225,9 +225,10 @@ void fragment() {
 """
 
 ## The curtains of a window one looks through (see VillageHouse._window): the same cloth as the
-## glass's, cut out where the curtains are open, hung in the room facing in (one side only).
+## glass's, cut out where the curtains are open, hung in the opening and drawn from both sides.
 const CURTAIN_SHADER := """
 shader_type spatial;
+render_mode cull_disabled;
 #include "res://shaders/gl_colour.gdshaderinc"
 uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;

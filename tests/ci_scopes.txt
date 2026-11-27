@@ -14,6 +14,7 @@
 #
 # The house, cellar, roof and building features.
 house_sketch.gd | scripts/house*.gd scripts/plot*.gd scripts/creations.gd
+wall_corners.gd | scripts/house*.gd
 house_cellar.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
 house_cellar_floor.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
 house_cellar_ceiling.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd

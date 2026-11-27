@@ -134,6 +134,22 @@ static func ivy_faces(node: Node3D, tris: Array) -> Array:
 		return absf(middle.x) >= half_w - 0.02 or absf(middle.z) >= half_d - 0.02)
 
 
+## The windows of the tower in the order its magic closes them (and opens them): the ground floor
+## first, then each floor above it, every floor all the way round the tower from the front, so the
+## closing climbs in a circle. Each {at} of the house's frame, the same places as in walk_in_windows.
+static func order(shape: Dictionary) -> Array:
+	var all: Array = []
+	for w: Dictionary in VillageHouse.walk_in_windows(shape, true):
+		all.append(w.at)
+	all.sort_custom(func(a: Vector3, b: Vector3) -> bool:
+		if absf(a.y - b.y) > 0.3:
+			return a.y < b.y
+		return fposmod(atan2(a.x, a.z), TAU) < fposmod(atan2(b.x, b.z), TAU))
+	if all.size() > int(WindowLights.MAGIC_LEVELS) - 1:
+		all.resize(int(WindowLights.MAGIC_LEVELS) - 1)
+	return all
+
+
 ## The windows of the top room that look out through its walls (see VillageHouse._openings).
 static func windows(shape: Dictionary) -> Array:
 	var lay := GuildHall.layout(shape)

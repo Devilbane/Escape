@@ -3532,6 +3532,7 @@ func _age_kit_building(node: Node) -> void:
 			var made := VillageHouse.shutters_for(leaf_windows)
 			var leaves := MeshInstance3D.new()
 			leaves.name = "Shutters"
+			leaves.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			leaves.mesh = made.mesh
 			node.add_child(leaves)
 			var hinges: Array = node.get_meta("shutter_hinges", []) if node.has_meta("shutter_hinges") else []
@@ -5421,6 +5422,8 @@ func _call_the_village(reach := 22.0 * TILE * 0.5, proclaim := true) -> void:
 var _leaves: Array = []
 var _leaf_scan := -1
 var _leaf_hour := -1.0
+var _leaf_moving := true
+var _built_night := false
 ## How near the hero a swinging leaf is still heard (metres).
 const LEAF_EARSHOT := 38.0
 
@@ -5432,30 +5435,60 @@ func _shutter_sounds() -> void:
 		_leaf_scan = get_child_count()
 		_leaves = []
 		for house in get_children():
-			if house is Node3D and house.has_meta("shutter_hinges"):
-				var xf: Transform3D = (house as Node3D).global_transform
-				for hinge: Vector3 in house.get_meta("shutter_hinges"):
-					var key := Vector2(hinge.x + xf.origin.x, hinge.z + xf.origin.z)
-					_leaves.append({"at": xf * hinge, "key": key, "shut": WindowLights.shutters_shut(key, hour) > 0.5})
+			if not (house is Node3D and house.has_meta("shutter_hinges")):
+				continue
+			var xf: Transform3D = (house as Node3D).global_transform
+			var hinges: Array = house.get_meta("shutter_hinges")
+			var ranks: Array = house.get_meta("shutter_ranks", [])
+			for i in hinges.size():
+				var hinge: Vector3 = hinges[i]
+				var key := Vector2(hinge.x + xf.origin.x, hinge.z + xf.origin.z)
+				var rank: int = int(ranks[i]) if i < ranks.size() else 0
+				_leaves.append({"at": xf * hinge, "key": key, "rank": rank, "cloth": false,
+						"shut": WindowLights.shutters_shut(key, hour, rank) > 0.5})
+			# The mage tower's curtains flap one after another (its windows in the order of the circle).
+			var circle: Array = house.get_meta("magic_windows", [])
+			for i in circle.size():
+				var at: Vector3 = circle[i]
+				var key := WindowLights.key(at) + Vector2(xf.origin.x, xf.origin.z)
+				_leaves.append({"at": xf * at, "key": key, "rank": i + 1, "cloth": true,
+						"shut": WindowLights.curtains_shut(key, hour, i + 1) > 0.5})
 	if absf(hour - _leaf_hour) < 0.004:
 		return
 	_leaf_hour = hour
+	# Outside the two bands of the day when shutters swing, nothing is looked at; the states are only
+	# brought up to date silently once, as the band ends (or after a jump of the clock).
+	var moving := WindowLights.shutters_moving(hour)
+	if not moving and not _leaf_moving:
+		return
+	_leaf_moving = moving
 	var heard := 0
 	for leaf: Dictionary in _leaves:
-		var shut := WindowLights.shutters_shut(leaf.key, hour) > 0.5
+		var cloth: bool = leaf.cloth
+		var shut := (WindowLights.curtains_shut(leaf.key, hour, leaf.rank) if cloth else WindowLights.shutters_shut(leaf.key, hour, leaf.rank)) > 0.5
 		if shut == leaf.shut:
 			continue
 		leaf.shut = shut
+		if not moving:
+			continue
 		# Only the ones near the hero: a village of sixty windows would otherwise rattle at once.
 		if heard < 4 and is_inside_tree() and player != null and (leaf.at as Vector3).distance_to(player.global_position) < LEAF_EARSHOT:
 			heard += 1
-			Sfx.play(self, "door", -20.0, leaf.at, 1.25 if shut else 1.1)
+			if cloth:
+				# The tower's magic: a flap of cloth for each curtain.
+				Sfx.play(self, "swing", -17.0, leaf.at, 1.9 if shut else 1.6)
+			else:
+				Sfx.play(self, "door", -14.0 if leaf.rank > 0 else -20.0, leaf.at, 1.25 if shut else 1.1)
 
 
 func set_hour(new_hour: float) -> void:
 	var first := hour < 0.0
 	hour = new_hour
 	BuiltShutters.hour = new_hour
+	# The shutters the hero built swing at nightfall and at dawn: wake them then, not every frame.
+	if BuiltShutters.shut_by_night() != _built_night and is_inside_tree():
+		_built_night = BuiltShutters.shut_by_night()
+		get_tree().call_group("built_shutters", "wake")
 	_shutter_sounds()
 	var glow := DayNight.glow_at(hour)
 	for lamp in _lamps:

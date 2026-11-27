@@ -105,6 +105,23 @@ BAG_PICTURE = (
 )
 BAG_TINT = f'<path d="{BAG_BODY}" fill="url(#grey)"/>'
 
+# The prospector's probe bucket: a tapered wooden bucket with two iron hoops and a rope handle; the full one
+# is heaped with earth and gravel.
+BUCKET_PICTURE = (
+    '<path d="M18 22c0-12 28-12 28 0" fill="none" stroke="#1b1108" stroke-width="4.5" stroke-linecap="round"/>'
+    '<path d="M18 22c0-12 28-12 28 0" fill="none" stroke="#c9a46a" stroke-width="2.4" stroke-linecap="round"/>'
+    f'<path d="M14 22h36l-4 34c-.3 2-2 3-4 3H22c-2 0-3.7-1-4-3z" fill="url(#wood)" {O}/>'
+    '<path d="M22 24v32M32 24v34M42 24v32" stroke="#3b200c" stroke-width="1.2" stroke-opacity=".7"/>'
+    '<path d="M15 31h34M17 47h30" stroke="#1b1108" stroke-width="4.4"/><path d="M15 31h34M17 47h30" stroke="url(#steel)" stroke-width="2.4"/>'
+    '<ellipse cx="32" cy="22" rx="18" ry="4.5" fill="#2a190c" stroke="#1b1108" stroke-width="2"/>'
+    '<path d="M18 26l-1.4 10" stroke="#fff" stroke-opacity=".28" stroke-width="2" stroke-linecap="round"/>'
+)
+BUCKET_FULL_PICTURE = BUCKET_PICTURE + (
+    '<path d="M16 21c3-5 8-6 11-4 3-3 8-3 11-1 4-2 9 0 11 4-4 3-10 4.5-16 4.5S19 24 16 21z" fill="#8a5a36" stroke="#1b1108" stroke-width="1.6" stroke-linejoin="round"/>'
+    '<g fill="#c8b48a" stroke="#1b1108" stroke-width=".8"><circle cx="25" cy="19.5" r="1.7"/><circle cx="35" cy="18.6" r="1.4"/><circle cx="42" cy="21" r="1.6"/></g>'
+    '<g fill="#e0b040" stroke="#1b1108" stroke-width=".7"><circle cx="30" cy="21.4" r="1.1"/><circle cx="38" cy="22" r=".9"/></g>'
+)
+
 ICONS = {
     "sword": (f'<path d="M54 6l4 4-30 32-6-6z" fill="url(#steel)" {O}/><path d="M54 8L27 37" stroke="#fff" stroke-width="1.2" opacity=".7"/>'
               f'<path d="M14 34l16 16" stroke="#1b1108" stroke-width="8" stroke-linecap="round"/><path d="M14 34l16 16" stroke="url(#gold)" stroke-width="5" stroke-linecap="round"/>'
@@ -349,6 +366,8 @@ ICONS = {
     "ember_heart": (f'<path d="M32 56C18 46 8 36 8 22c0-8 6-14 13-14 6 0 9 3 11 8 2-5 5-8 11-8 7 0 13 6 13 14 0 14-10 24-24 34z" fill="url(#ember)" {O}/>'
                     '<path d="M20 24l6 6-2 8 8-6 6 8 2-10 6-2" stroke="#fff3b0" stroke-width="2" fill="none" stroke-opacity=".8"/>'
                     '<ellipse cx="19" cy="18" rx="4" ry="2.5" fill="#fff" fill-opacity=".55" transform="rotate(-30 19 18)"/>', None),
+    "bucket": (BUCKET_PICTURE, None),
+    "bucket_full": (BUCKET_FULL_PICTURE, None),
 }
 
 

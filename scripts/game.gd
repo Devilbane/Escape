@@ -217,6 +217,8 @@ var wishes := Wishes.new(self)
 var fishing := Fishing.new(self)
 ## Treasure maps from messages in a bottle and where they lead (see TreasureMaps).
 var treasure_maps := TreasureMaps.new(self)
+## The probe bucket, the sample in it and the prospector's marks on the map (see Prospecting).
+var prospecting := Prospecting.new(self)
 ## The owl clock riddle: the Deathringer's calls and rest (see OwlClock).
 var owl_clock := OwlClock.new(self)
 ## The riddle counter: which of the official riddles are solved (see RiddleCount).
@@ -322,7 +324,7 @@ const HINT_SHOWINGS := 2
 var _hints_now := {}
 var _hints_last := {}
 ## Stations that are a person; their hint goes once the hero bumped one.
-const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND, Beekeeper.KIND]
+const PERSON_STATIONS := ["npc", "bank", PlotOffice.KIND, ClimberNpc.KIND, "raumausstatter", "barbier", "tempel", "haendler", "steinmetz", "holzfaeller", "schmied", "wanderhaendler", Mill.KIND, Beekeeper.KIND, Prospector.KIND]
 ## Lives the hero gets back for climbing to the next level.
 const STAIRS_HEAL := 3
 ## From this level on (counting from 0) a run that has found no secret room
@@ -3825,6 +3827,7 @@ func load_level(index: int, restock := true) -> void:
 	level.secret_sure = (secrets_found == 0 and index >= FIRST_SURE_SECRET) or dry_levels >= MAX_DRY_LEVELS
 	add_child(level)
 	level.build()
+	prospecting.build_stakes(level)
 	_make_build_tools()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
@@ -4187,6 +4190,7 @@ func begin_new_game() -> void:
 	secrets_found = 0
 	fishing.ring_found = false
 	treasure_maps.clear()
+	prospecting.clear()
 	owl_clock.clear()
 	riddles.clear()
 	graveyard_riddles.clear()
@@ -4594,6 +4598,7 @@ func _apply_save(data: Dictionary) -> void:
 	secrets_found = int(data.get("secrets", 0))
 	fishing.ring_found = bool(data.get("fished_ring", false))
 	treasure_maps.load_from(data.get("treasure_maps", {}))
+	prospecting.load_from(data.get("prospecting", {}))
 	owl_clock.load_from(data.get("owl_clock", {}))
 	riddles.load_from(data.get("riddles", []))
 	graveyard_riddles.load_from(data.get("graveyard_riddles", []))
@@ -4952,7 +4957,7 @@ func _home_given_now() -> bool:
 func hero_record() -> Dictionary:
 	journal.catch_up()
 	var data := {
-		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "graveyard_riddles": graveyard_riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
+		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "prospecting": prospecting.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "graveyard_riddles": graveyard_riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
@@ -7711,6 +7716,8 @@ func _toggle_sneak() -> void:
 func _on_player_bumped(point: Vector3) -> void:
 	if state != State.PLAYING or not player.can_act():
 		return
+	if prospecting.held and prospecting.bumped(point):
+		return
 	var torch := level.torch_touched(point)
 	if not torch.is_empty():
 		level.set_torch(torch, not torch.on)
@@ -8637,6 +8644,7 @@ func _process(delta: float) -> void:
 	_help.visible = help_shown()
 	if state == State.PLAYING:
 		fishing.tick(delta)
+		prospecting.tick()
 	elif fishing.is_fishing():
 		fishing.stop()
 	if state != State.PLAYING or not _shrine.is_empty() or menus.is_open():
@@ -8707,6 +8715,7 @@ func _process(delta: float) -> void:
 			PlotOffice.KIND: Lang.t("Dagegenlaufen, um mit %s über Land zu reden") % station.npc.display_name if station.has("npc") else "",
 			"holzfaeller": Lang.t("Dagegenlaufen, um bei %s Bauholz zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			Mill.KIND: Lang.t("Dagegenlaufen, um bei %s Körner zu kaufen") % station.npc.display_name if station.has("npc") else "",
+			Prospector.KIND: Lang.t("Dagegenlaufen, um mit %s über Gestein und Erz zu reden") % station.npc.display_name if station.has("npc") else "",
 			Beekeeper.KIND: Lang.t("Dagegenlaufen, um bei %s Honig zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"steinmetz": Lang.t("Dagegenlaufen, um bei %s Steinblöcke zu kaufen") % station.npc.display_name if station.has("npc") else "",
 			"raumausstatter": Lang.t("Dagegenlaufen, um bei %s Möbel zu kaufen") % station.npc.display_name if station.has("npc") else "",
@@ -8778,6 +8787,13 @@ func _process(delta: float) -> void:
 		fish_prompt = _hint("fish", Lang.t("G: Angeln"))
 	if fish_prompt != "":
 		_prompt.text = fish_prompt if _prompt.text == "" else _prompt.text + "   " + fish_prompt
+	# With the probe bucket in hand the ground can be sampled (see Prospecting).
+	if prospecting.ready() and level is Outdoor and not _indoors():
+		var sample_prompt := Lang.t("5: Bodenprobe nehmen, oder gegen einen Berg laufen")
+		_prompt.text = sample_prompt if _prompt.text == "" else _prompt.text + "   " + sample_prompt
+	elif prospecting.held and prospecting.is_full():
+		var deliver_prompt := Lang.t("Der Eimer ist voll: Bring ihn zum Kronprospektor")
+		_prompt.text = deliver_prompt if _prompt.text == "" else _prompt.text + "   " + deliver_prompt
 	# Next to a monster that can be won over, a gift can be offered.
 	var tame := gift_target()
 	if tame != null and Factions.can_befriend(Factions.of(tame.kind)) and not tame.is_friend():
@@ -9008,6 +9024,10 @@ func _unhandled_input(event: InputEvent) -> void:
 						camp_action()
 					KEY_G:
 						fish_action()
+					KEY_4:
+						_say_prospect(prospecting.toggle())
+					KEY_5:
+						_say_prospect(prospecting.dig_here())
 					KEY_Z:
 						AshSpire.cast(player)
 					KEY_T:
@@ -9145,6 +9165,12 @@ func pack_camp(say := true) -> void:
 		if say and camp.get_parent() == level:
 			show_message(Lang.t("Du packst dein Lager zusammen."), 1.8)
 	camp = null
+
+
+## What the probe bucket's keys say (see Prospecting): "" and "-" stay silent.
+func _say_prospect(text: String) -> void:
+	if text != "" and text != "-":
+		show_message(text, 2.8)
 
 
 ## Key G or the "Angeln" button: casts the line by the water, strikes when

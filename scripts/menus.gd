@@ -93,6 +93,7 @@ const SHORTCUTS := [
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
 	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
+	["Probeneimer in die Hand nehmen oder wegstecken", "4, mit dem Eimer in der Hand: 5 nimmt eine Bodenprobe, gegen einen Berg laufen fragt nach einer Bergprobe"],
 	["Heiltrank trinken", "1 oder der Trank links neben der Fackel, einmal pro Minute; „Trinken“ im Inventar wählt einen bestimmten"],
 	["Entfesselte Kraft (Zauber)", "2 oder der Stern links neben dem Heiltrank, sobald du den Folianten aus Sternhall gelesen hast"],
 	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
@@ -248,6 +249,8 @@ const WINDOW_SIZES := {
 	CoopWindow.KIND: Vector2(720, 540),
 	SettingsWindow.KIND: SettingsWindow.SIZE,
 	PlotOffice.KIND: Vector2(640, 430),
+	Prospector.KIND: Prospector.WINDOW,
+	Prospecting.ASK_KIND: Prospecting.ASK_SIZE,
 	Spooknortz.KIND: Spooknortz.WINDOW,
 }
 
@@ -255,7 +258,7 @@ const WINDOW_SIZES := {
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
 const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "buecherregal", WeaponRack.KIND, "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
-	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND, Spooknortz.KIND]
+	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND, Prospector.KIND, Spooknortz.KIND]
 
 
 ## The fixed content size of a kind of window, or zero for one that fits
@@ -305,6 +308,8 @@ func open(kind: String) -> void:
 func close() -> void:
 	if current == "":
 		return
+	if current == Prospecting.ASK_KIND:
+		game.prospecting.decline()
 	if current == "gefaehrte_name":
 		naming = -1
 		_naming_back = ""
@@ -410,6 +415,10 @@ func _rebuild() -> void:
 			SettingsWindow.build(self)
 		PlotOffice.KIND:
 			PlotOffice.build(self)
+		Prospector.KIND:
+			Prospector.build(self)
+		Prospecting.ASK_KIND:
+			Prospecting.build_ask(self)
 		ClimberNpc.KIND:
 			ClimberNpc.build(self)
 		Spooknortz.KIND:
@@ -5629,6 +5638,12 @@ func _build_map_page(journal: Journal) -> void:
 			if by_name[n][0] > 1:
 				text += "  " + Lang.t("(%d Stellen)") % by_name[n][0]
 			_legend_line(legend, Journal.find_color(kinds[n]), text)
+	var prospects := journal.prospect_marks(_map_file)
+	if not prospects.is_empty():
+		_legend_title(legend, Lang.t("Prospektor"))
+		for i in prospects.size():
+			var m: Dictionary = prospects[i]
+			_legend_line(legend, ProspectGeology.ORE_COLORS.get(str(m.report.ore), Color.GRAY), "%s  %s" % [Prospecting.letter(i), Prospecting.legend_text(m)])
 	# How much is seen, by the same measure that makes a map fully explored
 	# (see Journal.note_full_map): rounded down, so 95 % is really reached.
 	var explored := Lang.t("Erkundet: %d %%") % floori(100.0 * journal.explored_share(_map_file))

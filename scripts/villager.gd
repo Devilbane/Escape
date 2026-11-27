@@ -108,6 +108,10 @@ const ROLES := {
 	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "spiky", "color": "silver"},
 		"colors": [Color(0.86, 0.8, 0.62), Color(0.42, 0.35, 0.27), Color(1, 1, 1)], "plan": "farm", "work": "Interact",
 		"lines": ["Keine Angst, meine Bienen stechen nur, wenn man sie ärgert. Und manchmal, wenn sie schlecht geschlafen haben.", "Der beste Honig im Tal! Das sagt nicht nur mein Spiegel.", "Die Bienen summen den ganzen Tag. Ich summe mit, falsch, aber aus vollem Herzen.", "Im Frühling blühen die Wiesen, im Sommer fließt der Honig. Im Winter esse ich ihn auf.", "Mit zwei Gläsern Honig braust du am Alchemistentisch einen Heiltrank. Frag die Priesterin, ob sie es glaubt."]},
+	# The Crown's prospector beside the Crown Office (see Prospector): sells the probe bucket, reads the samples.
+	"ρ": {"name": "Kronprospektor Brandt", "model": "Barbarian", "show": ["Barbarian_Hat"], "hair": {"style": "short", "color": "ginger"},
+		"colors": [Color(0.62, 0.46, 0.3), Color(0.36, 0.3, 0.24), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
+		"lines": ["Unter jedem Hügel liegt etwas. Man muss nur wissen, wie man fragt.", "Rostflecken im Sandstein? Da steckt Eisen. Grünspan im Basalt? Kupfer, mein Freund.", "Funkelt es gelb im Quarz, glaub nicht gleich an Gold. Katzengold sieht auch hübsch aus.", "Einen Eimer voll Erde, und ich sage dir, ob sich ein Stollen lohnt."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
 		"colors": [Color(0.75, 0.35, 0.3), Color(0.35, 0.4, 0.3), Color(0.6, 0.45, 0.3)], "plan": "work", "work": "2H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Holla! Du kommst vom Friedhof? Da geht doch keiner hin.", "Folge dem Weg, dann kommst du ins Dorf.", "Ein Baum am Tag, so hält man den Wald gesund.", "Am Waldteich westlich vom Dorf schnüren oft Füchse durchs Gras."]},
@@ -1625,7 +1629,7 @@ const FIGHTING_SHELTERERS := ["O", "G", "7"]
 ## top, the mages and the priestess close behind, the women and the child
 ## at the bottom. Zarek the wandering merchant (level 50) is a mage far above
 ## them all: 400 life and spells that cost a slime dozens of points.
-const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "¢": 14, "µ": 12, "3": 16, "S": 16, "8": 15, "%": 50,
+const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "¢": 14, "ρ": 12, "µ": 12, "3": 16, "S": 16, "8": 15, "%": 50,
 	"Y": 12, "5": 12, "Z": 12, "M": 12, "2": 11, "6": 11, "9": 11, "7": 10}
 const DEFAULT_LEVEL := 12
 ## Townsfolk are made to put up a real fight against a slime of level 20 and

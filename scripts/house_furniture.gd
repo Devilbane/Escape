@@ -35,13 +35,13 @@ const KINDS := {
 	"bett": {"icon": "kind:bedroll", "name": "Bett", "price": 100, "size": Vector2i(2, 2), "station": "bett",
 		"text": "Ein großes Bett mit Nachttisch. Schlaf bis zum Morgen oder logg dich aus, wie im Bett deines alten Hauses."},
 	"truhe": {"icon": "kind:crate", "name": "Lagertruhe", "price": 50, "size": Vector2i(1, 1), "station": "lager",
-		"text": "Öffnet deine Lagertruhe: dieselben Sachen wie in der Truhe deines alten Hauses und am Handwerkerplatz."},
+		"text": "Öffnet deine Lagertruhe: dieselben Sachen wie in der Truhe deines alten Hauses."},
 	"kiste": {"icon": "kind:crate", "name": "Vorratskisten", "price": 60, "size": Vector2i(1, 1), "station": "lager", "store": 16,
-		"text": "Ein Stapel fester Holzkisten. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge."},
+		"text": "Ein Stapel fester Holzkisten mit eigenem Inhalt: Platz für 16 Dinge, getrennt von deiner Lagertruhe."},
 	"fass": {"icon": "kind:crate", "name": "Vorratsfass", "price": 80, "size": Vector2i(1, 1), "station": "lager", "store": 16,
-		"text": "Ein großes Fass mit Eisenreifen. Öffnet deine Lagertruhe und schafft Platz für 16 weitere Dinge."},
+		"text": "Ein großes Fass mit Eisenreifen und eigenem Inhalt: Platz für 16 Dinge, getrennt von deiner Lagertruhe."},
 	"eichentruhe": {"icon": "kind:crate", "name": "Große Eichentruhe", "price": 180, "size": Vector2i(1, 1), "station": "lager", "store": 32,
-		"text": "Eine eisenbeschlagene Eichentruhe. Öffnet deine Lagertruhe und schafft Platz für 32 weitere Dinge."},
+		"text": "Eine eisenbeschlagene Eichentruhe mit eigenem Inhalt: Platz für 32 Dinge, getrennt von deiner Lagertruhe."},
 	"regal": {"icon": "kind:book", "name": "Bücherregal", "price": 125, "size": Vector2i(2, 1), "station": Bookshelf.KIND,
 		"text": "Stell deine Bücher hinein oder nimm sie heraus. Auf den Brettern steht ein Buch für jedes, das du aufbewahrst."},
 	"kamin": {"icon": "kind:flame", "name": "Kamin", "price": 150, "size": Vector2i(1, 1), "station": "",
@@ -98,7 +98,7 @@ const SECTIONS := [
 	["garten", "Garten", "kind:flower", ["blumenbeet", "blumenkuebel", "gartenfackel", "gartenlaterne", "grill", AppleTree.KIND]],
 ]
 ## What the compendium says once the hero has met the furnisher.
-const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Vorratskisten, Fässer und Eichentruhen (mehr Platz im Lager), Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
+const LEARN := "Bei Raumausstatterin Ilse am Dorfplatz kaufst du Möbel für dein selbst gebautes Haus: Bett, Lagertruhe, Vorratskisten, Fässer und Eichentruhen (jede mit eigenem Inhalt), Bücherregal, Kamin, Trophäenständer, Waffenständer, Werkbänke, einen Hort, Leuchter, Wandfackeln und Gemälde. Aufstellen kannst du sie im Bauplan mit \"Einrichten\": Möbel wählen, mit R oder Rechtsklick drehen, mit Linksklick abstellen. Sie stehen nur drinnen, auf gebautem Boden unter einem Dach, und tun dasselbe wie die Möbel deines alten Hauses. Fackeln und Gemälde hängen an einer gebauten Wand. Blumen, Gartenfackeln, Laternen und der Grill gehören in den Garten: auf den Boden deines Grundstücks, wo kein Dach ist. Gartenfackeln und Laternen stehen auch auf einem Flachdach (Ebene: Obergeschoss oder Dach)."
 
 ## The flat roof over the upper floor (the top of a slab of HouseSketch.MAX_STOREY): only the
 ## roof lights stand there.
@@ -164,6 +164,8 @@ func save(hero: String) -> void:
 		raw.append(row)
 	_books[Homes.deed_name(hero)] = {"owned": owned, "placed": raw}
 	Storage.write(RECORD, {"heroes": _books})
+	# A bed and a storage piece on the plot make it a home: the rented house goes back (see PropertyRegister).
+	PropertyRegister.leave_rental(hero)
 
 
 ## How many pieces of a kind are waiting to be put down.
@@ -184,16 +186,25 @@ func standing(kind: String) -> int:
 	return placed.filter(func(p): return p.kind == kind).size()
 
 
-## Slots the hero's extra storage pieces (KINDS with "store") add to the storage chest, capped at
-## STORE_CAP so the chest's window stays a sensible size.
-const STORE_CAP := 128
+## Whether a kind of piece keeps contents of its own (KINDS with "store", the slots it holds): each
+## such piece standing in the house has its own inventory (see Game.piece_stores). The plain
+## "truhe" is the hero's storage chest itself.
+static func has_own_store(kind: String) -> bool:
+	return int(KINDS.get(kind, {}).get("store", 0)) > 0
 
 
-func store_bonus() -> int:
-	var sum := 0
+## The key a standing piece keeps its contents under: its kind, floor and cell.
+static func store_key(p: Dictionary) -> String:
+	return "%s:%d:%d:%d" % [p.kind, int(p.storey), int(p.x), int(p.y)]
+
+
+## The keys of every standing piece that has its own store, key -> kind.
+func store_pieces() -> Dictionary:
+	var out := {}
 	for p in placed:
-		sum += int(KINDS.get(p.kind, {}).get("store", 0))
-	return mini(sum, STORE_CAP)
+		if has_own_store(p.kind):
+			out[store_key(p)] = p.kind
+	return out
 
 
 ## Copies a garden tree's GROWTH from `from` into `piece` (whole numbers) and returns `piece`.

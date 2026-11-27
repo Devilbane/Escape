@@ -14,6 +14,7 @@
 #
 # The house, cellar, roof and building features.
 house_sketch.gd | scripts/house*.gd scripts/plot*.gd scripts/creations.gd
+wall_corners.gd | scripts/house*.gd
 house_cellar.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
 house_cellar_floor.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
 house_cellar_ceiling.gd | scripts/house*.gd scripts/cellar_view.gd scripts/plot*.gd
@@ -43,6 +44,8 @@ mountain_foot.gd | scripts/mountains.gd scripts/lair_mountain.gd scripts/mountai
 spring_cave.gd | scripts/spring_cave.gd scripts/waterfall.gd shaders/waterfall.gdshader
 silver_silk.gd | scripts/silver_silk.gd scripts/dungeon_life.gd scripts/lang/silver_silk.gd scripts/crafting.gd scripts/item_icon.gd assets/ui/icons/spider_silk.svg
 furniture_passage.gd | scripts/house_furniture.gd scripts/house_sketch.gd scripts/lang/furniture.gd
+mine_work.gd | scripts/mine_work.gd scripts/lang/mine_work.gd
+prospecting.gd | scripts/prospecting.gd scripts/prospect_geology.gd scripts/prospector.gd scripts/lang/prospecting.gd
 beekeeper.gd | scripts/beekeeper.gd scripts/apiary.gd scripts/hive_models.gd scripts/bee_veil.gd scripts/lang/bees.gd
 foot_lobes.gd | scripts/mountains.gd scripts/mountain_foot.gd scripts/climb_spots.gd
 parallel_build.gd | scripts/apple_tree.gd scripts/snow_caps.gd
@@ -66,7 +69,7 @@ forge.gd | scripts/forge.gd scripts/smith_cottage.gd scripts/crafting.gd scripts
 # The hidden valley Nohpaan and the monastery lessons.
 nohpaan.gd | scripts/nohpaan.gd scripts/nohpaan_parts.gd scripts/nohpaan_life.gd scripts/nohpaan_surface.gd scripts/monastery.gd levels/42_nohpaan.txt
 wall_map.gd | scripts/wall_*.gd scripts/lang/climb_wall.gd walls/* docs/climbing_wall_rules.md
-home_storage_extra.gd | scripts/house_furniture.gd scripts/home_upgrades.gd scripts/lang/furniture.gd
+home_storage_extra.gd | scripts/house_furniture.gd scripts/house_furnisher.gd scripts/home_upgrades.gd scripts/lang/furniture.gd
 settings_window.gd | scripts/settings_window.gd scripts/settings_profiles.gd scripts/graphics.gd
 farm_house_windows.gd | scripts/village_house.gd scripts/window_lights.gd scripts/walk_in.gd scripts/lang/valley.gd
 wall_holds.gd | scripts/wall_*.gd walls/*
@@ -74,3 +77,6 @@ wall_spots.gd | scripts/wall_*.gd walls/* scripts/crafting.gd
 wall_facing.gd | scripts/wall_stage.gd scripts/wall_climber.gd
 wall_generator.gd | scripts/wall_generator.gd scripts/wall_map.gd scripts/wall_routes.gd
 wall_random_panel.gd | scripts/wall_random_panel.gd scripts/wall_generator.gd scripts/wall_workshop.gd scripts/lang/climb_wall.gd
+property_register.gd | scripts/plot*.gd scripts/property*.gd scripts/homes.gd scripts/house_furniture.gd scripts/house_sketch.gd scripts/lang/property.gd scripts/lang/plots.gd
+mine_claims.gd | scripts/mine_claims.gd scripts/mine_work.gd scripts/property_register.gd scripts/lang/mine_work.gd
+own_mine.gd | scripts/own_mine.gd scripts/mine_claims.gd scripts/mine_work.gd scripts/lang/own_mine.gd levels/43_deine_mine.txt

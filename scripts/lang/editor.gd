@@ -272,7 +272,6 @@ const EN := {
 	"Schatztruhe der Räuber": "The robbers' treasure chest",
 	"Werkbank für Feinarbeit": "Fine metalwork bench",
 	"Alchemietisch": "Alchemist's table",
-	"Deine Lagertruhe": "Your storage chest",
 	"Dorfvorsteher": "Village elder",
 	"Schmied": "Smith",
 	"Bäuerin": "Farmer",

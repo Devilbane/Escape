@@ -15,9 +15,9 @@ const UNDER := 0.5
 ## How far the hero sits forward of the hips-over-the-middle spot (metres): the backrest leans in over the
 ## seat, so the middle would sink the back into it and the feet into the footrest.
 const SIT_SHIFT := 0.2
-## Where Benno stands while he serves, from the chair's middle: behind the chair as the camera sees it
-## (the camera looks north, the chair faces south), so he and his speech bubbles stay off the customer.
-const BESIDE := Vector3(0.0, 0.0, -1.15)
+## Where Benno stands while he serves, from the chair's middle: up and to the left of the customer as the
+## camera sees it (the camera looks north, the chair faces south), so he and his speech bubbles stay off them.
+const BESIDE := Vector3(-0.95, 0.0, -0.85)
 ## Seconds the tent takes to fade away and come back.
 const FADE := 0.5
 ## How often a villager with nothing to do takes the chair rather than a bench or an errand.
@@ -30,6 +30,8 @@ const STAY := Vector2(12.0, 24.0)
 const HERO_IN := 0.9
 ## Seconds between sitting down and the window opening: the hero is down and the cape is on.
 const OPEN_AFTER := 0.9
+## The longest the window waits for Benno to reach his place (seconds).
+const WAIT_MAX := 8.0
 ## The chair's touch distance: the hero runs into it from the front or the sides.
 const TOUCH := 1.5
 ## How far outside the tent's roof edge (metres) the hero's presence makes it fade away, and where it comes back.
@@ -101,11 +103,28 @@ func hero_sits(game: Node, level: Outdoor) -> void:
 	if not barber_here():
 		game.show_message(Lang.t("Benno ist gerade nicht da."), 2.6)
 		return
-	game.get_tree().create_timer(OPEN_AFTER).timeout.connect(func():
-		if is_instance_valid(game) and game.level == level and hero_in(level) and not cut.active() and not game.menus.is_open() and barber_here():
-			barber.say(Lang.t("Willkommen in meinem Stuhl! Was darf es sein?"), level.player.global_position)
-			game.trader_role = barber.role
-			game.menus.open("barbier"))
+	_open_when_ready(game, level, 0.0)
+
+
+## Opens Benno's window once the hero is down and he has walked round to his place: the window stops the
+## village, so opened sooner it would freeze him half way, in front of the customer. After WAIT_MAX seconds
+## it opens anyway.
+func _open_when_ready(game: Node, level: Outdoor, waited: float) -> void:
+	game.get_tree().create_timer(0.2).timeout.connect(func():
+		if not is_instance_valid(game) or game.level != level or not hero_in(level) or cut.active() or game.menus.is_open() or not barber_here():
+			return
+		var there := Vector2(barber.global_position.x - snip_spot_of_barber().x, barber.global_position.z - snip_spot_of_barber().z).length() <= 0.15
+		if waited + 0.2 < OPEN_AFTER or (not there and waited < WAIT_MAX):
+			_open_when_ready(game, level, waited + 0.2)
+			return
+		barber.say(Lang.t("Willkommen in meinem Stuhl! Was darf es sein?"), level.player.global_position)
+		game.trader_role = barber.role
+		game.menus.open("barbier"))
+
+
+## Where Benno works.
+func snip_spot_of_barber() -> Vector3:
+	return chair_pos + BESIDE
 
 
 ## Starts the cut of the look the hero picked (see Menus._restyle).

@@ -27,6 +27,7 @@ const JOBS := {
 	"sweeper": "Ich bin Straßenfeger. Im Herbst kehre ich das Laub von den Wegen, im Winter schiebe ich den Schnee beiseite.",
 	"K": "Ich bin der Herold der Krone. Ich rufe auf dem Platz die Neuigkeiten aus.",
 	"µ": "Ich bin Raumausstatterin. Ich verkaufe Betten, Truhen, Regale und Kamine für dein Haus.",
+	"ρ": "Ich bin der Prospektor der Krone. Ich verkaufe Probeneimer und lese aus deiner Probe, welches Erz unter dem Boden liegt.",
 	"¢": "Ich bin der Amtmann. Ich trage Land ins Grundbuch ein, damit du bauen kannst.",
 	"O": "Ich bin die Priesterin des Tempels. Ich spende den Segen der Götter und heile Verletzte.",
 	"G": "Ich leite die Abenteurergilde. Ich vergebe Aufträge an mutige Helden.",

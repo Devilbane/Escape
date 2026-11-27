@@ -52,7 +52,7 @@ const MOUNTAIN := "mountain"
 ## of the nearest marker within BIOME_REACH tiles; the graveyard is the
 ## ground inside its fence, and everything else is forest.
 const BIOMES := {
-	VILLAGE: ":^hjnmskowbqF0123456789KOGMYZS+%*$x!@vIiBL",
+	VILLAGE: ":^hjnmskowbqF0123456789KOGMYZS+%*x!@vIiBL",
 	HOLLOW: "WHJU;",
 	PASS: "NfCcAXQ",
 	MOUNTAIN: "'[]{}-/",

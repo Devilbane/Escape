@@ -81,9 +81,9 @@ func begin() -> void:
 
 
 ## The "Land" button: marks out land from the start, again and again, while the
-## hero has no plot. Leaves the blueprint tool first if it is open.
+## hero may still own more plots. Leaves the blueprint tool first if it is open.
 func start() -> void:
-	if Plots.has_plot(game.hero_name):
+	if Plots.at_limit(game.hero_name):
 		game.show_message(reason("have"), 2.0)
 		return
 	if game.house_sketcher != null:
@@ -148,7 +148,7 @@ static func reason(why: String) -> String:
 		"taken":
 			return Lang.t("Dieses Land gehört schon jemandem.")
 		"have":
-			return Lang.t("Du besitzt schon ein Grundstück.")
+			return Lang.t("Du besitzt schon so viele Grundstücke, wie die Krone vergibt.")
 	return ""
 
 
@@ -160,7 +160,7 @@ func refresh() -> void:
 		return
 	for deed in Plots.all():
 		_deeds.add_child(_fence(deed.rect, DEED_COLOR, false))
-	if pending.size != Vector2i.ZERO and not Plots.has_plot(game.hero_name):
+	if pending.size != Vector2i.ZERO and not Plots.at_limit(game.hero_name):
 		_show(pending, true)
 	if game.house_sketcher != null:
 		game.house_sketcher.refresh()

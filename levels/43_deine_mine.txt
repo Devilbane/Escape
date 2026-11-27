@@ -1,0 +1,12 @@
+name: Deine Mine
+hint: Dein eigener Stollen unter dem Schürfgrund: Am Ort schlägst du das Gestein los, setzt Stützen und schaffst das Haufwerk ans Tageslicht.
+monsters: wildlife
+building: eigenmine
+theme: kupfer
+walls: rock
+####################
+##E#################
+##P,,,,,,,,,,,,,,,##
+##,,,,,,,,,,,,,,,,##
+##,,,,,,,,,,,,,,,,##
+####################

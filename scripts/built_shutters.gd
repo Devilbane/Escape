@@ -17,10 +17,21 @@ extends Node3D
 ## against the wall.
 const OPEN_ANGLE := PI * 0.97
 ## Seconds a full swing takes.
-const SWING_TIME := 0.45
+const SWING_TIME := 0.225
 ## The leaves: how thick, how many boards each.
 const LEAF_THICK := 0.045
 const BOARDS := 3
+
+## The hour of the day (set by the village, see Outdoor.set_hour): the shutters of every window
+## swing shut from the evening until the morning, whatever their owner left them at.
+static var hour := 12.0
+const SHUT_FROM := 19.5
+const OPEN_FROM := 7.0
+
+
+static func shut_by_night() -> bool:
+	return hour >= SHUT_FROM or hour < OPEN_FROM
+
 
 var width := 1.3
 var height := 1.0
@@ -65,15 +76,29 @@ func set_shut(on: bool) -> void:
 	if on == shut:
 		return
 	shut = on
+	wake()
 	if is_inside_tree():
 		Sfx.play(self, "door", -14.0, global_position)
 	if on_change.is_valid():
 		on_change.call(on)
 
 
+## Nothing runs while the leaves rest: they wake when their owner opens or shuts them (set_shut) or when
+## the village's night begins or ends (the group "built_shutters", see Outdoor.set_hour), swing, and sleep again.
+func _ready() -> void:
+	add_to_group("built_shutters")
+	set_process(false)
+	wake()
+
+
+func wake() -> void:
+	set_process(true)
+
+
 func _process(delta: float) -> void:
-	var goal := 1.0 if shut else 0.0
+	var goal := 1.0 if shut or shut_by_night() else 0.0
 	if closed == goal:
+		set_process(false)
 		return
 	closed = move_toward(closed, goal, delta / SWING_TIME)
 	_pose()
@@ -97,7 +122,7 @@ func _leaf_mesh(side: float) -> MeshInstance3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11 if side < 0.0 else 13
 	var red := tint.a > 0.0
-	var wide := width * 0.5 - 0.01
+	var wide := width * 0.5
 	var dir := -side
 	var board := wide / float(BOARDS)
 	for i in BOARDS:

@@ -103,6 +103,7 @@ durability.gd | 60 | free | pass | Item wear shows on the rim; a destroyed piece
 skill_trees.gd | 240 | free | pass | Skill trees (whole data, old heroes keep their levels, the window keeps its size on every tree)
 training_curve.gd | 60 | free | pass | Use table (the cost of the levels, and saved heroes keep every level)
 plots.gd | 60 | free | pass | Building plots: rules, fee, deeds, the clerk
+property_register.gd | 120 | free | pass | Property register at the clerk (numbered plots, house areas, mining ground, rented house given back)
 plot_clearing.gd | 180 | free | pass | Building plots stay clear (no tree, boulder or mountain slope reaches into one)
 house_sketch.gd | 60 | free | pass | House plan: grid, snapping, sketching, undo, books
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books
@@ -140,12 +141,14 @@ silver_silk.gd | 60 | fixed | passfail | Silver spider silk: a rare share of web
 glow_mushrooms.gd | 240 | free | pass | Glow mushrooms (at most 3 patches of 1 to 7 a day, new places each day, glow follows the clock)
 hero_unstick.gd | 60 | fixed | pass | Hero unstuck (a wedged hero is set down free on their own side, never through a wall)
 furniture_passage.gd | 60 | free | pass | Furniture passage (a piece may not wall a corner of a room off)
+mine_work.gd | 60 | fixed | pass | The rules of the own mine: sample baseline, hammer and fire-setting, timbering, offline mining, mean-reverting yield, hauling, stockpile, processing
+prospecting.gd | 150 | fixed | pass | Prospecting: the geology rules of the samples, the Crown Prospector, the probe bucket, ground and mountain samples, map marks, saving, English texts
 beekeeper.gd | 120 | fixed | pass | The beekeeper and his honey: Ambrosius on the farmland, honey bought into the pouch, the honey draught recipe, the apiary with hives and flowers, English texts
 enemy_alert_once.gd | 240 | fixed | pass | A monster's red alert shows once per hunt
 pack_help.gd | 120 | fixed | pass | Monsters help a struck mate and call for help; slimes keep out
 lazy_start.gd | 120 | free | pass | The first level is built only when a game starts (New, Continue); loading screen notes split
 parallel_build.gd | 60 | free | pass | Trees grown on worker threads (the same trees as built one by one, in every season)
-home_storage_extra.gd | 30 | free | passfail | Extra home storage pieces add room to the storage chest (capped), with English
+home_storage_extra.gd | 30 | free | passfail | Crates, barrel and oak chest keep their own inventory, saved and reclaimed, with English
 riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scrambled codes
 nohpaan.gd | 60 | free | pass | Nohpaan: the hidden valley, its three monks and their lessons
 wall_map.gd | 60 | free | passfail | Climbing wall: text format, sample wall, chances with malus, surfaces and weather, gap jumps, falls and nails, breath meter, placements
@@ -156,3 +159,6 @@ farm_house_windows.gd | 60 | fixed | pass | Farm houses: curtains hang clear of 
 wall_holds.gd | 60 | free | passfail | Climbing wall: a foot stone under every hold, so the feet never stand on air
 wall_spots.gd | 60 | free | passfail | Climbing wall: tar, edelweiss and door spots build, give their ingredients and survive saving
 wall_facing.gd | 20 | free | passfail | The climber faces the wall while climbing and lies face up in the hammock
+wall_corners.gd | 60 | free | pass | Built house walls never share a face at corners, Ts or between pieces (no z-fighting)
+mine_claims.gd | 60 | fixed | pass | The deed book of the own mines: one mine per own mining plot, over a prospecting mark, saved, offline catch-up, register line
+own_mine.gd | 120 | fixed | pass | The walk-in mine: claim post on the mining plot, mine opened over a mark, mine floor with its face, hammer, support, haul, the way back out

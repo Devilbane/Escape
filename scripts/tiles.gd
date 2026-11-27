@@ -221,6 +221,7 @@ const OUTDOOR := {
 	"λ": "shepherd Moritz, who minds the valley's sheep",
 	"β": "Imker Ambrosius, the beekeeper of the valley: he works among the hives and sells honey (see Beekeeper)",
 	"ħ": "bee hives: a straw skep and a painted box hive side by side, solid, with the bees of the apiary and the flower meadow round them (see Apiary)",
+	"ρ": "Kronprospektor Brandt, the Crown's prospector beside the Crown Office: sells the probe bucket and reads the samples (see Prospector)",
 	"κ": "Kletterer Wolfram, the rock climber on the mountainside east of the stream: he stands at the foot of the face and climbs it all day (see ClimberNpc)",
 	"K": "herald of the crown",
 	"¢": "clerk of the land registry (Amtmann Gero, see PlotOffice)",
@@ -253,7 +254,6 @@ const OUTDOOR := {
 	"+": "fine metalwork bench",
 	"%": "gem cutter's wheel",
 	"*": "alchemist's table",
-	"$": "the hero's storage chest",
 	# The mountains far to the east (see Mountains and Mines).
 	"=": "mountain rock (cannot be crossed, see Mountains)",
 	"'": "scree: stony mountain ground",

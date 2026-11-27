@@ -514,6 +514,11 @@ func treasure_spots(file: String) -> Array[Vector2i]:
 	return out
 
 
+## The prospector's marks on a level file (see Prospecting).
+func prospect_marks(file: String) -> Array:
+	return game.prospecting.marks_on(file) if game != null else []
+
+
 static func find_color(kind: String) -> Color:
 	return FIND_COLORS.get(kind, FIND_COLOR)
 

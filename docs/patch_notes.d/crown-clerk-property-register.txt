@@ -1,0 +1,1 @@
+- The Crown clerk now keeps a property register: every plot (numbered within its area, "Plot 1", "Plot 2"), your house with its ground floor, cellar and walkable roof in square metres, mining plots in the mountains and rented houses. You can now own several plots. Once you have your own plot with a bed and a storage piece on it, you give back the rented house on Weavers' Lane.

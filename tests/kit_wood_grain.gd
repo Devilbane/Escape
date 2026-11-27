@@ -91,4 +91,13 @@ func _run() -> void:
 	# (The bank is a walk-in stone house now, see BankVault, and no kit tower.)
 	check(buildings >= (5 if BankVault.on else 6), "the village's KayKit buildings were found (%d)" % buildings)
 	check(panes + glass_panes > 50, "the village's windows are glass (%d pane triangles)" % (panes + glass_panes))
+	# Windows of the KayKit buildings have hinged shutters of their own that swing shut at night, like the houses'.
+	var shuttered := 0
+	for node in lvl.get_children():
+		if node is Node3D and node.has_node("Shutters") and node.has_meta("shutter_hinges"):
+			shuttered += 1
+			var leaves: MeshInstance3D = node.get_node("Shutters")
+			check(leaves.mesh.get_surface_count() == 1 and leaves.mesh.surface_get_material(0) == VillageHouse.shutters(), "%s: its shutters wear the shutter material" % node.name)
+			check((node.get_meta("shutter_hinges") as Array).size() % 2 == 0, "%s: two leaves to a window" % node.name)
+	check(shuttered >= 1, "a KayKit building has shutters of its own (%d)" % shuttered)
 	check(glass_panes > 20, "the KayKit windows hang with curtains behind clear glass (%d triangles)" % glass_panes)

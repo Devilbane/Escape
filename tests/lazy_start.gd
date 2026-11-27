@@ -50,9 +50,10 @@ func _wait_playing() -> void:
 
 func _run() -> void:
 	check(game.level == null, "no level is built behind the title")
-	check(not game.player.visible, "the hero waits out of sight")
+	check(game._player == null, "no hero is made behind the title")
 
 	game.new_game()
+	check(game._player != null and not game.player.visible, "New Game makes the hero, still out of sight until the game starts")
 	game._name_edit.text = "Lazy"
 	game._start_new_game()
 	await _wait_playing()

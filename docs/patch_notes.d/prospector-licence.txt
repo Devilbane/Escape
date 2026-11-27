@@ -1,0 +1,1 @@
+- Prospector Brandt now analyses a sample for one real day (no second sample meanwhile); when the result is ready he offers a mining licence for the spot, to buy now or later, which becomes a mining plot in your property register.

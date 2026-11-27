@@ -54,6 +54,7 @@ version, installs it and then starts the game, so the local copy is always as ne
 | Map and journal | N | map icon on the right edge |
 | Quests and what is worth doing | O | scroll icon on the right edge |
 | Run home (once you have a house) | X | house icon on the right edge, below the menu handle; any step, click or blow of your own stops it |
+| Probe bucket in hand or away (Crown Prospector) | 4 | with the bucket in hand, 5 takes a ground sample; running into a mountain asks about a mountain sample |
 | Light or put out a torch | V | torch icon on the right edge, below the house icon (shows while you carry a torch, with how many are left in the bag) |
 | Drink a healing potion | 1 | potion icon left of the torch icon (shows while you carry a potion, with how many are left; shaded with the seconds left while the next one waits), or "Drink" in the inventory |
 | Cast Unleashed Power (once you have read the tome from Sternhall) | 2 | star button left of the potion button (shaded with the seconds left while the power gathers) |

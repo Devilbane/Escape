@@ -97,12 +97,12 @@ const VILLAGE_DIR := "res://assets/village/"
 ## The first map row of the farming valley, south of the village.
 const VALLEY_FROM := 43
 ## Tiles anyone can walk on. Everything else is solid.
-const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκβΞ≡‡☼"
+const WALK := ".,Pai∩:0123456789KOGMYZS¢µöcAXQWHJUDV&£€@'{}-/?¤‖φψχωλκβρΞ≡‡☼"
 ## Tiles of the robbers' camp: bare, trodden earth.
 const CAMP := "NfC"
 ## The villager who keeps the temple (see _keeper_home): Priestess Elsbeth.
 const TEMPLE_KEEPER := "O"
-const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκβ"
+const VILLAGERS := "0123456789KOGMYZS¢µüöφψχωλκβρ"
 const BLOCK_CHARS := "RhjnmuskowbE^[])<ßØ"
 const BLOCK_MODELS := {
 	"R": "crypt", "j": "building_blacksmith_red", "n": "building_tavern_blue",
@@ -548,6 +548,7 @@ var _ground_tex: ImageTexture
 var _shore_img: Image
 var _shore_tex: ImageTexture
 var _village_near := {}
+var _village_middle := Vector2(-1, -1)
 ## What the dressing found for each building (see _dress_building), kept
 ## for the session.
 static var _dressed := {}
@@ -3446,6 +3447,9 @@ func _house_glass() -> ShaderMaterial:
 		# The same pane seen from inside a room never shines by itself.
 		var inner := VillageHouse.inner_glass()
 		_window_mats[inner] = inner
+		# The shutters swing shut with the curtains.
+		var shutters := VillageHouse.shutters()
+		_window_mats[shutters] = shutters
 	return _scenes["mat_house_glass"]
 
 
@@ -3514,11 +3518,30 @@ func _age_kit_building(node: Node) -> void:
 		var glass := _house_glass()
 		for surface: int in glass_surfaces:
 			mi.set_surface_override_material(surface, glass)
+		# Hinged shutters on those windows, which shut at night like the houses' (see VillageHouse.shutters_for).
+		var into: Transform3D = (node as Node3D).global_transform.affine_inverse() * mi.global_transform
+		var leaf_windows: Array = []
+		for pane: Dictionary in AgedStone.panes_of(mi.mesh):
+			var wide := float(pane.wide)
+			var high := float(pane.high)
+			if wide < 0.03 or high < wide * 0.9 or high > wide * 1.8:
+				continue # a slit or an arch in a gable, no window for shutters
+			leaf_windows.append({"at": into * (pane.at as Vector3), "out": (into.basis * (pane.out as Vector3)).normalized(),
+					"wide": wide * into.basis.get_scale().x, "high": high * into.basis.get_scale().y})
+		if not leaf_windows.is_empty() and node is Node3D and node.get_parent() == self:
+			var made := VillageHouse.shutters_for(leaf_windows)
+			var leaves := MeshInstance3D.new()
+			leaves.name = "Shutters"
+			leaves.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			leaves.mesh = made.mesh
+			node.add_child(leaves)
+			var hinges: Array = node.get_meta("shutter_hinges", []) if node.has_meta("shutter_hinges") else []
+			hinges.append_array(made.hinges)
+			node.set_meta("shutter_hinges", hinges)
 		var windows: Array = node.get_meta("windows", []) if node.has_meta("windows") else []
 		var outs: Array = node.get_meta("window_outs", []) if node.has_meta("window_outs") else []
 		if windows.size() != outs.size():
 			continue
-		var into: Transform3D = (node as Node3D).global_transform.affine_inverse() * mi.global_transform
 		for pane: Dictionary in AgedStone.panes_of(mi.mesh):
 			windows.append(into * (pane.at as Vector3))
 			outs.append((into.basis * (pane.out as Vector3)).normalized())
@@ -3969,6 +3992,21 @@ func near_village(c: Vector2i) -> bool:
 	return _in_village(c)
 
 
+## The middle of the village in map tiles: the mean of its buildings. Plots are named by the way
+## from here (see Plots.area_of).
+func village_centre() -> Vector2:
+	if _village_middle.x < 0.0:
+		var sum := Vector2.ZERO
+		var count := 0
+		for y in height:
+			for x in width:
+				if VILLAGE_BLOCKS.contains(cell_char(Vector2i(x, y))):
+					sum += Vector2(x, y)
+					count += 1
+		_village_middle = sum / count + Vector2(0.5, 0.5) if count > 0 else Vector2(width, height) * 0.5
+	return _village_middle
+
+
 ## Whether a tile lies within the village: close to one of its buildings.
 func _in_village(c: Vector2i) -> bool:
 	if _village_near.is_empty():
@@ -4359,7 +4397,7 @@ func _spawn_villagers() -> void:
 			villagers.append(v)
 			# The shopkeeper trades like the merchant in the refuge; the
 			# banker and the barber open their own menus.
-			var kind: String = {"6": "haendler", "Y": "bank", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND, Beekeeper.ROLE: Beekeeper.KIND}.get(ch, "npc")
+			var kind: String = {"6": "haendler", "Y": "bank", "O": "tempel", "S": "steinmetz", "1": "schmied", "3": "holzfaeller", "¢": PlotOffice.KIND, "µ": "raumausstatter", "ü": Mill.KIND, ClimberNpc.ROLE: ClimberNpc.KIND, Beekeeper.ROLE: Beekeeper.KIND, Prospector.ROLE: Prospector.KIND}.get(ch, "npc")
 			var station := {"kind": kind, "cell": v.home, "pos": cell_to_world(v.home), "used": false, "npc": v}
 			v.station = station
 			stations.append(station)
@@ -5335,8 +5373,8 @@ func _process(delta: float) -> void:
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
-		if not town_houses.is_empty():
-			# The hero's home is a town house on Weavers' Lane.
+		if not town_houses.is_empty() and not PropertyRegister.settled(hero):
+			# The hero's home is a town house on Weavers' Lane (unless they have a home of their own).
 			own_house = Homes.house_for(hero, town_houses.size())
 		_show_house_marker()
 		if own_house > 0:
@@ -5379,9 +5417,79 @@ func _call_the_village(reach := 22.0 * TILE * 0.5, proclaim := true) -> void:
 ## falls or the day breaks, sends the village to bed or wakes it, and calls
 ## the dead out of their graves or back into them. The first call after the
 ## world is built settles everything at once, without a word.
+## Each shutter leaf of the village (world position, its key in the shader and whether it was shut at
+## the last look): where a leaf swings, it clacks (see _shutter_sounds).
+var _leaves: Array = []
+var _leaf_scan := -1
+var _leaf_hour := -1.0
+var _leaf_moving := true
+var _built_night := false
+## How near the hero a swinging leaf is still heard (metres).
+const LEAF_EARSHOT := 38.0
+
+
+## The shutters clack as they swing shut in the evening and open in the morning, each leaf at its own
+## hour (see WindowLights.shutters_shut), at the leaf and not too loud.
+func _shutter_sounds() -> void:
+	if get_child_count() != _leaf_scan:
+		_leaf_scan = get_child_count()
+		_leaves = []
+		for house in get_children():
+			if not (house is Node3D and house.has_meta("shutter_hinges")):
+				continue
+			var xf: Transform3D = (house as Node3D).global_transform
+			var hinges: Array = house.get_meta("shutter_hinges")
+			var ranks: Array = house.get_meta("shutter_ranks", [])
+			for i in hinges.size():
+				var hinge: Vector3 = hinges[i]
+				var key := Vector2(hinge.x + xf.origin.x, hinge.z + xf.origin.z)
+				var rank: int = int(ranks[i]) if i < ranks.size() else 0
+				_leaves.append({"at": xf * hinge, "key": key, "rank": rank, "cloth": false,
+						"shut": WindowLights.shutters_shut(key, hour, rank) > 0.5})
+			# The mage tower's curtains flap one after another (its windows in the order of the circle).
+			var circle: Array = house.get_meta("magic_windows", [])
+			for i in circle.size():
+				var at: Vector3 = circle[i]
+				var key := WindowLights.key(at) + Vector2(xf.origin.x, xf.origin.z)
+				_leaves.append({"at": xf * at, "key": key, "rank": i + 1, "cloth": true,
+						"shut": WindowLights.curtains_shut(key, hour, i + 1) > 0.5})
+	if absf(hour - _leaf_hour) < 0.004:
+		return
+	_leaf_hour = hour
+	# Outside the two bands of the day when shutters swing, nothing is looked at; the states are only
+	# brought up to date silently once, as the band ends (or after a jump of the clock).
+	var moving := WindowLights.shutters_moving(hour)
+	if not moving and not _leaf_moving:
+		return
+	_leaf_moving = moving
+	var heard := 0
+	for leaf: Dictionary in _leaves:
+		var cloth: bool = leaf.cloth
+		var shut := (WindowLights.curtains_shut(leaf.key, hour, leaf.rank) if cloth else WindowLights.shutters_shut(leaf.key, hour, leaf.rank)) > 0.5
+		if shut == leaf.shut:
+			continue
+		leaf.shut = shut
+		if not moving:
+			continue
+		# Only the ones near the hero: a village of sixty windows would otherwise rattle at once.
+		if heard < 4 and is_inside_tree() and player != null and (leaf.at as Vector3).distance_to(player.global_position) < LEAF_EARSHOT:
+			heard += 1
+			if cloth:
+				# The tower's magic: a flap of cloth for each curtain.
+				Sfx.play(self, "swing", -17.0, leaf.at, 1.9 if shut else 1.6)
+			else:
+				Sfx.play(self, "door", -14.0 if leaf.rank > 0 else -20.0, leaf.at, 1.25 if shut else 1.1)
+
+
 func set_hour(new_hour: float) -> void:
 	var first := hour < 0.0
 	hour = new_hour
+	BuiltShutters.hour = new_hour
+	# The shutters the hero built swing at nightfall and at dawn: wake them then, not every frame.
+	if BuiltShutters.shut_by_night() != _built_night and is_inside_tree():
+		_built_night = BuiltShutters.shut_by_night()
+		get_tree().call_group("built_shutters", "wake")
+	_shutter_sounds()
 	var glow := DayNight.glow_at(hour)
 	for lamp in _lamps:
 		lamp.light_energy = lerpf(LAMP_DAY, LAMP_NIGHT, glow)

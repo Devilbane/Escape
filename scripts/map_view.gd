@@ -367,6 +367,11 @@ func _draw() -> void:
 			draw_string(_font, p + Vector2(-w * 0.5, fs * 0.38), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.05, 0.03, 0.05))
 	for c in journal.treasure_spots(file):
 		_draw_cross(o + (Vector2(c) + Vector2(0.5, 0.5)) * t, r)
+	var marks := journal.prospect_marks(file)
+	for i in marks.size():
+		var m: Dictionary = marks[i]
+		_draw_prospect(o + (Vector2(int(m.cell[0]), int(m.cell[1])) + Vector2(0.5, 0.5)) * t, r,
+				ProspectGeology.ORE_COLORS.get(str(m.report.ore), Color.GRAY), Prospecting.letter(i))
 	for c in lost_packs():
 		_draw_pack(o + (c + Vector2(0.5, 0.5)) * t, r)
 	_draw_hero(o, t, r)
@@ -514,6 +519,27 @@ func _draw_cross(p: Vector2, r: float) -> void:
 		draw_line(p + arm[0], p + arm[1], TreasureMaps.MAP_RED, 3.5)
 
 
+## A prospector's mark: a stake with a pennant in the colour of the ore found, and its letter beside it
+## (see Prospecting.letter, the legend names what it means).
+func _draw_prospect(p: Vector2, r: float, color: Color, letter: String) -> void:
+	if not Rect2(Vector2.ZERO, size).grow(r).has_point(p):
+		return
+	var k := r * 1.25
+	var foot := p + Vector2(0, k * 0.8)
+	var top := p + Vector2(0, -k * 1.1)
+	draw_line(foot, top, Color(0, 0, 0, 0.9), 4.0)
+	draw_line(foot, top, Color(0.78, 0.6, 0.36), 2.0)
+	var flag := PackedVector2Array([top, top + Vector2(k * 1.1, k * 0.4), top + Vector2(0, k * 0.85)])
+	draw_colored_polygon(flag, color)
+	flag.append(flag[0])
+	draw_polyline(flag, Color(0, 0, 0, 0.9), 1.6)
+	if _font:
+		var fs := int(maxf(r * 1.1, 11.0))
+		var at := p + Vector2(k * 0.35, k * 1.25)
+		draw_string_outline(_font, at, letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 4, Color(0, 0, 0, 0.9))
+		draw_string(_font, at, letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1, 0.95, 0.8))
+
+
 func _draw_star(p: Vector2, r: float, color: Color) -> void:
 	var points := PackedVector2Array()
 	for i in 10:
@@ -540,7 +566,7 @@ func houses() -> Array:
 	var me := ""
 	if journal.game != null:
 		me = Homes.deed_name(str(journal.game.get("hero_name")))
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		var plot: Rect2i = deed.rect
 		var mine: bool = deed.owner == me
 		if not mine and not _any_explored(plot):

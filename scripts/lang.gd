@@ -13,6 +13,9 @@ const SETTINGS_FILE := "user://einstellungen.json"
 
 ## The English texts, one script per feature, each with its own `EN` table.
 const PARTS := [
+	preload("res://scripts/lang/mine_work.gd"),
+	preload("res://scripts/lang/own_mine.gd"),
+	preload("res://scripts/lang/prospecting.gd"),
 	preload("res://scripts/lang/bell_grave.gd"),
 	preload("res://scripts/lang/ossuary.gd"),
 	preload("res://scripts/lang/graveyard_riddles.gd"),
@@ -59,6 +62,7 @@ const PARTS := [
 	preload("res://scripts/lang/window_shutters.gd"),
 	preload("res://scripts/lang/house_ballista.gd"),
 	preload("res://scripts/lang/plots.gd"),
+	preload("res://scripts/lang/property.gd"),
 	preload("res://scripts/lang/payment.gd"),
 	preload("res://scripts/lang/winter_wear.gd"),
 	preload("res://scripts/lang/chapel_penguin.gd"),

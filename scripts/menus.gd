@@ -93,6 +93,7 @@ const SHORTCUTS := [
 	["Wurfmesser", "R oder K, Rechtsklick im Stehen"],
 	["Schleichen", "C oder Doppelklick"],
 	["Fackel anzünden oder löschen", "V oder die Fackel am rechten Rand, unter dem Haus"],
+	["Probeneimer in die Hand nehmen oder wegstecken", "4, mit dem Eimer in der Hand: 5 nimmt eine Bodenprobe, gegen einen Berg laufen fragt nach einer Bergprobe"],
 	["Heiltrank trinken", "1 oder der Trank links neben der Fackel, einmal pro Minute; „Trinken“ im Inventar wählt einen bestimmten"],
 	["Entfesselte Kraft (Zauber)", "2 oder der Stern links neben dem Heiltrank, sobald du den Folianten aus Sternhall gelesen hast"],
 	["Lager aufschlagen (speichern und schlafen)", "U, der Knopf „Lager“ im Menü, oder die Schlafrolle im Inventar"],
@@ -247,7 +248,12 @@ const WINDOW_SIZES := {
 	"auftraege": Vector2(760, 532),
 	CoopWindow.KIND: Vector2(720, 540),
 	SettingsWindow.KIND: SettingsWindow.SIZE,
-	PlotOffice.KIND: Vector2(640, 430),
+	PlotOffice.KIND: Vector2(640, 500),
+	PropertyWindow.KIND: PropertyWindow.SIZE,
+	Prospector.KIND: Prospector.WINDOW,
+	OwnMine.KIND: OwnMine.WINDOW,
+	OwnMine.MILL_KIND: OwnMine.WINDOW,
+	Prospecting.ASK_KIND: Prospecting.ASK_SIZE,
 	Spooknortz.KIND: Spooknortz.WINDOW,
 }
 
@@ -255,7 +261,7 @@ const WINDOW_SIZES := {
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
 const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "buecherregal", WeaponRack.KIND, "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
-	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND, Spooknortz.KIND]
+	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND, Prospector.KIND, OwnMine.KIND, OwnMine.MILL_KIND, Spooknortz.KIND]
 
 
 ## The fixed content size of a kind of window, or zero for one that fits
@@ -305,6 +311,8 @@ func open(kind: String) -> void:
 func close() -> void:
 	if current == "":
 		return
+	if current == Prospecting.ASK_KIND:
+		game.prospecting.decline()
 	if current == "gefaehrte_name":
 		naming = -1
 		_naming_back = ""
@@ -410,6 +418,16 @@ func _rebuild() -> void:
 			SettingsWindow.build(self)
 		PlotOffice.KIND:
 			PlotOffice.build(self)
+		PropertyWindow.KIND:
+			PropertyWindow.build(self)
+		Prospector.KIND:
+			Prospector.build(self)
+		OwnMine.KIND:
+			OwnMine.build(self)
+		OwnMine.MILL_KIND:
+			OwnMine.build_mill(self)
+		Prospecting.ASK_KIND:
+			Prospecting.build_ask(self)
 		ClimberNpc.KIND:
 			ClimberNpc.build(self)
 		Spooknortz.KIND:
@@ -1776,15 +1794,19 @@ func _unequip(slot: String) -> void:
 
 func _build_storage() -> void:
 	var p: Player = game.player
-	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
+	var title := "Lagertruhe"
+	if game.open_store != "":
+		title = str(HouseFurniture.KINDS.get(game.open_store_kind, {}).get("name", title))
+	_add_label(Lang.t(title), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6, null, true)
-	var size := HomeUpgrades.storage_size(game.home_upgrades, game.hero_name)
-	var used := HomeUpgrades.storage_used(game.storage)
+	var items: Array = game.store_items()
+	var size: int = game.store_size()
+	var used := HomeUpgrades.storage_used(items)
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
 	# Eight across, so the window keeps its width when the chest grows.
-	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8, null, true)
+	_add_item_grid(items, maxi(size, used), Items.item_name, _take, 8, null, true)
 
 
 # --- A backpack on the floor (see FloorPack) -----------------------------------
@@ -1846,21 +1868,23 @@ func _pack_pick_up() -> void:
 
 
 func _store(index: int) -> void:
-	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index], game.hero_name):
+	var items: Array = game.store_items()
+	if not Items.fits(items, game.store_size(), game.player.bag[index]):
 		_note = Lang.t("Die Truhe ist voll.")
 	else:
-		game.storage.append(game.player.bag[index])
+		items.append(game.player.bag[index])
 		game.player.bag.remove_at(index)
 		_note = ""
 	_rebuild()
 
 
 func _take(index: int) -> void:
-	if not game.player.bag_fits(game.storage[index]):
+	var items: Array = game.store_items()
+	if not game.player.bag_fits(items[index]):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
-		game.player.bag.append(game.storage[index])
-		game.storage.remove_at(index)
+		game.player.bag.append(items[index])
+		items.remove_at(index)
 		_note = ""
 	_rebuild()
 
@@ -2104,7 +2128,7 @@ func _build_bench() -> void:
 		list.add_child(about)
 		for id in Forge.recipes():
 			list.add_child(_hand_forge_row(id))
-	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
+	_add_label(Lang.t("Gorms Esse steht gleich nebenan."), 16, BLUE)
 
 
 ## The fixed size of the list of recipes at a workbench.
@@ -5623,6 +5647,12 @@ func _build_map_page(journal: Journal) -> void:
 			if by_name[n][0] > 1:
 				text += "  " + Lang.t("(%d Stellen)") % by_name[n][0]
 			_legend_line(legend, Journal.find_color(kinds[n]), text)
+	var prospects := journal.prospect_marks(_map_file)
+	if not prospects.is_empty():
+		_legend_title(legend, Lang.t("Prospektor"))
+		for i in prospects.size():
+			var m: Dictionary = prospects[i]
+			_legend_line(legend, ProspectGeology.ORE_COLORS.get(str(m.report.ore), Color.GRAY), "%s  %s" % [Prospecting.letter(i), Prospecting.legend_text(m)])
 	# How much is seen, by the same measure that makes a map fully explored
 	# (see Journal.note_full_map): rounded down, so 95 % is really reached.
 	var explored := Lang.t("Erkundet: %d %%") % floori(100.0 * journal.explored_share(_map_file))

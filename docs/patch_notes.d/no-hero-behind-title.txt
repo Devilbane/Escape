@@ -1,0 +1,1 @@
+- Startup is lighter: no hero is made behind the title screen until you pick New Game or Continue.

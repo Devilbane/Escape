@@ -108,6 +108,10 @@ const ROLES := {
 	"β": {"name": "Imker Ambrosius", "model": "Rogue", "show": [], "veil": true, "hair": {"style": "spiky", "color": "silver"},
 		"colors": [Color(0.86, 0.8, 0.62), Color(0.42, 0.35, 0.27), Color(1, 1, 1)], "plan": "farm", "work": "Interact",
 		"lines": ["Keine Angst, meine Bienen stechen nur, wenn man sie ärgert. Und manchmal, wenn sie schlecht geschlafen haben.", "Der beste Honig im Tal! Das sagt nicht nur mein Spiegel.", "Die Bienen summen den ganzen Tag. Ich summe mit, falsch, aber aus vollem Herzen.", "Im Frühling blühen die Wiesen, im Sommer fließt der Honig. Im Winter esse ich ihn auf.", "Mit zwei Gläsern Honig braust du am Alchemistentisch einen Heiltrank. Frag die Priesterin, ob sie es glaubt."]},
+	# The Crown's prospector beside the Crown Office (see Prospector): sells the probe bucket, reads the samples.
+	"ρ": {"name": "Kronprospektor Brandt", "model": "Barbarian", "show": ["Barbarian_Hat"], "hair": {"style": "short", "color": "ginger"},
+		"colors": [Color(0.62, 0.46, 0.3), Color(0.36, 0.3, 0.24), Color(0.3, 0.4, 0.85)], "plan": "stay", "work": "Idle",
+		"lines": ["Unter jedem Hügel liegt etwas. Man muss nur wissen, wie man fragt.", "Rostflecken im Sandstein? Da steckt Eisen. Grünspan im Basalt? Kupfer, mein Freund.", "Funkelt es gelb im Quarz, glaub nicht gleich an Gold. Katzengold sieht auch hübsch aus.", "Einen Eimer voll Erde, und ich sage dir, ob sich ein Stollen lohnt."]},
 	"3": {"name": "Holzfäller Bruno", "model": "Barbarian", "show": ["2H_Axe", "Barbarian_Hat"],
 		"colors": [Color(0.75, 0.35, 0.3), Color(0.35, 0.4, 0.3), Color(0.6, 0.45, 0.3)], "plan": "work", "work": "2H_Melee_Attack_Chop", "sound": "hit",
 		"lines": ["Holla! Du kommst vom Friedhof? Da geht doch keiner hin.", "Folge dem Weg, dann kommst du ins Dorf.", "Ein Baum am Tag, so hält man den Wald gesund.", "Am Waldteich westlich vom Dorf schnüren oft Füchse durchs Gras."]},
@@ -1625,7 +1629,7 @@ const FIGHTING_SHELTERERS := ["O", "G", "7"]
 ## top, the mages and the priestess close behind, the women and the child
 ## at the bottom. Zarek the wandering merchant (level 50) is a mage far above
 ## them all: 400 life and spells that cost a slime dozens of points.
-const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "¢": 14, "µ": 12, "3": 16, "S": 16, "8": 15, "%": 50,
+const LEVELS := {"4": 20, "G": 20, "1": 18, "O": 18, "0": 17, "K": 16, "¢": 14, "ρ": 12, "µ": 12, "3": 16, "S": 16, "8": 15, "%": 50,
 	"Y": 12, "5": 12, "Z": 12, "M": 12, "2": 11, "6": 11, "9": 11, "7": 10}
 const DEFAULT_LEVEL := 12
 ## Townsfolk are made to put up a real fight against a slime of level 20 and
@@ -2606,7 +2610,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and _task != "climb" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and _task != "climb" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose() and not _off_snip_spot():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2829,6 +2833,12 @@ func _crowds_spot(point: Vector3) -> bool:
 	return false
 
 
+## Whether the barber is on his way round to his place by the chair (see BarberChair): he walks on while he
+## talks, so a word with the hero does not stop him half way, in front of the customer.
+func _off_snip_spot() -> bool:
+	return customer_at != Vector3.INF and _task == "work" and Vector2(global_position.x - snip_spot.x, global_position.z - snip_spot.z).length() > 0.1
+
+
 func _do(task: String, delta: float) -> void:
 	if _staff_spell != null and _staff_spell.step(delta, task == "work" and _bubble_time <= 0.0 \
 			and not at_home and visible and threat == null and not night):
@@ -2848,6 +2858,10 @@ func _do(task: String, delta: float) -> void:
 		# Round to his place beside the chair (see BarberChair).
 		var to := snip_spot - global_position
 		to.y = 0.0
+		# Coming from the front he first sidesteps to the spot's side, then walks up beside the chair,
+		# instead of walking into the chair's front and stopping there.
+		if to.z < -1.2 and absf(to.x) > 0.1:
+			to.z = 0.0
 		var step := minf(_stride("Walking_A", WALK_SPEED) * delta, to.length())
 		global_position += to.normalized() * step
 		_turn_to(to, delta)

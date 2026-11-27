@@ -174,6 +174,10 @@ var storey := 0
 var _lift := 0.0
 ## The wall piece being built and where its wall runs on (see _hidden_faces).
 var _piece_run := {}
+## How much of its nominal half-thickness reach the house wall piece being built gives up at its
+## low and its high end (see _wall_cuts), so no two wall boxes share a face at a corner or where
+## the wall runs on.
+var _cut := Vector2.ZERO
 ## How far the garden wall piece being built reaches past its first and its last
 ## node (negative: it stops short of it), see _fence_run.
 var _fence_ends := Vector2(FENCE_THICK * 0.5, FENCE_THICK * 0.5)
@@ -1364,7 +1368,7 @@ func _redraw() -> void:
 	_fade_state = ""
 	# Every registered plot's house, and the forgotten mine with its empty hut (see LostMine).
 	var houses: Array = []
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		houses.append([plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect), deed.rect == _plot])
 	var mine := LostMine.sketch()
 	houses.append([mine, false])
@@ -2056,7 +2060,7 @@ static func _old_roof() -> ShaderMaterial:
 func _raise_roofs() -> void:
 	var level: Level = game.level
 	var raised := {}
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		var house := plan if plan != null and deed.rect == _plot else HouseSketch.of(deed.owner, deed.rect)
 		for key in house.pieces:
 			var piece: Dictionary = house.pieces[key]
@@ -2276,14 +2280,53 @@ func _solid_piece(house: HouseSketch, edge: Array, kind: String, demolish: bool)
 	var step := Vector2i(1, 0) if along_x else Vector2i(0, 1)
 	var axis := Vector3.RIGHT if along_x else Vector3.BACK
 	var lo := (a - axis * THICK * 0.5).dot(axis)
-	_piece_run = {"axis": axis, "lo": lo, "hi": lo + HouseSketch.CELL + THICK,
-		"before": house.has_piece(edge[0] - step.x, edge[1] - step.y, orient, storey),
-		"after": house.has_piece(edge[0] + step.x, edge[1] + step.y, orient, storey),
+	_cut = Vector2.ZERO
+	if not HouseSketch.FENCE_KINDS.has(kind):
+		_cut = _wall_cuts(house, edge, storey)
+	_piece_run = {"axis": axis, "lo": lo + _cut.x, "hi": lo + HouseSketch.CELL + THICK - _cut.y,
+		"before": house.has_piece(edge[0] - step.x, edge[1] - step.y, orient, storey) or _cut.x > 0.0,
+		"after": house.has_piece(edge[0] + step.x, edge[1] + step.y, orient, storey) or _cut.y > 0.0,
 		"above": house.has_piece(edge[0], edge[1], orient, storey + 1)}
 	if HouseSketch.FENCE_KINDS.has(kind):
 		_fence_run(house, edge, storey, axis, a)
 	_solid_piece_parts(mid, flat, along_x, kind, demolish, stone)
 	_piece_run = {}
+	_cut = Vector2.ZERO
+
+
+## Whether a built (or to be taken down) house wall piece (a wall, door or window, no garden wall)
+## stands on the edge (x, y, orient) of `storey`.
+func _wall_on(house: HouseSketch, x: int, y: int, orient: String, storey: int) -> bool:
+	var piece: Dictionary = house.pieces.get(HouseSketch.key_of(x, y, orient, storey), {})
+	return not piece.is_empty() and piece.state != HouseSketch.SKETCH and not HouseSketch.FENCE_KINDS.has(piece.kind)
+
+
+## How much of the half-thickness every house wall piece reaches past each of its nodes it gives
+## up (low end, high end), so two boxes never share a face: two faces in one place flicker through
+## each other (z-fighting). Walls along x own the column at a node: they fill the corner, and where
+## two run on into each other the first one fills the column and the next starts behind it (it
+## gives up a whole thickness). A wall along z stops at the face of any wall along x at its node
+## (it gives up a whole thickness too), and where it only runs on into another along z the later
+## piece starts behind the column.
+func _wall_cuts(house: HouseSketch, edge: Array, storey: int) -> Vector2:
+	var along_x: bool = edge[2] == HouseSketch.ORIENT_X
+	var step := Vector2i(1, 0) if along_x else Vector2i(0, 1)
+	var cuts := Vector2.ZERO
+	for end: int in [0, 1]:
+		var node: Vector2i = Vector2i(edge[0], edge[1]) + step * end
+		var cut := 0.0
+		if along_x:
+			if end == 0 and _wall_on(house, node.x - 1, node.y, HouseSketch.ORIENT_X, storey):
+				cut = THICK
+		elif _wall_on(house, node.x - 1, node.y, HouseSketch.ORIENT_X, storey) or _wall_on(house, node.x, node.y, HouseSketch.ORIENT_X, storey):
+			cut = THICK
+		elif end == 0 and _wall_on(house, node.x, node.y - 1, HouseSketch.ORIENT_Y, storey):
+			cut = THICK
+		if end == 0:
+			cuts.x = cut
+		else:
+			cuts.y = cut
+	return cuts
 
 
 ## Where a garden wall piece on `edge` starts and ends along `axis` (from its node
@@ -2355,7 +2398,9 @@ func _solid_piece_parts(mid: Vector3, flat: Vector3, along_x: bool, kind: String
 		HouseSketch.WINDOW:
 			_solid_window(mid, flat, along_x, stone, demolish)
 		_:
-			_solid_box(mid + Vector3(0, WALL_HEIGHT * 0.5, 0), flat + Vector3(0, WALL_HEIGHT, 0), stone)
+			var axis_dir := Vector3.RIGHT if along_x else Vector3.BACK
+			_solid_box(mid + axis_dir * ((_cut.x - _cut.y) * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0),
+					flat - axis_dir * (_cut.x + _cut.y) + Vector3(0, WALL_HEIGHT, 0), stone)
 	if kind == HouseSketch.WALL or kind == HouseSketch.DOOR:
 		# Nothing is picked up or used through it (see Level.can_reach); a window is reached through.
 		var b := a + (mid - a) * 2.0
@@ -2381,8 +2426,9 @@ func _solid_doorway(mid: Vector3, along_x: bool, stone: Material, demolish: bool
 	var jamb_long := DOOR_JAMB + THICK * 0.5
 	var jamb_deep := THICK + 0.1
 	for sign_ in [-1.0, 1.0]:
-		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
-		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+		var cut: float = _cut.x if sign_ < 0.0 else _cut.y
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + (jamb_long - cut) * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long - cut, WALL_HEIGHT, jamb_deep), stone)
 	# The lintel: a beam over the opening, its ends resting on the jambs.
 	# It stands a hair over the jambs, so its top never shares their top face (that flickers).
 	var beam := WALL_HEIGHT - DOOR_HEIGHT + FACE_GAP
@@ -2412,8 +2458,9 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 	var jamb_deep := THICK + 0.1
 	var high := WINDOW_TOP - SILL
 	for sign_ in [-1.0, 1.0]:
-		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + jamb_long * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
-		_solid_box(at, _along(axis, across, jamb_long, WALL_HEIGHT, jamb_deep), stone)
+		var cut: float = _cut.x if sign_ < 0.0 else _cut.y
+		var at: Vector3 = mid + axis * sign_ * (opening * 0.5 + (jamb_long - cut) * 0.5) + Vector3(0, WALL_HEIGHT * 0.5, 0)
+		_solid_box(at, _along(axis, across, jamb_long - cut, WALL_HEIGHT, jamb_deep), stone)
 	# The wall under the sill and over the lintel, between the jambs.
 	_solid_box(mid + Vector3(0, SILL * 0.5, 0), _along(axis, across, opening, SILL, THICK), stone)
 	var beam := WINDOW_LINTEL
@@ -2442,44 +2489,11 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 		_visual_box(mid + axis * (-pane_w * 0.4) + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, pane_w * 0.2, high * 0.28, 0.03), shard)
 		_visual_box(mid + axis * (pane_w * 0.36) + Vector3(0, SILL + high * 0.84, 0), _along(axis, across, pane_w * 0.28, high * 0.3, 0.03), shard)
 	else:
-		_pane(mid + Vector3(0, SILL + high * 0.5, 0), across * _outside, Vector2(opening - 0.1, high))
+		pass # No glass layer in the opening: it showed as a white film (see VillageHouse._window).
 	# The pane itself stops the hero too: a window is no way through.
 	_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, high, 0))
 	var shutters_at := mid + across * _outside * (jamb_deep * 0.5 + 0.07) + Vector3(0, SILL + 0.07, 0)
 	_new_shutters = _shutter_pair(shutters_at, along_x, Vector2(opening - 0.04, high - 0.04), demolish)
-
-
-## A window's glass, two clear faces back to back (see _solid_window), one turned to `out` and one
-## into the room, each drawn from its own side only. Glass casts no shadow.
-func _pane(at: Vector3, out: Vector3, size: Vector2) -> void:
-	for face in [1.0, -1.0]:
-		var m := MeshInstance3D.new()
-		var quad := QuadMesh.new()
-		quad.size = size
-		m.mesh = quad
-		var facing: Vector3 = out * face
-		# A quad shows its +z side: turned so that faces `facing`.
-		m.basis = Basis(Vector3.UP.cross(facing), Vector3.UP, facing)
-		m.position = at + facing * 0.012 + Vector3(0, _lift, 0)
-		m.set_meta("ymin", at.y + _lift - size.y * 0.5)
-		m.material_override = clear_glass()
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.name = "ClearPane"
-		_into.add_child(m)
-
-
-## A window's glass: clear and faintly blue, a little shiny.
-static func clear_glass() -> StandardMaterial3D:
-	if _clear_glass == null:
-		_clear_glass = StandardMaterial3D.new()
-		_clear_glass.albedo_color = Color(0.72, 0.82, 0.9, 0.12)
-		_clear_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_clear_glass.roughness = 0.05
-		_clear_glass.metallic_specular = 0.7
-	return _clear_glass
-
-
-static var _clear_glass: StandardMaterial3D
 
 
 ## Which way from the wall on an edge the outside lies, along +z for an edge

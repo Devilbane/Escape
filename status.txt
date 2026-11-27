@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Make the mountain foot opaque and melt it into the soil | Shipped this week: Narrow the sunflower riddle field by 10 columns per side; Keep sewer fights out of the village; Make the bee hum softer, deeper and quieter (+47 more)
+Escape! dev status | Shipped this week: Make the mountain foot opaque and melt it into the soil; Narrow the sunflower riddle field by 10 columns per side (+48 more)

@@ -240,6 +240,9 @@ func tick(delta: float, hero: Vector3, hour: float, indoors: bool, season_day: i
 	if not _awake:
 		for h in hives:
 			_hum(h, hero, false)
+		# The lone fly-by bee must fall silent too, or it keeps humming after dusk, in rain or in winter.
+		if _near_hum != null and _near_hum.playing:
+			_near_hum.stop()
 		return
 	for h in hives:
 		_vex(h, hero, delta)

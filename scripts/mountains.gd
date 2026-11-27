@@ -376,7 +376,10 @@ static func _height(dist: Dictionary, north: Dictionary, x: float, z: float, noi
 	h += (noise.get_noise_2d(x, z) * 0.5 + 0.5) * CRAGS * smoothstep(2.0, 14.0, d)
 	var edge: float = north.get(Vector2i(roundi(x / Level.TILE), roundi(z / Level.TILE)), INF)
 	if edge != INF:
-		h = minf(h, 0.4 + maxf(0.0, z - edge) * SOUTH_SLOPE)
+		# The low rock on the open north side rises from nothing in a curve (not from a 0.4 m ledge with a straight,
+		# angular outline), so its rim sinks under the ground and ends rounded.
+		var s := maxf(0.0, z - edge)
+		h = minf(h, 0.4 * smoothstep(0.0, 1.2, s) + s * SOUTH_SLOPE)
 	return h
 
 

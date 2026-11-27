@@ -1,0 +1,1 @@
+- Rounded the low rock slabs on the north side of the mountains: they rise out of the ground in a smooth curve instead of flat angular ledges.

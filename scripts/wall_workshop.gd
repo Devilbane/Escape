@@ -62,6 +62,8 @@ var _weather := WallWeather.CLEAR
 var _chaos := 0.5
 ## The share of squares the random wall fills with holds, in percent.
 var _fill := 60
+## The window with the random wall's special features (see WallRandomPanel).
+var _random_panel: WallRandomPanel
 
 
 func _ready() -> void:
@@ -98,6 +100,9 @@ func _build() -> void:
 	row.add_child(_left_column())
 	row.add_child(_middle())
 	row.add_child(_right_column())
+	_random_panel = WallRandomPanel.new()
+	_random_panel.roll.connect(_random_wall)
+	add_child(_random_panel)
 
 
 func _label(text: String, size := 14, colour := Color(0.9, 0.85, 0.75), wrap := true) -> Label:
@@ -263,6 +268,7 @@ func _right_column() -> Control:
 	random_button.tooltip_text = Lang.t("Würfelt eine neue Wand in der gewählten Größe, mit einer Route zum Gipfel. Mit Rückgängig kommt die alte zurück.")
 	random_row.add_child(random_button)
 	col.add_child(random_row)
+	col.add_child(_button("Zufalls-Optionen…", func() -> void: _random_panel.open()))
 	var watch := _button("Wolfram klettert (zuschauen)", _watch_wolfram)
 	watch.tooltip_text = Lang.t("Wolfram steigt die Wand allein hinauf, mit den Werten rechts: er schaut sich jede Spalte an, rastet und flucht.")
 	col.add_child(watch)
@@ -537,7 +543,9 @@ func _new_wall() -> void:
 
 func _random_wall() -> void:
 	_push_undo()
-	_set_map(WallGenerator.generate(map, _fill / 100.0, randi()))
+	var options: Dictionary = _random_panel.options.duplicate(true)
+	options.fill = _fill / 100.0
+	_set_map(WallGenerator.generate_with(map, options, randi()))
 	_say(Lang.t("Eine Zufallswand mit %d %% Griffen.") % _fill, true)
 
 

@@ -2606,7 +2606,7 @@ func _physics_process(delta: float) -> void:
 	# At the table (see TownMeals) a diner stays in their seat, whoever they talk to, and a keeper
 	# on the way through the door of their hall walks on while they speak, so neither they nor the
 	# hero get stuck in the doorway (see VillagePosts).
-	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and _task != "climb" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose():
+	if _bubble_time > 0.0 and _look_at != Vector3.INF and _task != "dine" and _task != "service" and _task != "climb" and not (_task == "post" and VillagePosts.inside(self) and not VillagePosts.at_post(self)) and not _holds_pose() and not _off_snip_spot():
 		_turn_to(_look_at - global_position, delta)
 		if _task != "sit" and not _chat_sitting:
 			play("Idle")
@@ -2829,6 +2829,12 @@ func _crowds_spot(point: Vector3) -> bool:
 	return false
 
 
+## Whether the barber is on his way round to his place by the chair (see BarberChair): he walks on while he
+## talks, so a word with the hero does not stop him half way, in front of the customer.
+func _off_snip_spot() -> bool:
+	return customer_at != Vector3.INF and _task == "work" and Vector2(global_position.x - snip_spot.x, global_position.z - snip_spot.z).length() > 0.1
+
+
 func _do(task: String, delta: float) -> void:
 	if _staff_spell != null and _staff_spell.step(delta, task == "work" and _bubble_time <= 0.0 \
 			and not at_home and visible and threat == null and not night):
@@ -2848,6 +2854,10 @@ func _do(task: String, delta: float) -> void:
 		# Round to his place beside the chair (see BarberChair).
 		var to := snip_spot - global_position
 		to.y = 0.0
+		# Coming from the front he first sidesteps to the spot's side, then walks up beside the chair,
+		# instead of walking into the chair's front and stopping there.
+		if to.z < -1.2 and absf(to.x) > 0.1:
+			to.z = 0.0
 		var step := minf(_stride("Walking_A", WALK_SPEED) * delta, to.length())
 		global_position += to.normalized() * step
 		_turn_to(to, delta)

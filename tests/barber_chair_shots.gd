@@ -121,8 +121,14 @@ func _run() -> void:
 	check(not tent.visible, "the tent is gone while the hero sits")
 	check(benno.snip_spot != Vector3.INF and benno.customer_at != Vector3.INF, "Benno comes to the chair")
 	check(chair.cut.cape != null, "the cape goes on")
-	await _wait(80)
+	# The window waits until Benno has walked round to his place up and left of the chair (it stops the village).
+	for i in 600:
+		if game.menus.is_open():
+			break
+		await _wait(1)
 	check(game.menus.is_open() and game.menus.current == "barbier", "Benno's window opens when the hero sits")
+	check(Vector2(benno.global_position.x - benno.snip_spot.x, benno.global_position.z - benno.snip_spot.z).length() < 0.2, "Benno has walked to his place before the window opens")
+	check(benno.snip_spot.x < chair.chair_pos.x and benno.snip_spot.z < chair.chair_pos.z, "his place is up and left of the customer from the camera")
 	_view(at, Vector3(1.6, 1.7, 3.0), Vector3(0.0, 0.85, -0.2))
 	await _wait(5)
 	await _shot("hero_caped")

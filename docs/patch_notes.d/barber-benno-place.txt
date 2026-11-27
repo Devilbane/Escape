@@ -1,0 +1,1 @@
+- Benno now walks round to his place up and left of the chair before his window opens, instead of getting stuck in front of you.

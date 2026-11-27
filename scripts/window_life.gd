@@ -32,7 +32,7 @@ uniform float curtain_chance = %f;
 uniform float figure_chance = %f;
 uniform float min_cycle = %f;
 uniform float spread = %f;
-varying vec2 key;
+varying flat vec2 key;
 """ % [CURTAIN_CHANCE, FIGURE_CHANCE, MIN_CYCLE, SPREAD]
 
 ## How many hours before a window goes out its curtain starts to close.

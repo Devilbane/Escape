@@ -25,7 +25,7 @@ render_mode blend_add, unshaded, fog_disabled, depth_draw_never, cull_disabled, 
 uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 uniform float scale = 1.0;
-varying vec2 key;
+varying flat vec2 key;
 """ + WindowLights.LIT_FUNCTION + """
 void vertex() {
 	key = UV2 + MODEL_MATRIX[3].xz;

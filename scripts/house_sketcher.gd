@@ -2442,44 +2442,11 @@ func _solid_window(mid: Vector3, flat: Vector3, along_x: bool, stone: Material, 
 		_visual_box(mid + axis * (-pane_w * 0.4) + Vector3(0, SILL + high * 0.5, 0), _along(axis, across, pane_w * 0.2, high * 0.28, 0.03), shard)
 		_visual_box(mid + axis * (pane_w * 0.36) + Vector3(0, SILL + high * 0.84, 0), _along(axis, across, pane_w * 0.28, high * 0.3, 0.03), shard)
 	else:
-		_pane(mid + Vector3(0, SILL + high * 0.5, 0), across * _outside, Vector2(opening - 0.1, high))
+		pass # No glass layer in the opening: it showed as a white film (see VillageHouse._window).
 	# The pane itself stops the hero too: a window is no way through.
 	_collide(mid + Vector3(0, (SILL + WINDOW_TOP) * 0.5, 0), flat + Vector3(0, high, 0))
 	var shutters_at := mid + across * _outside * (jamb_deep * 0.5 + 0.07) + Vector3(0, SILL + 0.07, 0)
 	_new_shutters = _shutter_pair(shutters_at, along_x, Vector2(opening - 0.04, high - 0.04), demolish)
-
-
-## A window's glass, two clear faces back to back (see _solid_window), one turned to `out` and one
-## into the room, each drawn from its own side only. Glass casts no shadow.
-func _pane(at: Vector3, out: Vector3, size: Vector2) -> void:
-	for face in [1.0, -1.0]:
-		var m := MeshInstance3D.new()
-		var quad := QuadMesh.new()
-		quad.size = size
-		m.mesh = quad
-		var facing: Vector3 = out * face
-		# A quad shows its +z side: turned so that faces `facing`.
-		m.basis = Basis(Vector3.UP.cross(facing), Vector3.UP, facing)
-		m.position = at + facing * 0.012 + Vector3(0, _lift, 0)
-		m.set_meta("ymin", at.y + _lift - size.y * 0.5)
-		m.material_override = clear_glass()
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.name = "ClearPane"
-		_into.add_child(m)
-
-
-## A window's glass: clear and faintly blue, a little shiny.
-static func clear_glass() -> StandardMaterial3D:
-	if _clear_glass == null:
-		_clear_glass = StandardMaterial3D.new()
-		_clear_glass.albedo_color = Color(0.72, 0.82, 0.9, 0.12)
-		_clear_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_clear_glass.roughness = 0.05
-		_clear_glass.metallic_specular = 0.7
-	return _clear_glass
-
-
-static var _clear_glass: StandardMaterial3D
 
 
 ## Which way from the wall on an edge the outside lies, along +z for an edge

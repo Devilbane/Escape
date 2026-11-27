@@ -33,6 +33,34 @@ func _init() -> void:
 			if mi.mesh.surface_get_material(s) == glass:
 				found = (mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_TEX_UV2] as PackedVector2Array).size() > 0
 	check(found, "the glass of a house carries its panes' places")
+	# The daily cycle of every window: in the evening the curtains close, then the shutters; in the
+	# morning the shutters open, then the curtains; shut all night.
+	for i in 40:
+		var key := Vector2(3.0 + i * 1.7, 11.0 - i * 2.3)
+		check(WindowLights.shutters_shut(key, 12.0) < 0.01 and WindowLights.curtains_shut(key, 12.0) < 0.01, "by day shutters and curtains stand open (%d)" % i)
+		check(WindowLights.shutters_shut(key, 23.5) > 0.99 and WindowLights.curtains_shut(key, 23.5) > 0.99, "late in the evening both are shut (%d)" % i)
+		check(WindowLights.shutters_shut(key, 3.0) > 0.99 and WindowLights.curtains_shut(key, 3.0) > 0.99, "both stay shut through the night (%d)" % i)
+		check(WindowLights.shutters_shut(key, 8.5) < 0.01 and WindowLights.curtains_shut(key, 8.5) < 0.01, "both are open by 8:30 (%d)" % i)
+		var curtains_at := -1.0
+		var shutters_at := -1.0
+		var h := 16.0
+		while h < 22.0:
+			if curtains_at < 0.0 and WindowLights.curtains_shut(key, h) > 0.5:
+				curtains_at = h
+			if shutters_at < 0.0 and WindowLights.shutters_shut(key, h) > 0.5:
+				shutters_at = h
+			h += 0.01
+		check(curtains_at > 0.0 and shutters_at > curtains_at, "the curtains close before the shutters (%d: %.2f, %.2f)" % [i, curtains_at, shutters_at])
+		curtains_at = -1.0
+		shutters_at = -1.0
+		h = 5.0
+		while h < 9.0:
+			if shutters_at < 0.0 and WindowLights.shutters_shut(key, h) < 0.5:
+				shutters_at = h
+			if curtains_at < 0.0 and WindowLights.curtains_shut(key, h) < 0.5:
+				curtains_at = h
+			h += 0.01
+		check(shutters_at > 0.0 and curtains_at > shutters_at, "the shutters open before the curtains (%d: %.2f, %.2f)" % [i, shutters_at, curtains_at])
 	if failed == 0:
 		print("PASS: window lights")
 	quit(1 if failed > 0 else 0)

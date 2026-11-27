@@ -3446,6 +3446,9 @@ func _house_glass() -> ShaderMaterial:
 		# The same pane seen from inside a room never shines by itself.
 		var inner := VillageHouse.inner_glass()
 		_window_mats[inner] = inner
+		# The shutters swing shut with the curtains.
+		var shutters := VillageHouse.shutters()
+		_window_mats[shutters] = shutters
 	return _scenes["mat_house_glass"]
 
 
@@ -5379,9 +5382,47 @@ func _call_the_village(reach := 22.0 * TILE * 0.5, proclaim := true) -> void:
 ## falls or the day breaks, sends the village to bed or wakes it, and calls
 ## the dead out of their graves or back into them. The first call after the
 ## world is built settles everything at once, without a word.
+## Each shutter leaf of the village (world position, its key in the shader and whether it was shut at
+## the last look): where a leaf swings, it clacks (see _shutter_sounds).
+var _leaves: Array = []
+var _leaf_scan := -1
+var _leaf_hour := -1.0
+## How near the hero a swinging leaf is still heard (metres).
+const LEAF_EARSHOT := 38.0
+
+
+## The shutters clack as they swing shut in the evening and open in the morning, each leaf at its own
+## hour (see WindowLights.shutters_shut), at the leaf and not too loud.
+func _shutter_sounds() -> void:
+	if get_child_count() != _leaf_scan:
+		_leaf_scan = get_child_count()
+		_leaves = []
+		for house in get_children():
+			if house is Node3D and house.has_meta("shutter_hinges"):
+				var xf: Transform3D = (house as Node3D).global_transform
+				for hinge: Vector3 in house.get_meta("shutter_hinges"):
+					var key := Vector2(hinge.x + xf.origin.x, hinge.z + xf.origin.z)
+					_leaves.append({"at": xf * hinge, "key": key, "shut": WindowLights.shutters_shut(key, hour) > 0.5})
+	if absf(hour - _leaf_hour) < 0.004:
+		return
+	_leaf_hour = hour
+	var heard := 0
+	for leaf: Dictionary in _leaves:
+		var shut := WindowLights.shutters_shut(leaf.key, hour) > 0.5
+		if shut == leaf.shut:
+			continue
+		leaf.shut = shut
+		# Only the ones near the hero: a village of sixty windows would otherwise rattle at once.
+		if heard < 4 and is_inside_tree() and player != null and (leaf.at as Vector3).distance_to(player.global_position) < LEAF_EARSHOT:
+			heard += 1
+			Sfx.play(self, "door", -20.0, leaf.at, 1.25 if shut else 1.1)
+
+
 func set_hour(new_hour: float) -> void:
 	var first := hour < 0.0
 	hour = new_hour
+	BuiltShutters.hour = new_hour
+	_shutter_sounds()
 	var glow := DayNight.glow_at(hour)
 	for lamp in _lamps:
 		lamp.light_energy = lerpf(LAMP_DAY, LAMP_NIGHT, glow)

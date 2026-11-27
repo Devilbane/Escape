@@ -20,24 +20,22 @@ func _init() -> void:
 	var parts := VillageHouse.hollow(house, true)
 	var front: MeshInstance3D = parts.front
 	var curtains := -1
-	var clear := -1
+	var layers := 0
 	for s in front.mesh.get_surface_count():
 		var mat := front.mesh.surface_get_material(s)
 		if mat == VillageHouse.curtain_cloth():
 			curtains = s
-		elif mat == VillageHouse.clear_glass():
-			clear = s
-	check(curtains >= 0 and clear >= 0, "the walk-in front has clear glass and curtains")
-	if curtains >= 0 and clear >= 0:
-		var cv: PackedVector3Array = front.mesh.surface_get_arrays(curtains)[Mesh.ARRAY_VERTEX]
-		var gv: PackedVector3Array = front.mesh.surface_get_arrays(clear)[Mesh.ARRAY_VERTEX]
-		# Every curtain hangs at least 3 cm from every pane of glass, so they never z-fight.
-		var gap := 99.0
-		for c in cv:
-			for g in gv:
-				if absf(c.y - g.y) < 0.01 and Vector2(c.x - g.x, c.z - g.z).length() < 0.3:
-					gap = minf(gap, Vector2(c.x - g.x, c.z - g.z).length())
-		check(gap >= 0.03, "the curtains hang clear of the glass")
+		elif mat is StandardMaterial3D and (mat as StandardMaterial3D).transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			layers += 1
+	check(curtains >= 0, "the walk-in front has curtains")
+	# No see-through layer over the curtains: it flickered against them and showed as a white film.
+	check(layers == 0, "no glass layer over the curtains (%d see-through surfaces)" % layers)
+	# The shutters are hinged leaves that swing shut at night (see WindowLights.SHUTTER_SHADER).
+	var leaves := 0
+	for s in front.mesh.get_surface_count():
+		if front.mesh.surface_get_material(s) == VillageHouse.shutters():
+			leaves += (front.mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	check(leaves > 0, "the windows have swinging shutters")
 	var walk_in := WalkIn.new(Node3D.new())
 	var farmer := Villager.new()
 	var rec := {"kind": "house", "block": Rect2i(Vector2i(43, 84), Vector2i(2, 2)), "beds": [{"by": farmer}]}

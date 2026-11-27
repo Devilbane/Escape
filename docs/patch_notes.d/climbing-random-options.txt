@@ -1,0 +1,1 @@
+- The random wall in the climbing wall workshop now has options: how hard the holds are, and for every special feature (rockfall zones, ice, wet moss, cracks, loot, resting places, doors and goals) a fixed number and a chance of more.

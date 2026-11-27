@@ -17,12 +17,16 @@ extends RefCounted
 ## `side` (-1 or 1) mirrors a sequence for a bed one gets out of on its right.
 
 ## Where the hips are, lying and sitting on the mattress, from the bed's origin.
-const LYING := Vector3(-0.075, 0.93, 0.44)
+## Across: the middle of the mattress. Along: the head (HEAD_TO_HIPS from the hips) comes to rest on the
+## pillows, a little below their middle (see Level.PILLOW), so the head lies on them whichever bed it is.
+const LYING := Vector3((CosyBed.LEFT + CosyBed.RIGHT) * 0.5, 0.93, Level.PILLOW.z + 0.05 + HEAD_TO_HIPS)
 const SITTING := Vector3(-0.3, 0.97, 0.12)
 ## On the rim: the hips a little in from the rail, the thighs over the mattress and the shins hanging.
 const RIM := Vector3(-0.42, 0.97, 0.12)
 ## Standing on the floor beside the bed: the hips' height above the floor.
 const BESIDE := Vector3(-1.1, HIP_HEIGHT, 0.12)
+## How far the head's bone lies from the hips when lying on the back (rig units, at body scale 1).
+const HEAD_TO_HIPS := 0.83
 ## The hips' height above the model's origin when standing (rig units, at body scale 1).
 const HIP_HEIGHT := 0.392
 

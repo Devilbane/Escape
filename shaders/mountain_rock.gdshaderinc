@@ -84,9 +84,16 @@ void fragment() {
 
 	ALBEDO = col;
 #ifdef FOOT_EDGE
-	// The foot's edge fades out where it meets the rock (vertex alpha), so it blends into the face.
-	ALPHA = gl_alpha(gl_colour(col), edge_alpha);
+	// Opaque, never see-through: towards the ground the rock's colour and grain melt into soil (earth, grass tufts and
+	// pebbles) over the band where the vertex alpha falls, so the foot has no hard edge against the meadow's apron.
+	float melt = (1.0 - smoothstep(0.0, 1.0, edge_alpha)) * (1.0 - snow);
+	vec3 soil = vec3(0.5, 0.44, 0.37) * (0.82 + 0.3 * fbm(wpos * 1.1 + 13.0));
+	soil = mix(soil, vec3(0.3, 0.37, 0.16), smoothstep(0.55, 0.8, fbm(wpos * 0.8 + 41.0)) * 0.45);
+	soil *= 0.9 + 0.2 * vnoise(wpos * 7.0) * band(7.0, px);
+	col = mix(col, soil, melt);
+	ALBEDO = col;
 #endif
+
 	ROUGHNESS = mix(0.96, 0.82, moss);
 	// Relief: the grain and the strata stand out.
 	float height = (grain * 0.5 + fine * 0.3 * band(2.3, px) + strata * steep) * (1.0 - snow * 0.7);

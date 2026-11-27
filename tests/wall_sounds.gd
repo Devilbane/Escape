@@ -19,7 +19,7 @@ func _initialize() -> void:
 			print("FAIL no spot sounds for ", spot)
 		for c in WallSounds.SPOTS.get(spot, []):
 			kinds[c.kind] = true
-	for family in ["pull_l", "pull_r", "side_l", "desc_l", "leap", "slip", "arrest", "hammer", "bed", "wake"]:
+	for family in ["pull_l", "pull_r", "side_l", "desc_l", "leap", "slip", "arrest", "hammer", "hammer5", "bed", "wake"]:
 		if WallSounds.cues(family).is_empty():
 			fails += 1
 			print("FAIL no cues for ", family)
@@ -29,11 +29,33 @@ func _initialize() -> void:
 		var peak := 0
 		for i in range(0, a.data.size(), 2):
 			peak = maxi(peak, absi(a.data.decode_s16(i)))
+		if WallSounds.PEAKS.has(kind) and peak < 25000:
+			fails += 1
+			print("FAIL ", kind, " is not brought up to its loudness (peak ", peak, ")")
 		if peak < 2000:
 			fails += 1
 			print("FAIL ", kind, " is silent (peak ", peak, ")")
 		if a.data == b.data:
 			fails += 1
 			print("FAIL ", kind, " has no varied takes")
+	# The five blows of the hammer fall on the hammer_hit keys of the pose, and the steps on the foot's landing.
+	var hits := []
+	for k: Array in RopeClimbPose.KEYS["hammer5"]:
+		if String(k[1]) == "hammer_hit":
+			hits.append(float(k[0]))
+	var clangs := []
+	for c in WallSounds.CUES["hammer5"]:
+		if c.kind == "clang":
+			clangs.append(float(c.at))
+	if hits.size() != 5 or clangs != hits:
+		fails += 1
+		print("FAIL the clangs ", clangs, " are not on the hammer's blows ", hits)
+	var boots := []
+	for c in WallSounds.cues("pull_l"):
+		if c.kind == "boot":
+			boots.append(float(c.at))
+	if boots.is_empty() or absf(float(boots[0]) - 0.54) > 0.03:
+		fails += 1
+		print("FAIL the boot of a pull does not land with the foot")
 	print("PASS" if fails == 0 else "FAILED %d" % fails)
 	quit(1 if fails > 0 else 0)

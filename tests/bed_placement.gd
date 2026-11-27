@@ -49,6 +49,11 @@ func _lies_on(sk: Skeleton3D, bed_pos: Vector3, rot: float, what: String) -> voi
 	check(absf(hips.x - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5) < 0.03, "%s: the hips are in the middle across the bed (%.2f)" % [what, hips.x])
 	var head: Vector3 = inverse * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("head")).origin - bed_pos)
 	check(absf(head.x - (CosyBed.LEFT + CosyBed.RIGHT) * 0.5) < 0.03, "%s: the head is in the middle across the bed (%.2f)" % [what, head.x])
+	check(absf(head.z - Level.PILLOW.z) < 0.2, "%s: the head lies on the pillows (%.2f, pillows at %.2f)" % [what, head.z, Level.PILLOW.z])
+	# The blanket reaches from the shoulders to past the feet: everything but the head is under it.
+	for bone in ["hips", "spine", "foot.l", "foot.r", "toes.l", "toes.r"]:
+		var at: Vector3 = inverse * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin - bed_pos)
+		check(at.z > BedBlanket.TOP_Z and at.z < BedBlanket.FOOT.z, "%s: the blanket covers the %s (%.2f, cloth %.2f to %.2f)" % [what, bone, at.z, BedBlanket.TOP_Z, BedBlanket.FOOT.z])
 
 
 func _run() -> void:

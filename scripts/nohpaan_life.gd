@@ -23,6 +23,7 @@ func setup(lvl: Level) -> void:
 	level = lvl
 	name = "NohpaanLife"
 	var size := Vector2(lvl.width, lvl.height) * Level.TILE
+	var noise := FogClouds.make_noise()
 	for layer: Dictionary in MIST:
 		var quad := PlaneMesh.new()
 		quad.size = size
@@ -32,6 +33,7 @@ func setup(lvl: Level) -> void:
 		mat.set_shader_parameter("scale", layer.scale)
 		mat.set_shader_parameter("drift", layer.drift)
 		mat.set_shader_parameter("clear_radius", CLEAR)
+		mat.set_shader_parameter("noise_tex", noise)
 		var sheet := MeshInstance3D.new()
 		sheet.mesh = quad
 		sheet.material_override = mat

@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Wall workshop: random wall generator; sleeper curls into the hammock; Find the valley wells once per level; Do less per frame in the open air (+47 more)
+Escape! dev status | Working on: Random wall: options for danger zones, cracks, loot, camps, doors and goals | Shipped this week: Wall workshop: random wall generator; sleeper curls into the hammock; Find the valley wells once per level; Do less per frame in the open air (+47 more)

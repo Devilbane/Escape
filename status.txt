@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Rest place ledge; climbing sounds in time with the animation | Shipped this week: Valley_folk test: allow a chance repeat of a job; Show in-game time and season under the F2 coordinates (+48 more)
+Escape! dev status | Shipped this week: Rest place ledge; climbing sounds in time with the animation; Valley_folk test: allow a chance repeat of a job (+48 more)

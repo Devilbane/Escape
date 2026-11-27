@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Give house timber beams real oak: grain, weathering, rounded and crooked | Shipped this week: Round off the blocky pieces at the mountain foot; Fix z-fighting at the corners of the bank and other built house walls (+48 more)
+Escape! dev status | Shipped this week: Give house timber beams real oak: grain, weathering, rounded and crooked; Round off the blocky pieces at the mountain foot (+48 more)

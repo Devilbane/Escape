@@ -1,0 +1,1 @@
+- The village runs a little smoother: the season, snow and ice are no longer redone on every frame.

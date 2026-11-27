@@ -1,0 +1,1 @@
+- The title screen and launcher now show the new catchphrase, "A Tale of Valor and Mysteries!".

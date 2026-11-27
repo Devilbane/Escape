@@ -1,0 +1,1 @@
+- Wall stones and holes now grow out of the rock: the face swells and darkens around each stone, with no seams.

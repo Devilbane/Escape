@@ -58,6 +58,12 @@ var _recheck := Timer.new()
 var _hover_cell := Vector2i(-1, -1)
 var _loading := false
 var _weather := WallWeather.CLEAR
+## How much chance rules the climbing test: random weather, falling stones and lightning (0..1, see WallStage.chaos).
+var _chaos := 0.5
+## The share of squares the random wall fills with holds, in percent.
+var _fill := 60
+## The window with the random wall's special features (see WallRandomPanel).
+var _random_panel: WallRandomPanel
 
 
 func _ready() -> void:
@@ -94,6 +100,9 @@ func _build() -> void:
 	row.add_child(_left_column())
 	row.add_child(_middle())
 	row.add_child(_right_column())
+	_random_panel = WallRandomPanel.new()
+	_random_panel.roll.connect(_random_wall)
+	add_child(_random_panel)
 
 
 func _label(text: String, size := 14, colour := Color(0.9, 0.85, 0.75), wrap := true) -> Label:
@@ -248,6 +257,18 @@ func _right_column() -> Control:
 	file_row.add_child(_button("Text einfügen", _paste_text))
 	file_row.add_child(_button("Zurück zum Spiel", _close))
 	col.add_child(file_row)
+	var random_row := HBoxContainer.new()
+	random_row.add_theme_constant_override("separation", 6)
+	random_row.add_child(_label("Füllung", 13, Color(0.9, 0.85, 0.75), false))
+	var fill_spin := _spin(0, 100, _fill, func(v: float) -> void: _fill = int(v))
+	fill_spin.suffix = " %"
+	fill_spin.tooltip_text = Lang.t("Wie viele Felder der Zufallswand einen Griff bekommen: 100 % füllt jedes Feld.")
+	random_row.add_child(fill_spin)
+	var random_button := _button("Zufallswand", _random_wall)
+	random_button.tooltip_text = Lang.t("Würfelt eine neue Wand in der gewählten Größe, mit einer Route zum Gipfel. Mit Rückgängig kommt die alte zurück.")
+	random_row.add_child(random_button)
+	col.add_child(random_row)
+	col.add_child(_button("Zufalls-Optionen…", func() -> void: _random_panel.open()))
 	var watch := _button("Wolfram klettert (zuschauen)", _watch_wolfram)
 	watch.tooltip_text = Lang.t("Wolfram steigt die Wand allein hinauf, mit den Werten rechts: er schaut sich jede Spalte an, rastet und flucht.")
 	col.add_child(watch)
@@ -313,6 +334,27 @@ func _right_column() -> Control:
 			stage.set_weather(_weather)
 		_after_change(false))
 	form.add_child(sky)
+	form.add_child(_label("Zufall", 13, Color(0.9, 0.85, 0.75), false))
+	var chaos_row := HBoxContainer.new()
+	chaos_row.add_theme_constant_override("separation", 8)
+	var chaos_slider := HSlider.new()
+	chaos_slider.min_value = 0.0
+	chaos_slider.max_value = 1.0
+	chaos_slider.step = 0.1
+	chaos_slider.value = _chaos
+	chaos_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chaos_slider.custom_minimum_size = Vector2(0, 28)
+	chaos_slider.tooltip_text = Lang.t("Wie sehr der Zufall die Kletterprobe regiert: wechselndes Wetter, fallende Steine und Blitze. 0 % ist ruhig, 100 % wild.")
+	var chaos_value := _label("%d %%" % int(round(_chaos * 100.0)), 13, UiKit.GOLD, false)
+	chaos_value.custom_minimum_size = Vector2(48, 0)
+	chaos_slider.value_changed.connect(func(v: float) -> void:
+		_chaos = v
+		chaos_value.text = "%d %%" % int(round(v * 100.0))
+		if stage.map != null:
+			stage.chaos = v)
+	chaos_row.add_child(chaos_slider)
+	chaos_row.add_child(chaos_value)
+	form.add_child(chaos_row)
 	col.add_child(form)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -360,6 +402,7 @@ func _show_page(i: int) -> void:
 	if i != 0:
 		if _stage_stale or stage.map == null:
 			stage.setup(map, int(_skill_spin.value), i == 2, _weather, int(_con_spin.value))
+			stage.chaos = _chaos
 			stage.climb.dexterity = int(_attr_spins[0].value)
 			stage.climb.intuition = int(_attr_spins[1].value)
 			stage.climb.wisdom = int(_attr_spins[2].value)
@@ -496,6 +539,14 @@ func _new_wall() -> void:
 	_push_undo()
 	_set_map(WallMap.blank())
 	_say("Eine neue, leere Wand.")
+
+
+func _random_wall() -> void:
+	_push_undo()
+	var options: Dictionary = _random_panel.options.duplicate(true)
+	options.fill = _fill / 100.0
+	_set_map(WallGenerator.generate_with(map, options, randi()))
+	_say(Lang.t("Eine Zufallswand mit %d %% Griffen.") % _fill, true)
 
 
 func _copy_text() -> void:

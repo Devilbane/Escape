@@ -1,0 +1,1 @@
+- Rest places on the sample climbing wall now sit on a ledge of holds to each side.

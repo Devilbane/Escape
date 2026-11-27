@@ -2551,14 +2551,19 @@ func station_at(point: Vector3) -> Dictionary:
 ## stations that are clicked only on their spot (see station_clicked).
 func nearest_station(from: Vector3, max_distance := SEARCH_RANGE, skip_spots := false) -> Dictionary:
 	var best := {}
-	var best_distance := max_distance
+	var best_sq := max_distance * max_distance
+	var fx := from.x
+	var fz := from.z
 	for s in stations:
-		if skip_spots and s.has("spot"):
+		if s.used or (skip_spots and s.has("spot")):
 			continue
-		var d := Vector2(from.x - s.pos.x, from.z - s.pos.z).length()
-		if not s.used and d <= best_distance:
+		var at: Vector3 = s.pos
+		var dx := fx - at.x
+		var dz := fz - at.z
+		var d_sq := dx * dx + dz * dz
+		if d_sq <= best_sq:
 			best = s
-			best_distance = d
+			best_sq = d_sq
 	return best
 
 

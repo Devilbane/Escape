@@ -1,0 +1,1 @@
+- On the climbing wall resting gives back 85% of the breath meter and resets the falls; a climber gives up after 3 falls with under half the meter, or after 4 falls. The hammock rest lasts about 20 seconds with snoring, a yawn and an arm stretch.

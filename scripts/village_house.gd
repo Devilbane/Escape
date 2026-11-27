@@ -25,8 +25,12 @@ const TIMBER := Color(0.42, 0.30, 0.22)
 const STONE_V := Vector2(0.6, 0.92)
 const STONE_BAND := 4.0
 ## The red roof tiles on the same sheet (the chapel's roof): u and v from
-## corner to corner, and the patch of roof (metres) one copy of them covers.
-const TILES_UV := Rect2(0.5, 0.06, 0.5, 0.235)
+## corner to corner, and the patch of roof (metres) one copy of them covers. The rectangle is kept
+## TILES_INSET (sheet fractions, 8 texels) inside the tiles' part of the sheet: the roof shader samples
+## up to mip level 3 (8 texels wide), which would otherwise blend in the stone beyond the patch's
+## edge and draw pale lines along the seams between patches that flicker as the camera moves.
+const TILES_INSET := 8.0 / 512.0
+const TILES_UV := Rect2(0.5 + TILES_INSET, 0.06 + TILES_INSET, 0.5 - TILES_INSET * 2.0, 0.235 - TILES_INSET * 2.0)
 const TILES_PATCH := Vector2(2.4, 1.2)
 
 ## Heights (metres): stone plinth, ground floor, upper floor, and how far the
@@ -323,7 +327,7 @@ static func walk_in_windows(shape: Dictionary, upstairs: bool) -> Array:
 
 ## How far behind the glass of such a window its curtains hang (metres): clear of the pane, so the
 ## two never fight over the same pixels, and still well inside the thickness of the wall.
-const CURTAIN_GAP := 0.05
+const CURTAIN_GAP := 0.07
 
 
 ## The curtains of the windows one looks through: the cloth of the pane's own curtains (see
@@ -336,6 +340,17 @@ static func curtain_cloth() -> ShaderMaterial:
 		cloth.resource_name = "window_curtain"
 		_mats["curtain_cloth"] = cloth
 	return _mats["curtain_cloth"]
+
+
+## The pane seen from inside the room: the same glass and curtains, but it never shines by itself
+## (it is the room's own light that lights the room, and the pane would otherwise glow orange in a
+## dark room, see WindowLights.glass_material). The village drives its hour (see Outdoor._house_glass).
+static func inner_glass() -> ShaderMaterial:
+	if not _mats.has("inner_glass"):
+		var glass := WindowLights.glass_material(Color(1.0, 0.7, 0.36), true)
+		glass.resource_name = "window_inner"
+		_mats["inner_glass"] = glass
+	return _mats["inner_glass"]
 
 
 ## One quad of curtains, the size of the opening, hanging at `at` and facing along `b`'s z, its UV
@@ -451,7 +466,7 @@ static func _inner_window(parts: Dictionary, outer: Vector3, inner: Vector3, tur
 		# inner, each turned into the opening; the glass is in the middle (see _window).
 		_reveals(parts, outer, inner, b)
 	else:
-		_box(parts, "glass", inner + into * 0.02, Vector3(0.8, 0.9, 0.04), b)
+		_box(parts, "glass_in", inner + into * 0.02, Vector3(0.8, 0.9, 0.04), b)
 	_box(parts, "timber", inner + into * 0.04 - Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.14), b)
 	_box(parts, "timber", inner + into * 0.03 + Vector3(0, 0.5, 0), Vector3(1.0, 0.08, 0.08), b)
 	for s: float in [-1.0, 1.0]:
@@ -573,6 +588,7 @@ static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionar
 		"stone": _textured("stone", STONE_TEX, Color(0.9, 0.88, 0.85)),
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
+		"glass_in": inner_glass(),
 		"floor": _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5)),
 		"flue": _flue_material(),
 	}
@@ -676,8 +692,6 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 		_curtains(parts, at - out * (WALL_THICK * 0.5 + CURTAIN_GAP), b)
 	else:
 		_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
-	_box(parts, "timber", at + out * 0.07, Vector3(0.08, 0.9, 0.06), b)
-	_box(parts, "timber", at + out * 0.07, Vector3(0.8, 0.08, 0.06), b)
 	_box(parts, "timber", at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
 	_box(parts, "timber", at + out * 0.08 + Vector3(0, 0.5, 0), Vector3(1.0, 0.1, 0.12), b)
 	_note_top(at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
@@ -794,7 +808,7 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		# the other way the camera saw the far insides of every box, dark and
 		# flickering through each other (tests/house_faces.gd).
 		for k in [0, 2, 1, 0, 3, 2]:
-			if key == "glass":
+			if key == "glass" or key == "glass_in":
 				st.set_uv2(_pane_key)
 			st.set_normal(basis * n)
 			st.set_uv(_uv(key, uvs[k], center, tile))
@@ -891,7 +905,7 @@ static func _uv(key: String, m: Vector2, center: Vector3, tile: float) -> Vector
 			return Vector2(m.x / 8.0, STONE_V.y - fposmod(m.y, STONE_BAND) / STONE_BAND * (STONE_V.y - STONE_V.x))
 		"door":
 			return Vector2(m.x / 4.0, 1.0 - m.y / 6.7)
-		"glass":
+		"glass", "glass_in":
 			# The pane in metres, for the curtains painted behind it (see WindowLights.GLASS_SHADER).
 			return m
 		"timber":

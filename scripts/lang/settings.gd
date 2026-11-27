@@ -62,4 +62,10 @@ const EN := {
 	"Der Schein um helle Lichter, Feuer und Fenster.": "The glow round bright lights, fires and windows.",
 	"Schaltet alle Geräusche ein oder aus (Taste M).": "Switches all sounds on or off (key M).",
 	"Schaltet die Musik ein oder aus.": "Switches the music on or off.",
+	"Profile": "Profiles",
+	"Profil %d": "Profile %d",
+	"Überschreiben?": "Overwrite?",
+	"Gelöscht.": "Deleted.",
+	"Ein Profil merkt sich Grafik, Farbe, V-Sync und Bildrate. Fenstermodus, Monitor und Ton bleiben.": "A profile remembers graphics, colour, V-Sync and frame limit. Window mode, monitor and sound stay as they are.",
+	"Der Name des Profils. Zum Ändern anklicken und tippen.": "The profile's name. Click and type to change it.",
 }

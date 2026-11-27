@@ -20,6 +20,29 @@ func _initialize() -> void:
 			if wall.has_hold(c, r) and WallBuild.foot_spot(wall, c, r).x >= 0.0:
 				spots += 1
 	check(spots > 0, "the sample wall has holds with feet off the ground")
+	# Each hold is a stone or a pocket, never both: no pocket lies under a foot stone, no decorative stone on a pocket,
+	# and the sample wall has both kinds.
+	var pockets := 0
+	var stones := 0
+	for r in wall.height:
+		for c in wall.width:
+			if not wall.has_hold(c, r):
+				continue
+			if b.pocket_at(c, r):
+				pockets += 1
+				var centre := WallBuild.square_centre(wall, c, r)
+				for r2 in wall.height:
+					for c2 in wall.width:
+						if wall.has_hold(c2, r2):
+							var f := WallBuild.foot_spot(wall, c2, r2)
+							if f.x >= 0.0:
+								check(not (absf(f.x - centre.x) < WallBuild.FOOT_CLEAR.x and absf(f.y - centre.y) < WallBuild.FOOT_CLEAR.y), "pocket (%d,%d) lies under a foot stone" % [c, r])
+						var d := b.decor_at(c2, r2)
+						if d.x >= 0.0:
+							check(Vector2(d.x, d.y).distance_to(centre) >= WallBuild.DECOR_CLEAR, "decorative stone on pocket (%d,%d)" % [c, r])
+			else:
+				stones += 1
+	check(pockets > 0 and stones > 0, "the sample wall has stones (%d) and pockets (%d)" % [stones, pockets])
 	var mesh := b.foot_mesh()
 	check(mesh != null, "foot stones are built")
 	if mesh != null:

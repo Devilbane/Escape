@@ -195,6 +195,8 @@ static func grained_mesh(mesh: Mesh) -> Mesh:
 	if _grained.has(key):
 		return _grained[key]
 	var out := ArrayMesh.new()
+	var panes_at: Array = []
+	var panes: Array = []
 	for s in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(s)
 		var mat := mesh.surface_get_material(s)
@@ -245,10 +247,121 @@ static func grained_mesh(mesh: Mesh) -> Mesh:
 		# How far each spot lies from the building's outer edges, which the
 		# shader rounds off (see StoneLook).
 		flat[Mesh.ARRAY_CUSTOM0] = StoneLook.edge_data(pos)
-		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, flat, [], {}, StoneLook.custom_format())
+		var split := _split_panes(flat, count)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, split.kit, [], {}, StoneLook.custom_format())
 		out.surface_set_material(out.get_surface_count() - 1, mat)
+		if split.glass != null:
+			# The panes are a surface of their own, clear glass with curtains (see window_lights.gd);
+			# whoever places the mesh gives it that material (see pane_surfaces).
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, split.glass)
+			panes_at.append(out.get_surface_count() - 1)
+			panes.append_array(split.panes)
+	out.set_meta("pane_surfaces", panes_at)
+	out.set_meta("panes", panes)
 	_grained[key] = out
 	return out
+
+
+## The surfaces of a mesh made by grained_mesh that are window glass, and the panes
+## ({"at", "out"}, in the mesh's own frame) they hold.
+static func pane_surfaces(mesh: Mesh) -> Array:
+	return mesh.get_meta("pane_surfaces", []) if mesh != null else []
+
+
+static func panes_of(mesh: Mesh) -> Array:
+	return mesh.get_meta("panes", []) if mesh != null else []
+
+
+## The most the middles of two pieces of one pane lie apart for them to be one (metres).
+const PANE_JOIN := 0.12
+
+## Splits the triangles of window panes (see _whole_panes) from a surface's arrays: `kit` is the
+## surface without them, `glass` a surface of just the panes (null when it has none) whose UV is the
+## place on the pane, 0.8 across and 0.9 up as WindowLights' glass wants it, and whose UV2 is the
+## pane's key; `panes` lists the middle and the way each faces. Panes that lie flat (skylights)
+## stay as they are.
+static func _split_panes(flat: Array, count: int) -> Dictionary:
+	var pos: PackedVector3Array = flat[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = flat[Mesh.ARRAY_TEX_UV]
+	var groups: Array = []
+	for t in range(0, count - 2, 3):
+		if uvs[t].distance_to(KIT_WINDOW_UV) > 0.001:
+			continue
+		var n := -(pos[t + 1] - pos[t]).cross(pos[t + 2] - pos[t]).normalized()
+		if absf(n.y) > 0.4:
+			continue
+		var box := AABB(pos[t], Vector3.ZERO).expand(pos[t + 1]).expand(pos[t + 2])
+		groups.append({"box": box, "n": Vector3(n.x, 0, n.z).normalized(), "tris": [t]})
+	# Pieces that touch are one pane.
+	var merged := true
+	while merged:
+		merged = false
+		for i in groups.size():
+			for j in range(i + 1, groups.size()):
+				var a: Dictionary = groups[i]
+				var b: Dictionary = groups[j]
+				if (a.box as AABB).grow(PANE_JOIN).intersects(b.box) and (a.n as Vector3).dot(b.n) > 0.8:
+					a.box = (a.box as AABB).merge(b.box)
+					a.tris.append_array(b.tris)
+					groups.remove_at(j)
+					merged = true
+					break
+			if merged:
+				break
+	if groups.is_empty():
+		return {"kit": flat, "glass": null, "panes": []}
+	var glass_pos := PackedVector3Array()
+	var glass_nor := PackedVector3Array()
+	var glass_uv := PackedVector2Array()
+	var glass_key := PackedVector2Array()
+	var panes: Array = []
+	var is_glass := {}
+	var normals: PackedVector3Array = flat[Mesh.ARRAY_NORMAL]
+	for g: Dictionary in groups:
+		var box: AABB = g.box
+		var look: Vector3 = g.n
+		var side := Vector3.UP.cross(look)
+		var wide := maxf(absf(box.size.dot(side)), 0.05)
+		var high := maxf(box.size.y, 0.05)
+		var mid := box.get_center()
+		var key := WindowLights.key(mid)
+		# The pane's left edge, seen from outside, is where `side` is least.
+		var left := INF
+		for t: int in g.tris:
+			for k in 3:
+				left = minf(left, pos[t + k].dot(side))
+		for t: int in g.tris:
+			is_glass[t] = true
+			for k in 3:
+				var p := pos[t + k]
+				glass_pos.append(p)
+				glass_nor.append(normals[t + k])
+				glass_uv.append(Vector2((p.dot(side) - left) / wide * 0.8, (p.y - box.position.y) / high * 0.9))
+				glass_key.append(key)
+		panes.append({"at": mid, "out": look})
+	var glass := []
+	glass.resize(Mesh.ARRAY_MAX)
+	glass[Mesh.ARRAY_VERTEX] = glass_pos
+	glass[Mesh.ARRAY_NORMAL] = glass_nor
+	glass[Mesh.ARRAY_TEX_UV] = glass_uv
+	glass[Mesh.ARRAY_TEX_UV2] = glass_key
+	# What is left of the surface: every array without the panes' triangles.
+	var kit := []
+	kit.resize(Mesh.ARRAY_MAX)
+	for slot in Mesh.ARRAY_MAX:
+		if flat[slot] == null:
+			continue
+		var src = flat[slot]
+		var stride: int = src.size() / count
+		var dst = src.duplicate()
+		dst.resize(0)
+		for t in range(0, count - 2, 3):
+			if is_glass.has(t):
+				continue
+			for i in range(t * stride, (t + 3) * stride):
+				dst.append(src[i])
+		kit[slot] = dst
+	return {"kit": kit, "glass": glass, "panes": panes}
 
 
 ## The KayKit window panes are fans whose middle sits on the window's spot of

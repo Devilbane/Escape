@@ -3,6 +3,8 @@ extends RefCounted
 ## Merged into Lang.EN (see Lang.PARTS).
 
 const EN := {
+	"Ladebildschirm": "Loading screen",
+	"Zeigt den Ladebildschirm mit dem Titelbild und den Patchnotes des neuesten Builds noch einmal. Ein Klick oder Esc schließt ihn.": "Shows the loading screen with the key art and the newest build's patch notes again. A click or Esc closes it.",
 	"Befehle": "Commands",
 	"Befehle für Tests. Schreibe sie in die Chatzeile (Enter) und schicke sie mit Enter ab.": "Commands for testing. Type them into the chat line (Enter) and send with Enter.",
 	"Beispiele": "Examples",

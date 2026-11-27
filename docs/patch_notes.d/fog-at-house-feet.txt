@@ -1,0 +1,1 @@
+- Fog now also covers the ground right in front of house walls.

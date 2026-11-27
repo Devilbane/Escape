@@ -1,0 +1,1 @@
+- Roof tiles no longer flicker with speckles or pale seams, up close and from afar.

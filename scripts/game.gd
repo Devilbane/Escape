@@ -119,6 +119,11 @@ var _house_blessing_clock := 0.0
 const HOUSE_BLESSING_CHECK := 0.25
 ## How far the hour must move before the village's lamps, windows and fires are set again (game hours; some 0.2 seconds).
 const HOUR_STEP := 0.004
+## The season, the snow and the ice change over days and minutes, so they are handed to the open air
+## when one of their numbers moved a visible step, and in any case this often (seconds), for what
+## is built or comes into being in between.
+const WORLD_LOOK_EVERY := 1.5
+const SNOW_LOOK_STEP := 0.004
 var _flash := 0.0
 ## The rain that falls and the mist that drifts around the hero (its patter is
 ## part of the Soundscape).
@@ -232,6 +237,11 @@ var mage_duel := MageDuel.new(self)
 var trader_role := ""
 ## Counts down to the next look at who has a task (see refresh_quest_marks).
 var _quest_mark_timer := 0.0
+var _look_clock := 0.0
+var _look_level: Node = null
+var _look_day := -1
+var _look_snow := Vector3(-1, -1, -1)
+var _look_ice := -1.0
 ## The town house on Weavers' Lane the hero is inside right now (see Homes),
 ## or 0 when they are not in one.
 var inside_house := 0
@@ -748,7 +758,7 @@ func _ready() -> void:
 		_rest_hero()
 	else:
 		load_level(_start_level())
-	_show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies"))
+	_show_start_title("Escape!", LoadingScreen.TAGLINE)
 	# The village gets ready behind the title, so the crypt door is quick later.
 	WorldPreload.start(self)
 	LoadingScreen.start(_hud, self)
@@ -795,6 +805,12 @@ func _start_playtest() -> void:
 func back_to_editor() -> void:
 	get_tree().paused = false
 	get_tree().change_scene_to_file(EDITOR_SCENE)
+
+
+## Leaves the title screen for the climbing wall workshop (its editor and the climbing simulation).
+func open_wall_workshop() -> void:
+	get_tree().paused = false
+	get_tree().change_scene_to_file("res://scenes/wall_workshop.tscn")
 
 
 ## Lets a link like .../Escape/?level=3 jump straight to a level.
@@ -1875,7 +1891,7 @@ func _setup_hud() -> void:
 	title_row.add_theme_constant_override("separation", 20)
 	_title.add_child(title_row)
 	_title_buttons = title_row
-	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game], [Lang.t("Karten-Werkstatt"), back_to_editor]]:
+	for entry in [[Lang.t("Spielstand laden"), open_load_window], [Lang.t("Neues Spiel"), new_game], [Lang.t("Karten-Werkstatt"), back_to_editor], [Lang.t("Kletterwand-Werkstatt"), open_wall_workshop]]:
 		var b := _make_button(entry[0], entry[1])
 		b.custom_minimum_size = Vector2(240, 64)
 		title_row.add_child(b)
@@ -3209,15 +3225,27 @@ func _tick_clock(delta: float) -> void:
 			var today := season_day()
 			level.season_day = today
 			level.set_winter_wear(Weather.is_winter(today))
-			level.set_season(today)
+			_look_clock -= delta
+			var due := _look_clock <= 0.0 or _look_level != level
+			if due or today != _look_day:
+				_look_day = today
+				level.set_season(today)
 			# The lamps, windows and fires follow the hour: a few times a second is plenty (a game
 			# hour passes in 50 seconds), and the first call for a new level always goes through.
 			if level.hour < 0.0 or absf(level.hour - day_hour) >= HOUR_STEP:
 				level.set_hour(day_hour)
 			level.set_weather(weather)
 			level.set_puddles(puddle_water, _weather_look.rain, clampf(_env.ambient_light_energy / 0.52, 0.05, 1.0))
-			level.set_snow(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0), lerpf(0.25, 1.0, Moon.light(day)) * DayNight.moon_at(day_hour))
-			level.set_ice(ice_cover)
+			var snow_look := Vector3(snow_cover, clampf(_env.ambient_light_energy / 0.52, 0.0, 1.0), lerpf(0.25, 1.0, Moon.light(day)) * DayNight.moon_at(day_hour))
+			if due or absf(snow_look.x - _look_snow.x) > 0.0 or absf(snow_look.y - _look_snow.y) >= SNOW_LOOK_STEP or absf(snow_look.z - _look_snow.z) >= SNOW_LOOK_STEP:
+				_look_snow = snow_look
+				level.set_snow(snow_look.x, snow_look.y, snow_look.z)
+			if due or ice_cover != _look_ice:
+				_look_ice = ice_cover
+				level.set_ice(ice_cover)
+			if due:
+				_look_level = level
+				_look_clock = WORLD_LOOK_EVERY
 			if level.moon_night >= 0 and (Moon.is_full(level.moon_night) or Moon.is_new(level.moon_night)):
 				learn(Moon.LORE)
 	if _clock_text() != _clock_shown or _moon_phase_shown() != _moon_shown or _season_shown_now() != _season_shown:
@@ -4426,7 +4454,7 @@ func quit_game() -> void:
 	player.frozen = true
 	var tween := create_tween()
 	tween.tween_property(_fade, "color", Color(0.03, 0.015, 0.04, 1.0), 0.8)
-	tween.tween_callback(func(): _show_start_title("Escape!", Lang.t("Entkomme aus dem Verlies")))
+	tween.tween_callback(func(): _show_start_title("Escape!", LoadingScreen.TAGLINE))
 
 
 ## Name, hero level, map level, gold, slot and time of a saved game (by
@@ -6106,6 +6134,9 @@ func _hero_says(text: String) -> void:
 	var goto: Variant = GotoCommand.parse(text)
 	if goto != null:
 		_goto_command(goto)
+		return
+	if LoadingScreen.is_command(text):
+		LoadingScreen.show_again(_hud)
 		return
 	if Godmode.is_command(text):
 		_toggle_godmode()
@@ -9055,7 +9086,8 @@ func gift_target() -> Enemy:
 	var best: Enemy = null
 	var best_d := GIFT_RANGE
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead or not e.visible:
+		if not is_instance_valid(e) or e.dead or not e.visible \
+				or not SlimeGrowth.same_world(e.global_position, player.global_position):
 			continue
 		var d := _reach(e.global_position)
 		if d < best_d:
@@ -9137,7 +9169,8 @@ func _click(point: Vector3) -> void:
 	player.cancel_ladder()
 	fishing.cancel_walk()
 	for e in level.enemies:
-		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
+		if is_instance_valid(e) and not e.dead and e.visible and SlimeGrowth.same_world(e.global_position, player.global_position) \
+				and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
 			if e.is_friend():
 				# The hero's friends are not attacked (see Factions).
 				show_message(Lang.t(Factions.FACTIONS[Factions.of(e.kind)].friend), 1.6)

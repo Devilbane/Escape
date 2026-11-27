@@ -3443,6 +3443,9 @@ func _house_glass() -> ShaderMaterial:
 		var curtains := VillageHouse.curtain_cloth()
 		curtains.set_shader_parameter("colour", Vector3(WINDOW_LIGHT.r, WINDOW_LIGHT.g, WINDOW_LIGHT.b))
 		_window_mats[curtains] = curtains
+		# The same pane seen from inside a room never shines by itself.
+		var inner := VillageHouse.inner_glass()
+		_window_mats[inner] = inner
 	return _scenes["mat_house_glass"]
 
 
@@ -3499,9 +3502,28 @@ func _age_kit_building(node: Node) -> void:
 			continue
 		if not _window_mats.has(mat):
 			_window_mats[mat] = AgedStone.kit_material((mat as StandardMaterial3D).albedo_texture, _window_mask)
-		mi.material_override = _window_mats[mat]
 		# The way each beam runs, for the grain of its wood.
 		mi.mesh = AgedStone.grained_mesh(mi.mesh)
+		for surface in mi.mesh.get_surface_count():
+			mi.set_surface_override_material(surface, _window_mats[mat])
+		# Its windows are clear glass over curtains, like the houses' (see _house_glass), not the
+		# palette's flat white; the ivy and the snow learn where they are.
+		var glass_surfaces := AgedStone.pane_surfaces(mi.mesh)
+		if glass_surfaces.is_empty():
+			continue
+		var glass := _house_glass()
+		for surface: int in glass_surfaces:
+			mi.set_surface_override_material(surface, glass)
+		var windows: Array = node.get_meta("windows", []) if node.has_meta("windows") else []
+		var outs: Array = node.get_meta("window_outs", []) if node.has_meta("window_outs") else []
+		if windows.size() != outs.size():
+			continue
+		var into: Transform3D = (node as Node3D).global_transform.affine_inverse() * mi.global_transform
+		for pane: Dictionary in AgedStone.panes_of(mi.mesh):
+			windows.append(into * (pane.at as Vector3))
+			outs.append((into.basis * (pane.out as Vector3)).normalized())
+		node.set_meta("windows", windows)
+		node.set_meta("window_outs", outs)
 
 
 ## Whether a building's block stands on its own: no paving of the square

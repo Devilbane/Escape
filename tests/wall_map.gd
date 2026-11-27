@@ -163,7 +163,24 @@ func _climb() -> void:
 	d.go(WallMap.UP, 0.0)
 	d.go(WallMap.UP, 0.0)
 	check(d.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.FELL and d.on_ground(), "without a nail a fall reaches the ground")
-	# Three falls to a nail end the climb.
+	# Four falls to a nail end the climb; three do when the meter is under half; resting resets the count.
+	var e3 := WallClimb.new(m, 30)
+	for i in 3:
+		e3.go(WallMap.UP, 0.0)
+	e3.falls = 2
+	e3.stamina = 0.4 * e3.stamina_cap()
+	check(e3.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.GAVE_UP, "the third fall with less than half the meter ends the climb")
+	var e4 := WallClimb.new(m, 30)
+	for i in 3:
+		e4.go(WallMap.UP, 0.0)
+	e4.falls = 2
+	e4.stamina = e4.stamina_cap()
+	check(e4.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.FELL, "the third fall with a full meter does not end it")
+	e4.catch_breath()
+	check(e4.falls == 0, "resting resets the falls")
+	e4.stamina = 0.0
+	e4.catch_breath()
+	check(is_equal_approx(e4.stamina, WallClimb.REST_BOOST * e4.stamina_max), "resting gives back 85% of the meter")
 	var e := WallClimb.new(m, 30)
 	for i in 3:
 		e.go(WallMap.UP, 0.0)
@@ -171,7 +188,7 @@ func _climb() -> void:
 	for i in WallClimb.new(m, 1).options().size() + 3:
 		ended = e.go(WallMap.UP, 0.999, 0.0) == WallClimb.Outcome.GAVE_UP or ended
 		e.cell = e.nail
-	check(ended, "three falls to a nail end the climb")
+	check(ended, "four falls to a nail end the climb")
 	# A surface takes a hold the hands had, and that is always a fall.
 	var f := WallMap.blank()
 	f.level = 1
@@ -317,15 +334,37 @@ func _stamina() -> void:
 	e.go(WallMap.UP, 0.0)
 	e.stamina = 0.0
 	e.recover(1.0)
-	check(is_equal_approx(e.stamina, e.recovery * WallClimb.REST_GOOD), "on an easy hold it comes back four times as fast")
+	check(is_equal_approx(e.stamina, 0.0), "hanging still on an easy hold gives nothing back: only resting does")
 	e.cell = Vector2i(5, 10)
 	e.stamina = 0.0
 	e.recover(1.0)
-	check(is_equal_approx(e.stamina, e.recovery * WallClimb.REST_POOR), "on a hard hold it hardly comes back")
+	check(is_equal_approx(e.stamina, 0.0), "hanging still on a hard hold gives nothing back")
 	e.nail = Vector2i(5, 10)
 	e.stamina = 0.0
 	e.recover(1.0)
-	check(is_equal_approx(e.stamina, e.recovery * WallClimb.REST_GOOD), "at a nail it comes back fast again")
+	check(is_equal_approx(e.stamina, 0.0), "hanging still at a nail gives nothing back")
+	e.stamina = 0.0
+	e.catch_breath()
+	check(e.stamina > 0.0, "resting (catching breath) does give it back")
+	# Injuries (a stone, a lightning strike): they lower the skill and the meter, a rest place heals them.
+	var g := WallClimb.new(WallMap.load_file("res://walls/sample_three_paths.txt"), 30)
+	g.dexterity = 14
+	var jump_before := g.jump_bonus()
+	var cap_before := g.stamina_cap()
+	g.injure(2)
+	check(g.injury == 2 and g.jump_bonus() == jump_before - 2, "an injury takes levels off Geschick for a jump")
+	check(g.stamina_cap() < cap_before and g.stamina <= g.stamina_cap(), "an injury lowers what the meter holds")
+	g.injure(5)
+	check(g.injury == WallClimb.MAX_INJURY, "an injury has a ceiling")
+	g.injury = 3
+	g.cell = Vector2i(5, 13)
+	g.clock = 8.0
+	check(g.at_camp(), "the test square is a rest place")
+	g.bivouac()
+	check(g.injury == 2, "a day's rest at a rest place heals one level")
+	g.clock = 21.0
+	g.bivouac()
+	check(g.injury == 0, "a night's rest heals the rest")
 	# A long climb without rest tires the climber out.
 	var f := WallClimb.new(m, 30)
 	f.set_constitution(5)

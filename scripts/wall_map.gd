@@ -17,6 +17,8 @@ extends RefCounted
 ##   name: Sample face
 ##   level: 3
 ##   summit: 11_die_freiheit.txt:square   (optional: where the top of the wall leads)
+##   door: 22_die_glutstollen.txt:square  (optional: where a door or secret marker leads, into a dungeon or mine; a secret
+##   door looks like plain rock, with no sign, until the climber reaches it)
 ##   size: 24 24
 ##   [holds]
 ##   - 1udlr 2r ...          (one line per row, the squares divided by spaces)
@@ -61,6 +63,10 @@ const MARKERS := {
 	"cave": {"name": "Höhle", "text": "Hier öffnet sich eine Höhle im Fels.", "colour": Color(0.6, 0.5, 0.8)},
 	"nest": {"name": "Drachennest", "text": "Ein Drachennest! Verbrannte Knochen und warme Asche.", "colour": Color(0.9, 0.4, 0.2)},
 	"tomb": {"name": "Grabkammer", "text": "Eine Grabkammer der Priester, still seit Jahrhunderten.", "colour": Color(0.85, 0.75, 0.45)},
+	"tar": {"name": "Bergteer", "text": "Aus einem Riss im Fels quillt dunkles, klebriges Harz: Bergteer. Du kratzt davon ab.", "colour": Color(0.85, 0.6, 0.25)},
+	"edelweiss": {"name": "Edelweiß", "text": "Auf einem schmalen Absatz blüht ein Büschel Edelweiß. Du pflückst es.", "colour": Color(0.95, 0.97, 1.0)},
+	"door": {"name": "Stollentür", "text": "Eine alte Tür im Fels. Dahinter beginnt ein Stollen.", "colour": Color(0.8, 0.6, 0.35)},
+	"secret": {"name": "Geheimtür", "text": "Der Fels klingt hohl. Ein Stein schwingt auf: eine verborgene Tür!", "colour": Color(0.8, 0.6, 0.35), "hidden": true},
 	"camp": {"name": "Rastplatz", "text": "Ein Felsband, breit genug zum Rasten: hier kann man die Nacht verbringen (R).", "colour": Color(1.0, 0.8, 0.4)},
 	"body": {"name": "Toter Kletterer", "text": "Ein toter Kletterer hängt im Seil. Seine Ausrüstung ist noch brauchbar.", "colour": Color(0.75, 0.75, 0.8)},
 }
@@ -71,6 +77,8 @@ var level := 3
 ## Where the top of the wall leads, as "level file:place" (see Teleport and TestPanel.PLACES, e.g.
 ## "11_die_freiheit.txt:square"), or "" for nothing (the climber just stands on top).
 var summit := ""
+## Where the door (marker "door") leads, "level file:place" like the summit; empty for a door that only shows.
+var door := ""
 var width := MIN_SIZE
 var height := MIN_SIZE
 ## Per square, row by row: the malus (NO_HOLD for smooth rock), the direction mask and the hazard.
@@ -113,6 +121,7 @@ func resized(w: int, h: int) -> WallMap:
 	out.wall_name = wall_name
 	out.level = level
 	out.summit = summit
+	out.door = door
 	for r in mini(height, out.height):
 		for c in mini(width, out.width):
 			out.malus[r * out.width + c] = malus[r * width + c]
@@ -316,6 +325,8 @@ func to_text() -> String:
 	lines.append("level: %d" % level)
 	if summit != "":
 		lines.append("summit: %s" % summit)
+	if door != "":
+		lines.append("door: %s" % door)
 	lines.append("size: %d %d" % [width, height])
 	lines.append("[holds]")
 	for r in height:
@@ -382,6 +393,8 @@ static func parse(text: String) -> WallMap:
 					m.level = clampi(int(value), 1, 99)
 				"summit":
 					m.summit = value
+				"door":
+					m.door = value
 				"size":
 					var nums := value.split(" ", false)
 					if nums.size() == 2 and nums[0].is_valid_int() and nums[1].is_valid_int():

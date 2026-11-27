@@ -57,6 +57,10 @@ const TREE_CLEARANCE := 1.4
 const BUSH_CLEARANCE := 1.8
 ## Where the foot eases from the flat ground into the slope (metres): a curve instead of a sharp crease.
 const FOOT_ROUND := 1.6
+## The rock's edge towards the open ground is see-through: how opaque it is at the edge, and how many metres into the rock
+## it is solid again. The distance wanders, so the fade runs along no straight tile line.
+const EDGE_ALPHA := 0.2
+const EDGE_FADE := 2.6
 
 
 ## Whether a spot on the ground (x, z in metres) lies within `margin` of mountain rock, where the rock
@@ -219,7 +223,10 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 		var row := []
 		for ix in nx + 1:
 			var p: Vector3 = points[iz][ix]
-			row.append(_paint(p, normals[iz][ix], noise, rng))
+			var colour := _paint(p, normals[iz][ix], noise, rng)
+			var inside := _distance_at(dist, p.x, p.z) + noise.get_noise_2d(p.x * 2.1 + 90.0, p.z * 2.1) * 1.6
+			colour.a = lerpf(EDGE_ALPHA, 1.0, smoothstep(0.0, EDGE_FADE, inside))
+			row.append(colour)
 		paint.append(row)
 	# Weathered like the village stone (see AgedStone.rock_material).
 	var mat := AgedStone.rock_material()
@@ -228,7 +235,11 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 		for cx in range(0, nx, per):
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			# The squares along the open ground, whose corners are see-through, go in a mesh of their own.
+			var soft := SurfaceTool.new()
+			soft.begin(Mesh.PRIMITIVE_TRIANGLES)
 			var faces := 0
+			var soft_faces := 0
 			for iz in range(cz, mini(cz + per, nz)):
 				for ix in range(cx, mini(cx + per, nx)):
 					var corner := func(dx: int, dz: int) -> Array:
@@ -237,19 +248,36 @@ static func build(level: Level, seed_value: int, flat: Array[Rect2] = []) -> Arr
 					var b: Array = corner.call(1, 0)
 					var c: Array = corner.call(0, 1)
 					var d: Array = corner.call(1, 1)
+					var edge := false
+					for q: Array in [a, b, c, d]:
+						if (q[2] as Color).a < 0.999:
+							edge = true
+					var into := soft if edge else st
+					var n := 0
 					# Alternate the diagonal so the facets do not line up.
 					if (ix + iz) % 2 == 0:
-						faces += _smooth_face(st, a, b, d) + _smooth_face(st, a, d, c)
+						n = _smooth_face(into, a, b, d) + _smooth_face(into, a, d, c)
 					else:
-						faces += _smooth_face(st, a, b, c) + _smooth_face(st, b, d, c)
-			if faces == 0:
-				continue
-			var node := MeshInstance3D.new()
-			node.name = "Mountains"
-			node.mesh = st.commit()
-			node.material_override = mat
-			level.add_child(node, true)
-			built.append(node)
+						n = _smooth_face(into, a, b, c) + _smooth_face(into, b, d, c)
+					if edge:
+						soft_faces += n
+					else:
+						faces += n
+			if faces > 0:
+				var node := MeshInstance3D.new()
+				node.name = "Mountains"
+				node.mesh = st.commit()
+				node.material_override = mat
+				level.add_child(node, true)
+				built.append(node)
+			if soft_faces > 0:
+				var node := MeshInstance3D.new()
+				node.name = "MountainsEdge"
+				node.mesh = soft.commit()
+				node.material_override = MountainFoot.foot_material()
+				node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				level.add_child(node, true)
+				built.append(node)
 	return built
 
 

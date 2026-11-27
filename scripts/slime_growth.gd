@@ -298,6 +298,12 @@ static func same_world(a: Vector3, b: Vector3) -> bool:
 	return not (LostMine.apart(a, b) or Sewers.apart(a, b))
 
 
+## Whether a point lies up in the open air, not down in the mine or the sewers. Everything above
+## that watches for slimes (wall, gate, bell, mages, hiding villagers) only counts those up here.
+static func above(p: Vector3) -> bool:
+	return not LostMine.holds(p) and not Sewers.holds(p)
+
+
 ## What `n` is as a meal: "villager", an animal's kind, or "".
 static func snack_key(n) -> String:
 	if n is Villager:
@@ -493,7 +499,7 @@ static func try_merge(e: Enemy) -> bool:
 
 static func _mergeable(e: Enemy, o) -> bool:
 	return is_instance_valid(o) and o is Enemy and o != e and not o.dead and o.kind == e.kind \
-			and o.swallowed_by == null and not o.is_friend()
+			and o.swallowed_by == null and not o.is_friend() and same_world(e.global_position, o.global_position)
 
 
 ## The slimes of the open air as they are now, to keep while the hero is

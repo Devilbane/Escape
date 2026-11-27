@@ -60,8 +60,17 @@ void fragment() {
 	view.xyz /= view.w;
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz;
 	vec3 cam = CAMERA_POSITION_WORLD;
-	// Nothing of the clouds over what lies inside a house: the outside keeps them.
-	if (indoors(world)) {
+	// Nothing of the clouds over what lies inside a house: the outside keeps them. The indoor mask reaches
+	// past the floor plan over the walls (see IndoorMask), so the outer face of a wall lies inside it. Above
+	// the floor a spot is therefore read 0.8 m nearer to the camera (the mask is coarse, half a metre per
+	// pixel): seen from outside, the outer face of a wall then lies outside the house and keeps its fog,
+	// while floors, wall tops and what stands deep inside are read where they are.
+	vec3 probe = world;
+	vec2 towards = cam.xz - world.xz;
+	if (world.y > 0.2 && dot(towards, towards) > 1e-6) {
+		probe.xz += normalize(towards) * 0.8;
+	}
+	if (indoors(probe)) {
 		discard;
 	}
 	// The clouds float in the air: a few thin layers above the ground. The view ray meets each

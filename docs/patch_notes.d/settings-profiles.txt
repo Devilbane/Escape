@@ -1,0 +1,1 @@
+- Settings window: new Profiles tab to save, load, overwrite and delete up to eight named sets of graphics, colour, V-Sync and frame limit settings.

@@ -83,15 +83,25 @@ vec4 drape(vec2 uv, vec2 hm, vec2 pk, out vec3 lit_tint) {
 	}
 	dye *= 0.9 + 0.2 * h21(hm + 3.7);
 	float wk = h21(pk * 0.5 + 5.3);
-	// The curtain: from each side to `reach`, pinched where it is tied back, flaring below.
+	// The drape: a panel at each side of the window, gathered by a tieback in the lower third, narrow
+	// there, wide at the rod and flaring to the hem, so the glass in the middle stays bare. Drawn shut
+	// (see curtains_shut) the two panels meet in the middle.
 	float d = min(q.x, 1.0 - q.x);
 	float shut = curtains_shut(pk);
-	float tie = exp(-pow((q.y - 0.45) / 0.1, 2.0)) * (1.0 - shut);
-	float reach = mix(0.27 + 0.05 * wk - 0.1 * tie + 0.07 * (1.0 - smoothstep(0.0, 0.4, q.y)), 0.52, shut);
+	float tie_y = 0.3;
+	float above = smoothstep(tie_y, 0.95, q.y);
+	float below = smoothstep(tie_y, 0.0, q.y);
+	float open_reach = 0.17 + 0.05 * wk + 0.12 * above + 0.1 * below;
+	float reach = mix(open_reach, 0.52, shut);
 	float cover = smoothstep(reach + 0.012, reach - 0.012, d);
-	// Folds run down the cloth, deeper towards the edge, and swing a little with the height.
-	float fold = 0.5 + 0.5 * sin(d * 58.0 + hh * 6.0 + q.y * 1.6 + tie * 3.0);
-	float shade = 0.62 + 0.5 * fold - 0.2 * smoothstep(0.0, reach, reach - d);
+	// Long soft pleats run down the cloth: deeper towards the wall, drifting a little with the height.
+	float fold = 0.5 + 0.5 * sin(d * 52.0 + hh * 6.0 + sin(q.y * 2.4 + hh * 4.0) * 0.8);
+	float depth_in = smoothstep(0.0, reach, reach - d);
+	float shade = 0.6 + 0.5 * fold - 0.18 * depth_in;
+	// Shut, the pleats stay the same; open, the tieback pulls the cloth in a little: a darker crease
+	// above and below the cord.
+	float cord_y = abs(q.y - tie_y);
+	shade *= 1.0 - 0.25 * (1.0 - shut) * smoothstep(0.1, 0.03, cord_y) * (1.0 - smoothstep(0.03, 0.0, cord_y));
 	// A pattern in the cloth: stripes, checks or plain, by house.
 	float kind = h21(hm + 9.1);
 	vec3 cloth = dye;
@@ -107,6 +117,11 @@ vec4 drape(vec2 uv, vec2 hm, vec2 pk, out vec3 lit_tint) {
 	cloth *= shade * weave;
 	// A band of trim along the hem.
 	cloth = mix(cloth, dye * 1.2 + 0.05, smoothstep(0.075, 0.06, q.y) * smoothstep(0.03, 0.04, q.y));
+	// The tieback: a cord round the gathered panel with a small tassel hanging at its inner end.
+	vec3 cord_col = dye * 0.55 + vec3(0.32, 0.26, 0.1);
+	float cord = step(cord_y, 0.014) * (1.0 - shut) * cover;
+	float tassel = (1.0 - shut) * step(abs(d - reach * 0.9), 0.012) * step(tie_y - 0.07, q.y) * step(q.y, tie_y) * cover;
+	cloth = mix(cloth, cord_col * (0.8 + 0.4 * sin(uv.x * 400.0)), max(cord, tassel));
 	// The pelmet across the top: scalloped, and the brass rod above it.
 	float scallop = 0.86 + 0.03 * abs(sin(q.x * 15.7));
 	float pelmet = step(scallop, q.y);
@@ -149,7 +164,7 @@ void fragment() {
 	// At night the room is lit: the open middle shines, the cloth in its own colour.
 	vec3 lit_tint = mix(vec3(1.0), lit_cloth, drawn.a);
 	lit_tint *= 0.65 + 0.35 * smoothstep(0.7, 0.0, abs(q.x - 0.5) + abs(q.y - 0.5) * 0.4);
-	EMISSION = gl_glow(colour * lit_tint, glow * window_lit(key));
+	EMISSION = SHINE;
 	ALBEDO = gl_colour(ALBEDO);
 	EMISSION = gl_colour(EMISSION);
 }
@@ -192,8 +207,10 @@ static func key(at: Vector3) -> Vector2:
 
 
 ## The glass of the houses' windows; `light` is the glow colour.
-static func glass_material(light: Color) -> ShaderMaterial:
-	return _lit_material(GLASS_SHADER, light)
+## With `inside` the pane seen from within a room, which gives no light of its own.
+static func glass_material(light: Color, inside := false) -> ShaderMaterial:
+	var shine := "vec3(0.0)" if inside else "gl_glow(colour * lit_tint, glow * window_lit(key))"
+	return _lit_material(GLASS_SHADER.replace("SHINE", shine), light)
 
 
 ## The curtains inside the windows one looks through; driven like the glass (see Outdoor.set_hour).

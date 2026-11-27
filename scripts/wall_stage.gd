@@ -27,6 +27,13 @@ signal weather_changed(weather: String)
 signal hurt(amount: int)
 ## The climber reached a square with a goal or event (a key of WallMap.MARKERS) for the first time.
 signal marker_reached(kind: String, cell: Vector2i)
+## The climber took an ingredient from a special spot of the wall (marker "tar", "edelweiss"; see WallSpots.GATHER).
+signal gathered(ingredient: String, count: int)
+## The climber reached a door in the wall (marker "door"); the wall's `door` says where it leads.
+signal door_reached(cell: Vector2i)
+
+## The hidden doors on the face (marker "secret") by cell, to swing them open.
+var _secrets := {}
 
 const FOLLOW_DISTANCE := 10.0
 const OVERVIEW_MARGIN := 1.25
@@ -36,6 +43,13 @@ const GRAZE_DAMAGE := 3
 ## Meter spent per second of bracing against the rock.
 const BRACE_COST := 1.5
 const WORSEN_EVERY := 70.0
+## The climber stands this much (m) above the middle of the foot stone: on its top, not in it.
+const FOOT_RAISE := 0.12
+## With chaos the sky changes after this many seconds on average (at chaos 0 and at chaos 1).
+const CHAOS_WEATHER_CALM := 160.0
+const CHAOS_WEATHER_WILD := 45.0
+## In clear weather a stone falls every this many seconds at chaos 1 (more rarely below).
+const CHAOS_CLEAR_FALL := 60.0
 ## The climber's height (metres) where the cloud sea begins to fill the foot of the view, and is full.
 const CLOUD_FROM := 7.0
 const CLOUD_FULL := 12.0
@@ -49,6 +63,14 @@ const THREAD_SECONDS := 1.4
 const TOP_SECONDS := 2.0
 const FALL_SECONDS := 0.8
 const REST_SECONDS := 2.4
+## The night in the hammock: wrapped up, snoring, about this many seconds.
+const BED_SECONDS := 20.0
+const SNORE_EVERY := 2.8
+## Waking up: a yawn and an arm stretch before he climbs out.
+const WAKE_SECONDS := 2.6
+## A lightning strike in a storm: only on a climber higher than this (m) and at this chance per flash.
+const LIGHTNING_MIN_HEIGHT := 5.0
+const LIGHTNING_CHANCE := 0.3
 ## A leap: crouch, spring and reach (poses on top of RopeClimbPose's).
 const LEAP_POSES := {
 	"crouch": {"hips_y": -0.14, "spine": 18.0, "head": -20.0, "arm": 150.0, "elbow": 30.0, "hip_l": 70.0, "hip_r": 70.0, "knee_l": 100.0, "knee_r": 100.0},
@@ -57,8 +79,14 @@ const LEAP_POSES := {
 	"spring": {"hips_y": 0.1, "spine": -8.0, "head": -26.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 70.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 70.0, "elbow_r": 0.0, "hip_l": 8.0, "hip_r": 12.0, "knee_l": 8.0, "knee_r": 14.0, "abd_l": 20.0, "abd_r": 20.0},
 	"catch": {"hips_y": -0.06, "spine": 12.0, "head": -24.0, "arm": 150.0, "elbow": 75.0, "hip_l": 72.0, "hip_r": 66.0, "knee_l": 92.0, "knee_r": 88.0, "abd_l": 30.0, "abd_r": 30.0},
 }
+## The arm stretch on waking: both arms high and out, the head tipped back.
+## Lying in the hammock he curls like a banana: shoulders, head and raised legs up, the hips the lowest point (the
+## bag is bent the same way, see WallHammock.bend).
+const SLEEP_CURL := {"hips_y": -0.1, "spine": 18.0, "chest": 8.0, "head": -16.0, "arm": 150.0, "elbow": 50.0, "hip_l": 40.0, "hip_r": 36.0, "knee_l": 14.0, "knee_r": 18.0, "abd_l": 8.0, "abd_r": 8.0}
+const STRETCH_POSE := {"hips_y": 0.0, "spine": -8.0, "head": -14.0, "arm_l": 0.0, "out_l": 35.0, "lift_l": 160.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 35.0, "lift_r": 160.0, "elbow_r": 0.0}
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],
+	WallWeather.FOG: [Color(0.64, 0.67, 0.7), 0.55, 0.85],
 	WallWeather.WIND: [Color(0.5, 0.6, 0.7), 1.0, 0.65],
 	WallWeather.RAIN: [Color(0.27, 0.3, 0.34), 0.5, 0.45],
 	WallWeather.SNOW: [Color(0.72, 0.75, 0.8), 0.8, 0.8],
@@ -70,6 +98,9 @@ var wall: WallMap
 var climb: WallClimb
 var interactive := true
 var drift := false
+## How wild the climb is, 0..1 (0: nothing happens on its own): how often the weather changes at random, stones fall
+## and lightning strikes in a storm. The default is a sensible middle.
+var chaos := 0.5
 ## Set by a test: the climber braces without a key held.
 var force_brace := false
 var weather := WallWeather.CLEAR
@@ -242,10 +273,24 @@ func _build() -> void:
 
 ## The signs of the goals and events on the wall, and the dead climber hanging in his rope where there is one.
 func _build_markers() -> void:
+	_secrets.clear()
 	for cell: Vector2i in wall.markers:
 		var kind := String(wall.markers[cell])
 		var xy := WallBuild.square_centre(wall, cell.x, cell.y)
 		var z := _builder.depth_at(xy.x, xy.y)
+		if bool(WallMap.MARKERS[kind].get("hidden", false)):
+			var secret := WallSpots.build(kind, int(cell.x * 31 + cell.y))
+			secret.position = Vector3(xy.x, xy.y, z)
+			var stones := _builder.secret_mesh(cell.x, cell.y)
+			if stones != null:
+				var rock := MeshInstance3D.new()
+				rock.mesh = stones
+				rock.material_override = AgedStone.rock_material()
+				rock.position = Vector3(WallSpots.SECRET_WIDTH * 0.5 - xy.x, -xy.y, -z)
+				secret.get_node("Pivot/Slab").add_child(rock)
+			wall_root.add_child(secret)
+			_secrets[cell] = secret
+			continue
 		var label := Label3D.new()
 		label.text = Lang.t(String(WallMap.MARKERS[kind].name))
 		label.font_size = 56
@@ -256,6 +301,10 @@ func _build_markers() -> void:
 		label.shaded = false
 		label.position = Vector3(xy.x, xy.y + 1.1, z + 0.6)
 		wall_root.add_child(label)
+		var spot := WallSpots.build(kind, int(cell.x * 31 + cell.y))
+		if spot != null:
+			spot.position = Vector3(xy.x, xy.y, z) + WallSpots.offset(kind)
+			wall_root.add_child(spot)
 		if kind == "body":
 			var dead := WallClimber.make()
 			dead.model.position = Vector3(xy.x + 0.6, xy.y - 1.9, z + 0.55)
@@ -289,7 +338,7 @@ func feet_of(cell: Vector2i) -> Vector3:
 	if cell == WallClimb.NOWHERE:
 		return Vector3(_start_column(), 0.0, 1.0)
 	var xy := WallBuild.square_centre(wall, cell.x, cell.y)
-	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP), _builder.depth_at(xy.x, xy.y) + 0.4)
+	return Vector3(xy.x, maxf(0.0, xy.y - WallBuild.FOOT_DROP + FOOT_RAISE), _builder.face_depth_at(xy.x, xy.y) + 0.3)
 
 
 func _start_column() -> float:
@@ -357,6 +406,8 @@ static func _warning(sky: String) -> String:
 			return "Eis legt sich auf den Fels."
 		WallWeather.WIND:
 			return "Sprünge über Spalten werden gefährlicher."
+		WallWeather.FOG:
+			return "Nebel: du siehst die nächsten Griffe schlecht."
 		WallWeather.STORM:
 			return "Alles ist schwerer, und Steine fallen. Such Deckung oder gib auf."
 	return "Es klart auf."
@@ -385,6 +436,10 @@ func _apply_sky(instant: bool) -> void:
 	_sun.light_energy = float(s[1])
 	_env.ambient_light_energy = float(s[2])
 	_env.ambient_light_color = (s[0] as Color).lerp(Color(0.7, 0.72, 0.78), 0.5)
+	_env.fog_enabled = weather == WallWeather.FOG
+	if weather == WallWeather.FOG:
+		_env.fog_light_color = s[0]
+		_env.fog_density = 0.09
 	var wet := weather == WallWeather.RAIN or weather == WallWeather.STORM
 	var snowing := weather == WallWeather.SNOW
 	_rain.emitting = wet or snowing
@@ -441,7 +496,10 @@ func _update_status() -> void:
 	if climb == null:
 		return
 	var up := 0 if climb.on_ground() else wall.height - climb.cell.y
-	_status.text = Lang.t("Klettern %d · Höhe %d m · Stürze %d · %s · %s") % [climb.skill, up, climb.falls, Lang.t(String(WallWeather.DATA[weather].name)), climb.time_text()]
+	_status.text = Lang.t("Klettern %d · Höhe %d m · Stürze %d · %s · %s") % [climb.skill - climb.injury, up, climb.falls, Lang.t(String(WallWeather.DATA[weather].name)), climb.time_text()]
+	if climb.injury > 0:
+		_status.text += " · ✚ " + Lang.t("Verletzt") + " %d" % climb.injury
+	_status.modulate = Color(1.0, 0.6, 0.55) if climb.injury > 0 else Color.WHITE
 	_apply_light()
 	changed.emit()
 
@@ -589,19 +647,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			_zoom = clampf(_zoom * 0.9, 0.3, 2.5)
+			_zoom = clampf(_zoom * 0.9, 0.25, 3.0)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			_zoom = clampf(_zoom * 1.1, 0.3, 2.5)
+			_zoom = clampf(_zoom * 1.1, 0.25, 3.0)
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			_drag = mb.pressed and get_global_rect().has_point(mb.global_position)
 	elif event is InputEventMouseMotion and _drag:
 		var mm := event as InputEventMouseMotion
-		_yaw = clampf(_yaw - mm.relative.x * 0.006, -1.2, 1.2)
-		_pitch = clampf(_pitch + mm.relative.y * 0.006, -0.3, 0.9)
+		_yaw = clampf(_yaw - mm.relative.x * 0.006, -1.6, 1.6)
+		_pitch = clampf(_pitch + mm.relative.y * 0.006, -0.3, 1.3)
 	elif event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
 		var key := (event as InputEventKey).keycode
 		if key == KEY_ESCAPE:
 			finished.emit("left")
+			get_viewport().set_input_as_handled()
+			return
+		if _camera_key(key):
 			get_viewport().set_input_as_handled()
 			return
 		if not interactive:
@@ -623,6 +684,39 @@ func _unhandled_input(event: InputEvent) -> void:
 		if dir != 0:
 			step(dir)
 			get_viewport().set_input_as_handled()
+
+
+## The camera keys, in every mode (the mouse does the same: right-drag orbits and tilts, the wheel zooms), and
+## [ and ] for the chaos level:
+## Q/E orbit, PageUp/PageDown tilt, +/- zoom, V a half-side view from above, Home back to the view behind.
+func _camera_key(key: int) -> bool:
+	match key:
+		KEY_Q:
+			_yaw = clampf(_yaw + 0.15, -1.6, 1.6)
+		KEY_E:
+			_yaw = clampf(_yaw - 0.15, -1.6, 1.6)
+		KEY_PAGEUP:
+			_pitch = clampf(_pitch + 0.1, -0.3, 1.3)
+		KEY_PAGEDOWN:
+			_pitch = clampf(_pitch - 0.1, -0.3, 1.3)
+		KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+			_zoom = clampf(_zoom * 0.9, 0.25, 3.0)
+		KEY_MINUS, KEY_KP_SUBTRACT:
+			_zoom = clampf(_zoom * 1.1, 0.25, 3.0)
+		KEY_BRACKETLEFT, KEY_BRACKETRIGHT:
+			# The chaos level of the climb (random weather, stones, lightning): [ less, ] more.
+			chaos = clampf(snappedf(chaos + (0.1 if key == KEY_BRACKETRIGHT else -0.1), 0.1), 0.0, 1.0)
+			_tell(Lang.t("Zufall: %d %%") % int(round(chaos * 100.0)), true)
+		KEY_V:
+			_yaw = 0.8
+			_pitch = 0.75
+		KEY_HOME:
+			_yaw = 0.28
+			_pitch = 0.12
+			_zoom = 1.0
+		_:
+			return false
+	return true
 
 
 ## Whether the climber braces against the rock (Space held).
@@ -693,6 +787,13 @@ func try_move(dir: int, roll: float, fall_roll: float) -> int:
 		var kind := wall.marker_at(to.x, to.y)
 		_tell(String(WallMap.MARKERS[kind].text))
 		marker_reached.emit(kind, to)
+		_play_spot(kind)
+		if WallSpots.GATHER.has(kind):
+			gathered.emit(String(WallSpots.GATHER[kind].id), int(WallSpots.GATHER[kind].count))
+		elif kind == "door":
+			door_reached.emit(to)
+		elif kind == "secret":
+			_open_secret(to)
 	return out
 
 
@@ -783,9 +884,11 @@ func _tick_animation(delta: float) -> void:
 		Sfx.play(self, String(st.sound), -6.0)
 	if _step_t == 0.0:
 		climber.hammer(bool(st.get("hammer", false)))
+	var u_before := clampf(_step_t / float(st.secs), 0.0, 1.0) if _step_t > 0.0 else -1.0
 	_step_t += delta
 	var u := clampf(_step_t / float(st.secs), 0.0, 1.0)
 	var key := String(st.key)
+	_play_cues(key, u_before, u)
 	var from: Vector3 = st.from
 	var to: Vector3 = st.to
 	var at := to
@@ -797,12 +900,25 @@ func _tick_animation(delta: float) -> void:
 			climber.pose(_leap_pose(u))
 			var t := smoothstep(0.35, 0.8, u)
 			at = from.lerp(to, t) + Vector3(0, sin(t * PI) * 0.7, 0)
-		"bed":
-			# Lying in the hammock on his side, breathing slowly.
-			climber.pose(ClimbPose.mix(RopeClimbPose.POSES["rest"], {}, 0.6))
-			var into := smoothstep(0.0, 0.2, u) * (1.0 - smoothstep(0.85, 1.0, u))
-			climber.model.rotation.z = -into * PI * 0.5
-			at = from + Vector3(WallHammock.SPAN * 0.4 * into, 0.62 * into, (0.05 - from.z + 0.9) * into * 0.0 + 0.1 * into)
+		"bed", "wake":
+			# Lying on his back in the hammock, the face to the sky, wrapped up to the chin so that only the head with
+			# the helmet looks out; eyes closed, breathing slowly and snoring (one snore per breath). At the end a yawn
+			# and an arm stretch.
+			var waking := key == "wake"
+			var rest_pose := ClimbPose.mix(RopeClimbPose.POSES["rest"], SLEEP_CURL, 1.0)
+			climber.pose(ClimbPose.mix(rest_pose, STRETCH_POSE, sin(clampf(u, 0.0, 1.0) * PI) if waking else 0.0))
+			var into := smoothstep(0.0, 0.05, u) if key == "bed" else 1.0
+			climber.model.basis = Basis(Vector3.UP, -into * PI * 0.5) * Basis(Vector3.RIGHT, -into * PI * 0.5)
+			climber.sleep_eyes(not waking or u < 0.5)
+			if waking and u < 0.05 and not _yawned:
+				_yawned = true
+				Sfx.play(self, "yawn", -2.0)
+			if not waking and u > 0.08:
+				_snore_t -= get_process_delta_time()
+				if _snore_t <= 0.0:
+					_snore_t = SNORE_EVERY
+					Sfx.play(self, "snore", -4.0)
+			at = from + Vector3(-0.9 * into, 0.74 * into, 0.1 * into)
 		"fall":
 			climber.pose(RopeClimbPose.at("fall", u))
 			at = from.lerp(to, u * u)
@@ -822,8 +938,14 @@ func _tick_animation(delta: float) -> void:
 	feet = at
 	climber.model.position = feet
 	_slack = 0.9 * (1.0 - u * u) * sin(minf(1.0, u * 3.0) * PI * 0.5) if key == "fall" else 0.0
-	if key != "bed":
-		climber.model.rotation.z = 0.0
+	if key != "bed" and key != "wake":
+		climber.model.rotation = Vector3(0.0, PI, 0.0)   # back to the camera, face to the wall
+		climber.sleep_eyes(false)
+		_yawned = false
+	elif key == "bed" and u > 0.06 and not _camp_root().has_node("Wrap"):
+		var wrap := WallHammock.wrap()
+		wrap.position = from + Vector3(0.0, 0.76, 0.17)
+		_camp_root().add_child(wrap)
 	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		var spike := WallHammock.piton(int(st.piton))
@@ -833,7 +955,7 @@ func _tick_animation(delta: float) -> void:
 	if bool(st.get("hang", false)) and u >= 0.5 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		var sheet := WallHammock.cloth()
-		sheet.position = (_piton_spot(from, 0) + _piton_spot(from, 1)) * 0.5 + Vector3(0, 0, 0.22)
+		sheet.position = Vector3(from.x, from.y + 1.0, from.z + 0.1)
 		_camp_root().add_child(sheet)
 	if bool(st.get("unhang", false)) and u >= 0.5:
 		for c in _camp_root().get_children():
@@ -852,11 +974,58 @@ func _tick_animation(delta: float) -> void:
 
 
 ## The hanging rest: two pitons hammered in, the hammock hung between them, the climber climbs in, sleeps and climbs out.
+## The sounds that belong to a move (`WallSounds.cues`), played as the move passes their point, from where the climber is
+## (so they pan with the camera and fade with its distance). Takes vary, and the breath grows with the fatigue.
+func _play_cues(key: String, from_u: float, to_u: float) -> void:
+	if DisplayServer.get_name() == "headless" or not is_inside_tree():
+		return
+	for c in WallSounds.cues(key):
+		var at_u := float(c.at)
+		if (from_u < at_u and at_u <= to_u) or (from_u < 0.0 and at_u <= to_u and at_u < 0.05):
+			var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0) if bool(c.get("tired", false)) else 0.0
+			_sound(String(c.kind), float(c.db) + tired * 6.0, 1.0 - tired * 0.18)
+
+
+## The hidden door swings open (it looked like rock until now), then the way leads through it.
+func _open_secret(cell: Vector2i) -> void:
+	var secret: Node3D = _secrets.get(cell)
+	if secret == null or not is_instance_valid(secret):
+		door_reached.emit(cell)
+		return
+	var pivot := secret.get_node("Pivot") as Node3D
+	(secret.get_node("Recess") as Node3D).visible = true
+	var tween := create_tween()
+	tween.tween_property(pivot, "rotation:y", -1.5, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(0.6)
+	tween.tween_interval(0.8)
+	tween.tween_callback(func() -> void: door_reached.emit(cell))
+
+
+## The sounds of a special spot (tar, edelweiss, door), spread over the next seconds.
+func _play_spot(kind: String) -> void:
+	if DisplayServer.get_name() == "headless" or not is_inside_tree() or not WallSounds.SPOTS.has(kind):
+		return
+	for c in WallSounds.SPOTS[kind]:
+		get_tree().create_timer(float(c.after)).timeout.connect(_sound.bind(String(c.kind), float(c.db)))
+
+
+## One varied take of a wall sound at the climber, panned and faded by the camera.
+func _sound(kind: String, db: float, pitch := 1.0) -> void:
+	if DisplayServer.get_name() == "headless" or climber == null or wall_root == null or not wall_root.is_inside_tree():
+		return
+	var at := wall_root.to_global(feet) + Vector3(0, 1.0, 0)
+	if camera != null:
+		db -= maxf(0.0, camera.global_position.distance_to(at) - 33.0) * 0.9
+	if db < -40.0:
+		return
+	Sfx.play_3d(wall_root, "", db + rng.randf_range(-1.5, 1.5), at, pitch * rng.randf_range(0.93, 1.07), WallSounds.stream(kind, rng.randi()))
+
+
 func _queue_camp(here: Vector3) -> void:
 	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 0})
 	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 1})
 	_queue.append({"key": "thread", "secs": THREAD_SECONDS, "from": here, "to": here, "hang": true})
-	_queue.append({"key": "bed", "secs": 3.0, "from": here, "to": here})
+	_queue.append({"key": "bed", "secs": BED_SECONDS, "from": here, "to": here})
+	_queue.append({"key": "wake", "secs": WAKE_SECONDS, "from": here, "to": here})
 	_queue.append({"key": "stand", "secs": 0.8, "from": here, "to": here, "unhang": true})
 
 
@@ -864,7 +1033,7 @@ func _queue_camp(here: Vector3) -> void:
 func _piton_spot(at: Vector3, side: int) -> Vector3:
 	var x := at.x + (side * 2 - 1) * WallHammock.SPAN * 0.5
 	var y := at.y + 1.0
-	return Vector3(x, y, maxf(_builder.depth_at(x, y) + 0.32, at.z - 0.2))
+	return Vector3(x, y, maxf(_builder.face_depth_at(x, y) + 0.32, at.z - 0.2))
 
 
 func _leap_pose(u: float) -> Dictionary:
@@ -880,6 +1049,8 @@ func _leap_pose(u: float) -> Dictionary:
 # --- nails and rope --------------------------------------------------------------------------------------
 
 var _camp: Node3D
+var _snore_t := 0.0
+var _yawned := false
 var _slack := 0.0   ## how much the rope hangs loose in a fall (it is taut again when the fall is caught)
 
 
@@ -904,7 +1075,7 @@ func _add_nail(cell: Vector2i) -> void:
 	m.metallic = 0.7
 	m.roughness = 0.45
 	iron.material_override = m
-	iron.position = Vector3(xy.x, xy.y + 0.35, _builder.depth_at(xy.x, xy.y) + 0.14)
+	iron.position = Vector3(xy.x, xy.y + 0.35, _builder.face_depth_at(xy.x, xy.y + 0.35) + 0.14)
 	_nails_root.add_child(iron)
 
 
@@ -914,10 +1085,10 @@ func _rope_update() -> void:
 		for seg in _rope_root.get_children() if _rope_root != null else []:
 			seg.visible = false
 		return
-	var points: Array[Vector3] = [Vector3(_start_column(), 0.05, _builder.depth_at(_start_column(), 0.0) + 0.3)]
+	var points: Array[Vector3] = [Vector3(_start_column(), 0.05, _builder.face_depth_at(_start_column(), 0.0) + 0.3)]
 	for nail in climb.nails:
 		var xy := WallBuild.square_centre(wall, nail.x, nail.y)
-		points.append(Vector3(xy.x, xy.y + 0.35, _builder.depth_at(xy.x, xy.y) + 0.2))
+		points.append(Vector3(xy.x, xy.y + 0.35, _builder.face_depth_at(xy.x, xy.y + 0.35) + 0.2))
 	if _slack > 0.02:
 		var last := points[points.size() - 1]
 		var belt := feet + Vector3(0, 0.95, 0.25)
@@ -955,6 +1126,10 @@ func _rope_update() -> void:
 
 func _next_fall() -> float:
 	var every := WallWeather.fall_every(weather)
+	if every <= 0.0 and chaos > 0.0:
+		every = CHAOS_CLEAR_FALL / chaos
+	elif every > 0.0:
+		every /= clampf(chaos * 2.0, 0.25, 2.0)
 	return every * rng.randf_range(0.6, 1.3) if every > 0.0 else 0.0
 
 
@@ -971,13 +1146,22 @@ func _tick_clouds(delta: float) -> void:
 func _tick_weather(delta: float) -> void:
 	if not interactive:
 		return
-	if drift:
+	if drift and chaos <= 0.0:
 		_worsen_timer += delta
 		if _worsen_timer >= WORSEN_EVERY:
 			_worsen_timer = 0.0
 			var i := SEQUENCE.find(weather)
 			set_weather(String(SEQUENCE[mini(SEQUENCE.size() - 1, i + 1)]) if i >= 0 else WallWeather.STORM)
-	if WallWeather.fall_every(weather) > 0.0 and not climb.on_ground():
+	elif drift:
+		# Random weather: now and then the sky moves one step along clear, fog, wind, rain, storm, worse or better.
+		_worsen_timer += delta
+		if _worsen_timer >= lerpf(CHAOS_WEATHER_CALM, CHAOS_WEATHER_WILD, chaos) * rng.randf_range(0.6, 1.4):
+			_worsen_timer = 0.0
+			var order := ["clear", "fog", "wind", "rain", "storm"]
+			var i := order.find(weather)
+			var next := clampi((i if i >= 0 else 0) + (1 if rng.randf() < 0.55 else -1), 0, order.size() - 1)
+			set_weather(String(order[next]))
+	if (WallWeather.fall_every(weather) > 0.0 or chaos > 0.0) and not climb.on_ground():
 		_fall_timer -= delta
 		if _fall_timer <= 0.0:
 			_fall_timer = _next_fall()
@@ -988,6 +1172,8 @@ func _tick_weather(delta: float) -> void:
 			_flash_timer = rng.randf_range(7.0, 14.0)
 			_flash = 0.35
 			Sfx.play(self, "thunder", -8.0)
+			if not climb.on_ground() and feet.y > LIGHTNING_MIN_HEIGHT and rng.randf() < LIGHTNING_CHANCE * clampf(chaos * 2.0, 0.0, 2.0):
+				_lightning_strike()
 		_flash = maxf(0.0, _flash - delta)
 		_env.ambient_light_energy = float(SKY[weather][2]) + _flash * 4.0
 
@@ -1030,6 +1216,7 @@ func start_rockfall(column := -1.0) -> void:
 	wall_root.add_child(dust)
 	stones.append({"node": node, "dust": dust, "x": x, "y": float(wall.height) + 1.0, "vy": 0.0, "wait": WARN_SECONDS, "hit": false})
 	Sfx.play(self, "rumble", -10.0)
+	_sound("pebbles", -4.0)
 	Sfx.play(self, "step_scree_3", -4.0)
 	_tell("Es rieselt von oben! Ein Stein löst sich: ausweichen oder an den Fels pressen (Leertaste halten).")
 
@@ -1071,12 +1258,14 @@ func _stone_hits() -> void:
 			Sfx.play(self, "word_klack", -4.0)
 		WallClimb.Outcome.GRAZED:
 			_tell("Ein Stein streift dich!")
+			_injure(1, "Dein Arm ist verletzt: Klettern und Kraft sinken, bis du dich ausruhst.")
 			Sfx.play(self, "hurt", -4.0)
 			hurt.emit(GRAZE_DAMAGE)
 			_queue.append({"key": "slip", "secs": 0.55, "from": feet, "to": feet})
 		_:
 			Sfx.play(self, "hurt", -2.0)
 			hurt.emit(GRAZE_DAMAGE * 2)
+			climb.injure(1)
 			_tell(Lang.t("Ein Stein trifft dich und wirft dich von der Wand! ") + Lang.t("Du stürzt %d m tief.") % int(round(climb.last_fall)), true)
 			_queue.clear()
 			_queue_fall(feet, feet_of(climb.cell), climb.nail != WallClimb.NOWHERE)
@@ -1086,6 +1275,25 @@ func _stone_hits() -> void:
 	_step_t = 0.0
 	if from == WallClimb.NOWHERE:
 		return
+
+
+## Lightning hits the climber high on the wall in a storm: a flash, a crack, an injury of two levels.
+func _lightning_strike() -> void:
+	_flash = 1.0
+	Sfx.play(self, "thunder", 0.0)
+	hurt.emit(GRAZE_DAMAGE * 2)
+	_tell("Ein Blitz schlägt in den Fels neben dir ein!")
+	_injure(2, "Der Blitz hat dich verletzt: Klettern und Kraft sinken stark, bis du dich ausruhst.")
+	_queue.clear()
+	_queue.append({"key": "slip", "secs": 0.8, "from": feet, "to": feet})
+	_step_t = 0.0
+
+
+## The climber is hurt by `levels`: the meter and skill drop and a red message says so (an injury heals at a rest place).
+func _injure(levels: int, text: String) -> void:
+	climb.injure(levels)
+	_tell(text)
+	_update_status()
 
 
 func _tell(text: String, already := false) -> void:

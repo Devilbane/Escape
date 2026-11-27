@@ -21,7 +21,7 @@ const SIZE := Vector2(900, 690)
 const BODY := Vector2(852, 450)
 const LABEL_WIDTH := 220.0
 const VALUE_WIDTH := 76.0
-const TABS := [["anzeige", "Anzeige"], ["grafik", "Grafik"], ["farbe", "Farbe"], ["ton", "Ton"]]
+const TABS := [["anzeige", "Anzeige"], ["grafik", "Grafik"], ["farbe", "Farbe"], ["ton", "Ton"], ["profile", "Profile"]]
 ## The tab that was open last (kept while the game runs).
 static var tab := "anzeige"
 
@@ -30,6 +30,9 @@ var _game: Node
 var _body: VBoxContainer
 ## Callables that bring every row up to date with the settings (see _refresh).
 var _refreshers: Array[Callable] = []
+## The line under the body, and the place whose Save or Delete button waits for a second click ("save3", "delete3").
+var _status: Label
+var _asked := ""
 
 
 static func build(menus: Menus) -> void:
@@ -46,7 +49,7 @@ func show(menus: Menus) -> void:
 	menus._box.add_child(tabs)
 	for t in TABS:
 		var b: Button = _game._make_button(Lang.t(t[1]), _switch.bind(t[0]))
-		b.custom_minimum_size = Vector2(150, 44)
+		b.custom_minimum_size = Vector2(130, 44)
 		b.add_theme_font_size_override("font_size", UiKit.sized(18))
 		_set_picked(b, t[0] == tab)
 		tabs.add_child(b)
@@ -65,11 +68,14 @@ func show(menus: Menus) -> void:
 			_build_colour()
 		"ton":
 			_build_sound()
+		"profile":
+			_build_profiles()
 		_:
 			_build_display()
 	# A hint line that is always there, so the window does not grow when a tooltip-sized note shows.
 	var note := menus._add_label(Lang.t("Änderungen gelten sofort und bleiben gespeichert."), 16, Menus.ABOUT_COLOR)
 	note.custom_minimum_size = Vector2(0, 26)
+	_status = note
 	_refresh()
 
 
@@ -108,6 +114,9 @@ func _build_display() -> void:
 		func(): return Graphics.fps_cap, func(v): Graphics.choose_fps(v))
 	_slider("Protokoll", "Breite des Ereignisprotokolls links.", EventLog.MIN_WIDTH, EventLog.MAX_WIDTH, EventLog.WIDTH_STEP,
 		func(): return EventLog.width, func(v): _game.event_log.set_width(v), func(v): return "%d" % v)
+	_choice("Ladebildschirm", "Zeigt beim Start das Titelbild mit den Patchnotes. Im Spiel zeigt der Chatbefehl \"loading\" ihn noch einmal.",
+		[[true, Lang.t("An"), ""], [false, Lang.t("Aus"), ""]], 2,
+		func(): return LoadingScreen.shown_at_start(), func(v): LoadingScreen.choose_shown_at_start(v))
 
 
 func _build_graphics() -> void:
@@ -173,6 +182,77 @@ func _build_sound() -> void:
 		func(): return not Sfx.muted, func(v): if v == Sfx.muted: _game._toggle_sound())
 	_choice("Musik", "Schaltet die Musik ein oder aus.", [[true, Lang.t("An"), ""], [false, Lang.t("Aus"), ""]], 2,
 		func(): return not Music.muted, func(v): if v == Music.muted: _game._toggle_music())
+
+
+## Eight places for named sets of picture settings (see SettingsProfiles). Each row has its name, which can be
+## typed, and Save, Load and Delete. Overwriting and deleting ask for a second click on the same button.
+func _build_profiles() -> void:
+	var view := _game.get_viewport()
+	var hint := _note()
+	hint.text = Lang.t("Ein Profil merkt sich Grafik, Farbe, V-Sync und Bildrate. Fenstermodus, Monitor und Ton bleiben.")
+	for slot in range(1, SettingsProfiles.SLOTS + 1):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var name_edit := LineEdit.new()
+		name_edit.max_length = SettingsProfiles.NAME_LENGTH
+		name_edit.custom_minimum_size = Vector2(280, 40)
+		name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_edit.add_theme_font_override("font", _game.TEXT_FONT)
+		name_edit.add_theme_font_size_override("font_size", UiKit.sized(18))
+		name_edit.tooltip_text = Lang.t("Der Name des Profils. Zum Ändern anklicken und tippen.")
+		name_edit.add_theme_stylebox_override("normal", _menus.panel_style(Color(0.85, 0.66, 0.32, 0.8)))
+		name_edit.add_theme_stylebox_override("focus", _menus.panel_style(_game.GOLD))
+		for style in ["normal", "focus"]:
+			name_edit.get_theme_stylebox(style).set_content_margin_all(6)
+		row.add_child(name_edit)
+		var save: Button = _small_button("Speichern", 130)
+		var load_button: Button = _small_button("Laden", 110)
+		var delete: Button = _small_button("Löschen", 120)
+		row.add_child(save)
+		row.add_child(load_button)
+		row.add_child(delete)
+		_body.add_child(row)
+		save.pressed.connect(func():
+			if not SettingsProfiles.get_slot(slot).is_empty() and _asked != "save%d" % slot:
+				_asked = "save%d" % slot
+			else:
+				SettingsProfiles.save_slot(slot, name_edit.text)
+				_asked = ""
+				_status.text = Lang.t("Gespeichert: %s") % SettingsProfiles.get_slot(slot).name
+			_refresh())
+		load_button.pressed.connect(func():
+			_asked = ""
+			if SettingsProfiles.load_slot(slot, view):
+				_status.text = Lang.t("Geladen: %s") % SettingsProfiles.get_slot(slot).name
+			_refresh())
+		delete.pressed.connect(func():
+			if _asked != "delete%d" % slot:
+				_asked = "delete%d" % slot
+			else:
+				SettingsProfiles.delete_slot(slot)
+				_asked = ""
+				name_edit.text = ""
+				_status.text = Lang.t("Gelöscht.")
+			_refresh())
+		_refreshers.append(func():
+			var profile := SettingsProfiles.get_slot(slot)
+			var used := not profile.is_empty()
+			if used and not name_edit.has_focus():
+				name_edit.text = str(profile.name)
+			name_edit.placeholder_text = Lang.t("Profil %d") % slot
+			save.text = Lang.t("Überschreiben?") if _asked == "save%d" % slot else Lang.t("Speichern")
+			delete.text = Lang.t("Wirklich?") if _asked == "delete%d" % slot else Lang.t("Löschen")
+			load_button.disabled = not used
+			delete.disabled = not used
+			_set_picked(load_button, used and SettingsProfiles.is_current(slot)))
+
+
+func _small_button(text: String, width: float) -> Button:
+	var b: Button = _game._make_button(Lang.t(text), func(): pass)
+	b.custom_minimum_size = Vector2(width, 40)
+	b.add_theme_font_size_override("font_size", UiKit.sized(16))
+	b.clip_text = true
+	return b
 
 
 # --- Rows ----------------------------------------------------------------------

@@ -345,11 +345,6 @@ static func walk_in_windows(shape: Dictionary, upstairs: bool) -> Array:
 	return out
 
 
-## How far behind the glass of such a window its curtains hang (metres): clear of the pane, so the
-## two never fight over the same pixels, and still well inside the thickness of the wall.
-const CURTAIN_GAP := 0.07
-
-
 ## The curtains of the windows one looks through: the cloth of the pane's own curtains (see
 ## WindowLights.CURTAIN_SHADER), cut out where they are open. The village drives its hour and glow
 ## (see Outdoor._house_glass); elsewhere it stays at noon.
@@ -744,13 +739,10 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_outs.append(out)
 	var side := b * Vector3(1, 0, 0)
 	if _is_opening(at):
-		# A window of a room one walks into: an open hole through the wall. Seen from outside it is the
-		# pane painted with its room and curtains (see WindowLights.GLASS_SHADER), one face only, in
-		# the middle of the wall's thickness; seen from inside there is no pane and nothing to hide the
-		# view, and the curtains hang on the room's side of it, facing in. Neither layer is see-through
-		# glass or turned the same way as another, so nothing flickers against anything.
-		_box(parts, "glass", at - out * WALL_THICK * 0.5, Vector3(OPENING.x, OPENING.y, 0.02), b, 2.0, [1, 2, 3, 4, 5])
-		_curtains(parts, at - out * (WALL_THICK * 0.5 + CURTAIN_GAP), b * Basis(Vector3.UP, PI))
+		# A window of a room one walks into: an open hole through the wall, with no pane at all. Only
+		# the curtains hang in it, one quad cut out between the two drapes, drawn from both sides
+		# (see WindowLights.CURTAIN_SHADER): through the gap one sees the real room.
+		_curtains(parts, at - out * WALL_THICK * 0.5, b)
 	else:
 		_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
 	_box(parts, "timber", at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)

@@ -172,18 +172,25 @@ static func bank_spots(level: Outdoor) -> Array:
 
 ## The wells of the valley: beside each, a free tile.
 static func well_spots(level: Outdoor) -> Array:
+	# The wells stand where the map puts them: found once per level, only whether a tile beside one is free is asked each time.
+	var cells: Array
+	if level.has_meta("valley_wells"):
+		cells = level.get_meta("valley_wells")
+	else:
+		for y in range(level.height - 1, -1, -1):
+			if y < Outdoor.VALLEY_FROM:
+				break
+			for x in level.width:
+				var c := Vector2i(x, y)
+				if level.cell_char(c) == "q":
+					cells.append(c)
+		level.set_meta("valley_wells", cells)
 	var out: Array = []
-	for y in range(level.height - 1, -1, -1):
-		if y < Outdoor.VALLEY_FROM:
-			break
-		for x in level.width:
-			var c := Vector2i(x, y)
-			if level.cell_char(c) != "q":
-				continue
-			for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
-				if level.is_open(c + d):
-					out.append({"spot": level.cell_to_world(c + d), "face": level.cell_to_world(c)})
-					break
+	for c: Vector2i in cells:
+		for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+			if level.is_open(c + d):
+				out.append({"spot": level.cell_to_world(c + d), "face": level.cell_to_world(c)})
+				break
 	return out
 
 

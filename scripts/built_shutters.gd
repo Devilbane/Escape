@@ -22,6 +22,17 @@ const SWING_TIME := 0.45
 const LEAF_THICK := 0.045
 const BOARDS := 3
 
+## The hour of the day (set by the village, see Outdoor.set_hour): the shutters of every window
+## swing shut from the evening until the morning, whatever their owner left them at.
+static var hour := 12.0
+const SHUT_FROM := 19.5
+const OPEN_FROM := 7.0
+
+
+static func shut_by_night() -> bool:
+	return hour >= SHUT_FROM or hour < OPEN_FROM
+
+
 var width := 1.3
 var height := 1.0
 var shut := false
@@ -72,7 +83,7 @@ func set_shut(on: bool) -> void:
 
 
 func _process(delta: float) -> void:
-	var goal := 1.0 if shut else 0.0
+	var goal := 1.0 if shut or shut_by_night() else 0.0
 	if closed == goal:
 		return
 	closed = move_toward(closed, goal, delta / SWING_TIME)

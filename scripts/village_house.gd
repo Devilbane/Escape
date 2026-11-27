@@ -67,6 +67,13 @@ static var _panes: Array = []
 static var _outs: Array = []
 ## The place of the pane being built, which its glass carries (see WindowLights).
 static var _pane_key := Vector2.ZERO
+## The hinge (house frame, x and z) of the shutter leaf being built, and which way it swings shut (1
+## or -1), which its mesh carries (see WindowLights.SHUTTER_SHADER).
+static var _hinge := Vector2.ZERO
+static var _swing := 1.0
+## Where each shutter leaf's hinge is (the house's frame), meta "shutter_hinges": the shutters make a
+## sound where they swing (see Outdoor._shutter_sounds).
+static var _hinges: Array = []
 ## The windows of the rooms one walks into, while such a house is built (see hollow): each
 ## {at, out}, the middle of its outer face and the way it looks out (the house's frame). Every wall
 ## face they lie in is cut open there (see _face, _box), so one sees through the wall, and their
@@ -83,6 +90,7 @@ const OPENING := Vector2(0.8, 0.9)
 static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, style := {}) -> Node3D:
 	_panes = []
 	_outs = []
+	_hinges = []
 	_ledges = []
 	_noting = true
 	# A hall (see VillageHalls) may be wider and deeper than a home, its door in the middle.
@@ -114,6 +122,7 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	house.set_meta("chimney", Vector3(cx, eaves + ridge * 1.2 + 0.55, -ud * 0.22))
 	house.set_meta("windows", _panes.duplicate())
 	house.set_meta("window_outs", _outs.duplicate())
+	house.set_meta("shutter_hinges", _hinges.duplicate())
 	house.set_meta("snow_ledges", _ledges.duplicate())
 	_noting = false
 	shape["mats"] = _materials(rng, glass)
@@ -253,6 +262,7 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 	mats["floor"] = _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5))
 	_panes = []
 	_outs = []
+	_hinges = []
 	var groups := {"low": {}, "front": {}, "up": {}, "inside": {}}
 	var walls := {}
 	if sides:
@@ -264,7 +274,6 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 		shape["floor_cut"] = GuildHall.layout(shape).well
 	var upper := hatch.size != Vector2.ZERO
 	_openings = walk_in_windows(shape, upper or bool(shape.get("flat", false)))
-	mats["clear"] = clear_glass()
 	mats["curtain"] = curtain_cloth()
 	if upper:
 		# A floor above one walks into: the roof, the upper front wall and the upper room apart.
@@ -364,7 +373,17 @@ static func inner_glass() -> ShaderMaterial:
 	return _mats["inner_glass"]
 
 
-## One quad of curtains, the size of the opening, hanging at `at` and facing along `b`'s z, its UV
+## The shutters' wood: the timber's look, swinging shut at night (see WindowLights.SHUTTER_SHADER).
+## The village drives its hour (see Outdoor._house_glass).
+static func shutters() -> ShaderMaterial:
+	if not _mats.has("shutters"):
+		var wood := WindowLights.shutter_material(load(TIMBER_TEX), Color(0.74, 0.68, 0.64))
+		wood.resource_name = "shutters"
+		_mats["shutters"] = wood
+	return _mats["shutters"]
+
+
+## One quad of curtains, the size of the opening, hanging at `at` and facing along `b`'s z (into the room), its UV
 ## in metres across the pane and its second UV the pane's key (see WindowLights.key).
 static func _curtains(parts: Dictionary, at: Vector3, b: Basis) -> void:
 	var st := _tool(parts, "curtain")
@@ -378,19 +397,6 @@ static func _curtains(parts: Dictionary, at: Vector3, b: Basis) -> void:
 		st.set_normal(n)
 		st.set_uv(uvs[k])
 		st.add_vertex(corners[k])
-
-
-## The glass of a window one looks through (see _openings): clear and faintly blue, a little shiny.
-static func clear_glass() -> StandardMaterial3D:
-	if not _mats.has("clear_glass"):
-		var glass := StandardMaterial3D.new()
-		glass.albedo_color = Color(0.72, 0.82, 0.9, 0.14)
-		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		glass.cull_mode = BaseMaterial3D.CULL_DISABLED
-		glass.roughness = 0.05
-		glass.metallic_specular = 0.7
-		_mats["clear_glass"] = glass
-	return _mats["clear_glass"]
 
 
 ## The room inside a hollow house (see hollow): into `parts` the floor boards and the inner faces
@@ -517,6 +523,7 @@ static func _reveals(parts: Dictionary, outer: Vector3, inner: Vector3, b: Basis
 static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator, glass: Material) -> Node3D:
 	_panes = []
 	_outs = []
+	_hinges = []
 	_ledges = []
 	_noting = true
 	var w := room.x - 0.06
@@ -562,6 +569,7 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	house.set_meta("door_x", door_x)
 	house.set_meta("windows", _panes.duplicate())
 	house.set_meta("window_outs", _outs.duplicate())
+	house.set_meta("shutter_hinges", _hinges.duplicate())
 	house.set_meta("snow_ledges", _ledges.duplicate())
 	_noting = false
 	var mats := _materials(rng, glass)
@@ -600,6 +608,7 @@ static func _materials(rng: RandomNumberGenerator, glass: Material) -> Dictionar
 		"door": _textured("door", DOOR_TEX, Color.WHITE),
 		"glass": glass,
 		"glass_in": inner_glass(),
+		"shutter": shutters(),
 		"floor": _textured("floor", WOOD_TEX, Color(0.78, 0.64, 0.5)),
 		"flue": _flue_material(),
 	}
@@ -697,10 +706,13 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_outs.append(out)
 	var side := b * Vector3(1, 0, 0)
 	if _is_opening(at):
-		# A window of a room one walks into: clear glass in the middle of the wall's thickness, the
-		# room's own light shining out through it.
-		_box(parts, "clear", at - out * WALL_THICK * 0.5, Vector3(OPENING.x, OPENING.y, 0.02), b)
-		_curtains(parts, at - out * (WALL_THICK * 0.5 + CURTAIN_GAP), b)
+		# A window of a room one walks into: an open hole through the wall. Seen from outside it is the
+		# pane painted with its room and curtains (see WindowLights.GLASS_SHADER), one face only, in
+		# the middle of the wall's thickness; seen from inside there is no pane and nothing to hide the
+		# view, and the curtains hang on the room's side of it, facing in. Neither layer is see-through
+		# glass or turned the same way as another, so nothing flickers against anything.
+		_box(parts, "glass", at - out * WALL_THICK * 0.5, Vector3(OPENING.x, OPENING.y, 0.02), b, 2.0, [1, 2, 3, 4, 5])
+		_curtains(parts, at - out * (WALL_THICK * 0.5 + CURTAIN_GAP), b * Basis(Vector3.UP, PI))
 	else:
 		_box(parts, "glass", at + out * 0.03, Vector3(0.8, 0.9, 0.06), b)
 	_box(parts, "timber", at + out * 0.08 - Vector3(0, 0.5, 0), Vector3(1.0, 0.12, 0.16), b)
@@ -711,10 +723,17 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	# picture, whose pale carving read as stone tiles on such small boards.)
 	for s: float in [-1.0, 1.0]:
 		var mid := at + side * s * 0.68 + out * 0.08
+		# The leaf is hinged at the window's side and swings shut over it at night (see
+		# WindowLights.SHUTTER_SHADER): outwards, never through the wall.
+		var hinge := at + side * s * 0.47
+		_hinge = Vector2(hinge.x, hinge.z)
+		_hinges.append(hinge)
+		var away := side * s
+		_swing = 1.0 if away.z * out.x - away.x * out.z > 0.0 else -1.0
 		for k in 3:
-			_box(parts, "timber", mid + side * (k - 1) * 0.15, Vector3(0.14, 0.95, 0.05), b)
+			_box(parts, "shutter", mid + side * (k - 1) * 0.15, Vector3(0.14, 0.95, 0.05), b)
 		for y: float in [-0.3, 0.3]:
-			_box(parts, "timber", mid + out * 0.035 + Vector3(0, y, 0), Vector3(0.42, 0.07, 0.025), b)
+			_box(parts, "shutter", mid + out * 0.035 + Vector3(0, y, 0), Vector3(0.42, 0.07, 0.025), b)
 
 
 ## The two triangular gable ends under the roof, plastered, with a king post.
@@ -925,6 +944,9 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		for k in [0, 2, 1, 0, 3, 2]:
 			if key == "glass" or key == "glass_in":
 				st.set_uv2(_pane_key)
+			elif key == "shutter":
+				st.set_uv2(_hinge)
+				st.set_color(Color(_swing * 0.5 + 0.5, 0, 0))
 			st.set_normal(basis * n)
 			var m: Vector2 = uvs[k]
 			if swap:
@@ -1030,7 +1052,7 @@ static func _uv(key: String, m: Vector2, center: Vector3, tile: float) -> Vector
 		"glass", "glass_in":
 			# The pane in metres, for the curtains painted behind it (see WindowLights.GLASS_SHADER).
 			return m
-		"timber":
+		"timber", "shutter":
 			# Grain along the length of the beam (m.x); a shift per beam.
 			return Vector2(m.x / TIMBER_LENGTH + center.x * 0.37, m.y / TIMBER_WIDTH + center.y * 0.21 + center.z * 0.13)
 	return m / tile

@@ -122,7 +122,7 @@ func _run() -> void:
 			for i in mesh.get_surface_count():
 				# Lit panes on a house one cannot enter; clear glass in the openings of the rooms one
 				# walks into (see VillageHouse._openings).
-				if mesh.surface_get_material(i) == lvl._house_glass() or mesh.surface_get_material(i) == VillageHouse.clear_glass() or mesh.surface_get_material(i) == VillageHouse.inner_glass() or mesh.surface_get_material(i) == VillageHouse.curtain_cloth():
+				if mesh.surface_get_material(i) == lvl._house_glass() or mesh.surface_get_material(i) == VillageHouse.inner_glass() or mesh.surface_get_material(i) == VillageHouse.curtain_cloth() or mesh.surface_get_material(i) == VillageHouse.shutters():
 					glass = true
 				elif mesh.surface_get_material(i) == VillageHouse._flue_material():
 					pass  # The soot-black inside of a chimney's flue is plain dark (see VillageHouse._flue_rim).

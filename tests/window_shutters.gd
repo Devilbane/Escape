@@ -112,21 +112,13 @@ func _run() -> void:
 				and absf(m.global_position.z - north_wall.z) < 0.5:
 			wood += 1
 	check(wood >= 4, "the window has a wooden frame: lintel, two casing boards and a sill (%d)" % wood)
-	# The glass: one walks into the house, so it is clear from both sides; at night the light the
-	# hero put up inside shines out through it.
-	var outer: MeshInstance3D = null
-	var inner: MeshInstance3D = null
+	# The opening holds no glass layer at all (a see-through pane over the room flickered and read as
+	# a white film): no quad of glass on either side of the wall.
+	var panes := 0
 	for m: MeshInstance3D in sk._solid.find_children("*", "MeshInstance3D", false, false):
 		if absf(m.global_position.x - north_wall.x) < 1.2 and absf(m.global_position.z - north_wall.z) < 0.1 and m.mesh is QuadMesh:
-			if m.global_basis.z.z < -0.9:
-				outer = m
-			elif m.global_basis.z.z > 0.9:
-				inner = m
-	check(outer != null and inner != null, "the pane has a face to each side: north (outside) and south (into the room)")
-	for m in [outer, inner]:
-		if m != null:
-			check(m.material_override == HouseSketcher.clear_glass(), "both faces of the glass are clear glass")
-	check(HouseSketcher.clear_glass().transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "the clear glass is see-through")
+			panes += 1
+	check(panes == 0, "the window is a bare opening, with no glass layer (%d quads)" % panes)
 
 	var hero: Player = game.player
 	hero.godmode = true

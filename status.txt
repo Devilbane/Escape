@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Hinged shutters on the windows of the kit buildings | Shipped this week: Windows: no glass layer, daily shutter and curtain cycle with sounds; Benno walks to his place up-left of the chair before the window opens (+48 more)
+Escape! dev status | Shipped this week: Hinged shutters on the windows of the kit buildings; Windows: no glass layer, daily shutter and curtain cycle with sounds (+48 more)

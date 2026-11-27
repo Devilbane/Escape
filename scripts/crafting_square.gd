@@ -1,15 +1,13 @@
 class_name CraftingSquare
 extends RefCounted
 ## The crafting square: the west side of the village's market square, next
-## to Gorm's forge, where every hero finds all the workbenches and their own
-## storage chest in one place. It is meant as the spot where players meet:
-## everyone comes here to craft, sort their loot and show what they made.
+## to Gorm's forge, where every hero finds all the workbenches in one place. It is meant as the spot where players meet:
+## everyone comes here to craft and show what they made.
 ##
 ## Map letters (outdoor levels, see Outdoor):
 ##   +  fine metalwork bench (a small anvil, a crucible, rings and wire)
 ##   %  gem cutter's wheel (a grinding wheel and glittering stones)
 ##   *  alchemist's table (bottles, and a small brazier of bubbling goo)
-##   $  your storage chest: the same chest as the one at home
 ## Gorm's forge (forging, melting, mending) stands right beside them, on the
 ## north side of the square (see Outdoor._build_forge).
 ##
@@ -19,7 +17,7 @@ extends RefCounted
 ## such a recipe, a bench only tells what is done there.
 
 ## What the compendium says about the square, once the hero has used it.
-const LEARN := "Am Marktplatz von Lindenhain, gleich neben Gorms Esse, steht der Handwerkerplatz: eine Werkbank fürs Feinschmieden, ein Schleifrad für Edelsteine, ein Tisch für die Alchemie und eine Truhe, in der deine Lagertruhe von zu Hause bereitsteht. Hier treffen sich alle, die etwas herstellen wollen."
+const LEARN := "Am Marktplatz von Lindenhain, gleich neben Gorms Esse, steht der Handwerkerplatz: eine Werkbank fürs Feinschmieden, ein Schleifrad für Edelsteine und ein Tisch für die Alchemie. Hier treffen sich alle, die etwas herstellen wollen."
 
 ## The benches, by map letter: the craft (as the recipes name it), the
 ## bench's name, its sign and what is done there.
@@ -52,10 +50,8 @@ const BENCHES := {
 		"text": "Kräuter, Pulver und seltene Zutaten werden hier zu Tränken und Tinkturen gebraut.",
 	},
 }
-## The letter of the storage chest on the square.
-const CHEST := "$"
 ## Every letter of the square.
-const LETTERS := "+%*$"
+const LETTERS := "+%*"
 const SIGN_FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 
@@ -73,9 +69,6 @@ static func bench_of(craft: String) -> Dictionary:
 ## what shines or glows has a material of its own.
 static func build(level: Level, c: Vector2i, ch: String) -> void:
 	var pos := level.cell_to_world(c)
-	if ch == CHEST:
-		_build_chest(level, c, pos)
-		return
 	build_bench(level, pos, ch, hash("bench:%s:%d:%d" % [ch, c.x, c.y]))
 	var bench: Dictionary = BENCHES[ch]
 	_add_sign(level, pos, Lang.t(bench.sign), bench.icon)
@@ -123,23 +116,6 @@ const CAULDRON := Vector3(0.85, 0, 1.25)
 
 ## How many times bigger than its base size the goo pot is.
 const POT := 1.8
-
-
-## The hero's storage chest, iron-bound, its lid turned to the square, with
-## a sign so nobody walks past it.
-static func _build_chest(level: Level, c: Vector2i, pos: Vector3) -> void:
-	FittedChest.place(level, "oak", pos + Vector3(-0.4, 0, 0), PI * 0.5)
-	# A low plinth of two old slabs keeps it off the wet paving.
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("chest:%d:%d" % [c.x, c.y])
-	var b := WeatheredProps.Builder.new()
-	for z in [-0.58, 0.58]:
-		b.box(Vector3(-0.4, 0, z), Vector3(1.9, 0.12, 1.12), WeatheredProps.vary(WeatheredProps.STONES[3], rng),
-				WeatheredProps.STONE, Basis(Vector3.UP, rng.randf_range(-0.03, 0.03)))
-	b.finish(level, pos)
-	_add_sign(level, pos, Lang.t("Deine Truhe"), "chest")
-	level._add_solid(pos + Vector3(-0.4, 0, 0), Vector3(2.0, 1.5, 2.4))
-	level.stations.append({"kind": "lager", "cell": c, "pos": pos, "used": false})
 
 
 ## On the fine metalwork bench, besides the anvil and the hearth of bricks

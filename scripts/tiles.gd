@@ -253,7 +253,6 @@ const OUTDOOR := {
 	"+": "fine metalwork bench",
 	"%": "gem cutter's wheel",
 	"*": "alchemist's table",
-	"$": "the hero's storage chest",
 	# The mountains far to the east (see Mountains and Mines).
 	"=": "mountain rock (cannot be crossed, see Mountains)",
 	"'": "scree: stony mountain ground",

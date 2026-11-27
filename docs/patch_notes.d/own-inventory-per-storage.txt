@@ -1,0 +1,2 @@
+- Crates, barrels and oak chests in your house each keep their own things now, apart from your storage chest and from each other. Anything stored before stays in your storage chest.
+- The chest on the crafting square is gone; your storage chest stays at home.

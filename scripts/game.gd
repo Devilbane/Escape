@@ -82,7 +82,14 @@ var _spell_wait: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
-var player: Player
+## The hero. In a window it is made the first time something needs it (New Game's name box, or a
+## game that starts), so nothing of a game is built behind the title; headless it is there at once.
+var player: Player:
+	get:
+		if _player == null:
+			_make_player()
+		return _player
+var _player: Player
 var light_shadows: LightShadows
 var camera: Camera3D
 var _env: Environment
@@ -483,6 +490,12 @@ var house_furnisher: HouseFurnisher
 var coop: CoopSession
 ## Items left in the safe room's storage chest, and what the merchant sells.
 var storage: Array[String] = []
+## What the hero's crates, barrels and oak chests in the self-built house hold: each standing piece
+## has its own inventory, key (HouseFurniture.store_key) -> item ids. `open_store` is the key of the one
+## whose window is open ("" for the storage chest), `open_store_kind` its kind.
+var piece_stores := {}
+var open_store := ""
+var open_store_kind := ""
 var shop_stock: Array[String] = []
 ## What the wandering merchant still has left, and the night he brought it
 ## for (-1: not rolled yet). A new visit brings new wares (see Wanderer).
@@ -506,8 +519,8 @@ var _name_note: Label
 var hero_name := "":
 	set(value):
 		hero_name = value
-		if player:
-			player.set_display_name(value)
+		if _player:
+			_player.set_display_name(value)
 ## The map being tested from the workshop ("" while playing the game).
 var playtest_file := ""
 var _name_box: Control
@@ -732,31 +745,12 @@ func _ready() -> void:
 	coop.game = self
 	add_child(coop)
 	coop.changed.connect(func(): if menus.current == CoopWindow.KIND: menus._rebuild())
-	player = Player.new()
-	add_child(player)
-	# Walls block the light of the lamps near the hero (see LightShadows).
-	light_shadows = LightShadows.new()
-	light_shadows.focus = player
-	add_child(light_shadows)
-	player.set_display_name(hero_name)
-	# The hand torch speaks through the message line (see HandTorch).
-	player.torch.notice.connect(func(text: String, duration: float):
-		if state == State.PLAYING:
-			show_message(text, duration))
-	player.hurt.connect(_on_player_hurt)
-	player.leveled_up.connect(_on_leveled_up)
-	player.ailments_changed.connect(_update_hud)
-	player.regenerated.connect(_update_hud)
-	player.knives_settled.connect(_update_hud)
-	player.defeated.connect(_on_player_defeated)
-	player.bumped.connect(_on_player_bumped)
-	player.trained.connect(_on_player_trained)
+	if not defers_start_level():
+		_make_player()
 	if playtest_file != "":
 		_start_playtest()
 		return
-	if defers_start_level():
-		_rest_hero()
-	else:
+	if not defers_start_level():
 		load_level(_start_level())
 	_show_start_title("Escape!", LoadingScreen.TAGLINE)
 	# The village gets ready behind the title, so the crypt door is quick later.
@@ -766,6 +760,31 @@ func _ready() -> void:
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)
 		new_game()
+
+
+## Makes the hero and wires it to the game (once).
+func _make_player() -> void:
+	_player = Player.new()
+	add_child(_player)
+	# Walls block the light of the lamps near the hero (see LightShadows).
+	light_shadows = LightShadows.new()
+	light_shadows.focus = _player
+	add_child(light_shadows)
+	_player.set_display_name(hero_name)
+	# The hand torch speaks through the message line (see HandTorch).
+	_player.torch.notice.connect(func(text: String, duration: float):
+		if state == State.PLAYING:
+			show_message(text, duration))
+	_player.hurt.connect(_on_player_hurt)
+	_player.leveled_up.connect(_on_leveled_up)
+	_player.ailments_changed.connect(_update_hud)
+	_player.regenerated.connect(_update_hud)
+	_player.knives_settled.connect(_update_hud)
+	_player.defeated.connect(_on_player_defeated)
+	_player.bumped.connect(_on_player_bumped)
+	_player.trained.connect(_on_player_trained)
+	if level == null and defers_start_level():
+		_rest_hero()
 
 
 ## Whether the first level waits until a game really starts ("New", or a saved game's own level)
@@ -780,8 +799,8 @@ func defers_start_level() -> bool:
 
 ## The hero waits out of the world while no level is loaded: unseen, and nothing of them runs.
 func _rest_hero() -> void:
-	player.visible = false
-	player.process_mode = Node.PROCESS_MODE_DISABLED
+	_player.visible = false
+	_player.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Straight onto the map from the workshop, with a new hero called Tester.
@@ -922,9 +941,9 @@ func _set_atmosphere(outdoor: bool) -> void:
 		Weather.apply(_env, _moon, _weather_look)
 	else:
 		Weather.clear_air(_env)
-		if player:
-			player.set_night_dim(0.0)
-			player.set_dark(1.0)
+		if _player:
+			_player.set_night_dim(0.0)
+			_player.set_dark(1.0)
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
@@ -2108,6 +2127,9 @@ func _use_station(s: Dictionary) -> void:
 	else:
 		player.face(s.pos - player.global_position)
 		menus.bench = s.get("craft", "")
+		if s.kind == "lager":
+			open_store = s.get("store_key", "")
+			open_store_kind = s.get("furniture", "") if open_store != "" else ""
 		menus.open(s.kind)
 
 
@@ -4197,6 +4219,8 @@ func begin_new_game() -> void:
 	drinking_songs.clear()
 	mage_duel.clear()
 	storage.clear()
+	piece_stores.clear()
+	open_store = ""
 	shop_stock.clear()
 	wanderer_stock.clear()
 	climber_stock = {}
@@ -4582,6 +4606,8 @@ func _apply_save(data: Dictionary) -> void:
 		for key in saved_hints:
 			hints_shown[str(key)] = int(saved_hints[key])
 	storage.assign(data.storage)
+	piece_stores = _load_piece_stores(data.get("piece_stores", null))
+	open_store = ""
 	shop_stock.assign(data.shop)
 	player.knives = int(data.knives)
 	player.gift_hp = int(data.gift_hp)
@@ -4931,7 +4957,7 @@ func hero_record() -> Dictionary:
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
 		"gift_points": player.gift_points, "gift_spent": player.gift_spent, "gift_constitution": player.gift_constitution, "beginner_shrines_used": player.beginner_shrines_used,
 		"blessing": Blessing.for_save(player), "injury": Injury.for_save(player),
-		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "shop": shop_stock,
+		"equipped": player.equipped, "wear": player.wear, "hair": player.hair, "cape": player.cape_design, "bag": player.bag, "storage": storage, "piece_stores": piece_stores, "shop": shop_stock,
 		"lore": lore, "plan": away_plan, "book_hours": book_hours, "escaped": escaped, "village_run": snappedf(player.ailments.get(VillageRun.KIND, 0.0), 0.1), "home": _home_given_now(), "claimed": home_claimed,
 		"upgrades": home_upgrades.keys(), "trophies": trophies.keys(), "home_stores": HomeStores.for_save(home_stores),
 		"saved_at": Time.get_unix_time_from_system(),
@@ -5748,6 +5774,58 @@ func _watch_rise() -> void:
 
 # --- Time away ----------------------------------------------------------------
 
+## The saved contents of the pieces with their own store. A save from before they had any (`saved` is
+## null) keeps everything in the storage chest, and when the house has such pieces but no plain chest,
+## the chest's things move into the first of them, so they stay in reach and nothing is lost.
+func _load_piece_stores(saved) -> Dictionary:
+	var out := {}
+	if saved is Dictionary:
+		for key in saved:
+			if saved[key] is Array:
+				var items: Array[String] = []
+				for id in saved[key]:
+					items.append(str(id))
+				out[str(key)] = items
+		return out
+	var furniture := HouseFurniture.of(hero_name)
+	var pieces := furniture.store_pieces()
+	if not pieces.is_empty() and furniture.standing("truhe") == 0 and not storage.is_empty():
+		var first: String = pieces.keys()[0]
+		var moved: Array[String] = []
+		moved.assign(storage)
+		out[first] = moved
+		storage.clear()
+	return out
+
+
+## The things in the open chest, crate or barrel: the piece's own list, or the storage chest.
+func store_items() -> Array:
+	if open_store != "" and piece_stores.has(open_store):
+		return piece_stores[open_store]
+	if open_store != "":
+		var own: Array[String] = []
+		piece_stores[open_store] = own
+		return own
+	return storage
+
+
+## How many slots the open chest, crate or barrel has.
+func store_size() -> int:
+	if open_store != "":
+		return int(HouseFurniture.KINDS.get(open_store_kind, {}).get("store", HomeUpgrades.STORAGE_SIZE))
+	return HomeUpgrades.storage_size(home_upgrades, hero_name)
+
+
+## Things in a crate, barrel or oak chest that no longer stands (it was picked up or moved) go back
+## into the storage chest, so taking a piece away never loses what was in it.
+func reclaim_piece_stores(furniture: HouseFurniture) -> void:
+	var standing := furniture.store_pieces()
+	for key in piece_stores.keys():
+		if not standing.has(key):
+			storage.append_array(piece_stores[key])
+			piece_stores.erase(key)
+
+
 ## What the hero can do while the player is away, right now: block -> ids.
 ## Jobs the hero is fit for, attributes and skills that can still grow (a
 ## skill only with its gear worn), books the hero owns (in the bag, the
@@ -5764,6 +5842,8 @@ func away_choices() -> Dictionary:
 	var books := []
 	var owned: Array = player.bag.duplicate()
 	owned.append_array(storage)
+	for key in piece_stores:
+		owned.append_array(piece_stores[key])
 	owned.append_array(home_stores.get(HomeStores.BOOKS, {}).keys())
 	for id in owned:
 		if Items.is_book(id) and not id in books and not Offline.book_used_up(book_hours, id):
@@ -8474,6 +8554,9 @@ func _anyone_hunting() -> bool:
 
 
 func _process(delta: float) -> void:
+	# Behind the title there is no hero yet, and so nothing of a game to run.
+	if _player == null:
+		return
 	if plot_marker != null and plot_marker.marking():
 		var ground = _mouse_to_floor(get_viewport().get_mouse_position())
 		if ground != null:

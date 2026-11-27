@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add prospecting: Crown Prospector, probe bucket, samples and map marks | Shipped this week: Fix house-playtest: plots tolerate deeds without a kind; Make enemy_alert_once independent of the slime's random facing (+48 more)
+Escape! dev status | Shipped this week: Add prospecting: Crown Prospector, probe bucket, samples and map marks; Fix house-playtest: plots tolerate deeds without a kind (+48 more)

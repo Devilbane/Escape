@@ -1,0 +1,1 @@
+- When the hero or a villager comes near a house while the shutters and curtains are being closed or opened, the house may act a little early. The curtains of the houses are also a little lighter to draw.

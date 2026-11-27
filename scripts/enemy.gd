@@ -1413,7 +1413,8 @@ func _shriek(player: Player) -> void:
 	Events.tell(Lang.t("Eine Banshee kreischt! Ihr Schrei weckt alles in der Nähe."), color)
 	var reach: float = _stats.shriek
 	for e in level.enemies:
-		if is_instance_valid(e) and e != self and not e.dead and _flat_distance(e) < reach:
+		if is_instance_valid(e) and e != self and not e.dead and _flat_distance(e) < reach \
+				and SlimeGrowth.same_world(e.global_position, global_position):
 			e.alert(player.global_position)
 
 

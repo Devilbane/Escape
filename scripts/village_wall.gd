@@ -227,7 +227,7 @@ func threatened_brick(o: Outdoor) -> WallBrick:
 	var best: WallBrick = null
 	var best_d := INF
 	for e in o.enemies:
-		if not (is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind)):
+		if not (is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) and SlimeGrowth.above(e.global_position)):
 			continue
 		for b: WallBrick in bricks.values():
 			if b.hp <= 0:
@@ -266,7 +266,7 @@ func shot_blocked(a: Vector3, b: Vector3, any_height := false) -> bool:
 ## Whether a living slime is within WATCH_RANGE of any stretch of the wall.
 func slime_at_the_wall(o: Outdoor) -> bool:
 	for e in o.enemies:
-		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind):
+		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) and SlimeGrowth.above(e.global_position):
 			for b: WallBrick in bricks.values():
 				if b.hp > 0 and b.distance_from(e.global_position) < WATCH_RANGE:
 					return true
@@ -278,7 +278,7 @@ static func nearest_slime(o: Outdoor, at: Vector3, within: float) -> Enemy:
 	var best: Enemy = null
 	var best_d := within
 	for e in o.enemies:
-		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind):
+		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) and SlimeGrowth.above(e.global_position):
 			var d := Vector2(e.global_position.x - at.x, e.global_position.z - at.z).length()
 			if d < best_d:
 				best = e
@@ -315,7 +315,7 @@ func slime_near_a_gate(o: Outdoor) -> bool:
 
 static func slime_near(o: Outdoor, at: Vector3, within: float) -> bool:
 	for e in o.enemies:
-		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) \
+		if is_instance_valid(e) and not e.dead and e.is_inside_tree() and SlimeGrowth.grows(e.kind) and SlimeGrowth.above(e.global_position) \
 				and Vector2(e.global_position.x - at.x, e.global_position.z - at.z).length() < within:
 			return true
 	return false

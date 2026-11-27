@@ -58,7 +58,7 @@ const CLOUD_BAND := 0.42
 const SEQUENCE := [WallWeather.CLEAR, WallWeather.WIND, WallWeather.RAIN, WallWeather.STORM]
 ## Seconds of each move's animation.
 const SECONDS := {"up": 2.2, "side": 2.4, "down": 1.8, "leap": 1.1}
-const HAMMER_SECONDS := 2.2
+const HAMMER_SECONDS := 3.2
 const THREAD_SECONDS := 1.4
 const TOP_SECONDS := 2.0
 const FALL_SECONDS := 0.8
@@ -621,6 +621,7 @@ func _process(delta: float) -> void:
 		return
 	_tick_auto(delta)
 	_tick_animation(delta)
+	_tick_breathing(delta)
 	_tick_stones(delta)
 	_tick_weather(delta)
 	_tick_clouds(delta)
@@ -820,7 +821,7 @@ func _animate(out: int, mv: Dictionary, from: Vector2i, to: Vector2i, dir: int) 
 				key = "leap"
 		_queue.append({"key": key, "secs": float(SECONDS[kind]), "from": here, "to": there, "kind": kind})
 		if out == WallClimb.Outcome.NAILED:
-			_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": there, "to": there, "hammer": true, "nail": true})
+			_queue.append({"key": "hammer5", "secs": HAMMER_SECONDS, "from": there, "to": there, "hammer": true, "nail": true})
 			_queue.append({"key": "thread", "secs": THREAD_SECONDS, "from": there, "to": there})
 		elif out == WallClimb.Outcome.TOP:
 			_queue.append({"key": "top", "secs": TOP_SECONDS, "from": there, "to": there + Vector3(0, 1.3, -0.35), "kind": "top"})
@@ -946,7 +947,7 @@ func _tick_animation(delta: float) -> void:
 		var wrap := WallHammock.wrap()
 		wrap.position = from + Vector3(0.0, 0.76, 0.17)
 		_camp_root().add_child(wrap)
-	if st.has("piton") and u >= 0.8 and not bool(st.get("placed", false)):
+	if st.has("piton") and u >= 0.86 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		var spike := WallHammock.piton(int(st.piton))
 		spike.position = _piton_spot(from, int(st.piton))
@@ -960,7 +961,7 @@ func _tick_animation(delta: float) -> void:
 	if bool(st.get("unhang", false)) and u >= 0.5:
 		for c in _camp_root().get_children():
 			c.queue_free()
-	if bool(st.get("nail", false)) and u >= 0.8 and not bool(st.get("placed", false)):
+	if bool(st.get("nail", false)) and u >= 0.86 and not bool(st.get("placed", false)):
 		st["placed"] = true
 		_add_nail(climb.nails.back() if not climb.nails.is_empty() else Vector2i.ZERO)
 		Sfx.play(self, "gear_metal_0", -4.0)
@@ -983,7 +984,25 @@ func _play_cues(key: String, from_u: float, to_u: float) -> void:
 		var at_u := float(c.at)
 		if (from_u < at_u and at_u <= to_u) or (from_u < 0.0 and at_u <= to_u and at_u < 0.05):
 			var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0) if bool(c.get("tired", false)) else 0.0
-			_sound(String(c.kind), float(c.db) + tired * 6.0, 1.0 - tired * 0.18)
+			_sound(String(c.kind), float(c.db) + tired * 6.0, float(c.get("pitch", 1.0)) * (1.0 - tired * 0.18))
+
+
+## Hard breathing when the arms are tired (the breath meter below 55 %): faster and louder the emptier it is, between and
+## during the moves, so the climber's strain can be heard. Not while he sleeps or hammers.
+func _tick_breathing(delta: float) -> void:
+	if climb == null or climb.on_ground():
+		return
+	var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0)
+	var key := String(_queue[0].key) if not _queue.is_empty() else ""
+	if tired < BREATH_FROM or key in ["bed", "wake", "hammer5", "thread"]:
+		_breath_t = 0.0
+		return
+	_breath_t -= delta
+	if _breath_t > 0.0:
+		return
+	var strain := (tired - BREATH_FROM) / (1.0 - BREATH_FROM)
+	_breath_t = lerpf(2.2, 0.8, strain) * rng.randf_range(0.85, 1.15)
+	_sound("pant" if strain > 0.6 else "breath", lerpf(-12.0, -3.0, strain), lerpf(1.0, 1.12, strain))
 
 
 ## The hidden door swings open (it looked like rock until now), then the way leads through it.
@@ -1021,8 +1040,8 @@ func _sound(kind: String, db: float, pitch := 1.0) -> void:
 
 
 func _queue_camp(here: Vector3) -> void:
-	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 0})
-	_queue.append({"key": "hammer", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 1})
+	_queue.append({"key": "hammer5", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 0})
+	_queue.append({"key": "hammer5", "secs": HAMMER_SECONDS, "from": here, "to": here, "hammer": true, "piton": 1})
 	_queue.append({"key": "thread", "secs": THREAD_SECONDS, "from": here, "to": here, "hang": true})
 	_queue.append({"key": "bed", "secs": BED_SECONDS, "from": here, "to": here})
 	_queue.append({"key": "wake", "secs": WAKE_SECONDS, "from": here, "to": here})
@@ -1050,6 +1069,9 @@ func _leap_pose(u: float) -> Dictionary:
 
 var _camp: Node3D
 var _snore_t := 0.0
+var _breath_t := 0.0
+## From this much tiredness (share of the breath meter used) the climber breathes hard.
+const BREATH_FROM := 0.45
 var _yawned := false
 var _slack := 0.0   ## how much the rope hangs loose in a fall (it is taut again when the fall is caught)
 

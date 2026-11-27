@@ -259,3 +259,4 @@ wall_contacts.gd | 200 | fixed | passfail | Climbing wall: every square Wolfram'
 goto.gd | 120 | fixed | pass | The goto chat command: place, tile, season and time
 wall_sounds.gd | 60 | fixed | pass | Climbing wall sounds: every cue sound is made, audible and varied, and the cues are in order
 loading_command.gd | 60 | free | pass | The loading chat command: shows the screen again, one at a time, closes
+hud_clock_shots.gd | 180 | free | pass | F2 HUD lines: place and tile, then clock and season

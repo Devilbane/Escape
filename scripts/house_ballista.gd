@@ -60,7 +60,7 @@ var _look := 0.0
 
 ## Whether the ballista shoots at this one: a living slime (see SlimeCoat.is_slime).
 static func aims_at(e) -> bool:
-	return e is Enemy and is_instance_valid(e) and not e.dead and SlimeCoat.is_slime(e)
+	return e is Enemy and is_instance_valid(e) and not e.dead and SlimeCoat.is_slime(e) and SlimeGrowth.above(e.global_position)
 
 
 ## What one bolt costs a slime.

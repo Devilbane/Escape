@@ -1338,7 +1338,8 @@ func _nearest_enemy(max_distance: float, need_sight: bool) -> Enemy:
 	for e in level.enemies:
 		# A skeleton standing inside the hero's spot cannot be fought until
 		# the two are pushed apart, and the hero's friends are not fought at all.
-		if not is_instance_valid(e) or e.dead or e.is_friend() or level.stacked(self, e):
+		if not is_instance_valid(e) or e.dead or e.is_friend() or level.stacked(self, e) \
+				or not SlimeGrowth.same_world(global_position, e.global_position):
 			continue
 		var d := global_position.distance_to(e.global_position)
 		if d < best_d and (not need_sight or level.has_line_of_sight(global_position, e.global_position)):
@@ -1420,7 +1421,7 @@ func enemies_in_reach() -> Array[Enemy]:
 			continue
 		# No blow lands through a closed door, either way (see Level.door_between), nor through
 		# the ground between the forgotten mine and the world above (see LostMine.apart).
-		if level.door_between(global_position, e.global_position) or LostMine.apart(global_position, e.global_position):
+		if level.door_between(global_position, e.global_position) or not SlimeGrowth.same_world(global_position, e.global_position):
 			continue
 		var to: Vector3 = e.global_position - global_position
 		to.y = 0.0

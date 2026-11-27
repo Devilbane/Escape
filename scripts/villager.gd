@@ -1952,7 +1952,8 @@ func _hunt_slimes(delta: float) -> void:
 	var best: Enemy = null
 	var best_d := VillageArms.CAST_HUNT
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead or not e.is_inside_tree() or not SlimeGrowth.grows(e.kind):
+		if not is_instance_valid(e) or e.dead or not e.is_inside_tree() or not SlimeGrowth.grows(e.kind) \
+				or not SlimeGrowth.same_world(e.global_position, global_position):
 			continue
 		var d: float = e.global_position.distance_to(global_position)
 		var post := level.cell_to_world(home)
@@ -2070,7 +2071,8 @@ func _cast_fireball(delta: float) -> void:
 	var best: Enemy = null
 	var best_d := Ignition.VILLAGE_RANGE
 	for e in level.enemies:
-		if not is_instance_valid(e) or not Ignition.can_ignite(e) or e.is_friend():
+		if not is_instance_valid(e) or not Ignition.can_ignite(e) or e.is_friend() \
+				or not SlimeGrowth.same_world(e.global_position, global_position):
 			continue
 		var d: float = e.global_position.distance_to(global_position)
 		if d < best_d and level.has_line_of_sight(global_position, e.global_position):
@@ -2102,6 +2104,7 @@ func _hide(delta: float) -> void:
 		return
 	for e in level.enemies:
 		if is_instance_valid(e) and not e.dead and SlimeGrowth.grows(e.kind) \
+				and SlimeGrowth.same_world(e.global_position, global_position) \
 				and e.global_position.distance_to(global_position) < SAFE_DISTANCE:
 			return
 	threat = null

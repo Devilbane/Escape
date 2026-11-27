@@ -43,8 +43,8 @@ const STING_MIN_HP := 4
 const STING := 1
 ## The hum: how far it carries (metres), how loud it is at a hive and how much louder it is when the bees are vexed.
 const HEARD := 30.0
-const HUM_DB := -7.0
-const ANGRY_DB := 5.0
+const HUM_DB := -19.0
+const ANGRY_DB := 4.0
 ## Where the hive's bees fly in and out, in front of it (metres).
 const FRONT := 0.4
 const LEARN := "Bienen: Im Frühling und Sommer fliegen sie von Blüte zu Blüte und summen vor ihren Stöcken. Wer sich an einen Stock stellt, ärgert sie: Sie schwärmen um den Kopf und stechen einmal. Ein Schritt zurück, und sie lassen dich in Ruhe. Honig bekommst du vom Imker im Tal."
@@ -240,6 +240,9 @@ func tick(delta: float, hero: Vector3, hour: float, indoors: bool, season_day: i
 	if not _awake:
 		for h in hives:
 			_hum(h, hero, false)
+		# The lone fly-by bee must fall silent too, or it keeps humming after dusk, in rain or in winter.
+		if _near_hum != null and _near_hum.playing:
+			_near_hum.stop()
 		return
 	for h in hives:
 		_vex(h, hero, delta)
@@ -330,7 +333,7 @@ static func buzz_stream() -> AudioStreamWAV:
 		return _buzz
 	var rate := 22050
 	var n := rate
-	var f0 := 230.0
+	var f0 := 120.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
 	var samples := PackedFloat32Array()
@@ -339,10 +342,10 @@ static func buzz_stream() -> AudioStreamWAV:
 		var t := float(i) / rate
 		var phase := TAU * (f0 * t - (0.05 * f0 / (TAU * 3.0)) * cos(TAU * 3.0 * t))
 		var v := 0.0
-		for k in range(1, 7):
-			v += sin(phase * k + k * 0.7) / pow(k, 0.85)
+		for k in range(1, 4):
+			v += sin(phase * k + k * 0.7) / pow(k, 1.6)
 		v *= 0.8 + 0.2 * sin(TAU * 11.0 * t)
-		v += rng.randf_range(-0.35, 0.35)
+		v += rng.randf_range(-0.12, 0.12)
 		samples[i] = v
 	# Two passes of a gentle low pass, the second one kept, so the loop closes without a click.
 	var out := PackedByteArray()
@@ -353,7 +356,7 @@ static func buzz_stream() -> AudioStreamWAV:
 	smooth.resize(n)
 	for pass_no in 2:
 		for i in n:
-			state += (samples[i] - state) * 0.32
+			state += (samples[i] - state) * 0.16
 			smooth[i] = state
 	for i in n:
 		peak = maxf(peak, absf(smooth[i]))
@@ -391,7 +394,7 @@ func _hum(h: Dictionary, hero: Vector3, on: bool) -> void:
 	player.global_position = h.gate
 	var angry: bool = h.angry > 0.0
 	player.volume_db = HUM_DB - 24.0 * clampf((d - 2.0) / (HEARD - 2.0), 0.0, 1.0) + (ANGRY_DB if angry else 0.0)
-	player.pitch_scale = 1.2 if angry else 1.0
+	player.pitch_scale = 1.1 if angry else 1.0
 	if not player.playing:
 		player.play(_rng.randf() * 0.9)
 
@@ -422,8 +425,8 @@ func _near_buzz(hero: Vector3) -> void:
 		_near_hum.name = "NearHum"
 		add_child(_near_hum)
 	_near_hum.global_position = best.position
-	_near_hum.volume_db = -3.0 - 18.0 * best_d / 9.0
-	_near_hum.pitch_scale = 1.15
+	_near_hum.volume_db = -14.0 - 18.0 * best_d / 9.0
+	_near_hum.pitch_scale = 1.0
 	if not _near_hum.playing:
 		_near_hum.play(_rng.randf() * 0.9)
 

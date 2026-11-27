@@ -4724,6 +4724,7 @@ func _apply_save(data: Dictionary) -> void:
 func _wake_place(data: Dictionary) -> Dictionary:
 	var index := clampi(int(data.get("level", 0)), 0, level_files.size() - 1)
 	var house := 0
+	PropertyRegister.leave_rental(hero_name)
 	var own_house := Homes.house_of(hero_name)
 	var at_inn: bool = data.get("inn", false) and _is_inn_file(index)
 	var camp_at := Camp.from_save(data.get("camp"))
@@ -8078,7 +8079,7 @@ func _watch_village_run() -> void:
 ## The hero has walked into the house the elder gave and made it their own:
 ## it is the new place to come back to, saved at once.
 func _on_home_claimed() -> void:
-	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty():
+	if Homes.house_of(hero_name) == 0 and level is Outdoor and not level.town_houses.is_empty() and not PropertyRegister.settled(hero_name):
 		Homes.house_for(hero_name, level.town_houses.size())
 	home_claimed = true
 	home_given = true
@@ -8173,6 +8174,9 @@ func _may_enter_house(house: int) -> bool:
 	var mine := Homes.house_of(hero_name)
 	if mine > 0:
 		show_message(Lang.t("Dieses Haus steht leer. Dein Haus ist Nr. %d.") % mine, 2.5)
+		return false
+	if PropertyRegister.settled(hero_name):
+		show_message(Lang.t("Dieses Haus steht leer. Du hast ein eigenes Zuhause und brauchst kein gemietetes mehr."), 3.0)
 		return false
 	if not Homes.claim(hero_name, house):
 		return false

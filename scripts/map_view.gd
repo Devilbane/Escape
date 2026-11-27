@@ -540,7 +540,7 @@ func houses() -> Array:
 	var me := ""
 	if journal.game != null:
 		me = Homes.deed_name(str(journal.game.get("hero_name")))
-	for deed in Plots.all():
+	for deed in Plots.homes():
 		var plot: Rect2i = deed.rect
 		var mine: bool = deed.owner == me
 		if not mine and not _any_explored(plot):

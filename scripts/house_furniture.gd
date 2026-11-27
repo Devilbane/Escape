@@ -164,6 +164,8 @@ func save(hero: String) -> void:
 		raw.append(row)
 	_books[Homes.deed_name(hero)] = {"owned": owned, "placed": raw}
 	Storage.write(RECORD, {"heroes": _books})
+	# A bed and a storage piece on the plot make it a home: the rented house goes back (see PropertyRegister).
+	PropertyRegister.leave_rental(hero)
 
 
 ## How many pieces of a kind are waiting to be put down.

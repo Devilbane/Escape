@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Prospector: one day of analysis, then the mining licence offer; Fix hard-edged squares in the Nohpaan mist (+48 more)
+Escape! dev status | Working on: Covered flags and banners hang still | Shipped this week: Prospector: one day of analysis, then the mining licence offer; Fix hard-edged squares in the Nohpaan mist (+48 more)

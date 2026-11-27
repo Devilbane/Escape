@@ -75,7 +75,7 @@ static func fee(rect: Rect2i) -> int:
 
 
 static func _deed(d: Dictionary) -> Dictionary:
-	return {"owner": d.owner, "rect": Rect2i(d.x, d.y, d.w, d.h), "kind": d.kind, "area": d.area, "n": d.n}
+	return {"owner": d.owner, "rect": Rect2i(d.x, d.y, d.w, d.h), "kind": d.get("kind", LAND), "area": d.get("area", ""), "n": d.get("n", 0)}
 
 
 ## Every registered deed as {owner, rect, kind, area, n}: the plot's kind (LAND or MINING), the
@@ -96,7 +96,7 @@ static func homes() -> Array:
 	var out: Array = []
 	var seen := {}
 	for d in _deeds:
-		if d.kind == LAND and not seen.has(d.owner):
+		if d.get("kind", LAND) == LAND and not seen.has(d.owner):
 			seen[d.owner] = true
 			out.append(_deed(d))
 	return out
@@ -119,7 +119,7 @@ static func plot_of(hero: String) -> Rect2i:
 	_load()
 	hero = Homes.deed_name(hero)
 	for d in _deeds:
-		if d.owner == hero and d.kind == LAND:
+		if d.owner == hero and d.get("kind", LAND) == LAND:
 			return Rect2i(d.x, d.y, d.w, d.h)
 	return Rect2i()
 

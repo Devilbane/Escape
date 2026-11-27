@@ -1,0 +1,32 @@
+extends RefCounted
+## English for the hero's own mine in the world (see OwnMine).
+
+const EN := {
+	"Dein Stollen ist angeschlagen. Du darfst jetzt unter dem Schürfgrund graben.": "Your tunnel is marked out. You may now dig beneath the claim.",
+	"Auf diesem Schürfgrund liegt noch keine Probe. Nimm hier eine Bergprobe und bring sie zum Prospektor.": "There is no sample on this claim yet. Take a mountain sample here and bring it to the prospector.",
+	"Die Probe von hier ist taubes Gestein: Hier lohnt kein Stollen.": "The sample from here is barren rock: a tunnel is not worth it here.",
+	"Dein Schlägel hat in deiner Abwesenheit %d Vortriebe geschafft.": "While you were away your hammer made %d advances.",
+	"Dagegenlaufen, um in deine Mine einzufahren": "Run into it to go down into your mine",
+	"Dagegenlaufen, um hier einen Stollen anzuschlagen": "Run into it to mark out a tunnel here",
+	"kein Erz": "no ore",
+	"Am Ort": "At the face",
+	"Hier ist kein Stollen.": "There is no tunnel here.",
+	"Gestein: %s. %d Vortriebe, %d Stützen": "Rock: %s. %d advances, %d supports",
+	"Der Stollen braucht eine Stütze.": "The tunnel needs a support.",
+	"Der Stollen steht sicher.": "The tunnel is safe.",
+	"Am Ort liegen %d kg Haufwerk, auf der Halde %d kg": "%d kg of broken rock at the face, %d kg on the stockpile",
+	"Erzgehalt am Ort: %s\nHalde: %s": "Ore content at the face: %s\nStockpile: %s",
+	"Dieses Gestein ist zu hart für Schlägel und Eisen. Du musst das Feuer selbst setzen: Es braucht Bauholz und einen Wassereimer, und der Fels springt erst, wenn du ihn abschreckst.": "This rock is too hard for hammer and chisel. You have to set the fire yourself: it needs timber and a bucket of water, and the rock only bursts when you quench it.",
+	"Mit Schlägel und Eisen geht es voran, auch wenn du fort bist: ein Vortrieb je 4 Stunden, höchstens 4 Stunden am Tag.": "Hammer and chisel keep working even while you are away: one advance per 4 hours, at most 4 hours a day.",
+	"Schlägel und Eisen": "Hammer and chisel",
+	"Feuer setzen": "Set fire",
+	"Stütze setzen": "Set a support",
+	"Eimer hochziehen": "Haul up a bucket",
+	"Dir fehlt Bauholz oder ein Wassereimer.": "You lack timber or a bucket of water.",
+	"Der Fels springt: Du hast %d kg Gestein gelöst.": "The rock bursts: you loosened %d kg of rock.",
+	"Du schlägst %d kg Gestein los.": "You break %d kg of rock loose.",
+	"Dir fehlt Bauholz.": "You lack timber.",
+	"Du setzt eine Stütze.": "You set a support.",
+	"Ein Eimer Haufwerk liegt auf der Halde.": "A bucket of broken rock lies on the stockpile.",
+	"Dagegenlaufen, um am Ort zu arbeiten": "Run into it to work at the face",
+}

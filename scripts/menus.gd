@@ -251,6 +251,7 @@ const WINDOW_SIZES := {
 	PlotOffice.KIND: Vector2(640, 500),
 	PropertyWindow.KIND: PropertyWindow.SIZE,
 	Prospector.KIND: Prospector.WINDOW,
+	OwnMine.KIND: OwnMine.WINDOW,
 	Prospecting.ASK_KIND: Prospecting.ASK_SIZE,
 	Spooknortz.KIND: Spooknortz.WINDOW,
 }
@@ -259,7 +260,7 @@ const WINDOW_SIZES := {
 ## The windows (besides the merchants') that can leave a note after a
 ## click; they keep its line from the start.
 const NOTE_WINDOWS := ["inventar", "lager", "bodenrucksack", "metalltruhe", "zutatenbord", "buecherregal", WeaponRack.KIND, "tresor", "bank", "werkbank", "hauswerkbank", "ausbau",
-	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND, Prospector.KIND, Spooknortz.KIND]
+	"aushang", "gefaehrten", "wunsch", "umhangschrank", PlotOffice.KIND, Prospector.KIND, OwnMine.KIND, Spooknortz.KIND]
 
 
 ## The fixed content size of a kind of window, or zero for one that fits
@@ -420,6 +421,8 @@ func _rebuild() -> void:
 			PropertyWindow.build(self)
 		Prospector.KIND:
 			Prospector.build(self)
+		OwnMine.KIND:
+			OwnMine.build(self)
 		Prospecting.ASK_KIND:
 			Prospecting.build_ask(self)
 		ClimberNpc.KIND:

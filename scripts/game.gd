@@ -2014,6 +2014,12 @@ func _use_station(s: Dictionary) -> void:
 		Ossuary.use(self, s)
 	elif s.kind == SpringCave.KIND or s.kind == SpringCave.PLUG:
 		SpringCave.use(self, s)
+	elif s.kind == OwnMine.POST:
+		OwnMine.use_post(self, s)
+	elif s.kind == OwnMine.FACE:
+		player.face(s.pos - player.global_position)
+		player.play("Idle")
+		menus.open(OwnMine.KIND)
 	elif s.kind == "schacht":
 		_go_down_shaft(s)
 	elif s.kind == SternHall.DRAIN:
@@ -3828,6 +3834,8 @@ func load_level(index: int, restock := true) -> void:
 	add_child(level)
 	level.build()
 	prospecting.build_stakes(level)
+	OwnMine.attach(self, level)
+	OwnMine.build_face(self, level)
 	_make_build_tools()
 	# The fog of war remembers what the hero saw here before (see Journal).
 	journal.restore_fog(level)
@@ -8744,6 +8752,8 @@ func _process(delta: float) -> void:
 			TreasureMaps.BOULDER: Lang.t("Dagegenlaufen, um den Findling beiseitezurollen"),
 			SpringCave.KIND: SpringCave.prompt(self, station) if station.kind == SpringCave.KIND else "",
 			SpringCave.PLUG: SpringCave.prompt(self, station) if station.kind == SpringCave.PLUG else "",
+			OwnMine.POST: OwnMine.prompt(self, station) if station.kind == OwnMine.POST else "",
+			OwnMine.FACE: Lang.t("Dagegenlaufen, um am Ort zu arbeiten"),
 			SilverSilk.KIND: Lang.t("Dagegenlaufen, um die Silberseide zu ernten"),
 			Mines.CLUSTER: Lang.t("Abgebaut: Bis zum nächsten Morgen wachsen die Kristalle nach") if station.get("spent", false) else Lang.t("Dagegenlaufen, um Kristalle abzubauen"),
 			Seats.KIND: Lang.t("Dagegenlaufen, um dich in den Barbierstuhl zu setzen") if station.get("barber", false) else Lang.t("Dagegenlaufen, um dich auf die Bank zu setzen"),

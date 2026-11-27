@@ -1,0 +1,1 @@
+- The sunflower riddle field is narrower: 10 columns of flowers are gone on each side, the riddle itself is unchanged.

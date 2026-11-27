@@ -15,12 +15,15 @@ extends Node3D
 
 ## The sunflower field on the valley map "Apfeltal" (tiles: left, top, columns, rows). Its flowers stand 1 m apart in one
 ## continuous lattice; the patches of the code are only a matter of where the light flowers are.
-const FIELD := Rect2i(54, 85, 15, 8)
+const FIELD := Rect2i(56, 85, 11, 8)
+## Flower columns left unplanted along the field's left and right edge (the tiles are 4 flowers wide, so the last two
+## columns of the outer tiles stay bare to cut the field by exactly 10 columns on each side).
+const EDGE_TRIM := 2
 ## The patches are 5 x 5 flowers each and touch each other, in a square of 5 x 5 patches with the scarecrow in the middle
 ## one. GRID_FROM is the first patch's top-left flower in the field's lattice (columns, rows of flowers).
 const PATCH := 5
 const GRID := Vector2i(5, 5)
-const GRID_FROM := Vector2i(17, 3)
+const GRID_FROM := Vector2i(9, 3)
 ## How near (metres) to the scarecrow the words must be said.
 const NEAR := 7.0
 ## The flowers this close to the post are left out (metres).

@@ -3443,6 +3443,9 @@ func _house_glass() -> ShaderMaterial:
 		var curtains := VillageHouse.curtain_cloth()
 		curtains.set_shader_parameter("colour", Vector3(WINDOW_LIGHT.r, WINDOW_LIGHT.g, WINDOW_LIGHT.b))
 		_window_mats[curtains] = curtains
+		# The same pane seen from inside a room never shines by itself.
+		var inner := VillageHouse.inner_glass()
+		_window_mats[inner] = inner
 	return _scenes["mat_house_glass"]
 
 

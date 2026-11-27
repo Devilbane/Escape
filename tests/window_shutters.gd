@@ -2,7 +2,7 @@ extends SceneTree
 ## Headless test: the windows the hero builds (see HouseSketcher._solid_window)
 ## and their shutters (see BuiltShutters).
 ## - A built window has a wooden frame like a doorway's (lintel, casing, sill,
-##   glazing bars) between stone jambs, and a pair of shutters, open at first.
+##   no glazing bars) between stone jambs, and a pair of shutters, open at first.
 ## - The shutters hang on the outside face of the wall, wherever that is.
 ## - E next to the window shuts them and opens them again; the plan keeps the
 ##   state over a redraw and a reload of the houses.
@@ -105,13 +105,13 @@ func _run() -> void:
 	var reach := Vector2(open_tip.x - north.global_position.x, open_tip.z - north.global_position.z).length()
 	check(absf(open_tip.z - north.global_position.z) < 0.15 and reach > north.width * 0.9,
 			"an open shutter lies against the wall beside the window")
-	# The frame is timber, as the doorway's: lintel, casing, sill and glazing bars.
+	# The frame is timber, as the doorway's: lintel, casing and sill (the glass is bare, without bars).
 	var wood := 0
 	for m: MeshInstance3D in sk._solid.find_children("*", "MeshInstance3D", false, false):
 		if m.material_override == HouseLooks.stair_wood() and absf(m.global_position.x - north_wall.x) < 1.2 \
 				and absf(m.global_position.z - north_wall.z) < 0.5:
 			wood += 1
-	check(wood >= 6, "the window has a wooden frame: lintel, two casing boards, sill and two glazing bars (%d)" % wood)
+	check(wood >= 4, "the window has a wooden frame: lintel, two casing boards and a sill (%d)" % wood)
 	# The glass: one walks into the house, so it is clear from both sides; at night the light the
 	# hero put up inside shines out through it.
 	var outer: MeshInstance3D = null

@@ -49,7 +49,7 @@ func _test() -> void:
 	var marked: Dictionary = fields._fields[CropFields.MARKED]
 	var centre := SunflowerRiddle.centre()
 	var total: int = plain.spots.size() + marked.spots.size()
-	check(total >= SunflowerRiddle.FIELD.size.x * SunflowerRiddle.FIELD.size.y * 16 - 4, "the field is full of flowers (%d)" % total)
+	check(total >= _planted_max() - 4, "the field is full of flowers (%d)" % total)
 	for s: Array in plain.spots:
 		check(Vector2(s[0].x - centre.x, s[0].z - centre.z).length() >= SunflowerRiddle.CLEAR_RADIUS, "no flower stands at the post")
 	# Decode from where the light flowers stand: the number of the light flower in each patch, in reading order.
@@ -65,7 +65,7 @@ func _test() -> void:
 			found[f.patch] = f.number
 	check(found == marks, "the light flowers stand where the code says")
 	# The patches touch each other: the lattice has no gaps (every flower of the field but the ones at the post).
-	check(total == SunflowerRiddle.FIELD.size.x * SunflowerRiddle.FIELD.size.y * 16 - 1, "no gaps: only the flower at the post is missing (%d)" % total)
+	check(total == _planted_max() - 1, "no gaps: only the flower at the post is missing (%d)" % total)
 	# The scarecrow stands in the middle of the field.
 	var ev: ValleyEvents = level.valley_events
 	check(ev._scare != null and ev._scare.position.is_equal_approx(centre), "the scarecrow stands in the field's middle")
@@ -91,3 +91,8 @@ func _test() -> void:
 		fields.set_season(seasons[season])
 		var heads: bool = (marked.mm as MultiMesh).mesh.get_surface_count() == 4
 		check(heads == (season == "summer" or season == "autumn"), "%s: the heads %s" % [season, "show" if heads else "are hidden"])
+
+
+## Flowers in a full field: 4 x 4 per tile, minus the bare edge columns.
+func _planted_max() -> int:
+	return (SunflowerRiddle.FIELD.size.x * 4 - 2 * SunflowerRiddle.EDGE_TRIM) * SunflowerRiddle.FIELD.size.y * 4

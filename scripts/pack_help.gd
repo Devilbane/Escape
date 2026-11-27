@@ -37,7 +37,8 @@ static func on_struck(victim: Enemy, hero_at: Vector3) -> void:
 	if not call.is_empty():
 		_call(victim, call)
 	for e in victim.level.enemies:
-		if not is_instance_valid(e) or e == victim or not can_answer(e, victim):
+		if not is_instance_valid(e) or e == victim or not can_answer(e, victim) \
+				or not SlimeGrowth.same_world(e.global_position, victim.global_position):
 			continue
 		var d: float = e._flat_distance(victim)
 		var hears: bool = not call.is_empty() and d < float(call.reach)

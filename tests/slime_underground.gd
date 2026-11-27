@@ -60,5 +60,23 @@ func _run() -> void:
 	v._task = "fight"
 	v._fight(0.1)
 	check(v.threat == null, "a fight through the floor is dropped")
+	# Nothing else up here reacts to it either: the wall, the gate bell, the hunting mages and the hero's blows.
+	check(not SlimeGrowth.above(below) and SlimeGrowth.above(above), "the sewers are not up in the open air")
+	check(not lvl.village_wall.slime_at_the_wall(lvl), "a slime below is no slime at the wall")
+	check(VillageWall.nearest_slime(lvl, below, 60.0) == null, "the wall's nearest slime ignores the sewers")
+	check(not VillageWall.slime_near(lvl, below, 60.0), "no slime is near a gate when it is below")
+	check(lvl.village_wall.threatened_brick(lvl) == null, "no brick is threatened by a slime below")
+	var hero: Player = game.player
+	hero.global_position = above
+	check(not hero.enemies_in_reach().has(slime), "the hero's blows do not reach through the floor")
+	check(hero._nearest_enemy(50.0, false) != slime, "the hero does not pick a target in the sewers")
+	var peer := Enemy.new()
+	peer.kind = "schleim"
+	peer.level = lvl
+	peer.custom = {}
+	lvl.add_child(peer)
+	peer.global_position = above
+	lvl.enemies.append(peer)
+	check(not SlimeGrowth._mergeable(slime, peer), "a slime below does not merge with one above")
 	print("PASS: slime_underground" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures > 0 else 0)

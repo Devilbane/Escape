@@ -115,6 +115,7 @@ func _plant_riddle(mids: Array, tile: float, rng: RandomNumberGenerator, clear: 
 	var plain_tiles: Array = []
 	var marked_tiles: Array = []
 	var n := int(round(tile / step))
+	var cols := int(round(SunflowerRiddle.FIELD.size.x * tile / step))
 	for mid: Vector3 in mids:
 		plain_tiles.append({"mid": mid, "first": plain.size(), "count": 0, "sown": -1})
 		marked_tiles.append({"mid": mid, "first": marked.size(), "count": 0, "sown": -1})
@@ -129,7 +130,7 @@ func _plant_riddle(mids: Array, tile: float, rng: RandomNumberGenerator, clear: 
 						cleared = true
 				var jitter := Vector3(rng.randf_range(-0.12, 0.12) * step, 0, rng.randf_range(-0.12, 0.12) * step)
 				var spot := [at + jitter, rng.randf() * TAU, rng.randf_range(0.85, 1.15), rng.randf()]
-				if cleared:
+				if cleared or col < SunflowerRiddle.EDGE_TRIM or col >= cols - SunflowerRiddle.EDGE_TRIM:
 					continue
 				if SunflowerRiddle.is_marked(col, row):
 					marked.append(spot)

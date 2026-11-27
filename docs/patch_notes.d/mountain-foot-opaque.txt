@@ -1,0 +1,1 @@
+- The mountain feet are solid now: the rock melts into earth and grass instead of fading out, so you no longer see through it.

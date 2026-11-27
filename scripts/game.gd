@@ -9087,7 +9087,8 @@ func gift_target() -> Enemy:
 	var best: Enemy = null
 	var best_d := GIFT_RANGE
 	for e in level.enemies:
-		if not is_instance_valid(e) or e.dead or not e.visible:
+		if not is_instance_valid(e) or e.dead or not e.visible \
+				or not SlimeGrowth.same_world(e.global_position, player.global_position):
 			continue
 		var d := _reach(e.global_position)
 		if d < best_d:
@@ -9169,7 +9170,8 @@ func _click(point: Vector3) -> void:
 	player.cancel_ladder()
 	fishing.cancel_walk()
 	for e in level.enemies:
-		if is_instance_valid(e) and not e.dead and e.visible and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
+		if is_instance_valid(e) and not e.dead and e.visible and SlimeGrowth.same_world(e.global_position, player.global_position) \
+				and Vector2(e.global_position.x - point.x, e.global_position.z - point.z).length() < 1.6:
 			if e.is_friend():
 				# The hero's friends are not attacked (see Factions).
 				show_message(Lang.t(Factions.FACTIONS[Factions.of(e.kind)].friend), 1.6)

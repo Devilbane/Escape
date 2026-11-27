@@ -12,11 +12,11 @@ extends RefCounted
 
 ## Metres from the tent's middle to the middle of the chair, to the south.
 const UNDER := 0.5
-## Where Benno stands while he serves, from the chair's middle: behind the chair as the camera sees it
-## (the camera looks north, the chair faces south), so he and his speech bubbles stay off the customer.
 ## How far the hero sits forward of the hips-over-the-middle spot (metres): the backrest leans in over the
 ## seat, so the middle would sink the back into it and the feet into the footrest.
 const SIT_SHIFT := 0.2
+## Where Benno stands while he serves, from the chair's middle: behind the chair as the camera sees it
+## (the camera looks north, the chair faces south), so he and his speech bubbles stay off the customer.
 const BESIDE := Vector3(0.0, 0.0, -1.15)
 ## Seconds the tent takes to fade away and come back.
 const FADE := 0.5

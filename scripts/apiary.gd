@@ -64,7 +64,12 @@ var _rng := RandomNumberGenerator.new()
 var _clock := 0.0
 var _awake := false
 var _near_hum: AudioStreamPlayer3D
-static var _buzz: AudioStreamWAV
+## The buzz in VARIANTS pitches, built once. Hives and the fly-by bee use different ones, at slightly different pitches
+## and start points, so the hums layer into a swarm instead of one bee.
+const VARIANTS := 3
+const WING_BEATS := [112.0, 127.0, 141.0]
+const FLUTTER := [9.0, 11.0, 14.0]
+static var _buzzes: Array[AudioStreamWAV] = []
 
 
 func _init(of_level: Outdoor = null, hive_cells: Array[Vector2i] = [], seed_text := "") -> void:
@@ -106,7 +111,7 @@ func _place_hives(c: Vector2i) -> void:
 		var front := Vector3(0, 0, 1).rotated(Vector3.UP, model.rotation.y)
 		hives.append({"pos": model.position, "front": front, "node": model, "skep": is_skep, "cell": c,
 				"gate": model.position + front * FRONT + Vector3(0, 0.46 if is_skep else 0.36, 0),
-				"near": 0.0, "calm": 0.0, "angry": 0.0, "stung": false, "hum": null})
+				"voice": hives.size(), "near": 0.0, "calm": 0.0, "angry": 0.0, "stung": false, "hum": null})
 	level._add_solid(mid + Vector3(0, 0, 1.1), Vector3(3.0, 1.3, 1.1))
 
 
@@ -328,14 +333,17 @@ func _fly(b: Dictionary, node: Node3D, to: Vector3, delta: float) -> bool:
 # --- The hum and the vexed hive -------------------------------------------------------------
 
 ## A looping buzz: a wing beat of 230 Hz with a wavering pitch and a flutter, softened.
-static func buzz_stream() -> AudioStreamWAV:
-	if _buzz != null:
-		return _buzz
+static func buzz_stream(variant := 0) -> AudioStreamWAV:
+	variant = posmod(variant, VARIANTS)
+	if _buzzes.is_empty():
+		_buzzes.resize(VARIANTS)
+	if _buzzes[variant] != null:
+		return _buzzes[variant]
 	var rate := 22050
 	var n := rate
-	var f0 := 120.0
+	var f0: float = WING_BEATS[variant]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 77
+	rng.seed = 77 + variant
 	var samples := PackedFloat32Array()
 	samples.resize(n)
 	for i in n:
@@ -344,7 +352,7 @@ static func buzz_stream() -> AudioStreamWAV:
 		var v := 0.0
 		for k in range(1, 4):
 			v += sin(phase * k + k * 0.7) / pow(k, 1.6)
-		v *= 0.8 + 0.2 * sin(TAU * 11.0 * t)
+		v *= 0.8 + 0.2 * sin(TAU * FLUTTER[variant] * t)
 		v += rng.randf_range(-0.12, 0.12)
 		samples[i] = v
 	# Two passes of a gentle low pass, the second one kept, so the loop closes without a click.
@@ -370,7 +378,7 @@ static func buzz_stream() -> AudioStreamWAV:
 	wav.loop_begin = 0
 	wav.loop_end = n
 	wav.data = out
-	_buzz = wav
+	_buzzes[variant] = wav
 	return wav
 
 
@@ -384,7 +392,7 @@ func _hum(h: Dictionary, hero: Vector3, on: bool) -> void:
 		return
 	if player == null:
 		player = AudioStreamPlayer3D.new()
-		player.stream = buzz_stream()
+		player.stream = buzz_stream(h.voice)
 		player.bus = Sfx.BUS
 		player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
 		player.panning_strength = 1.5
@@ -394,7 +402,7 @@ func _hum(h: Dictionary, hero: Vector3, on: bool) -> void:
 	player.global_position = h.gate
 	var angry: bool = h.angry > 0.0
 	player.volume_db = HUM_DB - 24.0 * clampf((d - 2.0) / (HEARD - 2.0), 0.0, 1.0) + (ANGRY_DB if angry else 0.0)
-	player.pitch_scale = 1.1 if angry else 1.0
+	player.pitch_scale = (1.1 if angry else 1.0) * (0.93 + 0.05 * float(h.voice % 4))
 	if not player.playing:
 		player.play(_rng.randf() * 0.9)
 
@@ -418,7 +426,7 @@ func _near_buzz(hero: Vector3) -> void:
 		return
 	if _near_hum == null:
 		_near_hum = AudioStreamPlayer3D.new()
-		_near_hum.stream = buzz_stream()
+		_near_hum.stream = buzz_stream(1)
 		_near_hum.bus = Sfx.BUS
 		_near_hum.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
 		_near_hum.panning_strength = 1.5

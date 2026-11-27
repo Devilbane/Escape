@@ -1,0 +1,1 @@
+- A rest place on a climbing wall now has a broad rock ledge, three squares wide, so it shows from afar and the climber has a shelf to rest on.

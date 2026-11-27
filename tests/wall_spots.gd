@@ -46,6 +46,23 @@ func _initialize() -> void:
 			check(wall.has_hold(cell.x, cell.y), "%s at %s is on a hold" % [kind, cell])
 	check(found.size() == 3, "the sample wall has tar, edelweiss and a door")
 	check(not WallPlacements.door_of(wall).is_empty(), "the sample wall's door leads somewhere")
+	# Every rest place has a ledge of the wall's own stones, three squares wide; a wall without a camp has none.
+	var camps: Array[Vector2i] = []
+	for cell in wall.markers:
+		if wall.markers[cell] == "camp":
+			camps.append(cell)
+	check(not camps.is_empty(), "the sample wall has rest places")
+	var builder := WallBuild.new(wall)
+	var ledges := builder.camp_mesh()
+	check(ledges != null and ledges.get_aabb().size.x >= WallBuild.CAMP_LEDGE_WIDTH, "the rest places have a ledge as wide as three squares")
+	for cell in camps:
+		var spot := WallBuild.foot_spot(wall, cell.x, cell.y)
+		var box := ledges.get_aabb()
+		check(box.position.x <= spot.x - WallBuild.CAMP_LEDGE_WIDTH * 0.5 + 0.4 or camps.size() > 1, "the ledge reaches 1.5 squares left of the feet")
+	var bare := WallMap.parse(wall.to_text())
+	for cell in camps:
+		bare.set_marker(cell.x, cell.y, "")
+	check(WallBuild.new(bare).camp_mesh() == null, "no rest place, no ledge")
 	var again := WallMap.parse(wall.to_text())
 	check(again.door == wall.door and again.markers.size() == wall.markers.size(), "the door and the markers survive saving")
 	print("PASS" if failures == 0 else "FAILED %d" % failures)

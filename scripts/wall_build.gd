@@ -55,6 +55,8 @@ const DECOR_SHARE := 0.2
 const FOOT_DROP := 1.7
 ## A foot stone is made only where the feet are clear of the ground (on the ground he simply stands).
 const FOOT_MIN_Y := 0.2
+## How many squares wide the ledge of a rest place is (see camp_mesh).
+const CAMP_LEDGE_WIDTH := 3.0
 const FOOT_KINDS := ["rock_single_E", "rock_single_C", "rock_single_A"]
 
 const ROCK := Color(0.47, 0.45, 0.43)
@@ -106,6 +108,13 @@ static func node(wall: WallMap) -> Node3D:
 		fm.mesh = feet
 		fm.material_override = AgedStone.rock_material()
 		root.add_child(fm)
+	var camps := b.camp_mesh()
+	if camps != null:
+		var cm := MeshInstance3D.new()
+		cm.name = "CampLedges"
+		cm.mesh = camps
+		cm.material_override = AgedStone.rock_material()
+		root.add_child(cm)
 	var filler := b.filler_mesh()
 	if filler != null:
 		var fi := MeshInstance3D.new()
@@ -592,6 +601,46 @@ func foot_mesh() -> ArrayMesh:
 			if kind == "rock_single_A":
 				size *= Vector3(1.25, 1.5, 1.3)   # the flat kind is made taller to carry a foot
 			st.append_from(mesh, 0, Transform3D(basis.scaled(size), Vector3(spot.x + (h3 - 0.5) * 0.15, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.07)))
+			count += 1
+	if count == 0:
+		return null
+	return _weathered(st.commit(), true)
+
+
+## The ledge of every rest place (marker "camp"): a broad shelf of the wall's own stones, CAMP_LEDGE_WIDTH squares
+## wide and jutting out far further than a foot stone, laid under the feet so the climber has a place to rest that
+## shows from afar. Chalked on top like the stones that are used.
+func camp_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var count := 0
+	for cell: Vector2i in map.markers:
+		if map.markers[cell] != "camp":
+			continue
+		var spot := foot_spot(map, cell.x, cell.y)
+		if spot.x < 0.0:
+			continue
+		var pieces := 5
+		for i in pieces:
+			var t := float(i) / (pieces - 1)
+			var h1 := _hash(cell.x * 13 + i, cell.y * 7 + 3)
+			var h2 := _hash(cell.x * 19 + 2, cell.y * 11 + i)
+			var h3 := _hash(cell.x * 5 + i * 3, cell.y * 17 + 1)
+			var mesh: ArrayMesh = NaturalRock.mesh(FOOT_KINDS[i % 3] if i != 2 else "rock_single_A")
+			if mesh == null:
+				continue
+			var x := spot.x + (t - 0.5) * (CAMP_LEDGE_WIDTH - 0.9) + (h1 - 0.5) * 0.2
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h3 - 0.5) * 8.0)) * Basis(Vector3.UP, (h1 - 0.5) * 0.5)
+			var size := Vector3(lerpf(2.5, 3.1, h2), lerpf(1.9, 2.4, h3), lerpf(2.3, 2.9, h1))
+			if FOOT_KINDS[i % 3] == "rock_single_A" or i == 2:
+				size *= Vector3(1.1, 1.3, 1.1)
+			st.append_from(mesh, 0, Transform3D(basis.scaled(size), Vector3(x, spot.y - 0.1, depth_at(x, spot.y) - 0.1)))
+			count += 1
+		# One long flat slab under them all, so the shelf reads as a single ledge.
+		var slab: ArrayMesh = NaturalRock.mesh("rock_single_A")
+		if slab != null:
+			var hs := _hash(cell.x * 3 + 8, cell.y * 5 + 1)
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0)) * Basis(Vector3.UP, (hs - 0.5) * 0.2)
+			st.append_from(slab, 0, Transform3D(basis.scaled(Vector3(CAMP_LEDGE_WIDTH * 1.15, 1.5, 2.4)), Vector3(spot.x, spot.y - 0.3, depth_at(spot.x, spot.y) - 0.12)))
 			count += 1
 	if count == 0:
 		return null

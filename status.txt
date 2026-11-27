@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Narrow the sunflower riddle field by 10 columns per side | Shipped this week: Keep sewer fights out of the village; Make the bee hum softer, deeper and quieter; Fit the barber's cape at the neck; Benno works behind the chair (+47 more)
+Escape! dev status | Working on: Make the mountain foot opaque and melt it into the soil | Shipped this week: Narrow the sunflower riddle field by 10 columns per side; Keep sewer fights out of the village; Make the bee hum softer, deeper and quieter (+47 more)

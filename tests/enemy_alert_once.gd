@@ -61,6 +61,9 @@ func _run() -> void:
 	var before := _alerts(lvl)
 	slime._awake = false
 	slime._alert_gap = 0.0
+	# Facing the hero: noticing from afar needs the hero in the monster's view cone, which a random spawn facing may miss.
+	var to_hero: Vector3 = lvl.player.global_position - slime.global_position
+	slime._model.rotation.y = atan2(to_hero.x, to_hero.z)
 	for i in 5:
 		await physics_frame
 	check(_alerts(lvl) == before + 1, "a monster that lost track and re-spots the hero shows it again (%d -> %d)" % [before, _alerts(lvl)])

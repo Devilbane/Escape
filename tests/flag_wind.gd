@@ -4,7 +4,7 @@ extends SceneTree
 ## material, while its pole, rod, iron and shield stay as they were; the
 ## village's flags flutter, and the wind follows the weather like the
 ## windmill's sails: a breeze when clear, stronger in rain, hardly any in fog
-## and wild in a storm, with a soft draught down in the dungeon.
+## and wild in a storm, with no wind at all down in the dungeon.
 ## Run with: godot --headless --fixed-fps 60 -s tests/flag_wind.gd
 
 var failures := 0
@@ -55,8 +55,8 @@ func _winds() -> void:
 	check(FlagWind.wind_for(Weather.STORM).x > FlagWind.wind_for(Weather.RAIN).x, "a storm blows hardest")
 	check(FlagWind.wind_for(Weather.STORM).y > clear.y, "in a storm the cloth flaps faster")
 	check(FlagWind.wind_for(Weather.FOG).x < clear.x, "the fog's air is still")
-	check(FlagWind.wind_for("") == FlagWind.DRAUGHT, "down in the dungeon a draught stirs")
-	check(FlagWind.DRAUGHT.x < clear.x, "the draught is softer than a breeze")
+	check(FlagWind.wind_for("") == FlagWind.DRAUGHT, "down in the dungeon the air is covered")
+	check(FlagWind.DRAUGHT == Vector2.ZERO, "covered places have no wind: flags hang still")
 	for kind in [Weather.CLEAR, Weather.RAIN, Weather.FOG, Weather.STORM]:
 		check(FlagWind.WINDS.has(kind), "a wind for the weather " + kind)
 

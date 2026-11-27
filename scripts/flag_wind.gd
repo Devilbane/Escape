@@ -8,7 +8,7 @@ extends Node
 ## weathered_prop.gdshader). Outside it goes by the weather, like the
 ## windmill's sails (see Windmill): a breeze under clear skies, brisker in the
 ## rain, hardly a stir in the still air of fog and wild in a thunderstorm.
-## Down in the dungeon a soft draught stirs them. When the weather changes the
+## Down in the dungeon, with no weather above, the cloth hangs still and the driver does no work. When the weather changes the
 ## wind picks up or dies down gently instead of jumping.
 ##
 ## The models' cloth is a few large faces, too few to bend, so each cloth
@@ -54,8 +54,8 @@ const WINDS := {
 }
 ## The shader for cloth that had a plain material.
 const CLOTH := preload("res://shaders/flutter_cloth.gdshader")
-## The soft draught down in the dungeon.
-const DRAUGHT := Vector2(0.6, 3.0)
+## The air in a covered place (the dungeon): no wind, so the cloth hangs still.
+const DRAUGHT := Vector2.ZERO
 ## How long the wind takes to come most of the way to a new weather's (seconds).
 const EASE := 6.0
 ## The cloth is cut until a strip spans at most this share of its length.
@@ -90,7 +90,7 @@ static func attach(node: Node, model: String, level: Node) -> void:
 		level.add_child(driver)
 
 
-## The wind in a weather; "" (no weather: down in the dungeon) is the draught.
+## The wind in a weather; "" (no weather: down in the dungeon) is the still air of a covered place.
 static func wind_for(weather: String) -> Vector2:
 	if weather == "":
 		return DRAUGHT
@@ -99,6 +99,13 @@ static func wind_for(weather: String) -> Vector2:
 
 func _process(delta: float) -> void:
 	var target := wind_for(_level.get("weather") if _level and "weather" in _level else "")
+	if target == Vector2.ZERO and wind.length() < 0.001:
+		# Covered and settled: nothing to move, nothing to upload.
+		if wind != Vector2.ZERO:
+			wind = Vector2.ZERO
+			for mat: ShaderMaterial in _materials.values():
+				mat.set_shader_parameter("wind_strength", 0.0)
+		return
 	wind = wind.lerp(target, 1.0 - exp(-delta * 3.0 / EASE))
 	phase = fmod(phase + wind.y * delta, TAU * 1000.0)
 	for mat: ShaderMaterial in _materials.values():

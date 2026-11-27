@@ -45,6 +45,8 @@ const EDGE_FADE := 2.0
 ## The height (metres) over which a flank turns from see-through to solid.
 const RIM_LOW := 0.03
 const RIM_HIGH := 0.2
+## How far (metres) the rim of a lobe or mound sinks under the ground, where its height runs out.
+const RIM_SINK := 0.3
 const OPEN := ".\'"
 const GREEN := Color(0.3, 0.37, 0.16)
 
@@ -479,11 +481,13 @@ static func _terrain(box: Rect2, step: float, height: Callable, greyer: float, r
 		if not rects.is_empty():
 			var wander := (fbm(x * 0.35 + 3.0, z * 0.35) - 0.5) * 3.2 + (fbm(x * 1.3, z * 1.3 + 8.0) - 0.5) * 0.8
 			colour.a = minf(colour.a, lerpf(EDGE_ALPHA, 1.0, smoothstep(0.2, EDGE_FADE, _dist(rects, x, z) + wander)))
-		return [Vector3(x, h - 0.03, z), n, colour]
+		# The rim dips under the ground, so the mesh meets it along a smooth, rounded contour instead of ending in a
+		# cut along the grid's cells (angular flat patches).
+		return [Vector3(x, h - 0.03 - RIM_SINK * (1.0 - smoothstep(0.0, RIM_LOW * 4.0, h)), z), n, colour]
 	for iz in nz:
 		for ix in nx:
 			var top := maxf(maxf(float(hs[iz + 1][ix + 1]), float(hs[iz + 1][ix + 2])), maxf(float(hs[iz + 2][ix + 1]), float(hs[iz + 2][ix + 2])))
-			if top < 0.025:
+			if top < 0.002:
 				continue
 			var a: Array = vert.call(ix, iz)
 			var b: Array = vert.call(ix + 1, iz)

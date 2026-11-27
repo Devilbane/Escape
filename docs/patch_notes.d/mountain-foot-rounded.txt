@@ -1,0 +1,1 @@
+- Rounded the small rubble pieces at the mountain foot: they sink smoothly into the ground and blend into the grass, instead of ending in blocky flat patches.

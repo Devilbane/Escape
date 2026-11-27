@@ -88,7 +88,7 @@ void fragment() {
 	// pebbles) over the band where the vertex alpha falls, so the foot has no hard edge against the meadow's apron.
 	float melt = (1.0 - smoothstep(0.0, 1.0, edge_alpha)) * (1.0 - snow);
 	vec3 soil = vec3(0.5, 0.44, 0.37) * (0.82 + 0.3 * fbm(wpos * 1.1 + 13.0));
-	soil = mix(soil, vec3(0.3, 0.37, 0.16), smoothstep(0.55, 0.8, fbm(wpos * 0.8 + 41.0)) * 0.45);
+	soil = mix(soil, vec3(0.3, 0.37, 0.16), clamp(smoothstep(0.55, 0.8, fbm(wpos * 0.8 + 41.0)) * 0.45 + melt * melt * 0.5, 0.0, 0.9));
 	soil *= 0.9 + 0.2 * vnoise(wpos * 7.0) * band(7.0, px);
 	col = mix(col, soil, melt);
 	ALBEDO = col;

@@ -383,6 +383,44 @@ static func shutters() -> ShaderMaterial:
 	return _mats["shutters"]
 
 
+## Shutters for windows of a building that was not made here (a KayKit model, see
+## Outdoor._age_kit_building): a pair of hinged leaves for each {at, out, wide, high}, the middle of the
+## pane, the way it looks out and its size, in the building's own frame. Returns {mesh, hinges}: one
+## surface with the shutters' material (see shutters), and where each leaf is hinged, which the
+## village's sounds use (meta "shutter_hinges"). Open, a leaf lies against the wall beside the
+## window; shut at night, it covers half of it (see WindowLights.SHUTTER_SHADER).
+static func shutters_for(windows: Array) -> Dictionary:
+	var parts := {}
+	var hinges: Array = []
+	var saved_openings := _openings
+	_openings = []
+	for w: Dictionary in windows:
+		var out: Vector3 = w.out
+		var side := Vector3.UP.cross(out)
+		var b := Basis(side, Vector3.UP, out)
+		var at: Vector3 = w.at
+		# Everything in the house's own proportions (a window 0.8 wide), scaled to this pane.
+		var f: float = float(w.wide) / OPENING.x
+		var tall: float = float(w.high) / OPENING.y
+		for s: float in [-1.0, 1.0]:
+			var mid := at + side * s * 0.68 * f + out * 0.1 * f
+			var hinge := at + side * s * 0.47 * f
+			_hinge = Vector2(hinge.x, hinge.z)
+			hinges.append(hinge)
+			var away := side * s
+			_swing = 1.0 if away.z * out.x - away.x * out.z > 0.0 else -1.0
+			for k in 3:
+				_box(parts, "shutter", mid + side * (k - 1) * 0.15 * f, Vector3(0.14 * f, 0.95 * f * tall, 0.05 * f), b)
+			for y: float in [-0.3, 0.3]:
+				_box(parts, "shutter", mid + out * 0.035 * f + Vector3(0, y * f * tall, 0), Vector3(0.42 * f, 0.07 * f, 0.025 * f), b)
+	_openings = saved_openings
+	var mesh := ArrayMesh.new()
+	if parts.has("shutter"):
+		(parts.shutter as SurfaceTool).commit(mesh)
+		mesh.surface_set_material(0, shutters())
+	return {"mesh": mesh, "hinges": hinges}
+
+
 ## One quad of curtains, the size of the opening, hanging at `at` and facing along `b`'s z (into the room), its UV
 ## in metres across the pane and its second UV the pane's key (see WindowLights.key).
 static func _curtains(parts: Dictionary, at: Vector3, b: Basis) -> void:

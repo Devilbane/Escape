@@ -183,6 +183,8 @@ func _check_aged(lvl: Outdoor) -> void:
 		if letter == "R" or not Outdoor.BLOCK_MODELS.has(letter) or child.has_meta("hall"):
 			continue # A hall one walks into is a timber house now (see VillageHalls), the bank a stone one (BankVault).
 		for mi: MeshInstance3D in child.find_children("*", "MeshInstance3D", true, false):
+			if mi.name == "Shutters":
+				continue # The hinged shutters of its windows, in their own wood (see VillageHouse.shutters_for).
 			kit += 1
 			var mat := mi.get_surface_override_material(0) as ShaderMaterial
 			check(mat != null and mat.shader == AgedStone.SHADER, "%s is built of the old stone" % child.name)

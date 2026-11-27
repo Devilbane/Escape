@@ -338,7 +338,7 @@ static func _split_panes(flat: Array, count: int) -> Dictionary:
 				glass_nor.append(normals[t + k])
 				glass_uv.append(Vector2((p.dot(side) - left) / wide * 0.8, (p.y - box.position.y) / high * 0.9))
 				glass_key.append(key)
-		panes.append({"at": mid, "out": look})
+		panes.append({"at": mid, "out": look, "wide": wide, "high": high})
 	var glass := []
 	glass.resize(Mesh.ARRAY_MAX)
 	glass[Mesh.ARRAY_VERTEX] = glass_pos

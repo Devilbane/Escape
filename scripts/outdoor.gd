@@ -3517,11 +3517,29 @@ func _age_kit_building(node: Node) -> void:
 		var glass := _house_glass()
 		for surface: int in glass_surfaces:
 			mi.set_surface_override_material(surface, glass)
+		# Hinged shutters on those windows, which shut at night like the houses' (see VillageHouse.shutters_for).
+		var into: Transform3D = (node as Node3D).global_transform.affine_inverse() * mi.global_transform
+		var leaf_windows: Array = []
+		for pane: Dictionary in AgedStone.panes_of(mi.mesh):
+			var wide := float(pane.wide)
+			var high := float(pane.high)
+			if wide < 0.03 or high < wide * 0.9 or high > wide * 1.8:
+				continue # a slit or an arch in a gable, no window for shutters
+			leaf_windows.append({"at": into * (pane.at as Vector3), "out": (into.basis * (pane.out as Vector3)).normalized(),
+					"wide": wide * into.basis.get_scale().x, "high": high * into.basis.get_scale().y})
+		if not leaf_windows.is_empty() and node is Node3D and node.get_parent() == self:
+			var made := VillageHouse.shutters_for(leaf_windows)
+			var leaves := MeshInstance3D.new()
+			leaves.name = "Shutters"
+			leaves.mesh = made.mesh
+			node.add_child(leaves)
+			var hinges: Array = node.get_meta("shutter_hinges", []) if node.has_meta("shutter_hinges") else []
+			hinges.append_array(made.hinges)
+			node.set_meta("shutter_hinges", hinges)
 		var windows: Array = node.get_meta("windows", []) if node.has_meta("windows") else []
 		var outs: Array = node.get_meta("window_outs", []) if node.has_meta("window_outs") else []
 		if windows.size() != outs.size():
 			continue
-		var into: Transform3D = (node as Node3D).global_transform.affine_inverse() * mi.global_transform
 		for pane: Dictionary in AgedStone.panes_of(mi.mesh):
 			windows.append(into * (pane.at as Vector3))
 			outs.append((into.basis * (pane.out as Vector3)).normalized())

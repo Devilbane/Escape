@@ -1,0 +1,1 @@
+- Shutters now close completely with no gap. Every window shuts its shutters and curtains at its own fixed times, each drawn independently, and both move twice as fast. The mage's tower closes its curtains and then its shutters one after another, 0.5 s apart, spiralling up its floors with a flap of cloth and a thud of each shutter, and opens them the same way in the morning.

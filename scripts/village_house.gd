@@ -67,6 +67,13 @@ static var _panes: Array = []
 static var _outs: Array = []
 ## The place of the pane being built, which its glass carries (see WindowLights).
 static var _pane_key := Vector2.ZERO
+## The windows of a mage tower in the order its magic closes them (house frame, see MageTower.order), the
+## place in that order of the window being built (0: an ordinary window) and, for each shutter leaf in
+## _hinges, the same (meta "shutter_ranks"). The glass, curtains and shutters carry it in the blue of their
+## vertex colour (white, 0, for ordinary ones; see WindowLights.MAGIC_LEVELS).
+static var _magic: Array = []
+static var _rank := 0
+static var _hinge_ranks: Array = []
 ## The hinge (house frame, x and z) of the shutter leaf being built, and which way it swings shut (1
 ## or -1), which its mesh carries (see WindowLights.SHUTTER_SHADER).
 static var _hinge := Vector2.ZERO
@@ -110,6 +117,9 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	# A hall may set its side windows toward the door (see VillageHalls.style): `side_front` metres
 	# from the front of the room instead of in the middle, to leave the wall beside them clear.
 	shape["side_z"] = d * 0.5 - WALL_THICK - float(style.side_front) if style.has("side_front") else 0.0
+	_magic = MageTower.order(shape) if bool(shape.mage) else []
+	_rank = 0
+	_hinge_ranks = []
 	var parts := {}
 	_shape(shape, parts, parts, parts, parts)
 	var eaves := PLINTH + GROUND + UPPER
@@ -123,6 +133,11 @@ static func build(room: Vector2, rng: RandomNumberGenerator, glass: Material, st
 	house.set_meta("windows", _panes.duplicate())
 	house.set_meta("window_outs", _outs.duplicate())
 	house.set_meta("shutter_hinges", _hinges.duplicate())
+	house.set_meta("shutter_ranks", _hinge_ranks.duplicate())
+	if not _magic.is_empty():
+		house.set_meta("magic_windows", _magic.duplicate())
+	_magic = []
+	_rank = 0
 	house.set_meta("snow_ledges", _ledges.duplicate())
 	_noting = false
 	shape["mats"] = _materials(rng, glass)
@@ -263,6 +278,9 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 	_panes = []
 	_outs = []
 	_hinges = []
+	_hinge_ranks = []
+	_magic = MageTower.order(shape) if bool(shape.get("mage", false)) else []
+	_rank = 0
 	var groups := {"low": {}, "front": {}, "up": {}, "inside": {}}
 	var walls := {}
 	if sides:
@@ -296,6 +314,8 @@ static func hollow(house: Node3D, sides := false, hatch := Rect2()) -> Dictionar
 				groups[key] = {}
 			MageTower.top_storey(shape, groups)
 	_openings = []
+	_magic = []
+	_rank = 0
 	var body: MeshInstance3D = shape.body
 	var out := {}
 	for key: String in groups:
@@ -385,6 +405,7 @@ static func shutters() -> ShaderMaterial:
 ## village's sounds use (meta "shutter_hinges"). Open, a leaf lies against the wall beside the
 ## window; shut at night, it covers half of it (see WindowLights.SHUTTER_SHADER).
 static func shutters_for(windows: Array) -> Dictionary:
+	_rank = 0
 	var parts := {}
 	var hinges: Array = []
 	var saved_openings := _openings
@@ -398,16 +419,17 @@ static func shutters_for(windows: Array) -> Dictionary:
 		var f: float = float(w.wide) / OPENING.x
 		var tall: float = float(w.high) / OPENING.y
 		for s: float in [-1.0, 1.0]:
-			var mid := at + side * s * 0.68 * f + out * 0.1 * f
+			var mid := at + side * s * 0.71 * f + out * 0.1 * f
 			var hinge := at + side * s * 0.47 * f
 			_hinge = Vector2(hinge.x, hinge.z)
 			hinges.append(hinge)
 			var away := side * s
 			_swing = 1.0 if away.z * out.x - away.x * out.z > 0.0 else -1.0
+			var deeper := out * 0.002 * s
 			for k in 3:
-				_box(parts, "shutter", mid + side * (k - 1) * 0.15 * f, Vector3(0.14 * f, 0.95 * f * tall, 0.05 * f), b)
+				_box(parts, "shutter", mid + deeper + side * (k - 1) * 0.16 * f, Vector3(0.16 * f, 0.95 * f * tall, 0.05 * f), b)
 			for y: float in [-0.3, 0.3]:
-				_box(parts, "shutter", mid + out * 0.035 * f + Vector3(0, y * f * tall, 0), Vector3(0.42 * f, 0.07 * f, 0.025 * f), b)
+				_box(parts, "shutter", mid + deeper + out * 0.035 * f + Vector3(0, y * f * tall, 0), Vector3(0.44 * f, 0.07 * f, 0.025 * f), b)
 	_openings = saved_openings
 	var mesh := ArrayMesh.new()
 	if parts.has("shutter"):
@@ -427,6 +449,7 @@ static func _curtains(parts: Dictionary, at: Vector3, b: Basis) -> void:
 	var uvs := [Vector2(0, 0), Vector2(OPENING.x, 0), Vector2(OPENING.x, OPENING.y), Vector2(0, OPENING.y)]
 	for k in [0, 2, 1, 0, 3, 2]:
 		st.set_uv2(_pane_key)
+		st.set_color(_magic_colour())
 		st.set_normal(n)
 		st.set_uv(uvs[k])
 		st.add_vertex(corners[k])
@@ -509,6 +532,7 @@ static func _upper_room(shape: Dictionary, parts: Dictionary, front: Dictionary,
 ## `inner`, facing into the room, with a wooden frame and a sill under it.
 static func _inner_window(parts: Dictionary, outer: Vector3, inner: Vector3, turn: float) -> void:
 	_pane_key = WindowLights.key(outer)
+	_rank = _rank_of(outer)
 	var b := Basis(Vector3.UP, turn)
 	var into := b * Vector3(0, 0, -1)
 	if _is_opening(outer):
@@ -521,6 +545,19 @@ static func _inner_window(parts: Dictionary, outer: Vector3, inner: Vector3, tur
 	_box(parts, "timber", inner + into * 0.03 + Vector3(0, 0.5, 0), Vector3(1.0, 0.08, 0.08), b)
 	for s: float in [-1.0, 1.0]:
 		_box(parts, "timber", inner + into * 0.03 + b * Vector3(s * 0.46, 0, 0), Vector3(0.08, 1.0, 0.08), b)
+
+
+## The place of the window at `at` in a mage tower's closing circle (see _magic), 0 for any other.
+static func _rank_of(at: Vector3) -> int:
+	for i in _magic.size():
+		if (_magic[i] as Vector3).distance_to(at) < 0.05:
+			return i + 1
+	return 0
+
+
+## The vertex colour of a pane, curtain or shutter: the blue says its place in the circle.
+static func _magic_colour(red := 1.0) -> Color:
+	return Color(red, 1.0, 1.0 - float(_rank) / WindowLights.MAGIC_LEVELS)
 
 
 ## Whether the window with its outer middle at `at` opens through the wall (see _openings).
@@ -557,6 +594,9 @@ static func build_narrow(room: Vector2, number: int, rng: RandomNumberGenerator,
 	_panes = []
 	_outs = []
 	_hinges = []
+	_hinge_ranks = []
+	_magic = []
+	_rank = 0
 	_ledges = []
 	_noting = true
 	var w := room.x - 0.06
@@ -734,6 +774,7 @@ static func _note_top(center: Vector3, size: Vector3, basis := Basis()) -> void:
 static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	_panes.append(at)
 	_pane_key = WindowLights.key(at)
+	_rank = _rank_of(at)
 	var b := Basis(Vector3.UP, turn)
 	var out := b * Vector3(0, 0, 1)
 	_outs.append(out)
@@ -752,18 +793,23 @@ static func _window(parts: Dictionary, at: Vector3, turn: float) -> void:
 	# The shutters: three wooden planks each, held by a cross batten. (They used the chapel door's
 	# picture, whose pale carving read as stone tiles on such small boards.)
 	for s: float in [-1.0, 1.0]:
-		var mid := at + side * s * 0.68 + out * 0.08
+		var mid := at + side * s * 0.71 + out * 0.08
 		# The leaf is hinged at the window's side and swings shut over it at night (see
 		# WindowLights.SHUTTER_SHADER): outwards, never through the wall.
 		var hinge := at + side * s * 0.47
 		_hinge = Vector2(hinge.x, hinge.z)
 		_hinges.append(hinge)
+		_hinge_ranks.append(_rank)
 		var away := side * s
 		_swing = 1.0 if away.z * out.x - away.x * out.z > 0.0 else -1.0
+		# Three planks of 0.16 make a leaf 0.48 wide, from the hinge at 0.47 to 0.95; swung shut, its
+		# edge reaches the middle of the window, where the two leaves meet with no gap. (One leaf sits a
+		# hair deeper so their meeting faces never fight.)
+		var deeper := out * 0.002 * s
 		for k in 3:
-			_box(parts, "shutter", mid + side * (k - 1) * 0.15, Vector3(0.14, 0.95, 0.05), b)
+			_box(parts, "shutter", mid + deeper + side * (k - 1) * 0.16, Vector3(0.16, 0.95, 0.05), b)
 		for y: float in [-0.3, 0.3]:
-			_box(parts, "shutter", mid + out * 0.035 + Vector3(0, y, 0), Vector3(0.42, 0.07, 0.025), b)
+			_box(parts, "shutter", mid + deeper + out * 0.035 + Vector3(0, y, 0), Vector3(0.44, 0.07, 0.025), b)
 
 
 ## The two triangular gable ends under the roof, plastered, with a king post.
@@ -974,9 +1020,10 @@ static func _box(parts: Dictionary, key: String, center: Vector3, size: Vector3,
 		for k in [0, 2, 1, 0, 3, 2]:
 			if key == "glass" or key == "glass_in":
 				st.set_uv2(_pane_key)
+				st.set_color(_magic_colour())
 			elif key == "shutter":
 				st.set_uv2(_hinge)
-				st.set_color(Color(_swing * 0.5 + 0.5, 0, 0))
+				st.set_color(_magic_colour(_swing * 0.5 + 0.5))
 			st.set_normal(basis * n)
 			var m: Vector2 = uvs[k]
 			if swap:

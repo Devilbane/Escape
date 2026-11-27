@@ -14,15 +14,32 @@ const ON_TO := 20.4
 ## Hours of the clock between which the first and the last window goes out.
 const OFF_FROM := 20.0
 const OFF_TO := 22.9
-## The morning: the shutters open from SHUTTERS_OPEN (a window's own lead adds up to the spread),
-## the curtains after them from CURTAINS_OPEN. The evening: a window's curtains close from 0.4 h
-## before it lights up, its shutters SHUTTERS_AFTER hours after that; a leaf swings for SHUTTER_SWING.
+## The daily cycle. Every window has a fixed time of its own for its shutters and another for its curtains,
+## each drawn independently from its place (so it is the same every day and nothing is stored): in the
+## morning the shutters open between SHUTTERS_OPEN and +SHUTTERS_OPEN_SPREAD, the curtains between
+## CURTAINS_OPEN and +CURTAINS_OPEN_SPREAD; in the evening they close between ..._FROM and ..._TO. A leaf
+## swings for SHUTTER_SWING hours and the curtains draw over CURTAIN_DRAW. Nothing runs for a window
+## between its two times: the shader just evaluates the hour.
 const SHUTTERS_OPEN := 6.0
-const SHUTTERS_OPEN_SPREAD := 0.4
-const CURTAINS_OPEN := 6.8
-const CURTAINS_OPEN_SPREAD := 0.5
-const SHUTTERS_AFTER := 0.35
-const SHUTTER_SWING := 0.15
+const SHUTTERS_OPEN_SPREAD := 1.2
+const CURTAINS_OPEN := 6.3
+const CURTAINS_OPEN_SPREAD := 1.5
+const SHUTTERS_CLOSE_FROM := 17.8
+const SHUTTERS_CLOSE_TO := 20.6
+const CURTAINS_CLOSE_FROM := 17.6
+const CURTAINS_CLOSE_TO := 20.6
+const SHUTTER_SWING := 0.075
+## The mage's tower is different: its magic draws the curtains one window after another, MAGE_STEP hours
+## apart (0.5 s of a day of DayNight.DAY_LENGTH seconds), round the tower and up its floors, then the
+## shutters the same way; in the morning the shutters open, then the curtains. A window's place in
+## the circle (1 up to MAGIC_LEVELS - 1, 0 for any other window) is the blue of its vertex colour.
+const MAGE_STEP := 0.01
+const MAGE_CURTAINS_CLOSE := 19.0
+const MAGE_SHUTTERS_CLOSE := 19.5
+const MAGE_SHUTTERS_OPEN := 6.3
+const MAGE_CURTAINS_OPEN := 6.85
+const MAGIC_LEVELS := 32.0
+const CURTAIN_DRAW := 0.15
 ## How long one window takes to fade, in hours.
 const FADE := 0.1
 
@@ -62,50 +79,72 @@ float sched(vec2 place) {
 	vec2 k = floor(place * 4.0 + 0.5);
 	return fract(dot(k, vec2(0.7548776662, 0.5698402910)));
 }
-float curtains_shut(vec2 place) {
-	float h = sched(place);
-	if (hour < 12.0) {
-		float open = %f + %f * h;
-		return 1.0 - smoothstep(open, open + 0.3, hour);
-	}
-	float back = mix(%f, %f, h) - 0.4;
-	return smoothstep(back, back + 0.3, hour);
+float sched_shutters(vec2 place) {
+	vec2 k = floor(place * 4.0 + 0.5);
+	return fract(dot(k, vec2(0.6180339887, 0.4142135624)) + 0.37);
 }
-float shutters_shut(vec2 place) {
+float curtains_shut(vec2 place, float magic) {
 	float h = sched(place);
+	float lag = max(magic - 1.0, 0.0) * %f;
 	if (hour < 12.0) {
-		float open = %f + %f * h;
+		float open = (magic > 0.5 ? %f + lag : %f + %f * h);
 		return 1.0 - smoothstep(open, open + %f, hour);
 	}
-	float back = mix(%f, %f, h) - 0.4 + %f;
+	float back = (magic > 0.5 ? %f + lag : mix(%f, %f, h));
 	return smoothstep(back, back + %f, hour);
 }
-""" % [CURTAINS_OPEN, CURTAINS_OPEN_SPREAD, ON_FROM, ON_TO, SHUTTERS_OPEN, SHUTTERS_OPEN_SPREAD, SHUTTER_SWING,
-		ON_FROM, ON_TO, SHUTTERS_AFTER, SHUTTER_SWING]
+float shutters_shut(vec2 place, float magic) {
+	float h = sched_shutters(place);
+	float lag = max(magic - 1.0, 0.0) * %f;
+	if (hour < 12.0) {
+		float open = (magic > 0.5 ? %f + lag : %f + %f * h);
+		return 1.0 - smoothstep(open, open + %f, hour);
+	}
+	float back = (magic > 0.5 ? %f + lag : mix(%f, %f, h));
+	return smoothstep(back, back + %f, hour);
+}
+""" % [MAGE_STEP, MAGE_CURTAINS_OPEN, CURTAINS_OPEN, CURTAINS_OPEN_SPREAD, CURTAIN_DRAW,
+		MAGE_CURTAINS_CLOSE, CURTAINS_CLOSE_FROM, CURTAINS_CLOSE_TO, CURTAIN_DRAW,
+		MAGE_STEP, MAGE_SHUTTERS_OPEN, SHUTTERS_OPEN, SHUTTERS_OPEN_SPREAD, SHUTTER_SWING,
+		MAGE_SHUTTERS_CLOSE, SHUTTERS_CLOSE_FROM, SHUTTERS_CLOSE_TO, SHUTTER_SWING]
 
-## GDScript: the window's own lead, 0 to 1 (see SHUT_FUNCTION).
+## GDScript: whether any window's shutters can be swinging at this hour (the two bands of the cycle).
+## Outside them nothing has to be looked at.
+static func shutters_moving(at_hour: float) -> bool:
+	return (at_hour >= SHUTTERS_OPEN - 0.01 and at_hour <= SHUTTERS_OPEN + SHUTTERS_OPEN_SPREAD + SHUTTER_SWING + 0.01) \
+			or (at_hour >= SHUTTERS_CLOSE_FROM - 0.01 and at_hour <= SHUTTERS_CLOSE_TO + SHUTTER_SWING + 0.01)
+
+
+## GDScript: the window's own draw for its curtains, 0 to 1 (see SHUT_FUNCTION).
 static func sched(place: Vector2) -> float:
 	var k := (place * 4.0 + Vector2(0.5, 0.5)).floor()
 	return fposmod(k.x * 0.7548776662 + k.y * 0.5698402910, 1.0)
 
 
-## GDScript: how far (0 to 1) the curtains of the window with this key are drawn at this hour.
-static func curtains_shut(place: Vector2, at_hour: float) -> float:
-	var h := sched(place)
+## GDScript: the same for its shutters, drawn independently of the curtains.
+static func sched_shutters(place: Vector2) -> float:
+	var k := (place * 4.0 + Vector2(0.5, 0.5)).floor()
+	return fposmod(k.x * 0.6180339887 + k.y * 0.4142135624 + 0.37, 1.0)
+
+
+## GDScript: how far (0 to 1) the curtains of the window with this key are drawn at this hour; `magic`
+## is the window's place in the mage tower's circle (0 for any other, see MAGE_STEP).
+static func curtains_shut(place: Vector2, at_hour: float, magic := 0) -> float:
+	var lag := maxf(magic - 1.0, 0.0) * MAGE_STEP
 	if at_hour < 12.0:
-		var open := CURTAINS_OPEN + CURTAINS_OPEN_SPREAD * h
-		return 1.0 - smoothstep(open, open + 0.3, at_hour)
-	var back := lerpf(ON_FROM, ON_TO, h) - 0.4
-	return smoothstep(back, back + 0.3, at_hour)
+		var open := MAGE_CURTAINS_OPEN + lag if magic > 0 else CURTAINS_OPEN + CURTAINS_OPEN_SPREAD * sched(place)
+		return 1.0 - smoothstep(open, open + CURTAIN_DRAW, at_hour)
+	var back := MAGE_CURTAINS_CLOSE + lag if magic > 0 else lerpf(CURTAINS_CLOSE_FROM, CURTAINS_CLOSE_TO, sched(place))
+	return smoothstep(back, back + CURTAIN_DRAW, at_hour)
 
 
 ## GDScript: how shut (0 to 1) the shutters of the window with this key are at this hour.
-static func shutters_shut(place: Vector2, at_hour: float) -> float:
-	var h := sched(place)
+static func shutters_shut(place: Vector2, at_hour: float, magic := 0) -> float:
+	var lag := maxf(magic - 1.0, 0.0) * MAGE_STEP
 	if at_hour < 12.0:
-		var open := SHUTTERS_OPEN + SHUTTERS_OPEN_SPREAD * h
+		var open := MAGE_SHUTTERS_OPEN + lag if magic > 0 else SHUTTERS_OPEN + SHUTTERS_OPEN_SPREAD * sched_shutters(place)
 		return 1.0 - smoothstep(open, open + SHUTTER_SWING, at_hour)
-	var back := lerpf(ON_FROM, ON_TO, h) - 0.4 + SHUTTERS_AFTER
+	var back := MAGE_SHUTTERS_CLOSE + lag if magic > 0 else lerpf(SHUTTERS_CLOSE_FROM, SHUTTERS_CLOSE_TO, sched_shutters(place))
 	return smoothstep(back, back + SHUTTER_SWING, at_hour)
 
 
@@ -116,7 +155,7 @@ const CLOTH_FUNCTION := """
 float h21(vec2 p) {
 	return fract(sin(dot(p, vec2(41.31, 289.17))) * 43758.5453);
 }
-vec4 drape(vec2 uv, vec2 hm, vec2 pk, out vec3 lit_tint) {
+vec4 drape(vec2 uv, vec2 hm, vec2 pk, float magic, out vec3 lit_tint) {
 	vec2 q = clamp(vec2(uv.x / 0.8, uv.y / 0.9), 0.0, 1.0);
 	// How much of the pane (in metres) one pixel covers: fine detail (the weave, folds, stripes)
 	// fades out where it is finer than that, or it shimmers as the view moves.
@@ -141,7 +180,7 @@ vec4 drape(vec2 uv, vec2 hm, vec2 pk, out vec3 lit_tint) {
 	// there, wide at the rod and flaring to the hem, so the glass in the middle stays bare. Drawn shut
 	// (see curtains_shut) the two panels meet in the middle.
 	float d = min(q.x, 1.0 - q.x);
-	float shut = curtains_shut(pk);
+	float shut = curtains_shut(pk, magic);
 	float tie_y = 0.3;
 	float above = smoothstep(tie_y, 0.95, q.y);
 	float below = smoothstep(tie_y, 0.0, q.y);
@@ -197,16 +236,18 @@ uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 varying flat vec2 key;
 varying flat vec2 home;
+varying flat float circle;
 """ + LIT_FUNCTION + SHUT_FUNCTION + CLOTH_FUNCTION + """
 void vertex() {
 	key = UV2 + MODEL_MATRIX[3].xz;
 	home = floor(MODEL_MATRIX[3].xz + 0.5);
+	circle = floor((1.0 - COLOR.b) * 32.000000 + 0.5);
 }
 void fragment() {
 	vec2 q = clamp(vec2(UV.x / 0.8, UV.y / 0.9), 0.0, 1.0);
 	float wk = h21(key * 0.5 + 5.3);
 	vec3 lit_cloth;
-	vec4 drawn = drape(UV, home, key, lit_cloth);
+	vec4 drawn = drape(UV, home, key, circle, lit_cloth);
 	// The dim room between the curtains: a back wall, darker towards the top.
 	vec3 room = vec3(0.17, 0.125, 0.09) * (0.55 + 0.7 * (1.0 - q.y)) * (0.8 + 0.4 * wk);
 	vec3 seen = mix(room, drawn.rgb, drawn.a);
@@ -234,14 +275,16 @@ uniform vec3 colour = vec3(1.0, 0.7, 0.36);
 uniform float glow = 0.0;
 varying flat vec2 key;
 varying flat vec2 home;
+varying flat float circle;
 """ + LIT_FUNCTION + SHUT_FUNCTION + CLOTH_FUNCTION + """
 void vertex() {
 	key = UV2 + MODEL_MATRIX[3].xz;
 	home = floor(MODEL_MATRIX[3].xz + 0.5);
+	circle = floor((1.0 - COLOR.b) * 32.000000 + 0.5);
 }
 void fragment() {
 	vec3 lit_cloth;
-	vec4 drawn = drape(UV, home, key, lit_cloth);
+	vec4 drawn = drape(UV, home, key, circle, lit_cloth);
 	if (drawn.a < 0.5) {
 		discard;
 	}
@@ -268,14 +311,17 @@ uniform float glow = 0.0;
 """ + LIT_FUNCTION + SHUT_FUNCTION + """
 void vertex() {
 	vec2 hinge = UV2;
-	float shut = shutters_shut(hinge + MODEL_MATRIX[3].xz);
-	float a = PI * shut * (COLOR.r * 2.0 - 1.0);
-	float c = cos(a);
-	float s = sin(a);
-	vec3 pivot = vec3(hinge.x, VERTEX.y, hinge.y);
-	vec3 rel = VERTEX - pivot;
-	VERTEX = pivot + vec3(c * rel.x + s * rel.z, rel.y, -s * rel.x + c * rel.z);
-	NORMAL = vec3(c * NORMAL.x + s * NORMAL.z, NORMAL.y, -s * NORMAL.x + c * NORMAL.z);
+	float shut = shutters_shut(hinge + MODEL_MATRIX[3].xz, floor((1.0 - COLOR.b) * 32.0 + 0.5));
+	// Open (all day), the leaf stays where it is: no turning, for the main pass and the shadows alike.
+	if (shut > 0.001) {
+		float a = PI * shut * (COLOR.r * 2.0 - 1.0);
+		float c = cos(a);
+		float s = sin(a);
+		vec3 pivot = vec3(hinge.x, VERTEX.y, hinge.y);
+		vec3 rel = VERTEX - pivot;
+		VERTEX = pivot + vec3(c * rel.x + s * rel.z, rel.y, -s * rel.x + c * rel.z);
+		NORMAL = vec3(c * NORMAL.x + s * NORMAL.z, NORMAL.y, -s * NORMAL.x + c * NORMAL.z);
+	}
 }
 void fragment() {
 	ALBEDO = texture(wood, UV).rgb * tint;

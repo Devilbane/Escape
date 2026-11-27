@@ -48,11 +48,11 @@ static func has_mine(rect: Rect2i) -> bool:
 	return not on_plot(rect).is_empty()
 
 
-## The prospecting mark in `marks` that lies on the plot, the best-looking one first, or an empty Dictionary.
+## The prospecting mark in `marks` that lies on the plot (or within the reach of its licence, see Prospecting), the best-looking one first, or an empty Dictionary.
 static func mark_on(rect: Rect2i, marks: Array) -> Dictionary:
 	var best := {}
 	for m: Dictionary in marks:
-		if not rect.has_point(Vector2i(int(m.cell[0]), int(m.cell[1]))):
+		if not rect.grow(Prospecting.LICENCE_REACH).has_point(Vector2i(int(m.cell[0]), int(m.cell[1]))):
 			continue
 		if best.is_empty() or _rank(m) > _rank(best):
 			best = m

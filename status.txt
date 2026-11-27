@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Fix z-fighting at the corners of the bank and other built house walls; Sleeping hero: head on the pillows, blanket over the whole body (+48 more)
+Escape! dev status | Working on: Give house timber beams real oak: grain, weathering, rounded and crooked | Shipped this week: Fix z-fighting at the corners of the bank and other built house walls; Sleeping hero: head on the pillows, blanket over the whole body (+48 more)

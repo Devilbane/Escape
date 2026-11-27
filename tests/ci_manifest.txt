@@ -103,6 +103,7 @@ durability.gd | 60 | free | pass | Item wear shows on the rim; a destroyed piece
 skill_trees.gd | 240 | free | pass | Skill trees (whole data, old heroes keep their levels, the window keeps its size on every tree)
 training_curve.gd | 60 | free | pass | Use table (the cost of the levels, and saved heroes keep every level)
 plots.gd | 60 | free | pass | Building plots: rules, fee, deeds, the clerk
+property_register.gd | 120 | free | pass | Property register at the clerk (numbered plots, house areas, mining ground, rented house given back)
 plot_clearing.gd | 180 | free | pass | Building plots stay clear (no tree, boulder or mountain slope reaches into one)
 house_sketch.gd | 60 | free | pass | House plan: grid, snapping, sketching, undo, books
 house_cellar.gd | 60 | free | pass | House cellar plan: dig, stairs, surfaces, costs, building order, books

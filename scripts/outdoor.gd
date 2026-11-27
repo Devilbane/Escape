@@ -548,6 +548,7 @@ var _ground_tex: ImageTexture
 var _shore_img: Image
 var _shore_tex: ImageTexture
 var _village_near := {}
+var _village_middle := Vector2(-1, -1)
 ## What the dressing found for each building (see _dress_building), kept
 ## for the session.
 static var _dressed := {}
@@ -3990,6 +3991,21 @@ func near_village(c: Vector2i) -> bool:
 	return _in_village(c)
 
 
+## The middle of the village in map tiles: the mean of its buildings. Plots are named by the way
+## from here (see Plots.area_of).
+func village_centre() -> Vector2:
+	if _village_middle.x < 0.0:
+		var sum := Vector2.ZERO
+		var count := 0
+		for y in height:
+			for x in width:
+				if VILLAGE_BLOCKS.contains(cell_char(Vector2i(x, y))):
+					sum += Vector2(x, y)
+					count += 1
+		_village_middle = sum / count + Vector2(0.5, 0.5) if count > 0 else Vector2(width, height) * 0.5
+	return _village_middle
+
+
 ## Whether a tile lies within the village: close to one of its buildings.
 func _in_village(c: Vector2i) -> bool:
 	if _village_near.is_empty():
@@ -5356,8 +5372,8 @@ func _process(delta: float) -> void:
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
-		if not town_houses.is_empty():
-			# The hero's home is a town house on Weavers' Lane.
+		if not town_houses.is_empty() and not PropertyRegister.settled(hero):
+			# The hero's home is a town house on Weavers' Lane (unless they have a home of their own).
 			own_house = Homes.house_for(hero, town_houses.size())
 		_show_house_marker()
 		if own_house > 0:

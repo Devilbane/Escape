@@ -82,7 +82,14 @@ var _spell_wait: Label
 var level_files: Array[String] = []
 var level_index := 0
 var level: Level
-var player: Player
+## The hero. In a window it is made the first time something needs it (New Game's name box, or a
+## game that starts), so nothing of a game is built behind the title; headless it is there at once.
+var player: Player:
+	get:
+		if _player == null:
+			_make_player()
+		return _player
+var _player: Player
 var light_shadows: LightShadows
 var camera: Camera3D
 var _env: Environment
@@ -506,8 +513,8 @@ var _name_note: Label
 var hero_name := "":
 	set(value):
 		hero_name = value
-		if player:
-			player.set_display_name(value)
+		if _player:
+			_player.set_display_name(value)
 ## The map being tested from the workshop ("" while playing the game).
 var playtest_file := ""
 var _name_box: Control
@@ -732,31 +739,12 @@ func _ready() -> void:
 	coop.game = self
 	add_child(coop)
 	coop.changed.connect(func(): if menus.current == CoopWindow.KIND: menus._rebuild())
-	player = Player.new()
-	add_child(player)
-	# Walls block the light of the lamps near the hero (see LightShadows).
-	light_shadows = LightShadows.new()
-	light_shadows.focus = player
-	add_child(light_shadows)
-	player.set_display_name(hero_name)
-	# The hand torch speaks through the message line (see HandTorch).
-	player.torch.notice.connect(func(text: String, duration: float):
-		if state == State.PLAYING:
-			show_message(text, duration))
-	player.hurt.connect(_on_player_hurt)
-	player.leveled_up.connect(_on_leveled_up)
-	player.ailments_changed.connect(_update_hud)
-	player.regenerated.connect(_update_hud)
-	player.knives_settled.connect(_update_hud)
-	player.defeated.connect(_on_player_defeated)
-	player.bumped.connect(_on_player_bumped)
-	player.trained.connect(_on_player_trained)
+	if not defers_start_level():
+		_make_player()
 	if playtest_file != "":
 		_start_playtest()
 		return
-	if defers_start_level():
-		_rest_hero()
-	else:
+	if not defers_start_level():
 		load_level(_start_level())
 	_show_start_title("Escape!", LoadingScreen.TAGLINE)
 	# The village gets ready behind the title, so the crypt door is quick later.
@@ -766,6 +754,31 @@ func _ready() -> void:
 		# A language was just chosen: no extra click, the hero's name comes next.
 		Engine.remove_meta(ASK_NAME_FLAG)
 		new_game()
+
+
+## Makes the hero and wires it to the game (once).
+func _make_player() -> void:
+	_player = Player.new()
+	add_child(_player)
+	# Walls block the light of the lamps near the hero (see LightShadows).
+	light_shadows = LightShadows.new()
+	light_shadows.focus = _player
+	add_child(light_shadows)
+	_player.set_display_name(hero_name)
+	# The hand torch speaks through the message line (see HandTorch).
+	_player.torch.notice.connect(func(text: String, duration: float):
+		if state == State.PLAYING:
+			show_message(text, duration))
+	_player.hurt.connect(_on_player_hurt)
+	_player.leveled_up.connect(_on_leveled_up)
+	_player.ailments_changed.connect(_update_hud)
+	_player.regenerated.connect(_update_hud)
+	_player.knives_settled.connect(_update_hud)
+	_player.defeated.connect(_on_player_defeated)
+	_player.bumped.connect(_on_player_bumped)
+	_player.trained.connect(_on_player_trained)
+	if level == null and defers_start_level():
+		_rest_hero()
 
 
 ## Whether the first level waits until a game really starts ("New", or a saved game's own level)
@@ -780,8 +793,8 @@ func defers_start_level() -> bool:
 
 ## The hero waits out of the world while no level is loaded: unseen, and nothing of them runs.
 func _rest_hero() -> void:
-	player.visible = false
-	player.process_mode = Node.PROCESS_MODE_DISABLED
+	_player.visible = false
+	_player.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Straight onto the map from the workshop, with a new hero called Tester.
@@ -922,9 +935,9 @@ func _set_atmosphere(outdoor: bool) -> void:
 		Weather.apply(_env, _moon, _weather_look)
 	else:
 		Weather.clear_air(_env)
-		if player:
-			player.set_night_dim(0.0)
-			player.set_dark(1.0)
+		if _player:
+			_player.set_night_dim(0.0)
+			_player.set_dark(1.0)
 		_env.background_color = Color(0, 0, 0)
 		_env.ambient_light_color = Color(0.42, 0.40, 0.37)
 		_env.ambient_light_energy = 0.3
@@ -8470,6 +8483,9 @@ func _anyone_hunting() -> bool:
 
 
 func _process(delta: float) -> void:
+	# Behind the title there is no hero yet, and so nothing of a game to run.
+	if _player == null:
+		return
 	if plot_marker != null and plot_marker.marking():
 		var ground = _mouse_to_floor(get_viewport().get_mouse_position())
 		if ground != null:

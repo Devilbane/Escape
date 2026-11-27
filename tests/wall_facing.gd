@@ -57,5 +57,25 @@ func _initialize() -> void:
 	if pockets == 0:
 		failures += 1
 		print("FAIL: the sample wall has no pockets to check")
+	# The sleeping bag curves with the hammock: its ends are higher than the middle.
+	var bag := WallHammock.wrap().get_node("Bag") as MeshInstance3D
+	var low := 1e9
+	var low_x := 0.0
+	var feet_top := -1e9
+	var head_top := -1e9
+	for v: Vector3 in bag.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+		if v.y < low:
+			low = v.y
+			low_x = v.x
+		if v.x < -0.8:
+			feet_top = maxf(feet_top, v.y)
+		if v.x > 0.4:
+			head_top = maxf(head_top, v.y)
+	if absf(low_x - WallHammock.BEND_AT) > 0.45:
+		failures += 1
+		print("FAIL: the bag's lowest point is at ", low_x)
+	if feet_top < 0.2 or head_top < 0.35:
+		failures += 1
+		print("FAIL: the bag does not curve up at its ends ", feet_top, " ", head_top)
 	print("PASS" if failures == 0 else "FAILED")
 	quit(failures)

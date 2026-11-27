@@ -121,21 +121,29 @@ static func wrap() -> Node3D:
 	zip_mat.albedo_color = Color(0.78, 0.78, 0.8)
 	zip_mat.metallic = 0.6
 	zip_mat.roughness = 0.4
-	var zip := MeshInstance3D.new()
-	zip.name = "Zip"
-	var zip_box := BoxMesh.new()
-	zip_box.size = Vector3(1.35, 0.018, 0.022)
-	zip.mesh = zip_box
-	zip.material_override = zip_mat
-	zip.position = Vector3(-0.27, _bag_radius(-0.27).x * 1.02, 0.0)
-	root.add_child(zip)
+	# The zip is a chain of short pieces, each lying along the curve of the bag.
+	var pieces := 9
+	var x0 := -0.8
+	var x1 := 0.4
+	for k in pieces:
+		var xm := lerpf(x0, x1, (k + 0.5) / pieces)
+		var zip := MeshInstance3D.new()
+		zip.name = "Zip" if k == 0 else "Zip%d" % k
+		var zip_box := BoxMesh.new()
+		zip_box.size = Vector3((x1 - x0) / pieces * 1.08, 0.018, 0.022)
+		zip.mesh = zip_box
+		zip.material_override = zip_mat
+		var tilt := atan(bend_slope(xm))
+		zip.position = Vector3(xm - _bag_radius(xm).x * 1.02 * sin(tilt), bend(xm) + _bag_radius(xm).x * 1.02 * cos(tilt), 0.0)
+		zip.rotation = Vector3(0.0, 0.0, tilt)
+		root.add_child(zip)
 	var pull := MeshInstance3D.new()
 	pull.name = "Pull"
 	var pull_box := BoxMesh.new()
 	pull_box.size = Vector3(0.05, 0.03, 0.04)
 	pull.mesh = pull_box
 	pull.material_override = zip_mat
-	pull.position = Vector3(0.38, _bag_radius(0.38).x * 1.02 + 0.012, 0.0)
+	pull.position = Vector3(0.38 - _bag_radius(0.38).x * 1.02 * sin(atan(bend_slope(0.38))), bend(0.38) + _bag_radius(0.38).x * 1.02 * cos(atan(bend_slope(0.38))) + 0.012, 0.0)
 	root.add_child(pull)
 	# The collar: a soft roll of fur round the neck.
 	var fur := StandardMaterial3D.new()
@@ -149,8 +157,8 @@ static func wrap() -> Node3D:
 	collar.mesh = ring
 	collar.material_override = fur
 	var neck := _bag_radius(BAG_END)
-	collar.position = Vector3(BAG_END, 0.0, 0.0)
-	collar.rotation = Vector3(0.0, 0.0, PI * 0.5)
+	collar.position = Vector3(BAG_END, bend(BAG_END), 0.0)
+	collar.rotation = Vector3(0.0, 0.0, PI * 0.5 - atan(bend_slope(BAG_END)))
 	collar.scale = Vector3(neck.x / 0.2, 1.0, neck.y / 0.2) * 1.1
 	root.add_child(collar)
 	return root
@@ -158,6 +166,20 @@ static func wrap() -> Node3D:
 
 const BAG_START := -1.0
 const BAG_END := 0.5
+## The sleeper lies curved like a banana in the sag of the hammock: the hips are the lowest point (BEND_AT) and the
+## feet and the shoulders rise by this much per square of the distance (so about 0.3 m at the feet).
+const BEND_AT := -0.3
+const BEND_RISE := 0.6
+
+
+## How far the bag's spine is lifted at `x` above the lowest point, and the slope of that curve there.
+static func bend(x: float) -> float:
+	var d := x - BEND_AT
+	return BEND_RISE * d * d
+
+
+static func bend_slope(x: float) -> float:
+	return 2.0 * BEND_RISE * (x - BEND_AT)
 
 
 ## The bag's half height (y) and half width (z) at `x`: narrow at the feet, full at the hips and chest, drawn in
@@ -187,7 +209,10 @@ static func _bag_mesh() -> ArrayMesh:
 			var a := TAU * j / sides
 			# Quilted puffs: the surface swells between the seams.
 			var puff := 1.0 + 0.05 * sin(t * TAU * 6.0) * absf(sin(a * 2.0))
-			row.append(Vector3(x, sin(a) * r.x * cap * puff, cos(a) * r.y * cap * puff))
+			# The ring follows the curve: lifted by bend(x) and tilted with its slope.
+			var ly := sin(a) * r.x * cap * puff
+			var tilt := atan(bend_slope(x))
+			row.append(Vector3(x - ly * sin(tilt), bend(x) + ly * cos(tilt), cos(a) * r.y * cap * puff))
 		grid.append(row)
 	for i in rings:
 		for j in sides:

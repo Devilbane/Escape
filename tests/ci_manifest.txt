@@ -149,6 +149,7 @@ home_storage_extra.gd | 30 | free | passfail | Extra home storage pieces add roo
 riddle_vault.gd | 60 | free | pass | Riddle answers: salted many-round hash, scrambled codes
 nohpaan.gd | 60 | free | pass | Nohpaan: the hidden valley, its three monks and their lessons
 wall_map.gd | 60 | free | passfail | Climbing wall: text format, sample wall, chances with malus, surfaces and weather, gap jumps, falls and nails, breath meter, placements
+wall_generator.gd | 10 | free | passfail | Random climbing wall: the fill share, 100 percent fills every square, always a route to the summit, same seed same wall
 settings_window.gd | 60 | fixed | pass | Settings window (tabs keep one size, graphics options apply and are saved and read back)
 farm_house_windows.gd | 60 | fixed | pass | Farm houses: curtains hang clear of the clear panes, the door is locked while a farmer sleeps
 wall_holds.gd | 60 | free | passfail | Climbing wall: a foot stone under every hold, so the feet never stand on air

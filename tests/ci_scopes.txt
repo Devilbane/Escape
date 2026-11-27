@@ -72,3 +72,4 @@ farm_house_windows.gd | scripts/village_house.gd scripts/window_lights.gd script
 wall_holds.gd | scripts/wall_*.gd walls/*
 wall_spots.gd | scripts/wall_*.gd walls/* scripts/crafting.gd
 wall_facing.gd | scripts/wall_stage.gd scripts/wall_climber.gd
+wall_generator.gd | scripts/wall_generator.gd scripts/wall_map.gd scripts/wall_routes.gd

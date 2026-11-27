@@ -60,6 +60,8 @@ var _loading := false
 var _weather := WallWeather.CLEAR
 ## How much chance rules the climbing test: random weather, falling stones and lightning (0..1, see WallStage.chaos).
 var _chaos := 0.5
+## The share of squares the random wall fills with holds, in percent.
+var _fill := 60
 
 
 func _ready() -> void:
@@ -250,6 +252,17 @@ func _right_column() -> Control:
 	file_row.add_child(_button("Text einfügen", _paste_text))
 	file_row.add_child(_button("Zurück zum Spiel", _close))
 	col.add_child(file_row)
+	var random_row := HBoxContainer.new()
+	random_row.add_theme_constant_override("separation", 6)
+	random_row.add_child(_label("Füllung", 13, Color(0.9, 0.85, 0.75), false))
+	var fill_spin := _spin(0, 100, _fill, func(v: float) -> void: _fill = int(v))
+	fill_spin.suffix = " %"
+	fill_spin.tooltip_text = Lang.t("Wie viele Felder der Zufallswand einen Griff bekommen: 100 % füllt jedes Feld.")
+	random_row.add_child(fill_spin)
+	var random_button := _button("Zufallswand", _random_wall)
+	random_button.tooltip_text = Lang.t("Würfelt eine neue Wand in der gewählten Größe, mit einer Route zum Gipfel. Mit Rückgängig kommt die alte zurück.")
+	random_row.add_child(random_button)
+	col.add_child(random_row)
 	var watch := _button("Wolfram klettert (zuschauen)", _watch_wolfram)
 	watch.tooltip_text = Lang.t("Wolfram steigt die Wand allein hinauf, mit den Werten rechts: er schaut sich jede Spalte an, rastet und flucht.")
 	col.add_child(watch)
@@ -520,6 +533,12 @@ func _new_wall() -> void:
 	_push_undo()
 	_set_map(WallMap.blank())
 	_say("Eine neue, leere Wand.")
+
+
+func _random_wall() -> void:
+	_push_undo()
+	_set_map(WallGenerator.generate(map, _fill / 100.0, randi()))
+	_say(Lang.t("Eine Zufallswand mit %d %% Griffen.") % _fill, true)
 
 
 func _copy_text() -> void:

@@ -6748,10 +6748,11 @@ func _place_hp_bar() -> void:
 	# Under the bar from its left edge: the ammunition, then the troubles.
 	_ammo_row.position = _hp_bar.position + Vector2(0, HP_BAR_SIZE.y + 5)
 	_status_row.position = _ammo_row.position + Vector2(AMMO_SLOT.x * AMMO.size() + AMMO_GAP, 0)
-	# F2: one line under the ammunition, from the bar's left edge. It grows to the right and
+	# F2: two lines (place, then clock and season) under the ammunition, from the bar's left edge. It grows to the right and
 	# has its own spot, so it moves nothing else.
 	if show_coords:
-		_coords_label.text = HeroCoords.line(level, player.global_position)
+		_coords_label.text = HeroCoords.line(level, player.global_position) + "\n" \
+				+ HeroCoords.time_line(day_hour, Weather.season(season_day()))
 		_coords_label.position = _ammo_row.position + Vector2(0, AMMO_SLOT.y + 4)
 
 

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add the mine cart, stamp mill and washing trough | Shipped this week: Add the walk-in own mine: claim post, mine floor, hammer, fire, supports, hauling; Make the bees buzz a little more (+48 more)
+Escape! dev status | Working on: Window cycle: shutters meet, independent timers, mage tower circle; Add the mine cart, stamp mill and washing trough | Shipped this week: Add the walk-in own mine: claim post, mine floor, hammer, fire, supports, hauling; Make the bees buzz a little more (+48 more)

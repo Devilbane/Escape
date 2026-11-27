@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Add the deed book of the own mines (one mine per mining plot) | Shipped this week: Add the rules of the hero's own mine (MineWork); Add prospecting: Crown Prospector, probe bucket, samples and map marks (+48 more)
+Escape! dev status | Shipped this week: Add the deed book of the own mines (one mine per mining plot); Add the rules of the hero's own mine (MineWork) (+48 more)

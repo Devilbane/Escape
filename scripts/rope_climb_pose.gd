@@ -75,6 +75,9 @@ const KEYS := {
 	"side_l": [],
 	# Find the spot, three blows, then clip the rope and test the hold.
 	"hammer": [[0.0, "hang"], [0.1, "find_spot"], [0.22, "find_spot"], [0.32, "hammer_up"], [0.42, "hammer_hit"], [0.52, "hammer_up"], [0.62, "hammer_hit"], [0.72, "hammer_up"], [0.82, "hammer_hit"], [1.0, "hang"]],
+	# The rest place's pitons and the iron nail: five blows, a cycle of 0.14 each, so the hammer comes down at 0.27,
+	# 0.41, 0.55, 0.69 and 0.83 (the sounds of WallSounds.CUES["hammer5"] follow these moments).
+	"hammer5": [[0.0, "hang"], [0.06, "find_spot"], [0.14, "find_spot"], [0.2, "hammer_up"], [0.27, "hammer_hit"], [0.34, "hammer_up"], [0.41, "hammer_hit"], [0.48, "hammer_up"], [0.55, "hammer_hit"], [0.62, "hammer_up"], [0.69, "hammer_hit"], [0.76, "hammer_up"], [0.83, "hammer_hit"], [1.0, "hang"]],
 	"thread": [[0.0, "hang"], [0.15, "thread"], [0.55, "thread"], [0.7, "tug"], [0.85, "tug"], [1.0, "hang"]],
 	# Slip, fall, rope taut, arrest, stabilize.
 	"slip": [[0.0, "reach_l"], [1.0, "slip"]],

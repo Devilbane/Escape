@@ -94,9 +94,9 @@ static func has(built: Dictionary, id: String) -> bool:
 
 
 ## How many slots the storage chest has (the upgrades no longer change it).
-## `hero` adds the room of the extra storage pieces in their self-built house (HouseFurniture.store_bonus).
-static func storage_size(_built: Dictionary = {}, hero := "") -> int:
-	return STORAGE_SIZE + (HouseFurniture.of(hero).store_bonus() if hero != "" else 0)
+## A crate, barrel or oak chest in the house has its own inventory and size (HouseFurniture), so nothing adds to this one.
+static func storage_size(_built: Dictionary = {}, _hero := "") -> int:
+	return STORAGE_SIZE
 
 
 ## How many of the storage chest's slots these items take: torches bundle

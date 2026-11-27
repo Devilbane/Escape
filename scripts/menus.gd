@@ -1776,15 +1776,19 @@ func _unequip(slot: String) -> void:
 
 func _build_storage() -> void:
 	var p: Player = game.player
-	_add_label(Lang.t("Lagertruhe"), 38, game.GOLD, game.TITLE_FONT)
+	var title := "Lagertruhe"
+	if game.open_store != "":
+		title = str(HouseFurniture.KINDS.get(game.open_store_kind, {}).get("name", title))
+	_add_label(Lang.t(title), 38, game.GOLD, game.TITLE_FONT)
 	_add_label(Lang.t("Klicke einen Gegenstand an, um ihn zu verschieben."), 16, BLUE)
 	_add_label(Lang.t("Tasche (%d / %d)") % [p.bag_used(), p.bag_size()], 20)
 	_add_item_grid(p.bag, p.bag_size(), Items.item_name, _store, 6, null, true)
-	var size := HomeUpgrades.storage_size(game.home_upgrades, game.hero_name)
-	var used := HomeUpgrades.storage_used(game.storage)
+	var items: Array = game.store_items()
+	var size: int = game.store_size()
+	var used := HomeUpgrades.storage_used(items)
 	_add_label(Lang.t("Truhe (%d / %d)") % [used, size], 20)
 	# Eight across, so the window keeps its width when the chest grows.
-	_add_item_grid(game.storage, maxi(size, used), Items.item_name, _take, 8, null, true)
+	_add_item_grid(items, maxi(size, used), Items.item_name, _take, 8, null, true)
 
 
 # --- A backpack on the floor (see FloorPack) -----------------------------------
@@ -1846,21 +1850,23 @@ func _pack_pick_up() -> void:
 
 
 func _store(index: int) -> void:
-	if not HomeUpgrades.storage_fits(game.home_upgrades, game.storage, game.player.bag[index], game.hero_name):
+	var items: Array = game.store_items()
+	if not Items.fits(items, game.store_size(), game.player.bag[index]):
 		_note = Lang.t("Die Truhe ist voll.")
 	else:
-		game.storage.append(game.player.bag[index])
+		items.append(game.player.bag[index])
 		game.player.bag.remove_at(index)
 		_note = ""
 	_rebuild()
 
 
 func _take(index: int) -> void:
-	if not game.player.bag_fits(game.storage[index]):
+	var items: Array = game.store_items()
+	if not game.player.bag_fits(items[index]):
 		_note = Lang.t("Deine Tasche ist voll.")
 	else:
-		game.player.bag.append(game.storage[index])
-		game.storage.remove_at(index)
+		game.player.bag.append(items[index])
+		items.remove_at(index)
 		_note = ""
 	_rebuild()
 
@@ -2104,7 +2110,7 @@ func _build_bench() -> void:
 		list.add_child(about)
 		for id in Forge.recipes():
 			list.add_child(_hand_forge_row(id))
-	_add_label(Lang.t("Deine Truhe und Gorms Esse stehen gleich nebenan."), 16, BLUE)
+	_add_label(Lang.t("Gorms Esse steht gleich nebenan."), 16, BLUE)
 
 
 ## The fixed size of the list of recipes at a workbench.

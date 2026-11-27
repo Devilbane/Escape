@@ -200,6 +200,7 @@ func refresh() -> void:
 		if moved > 0:
 			furniture.save(game.hero_name)
 			Events.tell(Lang.t("Dein Haus hat sich verändert: %d Möbelstücke stehen wieder zum Aufstellen bereit.") % moved, ON_COLOR)
+		game.reclaim_piece_stores(furniture)
 	var mine := Plots.plot_of(game.hero_name)
 	for deed in Plots.all():
 		var is_mine: bool = own != null and deed.rect == mine
@@ -293,6 +294,8 @@ func _draw_piece(house: HouseSketch, p: Dictionary, is_mine: bool) -> void:
 	if not rects.is_empty():
 		station.touch_rects = rects
 	station.furniture = p.kind
+	if HouseFurniture.has_own_store(p.kind):
+		station.store_key = HouseFurniture.store_key(p)
 	if station.has("side"):
 		station.side = root.transform * station.side
 	if station.has("spot"):

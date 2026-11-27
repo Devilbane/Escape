@@ -1,1 +1,1 @@
-Escape! dev status | Shipped this week: Sleeping hero: head on the pillows, blanket over the whole body; Rest place ledge; climbing sounds in time with the animation (+48 more)
+Escape! dev status | Working on: Fix z-fighting at the corners of the bank and other built house walls | Shipped this week: Sleeping hero: head on the pillows, blanket over the whole body; Rest place ledge; climbing sounds in time with the animation (+48 more)

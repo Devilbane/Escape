@@ -118,6 +118,23 @@ func _initialize() -> void:
 	check(ore.get("kupfer", 0) == 17 and not ore.has("gold") and rich.stock.is_empty() and float(rich.stock_mass) == 0.0, "washing keeps 85 %% of the whole units and empties the pile (%s)" % str(ore))
 
 	# --- English -----------------------------------------------------------------------------------------
+	# --- Cart, stamp mill and washing trough ---------------------------------------------------------
+	var cm := _mine("basalt", ["malachit"])
+	check(MineWork.trip_load(cm) == MineWork.BUCKET_LOAD, "a bucket carries the small load")
+	check(MineWork.build_cart(cm) and not MineWork.build_cart(cm), "the cart is built once")
+	check(MineWork.trip_load(cm) == MineWork.CART_LOAD, "a cart carries more")
+	MineWork.advance(cm, "hammer", rng)
+	MineWork.haul(cm, MineWork.trip_load(cm))
+	var mass_before := float(cm.stock_mass)
+	check(mass_before > 0.0 and MineWork.wash(cm).is_empty(), "nothing to wash before it is stamped")
+	check(is_equal_approx(MineWork.stamp(cm), mass_before) and float(cm.stock_mass) == 0.0 and float(cm.pulp_mass) == mass_before, "the mill turns the stockpile into pulp")
+	check(MineWork.stamp(cm) == 0.0, "an empty stockpile is not stamped")
+	var rich_pulp := {"pulp": {"kupfer": 20.0, "gold": 4.0, "edelstein": 9.0, "mithril": 2.0}, "pulp_mass": 100.0}
+	var kept := MineWork.wash(rich_pulp)
+	check(int(kept.kupfer) == 17 and float(rich_pulp.pulp_mass) == 0.0 and rich_pulp.pulp.is_empty(), "the trough keeps most of the ore and empties the pulp")
+	var got := MineWork.yield_of(kept)
+	check(int(got.grams.kupfer) == 17 * MineWork.GRAMS_PER_UNIT and int(got.grams.gold) == 3 * MineWork.GRAMS_PER_UNIT, "metals come out as grams")
+	check(got.grams.has(Ore.UNKNOWN) and int(got.gems) == 7 / MineWork.UNITS_PER_GEM, "mithril is the unknown metal, gem ores give uncut gems")
 	for key in ["Der Stollen ist nicht abgestützt: Setz erst einen Stützbalken.", "Das Gestein ist zu hart für Schlägel und Eisen. Setz das Feuer an und lösche es mit Wasser."]:
 		check(Lang.EN.has(key), "English for: " + key.substr(0, 40))
 	if failures == 0:

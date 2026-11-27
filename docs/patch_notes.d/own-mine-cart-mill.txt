@@ -1,0 +1,1 @@
+- Mines now have a mine cart (4 timber, carries four times as much) and, on the plot, a stamp mill and washing trough that turn the stockpile into metal bars and uncut gems.

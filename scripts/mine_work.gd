@@ -44,6 +44,13 @@ const CART_LOAD := 8.0
 const RECOVERY := 0.85
 ## One unit of ore counts for this much mass.
 const ORE_UNIT := 1.0
+## The mine cart: timber to build it (see build_cart).
+const CART_TIMBER := 4
+## Grams of metal one unit of washed ore gives, and the units of a gem ore that make one uncut gem.
+const GRAMS_PER_UNIT := 250
+const UNITS_PER_GEM := 3
+## The ores that come out as uncut gems; every other ore is a metal (mithril is the unknown metal).
+const GEM_ORES := ["edelstein", "diamant", "aether"]
 
 
 ## A new mine over the prospecting mark `mark` (see Prospecting.mark_from) on the plot `plot_key`.
@@ -173,6 +180,19 @@ static func haul(mine: Dictionary, carry: float) -> float:
 	return moved
 
 
+## What one hauling trip carries: a bucket, or a cart once it is built.
+static func trip_load(mine: Dictionary) -> float:
+	return CART_LOAD if bool(mine.get("cart", false)) else BUCKET_LOAD
+
+
+## Builds the mine cart (the caller takes the timber). Returns whether it was built.
+static func build_cart(mine: Dictionary) -> bool:
+	if bool(mine.get("cart", false)):
+		return false
+	mine["cart"] = true
+	return true
+
+
 ## The share of each ore in the whole stockpile.
 static func stock_shares(mine: Dictionary) -> Dictionary:
 	var out := {}
@@ -194,3 +214,46 @@ static func process(mine: Dictionary) -> Dictionary:
 	mine["stock"] = {}
 	mine["stock_mass"] = 0.0
 	return out
+
+
+## The stamp mill (pochen): crushes the stockpile into pulp, which waits for the washing trough. Returns the mass
+## crushed.
+static func stamp(mine: Dictionary) -> float:
+	var mass := float(mine.stock_mass)
+	if mass <= 0.0:
+		return 0.0
+	var pulp: Dictionary = mine.get("pulp", {})
+	for ore: String in mine.stock:
+		pulp[ore] = float(pulp.get(ore, 0.0)) + float(mine.stock[ore])
+	mine["pulp"] = pulp
+	mine["pulp_mass"] = float(mine.get("pulp_mass", 0.0)) + mass
+	mine["stock"] = {}
+	mine["stock_mass"] = 0.0
+	return mass
+
+
+## The washing trough: the pulp's heavy ore settles, the rest runs off. Returns {ore: units} kept.
+static func wash(mine: Dictionary) -> Dictionary:
+	var out := {}
+	var pulp: Dictionary = mine.get("pulp", {})
+	for ore: String in pulp:
+		var units := int(floor(float(pulp[ore]) * RECOVERY / ORE_UNIT))
+		if units > 0:
+			out[ore] = units
+	mine["pulp"] = {}
+	mine["pulp_mass"] = 0.0
+	return out
+
+
+## What the washed ore is worth to the hero: {"grams": {metal: grams}, "gems": uncut gems}. Metals go to the forge's
+## stores (see Forge.add_grams), gem ores become uncut gems; a part of a gem too small is lost.
+static func yield_of(units: Dictionary) -> Dictionary:
+	var grams := {}
+	var gem_units := 0
+	for ore: String in units:
+		if GEM_ORES.has(ore):
+			gem_units += int(units[ore])
+		else:
+			var metal := Ore.UNKNOWN if ore == "mithril" else ore
+			grams[metal] = int(grams.get(metal, 0)) + int(units[ore]) * GRAMS_PER_UNIT
+	return {"grams": grams, "gems": gem_units / UNITS_PER_GEM}

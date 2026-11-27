@@ -44,6 +44,8 @@ var _running := false
 ## The cut is done and the hero still sits: no cape again until they have got up.
 var served := false
 var cape: Node3D
+## How far behind the hero's feet the seated neck is, where the cape is hung.
+const CAPE_BACK := 0.32
 var _storm: CPUParticles3D
 var _burst: CPUParticles3D
 var _snip := 0.0
@@ -146,7 +148,8 @@ func wear(player: Player) -> void:
 		return
 	cape = make_cape()
 	# The cape is made round the hero's seat: the shoulders are 0.4 behind where the feet are put.
-	cape.position = Vector3(0, 0, 0)
+	# The seated hips and shoulders are HIPS_BACK behind the feet, so the bell is moved back to the neck.
+	cape.position = Vector3(0, 0.22, -CAPE_BACK)
 	player._model.add_child(cape)
 	cape.scale = Vector3(0.4, 0.4, 0.4)
 	var tween := cape.create_tween()

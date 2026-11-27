@@ -12,8 +12,9 @@ extends RefCounted
 
 ## Metres from the tent's middle to the middle of the chair, to the south.
 const UNDER := 0.5
-## Where Benno stands while he serves, from the chair's middle: a little way to its left.
-const BESIDE := Vector3(-1.3, 0.0, -0.15)
+## Where Benno stands while he serves, from the chair's middle: behind the chair as the camera sees it
+## (the camera looks north, the chair faces south), so he and his speech bubbles stay off the customer.
+const BESIDE := Vector3(0.0, 0.0, -1.15)
 ## Seconds the tent takes to fade away and come back.
 const FADE := 0.5
 ## How often a villager with nothing to do takes the chair rather than a bench or an errand.

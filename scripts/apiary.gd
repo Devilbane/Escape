@@ -42,8 +42,8 @@ const CALM_TIME := 35.0
 const STING_MIN_HP := 4
 const STING := 1
 ## The hum: how far it carries (metres), how loud it is at a hive and how much louder it is when the bees are vexed.
-const HEARD := 30.0
-const HUM_DB := -19.0
+const HEARD := 34.0
+const HUM_DB := -11.0
 const ANGRY_DB := 4.0
 ## Where the hive's bees fly in and out, in front of it (metres).
 const FRONT := 0.4
@@ -425,7 +425,7 @@ func _near_buzz(hero: Vector3) -> void:
 		_near_hum.name = "NearHum"
 		add_child(_near_hum)
 	_near_hum.global_position = best.position
-	_near_hum.volume_db = -14.0 - 18.0 * best_d / 9.0
+	_near_hum.volume_db = -8.0 - 18.0 * best_d / 9.0
 	_near_hum.pitch_scale = 1.0
 	if not _near_hum.playing:
 		_near_hum.play(_rng.randf() * 0.9)

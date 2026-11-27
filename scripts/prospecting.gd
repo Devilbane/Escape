@@ -52,6 +52,7 @@ func _init(owner_game: Node = null) -> void:
 func clear() -> void:
 	held = false
 	sample = {}
+	analysis = {}
 	marks = []
 	digging = false
 	_drop_model()
@@ -185,6 +186,71 @@ func accept() -> void:
 		_take(pending_cell, ProspectGeology.MOUNTAIN)
 
 
+# --- The mining licence --------------------------------------------------------------------------------
+
+## What a mining licence costs for a plot: the fee of the deed (see Plots.fee) times this.
+const LICENCE_FACTOR := 2
+## How far from the sampled spot the licensed plot may lie, in tiles.
+const LICENCE_REACH := 3
+
+
+## The mining plot the licence of this mark covers: a stretch of scree of the smallest size that lies as near the
+## sampled spot as possible, or an empty Rect2i when there is none.
+static func licence_rect(level: Level, mark: Dictionary) -> Rect2i:
+	var cell := Vector2i(int(mark.cell[0]), int(mark.cell[1]))
+	var best := Rect2i()
+	var best_d := INF
+	for dy in range(-LICENCE_REACH - 1, LICENCE_REACH + 1):
+		for dx in range(-LICENCE_REACH - 1, LICENCE_REACH + 1):
+			var r := Rect2i(cell + Vector2i(dx, dy), Vector2i(Plots.MIN_SIDE, Plots.MIN_SIDE))
+			var d := Vector2(r.position + r.size / 2).distance_to(Vector2(cell))
+			if d < best_d and Plots.problem(level, r, Plots.MINING) == "":
+				best = r
+				best_d = d
+	return best
+
+
+## What the prospector can do about the licence of a mark: "owned" (the hero holds a mining plot there),
+## "barren" (nothing to mine), "none" (no free scree near the spot) or "offer" (he sells the licence).
+func licence_state(mark: Dictionary) -> String:
+	var cell := Vector2i(int(mark.cell[0]), int(mark.cell[1]))
+	for d: Dictionary in Plots.plots_of(game.hero_name):
+		if d.kind == Plots.MINING and (d.rect as Rect2i).grow(LICENCE_REACH).has_point(cell):
+			return "owned"
+	if str(mark.report.ore) == "":
+		return "barren"
+	if not game.level is Outdoor or licence_rect(game.level, mark).size == Vector2i.ZERO:
+		return "none"
+	return "offer"
+
+
+func licence_price(mark: Dictionary) -> int:
+	return Plots.fee(licence_rect(game.level, mark)) * LICENCE_FACTOR
+
+
+## Sells the licence of a mark: the hero pays and the plot is entered in the Crown's register as a mining plot.
+## Returns why not ("" when sold).
+func buy_licence(mark: Dictionary) -> String:
+	if licence_state(mark) != "offer":
+		return Lang.t("Für diese Stelle gibt es keine Lizenz zu kaufen.")
+	var rect := licence_rect(game.level, mark)
+	var price := licence_price(mark)
+	if not Payment.can_pay(game, price):
+		return Lang.t("Dafür reicht dein Kupfer nicht.")
+	var why := Plots.register(game.level, game.hero_name, rect, Plots.MINING)
+	if why == "have":
+		return Lang.t("Du hast schon so viele Grundstücke, wie die Krone erlaubt.")
+	if why != "":
+		return Lang.t("Die Krone kann dir hier keine Lizenz eintragen.")
+	Payment.pay(game, price)
+	Events.bus().plot_registered.emit(rect)
+	Events.tell(Lang.t("Schürflizenz erworben: %d x %d Felder für %d Kupfer. Der Schürfgrund steht in deinem Register.") % [rect.size.x, rect.size.y, price], STAKE_COLORS.get(str(mark.report.ore), Color.WHITE))
+	game._update_hud()
+	# The purse and the deed must agree, or the licence could be paid twice.
+	game.save_game()
+	return ""
+
+
 # --- The prospector's part ---------------------------------------------------------------------------
 
 ## Buys the bucket. Returns why not ("" when bought).
@@ -201,26 +267,55 @@ func buy() -> String:
 	return ""
 
 
-## Hands the full bucket over: the prospector analyses the sample and puts a mark on the map. Returns the
-## mark ({} when there was nothing to hand over).
+## How long the analysis takes: one real day (24 hours of the clock, which runs while the hero is away).
+const ANALYSIS_SECONDS := 86400.0
+## The sample being analysed: {"sample", "due"} (due is a unix time), or empty.
+var analysis := {}
+
+
+func analysing() -> bool:
+	return not analysis.is_empty()
+
+
+## Seconds until the analysis is done (0 when it is, or when none runs).
+func analysis_left() -> float:
+	if analysis.is_empty():
+		return 0.0
+	return maxf(0.0, float(analysis.due) - Time.get_unix_time_from_system())
+
+
+## Hands the full bucket over: the prospector starts analysing the sample, which takes ANALYSIS_SECONDS, and takes
+## no other sample meanwhile. Returns the analysis ({} when there was nothing to hand over or he is busy).
 func deliver() -> Dictionary:
-	if not is_full():
+	if not is_full() or analysing():
 		return {}
-	var mark := mark_from(sample)
+	analysis = {"sample": sample.duplicate(true), "due": Time.get_unix_time_from_system() + ANALYSIS_SECONDS}
+	var i: int = game.player.bag.find(FULL)
+	if i >= 0:
+		game.player.bag[i] = BUCKET
+	sample = {}
+	return analysis
+
+
+## When the analysis is done the result goes onto the map as a mark, and the prospector offers the licence for the
+## spot. Returns the new mark ({} while it is not done).
+func finish() -> Dictionary:
+	if analysis.is_empty() or analysis_left() > 0.0:
+		return {}
+	var mark := mark_from(analysis.sample)
 	mark["day"] = game.day
+	analysis = {}
 	# One mark per spot: a second sample of the same place replaces the first.
 	marks = marks.filter(func(m: Dictionary) -> bool: return not (m.file == mark.file and m.cell == mark.cell and m.source == mark.source))
 	marks.append(mark)
 	while marks.size() > MAX_MARKS:
 		marks.pop_front()
-	var i: int = game.player.bag.find(FULL)
-	if i >= 0:
-		game.player.bag[i] = BUCKET
-	sample = {}
 	if game.level is Outdoor:
 		build_stake(game.level, mark)
 	game.journal.write("Prospektor: %s", [report_text(mark.report)], str(mark.file))
-	Events.tell(Lang.t("Brandt trägt die Stelle in deine Karte ein: %s") % report_text(mark.report), STAKE_COLORS.get(str(mark.report.ore), Color.WHITE))
+	Events.tell(Lang.t("Brandt hat deine Probe untersucht und trägt die Stelle in deine Karte ein: %s") % report_text(mark.report), STAKE_COLORS.get(str(mark.report.ore), Color.WHITE))
+	if licence_state(mark) == "offer":
+		Events.tell(Lang.t("Er bietet dir die Schürflizenz für die Stelle an. Du kannst sie bei ihm kaufen, jetzt oder später."), Color(1.0, 0.8, 0.4))
 	return mark
 
 
@@ -370,6 +465,8 @@ func _drop_model() -> void:
 
 ## Keeps the model true to the state: gone when the bucket is away or lost.
 func tick() -> void:
+	if not analysis.is_empty() and analysis_left() <= 0.0:
+		finish()
 	if held and not has_bucket():
 		held = false
 		_drop_model()
@@ -407,7 +504,7 @@ const ASK_SIZE := Vector2(620, 250)
 # --- Saved game ---------------------------------------------------------------------------------------------------
 
 func for_save() -> Dictionary:
-	return {"held": held, "sample": sample.duplicate(true), "marks": marks.duplicate(true)}
+	return {"held": held, "sample": sample.duplicate(true), "marks": marks.duplicate(true), "analysis": analysis.duplicate(true)}
 
 
 func load_from(data) -> void:
@@ -418,6 +515,9 @@ func load_from(data) -> void:
 	var s = data.get("sample", {})
 	if s is Dictionary and s.has("main") and s.has("cell"):
 		sample = _clean(s)
+	var running = data.get("analysis", {})
+	if running is Dictionary and running.has("due") and running.get("sample") is Dictionary and running.sample.has("main") and running.sample.has("cell"):
+		analysis = {"sample": _clean(running.sample), "due": float(running.due)}
 	var list = data.get("marks", [])
 	if list is Array:
 		for m in list:

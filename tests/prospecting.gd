@@ -206,8 +206,24 @@ func _run() -> void:
 	game.menus.open(Prospector.KIND)
 	await _wait(2)
 	Prospector._deliver(game.menus)
-	check(not p.is_full() and p.marks.size() == 1, "the sample is analysed and leaves a mark")
+	check(not p.is_full() and p.analysing() and p.marks.is_empty(), "the sample is being analysed, no mark yet")
+	check(absf(p.analysis_left() - Prospecting.ANALYSIS_SECONDS) < 5.0, "the analysis takes one real day")
 	check(game.player.bag.has(Prospecting.BUCKET) and not game.player.bag.has(Prospecting.FULL), "the bucket is empty again")
+	# While he analyses, he takes no other sample.
+	game.player.bag[game.player.bag.find(Prospecting.BUCKET)] = Prospecting.FULL
+	p.sample = ProspectGeology.sample(spot + Vector2i(5, 5), "boden")
+	check(p.deliver().is_empty() and p.sample.has("main"), "no second sample while one is analysed")
+	game.player.bag[game.player.bag.find(Prospecting.FULL)] = Prospecting.BUCKET
+	p.sample = {}
+	# A saved game keeps the analysis and its time.
+	var kept := Prospecting.new(game)
+	kept.load_from(p.for_save())
+	check(kept.analysing() and absf(kept.analysis_left() - p.analysis_left()) < 1.0, "a saved game keeps the analysis running")
+	p.tick()
+	check(p.marks.is_empty(), "the result is not ready before the day is over")
+	p.analysis.due = Time.get_unix_time_from_system() - 1.0
+	p.tick()
+	check(not p.analysing() and p.marks.size() == 1, "after the day the result leaves a mark")
 	var mark: Dictionary = p.marks[0]
 	check(mark.cell == [spot.x, spot.y] and mark.source == "boden" and mark.file == game.journal.current_file(), "the mark is at the spot")
 	check(mark.report == ProspectGeology.analyse(here), "with the prospector's report")
@@ -275,6 +291,46 @@ func _run() -> void:
 	keys.append_array([ProspectGeology.DECOY_NAME, "Staub und Sand"])
 	keys.append_array(Prospecting.CHANCE_TEXT.values())
 	keys.append_array(Prospecting.RICH_TEXT.values())
+	# --- The mining licence ------------------------------------------------------------------------
+	var scree := Rect2i()
+	for y in range(lvl.height - 2):
+		for x in range(lvl.grid[y].length() - 2):
+			var r := Rect2i(x, y, 2, 2)
+			if scree.size == Vector2i.ZERO and Plots.problem(lvl, r, Plots.MINING) == "":
+				scree = r
+	check(scree.size != Vector2i.ZERO, "there is scree for a licence")
+	Plots.release(game.hero_name)
+	var licensed := Prospecting.mark_from(_made("basalt", "", ["malachit"]))
+	licensed.cell = [scree.position.x, scree.position.y]
+	licensed["day"] = 1
+	var barren := licensed.duplicate(true)
+	barren.report = {"ore": "", "chance": "spur", "richness": "arm", "also": "", "warn": "", "deeper": false}
+	p.marks = [licensed]
+	check(p.licence_state(licensed) == "offer", "a good mark near scree gets an offer")
+	check(p.licence_state(barren) == "barren", "barren rock gets no offer")
+	var far := licensed.duplicate(true)
+	far.cell = [1, 1]
+	check(p.licence_state(far) == "none", "no scree near the spot, no licence")
+	var price := p.licence_price(licensed)
+	check(price == Plots.fee(Prospecting.licence_rect(lvl, licensed)) * Prospecting.LICENCE_FACTOR, "the licence costs the deed's fee times the factor")
+	game.coins = 0
+	check(p.buy_licence(licensed) != "" and Plots.plots_of(game.hero_name).is_empty(), "without the copper there is no licence")
+	game.coins = 100000
+	game.player.bag.erase(Prospecting.FULL)
+	game.player.bag.erase(Prospecting.BUCKET)
+	game.trader_role = Prospector.ROLE
+	game.menus.open(Prospector.KIND)
+	Prospector._licence(game.menus, licensed)
+	var deeds := Plots.plots_of(game.hero_name)
+	check(deeds.size() == 1 and deeds[0].kind == Plots.MINING, "the licence is a mining plot deed in the register")
+	check(p.licence_state(licensed) == "owned", "the mark now shows the licence as owned")
+	check(p.buy_licence(licensed) != "" and Plots.plots_of(game.hero_name).size() == 1, "no second licence for the same spot")
+	check(PropertyRegister.rows(Plots.MINING, game.hero_name, lvl).size() == 1, "the register lists the mining plot")
+	Prospector._show(game.menus, 0)
+	check(game.menus.current == Prospector.KIND, "the window shows the chosen mark")
+	game.menus.close()
+	Plots.release(game.hero_name)
+
 	for key in keys:
 		check(Lang.EN.has(key), "English for: " + String(key).substr(0, 40))
 	for line: String in Villager.ROLES[Prospector.ROLE].lines:

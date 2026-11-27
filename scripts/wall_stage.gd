@@ -82,7 +82,7 @@ const LEAP_POSES := {
 ## The arm stretch on waking: both arms high and out, the head tipped back.
 ## Lying in the hammock he curls like a banana: shoulders, head and raised legs up, the hips the lowest point (the
 ## bag is bent the same way, see WallHammock.bend).
-const SLEEP_CURL := {"hips_y": -0.1, "spine": 30.0, "chest": 14.0, "head": -8.0, "arm": 150.0, "elbow": 50.0, "hip_l": 40.0, "hip_r": 36.0, "knee_l": 14.0, "knee_r": 18.0, "abd_l": 8.0, "abd_r": 8.0}
+const SLEEP_CURL := {"hips_y": -0.1, "spine": 18.0, "chest": 8.0, "head": -16.0, "arm": 150.0, "elbow": 50.0, "hip_l": 40.0, "hip_r": 36.0, "knee_l": 14.0, "knee_r": 18.0, "abd_l": 8.0, "abd_r": 8.0}
 const STRETCH_POSE := {"hips_y": 0.0, "spine": -8.0, "head": -14.0, "arm_l": 0.0, "out_l": 35.0, "lift_l": 160.0, "elbow_l": 0.0, "arm_r": 0.0, "out_r": 35.0, "lift_r": 160.0, "elbow_r": 0.0}
 const SKY := {
 	WallWeather.CLEAR: [Color(0.43, 0.56, 0.72), 1.15, 0.7],

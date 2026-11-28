@@ -183,6 +183,8 @@ var writing_card := WritingCard.new(self)
 ## too, still counts as day d: that is when the wandering merchant comes
 ## (see Wanderer).
 var day := 0
+## What the hero was worth each day, [day, copper] pairs (see Wealth, WealthWindow).
+var wealth_log: Array = []
 ## How many season days the seasons are moved on from the real calendar (see Seasons, season_day):
 ## the sky command's doing, kept in the save.
 var season_shift := 0
@@ -227,6 +229,8 @@ var riddles := RiddleCount.new()
 var graveyard_riddles := GraveyardRiddles.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
+## The run to a spot picked on the map (see AutoRun).
+var auto_run := AutoRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
 ## gossip and secret recipes. Kept in the saved game.
 var reputation := Reputation.new(self)
@@ -447,6 +451,8 @@ var _message: Label
 var _help: Label
 ## The testing panel in the bottom left corner (see TestPanel).
 var _test_panel: TestPanel
+## The performance benchmark of the test panel (see PerfBenchmark).
+var _benchmark: PerfBenchmark
 ## Messages that came before the newest one, oldest first, kept above it
 ## while they are still being read (see show_message), so a new message
 ## never covers an unread one.
@@ -619,6 +625,7 @@ func _bus_links() -> Array:
 		[bus.graveyard_riddle, _on_graveyard_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
+		[bus.hero_acted, auto_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
@@ -793,6 +800,9 @@ func _make_player() -> void:
 ## instead of being built behind the title. Always, where a window is drawn; headless (the tests)
 ## the level is there at once, unless a test asks for the real thing with `lazy_start`.
 static var lazy_start := false
+## Set once a started game's level, saved game and hero are all in place; the loading screen
+## (LoadingScreen) keeps the unfinished world hidden until then.
+var world_in_place := false
 
 
 func defers_start_level() -> bool:
@@ -3323,10 +3333,17 @@ static func _dawn_between(from: float, to: float) -> bool:
 	return from < dawn or to >= dawn
 
 
+## Writes what the hero is worth now into today's place in the wealth log.
+func _note_wealth() -> void:
+	if player != null and hero_name != "":
+		Wealth.record(wealth_log, day, int(Wealth.compute(self).total))
+
+
 ## A new morning: fresh notices on the bounty board, and the hunts not
 ## finished in time are over.
 func _new_day(quiet := false) -> void:
 	day += 1
+	_note_wealth()
 	# The morning wipes the footprints out of the snow.
 	SnowPrints.clear()
 	Forge.restock(smith_stock, day, hero_name)
@@ -4217,6 +4234,7 @@ func begin_new_game() -> void:
 	quests.clear()
 	journal.clear()
 	day = 0
+	wealth_log = []
 	season_shift = 0
 	bounties.clear()
 	bounties.refresh(day)
@@ -4697,6 +4715,7 @@ func _apply_save(data: Dictionary) -> void:
 	quests.catch_up()
 	journal.load_from(data.get("journal", {}))
 	day = maxi(0, int(data.get("day", 0)))
+	wealth_log = Wealth.load_from(data.get("wealth", []))
 	season_shift = int(data.get("season_shift", 0))
 	bounties.load_from(data.get("bounties", {}))
 	bounties.refresh(day)
@@ -4858,6 +4877,7 @@ func _put_in_built_house(spot: Dictionary) -> bool:
 
 func _leave_title(prepare: Callable) -> void:
 	state = State.TRANSITION
+	world_in_place = false
 	_title_buttons.visible = false
 	# The language buttons too: left in the faded title, they would lie
 	# unseen across the middle of the screen and take the pointer from the
@@ -4967,6 +4987,7 @@ func _home_given_now() -> bool:
 ## server the character it keeps. Its shape is versioned (see SaveFormat).
 func hero_record() -> Dictionary:
 	journal.catch_up()
+	_note_wealth()
 	var data := {
 		"version": SaveFormat.VERSION, "name": hero_name, "sex": player.sex, "xp": player.hero_xp, "level": level_index, "coins": coins, "currency": Loot.MONEY, "iron": iron, "bars": bars, "metal_grams": metal_grams, "secrets": secrets_found, "fished_ring": fishing.ring_found, "treasure_maps": treasure_maps.for_save(), "prospecting": prospecting.for_save(), "owl_clock": owl_clock.for_save(), "riddles": riddles.for_save(), "graveyard_riddles": graveyard_riddles.for_save(), "dry": dry_levels, "bumped_person": bumped_person, "hints": hints_shown, "hp": player.hp, "knives": player.knives,
 		"gift_hp": player.gift_hp, "gift_power": player.gift_power, "gift_speed": player.gift_speed, "gift_armor": player.gift_armor,
@@ -4979,7 +5000,7 @@ func hero_record() -> Dictionary:
 		"looted": _looted_for_save(), "met": met.keys(), "builds": _builds_for_save(), "floors": _floors_for_save(), "slimes": _slimes_for_save(),
 		"quests": quests.for_save(),
 		"journal": journal.for_save(),
-		"day": day, "season_shift": season_shift, "bounties": bounties.for_save(),
+		"day": day, "wealth": Wealth.for_save(wealth_log), "season_shift": season_shift, "bounties": bounties.for_save(),
 		"crafting": crafting.for_save(),
 		"wishes": wishes.for_save(),
 		"reputation": reputation.for_save(),
@@ -6132,6 +6153,7 @@ func _real_time_text(seconds: float) -> String:
 
 
 func _start_playing() -> void:
+	world_in_place = true
 	# A hero waking up in bed is still busy getting up (see _wake_in_bed).
 	state = State.TRANSITION if _waking else State.PLAYING
 	var tween := create_tween()
@@ -6337,6 +6359,11 @@ func _on_test_panel(kind: String, arg: Variant) -> void:
 			_toggle_godmode()
 		"wall":
 			WallScreens.open_workshop(self)
+		"bench":
+			if _benchmark == null:
+				_benchmark = PerfBenchmark.new()
+				add_child(_benchmark)
+			_benchmark.toggle(self)
 
 
 ## The chat line's weather and time commands (see SkyCommand): force the
@@ -7873,6 +7900,7 @@ func _with_article(label: String) -> String:
 func _on_player_hurt(_amount: int) -> void:
 	_update_hud()
 	home_run.on_hurt()
+	auto_run.on_hurt()
 	var tween := create_tween()
 	_fade.color = Color(0.6, 0.02, 0.02, 0.0)
 	tween.tween_property(_fade, "color:a", 0.35, 0.08)
@@ -8644,6 +8672,7 @@ func _process(delta: float) -> void:
 	_place_dust(drawn)
 	_steer_by_mouse(delta)
 	home_run.tick()
+	auto_run.tick()
 	update_home_button()
 	update_blueprint_button()
 	update_torch_button()
@@ -8990,6 +9019,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			# and the home key itself) calls the way home off.
 			if home_run.active and not (event is InputEventKey and event.physical_keycode in [KEY_X, KEY_M, KEY_TAB]):
 				home_run.stop()
+			if auto_run.active and not (event is InputEventKey and event.physical_keycode in [KEY_M, KEY_TAB]):
+				auto_run.stop()
 			if event is InputEventKey:
 				match event.physical_keycode:
 					KEY_ENTER, KEY_KP_ENTER:

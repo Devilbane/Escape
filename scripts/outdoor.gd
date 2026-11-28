@@ -5425,6 +5425,7 @@ var _leaf_hour := -1.0
 var _leaf_moving := true
 ## The houses with windows and what the neighbours did to them (see _mind_the_neighbours).
 var _window_houses: Array = []
+var _leaf_houses: Array = []
 var _early_mats := {}
 ## How near a person has to come, in metres, for a house to maybe act early, and how much earlier (hours).
 const NEIGHBOUR_REACH := 9.0
@@ -5437,13 +5438,21 @@ const LEAF_EARSHOT := 38.0
 ## The shutters clack as they swing shut in the evening and open in the morning, each leaf at its own
 ## hour (see WindowLights.shutters_shut), at the leaf and not too loud.
 func _shutter_sounds() -> void:
+	# Footprints, snow prints, leaves and the like come and go as children of the village all the time: the
+	# (costly) look at every window only happens when the houses with shutters themselves are not the same.
 	if get_child_count() != _leaf_scan:
 		_leaf_scan = get_child_count()
-		_leaves = []
-		_window_houses = []
-		for house in get_children():
-			if not (house is Node3D and house.has_meta("shutter_hinges")):
-				continue
+		var houses: Array = []
+		for child in get_children():
+			if child is Node3D and child.has_meta("shutter_hinges"):
+				houses.append(child)
+		if houses == _leaf_houses and not _leaves.is_empty():
+			houses = []
+		else:
+			_leaf_houses = houses
+			_leaves = []
+			_window_houses = []
+		for house in houses:
 			var xf: Transform3D = (house as Node3D).global_transform
 			# The window surfaces of the house: [mesh instance, surface, its own override or null, the material].
 			var slots: Array = []

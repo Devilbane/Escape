@@ -186,6 +186,11 @@ func _ready() -> void:
 	_sun = DirectionalLight3D.new()
 	_sun.rotation_degrees = Vector3(-35, 28, 0)
 	_sun.shadow_enabled = true
+	# Soft shadows: an angular size (penumbra that widens with the distance from the stone), a blur and a see-through
+	# shadow, so a stone's shadow melts into the face instead of cutting a hard black edge.
+	_sun.light_angular_distance = 2.5
+	_sun.shadow_blur = 2.5
+	_sun.shadow_opacity = 0.5
 	view.add_child(_sun)
 	camera = Camera3D.new()
 	camera.fov = 50.0

@@ -241,6 +241,8 @@ var village_talk := VillageTalk.new(self)
 var village_worries := VillageWorries.new(self)
 ## Small talk, rumours and stories in the village (see VillageRumours).
 var village_rumours := VillageRumours.new(self)
+## The hero's deeds the herald calls out from his podium (see CrierNews).
+var crier_news := CrierNews.new()
 ## Fritz's drinking songs at the tavern (see DrinkingSongs).
 var drinking_songs := DrinkingSongs.new(self)
 ## Aldo's practice duel with Odo on the square (see MageDuel).
@@ -621,7 +623,8 @@ func _bus_links() -> Array:
 		[bus.quest_done, xp_for_task],
 		[bus.bounty_paid, xp_for_bounty],
 		[bus.riddle_solved, xp_for_riddle],
-		[bus.riddle_done, riddles.solve],
+		[bus.riddle_done, _on_riddle_done],
+		[bus.quest_done, _crier_quest_done],
 		[bus.graveyard_riddle, _on_graveyard_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
@@ -676,6 +679,7 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	Lang.setup()
+	CrierNews.current = crier_news
 	Cursors.setup()
 	# Text that sets no size of its own follows the game's text scale too.
 	if get_window().theme == null:
@@ -4248,6 +4252,7 @@ func begin_new_game() -> void:
 	MatthesLife.clear()
 	village_worries.clear()
 	village_rumours.clear()
+	crier_news.clear()
 	drinking_songs.clear()
 	mage_duel.clear()
 	storage.clear()
@@ -4725,6 +4730,7 @@ func _apply_save(data: Dictionary) -> void:
 	village_talk.load_from(data.get("ties", []))
 	MatthesLife.load_from(data.get("matthes_love", {}))
 	village_rumours.load_from(data.get("rumours", {}))
+	crier_news.load_from(data.get("crier_news", {}))
 	Factions.load_from(data.get("factions", {}))
 	MonsterLore.load_from(data.get("monster_lore", {}))
 	var plan = data.get("plan", {})
@@ -5007,6 +5013,7 @@ func hero_record() -> Dictionary:
 		"ties": village_talk.for_save(),
 		"matthes_love": MatthesLife.for_save(),
 		"rumours": village_rumours.for_save(),
+		"crier_news": crier_news.for_save(),
 		"factions": Factions.for_save(),
 		"monster_lore": MonsterLore.for_save(),
 		"companions": {"list": companions, "following": following, "trust": trust},
@@ -6223,12 +6230,23 @@ func chat_allowed() -> bool:
 func _on_graveyard_riddle(id: String) -> void:
 	if not graveyard_riddles.solve(id):
 		return
-	riddles.solve(id)
+	_on_riddle_done(id)
 	quests.start_found(Quests.TALES)
 	quests.update_tales()
 	if graveyard_riddles.riddles_solved() >= GraveyardRiddles.NEEDED and GraveyardRiddles.teach(player):
 		Training.save_hero(hero_name, player.xp, player.level_data())
 		Events.tell(Lang.t(GraveyardRiddles.OPENED), Color(0.7, 1.0, 0.85), 7.0)
+
+
+## An official riddle is solved: it counts, and the herald will call it out (see CrierNews).
+func _on_riddle_done(id: String) -> void:
+	if riddles.solve(id):
+		crier_news.add(CrierNews.RIDDLE, id, hero_name, day)
+
+
+## A task is done: the herald will call it out (see CrierNews).
+func _crier_quest_done(id: String) -> void:
+	crier_news.add(CrierNews.QUEST, id, hero_name, day)
 
 
 ## The trader's task of the two skulls is done: the fourth tale of the crypt (see Ossuary).
@@ -8570,6 +8588,40 @@ func _guardian_intro() -> void:
 	_guardian_tip += 1
 
 
+## The tooltip of the herald's NEWS! sign, in the house tooltip style, shown beside the mouse while it points at the sign.
+var _news_tip: PanelContainer
+
+
+func _update_news_tip() -> void:
+	var over := false
+	var mouse := get_viewport().get_mouse_position()
+	if state == State.PLAYING and level != null and player != null and camera != null and not menus.is_open() and player.can_act():
+		over = TownCrier.sign_under_ray(level, camera.project_ray_origin(mouse), camera.project_ray_normal(mouse))
+	if not over and _news_tip == null:
+		return
+	if _news_tip == null:
+		var tips := _tooltip_theme()
+		_news_tip = PanelContainer.new()
+		_news_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_news_tip.z_index = 100
+		_news_tip.add_theme_stylebox_override("panel", tips.get_stylebox("panel", "TooltipPanel"))
+		var text := Label.new()
+		text.name = "Text"
+		text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text.add_theme_font_override("font", tips.get_font("font", "TooltipLabel"))
+		text.add_theme_font_size_override("font_size", tips.get_font_size("font_size", "TooltipLabel"))
+		text.add_theme_color_override("font_color", tips.get_color("font_color", "TooltipLabel"))
+		text.add_theme_color_override("font_outline_color", tips.get_color("font_outline_color", "TooltipLabel"))
+		text.add_theme_constant_override("outline_size", tips.get_constant("outline_size", "TooltipLabel"))
+		_news_tip.add_child(text)
+		_hud.add_child(_news_tip)
+	_news_tip.visible = over
+	if over:
+		(_news_tip.get_node("Text") as Label).text = Lang.t(CrierNews.SIGN_TIP)
+		var room := get_viewport().get_visible_rect().size
+		_news_tip.position = (mouse + Vector2(18, 24)).min(room - _news_tip.size - Vector2(8, 8)).max(Vector2.ZERO)
+
+
 ## The ladder under the mouse: it glows and the cursor turns into a hand, as for any button.
 var _ladder_hover: Node3D
 
@@ -8611,6 +8663,7 @@ func _process(delta: float) -> void:
 		if spot != null:
 			house_sketcher.hover(spot)
 	_update_ladder_hover()
+	_update_news_tip()
 	_update_quick_bar()
 	_eerie(delta)
 	_tick_clock(delta)

@@ -196,7 +196,7 @@ const NEWS := [
 	"Hört, hört! Jede dritte Nacht kommt der Wanderhändler Zarek mit seinem Karren ins Dorf!",
 ]
 ## How long the village listens to the herald (seconds).
-const LISTEN_TIME := 13.0
+const LISTEN_TIME := 17.0
 ## Who stays up at night: the guard keeps watch, the drinker stays at the
 ## tavern, the temple is open day and night and the wandering merchant only
 ## comes at night. Everyone else goes home to sleep at nightfall (see
@@ -335,6 +335,8 @@ var _greeted := false
 ## Who the villager listens to while gathered on the square.
 var _listen_to := Vector3.INF
 var _news := 0
+## The herald's stage act and making way (see TownCrier).
+var _crier: TownCrier
 ## Night has fallen, and whether the villager is inside their house asleep
 ## (hidden, and nobody to talk to or trade with until morning).
 var night := false
@@ -498,6 +500,9 @@ func _ready() -> void:
 		BeeVeil.put_on(_model)
 	if role == StreetSweeper.ROLE:
 		StreetSweeper.put_on(_model)
+	# The herald's official hat of the crown (see CrierHat).
+	if role == TownCrier.ROLE:
+		CrierHat.put_on(_model)
 	if _info.get("bandana", false):
 		Bandana.put_on(_model)
 	if _info.get("locks", "") == "dread":
@@ -652,6 +657,9 @@ func update_wear(at_once := false) -> void:
 	# The hat and the apron of the summer clothes (see StreetSweeper).
 	if role == StreetSweeper.ROLE:
 		StreetSweeper.show_gear(_model, not wears_winter)
+	# The herald's hat gives way to his fur cap in winter (see CrierHat).
+	if role == TownCrier.ROLE:
+		CrierHat.show_hat(_model, not wears_winter)
 	# A bird perches on the top of the head, hat or no hat (see _top_of_head).
 	_head_top = -1.0
 
@@ -914,13 +922,16 @@ func _start(task: String, time: float) -> void:
 		_begin_sweep()
 	else:
 		_end_sweep()
+	# The herald's speech from the podium is called off by anything else (see TownCrier).
+	if task != TownCrier.TASK and _crier != null:
+		_crier.stop()
 	# Matthes puts the hoe, the sack and the flower down when anything but his field work or his courting begins.
 	if role == MatthesLife.ROLE and task != MatthesLife.TASK:
 		MatthesLife.stop(self)
 	if task != "frozen" and _ice != null:
 		_thaw()
 	# Mending goes on until the brick is whole (see _mend), not for a set time.
-	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless", MatthesLife.TASK] else time
+	_task_time = 600.0 if task in ["mend", "defend", "frozen", "sweep", "bless", MatthesLife.TASK, TownCrier.TASK] else time
 	_work_pause = 0.0
 	if task in ["home", "hide"] and not at_home:
 		_hide_inside(true, true)
@@ -1236,6 +1247,8 @@ func _sweep_snow(delta: float) -> void:
 ## One stroke of the broom at his feet along `heading`: the snow or leaves swept aside, the dust or the leaves
 ## flying up.
 func _work_broom(kind: String, heading: Vector3, swing: float, delta: float) -> void:
+	# The herald steps out of the broom's way and thanks him (see TownCrier.give_way).
+	TownCrier.give_way(self, heading)
 	var leaves := kind == "leaves"
 	var width := LeafSweep.SWING if leaves else SnowSweep.SWING
 	_lay_broom(swing, width)
@@ -2651,6 +2664,12 @@ func _physics_process(delta: float) -> void:
 			_sweep_snow(delta)
 		"tend":
 			MatthesLife.step(self, delta)
+		TownCrier.TASK:
+			if _crier != null:
+				_crier.step(delta)
+		TownCrier.WAIT_TASK:
+			if _crier != null:
+				_crier.wait(delta)
 		"bless":
 			_bless_step(delta)
 		"defend":
@@ -2682,6 +2701,13 @@ func _physics_process(delta: float) -> void:
 			# Stood still after getting stuck (see _mind_progress): the same walk again.
 			var again := _retry
 			_walk_to(again.goal, again.speed, again.then)
+			return
+		if _task == TownCrier.WAIT_TASK:
+			# Matthes has passed: back to his place (a little longer aside while he is still close).
+			if _crier != null and _crier.sweeper_near():
+				_task_time = 1.0
+				return
+			_walk_straight(level.cell_to_world(home), WALK_SPEED, "work")
 			return
 		if _task == "listen":
 			# The news is out: back to the day's work.
@@ -3421,12 +3447,76 @@ func gather_at(spot: Vector3, speaker: Vector3) -> void:
 	_walk_to(spot, WALK_SPEED * 1.2, "listen")
 
 
-## The herald's call: the next piece of news, arm raised.
-func proclaim() -> void:
-	say(Lang.t(NEWS[_news % NEWS.size()]), Vector3.INF, 7.0)
-	_news += 1
+## The herald's call: the next piece of news (or `line`, a deed of the hero), from his podium when the village has
+## one (see TownCrier), else with an arm raised where he stands.
+func proclaim(line := "") -> void:
+	if line == "":
+		line = Lang.t(NEWS[_news % NEWS.size()])
+		_news += 1
+	if TownCrier.begin(self, line):
+		return
+	say(line, Vector3.INF, 7.0)
 	_current_anim = "Cheer"
 	_anim.play("Cheer", 0.2)
+
+
+## The herald on his way to the podium or speaking from it.
+func is_announcing() -> bool:
+	return _task == TownCrier.TASK or (_task == "walk" and get_meta("then", "") == TownCrier.TASK)
+
+
+## Off to the foot of the podium's steps, then the announcement begins (see TownCrier.step).
+func crier_walk(foot: Vector3) -> void:
+	_walk_to(foot, WALK_SPEED * 1.15, TownCrier.TASK)
+
+
+## The announcement is over: back on the ground, the day goes on.
+func end_announce() -> void:
+	if _crier != null:
+		_crier.stop()
+	_start("idle", 1.0)
+
+
+## The model's node (for what is worn or held at the body, see TownCrier).
+func model() -> Node3D:
+	return _model
+
+
+## Turns towards `direction` (`weight`: how far, in seconds of turning).
+func face(direction: Vector3, weight: float) -> void:
+	_turn_to(direction, weight)
+
+
+## Whether the herald may step aside for Matthes now: standing about, not talking, not on the podium.
+func can_make_way() -> bool:
+	return role == TownCrier.ROLE and not at_home and visible and _task in ["work", "idle"] and _bubble_time <= 0.0 \
+			and threat == null and not night and not level.village_alarm.raised
+
+
+## Steps aside to `to`, out of the way of the sweeper, and waits there (see TownCrier.give_way).
+func step_aside(to: Vector3, sweeper: Villager) -> void:
+	if _crier == null:
+		_crier = TownCrier.new(self)
+	_crier.way_for = sweeper
+	_crier.thanks_due = _crier.may_thank(Time.get_ticks_msec() / 1000.0)
+	_walk_straight(to, WALK_SPEED * 1.25, TownCrier.WAIT_TASK)
+
+
+## A short walk straight to a point on the same tile or the next (no path of tiles: see _walk_to), then `then`.
+func _walk_straight(target: Vector3, speed: float, then: String) -> void:
+	_leave_post()
+	_path.clear()
+	_retry = {}
+	_stuck_watch.reset()
+	_path.append(target)
+	_speed = speed
+	_task = "walk"
+	set_meta("then", then)
+
+
+## Whether the broom is at work (sweeping a stretch, or on the way with the broom out).
+func is_sweeping_now() -> bool:
+	return _sweep != null or (_broom != null and _broom.visible)
 
 
 # --- The morning gathering in the temple (see TempleMorning) ---------------------

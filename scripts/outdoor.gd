@@ -426,6 +426,22 @@ var treasure := {}
 var treasure_cells := {}
 var treasure_parts := {}
 var _herald: Node3D
+## The herald's podium and sign (see TownCrier.build_stage): where each stands, {} when the map has no room.
+var crier_stage := {}
+
+
+## The herald (Konrad), or null.
+func herald() -> Villager:
+	return _herald as Villager
+
+
+## Blocks the podium's and the sign's footprint and keeps the villagers' paths off their tiles.
+func add_stage_solids(pos: Vector3, block: Vector2, sign_pos: Vector3, sign_block: Vector2, cells: Array) -> void:
+	_add_solid(pos, Vector3(block.x, 1.5, block.y))
+	_add_solid(pos + Vector3(CrierPodium.HALF_X + 0.7, 0, 0), Vector3(1.0, 0.5, 1.4))
+	_add_solid(sign_pos, Vector3(sign_block.x, 2.6, sign_block.y))
+	for c: Vector2i in cells:
+		astar.set_point_solid(c, true)
 var _herald_timer := randf_range(HERALD_FIRST_MIN, HERALD_FIRST_MAX)
 ## The bandits' spots: cell, kind, the bandit standing there (or null while
 ## it is gone), seconds until the next one arrives, and how many came so far.
@@ -965,6 +981,7 @@ func build() -> void:
 	_floor_shape.shape = WorldBoundaryShape3D.new()
 	_walls_body.add_child(_floor_shape)
 	_spawn_villagers()
+	TownCrier.build_stage(self)
 	_adopt_cat()
 	_build_war_horn()
 	_spawn_wild()
@@ -5370,6 +5387,7 @@ func _process(delta: float) -> void:
 	if _herald and _herald_timer <= 0.0 and not night and not _herald.serves():
 		_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
 		_call_the_village()
+	_call_for_news()
 	if not house_given and _elder and not _elder.at_home and _flat_distance(player.global_position, _elder.global_position) < GREET_RANGE:
 		house_given = true
 		_elder.greet_newcomer(player)
@@ -5385,12 +5403,46 @@ func _process(delta: float) -> void:
 			notice.emit(Lang.t("Der Dorfvorsteher seufzt: Jedes Haus in der Weberzeile ist bewohnt."), 4.5)
 
 
+## Whether the herald can climb his podium and call now: out on the square by day, with nothing else to do.
+func _herald_free() -> bool:
+	return _herald != null and not _herald.at_home and _herald.visible and not night and not _herald.serves() \
+			and not _herald.is_announcing() and not village_alarm.raised and _herald.can_make_way()
+
+
+## The news of the hero's deeds (see CrierNews): a deed done a few seconds ago, or the daily news at 10:00 and
+## 16:00. Waits for a moment when the herald is free.
+func _call_for_news() -> void:
+	var news := CrierNews.current
+	if news == null or crier_stage.is_empty() or hour < 0.0:
+		return
+	var due := news.due_slot(day, hour)
+	if due < 0 and news.fresh.is_empty():
+		return
+	if not _herald_free():
+		return
+	var line := ""
+	if due >= 0:
+		line = news.take_daily(day, due)
+		# Without a deed to report he reads the usual news.
+		if line == "":
+			line = Lang.t(Villager.NEWS[randi() % Villager.NEWS.size()])
+	else:
+		line = news.take_fresh()
+		if line == "":
+			return
+	_herald_timer = randf_range(HERALD_EVERY_MIN, HERALD_EVERY_MAX)
+	_call_the_village(22.0 * TILE * 0.5, true, line)
+
+
 ## The herald rings the news across the square, and everyone in the village
-## comes over to listen for a while: a reason to gather.
-func _call_the_village(reach := 22.0 * TILE * 0.5, proclaim := true) -> void:
+## comes over to listen for a while: a reason to gather. `line`: what he says (the next of the usual news
+## when empty).
+func _call_the_village(reach := 22.0 * TILE * 0.5, proclaim := true, line := "") -> void:
 	var stand: Vector3 = _herald.global_position
+	if proclaim and not crier_stage.is_empty():
+		stand = crier_stage.pos
 	if proclaim:
-		_herald.proclaim()
+		_herald.proclaim(line)
 	var ring: Array[Vector3] = []
 	var at := world_to_cell(stand)
 	for dy in range(-1, 5):

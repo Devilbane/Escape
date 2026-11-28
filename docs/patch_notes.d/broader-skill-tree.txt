@@ -1,0 +1,1 @@
+- The skill tree is now broader and flatter: Body, Combat, Soul, Nature and Craft, with Strength, Dexterity and the other attributes as skills and new skills such as Parry, Cleave, Lockpicking and Negotiation on the way. Nothing you trained is lost.

@@ -4,9 +4,9 @@ extends RefCounted
 ## lessons. A lesson costs a purse of coins and asks for something the hero has already made their own (a level of
 ## Klettern, a value of Weisheit or Geschick). The monks never sell a lesson twice and never teach a lesson before
 ## the one that comes first. What a skill does is small and clear (see the *_bonus functions, read by Player):
-##   Bergatem (Mountain Breath, Körper): +1 Klettern for each lesson learned.
-##   Stille Mitte (Still Centre, Körper): the hero heals faster, +REGEN_PER_LESSON life a second for each lesson.
-##   Windschritt (Wind Step, Gewandtheit): +DODGE_PER_LESSON to dodge a blow or a shot for each lesson.
+##   Bergatem (Mountain Breath, Body): +1 Klettern for each lesson learned.
+##   Stille Mitte (Still Centre, Soul): the hero heals faster, +REGEN_PER_LESSON life a second for each lesson.
+##   Windschritt (Wind Step, Body): +DODGE_PER_LESSON to dodge a blow or a shot for each lesson.
 ## The lessons are kept as the skills' training (Training.CRAFTS), so they are saved with the hero, and they show on the
 ## character page and in the skill trees (see SkillTrees) as soon as the first one is learned.
 ##
@@ -27,10 +27,10 @@ const SKILLS := {
 	"bergatem": {"name": "Bergatem", "monk": "Bruder Tashi", "tree": "koerper",
 		"text": "Wer oben atmet wie unten, kommt nicht hoch. Bruder Tashi lehrt, wie man mit der dünnen Luft des Berges haushält. Jede Lehre macht dich im Fels geschickter: +1 Klettern.",
 		"asks": [{"skill": "klettern", "level": 6}, {"skill": "klettern", "level": 8}, {"skill": "klettern", "level": 10}]},
-	"stille_mitte": {"name": "Stille Mitte", "monk": "Schwester Dolma", "tree": "koerper",
+	"stille_mitte": {"name": "Stille Mitte", "monk": "Schwester Dolma", "tree": "seele",
 		"text": "Schwester Dolma lehrt, in sich zu ruhen, auch im Kampf. Der Körper heilt schneller, wenn der Geist still ist: jede Lehre gibt dir 0,05 Leben pro Sekunde mehr.",
 		"asks": [{"attribute": "weisheit", "level": 12}, {"attribute": "weisheit", "level": 14}, {"attribute": "weisheit", "level": 16}]},
-	"windschritt": {"name": "Windschritt", "monk": "Bruder Pema", "tree": "gewandtheit",
+	"windschritt": {"name": "Windschritt", "monk": "Bruder Pema", "tree": "koerper",
 		"text": "Bruder Pema lehrt, einem Schlag zu weichen wie Gras dem Wind. Jede Lehre gibt dir 4 % mehr Chance, einem Hieb oder Schuss auszuweichen.",
 		"asks": [{"attribute": "geschick", "level": 13}, {"attribute": "geschick", "level": 15}, {"attribute": "geschick", "level": 17}]},
 }

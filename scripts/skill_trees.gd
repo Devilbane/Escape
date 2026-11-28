@@ -1,130 +1,99 @@
 class_name SkillTrees
 extends RefCounted
-## The skill trees: every skill the game is growing towards, in eight trees,
-## each with a basic row (20 levels), an advanced row (15) and a master row
-## (10). The design is in the progression research (skill trees and gear,
-## section 5); this is the part of it that is data.
+## The skill trees: the hero's talents, drawn as a broad, flat tree in five
+## tabs. The design is the user's own mind map (levels are still to be tuned):
+## four affinities (Body, Soul, Nature, Craft) that tell where a hero's talents
+## lie, the attributes as skills under Body and Soul, and the skills that grow
+## from them. The Combat tab holds the weapon skills; their root, Weapons,
+## needs the attributes of the Body tab.
 ##
-## A skill is in the game when it is in Training.SKILLS or Training.CRAFTS
-## ("in_game" here); the others are shown in the tree, with what they need
-## and what they open, so the player can see where the hero is heading, but
-## they cannot be trained yet. Each new tree skill that is built flips its
-## "in_game" and gets its place in Training.
+## A node is one of four things:
+##   affinity: Body, Soul, Nature, Craft. Never trained and never levelled; they
+##     are given at character creation. For the "needs" of other skills an
+##     affinity is always met.
+##   attribute: Strength, Constitution, Dexterity, Intelligence, Intuition and
+##     Wisdom, backed by the hero's attributes (Training.ATTRIBUTES): the level
+##     is the value above its start, 0 to 20, so the damage, life and learning
+##     speed they give stay as they are. The hero starts with the first level
+##     of each, so a "needs level 1" on an attribute is met from the start.
+##     Speed (Tempo) and jump length are results of Dexterity, the load and the
+##     gear, not skills.
+##   legacy: a skill the game trains today under its old German id
+##     (Training.SKILLS and Training.CRAFTS). The saved training keeps its old
+##     keys, so no hero loses anything; the tree only reads it. A node may sum
+##     up several old ids (Metalwork is forging and steel making; its level is
+##     the higher one).
+##   none of these: planned, shown with what it needs, not trainable yet.
 ##
-## Keys of a skill:
-##   name: the German name (an in-game skill takes it from Training)
-##   tree, row: where it stands ("basic", "advanced" or "master")
+## Needs only count what the game has: a need on a planned skill is not asked
+## for yet, and nothing in the game is locked by the tree today.
+##
+## Keys of a node:
+##   name: the German name
+##   tree, row: where it stands ("basic", "advanced" or "master": the band of
+##     the tab it is drawn in; a node never needs one of a higher band)
 ##   levels: the most levels it will have once the tree is complete
-##   attributes: what governs it
+##   attributes: the attributes that govern a legacy skill's rolls
 ##   needs: skill id -> level that must be reached first
-##   attribute_needs: attribute id -> value that must be reached first
-##   in_game: trained and used by the game today
 
 const TREES := [
-	["kampf", "Kampf"],
-	["gewandtheit", "Gewandtheit"],
 	["koerper", "Körper"],
-	["wissen", "Wissen"],
-	["feinhandwerk", "Feinhandwerk"],
-	["alchemie_kueche", "Alchemie & Küche"],
-	["arkanum", "Arkanum"],
-	["schmiede", "Schmiede"],
+	["kampf", "Kampf"],
+	["seele", "Seele"],
+	["natur", "Natur"],
+	["handwerk", "Handwerk"],
 ]
 const ROWS := ["basic", "advanced", "master"]
 
 const ALL := {
-	# --- Kampf
-	"klingen": {"name": "Klingen", "tree": "kampf", "row": "basic", "levels": 20, "attributes": ["staerke", "geschick"], "in_game": true,},
-	"aexte": {"name": "Äxte & Hämmer", "tree": "kampf", "row": "basic", "levels": 20, "attributes": ["staerke"], "in_game": true,},
-	"blocken": {"name": "Blocken", "tree": "kampf", "row": "basic", "levels": 20, "attributes": ["staerke", "geschick"], "in_game": true,},
-	"ruestung": {"name": "Rüstung tragen", "tree": "kampf", "row": "basic", "levels": 20, "attributes": ["staerke"], "in_game": true,},
-	"schwertkampf": {"name": "Schwertkampf", "tree": "kampf", "row": "advanced", "levels": 15, "attributes": ["staerke", "geschick"], "needs": {"klingen": 10},},
-	"wuchtkampf": {"name": "Wuchtkampf", "tree": "kampf", "row": "advanced", "levels": 15, "attributes": ["staerke"], "needs": {"aexte": 10}, "attribute_needs": {"staerke": 15},},
-	"schildkampf": {"name": "Schildkampf", "tree": "kampf", "row": "advanced", "levels": 15, "attributes": ["staerke", "geschick"], "needs": {"blocken": 10},},
-	"belastungsgewoehnung": {"name": "Belastungsgewöhnung", "tree": "kampf", "row": "advanced", "levels": 15, "attributes": ["staerke", "konstitution"], "needs": {"ruestung": 10}, "attribute_needs": {"konstitution": 14},},
-	"klingenmeister": {"name": "Klingenmeister", "tree": "kampf", "row": "master", "levels": 10, "attributes": ["staerke", "geschick"], "needs": {"schwertkampf": 12}, "attribute_needs": {"geschick": 18},},
-	"schlachtenbrecher": {"name": "Schlachtenbrecher", "tree": "kampf", "row": "master", "levels": 10, "attributes": ["staerke"], "needs": {"wuchtkampf": 12, "zaehigkeit": 8},},
-	"schildwall": {"name": "Schildwall", "tree": "kampf", "row": "master", "levels": 10, "attributes": ["staerke", "konstitution"], "needs": {"schildkampf": 12, "belastungsgewoehnung": 8},},
-	# --- Gewandtheit
-	"werfen": {"name": "Messerwurf", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick"], "in_game": true,},
-	"schleichen": {"name": "Schleichen", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick", "intelligenz"], "in_game": true,},
-	"akrobatik": {"name": "Akrobatik", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick", "tempo"],},
-	"klettern": {"name": "Klettern", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["staerke", "geschick"], "in_game": true,},
-	"fingerfertigkeit": {"name": "Fingerfertigkeit", "tree": "gewandtheit", "row": "basic", "levels": 20, "attributes": ["geschick", "intuition"],},
-	"bogenschiessen": {"name": "Bogenschießen", "tree": "gewandtheit", "row": "advanced", "levels": 15, "attributes": ["geschick"], "needs": {"werfen": 6, "bogenbau": 1}, "attribute_needs": {"geschick": 14},},
-	"meucheln": {"name": "Meucheln", "tree": "gewandtheit", "row": "advanced", "levels": 15, "attributes": ["geschick", "intuition"], "needs": {"schleichen": 10, "klingen": 5},},
-	"ausweichen": {"name": "Ausweichen", "tree": "gewandtheit", "row": "advanced", "levels": 15, "attributes": ["geschick", "tempo"], "needs": {"akrobatik": 10},},
-	"schloesser_fallen": {"name": "Schlösser & Fallen", "tree": "gewandtheit", "row": "advanced", "levels": 15, "attributes": ["geschick", "intuition"], "needs": {"fingerfertigkeit": 8, "erkunden": 5},},
-	"scharfschuetze": {"name": "Scharfschütze", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "intuition"], "needs": {"bogenschiessen": 12}, "attribute_needs": {"intuition": 16},},
-	"schattenklinge": {"name": "Schattenklinge", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "intuition"], "needs": {"meucheln": 12, "gifte": 5},},
-	"klingentaenzer": {"name": "Klingentänzer", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "tempo"], "needs": {"ausweichen": 12, "klingen": 15},},
-	"windschritt": {"name": "Windschritt", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "tempo"], "needs": {"akrobatik": 6}, "attribute_needs": {"geschick": 13}, "in_game": true,},
-	"meisterdieb": {"name": "Meisterdieb", "tree": "gewandtheit", "row": "master", "levels": 10, "attributes": ["geschick", "intuition"], "needs": {"schloesser_fallen": 12, "feinmechanik": 5},},
-	# --- Körper
-	"zaehigkeit": {"name": "Zähigkeit", "tree": "koerper", "row": "basic", "levels": 20, "attributes": ["konstitution"],},
-	"ausdauer": {"name": "Ausdauer", "tree": "koerper", "row": "basic", "levels": 20, "attributes": ["konstitution", "tempo"],},
-	"erholung": {"name": "Erholung", "tree": "koerper", "row": "basic", "levels": 20, "attributes": ["konstitution", "weisheit"],},
-	"trinkfestigkeit": {"name": "Trinkfestigkeit", "tree": "koerper", "row": "basic", "levels": 20, "attributes": ["konstitution"],},
-	"eisenhaut": {"name": "Eisenhaut", "tree": "koerper", "row": "advanced", "levels": 15, "attributes": ["konstitution"], "needs": {"zaehigkeit": 10},},
-	"langlaeufer": {"name": "Langläufer", "tree": "koerper", "row": "advanced", "levels": 15, "attributes": ["konstitution", "tempo"], "needs": {"ausdauer": 10},},
-	"lagerleben": {"name": "Lagerleben", "tree": "koerper", "row": "advanced", "levels": 15, "attributes": ["konstitution", "weisheit"], "needs": {"erholung": 8, "kochen": 5},},
-	# The monks of Nohpaan teach these in three lessons each (see Monastery).
-	"bergatem": {"name": "Bergatem", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["staerke", "konstitution"], "needs": {"klettern": 6}, "in_game": true,},
-	"stille_mitte": {"name": "Stille Mitte", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["weisheit"], "needs": {"erholung": 6}, "attribute_needs": {"weisheit": 12}, "in_game": true,},
-	"unbeugsam": {"name": "Unbeugsam", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["konstitution", "weisheit"], "needs": {"eisenhaut": 12}, "attribute_needs": {"weisheit": 16},},
-	"zweiter_atem": {"name": "Zweiter Atem", "tree": "koerper", "row": "master", "levels": 10, "attributes": ["konstitution"], "needs": {"langlaeufer": 10, "erholung": 12},},
-	# --- Wissen
-	"erkunden": {"name": "Erkunden", "tree": "wissen", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
-	"naturkunde": {"name": "Naturkunde", "tree": "wissen", "row": "basic", "levels": 20, "attributes": ["intelligenz", "intuition"],},
-	"heilkunde": {"name": "Heilkunde", "tree": "wissen", "row": "basic", "levels": 20, "attributes": ["intelligenz", "geschick"],},
-	"schriftkunde": {"name": "Schriftkunde", "tree": "wissen", "row": "basic", "levels": 20, "attributes": ["intelligenz"],},
-	"monsterkunde": {"name": "Monsterkunde", "tree": "wissen", "row": "basic", "levels": 20, "attributes": ["intelligenz"],},
-	"tierkunde": {"name": "Tierkunde", "tree": "wissen", "row": "advanced", "levels": 15, "attributes": ["intuition"], "needs": {"naturkunde": 8}, "attribute_needs": {"intuition": 14},},
-	"kraeuterkunde": {"name": "Kräuterkunde", "tree": "wissen", "row": "advanced", "levels": 15, "attributes": ["intelligenz", "intuition"], "needs": {"naturkunde": 8},},
-	"wundarznei": {"name": "Wundarznei", "tree": "wissen", "row": "advanced", "levels": 15, "attributes": ["intelligenz", "geschick"], "needs": {"heilkunde": 10},},
-	"runenkunde": {"name": "Runenkunde", "tree": "wissen", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"schriftkunde": 10},},
-	"monsterjagd": {"name": "Monsterjagd", "tree": "wissen", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"monsterkunde": 10},},
-	"bestienmeister": {"name": "Bestienmeister", "tree": "wissen", "row": "master", "levels": 10, "attributes": ["intuition"], "needs": {"tierkunde": 12},},
-	"gelehrter": {"name": "Gelehrter", "tree": "wissen", "row": "master", "levels": 10, "attributes": ["intelligenz", "weisheit"], "needs": {"runenkunde": 10, "monsterjagd": 10},},
-	# --- Feinhandwerk
-	"feinschmieden": {"name": "Feinschmieden", "tree": "feinhandwerk", "row": "basic", "levels": 20, "attributes": ["geschick", "intelligenz"], "in_game": true,},
-	"holzarbeit": {"name": "Holzarbeit", "tree": "feinhandwerk", "row": "basic", "levels": 20, "attributes": ["geschick", "staerke"],},
-	"weben": {"name": "Weben", "tree": "feinhandwerk", "row": "basic", "levels": 20, "attributes": ["geschick"],},
-	"lederarbeit": {"name": "Lederarbeit", "tree": "feinhandwerk", "row": "basic", "levels": 20, "attributes": ["geschick", "staerke"],},
-	"edelsteinschleifen": {"name": "Edelsteinschleifen", "tree": "feinhandwerk", "row": "advanced", "levels": 15, "attributes": ["geschick", "intuition"], "needs": {"feinschmieden": 8}, "attribute_needs": {"intuition": 13},},
-	"feinmechanik": {"name": "Feinmechanik", "tree": "feinhandwerk", "row": "advanced", "levels": 15, "attributes": ["geschick", "intelligenz"], "needs": {"feinschmieden": 10, "fingerfertigkeit": 5},},
-	"bogenbau": {"name": "Bogenbau", "tree": "feinhandwerk", "row": "advanced", "levels": 15, "attributes": ["geschick", "staerke"], "needs": {"holzarbeit": 8},},
-	"schneiderei": {"name": "Schneiderei", "tree": "feinhandwerk", "row": "advanced", "levels": 15, "attributes": ["geschick"], "needs": {"weben": 8},},
-	"juwelier": {"name": "Juwelier", "tree": "feinhandwerk", "row": "master", "levels": 10, "attributes": ["geschick", "intelligenz"], "needs": {"edelsteinschleifen": 12},},
-	"verzaubern": {"name": "Verzaubern", "tree": "feinhandwerk", "row": "master", "levels": 10, "attributes": ["intelligenz", "weisheit"], "needs": {"edelsteinschleifen": 10, "magie": 12},},
-	# --- Alchemie & Küche
-	"kochen": {"name": "Kochen", "tree": "alchemie_kueche", "row": "basic", "levels": 20, "attributes": ["intuition", "intelligenz"],},
-	"alchemie": {"name": "Alchemie", "tree": "alchemie_kueche", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
-	"angeln": {"name": "Angeln", "tree": "alchemie_kueche", "row": "basic", "levels": 20, "attributes": ["geschick", "intuition"],},
-	"gerben": {"name": "Gerben", "tree": "alchemie_kueche", "row": "advanced", "levels": 15, "attributes": ["intelligenz", "staerke"], "needs": {"alchemie": 5},},
-	"gifte": {"name": "Gifte", "tree": "alchemie_kueche", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"alchemie": 8},},
-	"saeuren_salze": {"name": "Säuren & Salze", "tree": "alchemie_kueche", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"alchemie": 10},},
-	"elixiere": {"name": "Elixiere", "tree": "alchemie_kueche", "row": "master", "levels": 10, "attributes": ["intelligenz", "weisheit"], "needs": {"alchemie": 15, "magie": 8},},
-	"transmutation": {"name": "Transmutation", "tree": "alchemie_kueche", "row": "master", "levels": 10, "attributes": ["intelligenz"], "needs": {"saeuren_salze": 12, "magie": 12},},
-	# --- Arkanum
-	"magie": {"name": "Arkane Energie", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
-	"nekromantie": {"name": "Nekromantie", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
-	"meditation": {"name": "Meditation", "tree": "arkanum", "row": "basic", "levels": 20, "attributes": ["weisheit", "intelligenz"],},
-	"elementarmagie": {"name": "Elementarmagie", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"magie": 10},},
-	"schutzzauber": {"name": "Schutzzauber", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["weisheit"], "needs": {"magie": 8, "meditation": 5},},
-	"bannmagie": {"name": "Bannmagie", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["intelligenz", "weisheit"], "needs": {"magie": 8, "runenkunde": 5},},
-	"heilzauber": {"name": "Heilzauber", "tree": "arkanum", "row": "advanced", "levels": 15, "attributes": ["weisheit"], "needs": {"magie": 8, "heilkunde": 8},},
-	"erzmagier": {"name": "Erzmagier", "tree": "arkanum", "row": "master", "levels": 10, "attributes": ["intelligenz"], "needs": {"elementarmagie": 12}, "attribute_needs": {"intelligenz": 20},},
-	"runenmagie": {"name": "Runenmagie", "tree": "arkanum", "row": "master", "levels": 10, "attributes": ["intelligenz", "weisheit"], "needs": {"bannmagie": 10, "runenkunde": 10},},
-	# --- Schmiede
-	"bergbau": {"name": "Bergbau", "tree": "schmiede", "row": "basic", "levels": 20, "attributes": ["staerke"],},
-	"stahlkochen": {"name": "Stahlkochen", "tree": "schmiede", "row": "basic", "levels": 20, "attributes": ["intelligenz"], "in_game": true,},
-	"schmiedekunst": {"name": "Schmiedekunst", "tree": "schmiede", "row": "basic", "levels": 20, "attributes": ["staerke"], "in_game": true,},
-	"tiegelstahl": {"name": "Tiegelstahl", "tree": "schmiede", "row": "advanced", "levels": 15, "attributes": ["intelligenz"], "needs": {"stahlkochen": 10, "saeuren_salze": 5},},
-	"waffenschmied": {"name": "Waffenschmied", "tree": "schmiede", "row": "advanced", "levels": 15, "attributes": ["staerke"], "needs": {"schmiedekunst": 10},},
-	"ruestungsschmied": {"name": "Rüstungsschmied", "tree": "schmiede", "row": "advanced", "levels": 15, "attributes": ["staerke"], "needs": {"schmiedekunst": 10},},
-	"meisterschmied": {"name": "Meisterschmied", "tree": "schmiede", "row": "master", "levels": 10, "attributes": ["staerke", "intelligenz"], "needs": {"waffenschmied": 12, "tiegelstahl": 8},},
-	"runenschmied": {"name": "Runenschmied", "tree": "schmiede", "row": "master", "levels": 10, "attributes": ["intelligenz"], "needs": {"meisterschmied": 5, "runenkunde": 10, "magie": 10},},
+	"body": {"name": "Körper", "tree": "koerper", "row": "basic", "levels": 20, "attributes": [], "affinity": true,},
+	"strength": {"name": "Stärke", "tree": "koerper", "row": "basic", "levels": 20, "attributes": [], "needs": {"body": 1}, "attribute": "staerke",},
+	"constitution": {"name": "Konstitution", "tree": "koerper", "row": "basic", "levels": 20, "attributes": [], "needs": {"body": 1}, "attribute": "konstitution",},
+	"dexterity": {"name": "Geschick", "tree": "koerper", "row": "basic", "levels": 20, "attributes": [], "needs": {"body": 1}, "attribute": "geschick",},
+	"climbing": {"name": "Klettern", "tree": "koerper", "row": "advanced", "levels": 20, "attributes": ["staerke", "geschick"], "needs": {"body": 1, "strength": 1, "constitution": 1, "dexterity": 1}, "legacy": ["klettern"],},
+	"weaponless_fighting": {"name": "Waffenloser Kampf", "tree": "koerper", "row": "advanced", "levels": 20, "attributes": [], "needs": {"body": 1, "strength": 1, "constitution": 1, "dexterity": 1},},
+	"stealth": {"name": "Schleichen", "tree": "koerper", "row": "advanced", "levels": 20, "attributes": ["geschick", "intelligenz"], "needs": {"dexterity": 1, "body": 1}, "legacy": ["schleichen"],},
+	"armour": {"name": "Rüstung tragen", "tree": "koerper", "row": "advanced", "levels": 20, "attributes": ["staerke"], "needs": {"constitution": 1, "strength": 1}, "legacy": ["ruestung"],},
+	"mountain_breath": {"name": "Bergatem", "tree": "koerper", "row": "master", "levels": 20, "attributes": ["staerke", "konstitution"], "needs": {"climbing": 1, "constitution": 1}, "legacy": ["bergatem"],},
+	"windstep": {"name": "Windschritt", "tree": "koerper", "row": "master", "levels": 20, "attributes": ["geschick", "tempo"], "needs": {"dexterity": 1}, "legacy": ["windschritt"],},
+	"weapons": {"name": "Waffen", "tree": "kampf", "row": "basic", "levels": 20, "attributes": [], "needs": {"dexterity": 1, "strength": 1, "constitution": 1},},
+	"axe_fighting": {"name": "Axtkampf", "tree": "kampf", "row": "advanced", "levels": 20, "attributes": ["staerke"], "needs": {"weapons": 1}, "legacy": ["aexte"],},
+	"sword_fighting": {"name": "Schwertkampf", "tree": "kampf", "row": "advanced", "levels": 20, "attributes": ["staerke", "geschick"], "needs": {"weapons": 1}, "legacy": ["klingen"],},
+	"shield": {"name": "Schild", "tree": "kampf", "row": "advanced", "levels": 20, "attributes": [], "needs": {"weapons": 1},},
+	"ranged_arms": {"name": "Fernwaffen", "tree": "kampf", "row": "advanced", "levels": 20, "attributes": [], "needs": {"weapons": 1},},
+	"cleave": {"name": "Spalten", "tree": "kampf", "row": "master", "levels": 20, "attributes": [], "needs": {"axe_fighting": 1},},
+	"block": {"name": "Blocken", "tree": "kampf", "row": "master", "levels": 20, "attributes": ["staerke", "geschick"], "needs": {"shield": 1}, "legacy": ["blocken"],},
+	"parry": {"name": "Parieren", "tree": "kampf", "row": "master", "levels": 20, "attributes": [], "needs": {"shield": 1, "sword_fighting": 1},},
+	"pierce": {"name": "Durchbohren", "tree": "kampf", "row": "master", "levels": 20, "attributes": [], "needs": {"sword_fighting": 1},},
+	"shield_hide": {"name": "Schildversteck", "tree": "kampf", "row": "master", "levels": 20, "attributes": [], "needs": {"shield": 1, "throwing_knives": 1},},
+	"throwing_knives": {"name": "Messerwurf", "tree": "kampf", "row": "master", "levels": 20, "attributes": ["geschick"], "needs": {"ranged_arms": 1}, "legacy": ["werfen"],},
+	"soul": {"name": "Seele", "tree": "seele", "row": "basic", "levels": 20, "attributes": [], "affinity": true,},
+	"intelligence": {"name": "Intelligenz", "tree": "seele", "row": "basic", "levels": 20, "attributes": [], "needs": {"soul": 1}, "attribute": "intelligenz",},
+	"intuition": {"name": "Intuition", "tree": "seele", "row": "basic", "levels": 20, "attributes": [], "needs": {"soul": 1}, "attribute": "intuition",},
+	"wisdom": {"name": "Weisheit", "tree": "seele", "row": "basic", "levels": 20, "attributes": [], "needs": {"soul": 1}, "attribute": "weisheit",},
+	"spirituality": {"name": "Spiritualität", "tree": "seele", "row": "basic", "levels": 20, "attributes": [], "needs": {"soul": 1},},
+	"arcana": {"name": "Arkana", "tree": "seele", "row": "advanced", "levels": 20, "attributes": ["intelligenz"], "needs": {"intelligence": 1, "wisdom": 1, "intuition": 1, "soul": 1}, "legacy": ["magie"],},
+	"exploring": {"name": "Erkunden", "tree": "seele", "row": "advanced", "levels": 20, "attributes": ["intelligenz"], "needs": {"intuition": 1, "intelligence": 1}, "legacy": ["erkunden"],},
+	"negotiation": {"name": "Verhandeln", "tree": "seele", "row": "advanced", "levels": 20, "attributes": [], "needs": {"soul": 1, "intuition": 1, "wisdom": 1},},
+	"arcane_lore": {"name": "Arkankunde", "tree": "seele", "row": "master", "levels": 20, "attributes": [], "needs": {"arcana": 1, "wisdom": 1, "soul": 1},},
+	"necromancy": {"name": "Nekromantie", "tree": "seele", "row": "master", "levels": 20, "attributes": ["intelligenz"], "needs": {"arcana": 1}, "legacy": ["nekromantie"],},
+	"spiritual_lore": {"name": "Geisterkunde", "tree": "seele", "row": "master", "levels": 20, "attributes": [], "needs": {"wisdom": 1, "intuition": 1, "spirituality": 1},},
+	"still_centre": {"name": "Stille Mitte", "tree": "seele", "row": "master", "levels": 20, "attributes": ["weisheit"], "needs": {"wisdom": 1}, "legacy": ["stille_mitte"],},
+	"nature": {"name": "Natur", "tree": "natur", "row": "basic", "levels": 20, "attributes": [], "affinity": true,},
+	"flora": {"name": "Flora", "tree": "natur", "row": "basic", "levels": 20, "attributes": [], "needs": {"nature": 1, "wisdom": 1, "intuition": 1},},
+	"fauna": {"name": "Fauna", "tree": "natur", "row": "basic", "levels": 20, "attributes": [], "needs": {"nature": 1, "wisdom": 1, "intuition": 1},},
+	"ore_minerals": {"name": "Erze & Mineralien", "tree": "natur", "row": "basic", "levels": 20, "attributes": [], "needs": {"nature": 1, "wisdom": 1, "intuition": 1},},
+	"animal_lore": {"name": "Tierkunde", "tree": "natur", "row": "advanced", "levels": 20, "attributes": [], "needs": {"fauna": 1, "intuition": 1, "wisdom": 1, "nature": 1},},
+	"magic_creatures_lore": {"name": "Zauberwesenkunde", "tree": "natur", "row": "master", "levels": 20, "attributes": [], "needs": {"arcana": 1, "animal_lore": 1, "intelligence": 1, "arcane_lore": 1, "nature": 1},},
+	"craft": {"name": "Handwerk", "tree": "handwerk", "row": "basic", "levels": 20, "attributes": [], "affinity": true,},
+	"lockpicking": {"name": "Schlösserknacken", "tree": "handwerk", "row": "basic", "levels": 20, "attributes": [], "needs": {"craft": 1, "dexterity": 1, "intuition": 1},},
+	"metalwork": {"name": "Metallarbeit", "tree": "handwerk", "row": "basic", "levels": 20, "attributes": ["staerke"], "needs": {"dexterity": 1, "constitution": 1, "ore_minerals": 1, "craft": 1}, "legacy": ["schmiedekunst", "stahlkochen"],},
+	"gemcutting": {"name": "Edelsteinschleifen", "tree": "handwerk", "row": "basic", "levels": 20, "attributes": [], "needs": {"dexterity": 1, "ore_minerals": 1, "craft": 1},},
+	"fine_metalwork": {"name": "Feine Metallarbeit", "tree": "handwerk", "row": "advanced", "levels": 20, "attributes": ["geschick", "intelligenz"], "needs": {"metalwork": 1, "dexterity": 1, "craft": 1}, "legacy": ["feinschmieden"],},
+	"alchemy": {"name": "Alchemie", "tree": "handwerk", "row": "advanced", "levels": 20, "attributes": ["intelligenz"], "needs": {"flora": 1, "arcana": 1, "fauna": 1, "ore_minerals": 1, "dexterity": 1, "craft": 1}, "legacy": ["alchemie"],},
+	"mining": {"name": "Bergbau", "tree": "handwerk", "row": "advanced", "levels": 20, "attributes": [], "needs": {"intuition": 1, "strength": 1, "constitution": 1, "ore_minerals": 1, "craft": 1},},
+	"runed_gems": {"name": "Runensteine", "tree": "handwerk", "row": "master", "levels": 20, "attributes": [], "needs": {"gemcutting": 1, "arcana": 1},},
+	"charged_gems": {"name": "Geladene Steine", "tree": "handwerk", "row": "master", "levels": 20, "attributes": [], "needs": {"gemcutting": 1, "arcana": 1},},
 }
 
 
@@ -144,34 +113,87 @@ static func in_row(tree: String, row: String) -> Array:
 	return out
 
 
+## The node a skill id stands for: the id itself, or the node that carries the
+## game's old German id of a skill ("klingen" is the node "sword_fighting");
+## "" for an id the tree does not know.
+static func node_of(id: String) -> String:
+	if ALL.has(id):
+		return id
+	for node in ALL:
+		if id in ALL[node].get("legacy", []):
+			return node
+	return ""
+
+
+## Whether the game has the skill: an affinity, an attribute or a trained skill.
 static func in_game(id: String) -> bool:
-	return ALL.get(id, {}).get("in_game", false)
+	var node := node_of(id)
+	if node == "":
+		return false
+	var skill: Dictionary = ALL[node]
+	return skill.has("affinity") or skill.has("attribute") or skill.has("legacy")
 
 
-## The skill's German name; one the game has already keeps the name it has there.
+static func is_affinity(id: String) -> bool:
+	return ALL.get(node_of(id), {}).has("affinity")
+
+
+## The skill's German name.
 static func name_of(id: String) -> String:
-	if Training.SKILLS.has(id):
-		return Training.SKILLS[id].name
-	if Training.CRAFTS.has(id):
-		return Training.CRAFTS[id].name
-	return ALL[id].name
+	return ALL[node_of(id)].name
 
 
 ## The most levels the game lets the hero train in a skill today.
 static func level_cap(id: String) -> int:
-	if Monastery.SKILLS.has(id):
+	var node := node_of(id)
+	if node == "" or is_affinity(node):
+		return 0
+	var skill: Dictionary = ALL[node]
+	if skill.has("attribute"):
+		return Training.attribute_cap(skill.attribute)
+	var legacy: Array = skill.get("legacy", [])
+	if legacy.is_empty():
+		return 0
+	if Monastery.SKILLS.has(legacy[0]):
 		return Monastery.MAX_LESSONS
-	return Training.skill_max(id) if in_game(id) else 0
+	return Training.skill_max(legacy[0])
 
 
-## The level the hero has in a skill (0 for one the game does not have yet).
+## The level the hero has in a skill (0 for one the game does not have yet and
+## for an affinity, which is not levelled).
+@warning_ignore("integer_division")
 static func level_of(hero: Player, id: String) -> int:
-	return hero.trained_level(id) if in_game(id) else 0
+	var node := node_of(id)
+	if node == "" or not in_game(node) or is_affinity(node):
+		return 0
+	var skill: Dictionary = ALL[node]
+	if skill.has("attribute"):
+		var attribute: Dictionary = Training.ATTRIBUTES[skill.attribute]
+		return (hero.attribute(skill.attribute) - int(attribute.start)) / int(attribute.step)
+	var best := 0
+	for legacy in skill.legacy:
+		best = maxi(best, hero.trained_level(legacy))
+	return best
 
 
-## "known" (trained), "open" (can be trained now) or "locked" (something it
-## needs is missing) for a skill the game has, "planned" for one it does not.
+## The level that counts when another skill asks for this one: an affinity is
+## always met, an attribute counts its starting level on top, a skill the game
+## does not have yet is not asked for.
+static func met_level(hero: Player, id: String) -> int:
+	var node := node_of(id)
+	if is_affinity(node):
+		return 1000
+	if not in_game(node):
+		return 1000
+	return level_of(hero, node) + (1 if ALL[node].has("attribute") else 0)
+
+
+## "affinity" for Body, Soul, Nature and Craft, "known" (trained), "open" (can
+## be trained now) or "locked" (something it needs is missing) for a skill the
+## game has, "planned" for one it does not.
 static func status(hero: Player, id: String) -> String:
+	if is_affinity(id):
+		return "affinity"
 	if not in_game(id):
 		return "planned"
 	if level_of(hero, id) > 0:
@@ -179,40 +201,39 @@ static func status(hero: Player, id: String) -> String:
 	return "locked" if not unmet(hero, id).is_empty() else "open"
 
 
-## What a skill still needs: entries {"skill": bool, "id", "level"} for each
-## skill level and attribute value the hero has not reached.
+## What a skill still needs: entries {"skill": true, "id", "level"} for each
+## skill level the hero has not reached.
 static func unmet(hero: Player, id: String) -> Array:
 	var out := []
 	for entry in needs_of(id):
-		var have := level_of(hero, entry.id) if entry.skill else hero.attribute(entry.id)
-		if have < entry.level:
+		if met_level(hero, entry.id) < entry.level:
 			out.append(entry)
 	return out
 
 
-## Everything a skill needs, skills first: {"skill": bool, "id", "level"}.
+## Everything a skill needs: {"skill": true, "id", "level"}.
 static func needs_of(id: String) -> Array:
 	var out := []
-	var skill: Dictionary = ALL[id]
+	var skill: Dictionary = ALL[node_of(id)]
 	for need in skill.get("needs", {}):
 		out.append({"skill": true, "id": need, "level": int(skill.needs[need])})
-	for need in skill.get("attribute_needs", {}):
-		out.append({"skill": false, "id": need, "level": int(skill.attribute_needs[need])})
 	return out
 
 
 ## The skills that need this one.
 static func opens(id: String) -> Array:
+	var node := node_of(id)
 	var out := []
 	for other in ALL:
-		if ALL[other].get("needs", {}).has(id):
+		if ALL[other].get("needs", {}).has(node):
 			out.append(other)
 	return out
 
 
-## Whether a skill needs a skill of another tree (drawn with an arrow).
+## Whether a skill needs a skill of another tab (drawn with a star).
 static func crosses_trees(id: String) -> bool:
-	for need in ALL[id].get("needs", {}):
-		if ALL[need].tree != ALL[id].tree:
+	var skill: Dictionary = ALL[node_of(id)]
+	for need in skill.get("needs", {}):
+		if ALL[need].tree != skill.tree:
 			return true
 	return false

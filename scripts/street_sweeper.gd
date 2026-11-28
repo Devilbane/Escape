@@ -43,7 +43,7 @@ static var _leather_texture: ImageTexture
 # --- The marked route -----------------------------------------------------------------------
 
 ## The way the village wants swept first, marked on the map by hand: a loop round the paved square, with the
-## road west to the gate, spurs north and east, a branch to the south-west and another south. Each stretch is a list of cells (dx, dy) from the
+## road west to the gate, and spurs north and east (the southern branches were dropped so one round fits his working day). Each stretch is a list of cells (dx, dy) from the
 ## fountain's tile (the "F" of the map). He sweeps them in this order, out and back, before any other
 ## walkway; when the map has no fountain or a cell is not open ground, he goes by the walkways alone.
 const MARKED := [
@@ -51,20 +51,14 @@ const MARKED := [
 	[[-12, -4], [-11, -4], [-10, -4], [-9, -4], [-8, -4], [-7, -4], [-6, -4], [-5, -4], [-4, -4], [-3, -4], [-2, -4], [-1, -4], [0, -4], [1, -4], [2, -4], [3, -4], [4, -4], [5, -4]],
 	# Down the east side and along the bottom, westward.
 	[[5, -4], [5, -3], [5, -2], [5, -1], [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [4, 4], [3, 4], [2, 4], [1, 4], [0, 4], [-1, 4], [-2, 4], [-3, 4], [-4, 4]],
-	# The bottom row on to the south-west corner.
-	[[-4, 4], [-5, 4], [-6, 4], [-7, 4], [-8, 4], [-9, 4]],
 	# Up the west side to the top row (the dots step in at the fountain's west).
 	[[-5, -4], [-5, -3], [-5, -2], [-5, -1], [-5, 0], [-5, 1], [-6, 1], [-6, 2], [-6, 3]],
-	# The branch to the south-west: down the path, then back east to the square's west side.
-	[[-9, 1], [-9, 2], [-9, 3], [-8, 3], [-7, 3], [-6, 3]],
 	# Short spurs north from the top row to the doors of the temple, the office and the guild.
 	[[-2, -4], [-2, -5]],
 	[[2, -4], [2, -5]],
 	[[4, -4], [4, -5]],
 	# A spur east by the house on the east side.
 	[[5, -1], [6, -1]],
-	# The new branch south from the square past the two houses, then east along the path.
-	[[0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [0, 9], [1, 9], [2, 9], [3, 9], [4, 9], [5, 9], [6, 9]],
 ]
 
 ## Game hours a marked stretch is left alone after he has swept it, so a stretch that cannot be made clean

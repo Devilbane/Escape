@@ -143,7 +143,7 @@ func _run() -> void:
 	for st: Array in marked:
 		for c in st:
 			ring_cells[c] = true
-	check(ring_cells.size() >= 50, "the marked route is a long way (%d tiles)" % ring_cells.size())
+	check(ring_cells.size() >= 40, "the marked route is a long way (%d tiles)" % ring_cells.size())
 	StreetSweeper.rested = {}
 
 	# One stretch after the other: he does not stop after the first, and the square is last.

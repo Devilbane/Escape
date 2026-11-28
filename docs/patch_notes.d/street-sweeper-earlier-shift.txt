@@ -1,0 +1,1 @@
+- Matthes the street sweeper now starts his working day earlier (6:00, with a lunch break and an end at 16:00), sweeps only the northern and eastern marked areas so a full round fits in one day, and picks up where he left off after a break.

@@ -18,7 +18,7 @@ extends RefCounted
 const ROLE := StreetSweeper.ROLE
 ## The hours of the day (see DayNight) he sweeps in: after the morning, and an afternoon stretch.
 ## The meals call the village together from 11 (see TownMeals), and the morning belongs to the temple.
-const SHIFTS := [[7.9, 11.0], [13.0, 18.0]]
+const SHIFTS := [[6.0, 11.0], [13.0, 16.0]]
 ## Snow must lie at least this thick (0 to 1, see SnowCover) to be worth sweeping.
 const SNOW_MIN := 0.35
 ## How far from his spot he sweeps (tiles), and the shortest and longest footpath he takes on (tiles).
@@ -383,6 +383,16 @@ class Job:
 
 	func aim() -> Vector3:
 		return points[clampi(index, 0, points.size() - 1)]
+
+	## What is left of the stretch from where he stands: on to its end and back, or just the way back.
+	func remaining() -> Array[Vector3]:
+		var rest: Array[Vector3] = []
+		var i := clampi(index, 0, points.size() - 1)
+		if not back:
+			rest.assign(points.slice(i))
+		for k in range(i - 1 if back else points.size() - 1, -1, -1):
+			rest.append(points[k])
+		return rest
 
 	## On to the next point; false once the way back is walked as well.
 	func advance() -> bool:

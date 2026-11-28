@@ -204,6 +204,8 @@ hedgehogs.gd | 120 | fixed | pass | Hedgehogs (woods and village, sleep by day, 
 mage_tower.gd | 900 | fixed | passfail | The mage tower of Aldo and Odo: hall with tapestries, library, sleeping room, cellar lab; walking up and down; the mages sleep up in the top room
 hedgehogs.gd | 300 | fixed | pass | Hedgehogs (woods and village, sleep by day, snuffle at night, roll up near the hero, apple run to a hidden hoard, hibernate in winter)
 staff_spell.gd | 120 | fixed | passfail | Elsbeth raises her staff and intones a spell now and then; the staff glows afterwards and fades
+rain_shield.gd | 120 | fixed | passfail | Elsbeth conjures a light blue rain shield when it rains on her in the open and it fades when the rain stops
+rain_shield_shots.gd | 300 | fixed | pass | Elsbeth under her rain shield (pictures with SHOTS=)
 crop_fields_shots.gd | 60 | free | pass | Crop fields (wheat, maize and sunflowers follow the seasons; screenshots with SHOTS)
 warren.gd | 120 | fixed | pass | Rabbit warren: baby rabbits huddle by their burrow, dive in when the hero comes near, come out again
 village_cat.gd | 180 | fixed | pass | The village cat (strolls, leaps onto the smithy's anvil at bedtime, sleeps curled up, purrs near the hero, stretches and hops down)

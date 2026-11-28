@@ -284,6 +284,8 @@ var brave := false
 var _blow_cool := 0.0
 ## Elsbeth's now-and-then spell with her staff (see StaffSpell), null for everyone else.
 var _staff_spell: StaffSpell
+## Elsbeth's shield of magic against the rain (see RainShield), null for everyone else.
+var _rain_shield: RainShield
 ## Elsbeth's blessing round under way (see BlessRound), null otherwise, and the day of her last one.
 var _round: BlessRound.Round
 var _blessed_day := -1
@@ -514,6 +516,8 @@ func _ready() -> void:
 		_anim.get_animation(a).loop_mode = Animation.LOOP_LINEAR
 	if role == StaffSpell.ROLE:
 		_staff_spell = StaffSpell.put_on(self)
+	if role == RainShield.ROLE:
+		_rain_shield = RainShield.put_on(self)
 	if WaterRound.is_carrier(role):
 		_yoke = WaterYoke.attach(_model, _anim)
 		_yoke_arms = YokeArms.attach(_bones(), _anim)
@@ -2840,8 +2844,10 @@ func _off_snip_spot() -> bool:
 
 
 func _do(task: String, delta: float) -> void:
-	if _staff_spell != null and _staff_spell.step(delta, task == "work" and _bubble_time <= 0.0 \
-			and not at_home and visible and threat == null and not night):
+	var free := task == "work" and _bubble_time <= 0.0 and not at_home and visible and threat == null and not night
+	if _rain_shield != null and _rain_shield.step(delta, free, not at_home and visible):
+		return
+	if _staff_spell != null and _staff_spell.step(delta, free):
 		return
 	if task == "idle":
 		play("Idle")

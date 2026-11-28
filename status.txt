@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Elsbeth conjures a magic rain umbrella; Test panel: Benchmark button for CPU and GPU readings; Fix the empty climb screen on a placed wall | Shipped this week: Fix village slowdown: rescan windows only when the houses change; Run to a spot picked on the map (+48 more)
+Escape! dev status | Working on: Elsbeth conjures a magic rain umbrella; Fix the empty climb screen on a placed wall | Shipped this week: Test panel: Benchmark button for CPU and GPU readings; Fix village slowdown: rescan windows only when the houses change (+48 more)

@@ -1,0 +1,1 @@
+- Fixed a big slowdown in the village: snow, footprints and leaves no longer make the game re-scan every window.

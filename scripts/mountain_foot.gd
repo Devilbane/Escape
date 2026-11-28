@@ -107,6 +107,16 @@ static func clear_fade(level: Level, x: float, z: float) -> float:
 		var ox := maxf(0.0, maxf(box.position.x - x, x - box.end.x))
 		var oz := maxf(0.0, maxf(box.position.y - z, z - box.end.y))
 		fade = minf(fade, smoothstep(0.0, CLEAR_FADE, sqrt(ox * ox + oz * oz)))
+	# A climbing wall placed on a rock face (see WallPlacements) keeps the open ground beside it clean too, so the hero
+	# can walk up to the rock and push against it (a lobe in front of it would hold him a step short).
+	for p: Dictionary in WallPlacements.all():
+		if p.map != level.level_name:
+			continue
+		var pc: Vector2i = p.cell
+		var pbox := Rect2((pc.x - 3.5) * tile, (pc.y - 1.5) * tile, 5.0 * tile, 3.0 * tile)
+		var qx := maxf(0.0, maxf(pbox.position.x - x, x - pbox.end.x))
+		var qz := maxf(0.0, maxf(pbox.position.y - z, z - pbox.end.y))
+		fade = minf(fade, smoothstep(0.0, CLEAR_FADE, sqrt(qx * qx + qz * qz)))
 	return fade
 
 

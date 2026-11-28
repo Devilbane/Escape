@@ -114,7 +114,20 @@ func _run() -> void:
 		check(biggest < 0.01, "the approach of the spot at %s has no lobe (%.2f m)" % [c, biggest])
 		for m: Dictionary in made:
 			check((m.at as Vector2).distance_to(Vector2(lvl.cell_to_world(c).x, lvl.cell_to_world(c).z + 2 * tile)) > 3.0 + float(m.r), "no mound stands in front of the spot at %s" % c)
-	# The small things lie round the lobes and mounds, never inside them.
+	# The same for a climbing wall placed on a rock face (WallPlacements): the three tiles in front of it are clean.
+	for pl: Dictionary in WallPlacements.all():
+		if pl.map != lvl.level_name:
+			continue
+		var pc: Vector2i = pl.cell
+		var worst := 0.0
+		for dx in range(-3, 0):
+			for dy in range(-1, 2):
+				var at := lvl.cell_to_world(pc + Vector2i(dx, dy))
+				var rects := MountainFoot._rects_near(lvl, at.x, at.z, 3)
+				for ox in [-1.5, 0.0, 1.5]:
+					for oz in [-1.5, 0.0, 1.5]:
+						worst = maxf(worst, MountainFoot.lobe_height(lvl, rects, at.x + ox, at.z + oz))
+		check(worst < 0.01, "the approach of the wall at %s has no lobe (%.2f m)" % [pc, worst])
 	var root := lvl.get_node("MountainFoot")
 	var buried := 0
 	var seen := 0

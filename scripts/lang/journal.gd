@@ -31,6 +31,7 @@ const EN := {
 	"Drachenhöhle": "Dragon's lair",
 	"Wirtshaus": "Tavern",
 	"Kramladen": "General store",
+	"Apples & Ivy!": "Apples & Ivy!",
 	"Windmühle": "Windmill",
 	"Tempel": "Temple",
 	"Amt der Krone": "Office of the crown",

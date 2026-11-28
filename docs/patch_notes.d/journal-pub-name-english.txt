@@ -1,0 +1,1 @@
+- Fix the journal test: the map mark name "Apples & Ivy!" now has an English entry.

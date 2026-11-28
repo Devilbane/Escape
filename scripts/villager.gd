@@ -1125,6 +1125,11 @@ func _thaw_fritz() -> void:
 ## hour he may set out again, the broom in his hand and the seconds to the next puff of snow dust.
 var _sweep: SnowSweep.Job
 var _sweep_way: Array[Vector3] = []
+## What is left of a stretch he had to leave (a break, the end of a shift, rain): he carries on with it.
+var _sweep_left: Array[Vector3] = []
+var _sweep_left_kind := ""
+var _sweep_left_at := 0.0
+var _sweep_finished := false
 var _sweep_after := 0.0
 var _broom: Node3D
 var _broom_hand: Node3D
@@ -1141,7 +1146,13 @@ func _sweep_out() -> bool:
 	var kind := _sweep_wanted()
 	if kind == "" or threat != null or eaten or _bubble_time > 0.0:
 		return false
-	var way := SnowSweep.route(level, home, _rng, Callable(LeafSweep, "is_clear").bind(level) if kind == "leaves" else Callable())
+	var way: Array[Vector3] = []
+	# Only within the day: after the night the ground is dirty anew and he starts a fresh round.
+	if _sweep_left_kind == kind and _sweep_left.size() >= 2 and level.world_hours - _sweep_left_at < 10.0:
+		way = _sweep_left # Where he left off.
+	_sweep_left = []
+	if way.is_empty():
+		way = SnowSweep.route(level, home, _rng, Callable(LeafSweep, "is_clear").bind(level) if kind == "leaves" else Callable())
 	_sweep_after = level.world_hours + SnowSweep.REST_HOURS
 	if way.is_empty():
 		return false
@@ -1173,6 +1184,16 @@ func _begin_sweep() -> void:
 func _end_sweep() -> void:
 	if _sweep == null and _sweep_way.is_empty() and _broom == null:
 		return
+	# Left before the stretch was done: remember the rest of it (or all of it, if he never began).
+	if _sweep != null and not _sweep_finished:
+		_sweep_left = _sweep.remaining()
+		_sweep_left_at = level.world_hours
+		_sweep_left_kind = _sweep_kind
+	elif _sweep == null and _sweep_way.size() >= 2 and _sweep_kind != "":
+		_sweep_left = _sweep_way
+		_sweep_left_at = level.world_hours
+		_sweep_left_kind = _sweep_kind
+	_sweep_finished = false
 	_sweep = null
 	_sweep_way = []
 	_hold_broom(false)
@@ -1217,6 +1238,7 @@ func _sweep_snow(delta: float) -> void:
 	to.y = 0.0
 	if to.length() < 0.3:
 		if not job.advance():
+			_sweep_finished = true
 			_start("idle", 0.5)
 		return
 	var dir := to.normalized()

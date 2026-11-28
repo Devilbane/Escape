@@ -1,0 +1,1 @@
+- Fixed a small flicker in the dust when Matthes sweeps leaves in autumn: the flung leaves now fade out as they land instead of tumbling through the ground.

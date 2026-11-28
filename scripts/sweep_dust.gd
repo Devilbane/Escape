@@ -211,7 +211,11 @@ func _fly_leaves() -> void:
 		at += Vector3(sin(t * 7.0 + float(m.size) * 30.0), 0, cos(t * 6.0)) * 0.08 * minf(t, 1.0)
 		var spin: Vector3 = m.spin
 		var basis := Basis.from_euler(spin * t) * Basis().scaled(Vector3.ONE * float(m.size))
-		var fade := smoothstep(0.0, 0.08, t / float(m.dur)) * (1.0 - smoothstep(0.85, 1.0, t / float(m.dur)))
+		# A leaf is gone by the time it lands: tumbling on the ground it cut through the paving and flickered.
+		var life := minf(float(m.dur), maxf(vel.y / 2.6, 0.2))
+		var fade := smoothstep(0.0, 0.08, t / life) * (1.0 - smoothstep(0.7, 1.0, t / life))
+		if t >= life:
+			fade = 0.0
 		mm.set_instance_transform(i, Transform3D(basis.scaled(Vector3.ONE * maxf(fade, 0.01)), at))
 		mm.set_instance_color(i, m.tint)
 		i += 1

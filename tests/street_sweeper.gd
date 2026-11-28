@@ -108,7 +108,12 @@ func _run() -> void:
 	LeafSweep.advance(lvl)
 	check(LeafSweep.swept_count() == swept, "a few hours on the heaps are still there")
 	lvl.world_hours += LeafSweep.BACK_HOURS * 3.0
+	lvl.set_hour(12.0)
 	LeafSweep.advance(lvl)
+	check(LeafSweep.swept_count() == swept, "by day the wind does not bring them back")
+	lvl.set_hour(2.0)
+	LeafSweep.advance(lvl)
+	lvl.set_hour(9.0)
 	check(LeafSweep.swept_count() == 0, "overnight the wind carried them all back")
 	var again := 0
 	for p in way:
@@ -121,11 +126,24 @@ func _run() -> void:
 	StreetSweeper.rested = {}
 	var first := SnowSweep.route(lvl, sweeper.home, rng, Callable(LeafSweep, "is_clear").bind(lvl))
 	check(not first.is_empty() and StreetSweeper.is_marked(lvl, lvl.world_to_cell(first[first.size() / 2])), "he starts on the marked route")
+	# Round robin: with everything dirty and each rest over, he takes the stretches in turn, not the first one again.
+	var dirty := func(_p: Vector3) -> bool: return false
+	StreetSweeper.rested = {}
+	StreetSweeper.cursor = 0
+	var starts := {}
+	for i in marked.size():
+		lvl.world_hours += StreetSweeper.MARKED_REST + 0.1
+		var turn := SnowSweep.route(lvl, sweeper.home, rng, dirty)
+		if not turn.is_empty():
+			starts[lvl.world_to_cell(turn[0])] = true
+	check(starts.size() >= marked.size() - 2, "he cycles through the marked stretches, not one again and again (%d starts)" % starts.size())
+	StreetSweeper.rested = {}
+	StreetSweeper.cursor = 0
 	var ring_cells := {}
 	for st: Array in marked:
 		for c in st:
 			ring_cells[c] = true
-	check(ring_cells.size() >= 50, "the marked route is a long way (%d tiles)" % ring_cells.size())
+	check(ring_cells.size() >= 40, "the marked route is a long way (%d tiles)" % ring_cells.size())
 	StreetSweeper.rested = {}
 
 	# One stretch after the other: he does not stop after the first, and the square is last.

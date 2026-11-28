@@ -93,8 +93,8 @@ func _test() -> void:
 	var hero1: Dictionary = Fame.hero(Fame.DEFAULT_REGION, game.quests, game.riddles)
 	check(hero0 == 0.0 and hero1.quests == 1 and hero1.riddles == 1 and float(hero1.value) > 0.0, "a task and a riddle raise the Regional Hero value (%s)" % [hero1])
 	var worth0: float = Fame.richness(game).value
-	game.coins = 1000
-	check(float(Fame.richness(game).value) >= worth0 + 1000.0 and Fame.ratings(game)[1].level >= 3, "coins raise Richness")
+	game.coins = 3000
+	check(float(Fame.richness(game).value) >= worth0 + 3000.0 and Fame.ratings(game)[1].level >= 3, "coins raise Richness")
 	var stand := Fame.standings(Fame.DEFAULT_REGION, p)
 	check(stand.size() == Fame.MASTERS.size() and float(stand[0].ratio) >= float(stand.back().ratio), "the standings list the best first")
 	check(float(Fame.crafts(Fame.DEFAULT_REGION, p).value) == 0.0, "an untrained hero is no match for the masters")

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Cow and bull snow tracks: smaller, one print per hoof | Shipped this week: Keep the loading screen up until the game is fully loaded; Keep the mountain foot clear in front of placed climbing walls (+48 more)
+Escape! dev status | Shipped this week: Cow and bull snow tracks: smaller, one print per hoof; Keep the loading screen up until the game is fully loaded (+48 more)

@@ -18,24 +18,32 @@ const CUES := {
 		{"at": 0.25, "kind": "scuff", "db": -13.0},
 		{"at": 0.37, "kind": "grip", "db": -9.0},
 		{"at": 0.54, "kind": "boot", "db": -9.0},
-		{"at": 0.72, "kind": "breath", "db": -9.0, "tired": true},
+		{"at": 0.56, "kind": "clink", "db": -16.0, "gear": true},
+		{"at": 0.64, "kind": "pebbles", "db": -17.0, "chance": 0.3},
+		{"at": 0.70, "kind": "grunt", "db": -12.0, "tired": true, "chance": 0.8},
+		{"at": 0.74, "kind": "breath", "db": -10.0, "tired": true},
 		{"at": 0.88, "kind": "boot", "db": -11.0},
+		{"at": 0.90, "kind": "clink", "db": -18.0, "gear": true, "chance": 0.6},
 	],
 	"side": [
 		{"at": 0.27, "kind": "scuff", "db": -13.0},
 		{"at": 0.43, "kind": "grip", "db": -9.0},
 		{"at": 0.55, "kind": "boot", "db": -9.0},
-		{"at": 0.78, "kind": "breath", "db": -10.0, "tired": true},
+		{"at": 0.57, "kind": "clink", "db": -16.0, "gear": true},
+		{"at": 0.66, "kind": "pebbles", "db": -17.0, "chance": 0.3},
+		{"at": 0.76, "kind": "grunt", "db": -13.0, "tired": true, "chance": 0.6},
+		{"at": 0.80, "kind": "breath", "db": -10.0, "tired": true},
 		{"at": 0.90, "kind": "boot", "db": -11.0},
 	],
 	"desc": [
 		{"at": 0.30, "kind": "grip", "db": -11.0},
 		{"at": 0.56, "kind": "boot", "db": -10.0},
+		{"at": 0.58, "kind": "clink", "db": -17.0, "gear": true, "chance": 0.7},
 		{"at": 0.70, "kind": "scuff", "db": -13.0},
 		{"at": 0.80, "kind": "breath", "db": -12.0, "tired": true},
 	],
 	"leap": [
-		{"at": 0.10, "kind": "breath", "db": -7.0, "tired": true},
+		{"at": 0.10, "kind": "grunt", "db": -6.0, "tired": true},
 		{"at": 0.36, "kind": "scuff", "db": -8.0},
 		{"at": 0.82, "kind": "grip", "db": -6.0},
 		{"at": 0.86, "kind": "boot", "db": -6.0},
@@ -64,6 +72,23 @@ const CUES := {
 ## The loudest sample (0..1) a kind is made with: the quiet kinds are brought up to it, so their volumes in the cue
 ## lists mean what they say (steps, grips and breaths used to be lost under the other sounds).
 const PEAKS := {"scuff": 0.9, "grip": 0.9, "boot": 0.9, "breath": 0.95, "pant": 0.95, "tap": 0.9, "clang": 0.95}
+
+## Kinds that are recorded samples from `assets/sounds` instead of made in code: a boot on rock is one of the stone
+## and gravel steps, the effort of a pull is the hero's "uff", the gear is the clink of metal and chain.
+const RECORDED := {
+	"boot": ["step_scree_0", "step_scree_1", "step_scree_2", "step_scree_3", "step_scree_4", "step_scree_5"],
+	"grunt": ["voice_uff"],
+	"clink": ["gear_metal_0", "gear_metal_1", "gear_metal_2", "gear_chain_0", "gear_chain_1"],
+}
+
+
+## The name of a recorded sample of `kind` (variant `variant`), or "" when the kind is made in code.
+static func recorded(kind: String, variant: int) -> String:
+	if not RECORDED.has(kind):
+		return ""
+	var list: Array = RECORDED[kind]
+	return String(list[absi(variant) % list.size()])
+
 
 ## What a special spot sounds like when the climber reaches it: `after` is the delay in seconds.
 const SPOTS := {

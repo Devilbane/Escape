@@ -53,6 +53,8 @@ const STONES_PER_SQUARE := 5
 const DECOR_SHARE := 0.2
 ## A climber hangs with the feet this far below the hand hold; the foot stone he stands on is made there.
 const FOOT_DROP := 1.7
+## How many squares wide the rock ledge under a rest place is (see camp_mesh).
+const CAMP_LEDGE_WIDTH := 3.0
 ## A foot stone is made only where the feet are clear of the ground (on the ground he simply stands).
 const FOOT_MIN_Y := 0.2
 const FOOT_KINDS := ["rock_single_E", "rock_single_C", "rock_single_A"]
@@ -120,6 +122,13 @@ static func node(wall: WallMap) -> Node3D:
 		dm.mesh = decor
 		dm.material_override = AgedStone.rock_material()
 		root.add_child(dm)
+	var camps := b.camp_mesh()
+	if camps != null:
+		var cm := MeshInstance3D.new()
+		cm.name = "CampLedges"
+		cm.mesh = camps
+		cm.material_override = AgedStone.rock_material()
+		root.add_child(cm)
 	for i in wall.gaps.size():
 		root.add_child(b._gap_label(i))
 	return root
@@ -592,6 +601,33 @@ func foot_mesh() -> ArrayMesh:
 			if kind == "rock_single_A":
 				size *= Vector3(1.25, 1.5, 1.3)   # the flat kind is made taller to carry a foot
 			st.append_from(mesh, 0, Transform3D(basis.scaled(size), Vector3(spot.x + (h3 - 0.5) * 0.15, spot.y - 0.08, depth_at(spot.x, spot.y) - 0.07)))
+			count += 1
+	if count == 0:
+		return null
+	return _weathered(st.commit(), true)
+
+
+## The rest place's ledge: a rock shelf CAMP_LEDGE_WIDTH squares wide under every camp marker (a row of overlapping stones), so a rest place reads from afar as a place to stand and sleep. Only the look: the hold is the marker's.
+func camp_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	var count := 0
+	for cell: Vector2i in map.markers:
+		if String(map.markers[cell]) != "camp":
+			continue
+		var spot := foot_spot(map, cell.x, cell.y)
+		if spot.x < 0.0:
+			continue
+		var z := depth_at(spot.x, spot.y)
+		for k in 7:
+			var h := _hash(cell.x * 17 + k, cell.y * 29 + 3)
+			var h2 := _hash(cell.x * 13 + 2, cell.y * 11 + k)
+			var mesh: ArrayMesh = NaturalRock.mesh(FOOT_KINDS[k % 3])
+			if mesh == null:
+				continue
+			var x := spot.x + (k - 3.0) * CAMP_LEDGE_WIDTH / 6.0 * WallMap.SQUARE
+			var basis := Basis(Vector3.RIGHT, deg_to_rad(90.0 + (h - 0.5) * 10.0)) * Basis(Vector3.UP, (h2 - 0.5) * 1.0)
+			var size := Vector3(lerpf(1.6, 2.1, h2), lerpf(1.4, 1.8, h), lerpf(1.3, 1.7, h2))
+			st.append_from(mesh, 0, Transform3D(basis.scaled(size), Vector3(x, spot.y - 0.08, z - 0.07)))
 			count += 1
 	if count == 0:
 		return null

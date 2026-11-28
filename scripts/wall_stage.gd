@@ -981,6 +981,11 @@ func _play_cues(key: String, from_u: float, to_u: float) -> void:
 	for c in WallSounds.cues(key):
 		var at_u := float(c.at)
 		if (from_u < at_u and at_u <= to_u) or (from_u < 0.0 and at_u <= to_u and at_u < 0.05):
+			# Gear only clinks when it is worn; some sounds only come now and then (pebbles, a grunt).
+			if bool(c.get("gear", false)) and not climb.gear:
+				continue
+			if rng.randf() > float(c.get("chance", 1.0)):
+				continue
 			var tired := 1.0 - clampf(climb.stamina / maxf(0.01, climb.stamina_max), 0.0, 1.0) if bool(c.get("tired", false)) else 0.0
 			_sound(String(c.kind), float(c.db) + tired * 6.0, float(c.get("pitch", 1.0)) * (1.0 - tired * 0.18))
 
@@ -1034,7 +1039,12 @@ func _sound(kind: String, db: float, pitch := 1.0) -> void:
 		db -= maxf(0.0, camera.global_position.distance_to(at) - 33.0) * 0.9
 	if db < -40.0:
 		return
-	Sfx.play_3d(wall_root, "", db + rng.randf_range(-1.5, 1.5), at, pitch * rng.randf_range(0.93, 1.07), WallSounds.stream(kind, rng.randi()))
+	var variant := rng.randi()
+	var sample := WallSounds.recorded(kind, variant)
+	if sample != "":
+		Sfx.play_3d(wall_root, sample, db + rng.randf_range(-1.5, 1.5), at, pitch * rng.randf_range(0.92, 1.08))
+		return
+	Sfx.play_3d(wall_root, "", db + rng.randf_range(-1.5, 1.5), at, pitch * rng.randf_range(0.93, 1.07), WallSounds.stream(kind, variant))
 
 
 func _queue_camp(here: Vector3) -> void:

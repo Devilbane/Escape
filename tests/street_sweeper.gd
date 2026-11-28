@@ -108,7 +108,12 @@ func _run() -> void:
 	LeafSweep.advance(lvl)
 	check(LeafSweep.swept_count() == swept, "a few hours on the heaps are still there")
 	lvl.world_hours += LeafSweep.BACK_HOURS * 3.0
+	lvl.set_hour(12.0)
 	LeafSweep.advance(lvl)
+	check(LeafSweep.swept_count() == swept, "by day the wind does not bring them back")
+	lvl.set_hour(2.0)
+	LeafSweep.advance(lvl)
+	lvl.set_hour(9.0)
 	check(LeafSweep.swept_count() == 0, "overnight the wind carried them all back")
 	var again := 0
 	for p in way:

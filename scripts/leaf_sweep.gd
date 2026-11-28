@@ -156,6 +156,9 @@ static func advance(level: Node) -> void:
 	if life != _life:
 		_swept.clear()
 		return
+	# The wind brings the leaves back in the night only; by day the swept ground stays clean.
+	if not DayNight.is_night(level.hour):
+		return
 	var now: float = level.world_hours
 	for k: String in _swept.keys():
 		var s: Array = _swept[k]

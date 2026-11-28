@@ -103,7 +103,9 @@ static func advance(level: Node, cover: float) -> void:
 	if _last_hours >= 0.0:
 		# Snowfall fills a swept strip in; with none, the wind drifts snow back over it slowly, so a strip swept
 		# in the afternoon is mostly white again by morning.
-		_fall += clampf(hours - _last_hours, 0.0, 6.0) * (1.0 if level.weather == Weather.SNOW else DRIFT_RATE)
+		# Only in the night: by day a swept strip stays bare.
+		if DayNight.is_night(level.hour):
+			_fall += clampf(hours - _last_hours, 0.0, 6.0) * (1.0 if level.weather == Weather.SNOW else DRIFT_RATE)
 	_last_hours = hours
 	if level.snow == null:
 		return

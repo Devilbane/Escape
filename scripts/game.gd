@@ -793,6 +793,9 @@ func _make_player() -> void:
 ## instead of being built behind the title. Always, where a window is drawn; headless (the tests)
 ## the level is there at once, unless a test asks for the real thing with `lazy_start`.
 static var lazy_start := false
+## Set once a started game's level, saved game and hero are all in place; the loading screen
+## (LoadingScreen) keeps the unfinished world hidden until then.
+var world_in_place := false
 
 
 func defers_start_level() -> bool:
@@ -4858,6 +4861,7 @@ func _put_in_built_house(spot: Dictionary) -> bool:
 
 func _leave_title(prepare: Callable) -> void:
 	state = State.TRANSITION
+	world_in_place = false
 	_title_buttons.visible = false
 	# The language buttons too: left in the faded title, they would lie
 	# unseen across the middle of the screen and take the pointer from the
@@ -6132,6 +6136,7 @@ func _real_time_text(seconds: float) -> String:
 
 
 func _start_playing() -> void:
+	world_in_place = true
 	# A hero waking up in bed is still busy getting up (see _wake_in_bed).
 	state = State.TRANSITION if _waking else State.PLAYING
 	var tween := create_tween()

@@ -63,6 +63,7 @@ const PARTS := [
 	preload("res://scripts/lang/house_ballista.gd"),
 	preload("res://scripts/lang/plots.gd"),
 	preload("res://scripts/lang/property.gd"),
+	preload("res://scripts/lang/wealth.gd"),
 	preload("res://scripts/lang/payment.gd"),
 	preload("res://scripts/lang/winter_wear.gd"),
 	preload("res://scripts/lang/chapel_penguin.gd"),

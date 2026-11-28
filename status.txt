@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep the loading screen up until the game is fully loaded | Shipped this week: Keep the mountain foot clear in front of placed climbing walls; Keep the sleeper's head on the pillows, clear of the wall (+48 more)
+Escape! dev status | Working on: Cow and bull snow tracks: smaller, one print per hoof; Keep the loading screen up until the game is fully loaded | Shipped this week: Keep the mountain foot clear in front of placed climbing walls; Keep the sleeper's head on the pillows, clear of the wall (+48 more)

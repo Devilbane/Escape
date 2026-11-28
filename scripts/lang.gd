@@ -186,6 +186,7 @@ const PARTS := [
 	preload("res://scripts/lang/seats.gd"),
 	preload("res://scripts/lang/bench_rest.gd"),
 	preload("res://scripts/lang/home_run.gd"),
+	preload("res://scripts/lang/auto_run.gd"),
 	preload("res://scripts/lang/dragon_hoard.gd"),
 	preload("res://scripts/lang/launcher.gd"),
 	preload("res://scripts/lang/knives.gd"),

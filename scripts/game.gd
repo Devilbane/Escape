@@ -229,6 +229,8 @@ var riddles := RiddleCount.new()
 var graveyard_riddles := GraveyardRiddles.new()
 ## The way home at a press of the home button or X (see HomeRun).
 var home_run := HomeRun.new(self)
+## The run to a spot picked on the map (see AutoRun).
+var auto_run := AutoRun.new(self)
 ## What each villager thinks of the hero (see Reputation): discounts,
 ## gossip and secret recipes. Kept in the saved game.
 var reputation := Reputation.new(self)
@@ -621,6 +623,7 @@ func _bus_links() -> Array:
 		[bus.graveyard_riddle, _on_graveyard_riddle],
 		[bus.hero_acted, tutorial.on_hero_acted],
 		[bus.hero_acted, home_run.on_hero_acted],
+		[bus.hero_acted, auto_run.on_hero_acted],
 		[bus.camera_punched, punch_camera],
 		[bus.loot_found, event_log.add_loot],
 		[bus.speech_said, heard],
@@ -7890,6 +7893,7 @@ func _with_article(label: String) -> String:
 func _on_player_hurt(_amount: int) -> void:
 	_update_hud()
 	home_run.on_hurt()
+	auto_run.on_hurt()
 	var tween := create_tween()
 	_fade.color = Color(0.6, 0.02, 0.02, 0.0)
 	tween.tween_property(_fade, "color:a", 0.35, 0.08)
@@ -8661,6 +8665,7 @@ func _process(delta: float) -> void:
 	_place_dust(drawn)
 	_steer_by_mouse(delta)
 	home_run.tick()
+	auto_run.tick()
 	update_home_button()
 	update_blueprint_button()
 	update_torch_button()
@@ -9007,6 +9012,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			# and the home key itself) calls the way home off.
 			if home_run.active and not (event is InputEventKey and event.physical_keycode in [KEY_X, KEY_M, KEY_TAB]):
 				home_run.stop()
+			if auto_run.active and not (event is InputEventKey and event.physical_keycode in [KEY_M, KEY_TAB]):
+				auto_run.stop()
 			if event is InputEventKey:
 				match event.physical_keycode:
 					KEY_ENTER, KEY_KP_ENTER:

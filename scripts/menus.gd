@@ -5608,6 +5608,12 @@ func _build_map_page(journal: Journal) -> void:
 	view.setup(journal, _map_file, game.TEXT_FONT)
 	columns.add_child(view)
 	view.resized.connect(view.queue_redraw)
+	# Running there: only on the level and floor the hero stands on (see AutoRun).
+	var can_run: bool = _map_file == here and game.player != null and not game.player.dead \
+			and hero_floor == MapView.GROUND and view.storey == MapView.GROUND
+	view.pickable = can_run
+	if can_run:
+		view.tile_picked.connect(_map_run_to_tile.bind(view))
 	_add_map_zoom(view)
 	if floors.size() > 1:
 		_add_map_storeys(view, floors)
@@ -5628,7 +5634,9 @@ func _build_map_page(journal: Journal) -> void:
 	if places.is_empty():
 		_legend_line(legend, Color(0, 0, 0, 0), Lang.t("Noch keine entdeckt."))
 	for i in places.size():
-		_legend_line(legend, Journal.MARK_COLORS.get(places[i].kind, Color.WHITE), "%d  %s" % [i + 1, journal.place_name(places[i])])
+		var line := _legend_line(legend, Journal.MARK_COLORS.get(places[i].kind, Color.WHITE), "%d  %s" % [i + 1, journal.place_name(places[i])])
+		if can_run:
+			_make_run_line(line, Vector2i(int(places[i].x), int(places[i].y)), view)
 	if not journal.secrets.get(_map_file, []).is_empty():
 		_legend_line(legend, Journal.MARK_COLORS.secret, Lang.t("Geheimraum"))
 	if not view.lost_packs().is_empty():
@@ -5824,7 +5832,7 @@ func _legend_title(box: VBoxContainer, text: String) -> void:
 	box.add_child(l)
 
 
-func _legend_line(box: VBoxContainer, color: Color, text: String) -> void:
+func _legend_line(box: VBoxContainer, color: Color, text: String) -> HBoxContainer:
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 8)
 	var dot := ColorRect.new()
@@ -5838,6 +5846,68 @@ func _legend_line(box: VBoxContainer, color: Color, text: String) -> void:
 	l.custom_minimum_size.x = 240
 	line.add_child(l)
 	box.add_child(line)
+	return line
+
+
+## Turns a line of the map's list into a button that sends the hero running to `cell`: the same
+## row in the same place, only with a hover frame, so the list does not move (see AutoRun).
+func _make_run_line(line: HBoxContainer, cell: Vector2i, view: MapView) -> void:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_ALL
+	b.tooltip_text = Lang.t("Dorthin laufen")
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var hover := UiKit.frame_style(Color(1.0, 0.82, 0.4, 0.14), Color(1.0, 0.82, 0.4, 0.7), 1, 3)
+	for state in ["hover", "focus", "pressed"]:
+		b.add_theme_stylebox_override(state, hover)
+	b.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	b.pressed.connect(_map_run_to_tile.bind(cell, view))
+	# A frame that holds the row with the button laid over it: the row keeps its own height.
+	var frame := PanelContainer.new()
+	frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	var parent := line.get_parent()
+	var at := line.get_index()
+	parent.remove_child(line)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child in line.get_children():
+		(child as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(line)
+	frame.add_child(b)
+	parent.add_child(frame)
+	parent.move_child(frame, at)
+
+
+## A click on the map or on a place of its list: the window closes and the hero runs there. When no
+## way leads there, a short note says so on the map and the window stays open.
+func _map_run_to_tile(cell: Vector2i, view: MapView) -> void:
+	var goal := AutoRun.destination(game.level, game.player.global_position, cell)
+	if goal == Vector3.INF:
+		_map_note(view, Lang.t(ClickRefusal.TEXT_UNREACHABLE))
+		return
+	close()
+	var why: String = game.auto_run.start(goal)
+	if why != "":
+		game.show_message(why, 1.8, Color(1.0, 0.75, 0.7))
+
+
+## A short note over the bottom of the map that fades out, so nothing around the map moves.
+func _map_note(view: MapView, text: String) -> void:
+	var old := view.get_node_or_null("MapNote")
+	if old != null:
+		old.queue_free()
+	var l: Label = game._make_label(game.TEXT_FONT, 18, Color(1.0, 0.75, 0.7))
+	l.name = "MapNote"
+	l.text = text
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	l.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	l.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	l.offset_bottom = -10
+	view.add_child(l)
+	var tween := l.create_tween()
+	tween.tween_interval(1.2)
+	tween.tween_property(l, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(l.queue_free)
 
 
 ## The journal: tonight's moon at the top (see Moon), then every new place,

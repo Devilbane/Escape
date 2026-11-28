@@ -260,3 +260,4 @@ goto.gd | 120 | fixed | pass | The goto chat command: place, tile, season and ti
 wall_sounds.gd | 60 | fixed | pass | Climbing wall sounds: every cue sound is made, audible and varied, and the cues are in order
 loading_command.gd | 60 | free | pass | The loading chat command: shows the screen again, one at a time, closes
 hud_clock_shots.gd | 180 | free | pass | F2 HUD lines: place and tile, then clock and season
+auto_run.gd | 180 | fixed | passfail | Run to a spot picked on the map (click, place list, route marker, stops on a step, a jump or a hit)

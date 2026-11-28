@@ -1,0 +1,1 @@
+- Banker Goldwin now writes you a financial report: a chart of your wealth (coins plus what your things would sell for) day by day.

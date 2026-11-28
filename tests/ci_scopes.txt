@@ -80,4 +80,5 @@ wall_random_panel.gd | scripts/wall_random_panel.gd scripts/wall_generator.gd sc
 property_register.gd | scripts/plot*.gd scripts/property*.gd scripts/homes.gd scripts/house_furniture.gd scripts/house_sketch.gd scripts/lang/property.gd scripts/lang/plots.gd
 mine_claims.gd | scripts/mine_claims.gd scripts/mine_work.gd scripts/property_register.gd scripts/lang/mine_work.gd
 own_mine.gd | scripts/own_mine.gd scripts/mine_claims.gd scripts/mine_work.gd scripts/lang/own_mine.gd levels/43_deine_mine.txt
+wealth.gd | scripts/wealth*.gd scripts/lang/wealth.gd
 hoof_prints.gd | scripts/snow_trail.gd scripts/snow_prints.gd scripts/farm_animal.gd assets/animals/*

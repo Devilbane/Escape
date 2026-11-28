@@ -1,0 +1,1 @@
+- Click a spot on the map, or a place in the list beside it, and your hero runs there on their own. A golden ring and a dotted line show the way; any key or click stops the run.

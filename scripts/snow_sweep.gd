@@ -18,7 +18,7 @@ extends RefCounted
 const ROLE := StreetSweeper.ROLE
 ## The hours of the day (see DayNight) he sweeps in: after the morning, and an afternoon stretch.
 ## The meals call the village together from 11 (see TownMeals), and the morning belongs to the temple.
-const SHIFTS := [[6.0, 11.0], [13.0, 16.0]]
+const SHIFTS := [[6.0, 11.0], [13.0, 18.0]]
 ## Snow must lie at least this thick (0 to 1, see SnowCover) to be worth sweeping.
 const SNOW_MIN := 0.35
 ## How far from his spot he sweeps (tiles), and the shortest and longest footpath he takes on (tiles).

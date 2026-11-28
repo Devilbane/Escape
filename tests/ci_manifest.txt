@@ -162,3 +162,4 @@ wall_facing.gd | 20 | free | passfail | The climber faces the wall while climbin
 wall_corners.gd | 60 | free | pass | Built house walls never share a face at corners, Ts or between pieces (no z-fighting)
 mine_claims.gd | 60 | fixed | pass | The deed book of the own mines: one mine per own mining plot, over a prospecting mark, saved, offline catch-up, register line
 own_mine.gd | 120 | fixed | pass | The walk-in mine: claim post on the mining plot, mine opened over a mark, mine floor with its face, hammer, support, haul, the way back out
+wall_climb_screen.gd | 60 | fixed | pass | The climb on a placed wall fills the screen (its 3D view has a size)

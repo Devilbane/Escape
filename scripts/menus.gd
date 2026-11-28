@@ -250,6 +250,7 @@ const WINDOW_SIZES := {
 	SettingsWindow.KIND: SettingsWindow.SIZE,
 	PlotOffice.KIND: Vector2(640, 500),
 	PropertyWindow.KIND: PropertyWindow.SIZE,
+	WealthWindow.KIND: WealthWindow.SIZE,
 	Prospector.KIND: Prospector.WINDOW,
 	OwnMine.KIND: OwnMine.WINDOW,
 	OwnMine.MILL_KIND: OwnMine.WINDOW,
@@ -420,6 +421,8 @@ func _rebuild() -> void:
 			PlotOffice.build(self)
 		PropertyWindow.KIND:
 			PropertyWindow.build(self)
+		WealthWindow.KIND:
+			WealthWindow.build(self)
 		Prospector.KIND:
 			Prospector.build(self)
 		OwnMine.KIND:
@@ -2295,6 +2298,11 @@ func _build_bank() -> void:
 		var b := _item_button(Lang.t("%d× %s wechseln (je %d Kupfer)") % [have, Crafting.ingredient_name(coin), Loot.COIN_VALUE[coin]], _exchange.bind(coin), have > 0)
 		b.custom_minimum_size = Vector2(340, 44)
 		change.add_child(b)
+	# Goldwin's financial report: the chart of what the hero is worth, day by day (see WealthWindow).
+	var report: Button = _item_button(Lang.t("Finanzbericht"), open.bind(WealthWindow.KIND))
+	report.custom_minimum_size = Vector2(340, 44)
+	report.tooltip_text = Lang.t("Was du besitzt, Tag für Tag: Münzen und Verkaufswert deiner Dinge.")
+	change.add_child(report)
 	if Bank.has_vault(hero):
 		_add_label(Lang.t("Dein Schließfach im Tresorkeller hat Platz für %d Schätze.") % Bank.VAULT_SIZE, 16, BLUE)
 	else:

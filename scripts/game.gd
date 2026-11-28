@@ -451,6 +451,8 @@ var _message: Label
 var _help: Label
 ## The testing panel in the bottom left corner (see TestPanel).
 var _test_panel: TestPanel
+## The performance benchmark of the test panel (see PerfBenchmark).
+var _benchmark: PerfBenchmark
 ## Messages that came before the newest one, oldest first, kept above it
 ## while they are still being read (see show_message), so a new message
 ## never covers an unread one.
@@ -6357,6 +6359,11 @@ func _on_test_panel(kind: String, arg: Variant) -> void:
 			_toggle_godmode()
 		"wall":
 			WallScreens.open_workshop(self)
+		"bench":
+			if _benchmark == null:
+				_benchmark = PerfBenchmark.new()
+				add_child(_benchmark)
+			_benchmark.toggle(self)
 
 
 ## The chat line's weather and time commands (see SkyCommand): force the

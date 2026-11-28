@@ -4,7 +4,9 @@ shader_type spatial;
 // scallop of the edge, and a slow shimmer that drifts over the cloth. One cheap unlit surface.
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 
-uniform vec4 tint : source_color = vec4(0.55, 0.8, 1.0, 1.0);
+#include "res://shaders/gl_colour.gdshaderinc"
+
+uniform vec4 tint = vec4(0.55, 0.8, 1.0, 1.0);
 // 0 to 1: how much of the shield is there (the cast swells it in, the end of the rain fades it).
 uniform float fade = 1.0;
 uniform float ribs = 8.0;
@@ -33,6 +35,7 @@ void fragment() {
 	float glint = smoothstep(0.62, 0.95, vnoise(p * 2.0) * 0.6 + vnoise(p * 5.0 + 7.0) * 0.4);
 	float a = body_alpha + rim * rim_alpha + rib * 0.28 + edge * 0.3 + glint * 0.22;
 	vec3 col = tint.rgb + vec3(0.25) * (rib + glint + edge * 0.6);
-	ALBEDO = col;
 	ALPHA = clamp(a, 0.0, 0.85) * fade;
+	ALBEDO = col;
+	ALBEDO = gl_colour(ALBEDO);
 }

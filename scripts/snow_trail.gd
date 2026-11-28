@@ -19,8 +19,9 @@ const FEET := {
 	"goat": ["hoof", 0.8, 0.5, 0.05],
 	"billy": ["hoof", 0.9, 0.55, 0.05],
 	"sheep": ["hoof", 0.8, 0.45, 0.05],
-	"cow": ["hoof", 1.6, 0.8, 0.09],
-	"bull": ["hoof", 1.8, 0.85, 0.1],
+	# Cattle press one print per hoof as it lands (see HOOVES), life-sized: about 12 x 16 cm.
+	"cow": ["hoof", 0.6, 0.8, 0.09],
+	"bull": ["hoof", 0.66, 0.85, 0.1],
 	"dog": ["paw", 0.4, 0.5, 0.06],
 	"squirrel": ["paw", 0.5, 0.3, 0.03],
 	"hedgehog": ["paw", 0.5, 0.22, 0.03],
@@ -34,7 +35,17 @@ const FEET := {
 ## Monsters that leave no tracks: ghosts float, slimes glide.
 const TRACKLESS := ["Slime"]
 
+## Where and when each hoof of the cow and bull lands, measured from the bones of their Walk and Gallop animations
+## (tests/hoof_prints.gd measures them again): [share of the cycle at touchdown, sideways, forward], in the model's
+## own space (metres at model scale 1, the model looks towards +Z).
+const HOOVES := {
+	"Walk": [[0.217, 0.570, -0.94], [0.392, 0.611, 2.63], [0.725, -0.570, -0.94], [0.95, -0.611, 2.64]],
+	"Gallop": [[0.325, -0.570, -0.53], [0.5, 0.570, -0.49], [0.75, -0.611, 2.91], [0.933, 0.611, 2.71]],
+}
+
 var _feet: Array
+var _beat := -1.0
+var _beat_anim := ""
 var _from := Vector3.INF
 var _left := false
 
@@ -78,3 +89,36 @@ func follow(level: Node, here: Vector3) -> void:
 	var show := 1.0 if _feet[0] == "boot" else SHOW
 	level.snow_print(here + apart, heading, float(_feet[1]) * scale * show, _feet[0])
 	_from = here
+
+
+## The tracks of a model walking or galloping on four feet: a print each time one of its hooves lands, where it lands.
+## `rig` is the node the model hangs from (its scale and turn carry the hoof spots into the world), `player` the
+## animation playing on it. Needs the animation to be Walk or Gallop; any other pose, or a snowless day, presses nothing.
+func hoofbeats(level: Node, rig: Node3D, player: AnimationPlayer) -> void:
+	var anim := player.current_animation
+	var length := player.current_animation_length
+	if not HOOVES.has(anim) or length <= 0.0 or not _snowy_near(level, rig.global_position):
+		_beat = -1.0
+		return
+	var now := player.current_animation_position / length
+	var last := _beat
+	_beat = now
+	if last < 0.0 or anim != _beat_anim:
+		_beat_anim = anim
+		return
+	var forward := rig.global_transform.basis.z
+	var heading := atan2(forward.x, forward.z)
+	for hoof: Array in HOOVES[anim]:
+		var at := float(hoof[0])
+		var landed := (last < at and at <= now) if now >= last else (at > last or at <= now)
+		if landed:
+			var spot := rig.to_global(Vector3(float(hoof[1]), 0.0, float(hoof[2])))
+			spot.y = rig.global_position.y
+			level.snow_print(spot, heading, float(_feet[1]) * scale * SHOW, _feet[0])
+
+
+func _snowy_near(level: Node, here: Vector3) -> bool:
+	if not level.has_method("snow_print") or level.get("snow") == null or level.snow.amount < Weather.PRINT_FROM:
+		return false
+	var hero: Node3D = level.player
+	return hero != null and here.distance_to(hero.global_position) <= NEAR

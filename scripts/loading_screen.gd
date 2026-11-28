@@ -25,6 +25,7 @@ const GOLD := Color(0.96, 0.8, 0.38)
 const MAX_PER_SIDE := 7
 ## The screen stays up at least this long, so it never flashes by.
 const MIN_SECONDS := 1.0
+const GIVE_UP := 60.0
 const FADE_IN := 0.4
 const FADE_OUT := 0.5
 
@@ -231,10 +232,20 @@ func _process(delta: float) -> void:
 	_status.modulate.a = 0.6 + 0.4 * sin(_age * 3.0)
 	if _leaving:
 		return
-	# A game that has begun (a level is loaded, the title is gone) never waits behind this screen.
-	var begun: bool = _game != null and _game.state != _game.State.TITLE
-	if begun or (_age >= MIN_SECONDS and WorldPreload.is_ready()):
+	var in_place: bool = _game != null and _game.world_in_place
+	if can_reveal(_age, WorldPreload.is_ready(), _game != null, in_place):
 		leave()
+
+
+## Whether the world may be shown: never before the village is ready, and when a game was started
+## from the title, not before its level, the saved game and the hero are in place. A stuck load
+## gives way after GIVE_UP seconds, so the screen never hides the game for good.
+static func can_reveal(age: float, preload_ready: bool, has_game: bool, in_place: bool) -> bool:
+	if age >= GIVE_UP:
+		return true
+	if has_game and in_place:
+		return preload_ready
+	return age >= MIN_SECONDS and preload_ready
 
 
 ## Fades out and goes; the picture is freed with the node.

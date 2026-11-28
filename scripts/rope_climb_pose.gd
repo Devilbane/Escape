@@ -6,7 +6,9 @@ extends RefCounted
 ## Angles in degrees, per arm / leg where a key has _l or _r (see ClimbPose.apply).
 
 const POSES := {
-	"hang": {"hips_y": -0.05, "spine": 6.0, "head": -22.0, "arm": 168.0, "elbow": 8.0, "hip_l": 22.0, "hip_r": 8.0, "knee_l": 42.0, "knee_r": 58.0, "abd_l": 16.0, "abd_r": 16.0},
+	# The hang is the default stance: both feet braced on the stones of the face (the hips bent, the knees out and
+	# bent, the toes in), the arms stretched up to the holds; never the legs dangling straight down in the air.
+	"hang": {"hips_y": -0.08, "spine": 7.0, "head": -22.0, "arm": 168.0, "elbow": 8.0, "hip_l": 62.0, "hip_r": 54.0, "knee_l": 72.0, "knee_r": 68.0, "abd_l": 30.0, "abd_r": 30.0},
 	"reach_l": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 45.0, "elbow_l": 0.0, "arm_r": 128.0, "elbow_r": 62.0, "hip_l": 6.0, "hip_r": 10.0, "knee_l": 8.0, "knee_r": 12.0, "abd_l": 14.0, "abd_r": 24.0},
 	"reach_r": {"hips_y": -0.02, "spine": 4.0, "head": -26.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 45.0, "elbow_r": 0.0, "arm_l": 128.0, "elbow_l": 62.0, "hip_l": 10.0, "hip_r": 6.0, "knee_l": 12.0, "knee_r": 8.0, "abd_l": 24.0, "abd_r": 14.0},
 	# Looking up for the next hold (a real climber pauses here, still, with the weight on the feet).
@@ -20,7 +22,7 @@ const POSES := {
 	"frog_r": {"hips_y": -0.1, "spine": 8.0, "head": -26.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 45.0, "elbow_r": 0.0, "arm_l": 130.0, "elbow_l": 50.0, "hip_r": 100.0, "knee_r": 112.0, "abd_r": 85.0, "hip_l": 6.0, "knee_l": 6.0, "abd_l": 24.0},
 	"rock_l": {"hips_y": 0.04, "spine": 16.0, "head": -20.0, "arm_l": 0.0, "out_l": 80.0, "lift_l": 45.0, "elbow_l": 0.0, "arm_r": 120.0, "elbow_r": 70.0, "hip_l": 62.0, "knee_l": 72.0, "abd_l": 44.0, "hip_r": -4.0, "knee_r": 4.0, "abd_r": 14.0},
 	"rock_r": {"hips_y": 0.04, "spine": 16.0, "head": -20.0, "arm_r": 0.0, "out_r": 80.0, "lift_r": 45.0, "elbow_r": 0.0, "arm_l": 120.0, "elbow_l": 70.0, "hip_r": 62.0, "knee_r": 72.0, "abd_r": 44.0, "hip_l": -4.0, "knee_l": 4.0, "abd_l": 14.0},
-	"look": {"hips_y": -0.05, "spine": 8.0, "head": -40.0, "arm": 168.0, "elbow": 8.0, "hip_l": 22.0, "hip_r": 8.0, "knee_l": 42.0, "knee_r": 58.0, "abd_l": 16.0, "abd_r": 16.0},
+	"look": {"hips_y": -0.08, "spine": 9.0, "head": -40.0, "arm": 168.0, "elbow": 8.0, "hip_l": 62.0, "hip_r": 54.0, "knee_l": 72.0, "knee_r": 68.0, "abd_l": 30.0, "abd_r": 30.0},
 	"pull": {"hips_y": 0.04, "spine": 20.0, "chest": 6.0, "head": -14.0, "arm": 112.0, "elbow": 100.0, "hip_l": 62.0, "hip_r": 20.0, "knee_l": 96.0, "knee_r": 52.0, "abd_l": 26.0, "abd_r": 20.0},
 	"push": {"hips_y": 0.08, "spine": 10.0, "head": -18.0, "arm": 150.0, "elbow": 25.0, "hip_l": 30.0, "hip_r": 14.0, "knee_l": 60.0, "knee_r": 30.0, "abd_l": 18.0, "abd_r": 18.0},
 	# Hammering: the left hand holds on high, the right arm swings the hammer.
@@ -52,7 +54,7 @@ const POSES := {
 	"slip": {"hips_y": 0.05, "spine": -14.0, "head": 8.0, "arm_l": 165.0, "elbow_l": 10.0, "arm_r": 100.0, "elbow_r": 40.0, "hip_l": 58.0, "hip_r": -4.0, "knee_l": 90.0, "knee_r": 20.0},
 	"rope_taut": {"spine": -18.0, "head": -4.0, "arm_l": 160.0, "elbow_l": 30.0, "arm_r": 172.0, "elbow_r": 14.0, "hip_l": 60.0, "hip_r": 40.0, "knee_l": 50.0, "knee_r": 40.0},
 	"arrest": {"hips_y": -0.04, "spine": -10.0, "head": -10.0, "arm": 165.0, "elbow": 18.0, "hip_l": 84.0, "hip_r": 78.0, "knee_l": 22.0, "knee_r": 28.0},
-	"rest": {"hips_y": -0.1, "spine": 14.0, "head": -14.0, "arm": 150.0, "elbow": 50.0, "hip_l": 28.0, "hip_r": 14.0, "knee_l": 50.0, "knee_r": 60.0, "abd_l": 14.0, "abd_r": 14.0},
+	"rest": {"hips_y": -0.12, "spine": 14.0, "head": -14.0, "arm": 150.0, "elbow": 50.0, "hip_l": 66.0, "hip_r": 58.0, "knee_l": 78.0, "knee_r": 72.0, "abd_l": 30.0, "abd_r": 30.0},
 	# Climbing down: a foot lowers to the next hold, hands let go one after the other.
 	"down_l": {"spine": 10.0, "head": -26.0, "arm": 158.0, "elbow": 22.0, "hip_l": 10.0, "knee_l": 30.0, "hip_r": 50.0, "knee_r": 80.0, "abd_l": 30.0, "abd_r": 14.0},
 	"down_r": {"spine": 10.0, "head": -26.0, "arm": 158.0, "elbow": 22.0, "hip_r": 10.0, "knee_r": 30.0, "hip_l": 50.0, "knee_l": 80.0, "abd_r": 30.0, "abd_l": 14.0},

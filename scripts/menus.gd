@@ -906,9 +906,9 @@ var _character_set: Label = null
 ## its size whatever it shows.
 const SKILL_TREE_TAB_GAP := 6
 const SKILL_TREE_CARD_HEIGHT := 124
-const SKILL_TREE_TABS := 4
+const SKILL_TREE_TABS := 5
 ## The tree on show and the skill picked in it; both survive a rebuild.
-var skill_tree := "kampf"
+var skill_tree := "koerper"
 var _skill_pick := ""
 
 

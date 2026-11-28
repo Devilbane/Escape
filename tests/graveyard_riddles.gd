@@ -41,7 +41,7 @@ func _test() -> void:
 	game.graveyard_riddles.clear()
 	game.player.xp.erase(GraveyardRiddles.SKILL)
 	Events.bus().news_told.connect(func(text: String, _c: Color, _d: float): told.append(text))
-	check(Training.CRAFTS.has(GraveyardRiddles.SKILL) and SkillTrees.ALL.has(GraveyardRiddles.SKILL), "Necromancy is a skill of the game")
+	check(Training.CRAFTS.has(GraveyardRiddles.SKILL) and SkillTrees.in_game(GraveyardRiddles.SKILL), "Necromancy is a skill of the game")
 	check(not GraveyardRiddles.knows(game.player), "not known to begin with")
 	Events.bus().graveyard_riddle.emit(GraveyardRiddles.BELL)
 	check(game.graveyard_riddles.count() == 1 and not GraveyardRiddles.knows(game.player), "one riddle teaches nothing")

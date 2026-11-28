@@ -15,8 +15,12 @@ signal shown_changed(id: String)
 
 const WIDTH := 860.0
 const HEIGHT := 270.0
-## The most plates a row holds: the widest tree has five basic skills.
+## The plates a row holds at full width; a row with more plates (the Combat
+## tab's masters) shrinks them all a little, to the same canvas.
 const COLUMNS := 5
+const SQUEEZED_GAP := 8.0
+## The most skills the card names after "Öffnet:".
+const OPENS_SHOWN := 4
 const PLATE_SIZE := Vector2(156.0, 58.0)
 ## Master skills stand on top, basic skills at the bottom.
 const ROW_TOP := {"master": 4.0, "advanced": 106.0, "basic": 208.0}
@@ -54,11 +58,15 @@ static func layout(tree_id: String) -> Dictionary:
 	for row in SkillTrees.ROWS:
 		var ids := SkillTrees.in_row(tree_id, row)
 		var gap := (WIDTH - COLUMNS * PLATE_SIZE.x) / (COLUMNS - 1)
-		var span := ids.size() * PLATE_SIZE.x + (ids.size() - 1) * gap
+		var plate := PLATE_SIZE
+		if ids.size() > COLUMNS:
+			gap = SQUEEZED_GAP
+			plate.x = floorf((WIDTH - (ids.size() - 1) * gap) / ids.size())
+		var span := ids.size() * plate.x + (ids.size() - 1) * gap
 		var x := (WIDTH - span) / 2.0
 		for id in ids:
-			places[id] = Rect2(Vector2(x, ROW_TOP[row]), PLATE_SIZE)
-			x += PLATE_SIZE.x + gap
+			places[id] = Rect2(Vector2(x, ROW_TOP[row]), plate)
+			x += plate.x + gap
 	return places
 
 
@@ -106,6 +114,8 @@ func _notification(what: int) -> void:
 ## The second line of a plate.
 func plate_line(id: String) -> String:
 	match SkillTrees.status(hero, id):
+		"affinity":
+			return Lang.t("Affinität")
 		"known":
 			return Lang.t("Stufe %d") % SkillTrees.level_of(hero, id)
 		"open":
@@ -121,7 +131,9 @@ func _draw() -> void:
 	# bottom of each skill of this tree it needs.
 	for id in _hits:
 		for need in SkillTrees.ALL[id].get("needs", {}):
-			if _hits.has(need):
+			# A line from a skill to one beside it, in the same row, would only
+			# cut across the plates between them: those are not drawn.
+			if _hits.has(need) and SkillTrees.ALL[need].row != SkillTrees.ALL[id].row:
 				var from: Rect2 = _hits[need]
 				var to: Rect2 = _hits[id]
 				draw_line(Vector2(from.position.x + from.size.x / 2.0, from.position.y),
@@ -132,7 +144,7 @@ func _draw() -> void:
 
 func _draw_plate(id: String, rect: Rect2) -> void:
 	var status := SkillTrees.status(hero, id)
-	var color := GOLD if status == "known" else (WHITE if status == "open" else DIM)
+	var color := GOLD if status in ["known", "affinity"] else (WHITE if status == "open" else DIM)
 	draw_rect(rect, PLATE)
 	if id == shown():
 		draw_rect(rect, Color(GOLD, 0.16))
@@ -169,40 +181,44 @@ func details(id: String) -> Dictionary:
 		_:
 			row_text = Lang.t("Meisterfertigkeit")
 	var status := SkillTrees.status(hero, id)
-	if SkillTrees.in_game(id):
+	if status == "affinity":
+		lines.append(Lang.t("Affinität: legt bei der Heldenerschaffung fest, wohin die Talente neigen."))
+	elif SkillTrees.in_game(id):
 		lines.append(Lang.t("%s, Stufe %d von %d (im fertigen Baum %d)") % [row_text, SkillTrees.level_of(hero, id), SkillTrees.level_cap(id), skill.levels])
 	else:
 		lines.append(Lang.t("%s, im fertigen Baum %d Stufen") % [row_text, skill.levels])
 	var names := []
 	for a in skill.attributes:
 		names.append(Lang.t(Training.ATTRIBUTES[a].name))
-	lines.append(Lang.t("Bestimmt von: %s") % ", ".join(names))
+	if not names.is_empty():
+		lines.append(Lang.t("Bestimmt von: %s") % ", ".join(names))
 	lines.append(_needs_line(id))
 	var opened := []
 	for other in SkillTrees.opens(id):
 		opened.append(Lang.t(SkillTrees.name_of(other)))
 	if not opened.is_empty():
-		lines.append(Lang.t("Öffnet: %s") % ", ".join(opened))
+		# One line at most, so the card keeps its size.
+		var more := opened.size() > OPENS_SHOWN
+		lines.append(Lang.t("Öffnet: %s") % (", ".join(opened.slice(0, OPENS_SHOWN)) + (", …" if more else "")))
 	var note := ""
 	if status == "planned":
 		note = Lang.t("Noch nicht im Spiel: Dieser Baum wächst Stück für Stück.")
 	elif status == "locked":
 		note = Lang.t("Gesperrt: es fehlt noch etwas.")
-	elif Training.SKILLS.has(id):
+	elif status != "affinity" and skill.get("legacy", []).size() == 1 and Training.SKILLS.has(skill.legacy[0]):
 		# How the hero feels about it, in their own words (see SleepRoll).
 		# The crafts do not wait for a night yet.
-		note = "„%s“" % SleepRoll.tip(hero.sleep_state, id, hero.xp)
+		note = "„%s“" % SleepRoll.tip(hero.sleep_state, skill.legacy[0], hero.xp)
 	return {"title": Lang.t(SkillTrees.name_of(id)), "lines": lines, "note": note}
 
 
-## "Braucht: Klingen 10 (du: 3), Geschick 18" or "Braucht nichts."
+## "Braucht: Schwertkampf 1 ✓, Stärke 1 ✓" or "Braucht nichts."
 func _needs_line(id: String) -> String:
 	var needs := SkillTrees.needs_of(id)
 	if needs.is_empty():
 		return Lang.t("Braucht nichts.")
 	var parts := []
 	for entry in needs:
-		var name := Lang.t(SkillTrees.name_of(entry.id)) if entry.skill else Lang.t(Training.ATTRIBUTES[entry.id].name)
-		var have := SkillTrees.level_of(hero, entry.id) if entry.skill else hero.attribute(entry.id)
-		parts.append("%s %d%s" % [name, entry.level, " ✓" if have >= entry.level else ""])
+		var name := Lang.t(SkillTrees.name_of(entry.id))
+		parts.append("%s %d%s" % [name, entry.level, " ✓" if SkillTrees.met_level(hero, entry.id) >= entry.level else ""])
 	return Lang.t("Braucht: %s") % ", ".join(parts)

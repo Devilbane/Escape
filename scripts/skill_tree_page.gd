@@ -61,7 +61,7 @@ static func layout(tree_id: String) -> Dictionary:
 		var plate := PLATE_SIZE
 		if ids.size() > COLUMNS:
 			gap = SQUEEZED_GAP
-			plate.x = (WIDTH - (ids.size() - 1) * gap) / ids.size()
+			plate.x = floorf((WIDTH - (ids.size() - 1) * gap) / ids.size())
 		var span := ids.size() * plate.x + (ids.size() - 1) * gap
 		var x := (WIDTH - span) / 2.0
 		for id in ids:

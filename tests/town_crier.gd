@@ -82,7 +82,8 @@ func _parts() -> void:
 	var podium := CrierPodium.build(holder, Vector3.ZERO)
 	check(podium.get_node_or_null("Banner") != null, "the podium has its banner")
 	var sign_node := podium.get_node_or_null("NewsSign")
-	check(sign_node != null and (sign_node.find_child("Letters", true, false) as Label3D).text == "NEWS!", "the sign says NEWS!")
+	check(sign_node != null and sign_node.find_child("Oak", true, false) != null and sign_node.find_child("Face", true, false) != null, "the sign has its oak frame and its painted face")
+	check(ResourceLoader.exists("res://assets/signs/news_sign.jpg"), "the sign's painting is there")
 	check(podium.get_child_count() >= 6, "the podium has timber, a banner, a scroll and a sign")
 	holder.queue_free()
 	# The hat sits on a knight's head and goes in winter.

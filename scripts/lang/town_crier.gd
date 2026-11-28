@@ -3,7 +3,6 @@ extends RefCounted
 
 const EN := {
 	"Apfeltal-Nachrichten jeden Tag um 10 und 16 Uhr": "Apple Valley News every day at 10 am and 4 pm",
-	"10 und 16 Uhr": "10 am and 4 pm",
 	"Hört, hört! %s hat den Auftrag „%s“ erfüllt!": "Hear ye, hear ye! %s has completed the task \"%s\"!",
 	"Hört, hört! %s hat das Rätsel der Sonnenblumen gelöst!": "Hear ye, hear ye! %s has solved the riddle of the sunflowers!",
 	"Hört, hört! %s hat das Rätsel der Eulenuhr gelöst!": "Hear ye, hear ye! %s has solved the riddle of the owl clock!",

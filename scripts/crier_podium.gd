@@ -8,12 +8,10 @@ extends RefCounted
 ## with a cross bar and a blue banner with the crown's insignia (see CrownInsignia). The wood is weathered
 ## by the village's prop shader like everything else built from timber (see WeatheredProps).
 ##
-## The sign: two posts, a small roof and a blue board in a brass frame that says NEWS! in gold letters
-## beside the crown's insignia, the times of the news under it. Its mouse-over text is shown by
+## The NEWS! sign beside it is its own class (see NewsSign); its mouse-over text is shown by
 ## Game (see TownCrier.sign_under_ray and Game._update_news_tip).
 
 const W := preload("res://scripts/weathered_props.gd")
-const FONT := preload("res://assets/fonts/Cinzel-Bold.woff2")
 
 ## The deck's height and its half sizes (x, z).
 const DECK_H := 0.66
@@ -30,11 +28,9 @@ const SIGN_BLOCK := Vector2(2.1, 0.4)
 const BOARD_CENTRE := Vector3(0, 1.75, 0)
 
 const BRASS := Color(0.95, 0.74, 0.28)
-const BLUE_PAINT := Color(0.2, 0.34, 0.8)
 const PAPER := Color(0.94, 0.89, 0.76)
 
 static var _banner_mesh: ArrayMesh
-static var _plaque_mesh: ArrayMesh
 
 
 ## Builds the podium and the sign at `pos` (the podium's middle on the ground). Returns the root.
@@ -59,7 +55,7 @@ static func build(parent: Node3D, pos: Vector3) -> Node3D:
 	root.add_child(banner)
 	_fringe(banner)
 	_scroll(root)
-	build_sign(root, SIGN_AT)
+	NewsSign.build(root, SIGN_AT)
 	return root
 
 
@@ -246,129 +242,106 @@ static func _paper_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
-## The banner: blue cloth with the insignia, hanging from the cross bar in a soft wave, with a gold fringe
-## along the bottom edge and a gold rod on top.
+## The banner: the crown's blue cloth with the insignia, woven linen like the barber's tent roof (see
+## BarberTent.cloth_material), hanging from the cross bar in a soft wave with a slight sag, uneven side edges
+## and a scalloped valance along the hem, with a gold tassel at each scallop and a gold rod on top.
+const BANNER_TOP := DECK_H + 2.88
+const BANNER_BOTTOM := DECK_H + 1.2
+const BANNER_HALF := 0.95
+const SCALLOPS := 5.0
+
+static var _banner_mat: StandardMaterial3D
+
+
+## How far the valance hangs below the hem at `u` (0..1 across the banner): scallops.
+static func _valance(u: float) -> float:
+	return 0.07 + 0.1 * absf(sin(u * TAU * SCALLOPS * 0.5))
+
+
 static func banner_mesh() -> ArrayMesh:
 	if _banner_mesh != null:
 		return _banner_mesh
+	var n := FastNoiseLite.new()
+	n.seed = 9
+	n.frequency = 0.7
+	n.fractal_octaves = 3
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
-	var top := DECK_H + 2.88
-	var bottom := DECK_H + 1.2
-	var half := 0.95
-	var cols := 10
-	var rows := 8
+	var cols := 14
+	var rows := 10
+	var size := Vector2(BANNER_HALF * 2.0, BANNER_TOP - BANNER_BOTTOM)
 	for r in rows:
 		for c in cols:
 			var corners := []
 			for q in [[c, r], [c + 1, r], [c + 1, r + 1], [c, r + 1]]:
 				var u := float(q[0]) / cols
 				var v := float(q[1]) / rows
-				var wave := 0.035 * sin(u * TAU * 1.5) * v
-				corners.append([Vector3(lerpf(-half, half, u), lerpf(top, bottom, v), wave), Vector2(u, v)])
+				corners.append(_banner_point(u, v, n, size))
 			for k in [0, 1, 2, 0, 2, 3]:
-				st.set_uv(corners[k][1])
-				st.add_vertex(corners[k][0])
+				_vertex(st, corners[k][0], corners[k][1], size)
+	# The valance: a strip from the hem down, its lower edge in scallops, hanging a little forward.
+	var segs := 40
+	for i in segs:
+		var u0 := float(i) / segs
+		var u1 := float(i + 1) / segs
+		var h0: Vector3 = _banner_point(u0, 1.0, n, size)[0]
+		var h1: Vector3 = _banner_point(u1, 1.0, n, size)[0]
+		var l0 := h0 - Vector3(0, _valance(u0) + 0.02 * n.get_noise_1d(u0 * 30.0), -0.012)
+		var l1 := h1 - Vector3(0, _valance(u1) + 0.02 * n.get_noise_1d(u1 * 30.0), -0.012)
+		for q in [[h0, u0, 0.0], [h1, u1, 0.0], [l1, u1, 1.0], [h0, u0, 0.0], [l1, u1, 1.0], [l0, u0, 1.0]]:
+			_vertex(st, q[0], Vector2(q[1], 0.985), size)
 	st.generate_normals()
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = CrownInsignia.cloth()
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mat.roughness = 1.0
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	st.set_material(mat)
+	st.generate_tangents()
 	_banner_mesh = st.commit()
+	_banner_mesh.surface_set_material(0, banner_material())
 	return _banner_mesh
 
 
-## The fringe along the banner's bottom edge and the rod along its top, in the banner's space.
+## A point of the cloth at (u, v) (0..1 from the top left) and its texture coordinate.
+static func _banner_point(u: float, v: float, n: FastNoiseLite, size: Vector2) -> Array:
+	var wave := 0.035 * sin(u * TAU * 1.5) * v
+	# The sides are not ruler-straight, and the hem sags between the rod's ends.
+	var wander := 0.03 * n.get_noise_2d(v * 6.0, 3.0) * smoothstep(0.0, 0.3, v) * (1.0 if u < 0.5 else -1.0)
+	var edge := 0.0
+	if u < 0.001 or u > 0.999:
+		edge = wander
+	var hem := 0.04 * n.get_noise_1d(u * 9.0) * v * v
+	var sag := -0.05 * sin(u * PI) * pow(v, 3.0)
+	var fold := 0.018 * n.get_noise_2d(u * 5.0 + 4.0, v * 5.0) * v
+	var p := Vector3(lerpf(-BANNER_HALF, BANNER_HALF, u) + edge, lerpf(BANNER_TOP, BANNER_BOTTOM, v) + hem + sag, wave + fold)
+	return [p, Vector2(u, v)]
+
+
+static func _vertex(st: SurfaceTool, p: Vector3, uv: Vector2, size: Vector2) -> void:
+	st.set_uv(uv)
+	# The weave's coordinates are metres on the cloth, one tile a metre like the tent's linen.
+	st.set_uv2(Vector2(uv.x * size.x, uv.y * size.y))
+	st.add_vertex(p)
+
+
+## The insignia cloth with the barber's linen weave over it (a detail layer by metres) and its slubs as relief.
+static func banner_material() -> StandardMaterial3D:
+	if _banner_mat != null:
+		return _banner_mat
+	var m := BarberTent.cloth_material().duplicate() as StandardMaterial3D
+	m.albedo_texture = CrownInsignia.cloth()
+	m.albedo_color = Color.WHITE
+	m.uv1_scale = Vector3.ONE
+	m.detail_uv_layer = BaseMaterial3D.DETAIL_UV_2
+	m.normal_scale = 0.6
+	_banner_mat = m
+	return m
+
+
+## The tassels at the scallops' tips and the rod along the banner's top edge, in the banner's space.
 static func _fringe(banner: Node3D) -> void:
-	var top := DECK_H + 2.88
-	var bottom := DECK_H + 1.2
-	var half := 0.95
 	var fringe := W.Builder.new()
-	var x := -half + 0.06
-	while x < half:
-		fringe.cylinder(Vector3(x, bottom - 0.14, 0.0), 0.012, 0.022, 0.14, BRASS * 0.9, W.FRESH, 5)
-		x += 0.12
-	fringe.bar(Vector3(-half - 0.03, top, 0.0), Vector3(half + 0.03, top, 0.0), 0.028, BRASS, W.FRESH, 8)
+	var segs := int(SCALLOPS) * 2
+	for i in segs:
+		var u := (float(i) + 0.5) / segs
+		var x := lerpf(-BANNER_HALF, BANNER_HALF, u)
+		var y := BANNER_BOTTOM - _valance(u) - 0.01
+		fringe.cylinder(Vector3(x, y - 0.1, 0.0), 0.012, 0.026, 0.1, BRASS * 0.9, W.FRESH, 6)
+	fringe.bar(Vector3(-BANNER_HALF - 0.03, BANNER_TOP, 0.0), Vector3(BANNER_HALF + 0.03, BANNER_TOP, 0.0), 0.028, BRASS, W.FRESH, 8)
 	fringe.finish(banner, Vector3.ZERO)
-
-
-## The NEWS! sign, standing on the ground at `at` (in the podium's space), the board facing +z.
-static func build_sign(parent: Node3D, at: Vector3) -> Node3D:
-	var root := Node3D.new()
-	root.name = "NewsSign"
-	root.position = at
-	parent.add_child(root)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 2024
-	var b := W.Builder.new()
-	var half := 1.0
-	# Two posts with a small base block each, a cross beam and a little gabled roof of shingles.
-	for x in [-half, half]:
-		b.box(Vector3(x, 0, 0), Vector3(0.3, 0.2, 0.3), W.STONES[1], W.STONE)
-		b.box(Vector3(x, 0.2, 0), Vector3(0.16, 2.5, 0.16), _wood(rng, true), W.WOOD, Basis.from_euler(Vector3(0, rng.randf_range(-0.05, 0.05), 0)))
-		b.cylinder(Vector3(x, 2.7, 0), 0.07, 0.0, 0.16, BRASS, W.FRESH, 8)
-	b.box(Vector3(0, 2.4, 0), Vector3(half * 2.0 + 0.3, 0.12, 0.2), _wood(rng, true), W.WOOD)
-	for side in [-1.0, 1.0]:
-		var roof := Basis(Vector3.RIGHT, side * 0.5)
-		for i in 7:
-			var x := -half - 0.1 + (half * 2.0 + 0.2) / 6.0 * i
-			b.box(Vector3(x, 2.55, side * 0.16), Vector3(0.3, 0.04, 0.4), _wood(rng, side > 0.0), W.WOOD, roof)
-	# The board: dark blue paint over timber, a brass frame, and two chains from the beam.
-	b.box(Vector3(0, 1.34, -0.04), Vector3(1.8, 0.92, 0.1), BLUE_PAINT, W.WOOD)
-	for e in [[Vector3(0, 2.26, 0.02), Vector3(1.88, 0.06, 0.06)], [Vector3(0, 1.3, 0.02), Vector3(1.88, 0.06, 0.06)]]:
-		b.box(e[0] - Vector3(0, 0.0, 0.0), e[1], BRASS, W.FRESH)
-	for x in [-0.91, 0.91]:
-		b.box(Vector3(x, 1.3, 0.02), Vector3(0.06, 0.96, 0.06), BRASS, W.FRESH)
-	for x in [-0.8, 0.8]:
-		for i in 5:
-			b.cylinder(Vector3(x, 2.28 + 0.0 - 0.0, 0.0) - Vector3(0, 0.1 * i, 0), 0.016, 0.016, 0.09, W.IRON_COLOUR * 0.7, W.IRON, 5)
-	b.finish(root, Vector3.ZERO)
-	var plaque := MeshInstance3D.new()
-	plaque.name = "Plaque"
-	plaque.mesh = plaque_mesh()
-	plaque.position = Vector3(-0.62, 1.78, 0.02)
-	root.add_child(plaque)
-	root.add_child(_letters("NEWS!", 92, Vector3(0.22, 1.72, 0.055), 0.0042, Color(0.98, 0.8, 0.34)))
-	root.add_child(_letters(Lang.t("10 und 16 Uhr"), 38, Vector3(0.22, 1.45, 0.055), 0.0042, Color(0.9, 0.88, 0.78)))
-	return root
-
-
-## The insignia on a small square plaque with a brass rim, on the board's left.
-static func plaque_mesh() -> ArrayMesh:
-	if _plaque_mesh != null:
-		return _plaque_mesh
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var s := 0.34
-	var pts := [Vector3(-s, -s, 0), Vector3(s, -s, 0), Vector3(s, s, 0), Vector3(-s, s, 0)]
-	var uvs := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
-	for k in [0, 1, 2, 0, 2, 3]:
-		st.set_uv(uvs[k])
-		st.set_normal(Vector3(0, 0, 1))
-		st.add_vertex(pts[k])
-	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = CrownInsignia.cloth()
-	mat.roughness = 0.9
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	st.set_material(mat)
-	_plaque_mesh = st.commit()
-	return _plaque_mesh
-
-
-static func _letters(text: String, size: int, at: Vector3, pixel: float, colour: Color) -> Label3D:
-	var label := Label3D.new()
-	label.name = "Letters"
-	label.text = text
-	label.font = FONT
-	label.font_size = size
-	label.pixel_size = pixel
-	label.modulate = colour
-	label.outline_size = 10
-	label.outline_modulate = Color(0.04, 0.05, 0.16)
-	label.shaded = false
-	label.double_sided = false
-	label.position = at
-	return label

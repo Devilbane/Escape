@@ -113,6 +113,9 @@ var follow := false
 var feet := Vector3.ZERO
 var stones: Array[Dictionary] = []
 var _env: Environment
+var _scenery: Node3D
+var _scenery_weather := ""
+var _splash: CPUParticles3D
 var _sun: DirectionalLight3D
 var _builder: WallBuild
 var _ice: MeshInstance3D
@@ -168,7 +171,13 @@ func _ready() -> void:
 	view.handle_input_locally = false
 	holder.add_child(view)
 	_env = Environment.new()
-	_env.background_mode = Environment.BG_COLOR
+	_env.background_mode = Environment.BG_SKY
+	_env.sky = WallScenery.sky(weather)
+	# Contact shadows where the stones meet the face and the wall meets the ground, and a light haze with the distance.
+	_env.ssao_enabled = true
+	_env.ssao_radius = 1.2
+	_env.ssao_intensity = 1.5
+	_env.ssao_power = 1.6
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	_env.ambient_light_color = Color(0.62, 0.66, 0.74)
 	var we := WorldEnvironment.new()
@@ -255,7 +264,11 @@ func _build() -> void:
 	wall_root = WallBuild.node(wall)
 	_ice = wall_root.get_node_or_null("Ice") as MeshInstance3D
 	view.add_child(wall_root)
-	wall_root.add_child(_ground())
+	_scenery = WallScenery.build(wall, weather)
+	_scenery_weather = weather
+	wall_root.add_child(_scenery)
+	_splash = WallRain.splashes(60)
+	wall_root.add_child(_splash)
 	_nails_root = Node3D.new()
 	wall_root.add_child(_nails_root)
 	_rope_root = Node3D.new()
@@ -317,24 +330,6 @@ func _build_markers() -> void:
 
 
 ## The ground at the foot: the same weathered rock, drawn flat.
-func _ground() -> MeshInstance3D:
-	var quad := ArrayMesh.new()
-	var w := float(map.width)
-	var verts := PackedVector3Array([Vector3(-30, 0, -2), Vector3(w + 30, 0, -2), Vector3(w + 30, 0, 30), Vector3(-30, 0, 30)])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = verts
-	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
-	arrays[Mesh.ARRAY_COLOR] = PackedColorArray([WallBuild.ROCK_DARK, WallBuild.ROCK_DARK, WallBuild.ROCK_DARK, WallBuild.ROCK_DARK])
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 2, 1, 0, 3, 2])
-	quad.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var mi := MeshInstance3D.new()
-	mi.name = "Ground"
-	mi.mesh = quad
-	mi.material_override = AgedStone.rock_material()
-	return mi
-
-
 ## Where the climber's feet are when the hands hold square `cell` (WallClimb.NOWHERE: on the ground).
 func feet_of(cell: Vector2i) -> Vector3:
 	if cell == WallClimb.NOWHERE:
@@ -368,14 +363,9 @@ func _make_precipitation() -> CPUParticles3D:
 	p.initial_velocity_min = 14.0
 	p.initial_velocity_max = 18.0
 	p.gravity = Vector3(0, -12, 0)
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(0.012, 0.45, 0.012)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.75, 0.82, 0.95, 0.55)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = mat
-	p.mesh = mesh
+	p.mesh = WallRain.drop_mesh()
+	p.scale_amount_min = 0.7
+	p.scale_amount_max = 1.3
 	return p
 
 
@@ -438,13 +428,22 @@ func _apply_sky(instant: bool) -> void:
 	_sun.light_energy = float(s[1])
 	_env.ambient_light_energy = float(s[2])
 	_env.ambient_light_color = (s[0] as Color).lerp(Color(0.7, 0.72, 0.78), 0.5)
-	_env.fog_enabled = weather == WallWeather.FOG
-	if weather == WallWeather.FOG:
-		_env.fog_light_color = s[0]
-		_env.fog_density = 0.09
+	_env.sky = WallScenery.sky(weather)
+	_env.fog_enabled = true
+	_env.fog_light_color = WallScenery.palette(weather).horizon
+	_env.fog_density = 0.09 if weather == WallWeather.FOG else 0.004
+	_env.fog_sky_affect = 0.0
+	if _scenery != null and is_instance_valid(wall_root) and weather != _scenery_weather:
+		_scenery.queue_free()
+		_scenery = WallScenery.build(wall, weather)
+		_scenery_weather = weather
+		wall_root.add_child(_scenery)
 	var wet := weather == WallWeather.RAIN or weather == WallWeather.STORM
 	var snowing := weather == WallWeather.SNOW
 	_rain.emitting = wet or snowing
+	if _splash != null:
+		_splash.emitting = wet
+		_splash.amount = 90 if weather == WallWeather.STORM else 45
 	if snowing:
 		_rain.amount = 300
 		_rain.lifetime = 4.0
@@ -465,14 +464,9 @@ func _apply_sky(instant: bool) -> void:
 		_rain.initial_velocity_min = 14.0
 		_rain.initial_velocity_max = 18.0
 		_rain.gravity = Vector3(0, -12, 0)
-		var drop := BoxMesh.new()
-		drop.size = Vector3(0.012, 0.45, 0.012)
-		var dm := StandardMaterial3D.new()
-		dm.albedo_color = Color(0.75, 0.82, 0.95, 0.55)
-		dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		drop.material = dm
-		_rain.mesh = drop
+		_rain.mesh = WallRain.drop_mesh()
+		_rain.scale_amount_min = 0.7
+		_rain.scale_amount_max = 1.3
 	var sound := ""
 	if weather == WallWeather.STORM:
 		sound = "rain_heavy"
@@ -627,6 +621,8 @@ func _process(delta: float) -> void:
 	_tick_stones(delta)
 	_tick_weather(delta)
 	_tick_clouds(delta)
+	if _splash != null:
+		_splash.position = Vector3(feet.x, feet.y + 1.5, _builder.face_depth_at(feet.x, feet.y + 1.5) + 0.08)
 	_apply_camera(minf(1.0, delta * 5.0))
 
 

@@ -1,1 +1,1 @@
-Escape! dev status | Working on: Keep the mountain foot clear in front of placed climbing walls | Shipped this week: Keep the sleeper's head on the pillows, clear of the wall; Windows: houses act early when someone comes near, lighter curtains (+48 more)
+Escape! dev status | Shipped this week: Keep the mountain foot clear in front of placed climbing walls; Keep the sleeper's head on the pillows, clear of the wall (+48 more)

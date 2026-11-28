@@ -119,7 +119,7 @@ func _test() -> void:
 	for name in [Lang.t("Regionale Heldenstufe"), Lang.t("Reichtum"), Lang.t("Meisterschaft im Handwerk"), Lang.t("Entdeckergeist")]:
 		check(texts.has(name), "the page shows %s" % name)
 	check(texts.any(func(t): return t.begins_with("Level ")), "a level is written out")
-	var cards := game.menus._box.find_children("*", "PanelContainer", true, false).filter(func(c): return (c as Control).custom_minimum_size.y == FamePage.CARD_HEIGHT)
+	var cards: Array = game.menus._box.find_children("*", "PanelContainer", true, false).filter(func(c): return (c as Control).custom_minimum_size.y == FamePage.CARD_HEIGHT)
 	check(cards.size() == 4, "four cards (%d)" % cards.size())
 	var sizes := {}
 	for c in cards:

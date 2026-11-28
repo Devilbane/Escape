@@ -237,7 +237,10 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 		swept = func(p: Vector3) -> bool: return is_bare(level, p)
 	# The way marked by hand comes first, stretch by stretch (see StreetSweeper.MARKED).
 	var marked_stretches := StreetSweeper.marked(level)
-	for k in marked_stretches.size():
+	# Round robin: he carries on after the stretch he swept last, so the upper lane is not always first.
+	var count := marked_stretches.size()
+	for step in count:
+		var k: int = (StreetSweeper.cursor + step) % count
 		var cells: Array = marked_stretches[k]
 		if level.world_hours < float(StreetSweeper.rested.get(k, -1e9)) + StreetSweeper.MARKED_REST:
 			continue
@@ -250,6 +253,7 @@ static func route(level: Node, start: Vector2i, rng: RandomNumberGenerator, swep
 				left += 1.0
 		if left >= 3.0:
 			StreetSweeper.rested[k] = level.world_hours
+			StreetSweeper.cursor = k + 1
 			return points
 	# The whole walkway network, nearest first.
 	var came := {}

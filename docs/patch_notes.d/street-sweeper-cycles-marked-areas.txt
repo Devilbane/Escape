@@ -1,0 +1,1 @@
+- Matthes the street sweeper now cycles through every area marked for him in turn, instead of sweeping the upper lane of the village square and the road to the gate again and again.

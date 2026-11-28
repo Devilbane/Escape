@@ -71,6 +71,8 @@ const MARKED := [
 ## (a heap he cannot reach) does not keep him from the rest. By stretch: the world hour it was last started.
 const MARKED_REST := 1.0
 static var rested := {}
+## The marked stretch he looks at first next (he works through them in turn, round and round).
+static var cursor := 0
 static var _marked_for := 0
 static var _marked_cache: Array = []
 static var _marked_cells := {}
@@ -86,6 +88,7 @@ static func marked(level: Node) -> Array:
 	_marked_cache = []
 	_marked_cells = {}
 	rested = {}
+	cursor = 0
 	var f := Vector2i(-1, -1)
 	for y in level.height:
 		for x in level.width:

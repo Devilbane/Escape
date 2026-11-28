@@ -70,12 +70,22 @@ const DEEP_WALL := Color(0.05, 0.04, 0.04)
 
 ## Emitted when the zoom or the part shown changes (see zoom_at, pan_by).
 signal view_changed
+## A click (not a drag) on a tile of the map that the hero has explored (see pickable).
+signal tile_picked(cell: Vector2i)
 ## How far in the map is zoomed (1.0 = whole explored part), and the tile
 ## (fractions allowed) in the middle of the view; Vector2.INF is the middle
 ## of the explored part.
 var zoom := 1.0
 var center := Vector2.INF
 var _dragging := false
+## Whether a click on an explored tile picks it as a destination (set by the window, only on the
+## floor the hero stands on); the pointer is a hand over such a tile.
+var pickable := false
+var _moved := 0.0
+var _hover := Vector2i(-1, -1)
+## How far (pixels) the pointer may travel between press and release and still count as a click.
+const CLICK_SLOP := 6.0
+const HOVER_COLOR := Color(1.0, 0.82, 0.4, 0.9)
 ## The houses on this map (see houses), worked out in setup.
 var _houses: Array = []
 
@@ -247,6 +257,8 @@ func _set_zoom(z: float) -> void:
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_MOUSE_EXIT:
+		_set_hover(Vector2i(-1, -1))
 	if what == NOTIFICATION_RESIZED:
 		# The closest zoom depends on the size (see max_zoom).
 		_set_zoom(zoom)
@@ -263,10 +275,42 @@ func _gui_input(event: InputEvent) -> void:
 			accept_event()
 		elif b.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = b.pressed
+			if b.pressed:
+				_moved = 0.0
+			elif pickable and _moved <= CLICK_SLOP:
+				var cell := _pick_at(b.position)
+				if cell.x >= 0:
+					tile_picked.emit(cell)
 			accept_event()
-	elif event is InputEventMouseMotion and _dragging:
-		pan_by((event as InputEventMouseMotion).relative)
+	elif event is InputEventMouseMotion:
+		var m := event as InputEventMouseMotion
+		if _dragging:
+			_moved += m.relative.length()
+			pan_by(m.relative)
+		else:
+			_set_hover(_pick_at(m.position) if pickable else Vector2i(-1, -1))
+			return
 		accept_event()
+
+
+## The explored tile under a point on screen, or (-1, -1) when there is none (or it is a wall).
+func _pick_at(screen: Vector2) -> Vector2i:
+	var info := journal.map_of(file)
+	if info.is_empty():
+		return Vector2i(-1, -1)
+	var tile := tile_at(screen)
+	var c := Vector2i(floori(tile.x), floori(tile.y))
+	if not journal.is_explored(file, c) or Journal.char_at(info, c) == "#":
+		return Vector2i(-1, -1)
+	return c
+
+
+func _set_hover(c: Vector2i) -> void:
+	if c == _hover:
+		return
+	_hover = c
+	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if c.x >= 0 else (Control.CURSOR_MOVE if zoom > 1.0 else Control.CURSOR_ARROW)
+	queue_redraw()
 
 
 static func tile_color(ch: String, outdoor: bool) -> Color:
@@ -374,6 +418,8 @@ func _draw() -> void:
 				ProspectGeology.ORE_COLORS.get(str(m.report.ore), Color.GRAY), Prospecting.letter(i))
 	for c in lost_packs():
 		_draw_pack(o + (c + Vector2(0.5, 0.5)) * t, r)
+	if pickable and _hover.x >= 0:
+		draw_rect(Rect2(o + Vector2(_hover) * t, Vector2(t, t)), HOVER_COLOR, false, 2.0)
 	_draw_hero(o, t, r)
 
 

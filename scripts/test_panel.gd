@@ -109,6 +109,9 @@ func _ready() -> void:
 	god_button.tooltip_text = Lang.t("Unverwundbar und fünffaches Tempo.")
 	_pages[3].add_child(god_button)
 	_pages[3].add_child(_button(Lang.t("Kletterwand"), func() -> void: picked.emit("wall", null)))
+	var bench := _button(Lang.t("Leistungstest"), func() -> void: picked.emit("bench", null))
+	bench.tooltip_text = Lang.t("Fährt drei Orte, Jahreszeiten, Wetter und Nacht ab und misst CPU und GPU. Noch einmal drücken bricht ab.")
+	_pages[3].add_child(bench)
 
 	var tab_button := _button(Lang.t("Test"), toggle)
 	tab_button.custom_minimum_size = Vector2(66, 28)

@@ -1,0 +1,1 @@
+- Test panel (Hero tab): a Benchmark button measures CPU and GPU at the house, the square and the meadow through seasons, weather and night.

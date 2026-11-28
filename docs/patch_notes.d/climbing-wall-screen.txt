@@ -1,0 +1,1 @@
+- The climb on the Apfeltal sample wall opens as a real wall view again instead of an empty, stuck screen.

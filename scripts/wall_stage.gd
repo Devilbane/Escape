@@ -154,7 +154,9 @@ var _flash_timer := 6.0
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Anchors AND offsets: the anchors alone keep the 0 x 0 rect a stage has when it is added (the offsets then
+	# cancel the anchors), which left the climb on a placed wall as an empty screen over the paused game.
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	var holder := SubViewportContainer.new()
 	holder.stretch = true

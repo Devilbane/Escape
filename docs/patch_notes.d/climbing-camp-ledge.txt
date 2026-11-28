@@ -1,0 +1,1 @@
+- Rest places on a climbing wall now sit on a three-square rock ledge you can see from afar.

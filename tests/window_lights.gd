@@ -85,6 +85,10 @@ func _init() -> void:
 		var so := _first(func(h: float) -> bool: return WindowLights.shutters_shut(key, h, rank) < 0.5, 5.0, 9.0)
 		var co := _first(func(h: float) -> bool: return WindowLights.curtains_shut(key, h, rank) < 0.5, 5.0, 9.0)
 		check(co > so, "in the morning the shutters of window %d open before its curtains (%.2f, %.2f)" % [rank, so, co])
+	# A house nudged early (someone near) still has its windows looked at: the bands cover the nudge.
+	check(WindowLights.shutters_moving(WindowLights.SHUTTERS_OPEN - WindowLights.NEIGHBOUR_NUDGE + 0.05), "the morning band covers an early house")
+	check(WindowLights.shutters_moving(WindowLights.CURTAINS_CLOSE_FROM - WindowLights.NEIGHBOUR_NUDGE + 0.05), "the evening band covers an early house")
+	check(not WindowLights.shutters_moving(12.0) and not WindowLights.shutters_moving(2.0), "nothing moves by day or in the night")
 	if failed == 0:
 		print("PASS: window lights")
 	quit(1 if failed > 0 else 0)

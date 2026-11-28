@@ -5423,6 +5423,12 @@ var _leaves: Array = []
 var _leaf_scan := -1
 var _leaf_hour := -1.0
 var _leaf_moving := true
+## The houses with windows and what the neighbours did to them (see _mind_the_neighbours).
+var _window_houses: Array = []
+var _early_mats := {}
+## How near a person has to come, in metres, for a house to maybe act early, and how much earlier (hours).
+const NEIGHBOUR_REACH := 9.0
+const NEIGHBOUR_NUDGE := WindowLights.NEIGHBOUR_NUDGE
 var _built_night := false
 ## How near the hero a swinging leaf is still heard (metres).
 const LEAF_EARSHOT := 38.0
@@ -5434,24 +5440,38 @@ func _shutter_sounds() -> void:
 	if get_child_count() != _leaf_scan:
 		_leaf_scan = get_child_count()
 		_leaves = []
+		_window_houses = []
 		for house in get_children():
 			if not (house is Node3D and house.has_meta("shutter_hinges")):
 				continue
 			var xf: Transform3D = (house as Node3D).global_transform
+			# The window surfaces of the house: [mesh instance, surface, its own override or null, the material].
+			var slots: Array = []
+			for mi: Node in house.find_children("*", "MeshInstance3D", true, false):
+				var inst := mi as MeshInstance3D
+				if inst.mesh == null:
+					continue
+				for surface in inst.mesh.get_surface_count():
+					var own: Material = inst.get_surface_override_material(surface)
+					var mat: Material = own if own != null else inst.mesh.surface_get_material(surface)
+					if mat is ShaderMaterial and _window_mats.has(mat) and (mat as ShaderMaterial).shader.code.contains("uniform float nudge"):
+						slots.append([inst, surface, own, mat])
+			var home := {"at": xf.origin, "slots": slots, "nudge": 0.0, "asked": false}
+			_window_houses.append(home)
 			var hinges: Array = house.get_meta("shutter_hinges")
 			var ranks: Array = house.get_meta("shutter_ranks", [])
 			for i in hinges.size():
 				var hinge: Vector3 = hinges[i]
 				var key := Vector2(hinge.x + xf.origin.x, hinge.z + xf.origin.z)
 				var rank: int = int(ranks[i]) if i < ranks.size() else 0
-				_leaves.append({"at": xf * hinge, "key": key, "rank": rank, "cloth": false,
+				_leaves.append({"at": xf * hinge, "key": key, "rank": rank, "cloth": false, "home": home,
 						"shut": WindowLights.shutters_shut(key, hour, rank) > 0.5})
 			# The mage tower's curtains flap one after another (its windows in the order of the circle).
 			var circle: Array = house.get_meta("magic_windows", [])
 			for i in circle.size():
 				var at: Vector3 = circle[i]
 				var key := WindowLights.key(at) + Vector2(xf.origin.x, xf.origin.z)
-				_leaves.append({"at": xf * at, "key": key, "rank": i + 1, "cloth": true,
+				_leaves.append({"at": xf * at, "key": key, "rank": i + 1, "cloth": true, "home": home,
 						"shut": WindowLights.curtains_shut(key, hour, i + 1) > 0.5})
 	if absf(hour - _leaf_hour) < 0.004:
 		return
@@ -5461,11 +5481,21 @@ func _shutter_sounds() -> void:
 	var moving := WindowLights.shutters_moving(hour)
 	if not moving and not _leaf_moving:
 		return
+	if not moving:
+		# The band is over: every window has reached its final state either way; the houses may be asked again.
+		for home: Dictionary in _window_houses:
+			home.asked = false
+			if home.nudge != 0.0:
+				home.nudge = 0.0
+				_swap_window_materials(home, false)
 	_leaf_moving = moving
+	if moving:
+		_mind_the_neighbours()
 	var heard := 0
 	for leaf: Dictionary in _leaves:
 		var cloth: bool = leaf.cloth
-		var shut := (WindowLights.curtains_shut(leaf.key, hour, leaf.rank) if cloth else WindowLights.shutters_shut(leaf.key, hour, leaf.rank)) > 0.5
+		var at_hour: float = hour + float(leaf.home.nudge)
+		var shut := (WindowLights.curtains_shut(leaf.key, at_hour, leaf.rank) if cloth else WindowLights.shutters_shut(leaf.key, at_hour, leaf.rank)) > 0.5
 		if shut == leaf.shut:
 			continue
 		leaf.shut = shut
@@ -5479,6 +5509,49 @@ func _shutter_sounds() -> void:
 				Sfx.play(self, "swing", -17.0, leaf.at, 1.9 if shut else 1.6)
 			else:
 				Sfx.play(self, "door", -14.0 if leaf.rank > 0 else -20.0, leaf.at, 1.25 if shut else 1.1)
+
+
+## While the windows are being shut or opened, a house with someone coming near it (the hero or a
+## villager within NEIGHBOUR_REACH) gets one extra chance to act at once: on a draw of its own it does
+## what its time would only bring NEIGHBOUR_NUDGE hours later (its windows keep their order among
+## themselves). Decided once per house and swing, only while the bands last: nothing runs outside them.
+func _mind_the_neighbours() -> void:
+	var people: Array = [player]
+	people.append_array(villagers)
+	for home: Dictionary in _window_houses:
+		if home.asked:
+			continue
+		for who: Variant in people:
+			if not (who is Node3D) or not is_instance_valid(who):
+				continue
+			if ((who as Node3D).global_position - (home.at as Vector3)).length() > NEIGHBOUR_REACH:
+				continue
+			home.asked = true
+			var draw := fposmod(float(home.at.x) * 0.137 + float(home.at.z) * 0.311 + floorf(hour) * 0.618 + day * 0.381, 1.0)
+			if draw < 0.6:
+				home.nudge = NEIGHBOUR_NUDGE
+				_swap_window_materials(home, true)
+			break
+
+
+## Gives a house's window surfaces the copies of their materials that run NEIGHBOUR_NUDGE hours
+## early (`early`), or its own again. The copies are made once and are driven with the others (see
+## set_hour); they share the shaders, so nothing is compiled.
+func _swap_window_materials(home: Dictionary, early: bool) -> void:
+	for slot: Array in home.slots:
+		var inst: MeshInstance3D = slot[0]
+		if not is_instance_valid(inst):
+			continue
+		var mat: ShaderMaterial = slot[3]
+		if early:
+			if not _early_mats.has(mat):
+				var copy := mat.duplicate() as ShaderMaterial
+				copy.set_shader_parameter("nudge", NEIGHBOUR_NUDGE)
+				_early_mats[mat] = copy
+				_window_mats[copy] = copy
+			inst.set_surface_override_material(slot[1], _early_mats[mat])
+		else:
+			inst.set_surface_override_material(slot[1], slot[2])
 
 
 func set_hour(new_hour: float) -> void:

@@ -75,6 +75,9 @@ float window_lit(vec2 place) {
 ## and the curtains after. GLSL, and `sched`, `curtains_shut` and `shutters_shut` below the same in
 ## GDScript (the sounds of the shutters follow the shader, see Outdoor._shutter_sounds).
 const SHUT_FUNCTION := """
+// A house whose people are about acts a little early (see Outdoor._mind_the_neighbours): it gets a
+// copy of the material with this many hours added to its clock.
+uniform float nudge = 0.0;
 float sched(vec2 place) {
 	vec2 k = floor(place * 4.0 + 0.5);
 	return fract(dot(k, vec2(0.7548776662, 0.5698402910)));
@@ -86,33 +89,42 @@ float sched_shutters(vec2 place) {
 float curtains_shut(vec2 place, float magic) {
 	float h = sched(place);
 	float lag = max(magic - 1.0, 0.0) * %f;
+	float now = hour + nudge;
 	if (hour < 12.0) {
 		float open = (magic > 0.5 ? %f + lag : %f + %f * h);
-		return 1.0 - smoothstep(open, open + %f, hour);
+		return 1.0 - smoothstep(open, open + %f, now);
 	}
 	float back = (magic > 0.5 ? %f + lag : mix(%f, %f, h));
-	return smoothstep(back, back + %f, hour);
+	return smoothstep(back, back + %f, now);
 }
 float shutters_shut(vec2 place, float magic) {
 	float h = sched_shutters(place);
 	float lag = max(magic - 1.0, 0.0) * %f;
+	float now = hour + nudge;
 	if (hour < 12.0) {
 		float open = (magic > 0.5 ? %f + lag : %f + %f * h);
-		return 1.0 - smoothstep(open, open + %f, hour);
+		return 1.0 - smoothstep(open, open + %f, now);
 	}
 	float back = (magic > 0.5 ? %f + lag : mix(%f, %f, h));
-	return smoothstep(back, back + %f, hour);
+	return smoothstep(back, back + %f, now);
 }
 """ % [MAGE_STEP, MAGE_CURTAINS_OPEN, CURTAINS_OPEN, CURTAINS_OPEN_SPREAD, CURTAIN_DRAW,
 		MAGE_CURTAINS_CLOSE, CURTAINS_CLOSE_FROM, CURTAINS_CLOSE_TO, CURTAIN_DRAW,
 		MAGE_STEP, MAGE_SHUTTERS_OPEN, SHUTTERS_OPEN, SHUTTERS_OPEN_SPREAD, SHUTTER_SWING,
 		MAGE_SHUTTERS_CLOSE, SHUTTERS_CLOSE_FROM, SHUTTERS_CLOSE_TO, SHUTTER_SWING]
 
-## GDScript: whether any window's shutters can be swinging at this hour (the two bands of the cycle).
-## Outside them nothing has to be looked at.
+## How many hours sooner a house acts when someone comes near it (see Outdoor._mind_the_neighbours).
+const NEIGHBOUR_NUDGE := 0.25
+
+
+## GDScript: whether any window's shutters or curtains can be moving at this hour (the two bands of the
+## cycle, widened by the neighbours' nudge). Outside them nothing has to be looked at.
 static func shutters_moving(at_hour: float) -> bool:
-	return (at_hour >= SHUTTERS_OPEN - 0.01 and at_hour <= SHUTTERS_OPEN + SHUTTERS_OPEN_SPREAD + SHUTTER_SWING + 0.01) \
-			or (at_hour >= SHUTTERS_CLOSE_FROM - 0.01 and at_hour <= SHUTTERS_CLOSE_TO + SHUTTER_SWING + 0.01)
+	var early := minf(SHUTTERS_OPEN, CURTAINS_OPEN) - NEIGHBOUR_NUDGE - 0.01
+	var late := maxf(SHUTTERS_OPEN + SHUTTERS_OPEN_SPREAD + SHUTTER_SWING, CURTAINS_OPEN + CURTAINS_OPEN_SPREAD + CURTAIN_DRAW) + 0.01
+	var dusk := minf(SHUTTERS_CLOSE_FROM, CURTAINS_CLOSE_FROM) - NEIGHBOUR_NUDGE - 0.01
+	var night := maxf(SHUTTERS_CLOSE_TO + SHUTTER_SWING, CURTAINS_CLOSE_TO + CURTAIN_DRAW) + 0.01
+	return (at_hour >= early and at_hour <= late) or (at_hour >= dusk and at_hour <= night)
 
 
 ## GDScript: the window's own draw for its curtains, 0 to 1 (see SHUT_FUNCTION).
@@ -155,12 +167,10 @@ const CLOTH_FUNCTION := """
 float h21(vec2 p) {
 	return fract(sin(dot(p, vec2(41.31, 289.17))) * 43758.5453);
 }
-vec4 drape(vec2 uv, vec2 hm, vec2 pk, float magic, out vec3 lit_tint) {
-	vec2 q = clamp(vec2(uv.x / 0.8, uv.y / 0.9), 0.0, 1.0);
-	// How much of the pane (in metres) one pixel covers: fine detail (the weave, folds, stripes)
-	// fades out where it is finer than that, or it shimmers as the view moves.
-	float px = fwidth(uv.x) + fwidth(uv.y);
-	// The house's cloth: six dyes, a little different from house to house.
+// What is the same all over one window, worked out once per vertex instead of in every pixel: the
+// house's cloth (six dyes, a little different from house to house) and the window's own whims
+// (x: the house's draw, y: the window's, z: the house's pattern).
+vec3 cloth_dye(vec2 hm) {
 	float hh = h21(hm);
 	vec3 dye = vec3(0.85, 0.8, 0.68);
 	if (hh < 0.17) {
@@ -174,8 +184,18 @@ vec4 drape(vec2 uv, vec2 hm, vec2 pk, float magic, out vec3 lit_tint) {
 	} else if (hh < 0.83) {
 		dye = vec3(0.52, 0.16, 0.26);
 	}
-	dye *= 0.9 + 0.2 * h21(hm + 3.7);
-	float wk = h21(pk * 0.5 + 5.3);
+	return dye * (0.9 + 0.2 * h21(hm + 3.7));
+}
+vec3 cloth_whims(vec2 hm, vec2 pk) {
+	return vec3(h21(hm), h21(pk * 0.5 + 5.3), h21(hm + 9.1));
+}
+vec4 drape(vec2 uv, vec3 dye, vec3 whims, vec2 pk, float magic, out vec3 lit_tint) {
+	vec2 q = clamp(vec2(uv.x / 0.8, uv.y / 0.9), 0.0, 1.0);
+	// How much of the pane (in metres) one pixel covers: fine detail (the weave, folds, stripes)
+	// fades out where it is finer than that, or it shimmers as the view moves.
+	float px = fwidth(uv.x) + fwidth(uv.y);
+	float hh = whims.x;
+	float wk = whims.y;
 	// The drape: a panel at each side of the window, gathered by a tieback in the lower third, narrow
 	// there, wide at the rod and flaring to the hem, so the glass in the middle stays bare. Drawn shut
 	// (see curtains_shut) the two panels meet in the middle.
@@ -196,7 +216,7 @@ vec4 drape(vec2 uv, vec2 hm, vec2 pk, float magic, out vec3 lit_tint) {
 	float cord_y = abs(q.y - tie_y);
 	shade *= 1.0 - 0.25 * (1.0 - shut) * smoothstep(0.1, 0.03, cord_y) * (1.0 - smoothstep(0.03, 0.0, cord_y));
 	// A pattern in the cloth: stripes, checks or plain, by house.
-	float kind = h21(hm + 9.1);
+	float kind = whims.z;
 	vec3 cloth = dye;
 	if (kind < 0.3) {
 		cloth = mix(dye, vec3(0.9, 0.86, 0.74), mix(0.5, step(0.5, fract(d * 15.0)), clamp(1.0 - px * 20.0, 0.0, 1.0)) * 0.55);
@@ -237,17 +257,21 @@ uniform float glow = 0.0;
 varying flat vec2 key;
 varying flat vec2 home;
 varying flat float circle;
+varying flat vec3 dye_v;
+varying flat vec3 whims_v;
 """ + LIT_FUNCTION + SHUT_FUNCTION + CLOTH_FUNCTION + """
 void vertex() {
 	key = UV2 + MODEL_MATRIX[3].xz;
 	home = floor(MODEL_MATRIX[3].xz + 0.5);
 	circle = floor((1.0 - COLOR.b) * 32.000000 + 0.5);
+	dye_v = cloth_dye(home);
+	whims_v = cloth_whims(home, key);
 }
 void fragment() {
 	vec2 q = clamp(vec2(UV.x / 0.8, UV.y / 0.9), 0.0, 1.0);
-	float wk = h21(key * 0.5 + 5.3);
+	float wk = whims_v.y;
 	vec3 lit_cloth;
-	vec4 drawn = drape(UV, home, key, circle, lit_cloth);
+	vec4 drawn = drape(UV, dye_v, whims_v, key, circle, lit_cloth);
 	// The dim room between the curtains: a back wall, darker towards the top.
 	vec3 room = vec3(0.17, 0.125, 0.09) * (0.55 + 0.7 * (1.0 - q.y)) * (0.8 + 0.4 * wk);
 	vec3 seen = mix(room, drawn.rgb, drawn.a);
@@ -276,15 +300,19 @@ uniform float glow = 0.0;
 varying flat vec2 key;
 varying flat vec2 home;
 varying flat float circle;
+varying flat vec3 dye_v;
+varying flat vec3 whims_v;
 """ + LIT_FUNCTION + SHUT_FUNCTION + CLOTH_FUNCTION + """
 void vertex() {
 	key = UV2 + MODEL_MATRIX[3].xz;
 	home = floor(MODEL_MATRIX[3].xz + 0.5);
 	circle = floor((1.0 - COLOR.b) * 32.000000 + 0.5);
+	dye_v = cloth_dye(home);
+	whims_v = cloth_whims(home, key);
 }
 void fragment() {
 	vec3 lit_cloth;
-	vec4 drawn = drape(UV, home, key, circle, lit_cloth);
+	vec4 drawn = drape(UV, dye_v, whims_v, key, circle, lit_cloth);
 	if (drawn.a < 0.5) {
 		discard;
 	}

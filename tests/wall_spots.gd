@@ -48,5 +48,15 @@ func _initialize() -> void:
 	check(not WallPlacements.door_of(wall).is_empty(), "the sample wall's door leads somewhere")
 	var again := WallMap.parse(wall.to_text())
 	check(again.door == wall.door and again.markers.size() == wall.markers.size(), "the door and the markers survive saving")
+	# A rest place sits on a rock ledge three squares wide.
+	var camps := WallBuild.new(wall).camp_mesh()
+	check(camps != null, "a rest place has a ledge")
+	if camps != null:
+		var box := camps.get_aabb()
+		check(box.size.x >= WallBuild.CAMP_LEDGE_WIDTH, "the ledge reaches %.1f squares" % box.size.x)
+		check(camps.surface_get_arrays(0)[Mesh.ARRAY_COLOR] != null, "the ledge is weathered like the face")
+		var node := WallBuild.node(wall)
+		check(node.get_node_or_null("CampLedges") != null, "the wall draws the ledge")
+		node.free()
 	print("PASS" if failures == 0 else "FAILED %d" % failures)
 	quit(1 if failures > 0 else 0)

@@ -1,0 +1,1 @@
+- New Fame page in the quests window: four ratings (Regional Hero Level, Richness, Mastery of Crafts, Exploration) with a level, a title and a hint on how to rise.

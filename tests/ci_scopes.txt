@@ -82,4 +82,5 @@ mine_claims.gd | scripts/mine_claims.gd scripts/mine_work.gd scripts/property_re
 own_mine.gd | scripts/own_mine.gd scripts/mine_claims.gd scripts/mine_work.gd scripts/lang/own_mine.gd levels/43_deine_mine.txt
 wall_climb_screen.gd | scripts/wall_stage.gd scripts/wall_screens.gd
 wealth.gd | scripts/wealth*.gd scripts/lang/wealth.gd
+fame.gd | scripts/fame*.gd scripts/lang/fame.gd
 hoof_prints.gd | scripts/snow_trail.gd scripts/snow_prints.gd scripts/farm_animal.gd assets/animals/*

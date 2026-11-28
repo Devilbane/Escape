@@ -49,6 +49,8 @@ var saved_now := ""
 ## opinion of the hero), "rezepte" (the recipes found and the ingredient pouch) or "patchnotes"
 ## (the notes of every build, see PatchHistory).
 var compendium_page := "wissen"
+## The page of the quests window: "log" (the tasks) or "ruhm" (fame, see Fame).
+var quests_page := "log"
 ## The build whose notes the patch notes page shows; "" for the newest.
 var patch_notes_pick := ""
 ## The inventory's open tab: "tasche" (the bag) or "beutel" (the ingredient pouch).
@@ -245,7 +247,7 @@ const WINDOW_SIZES := {
 	"kampfstil": Vector2(700, 330),
 	"kompendium": Vector2(990, 600),
 	"karte": Vector2(980, 616),
-	"auftraege": Vector2(760, 532),
+	"auftraege": Vector2(760, 640),
 	CoopWindow.KIND: Vector2(720, 540),
 	SettingsWindow.KIND: SettingsWindow.SIZE,
 	PlotOffice.KIND: Vector2(640, 500),
@@ -4969,7 +4971,36 @@ func _build_quest_log() -> void:
 ## worth doing next, then every task taken on, as in the compendium.
 func _build_quests() -> void:
 	_add_label(Lang.t("Aufträge"), 38, game.GOLD, game.TITLE_FONT)
-	_build_quest_log()
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	_box.add_child(tabs)
+	for tab in [["log", Lang.t("Aufträge")], ["ruhm", Lang.t("Ruhm")]]:
+		var b := _item_button(tab[1], func():
+			quests_page = tab[0]
+			_rebuild())
+		b.custom_minimum_size = Vector2(200, 44)
+		b.modulate = Color(1.0, 0.9, 0.6) if quests_page == tab[0] else Color(0.75, 0.75, 0.8)
+		tabs.add_child(b)
+	if quests_page == "ruhm":
+		_build_fame()
+	else:
+		_build_quest_log()
+
+
+## The fame page of the quests window: the four ratings (see Fame) in a region that is kept still, so that nothing
+## shifts when the hero's standing changes.
+func _build_fame() -> void:
+	var title: Label = game._make_label(game.TITLE_FONT, 21, game.GOLD)
+	title.text = Lang.t("Ruhm in %s") % Lang.t(Fame.REGIONS[Fame.DEFAULT_REGION])
+	title.custom_minimum_size = Vector2(FamePage.WIDTH, 30)
+	_box.add_child(title)
+	var area := Control.new()
+	area.custom_minimum_size = Vector2(FamePage.WIDTH, FamePage.CARD_HEIGHT * 4 + FamePage.CARD_GAP * 3)
+	_box.add_child(area)
+	var list := VBoxContainer.new()
+	area.add_child(list)
+	FamePage.build(self, list)
 
 
 ## Short hints on what is worth doing next, most pressing first: tasks ready
